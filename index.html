@@ -51,7 +51,7 @@ header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; backg
 .chip { flex: none; min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 15px; white-space: nowrap; }
 .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); font-weight: 700; }
 
-main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 0px)); }
+main { padding-block: 8px calc(var(--tabh) + 84px + env(safe-area-inset-bottom, 0px)); }
 .view[hidden] { display: none; }
 .count { color: var(--muted); font-size: 13px; margin: 6px 0 4px; }
 
@@ -125,7 +125,7 @@ nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
 .total b { font-family: var(--display); font-size: 40px; color: var(--brass); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
 .confirm { margin-top: 10px; padding: 12px; border: 1px solid var(--warn); border-radius: 10px; }
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 700; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 76px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 700; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-top: 14px; text-align: center; }
 .card .g { display: block; width: 90px; height: 104px; margin: 0 auto; }
 .card .g svg { width: 100%; height: 100%; }
@@ -155,6 +155,17 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 .ing b { color: var(--brass); font-size: 20px; text-align: right; white-space: nowrap; }
 .ing span { font-weight: 700; }
 .ing em { display: block; font-style: normal; font-weight: 400; color: var(--muted); font-size: 14px; }
+.roundpill { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 14px + env(safe-area-inset-bottom, 0px)); z-index: 9; background: var(--brass); color: var(--brass-ink); font-weight: 700; font-size: 16px; padding: 12px 20px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.5); white-space: nowrap; min-height: 48px; }
+.addr { width: 100%; margin-top: 10px; min-height: 48px; }
+.addr.in { border-color: var(--brass); color: var(--brass); }
+.rrow { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.rrow > button:first-child { text-align: left; min-width: 0; }
+.rrow .n { font-weight: 700; font-size: 17px; }
+.rrow .s { color: var(--muted); font-size: 14px; }
+.rgroup { margin-top: 16px; }
+.rgroup h4 { margin: 0 0 4px; font-family: var(--display); font-size: 22px; text-transform: uppercase; color: var(--brass); }
+.rtotal { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; font-size: 18px; }
+.rtotal b { font-family: var(--display); font-size: 34px; }
 .how { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--brass); }
 .how .lab { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--brass); }
 .how .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 4px; font-weight: 700; font-size: 17px; }
@@ -191,6 +202,7 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 .pn .btn:last-child { text-align: right; }
 .hero .g { width: 88px !important; height: 110px !important; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
 .hero { grid-template-columns: 88px 1fr !important; }
+.hero.solo { grid-template-columns: 1fr !important; }
 .row .g { width: 44px; height: 55px; }
 .row { grid-template-columns: 44px 1fr auto; }
 .prep { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; width: 100%; text-align: left; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
@@ -299,6 +311,7 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 </nav>
 
 <div id="sheet" class="sheet gut" hidden role="dialog" aria-modal="true" aria-labelledby="sh-name"></div>
+<button id="roundpill" class="roundpill" hidden></button>
 <div id="toast" class="toast" hidden></div>
 
 <script>
@@ -576,6 +589,7 @@ function openSheet(id, keepScroll) {
     </div>
     ${teamOut.has(d.name) && !out.has(d.name) ? `<div class="outbar on"><span><b>86'd tonight</b> (team notice). Offer something else.</span></div>` : out.has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
     ${al ? `<div class="allergy"><b>Allergens:</b> ${esc(al)}</div>` : ""}
+    <button class="btn addr${round[d.name] ? " in" : ""}" data-addr="${esc(d.name)}">${round[d.name] ? `\u2713 ${round[d.name]} in the round \u00b7 add another` : "+ Add to round"}</button>
     ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
     <dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl>
@@ -608,7 +622,7 @@ let lock = null;
 async function keepAwake() { try { if (!lock && navigator.wakeLock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch {} }
 function openGuide(name) {
   lastFocus = document.activeElement; keepAwake();
-  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">${esc(name)}</span><span></span></div></div><div class="hero" style="grid-template-columns:1fr"><div><h2 id="sh-name">${esc(name)}</h2><div class="sub">Tap each step when it is done</div></div></div>${guideHtml(DATA.guides[name])}<button class="btn wide" id="sh-close2">Back to drinks</button>`;
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">${esc(name)}</span><span></span></div></div><div class="hero solo"><div><h2 id="sh-name">${esc(name)}</h2><div class="sub">Tap each step when it is done</div></div></div>${guideHtml(DATA.guides[name])}<button class="btn wide" id="sh-close2">Back to drinks</button>`;
   showSheet(false); $("#car").addEventListener("scroll", carSync, { passive: true }); $("#sheet").scrollTop = 0; $("#sh-close").focus();
 }
 function closeSheet() { if (history.state?.sheet) history.back(); else hideSheet(); }
@@ -622,6 +636,10 @@ $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
   const op = e.target.closest("[data-open]"); if (op) { mult = 1; openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
   const gb = e.target.closest("[data-go]"); if (gb) { slideTo(+gb.dataset.go); return; }
+  const ar = e.target.closest("[data-addr]"); if (ar) { addRound(ar.dataset.addr, 1); haptic(); toast(`${ar.dataset.addr} added to the round`); const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
+  const rq = e.target.closest("[data-rq]"); if (rq) { addRound(rq.dataset.n, +rq.dataset.rq); haptic(); openRound(true); return; }
+  const ro = e.target.closest("[data-ropen]"); if (ro) { ctx = roundIds(); mult = 1; openSheet(+ro.dataset.ropen, true); $("#sheet").scrollTop = 0; return; }
+  if (e.target.closest("#r-clear")) { round = {}; store.set("round", round); renderPill(); closeSheet(); toast("Round cleared"); return; }
   const cs = e.target.closest("[data-cs]"); if (cs) { const car = $("#car"); haptic(); carGo(cs.dataset.cs === "0" ? 0 : carIndex(car) + +cs.dataset.cs); return; }
   const mb = e.target.closest("[data-mult]"); if (mb) { const y = $("#sheet").scrollTop; mult = +mb.dataset.mult; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
   const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderChips(); renderList(); return; }
@@ -838,6 +856,38 @@ $("#bell").addEventListener("click", () => show("notices"));
 document.addEventListener("visibilitychange", () => { if (!document.hidden) loadNotices(); });
 setInterval(loadNotices, 5 * 60 * 1000);
 
+/* ---------- Round builder: drinks for one table, total price and the order to make them ---------- */
+let round = store.get("round", {});
+for (const n of Object.keys(round)) if (!byName(n)) delete round[n];
+const roundIds = () => Object.keys(round).map((n) => byName(n).id);
+function addRound(name, n) { round[name] = Math.max(0, (round[name] || 0) + n); if (!round[name]) delete round[name]; store.set("round", round); renderPill(); }
+function renderPill() {
+  const names = Object.keys(round), count = names.reduce((a, n) => a + round[n], 0);
+  const total = names.reduce((a, n) => a + round[n] * byName(n).price, 0);
+  const pill = $("#roundpill"); pill.hidden = !count;
+  pill.textContent = `Round: ${count} ${count === 1 ? "drink" : "drinks"} \u00b7 ${money(total)} \u203a`;
+}
+const methodOf = (d) => {
+  if (/Shots|Bombs/.test(d.section)) return "Shots";
+  const t = DATA.guides[d.name].steps.map((s) => s.title).join("|");
+  return /Shake|Dry shake/.test(t.replace(/Shake the cream/, "")) ? "Shaken" : /\bStir\b/.test(t) ? "Stirred" : "Built";
+};
+const ORDER = [["Built", "Long drinks, spritzes and serves. Ice holds them, so make these first."], ["Stirred", "Spirit-forward and slow to dilute. Make these next."], ["Shaken", "Foam and chill fade fast, so shake these last."], ["Shots", "Pour right before the tray goes out."]];
+function openRound(keep) {
+  const y = $("#sheet").scrollTop;
+  const items = Object.keys(round).map(byName);
+  const total = items.reduce((a, d) => a + round[d.name] * d.price, 0), count = items.reduce((a, d) => a + round[d.name], 0);
+  const row = (d) => `<div class="rrow"><button data-ropen="${d.id}"><div class="n">${round[d.name]} \u00d7 ${esc(d.name)}</div><div class="s">${esc(d.glass)} \u00b7 ${money(d.price * round[d.name])}</div></button><button class="round" data-rq="-1" data-n="${esc(d.name)}" aria-label="One less ${esc(d.name)}">\u2212</button><button class="round plus" data-rq="1" data-n="${esc(d.name)}" aria-label="One more ${esc(d.name)}">+</button></div>`;
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">Round</span><span></span></div></div>
+    <div class="hero solo"><div><h2 id="sh-name">This round</h2><div class="sub">${count} ${count === 1 ? "drink" : "drinks"}, in the order to make them. Tap a drink for its spec.</div></div></div>
+    ${count ? ORDER.map(([k, why]) => { const g = items.filter((d) => methodOf(d) === k); return g.length ? `<div class="rgroup"><h4>${k}</h4><p class="note" style="margin:0 0 4px">${why}</p>${g.map(row).join("")}</div>` : ""; }).join("") : `<p class="empty">The round is empty. Open a drink and tap \u201cAdd to round\u201d.</p>`}
+    <div class="rtotal"><span>Total at menu prices</span><b>${money(total)}</b></div>
+    <div class="actions" style="margin-top:16px"><button class="btn danger" id="r-clear">Clear round</button><button class="btn" id="sh-close2">Back to drinks</button></div>`;
+  showSheet(keep);
+  $("#sheet").scrollTop = keep ? y : 0;
+}
+$("#roundpill").addEventListener("click", () => { lastFocus = document.activeElement; openRound(false); });
+
 const TABS = ["drinks", "allergens", "practice", "tally", "info", "notices"];
 function show(tab) {
   if (!TABS.includes(tab)) tab = "drinks";
@@ -858,7 +908,7 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { if (hit) $("#offl").textContent = " · Offline ready ✓"; }).catch(() => {});
 }
 loadNotices();
-renderChips(); renderList();
+renderChips(); renderList(); renderPill();
 show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 </script>
 </body></html>
