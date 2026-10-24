@@ -465,7 +465,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, uid: null, me: null, username: null, admin: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: { open: [], close: [] } };
+const LIVE = { api: null, ready: false, uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: { open: [], close: [] } };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -1044,17 +1044,17 @@ function renderTeamTop() {
       <label class="fld">Username<input id="l-user" autocapitalize="none" autocomplete="username" spellcheck="false"></label>
       <label class="fld">PIN<input id="l-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></label>
       <button class="btn pri wide" id="l-go">Log in</button></div>
-      <details class="setup"><summary>First-time setup (manager only)</summary>
-        <p class="note">Creates the first manager account. You need the setup code you saved in Firebase.</p>
+      <details class="setup"><summary>First-time setup (owner only)</summary>
+        <p class="note">Creates the owner account. You need the setup code you saved in Firebase.</p>
         <label class="fld">Your name<input id="s-name" maxlength="40" autocomplete="name"></label>
         <label class="fld">Username (lower case letters and numbers)<input id="s-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
         <label class="fld">Choose a 6-digit PIN<input id="s-pin" type="password" inputmode="numeric" maxlength="6"></label>
         <label class="fld">Setup code<input id="s-code" type="password" autocomplete="off"></label>
-        <button class="btn wide" id="s-go">Create manager account</button></details>`;
+        <button class="btn wide" id="s-go">Create owner account</button></details>`;
     return;
   }
   if (!LIVE.me) { $("#team").innerHTML = `<p class="note">Checking your account…</p>`; return; }
-  $("#team").innerHTML = `<p class="note">Logged in as <b>${esc(LIVE.me)}</b> (${esc(LIVE.username)})${LIVE.admin ? ", manager" : ""}. <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>`;
+  $("#team").innerHTML = `<p class="note">Logged in as <b>${esc(LIVE.me)}</b> (${esc(LIVE.username)})${LIVE.owner ? ", owner" : LIVE.admin ? ", manager" : ""}. <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>`;
   if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Pin a notice</summary>
     <label class="fld">Notice for everyone<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
     <div class="actions"><button class="btn pri" id="p-go">Pin it</button></div></details>`;
@@ -1066,14 +1066,15 @@ function renderTeamTop() {
       <label class="fld">Name<input id="a-name" maxlength="40"></label>
       <label class="fld">Username (lower case letters and numbers)<input id="a-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="6" value="${newPin()}"></label>
-      <label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, manages the team)</option></select></label>
+      ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button></details>`;
   renderPins(); renderRequests(); renderFeed(); renderReports(); renderOutlog(); renderStaff();
 }
+const ROLE = { owner: "Owner", manager: "Manager", staff: "Staff" };
 function renderStaff() {
   const box = $("#staff-list"); if (!box) return;
-  box.innerHTML = (staffMsg ? `<div class="confirm" style="border-color:var(--brass)">${staffMsg}</div>` : "") + LIVE.staff.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}${p.uid === LIVE.uid ? " (you)" : ""}</div><div class="s">${esc(p.username)} · ${p.role === "manager" ? "Manager" : "Staff"}</div>
-    ${p.uid === LIVE.uid ? "" : `<div class="actions"><button class="btn" data-role="${p.uid}">${p.role === "manager" ? "Make staff" : "Make manager"}</button><button class="btn" data-reset="${p.uid}">Reset PIN</button><button class="btn danger" data-remove="${p.uid}">Remove</button></div>`}</div>`).join("");
+  box.innerHTML = (staffMsg ? `<div class="confirm" style="border-color:var(--brass)">${staffMsg}</div>` : "") + LIVE.staff.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}${p.uid === LIVE.uid ? " (you)" : ""}</div><div class="s">${esc(p.username)} · ${ROLE[p.role]}</div>
+    ${p.uid === LIVE.uid || p.role === "owner" || (!LIVE.owner && p.role !== "staff") ? "" : `<div class="actions">${LIVE.owner ? `<button class="btn" data-role="${p.uid}">${p.role === "manager" ? "Make staff" : "Make manager"}</button>` : ""}<button class="btn" data-reset="${p.uid}">Reset PIN</button><button class="btn danger" data-remove="${p.uid}">Remove</button></div>`}</div>`).join("");
 }
 function renderPins() {
   if (!LIVE.me) return;
@@ -1166,7 +1167,7 @@ $("#v-notices").addEventListener("click", (e) => {
   } else if (b.id === "s-go") {
     const name = val("#s-name"), u = val("#s-user").toLowerCase(), pin = val("#s-pin"), code = val("#s-code");
     if (!name || !A.USER.test(u) || !A.PIN.test(pin) || !code) return toast("Fill in every box. Username: lower case letters and numbers. PIN: 6 digits");
-    busy(b, "Creating…", A.setup(name, u, pin, code).then(() => toast("Manager account created")).catch((x) => toast(x.message)));
+    busy(b, "Creating…", A.setup(name, u, pin, code).then(() => toast("Owner account created")).catch((x) => toast(x.message)));
   } else if (b.id === "l-out") {
     if (confirm("Log out on this phone?")) A.logout();
   } else if (b.id === "l-chg") {
@@ -1177,7 +1178,7 @@ $("#v-notices").addEventListener("click", (e) => {
     const t = val("#c-text"); if (!t) return;
     A.post(t).catch(() => toast("Post not sent. Try again")); $("#c-text").value = ""; haptic();
   } else if (b.id === "a-go") {
-    const name = val("#a-name"), u = val("#a-user").toLowerCase(), pin = val("#a-pin"), role = $("#a-role").value;
+    const name = val("#a-name"), u = val("#a-user").toLowerCase(), pin = val("#a-pin"), role = LIVE.owner ? $("#a-role").value : "staff";
     if (!name || !A.USER.test(u) || !A.PIN.test(pin)) return toast("Fill in every box. Username: lower case letters and numbers. PIN: 6 digits");
     busy(b, "Adding…", A.addPerson(name, u, pin, role).then(() => {
       staffMsg = `Added ${esc(name)}. Tell them: username <b>${esc(u)}</b>, PIN <b>${pin}</b>. The PIN isn't shown again.`;
