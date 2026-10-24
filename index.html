@@ -201,7 +201,47 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 .notice h3 { font-family: var(--body); text-transform: none; font-size: 18px; font-weight: 700; }
 .notice p { margin: 6px 0 0; }
 .notice .n86 { color: var(--warn); font-weight: 700; }
-@media (prefers-reduced-motion: no-preference) { .sheet { animation: up .18s ease-out; } @keyframes up { from { transform: translateY(16px); opacity: .6; } } }
+/* Swipe between drinks: the page follows your finger */
+.sw { touch-action: pan-y; will-change: transform; }
+/* Step by step: one swipeable card per step */
+.need { margin: 10px 0 0; color: var(--muted); font-size: 15px; }
+.need b { color: var(--fg); }
+.sw.compact .hero { grid-template-columns: 56px 1fr !important; margin-top: 8px; }
+.sw.compact .hero .g { width: 56px !important; height: 70px !important; }
+.sw.compact .hero h2 { font-size: 26px; }
+.sw.compact .hero .sub { display: none; }
+.sw.compact .badges { display: none; }
+.cprog { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 16px; }
+.cprog b { font-family: var(--display); font-size: 22px; text-transform: uppercase; color: var(--brass); }
+.dots { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: background .2s, transform .2s; }
+.dots i.on { background: var(--brass); transform: scale(1.35); }
+.dots i.ok { background: var(--ok); }
+.car { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x pan-y; margin-top: 10px; }
+.car::-webkit-scrollbar { display: none; }
+.car > * { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; margin-top: 0 !important; }
+.car .step .pic svg { max-height: 34vh; }
+.car .step.done { opacity: 1; }
+.car .step.done .pic { opacity: .5; }
+.fin { display: grid; place-items: center; align-content: center; gap: 12px; text-align: center; border: 1px solid var(--ok); border-radius: 14px; background: var(--surface); padding: 30px 16px; }
+.fin .big { font-size: 54px; line-height: 1; color: var(--ok); }
+.fin h4 { margin: 0; font-family: var(--display); font-size: 30px; text-transform: uppercase; }
+.cnav { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-top: 10px; }
+.cnav .btn { min-height: 52px; font-size: 17px; }
+.cnav .btn[disabled] { opacity: .35; }
+/* Touch feedback */
+.row, .btn, .chip, .tile, .tab, .round, .prep { -webkit-tap-highlight-color: transparent; }
+.btn, .chip, .tile, .round, .star { transition: transform .08s ease-out; }
+.btn:active, .chip:active, .tile:active, .round:active, .star:active { transform: scale(.96); }
+.row { transition: background .12s; border-radius: 10px; }
+.row:active { background: var(--surface); }
+.swhint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); transform: translateX(-50%); z-index: 25; background: var(--brass); color: var(--brass-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.5); pointer-events: none; white-space: nowrap; }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet { animation: up .22s cubic-bezier(.2,.8,.2,1); } @keyframes up { from { transform: translateY(40px); opacity: .4; } }
+  .sheet.closing { animation: down .18s ease-in forwards; } @keyframes down { to { transform: translateY(60px); opacity: 0; } }
+  .swhint { animation: nudge 1.6s ease-in-out 2; } @keyframes nudge { 0%, 100% { transform: translateX(-50%); } 30% { transform: translateX(calc(-50% - 18px)); } 60% { transform: translateX(calc(-50% + 18px)); } }
+  .step h4 span { transition: background .2s; }
+}
 </style>
 
 <div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><div class="brandr"><small>Soho · Staff<span id="offl"></span></small><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
@@ -331,6 +371,7 @@ ${garnishSvg(garnish, s.rim)}</svg>`;
 })();
 
 const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => r.querySelectorAll(s);
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const D = DATA.drinks;
 const SECTIONS = [...new Set(D.map((d) => d.section))];
@@ -447,11 +488,24 @@ function steps(method) {
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
   return parts.length > 1 ? `<ol class="steps">${parts.map((p) => `<li>${esc(cap(p))}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0">${esc(method)}</p>`;
 }
-function guideHtml(g) {
+function guideHtml(g, nextName) {
   const chip = (i) => `<span class="${i.note ? "chk" : ""}">${i.ml != null ? `<b>${i.ml} ml</b> ` : ""}${esc(i.item)}${i.hint ? ` <em>${esc(i.hint)}</em>` : ""}${i.note ? ` <em>(${esc(i.note)})</em>` : ""}</span>`;
-  return `<div class="h3">You need</div><div class="tools">${g.tools.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}</div>
-    ${g.steps.map((st) => `<div class="step"><div class="pic" aria-hidden="true">${DATA.scenes[st.sv]}</div><div class="body"><span class="tick">Tap when done</span><h4><span>${st.n}</span>${esc(st.title)}</h4><p>${esc(st.text)}</p>${st.items.length ? `<div class="ing">${st.items.map(chip).join("")}</div>` : ""}</div></div>`).join("")}`;
+  return `<p class="need"><b>You need:</b> ${g.tools.map(esc).join(", ")}</p>
+    <div class="cprog"><b id="cnum">Step 1 of ${g.steps.length}</b><span class="dots" aria-hidden="true">${g.steps.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}<i></i></span></div>
+    <div class="car" id="car">${g.steps.map((st) => `<div class="step"><div class="pic" aria-hidden="true">${DATA.scenes[st.sv]}</div><div class="body"><span class="tick">Tap when done</span><h4><span>${st.n}</span>${esc(st.title)}</h4><p>${esc(st.text)}</p>${st.items.length ? `<div class="ing">${st.items.map(chip).join("")}</div>` : ""}</div></div>`).join("")}
+      <div class="fin"><span class="big">\u2713</span><h4>Ready to serve</h4><p class="note" style="margin:0">Check the garnish and the glass, then send it.</p>${nextName ? `<button class="btn pri" data-go="1">Next drink: ${esc(nextName)} \u203a</button>` : ""}<button class="btn" data-cs="0">Back to step 1</button></div></div>
+    <div class="cnav"><button class="btn" data-cs="-1" disabled>\u2039 Back</button><button class="btn pri" data-cs="1">Next step \u203a</button></div>`;
 }
+function carIndex(car) { return Math.round(car.scrollLeft / (car.clientWidth + 12)); }
+function carGo(i) { const car = $("#car"); if (!car) return; const n = car.children.length; i = Math.max(0, Math.min(n - 1, i)); car.scrollTo({ left: i * (car.clientWidth + 12), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }
+function carSync() {
+  const car = $("#car"); if (!car) return;
+  const i = carIndex(car), n = car.children.length;
+  $("#cnum").textContent = i < n - 1 ? `Step ${i + 1} of ${n - 1}` : "All done";
+  [...$$(".dots i")].forEach((d, k) => { d.classList.toggle("on", k === i); d.classList.toggle("ok", k !== i && car.children[k].classList.contains("done")); });
+  const [b, f] = $$(".cnav .btn"); b.disabled = i === 0; f.hidden = i >= n - 1; b.style.gridColumn = i >= n - 1 ? "1 / -1" : "";
+}
+function haptic() { try { navigator.vibrate?.(8); } catch {} }
 const BASES = [["vodka", /vodka|smirnoff|c[iî]roc|grey goose|belvedere|chase/i], ["gin", /\bgin\b|tanqueray|aviation|roku|monkey 47|botanist|drumshanbo|brockmans|cygnet/i], ["rum", /\brum\b|captain morgan|kraken|zacapa|52north|cacha/i], ["tequila", /tequila|jimador|casamigos|don julio|clase azul|mezcal/i], ["whisky", /whisk|bourbon|buffalo trace|jack daniel|jameson|bulleit|elijah|michter/i], ["fizz", /prosecco/i]];
 const baseOf = (d) => { const t = d.spec.join(" "); const b = BASES.find(([, re]) => re.test(t)); return b ? b[0] : "other"; };
 const kindOf = (d) => /Shots|Bombs/.test(d.section) ? "shot" : d.section === "Zero Proof" ? "zero" : d.section === "Pitchers" ? "pitcher" : "cocktail";
@@ -468,9 +522,23 @@ let ctx = null;
 function navHtml(id) {
   const i = ctx.indexOf(id); if (i < 0 || ctx.length < 2) return "";
   const pv = D[ctx[(i - 1 + ctx.length) % ctx.length]], nx = D[ctx[(i + 1) % ctx.length]];
-  return `<div class="pn"><button class="btn" data-go="-1">\u2039 ${esc(pv.name)}</button><button class="btn" data-go="1">${esc(nx.name)} \u203a</button></div><p class="note" style="text-align:center">${i + 1} of ${ctx.length} \u00b7 swipe left or right</p>`;
+  return `<div class="pn"><button class="btn" data-go="-1">\u2039 ${esc(pv.name)}</button><button class="btn" data-go="1">${esc(nx.name)} \u203a</button></div><p class="note" style="text-align:center">${i + 1} of ${ctx.length} \u00b7 swipe the page for the next drink</p>`;
 }
 function go(step) { const i = ctx.indexOf(curId); if (i < 0) return; mult = 1; openSheet(ctx[(i + step + ctx.length) % ctx.length], true); $("#sheet").scrollTop = 0; }
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Slide the current drink off in the swipe direction, then slide the next one in from the other side.
+function slideTo(step) {
+  const sw = $("#sw"); haptic();
+  if (!sw || calm()) return go(step);
+  sw.style.transition = "transform .16s ease-in, opacity .16s ease-in";
+  sw.style.transform = `translateX(${step > 0 ? -60 : 60}%)`; sw.style.opacity = "0";
+  setTimeout(() => {
+    go(step);
+    const nw = $("#sw"); nw.style.transition = "none"; nw.style.transform = `translateX(${step > 0 ? 40 : -40}%)`; nw.style.opacity = "0";
+    nw.getBoundingClientRect();
+    nw.style.transition = "transform .24s cubic-bezier(.2,.8,.2,1), opacity .2s"; nw.style.transform = ""; nw.style.opacity = "";
+  }, 150);
+}
 function openSheet(id, keepScroll) {
   const d = D[id];
   if (!keepScroll) { ctx = listIds.includes(id) && !$("#v-drinks").hidden ? listIds.slice() : D.map((x) => x.id); mult = 1; }
@@ -481,6 +549,7 @@ function openSheet(id, keepScroll) {
   $("#sheet").innerHTML = `
     <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">${esc(d.name)}</span><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></div>
       <div class="seg" role="group" aria-label="View"><button data-view="spec" aria-pressed="${view === "spec"}">Spec</button><button data-view="steps" aria-pressed="${view === "steps"}">Step by step</button></div></div>
+    <div class="sw${view === "steps" ? " compact" : ""}" id="sw">
     <div class="hero"><span class="g" aria-hidden="true">${glass(d)}</span><div><h2 id="sh-name">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div></div></div>
     <div class="badges">
       <span class="badge">${priceText(d)}</span>
@@ -488,7 +557,7 @@ function openSheet(id, keepScroll) {
     </div>
     ${teamOut.has(d.name) && !out.has(d.name) ? `<div class="outbar on"><span><b>86'd tonight</b> (team notice). Offer something else.</span></div>` : out.has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
     ${al ? `<div class="allergy"><b>Allergens:</b> ${esc(al)}</div>` : ""}
-    ${view === "steps" ? `<p class="note">Tap each step when it is done. ${esc(d.glass)}, ${esc(d.ice)}, garnish: ${esc(d.garnish)}.</p>` + guideHtml(DATA.guides[d.name]) : `
+    ${view === "steps" ? `<p class="need"><b>${esc(d.glass)}</b> \u00b7 ${esc(d.ice)} \u00b7 ${esc(d.garnish)}</p>` + guideHtml(DATA.guides[d.name], nextName(id)) : `
     <dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl>
     <div class="h3" style="display:flex;justify-content:space-between;align-items:center;gap:8px">Spec<span class="mult" role="group" aria-label="How many">${[1, 2, 3, 4].map((n) => `<button data-mult="${n}" aria-pressed="${n === mult}">\u00d7${n}</button>`).join("")}</span></div>
     ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.${mult > 2 ? " A tin holds 2 shaken drinks, so split it across tins." : ""}</p>` : ""}
@@ -500,40 +569,76 @@ function openSheet(id, keepScroll) {
     ${d.pairsWith ? `<div class="pair"><b>Sell it with:</b> ${esc(d.pairsWith)}</div>` : ""}
     ${navHtml(id)}
     ${isOut(d.name) ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? Mark 86'd</button>`}
-    <button class="btn wide" id="sh-close2">Back to drinks</button>`;
-  $("#sheet").hidden = false; document.body.style.overflow = "hidden";
+    <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
+  showSheet(keepScroll);
+  $("#car")?.addEventListener("scroll", carSync, { passive: true });
   if (!keepScroll) { $("#sheet").scrollTop = 0; $("#sh-close").focus(); }
+  const seen = store.get("swHint", 0);
+  if (!keepScroll && seen < 3 && $("#sheet .pn")) { store.set("swHint", seen + 1); hint("\u2039 Swipe for the next drink \u203a"); }
 }
+function nextName(id) { const i = ctx.indexOf(id); return i < 0 || ctx.length < 2 ? "" : D[ctx[(i + 1) % ctx.length]].name; }
+function hint(text) { document.querySelector(".swhint")?.remove(); const h = document.createElement("div"); h.className = "swhint"; h.textContent = text; document.body.append(h); setTimeout(() => h.remove(), 3400); }
+// The phone's back gesture (and Android back button) closes the drink instead of leaving the app.
+function showSheet(keepScroll) {
+  const sh = $("#sheet"); sh.classList.remove("closing"); sh.hidden = false; document.body.style.overflow = "hidden";
+  if (!keepScroll && !history.state?.sheet) history.pushState({ sheet: 1 }, "");
+}
+window.addEventListener("popstate", () => { if (!$("#sheet").hidden) hideSheet(); });
 let lock = null;
 async function keepAwake() { try { if (!lock && navigator.wakeLock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch {} }
 function openGuide(name) {
   lastFocus = document.activeElement; keepAwake();
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">${esc(name)}</span><span></span></div></div><div class="hero" style="grid-template-columns:1fr"><div><h2 id="sh-name">${esc(name)}</h2><div class="sub">Tap each step when it is done</div></div></div>${guideHtml(DATA.guides[name])}<button class="btn wide" id="sh-close2">Back to drinks</button>`;
-  $("#sheet").hidden = false; $("#sheet").scrollTop = 0; document.body.style.overflow = "hidden"; $("#sh-close").focus();
+  showSheet(false); $("#car").addEventListener("scroll", carSync, { passive: true }); $("#sheet").scrollTop = 0; $("#sh-close").focus();
 }
-function closeSheet() { $("#sheet").hidden = true; document.body.style.overflow = ""; lock?.release?.().catch(() => {}); lock = null; renderQuick(!$("#q").value.trim()); lastFocus?.focus?.(); }
+function closeSheet() { if (history.state?.sheet) history.back(); else hideSheet(); }
+function hideSheet() {
+  const sh = $("#sheet");
+  const done = () => { sh.hidden = true; sh.classList.remove("closing"); };
+  if (calm()) done(); else { sh.classList.add("closing"); setTimeout(done, 170); }
+  document.body.style.overflow = ""; lock?.release?.().catch(() => {}); lock = null; renderQuick(!$("#q").value.trim()); lastFocus?.focus?.();
+}
 $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
   const op = e.target.closest("[data-open]"); if (op) { mult = 1; openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
-  const gb = e.target.closest("[data-go]"); if (gb) { go(+gb.dataset.go); return; }
+  const gb = e.target.closest("[data-go]"); if (gb) { slideTo(+gb.dataset.go); return; }
+  const cs = e.target.closest("[data-cs]"); if (cs) { const car = $("#car"); haptic(); carGo(cs.dataset.cs === "0" ? 0 : carIndex(car) + +cs.dataset.cs); return; }
   const mb = e.target.closest("[data-mult]"); if (mb) { const y = $("#sheet").scrollTop; mult = +mb.dataset.mult; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
   const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderChips(); renderList(); return; }
   const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name; setOut(n, !out.has(n)); toast(out.has(n) ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
-  const st = e.target.closest(".step"); if (st) { st.classList.toggle("done"); st.querySelector(".tick").textContent = st.classList.contains("done") ? "Done \u2713" : "Tap when done"; return; }
+  const st = e.target.closest(".step"); if (st) {
+    st.classList.toggle("done"); st.querySelector(".tick").textContent = st.classList.contains("done") ? "Done \u2713" : "Tap when done"; haptic();
+    const car = st.closest(".car"); if (car && st.classList.contains("done")) setTimeout(() => carGo([...car.children].indexOf(st) + 1), 220); else carSync();
+    return;
+  }
   const v = e.target.closest("[data-view]"); if (v && v.dataset.view !== view) { view = v.dataset.view; store.set("view", view); openSheet(curId, true); $("#sheet").scrollTop = 0; }
 });
 document.addEventListener("keydown", (e) => {
   if ($("#sheet").hidden) return;
   if (e.key === "Escape") closeSheet();
-  if (curId != null && ctx && $("#sheet .pn")) { if (e.key === "ArrowRight") go(1); if (e.key === "ArrowLeft") go(-1); }
+  if (curId != null && ctx && $("#sheet .pn")) { if (e.key === "ArrowRight") slideTo(1); if (e.key === "ArrowLeft") slideTo(-1); }
 });
-let sx = null, sy = 0;
-$("#sheet").addEventListener("touchstart", (e) => { const t = e.touches[0]; sx = t.clientX; sy = t.clientY; }, { passive: true });
-$("#sheet").addEventListener("touchend", (e) => {
-  if (sx == null || !$("#sheet .pn")) return;
-  const t = e.changedTouches[0], dx = t.clientX - sx, dy = t.clientY - sy; sx = null;
-  if (Math.abs(dx) > 70 && Math.abs(dy) < 50) go(dx < 0 ? 1 : -1);
+let drag = null;
+$("#sheet").addEventListener("touchstart", (e) => {
+  drag = null;
+  if (e.touches.length > 1 || e.target.closest(".car, .mult") || !$("#sheet .pn")) return;
+  const t = e.touches[0]; drag = { x: t.clientX, y: t.clientY, dx: 0, lock: null, t: Date.now() };
 }, { passive: true });
+$("#sheet").addEventListener("touchmove", (e) => {
+  if (!drag) return;
+  const t = e.touches[0], dx = t.clientX - drag.x, dy = t.clientY - drag.y;
+  if (!drag.lock && Math.hypot(dx, dy) > 10) drag.lock = Math.abs(dx) > Math.abs(dy) * 1.3 ? "x" : "y";
+  if (drag.lock !== "x") return;
+  e.preventDefault(); drag.dx = dx;
+  const sw = $("#sw"); sw.style.transition = "none"; sw.style.transform = `translateX(${dx}px)`; sw.style.opacity = String(1 - Math.min(Math.abs(dx) / 500, 0.5));
+}, { passive: false });
+$("#sheet").addEventListener("touchend", () => {
+  if (!drag || drag.lock !== "x") { drag = null; return; }
+  const { dx, t } = drag; drag = null;
+  const fast = Math.abs(dx) > 40 && Date.now() - t < 250;
+  if (Math.abs(dx) > 90 || fast) return slideTo(dx < 0 ? 1 : -1);
+  const sw = $("#sw"); sw.style.transition = "transform .2s cubic-bezier(.2,.8,.2,1), opacity .2s"; sw.style.transform = ""; sw.style.opacity = "";
+});
 
 /* ---------- Allergens ---------- */
 const ALLERGENS = [["Milk", /milk/i], ["Gluten", /gluten/i], ["Peanut", /peanut/i], ["Almond", /almond/i], ["Hazelnut", /hazelnut/i], ["Oats", /oat/i], ["Soya", /soya/i], ["Celery", /celery/i], ["Fish", /fish/i]];
