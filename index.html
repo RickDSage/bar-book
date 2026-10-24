@@ -163,14 +163,6 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 .how .flow i { font-style: normal; color: var(--muted); font-weight: 400; }
 .how .into { margin-top: 6px; color: var(--muted); font-size: 15px; }
 .how .into b { color: var(--fg); }
-.tonight { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; padding-block: 4px 6px; margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); scroll-snap-type: x mandatory; }
-.tonight::-webkit-scrollbar { display: none; }
-.tn { flex: none; width: 82%; max-width: 330px; scroll-snap-align: start; background: var(--surface); border: 1px solid var(--brass); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 5px; }
-.tn .k { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--brass); }
-.tn b { font-family: var(--display); font-size: 24px; text-transform: uppercase; line-height: 1; }
-.tn .say { color: var(--muted); font-size: 14px; flex: 1; }
-.tn .actions { margin-top: 2px; flex-wrap: nowrap; }
-.tn .btn { flex: 1; min-height: 44px; padding: 8px 10px; }
 .recent { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .recent .chip { color: var(--fg); }
 .step { cursor: pointer; transition: opacity .15s; }
@@ -450,13 +442,6 @@ function rowHtml(d) {
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
 }
-const TONIGHT = [
-  { tally: "London Cosmo", drink: "London Cosmo", k: "Signature", say: "First round: \u201cOur London Cosmo is red berry and lime with a silky foam. Great with the Cali Chicken.\u201d" },
-  { tally: "Salted Caramel Buzz", drink: "Salted Caramel Buzz", k: "Signature", say: "After food: \u201cThe Salted Caramel Buzz is dessert in a glass, espresso and salted caramel.\u201d" },
-  { tally: "The Paddington", drink: "The Paddington", k: "Signature", say: "Whiskey drinkers: \u201cThe Paddington is a silky whiskey sour with marmalade. Great with the tenders.\u201d" },
-  { tally: "Shot tray (any 4)", guide: "Shot tray", k: "Pick any 4", say: "Groups at the second round: \u201cShot tray for the table? Any four.\u201d" },
-  { tally: "The Boilermaker", drink: "The Boilermaker", k: "Beer + a shot", say: "Beer drinkers: \u201cWant a shot of Jack with that? It\u2019s a Boilermaker.\u201d" },
-];
 const byName = (n) => D.find((d) => d.name === n);
 let recent = store.get("recent", []).filter((id) => D[id]);
 const FLAVOURS = {
@@ -471,19 +456,11 @@ function renderQuick(show) {
   const fl = `<div class="sec" style="margin-top:10px">What does the guest fancy?</div><div class="recent">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
   if (flav || sec !== "All") { $("#quick").innerHTML = fl; return; }
   const rec = recent.length ? `<div class="sec" style="margin-top:10px">Opened recently</div><div class="recent">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  const hide = store.get("pushHidden", false);
-  const head = `<div class="sec" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">Push tonight<button class="chip" data-hidepush style="font-family:var(--body);text-transform:none;min-height:36px">${hide ? "Show" : "Hide"}</button></div>`;
-  if (hide) { $("#quick").innerHTML = head + rec + fl; return; }
-  $("#quick").innerHTML = `${head}<div class="tonight">${TONIGHT.map((t, i) => `<div class="tn"><span class="k">${t.drink && isOut(t.drink) ? "<span style=\"color:var(--warn)\">86'd tonight</span>" : esc(t.k)}</span><b>${esc(t.tally.replace(/ \(.*\)/, ""))}</b><span class="say">${esc(t.say)}</span><div class="actions"><button class="btn" data-tn="${i}">How to make</button></div></div>`).join("")}</div>${rec}${fl}`;
+  $("#quick").innerHTML = rec + fl;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
   const f = e.target.closest("[data-flav]"); if (f) { flav = flav === f.dataset.flav ? null : f.dataset.flav; renderList(); return; }
-  if (e.target.closest("[data-hidepush]")) { store.set("pushHidden", !store.get("pushHidden", false)); renderQuick(true); return; }
-  const b = e.target.closest("[data-tn]"); if (!b) return;
-  const t = TONIGHT[+b.dataset.tn];
-  if (t.guide) return openGuide(t.guide);
-  view = "steps"; openSheet(byName(t.drink).id);
 });
 let listIds = D.map((d) => d.id);
 function renderList() {
