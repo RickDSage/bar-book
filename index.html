@@ -273,16 +273,26 @@ const TONIGHT = [
 ];
 const byName = (n) => D.find((d) => d.name === n);
 let recent = store.get("recent", []).filter((id) => D[id]);
+const FLAVOURS = {
+  "Fruity": ["Fruity"], "Sweet": ["Sweet"], "Sour": ["Sour", "Zesty", "Citrus"], "Fresh & light": ["Fresh", "Light", "Easy"],
+  "Fizzy": ["Fizzy"], "Tropical": ["Tropical"], "Creamy": ["Creamy", "Silky", "Rich"], "Coffee": ["Coffee"],
+  "Strong": ["Strong", "Bold"], "Spicy": ["Spicy", "Hot", "Spiced", "Smoky"], "Bitter": ["Bittersweet", "Bitter", "Dry", "Herbal"],
+};
+let flav = null;
+const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Proof" || d.tags.includes("No alcohol") : d.tags.some((t) => FLAVOURS[flav].includes(t)));
 function renderQuick(show) {
   if (!show) { $("#quick").innerHTML = ""; return; }
+  const fl = `<div class="sec" style="margin-top:10px">What does the guest fancy?</div><div class="recent">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
+  if (flav || sec !== "All") { $("#quick").innerHTML = fl; return; }
   const rec = recent.length ? `<div class="sec" style="margin-top:10px">Opened recently</div><div class="recent">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
   const hide = store.get("pushHidden", false);
   const head = `<div class="sec" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">Push tonight<button class="chip" data-hidepush style="font-family:var(--body);text-transform:none;min-height:36px">${hide ? "Show" : "Hide"}</button></div>`;
-  if (hide) { $("#quick").innerHTML = head + rec; return; }
-  $("#quick").innerHTML = `${head}<div class="tonight">${TONIGHT.map((t, i) => `<div class="tn"><span class="k">${t.drink && out.has(t.drink) ? "<span style=\"color:var(--warn)\">86'd tonight</span>" : esc(t.k)}</span><b>${esc(t.tally.replace(/ \(.*\)/, ""))}</b><span class="say">${esc(t.say)}</span><div class="actions"><button class="btn" data-tn="${i}">${t.sec ? "See shakes" : "How to make"}</button><button class="btn pri" data-tnplus="${i}">+1 sold</button></div></div>`).join("")}</div>${rec}`;
+  if (hide) { $("#quick").innerHTML = head + rec + fl; return; }
+  $("#quick").innerHTML = `${head}<div class="tonight">${TONIGHT.map((t, i) => `<div class="tn"><span class="k">${t.drink && out.has(t.drink) ? "<span style=\"color:var(--warn)\">86'd tonight</span>" : esc(t.k)}</span><b>${esc(t.tally.replace(/ \(.*\)/, ""))}</b><span class="say">${esc(t.say)}</span><div class="actions"><button class="btn" data-tn="${i}">${t.sec ? "See shakes" : "How to make"}</button><button class="btn pri" data-tnplus="${i}">+1 sold</button></div></div>`).join("")}</div>${rec}${fl}`;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
+  const f = e.target.closest("[data-flav]"); if (f) { flav = flav === f.dataset.flav ? null : f.dataset.flav; renderList(); return; }
   if (e.target.closest("[data-hidepush]")) { store.set("pushHidden", !store.get("pushHidden", false)); renderQuick(true); return; }
   const p = e.target.closest("[data-tnplus]"); if (p) { const t = TONIGHT[+p.dataset.tnplus]; bump(t.tally, 1); toast(`${t.tally}: ${tally[t.tally]} sold`); return; }
   const b = e.target.closest("[data-tn]"); if (!b) return;
@@ -294,8 +304,8 @@ $("#quick").addEventListener("click", (e) => {
 function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const words = q.split(/\s+/).filter(Boolean);
-  renderQuick(!q && sec === "All");
-  let rows = D.filter((d) => (sec === "All" || (sec === "House cards" ? d.src === "card" : d.section === sec)) && words.every((w) => d._h.includes(w)));
+  renderQuick(!q);
+  let rows = D.filter((d) => (sec === "All" || (sec === "House cards" ? d.src === "card" : d.section === sec)) && words.every((w) => d._h.includes(w)) && (q ? true : flavHit(d)));
   $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}${q ? ` matching “${$("#q").value.trim()}”` : ""}`;
   if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search.</p>`; return; }
   let html = "", last = "";
@@ -323,6 +333,17 @@ function guideHtml(g) {
   return `<div class="h3">You need</div><div class="tools">${g.tools.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}</div>
     ${g.steps.map((st) => `<div class="step"><div class="pic" aria-hidden="true">${DATA.scenes[st.sv]}</div><div class="body"><span class="tick">Tap when done</span><h4><span>${st.n}</span>${esc(st.title)}</h4><p>${esc(st.text)}</p>${st.items.length ? `<div class="ing">${st.items.map(chip).join("")}</div>` : ""}</div></div>`).join("")}`;
 }
+const BASES = [["vodka", /vodka|smirnoff|c[iî]roc|grey goose|belvedere|chase/i], ["gin", /\bgin\b|tanqueray|aviation|roku|monkey 47|botanist|drumshanbo|brockmans|cygnet/i], ["rum", /\brum\b|captain morgan|kraken|zacapa|52north|cacha/i], ["tequila", /tequila|jimador|casamigos|don julio|clase azul|mezcal/i], ["whisky", /whisk|bourbon|buffalo trace|jack daniel|jameson|bulleit|elijah|michter/i], ["fizz", /prosecco/i]];
+const baseOf = (d) => { const t = d.spec.join(" "); const b = BASES.find(([, re]) => re.test(t)); return b ? b[0] : "other"; };
+const kindOf = (d) => /Shots|Bombs/.test(d.section) ? "shot" : d.section === "Zero Proof" ? "zero" : d.section === "Spike Your Shake" ? "shake" : d.section === "Pitchers" ? "pitcher" : "cocktail";
+D.forEach((d) => { d._b = baseOf(d); d._k = kindOf(d); });
+function tryInstead(d) {
+  const picks = D.filter((x) => x !== d && x._k === d._k && !out.has(x.name))
+    .map((x) => [x, (x._b === d._b && d._b !== "other" ? 3 : 0) + x.tags.filter((t) => d.tags.includes(t)).length + (x.section === d.section ? 0.5 : 0) + (x.official ? 0.25 : 0)])
+    .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([x]) => x);
+  if (!picks.length) return "";
+  return `<div class="h3">${out.has(d.name) ? "Offer instead" : "Similar drinks"}</div><div class="recent">${picks.map((x) => `<button class="chip" data-open="${x.id}">${esc(x.name)}</button>`).join("")}</div>`;
+}
 let lastFocus = null, view = store.get("view", "spec"), curId = null;
 function openSheet(id, keepScroll) {
   const d = D[id]; curId = id;
@@ -345,6 +366,7 @@ function openSheet(id, keepScroll) {
     <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger. Red lines need checking against the wall card.</p>
     <div class="h3">Method</div>${steps(d.method)}
     `}
+    ${tryInstead(d)}
     ${d.pairsWith ? `<div class="pair"><b>Sell it with:</b> ${esc(d.pairsWith)}</div>` : ""}
     <button class="btn wide" id="sh-close2">Back to drinks</button>`;
   $("#sheet").hidden = false; document.body.style.overflow = "hidden";
@@ -357,9 +379,10 @@ function openGuide(name) {
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">${esc(name)}</span><span></span></div></div><div class="hero" style="grid-template-columns:1fr"><div><h2 id="sh-name">${esc(name)}</h2><div class="sub">Tap each step when it is done</div></div></div>${guideHtml(DATA.guides[name])}<button class="btn wide" id="sh-close2">Back to drinks</button>`;
   $("#sheet").hidden = false; $("#sheet").scrollTop = 0; document.body.style.overflow = "hidden"; $("#sh-close").focus();
 }
-function closeSheet() { $("#sheet").hidden = true; document.body.style.overflow = ""; lock?.release?.().catch(() => {}); lock = null; renderQuick(!$("#q").value.trim() && sec === "All"); lastFocus?.focus?.(); }
+function closeSheet() { $("#sheet").hidden = true; document.body.style.overflow = ""; lock?.release?.().catch(() => {}); lock = null; renderQuick(!$("#q").value.trim()); lastFocus?.focus?.(); }
 $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
+  const op = e.target.closest("[data-open]"); if (op) { openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
   const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name; setOut(n, !out.has(n)); toast(out.has(n) ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
   const st = e.target.closest(".step"); if (st) { st.classList.toggle("done"); st.querySelector(".tick").textContent = st.classList.contains("done") ? "Done \u2713" : "Tap when done"; return; }
   const v = e.target.closest("[data-view]"); if (v && v.dataset.view !== view) { view = v.dataset.view; store.set("view", view); openSheet(curId, true); $("#sheet").scrollTop = 0; }

@@ -1,5 +1,5 @@
-// Bar Book offline support. Version 2026-10-24T05:35
-const CACHE = "bar-book-2026-10-24T05:35";
+// Bar Book offline support. Version 2026-10-24T05:45
+const CACHE = "bar-book-2026-10-24T05:45";
 const CORE = ["./", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png"];
 self.addEventListener("install", (e) => { e.waitUntil(caches.open(CACHE).then((c) => c.addAll(CORE)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", (e) => {
