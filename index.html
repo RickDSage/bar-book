@@ -753,35 +753,41 @@ const LISTS = {
   open: { title: "Opening checklist", items: [
     "Fridges below 5°C. Write the temperatures in the log",
     "Ice well full and clean, ice scoop in its holder (never use a glass)",
-    "Glass washer on, filled and up to temperature",
+    "Glass washer on, rinse aid and detergent topped up, up to temperature",
     "Glassware stocked and polished: coupes, rocks, highballs, flutes, shot glasses",
-    "Fresh lemon and lime juice, sugar syrup, aquafaba (chilled), all labelled and dated",
-    "Garnish cut and covered: limes, lemons, oranges, mint, cherries",
+    "Fresh lemon and lime juice bottles refilled, sugar syrup and aquafaba chilled, all labelled and dated",
+    "Fresh fruit cut and covered: lemon slices, limes, oranges, mint, cherries",
     "Salted caramel sauce, espresso, foamer and strawberry powder ready",
     "Red Bull, pickle brine and Prosecco chilled",
     "Speed rail and back bar stocked, pour spouts on, bottles wiped",
     "Tools clean and out: tins, jiggers, strainers, bar spoons, muddler",
-    "Beer lines checked, pour one of each tap to waste",
+    "Beer lines checked, clingfilm off the taps, pour one of each to waste",
     "Bar mats down, bins lined, surfaces sanitised",
+    "Stock deliveries received and put away",
     "Table menus and easy-read menus out, allergen folder at the bar",
-    "Read the notices and today's 86'd list",
+    "Read the notices, last night's handover note and the 86'd list",
   ] },
   close: { title: "Closing checklist", items: [
     "Last orders called on time, then stop serving",
-    "Glasses collected, washed and put away",
-    "Coffee machine emptied and cleaned",
+    "Upstairs restaurant floor: host station restocked and cleaned",
+    "Milkshake bar closed",
+    "Downstairs bar closed",
+    "Front bar: all surfaces wiped",
+    "Back bar: coffee machine, all surfaces, all fridges, bar trays, tip trays and glasses cleaned",
+    "Beer taps, post mix and taps cleaned and clingfilmed",
     "All open products labelled and dated: juices, syrups, garnish. Bin anything past its date",
     "Bottles capped, necks wiped, pour spouts soaking",
     "Tins, jiggers, strainers and spoons washed and left to dry",
     "Ice well emptied, cleaned and dried",
-    "Beer drip trays and nozzles cleaned, taps clingfilmed",
     "Glass washer drained and cleaned",
-    "Fridges restocked, oldest at the front",
-    "Bar fridges wiped, bar fridge lights off",
-    "Bar counter wiped and sanitised, bar mats washed",
-    "Bins taken out, new bin bags in",
+    "All required bar stock replenished, oldest at the front. Anything we're out of goes on the 86 list",
+    "New batch of sugar syrup made for tomorrow",
+    "Bar storage tidied",
+    "Bar fridge lights off",
+    "Bins emptied and cleaned, new bin bags in",
     "Chairs flipped, floor mopped",
     "Breakages and wastage written in the log",
+    "Photos of the upstairs bar uploaded to the group",
     "Spirits locked away, bar lights off",
   ] },
 };
@@ -789,13 +795,14 @@ const MANAGERS = ["Illias", "Olaya", "Sarul", "Johnny"];
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
+  "Bottled beer": ["Stella bottles", "Corona Cero"],
   "Cider": ["Kopparberg Apple (draught)", "Kopparberg Strawberry & Lime (bottle)", "Kopparberg Mixed Fruit (bottle)"],
-  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Corona Cero", "Tonic", "Slimline tonic"],
+  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Red Bull", "Red Bull Zero", "Crodino", "Tonic", "Slimline tonic"],
   "Water": ["Still water, large", "Still water, small", "Sparkling water, large", "Sparkling water, small"],
   "Wine": ["Prosecco bottle"],
 };
 let closer = store.get("closer", "");
-let ticks = store.get("ticks", { open: [], close: [] });
+let ticks = store.get("ticks2", { open: [], close: [] });
 let shiftNote = store.get("shiftNote", ""), shiftWho = store.get("shiftWho", "");
 function tallyText() {
   const day = new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
@@ -805,7 +812,7 @@ function tallyText() {
     const L = LISTS[k], miss = L.items.filter((_, i) => !ticks[k].includes(i));
     return `${L.title}: ${L.items.length - miss.length} of ${L.items.length} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
   };
-  return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${out.size ? [...out].join(", ") : "nothing"}\n\nSold:\n${lines.join("\n") || "Nothing counted"}\nTotal: ${total}\n\nComments:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
+  return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${out.size ? [...out].join(", ") : "nothing"}\n\nSold:\n${lines.join("\n") || "Nothing counted"}\nTotal: ${total}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
 function checklistHtml(k) {
   const L = LISTS[k], done = ticks[k].length;
@@ -827,7 +834,7 @@ function renderTally() {
     <div class="sec">Comments for the manager</div>
     <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
     <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the bar tonight"></label>
-    <label class="fld">Comments<textarea id="s-note" rows="4" placeholder="Anything that went wrong, ran low, broke or needs fixing">${esc(shiftNote)}</textarea></label>
+    <label class="fld">Note for handover<textarea id="s-note" rows="4" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
     <p class="note">At close, send the report to the manager to sign off. It includes both checklists, anything not done, the 86'd list, the tally and your comments.</p>
     <div class="actions"><button class="btn pri" id="t-copy">Send for sign-off</button><button class="btn danger" id="t-reset">Start a new night</button></div>
     ${confirmReset ? `<div class="confirm">Clear the checklists, comments, counts and the 86'd list on this phone? <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
@@ -853,9 +860,9 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-reset")) { confirmReset = true; renderTally(); }
   if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
   const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
-  const ck = e.target.closest("[data-list]"); if (ck) { const k = ck.dataset.list, i = +ck.dataset.i; ticks[k] = ticks[k].includes(i) ? ticks[k].filter((x) => x !== i) : [...ticks[k], i]; store.set("ticks", ticks); haptic(); renderTally(); return; }
+  const ck = e.target.closest("[data-list]"); if (ck) { const k = ck.dataset.list, i = +ck.dataset.i; ticks[k] = ticks[k].includes(i) ? ticks[k].filter((x) => x !== i) : [...ticks[k], i]; store.set("ticks2", ticks); haptic(); renderTally(); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks", ticks); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); tally = {}; store.set("tally", tally); confirmReset = false; renderTally(); toast("New night started"); }
+  if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks2", ticks); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); tally = {}; store.set("tally", tally); confirmReset = false; renderTally(); toast("New night started"); }
 });
 
 /* ---------- Feedback (Google Form, responses go to the manager) ---------- */
