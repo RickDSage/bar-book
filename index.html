@@ -139,7 +139,7 @@ nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
 .kv dt { font-weight: 700; }
 .kv dd { margin: 0; color: var(--muted); }
 .fld { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); }
-.fld input, .fld textarea { display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; -webkit-appearance: none; appearance: none; }
+.fld input, .fld textarea, .fld select { display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; -webkit-appearance: none; appearance: none; }
 textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 14px/1.4 var(--body); }
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-top: 18px; position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .seg button { min-height: 40px; padding: 8px; border-radius: 9px; font-weight: 700; color: var(--muted); }
@@ -186,6 +186,7 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 .fbbox { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-top: 12px; }
 .fbbtn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; text-decoration: none; margin-top: 4px; }
 a.link86 { text-align: center; margin-top: 0; }
+button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52px; border: 2px solid var(--warn); border-radius: 12px; color: var(--warn); font-weight: 700; font-size: 17px; text-decoration: none; }
 .link86 { display: block; margin: 18px auto 4px; background: none; border: 0; color: var(--muted); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; min-height: 40px; padding: 0 12px; }
 .star { width: 44px; height: 44px; font-size: 26px; color: var(--brass); line-height: 1; }
 .mult { display: inline-flex; gap: 4px; font-family: var(--body); text-transform: none; }
@@ -613,7 +614,7 @@ function openSheet(id, keepScroll) {
     ${tryInstead(d)}
     ${d.pairsWith ? `<div class="pair"><b>Sell it with:</b> ${esc(d.pairsWith)}</div>` : ""}
     ${navHtml(id)}
-    ${isOut(d.name) ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? Mark 86'd</button>`}
+    ${isOut(d.name) ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
@@ -768,19 +769,32 @@ const LISTS = {
   close: { title: "Closing checklist", items: [
     "Last orders called on time, then stop serving",
     "Glasses collected, washed and put away",
-    "Juices and syrups labelled, dated and in the fridge. Bin anything past its date",
-    "Garnish wrapped and fridged or binned. Bin cut fruit over a day old",
+    "Coffee machine emptied and cleaned",
+    "All open products labelled and dated: juices, syrups, garnish. Bin anything past its date",
     "Bottles capped, necks wiped, pour spouts soaking",
     "Tins, jiggers, strainers and spoons washed and left to dry",
     "Ice well emptied, cleaned and dried",
-    "Beer drip trays and nozzles cleaned, taps covered",
+    "Beer drip trays and nozzles cleaned, taps clingfilmed",
     "Glass washer drained and cleaned",
     "Fridges restocked, oldest at the front",
+    "Bar fridges wiped, bar fridge lights off",
+    "Bar counter wiped and sanitised, bar mats washed",
+    "Bins taken out, new bin bags in",
+    "Chairs flipped, floor mopped",
     "Breakages and wastage written in the log",
-    "Surfaces sanitised, bar mats washed, bins emptied, floor mopped",
-    "Spirits locked away, equipment and lights off",
+    "Spirits locked away, bar lights off",
   ] },
 };
+const MANAGERS = ["Illias", "Olaya", "Sarul", "Johnny"];
+// Things that run out besides cocktails. Drinks come from the full list.
+const STOCK = {
+  "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
+  "Cider": ["Kopparberg Apple (draught)", "Kopparberg Strawberry & Lime (bottle)", "Kopparberg Mixed Fruit (bottle)"],
+  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Corona Cero", "Tonic", "Slimline tonic"],
+  "Water": ["Still water, large", "Still water, small", "Sparkling water, large", "Sparkling water, small"],
+  "Wine": ["Prosecco bottle"],
+};
+let closer = store.get("closer", "");
 let ticks = store.get("ticks", { open: [], close: [] });
 let shiftNote = store.get("shiftNote", ""), shiftWho = store.get("shiftWho", "");
 function tallyText() {
@@ -791,7 +805,7 @@ function tallyText() {
     const L = LISTS[k], miss = L.items.filter((_, i) => !ticks[k].includes(i));
     return `${L.title}: ${L.items.length - miss.length} of ${L.items.length} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
   };
-  return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${out.size ? [...out].join(", ") : "nothing"}\n\nSold:\n${lines.join("\n") || "Nothing counted"}\nTotal: ${total}\n\nComments:\n${shiftNote.trim() || "None"}\n\nSign-off (manager): ____________`;
+  return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${out.size ? [...out].join(", ") : "nothing"}\n\nSold:\n${lines.join("\n") || "Nothing counted"}\nTotal: ${total}\n\nComments:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
 function checklistHtml(k) {
   const L = LISTS[k], done = ticks[k].length;
@@ -804,12 +818,14 @@ function renderTally() {
   const row = (n, s) => `<div class="tally-row"><div><div class="n">${esc(n)}</div>${s ? `<div class="s">${esc(s)}</div>` : ""}</div><button class="round" data-t="-1" data-n="${esc(n)}" aria-label="Remove one ${esc(n)}">−</button><span class="v">${tally[n] || 0}</span><button class="round plus" data-t="1" data-n="${esc(n)}" aria-label="Add one ${esc(n)}">+</button></div>`;
   const outList = [...out].sort();
   $("#tally").innerHTML = `${checklistHtml("open")}
-    <div class="sec">86'd tonight</div>${[...teamOut].filter((n) => !out.has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
+    <div class="sec">86'd tonight</div>
+    <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !out.has(x)).map((x) => `<option>${esc(x)}</option>`).join("")}</optgroup>`).join("")}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !out.has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !out.has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
     <div class="sec">Push these five</div>${PUSH.map(([n, s]) => row(n, s)).join("")}
     ${others.length ? `<div class="sec">Everything else sold</div>${others.map((n) => row(n, "")).join("")}` : ""}
     <div class="total"><span>Total sold</span><b>${total}</b></div>
     ${checklistHtml("close")}
     <div class="sec">Comments for the manager</div>
+    <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
     <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the bar tonight"></label>
     <label class="fld">Comments<textarea id="s-note" rows="4" placeholder="Anything that went wrong, ran low, broke or needs fixing">${esc(shiftNote)}</textarea></label>
     <p class="note">At close, send the report to the manager to sign off. It includes both checklists, anything not done, the 86'd list, the tally and your comments.</p>
@@ -817,6 +833,10 @@ function renderTally() {
     ${confirmReset ? `<div class="confirm">Clear the checklists, comments, counts and the 86'd list on this phone? <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
     <textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea>`;
 }
+$("#tally").addEventListener("change", (e) => {
+  if (e.target.id !== "s-86" || !e.target.value) return;
+  const n = e.target.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
+});
 $("#tally").addEventListener("input", (e) => {
   if (e.target.id === "s-who") { shiftWho = e.target.value; store.set("shiftWho", shiftWho); }
   if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
@@ -832,9 +852,10 @@ $("#tally").addEventListener("click", async (e) => {
   }
   if (e.target.closest("#t-reset")) { confirmReset = true; renderTally(); }
   if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
+  const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
   const ck = e.target.closest("[data-list]"); if (ck) { const k = ck.dataset.list, i = +ck.dataset.i; ticks[k] = ticks[k].includes(i) ? ticks[k].filter((x) => x !== i) : [...ticks[k], i]; store.set("ticks", ticks); haptic(); renderTally(); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks", ticks); shiftNote = ""; store.set("shiftNote", ""); out = new Set(); store.set("out", []); renderList(); tally = {}; store.set("tally", tally); confirmReset = false; renderTally(); toast("New night started"); }
+  if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks", ticks); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); tally = {}; store.set("tally", tally); confirmReset = false; renderTally(); toast("New night started"); }
 });
 
 /* ---------- Feedback (Google Form, responses go to the manager) ---------- */
