@@ -213,6 +213,14 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .notice summary { margin-top: 8px; color: var(--brass); font-weight: 700; min-height: 32px; }
 .notice .ok { color: var(--brass); font-weight: 700; }
 .notice .actions { margin-top: 10px; }
+.linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+details.setup { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 8px; }
+details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px; display: flex; align-items: center; }
+.staffrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.staffrow .n { font-weight: 700; }
+.staffrow .s { color: var(--muted); font-size: 14px; }
+.staffrow .actions { margin-top: 8px; }
+.staffrow .actions .btn { padding: 8px 12px; font-size: 15px; min-height: 40px; }
 /* Swipe between drinks: the page follows your finger */
 .sw { touch-action: pan-y; will-change: transform; }
 /* Step by step: one swipeable card per step */
@@ -446,7 +454,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, uid: null, me: null, admin: false, feed: [], out: new Set() };
+const LIVE = { api: null, ready: false, uid: null, me: null, username: null, admin: false, feed: [], out: new Set(), staff: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -928,20 +936,43 @@ const when = (t) => {
 };
 let feedSeen = store.get("feedSeen", 0);
 const feedNew = () => LIVE.feed.filter((x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen);
+const newPin = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, "0");
+let staffMsg = "";
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Comments, shift reports and notices from the team. Newest first." : "Messages from the manager and bar lead. Newest first.";
   if (!LIVE.api) { $("#team").innerHTML = ""; return; }
-  if (!LIVE.uid) { $("#team").innerHTML = `<p class="note">Connecting to the team feed. It needs signal the first time.</p>`; return; }
-  if (!LIVE.me) {
-    $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Join the team feed</h2><p>See comments, the 86'd list and shift reports from everyone on shift, as they happen. Ask the manager for the team passcode. You only do this once on each phone.</p>
-      <label class="fld">Your name<input id="j-name" maxlength="40" autocomplete="name" value="${esc(shiftWho)}"></label>
-      <label class="fld">Team passcode<input id="j-code" type="password" autocomplete="off"></label>
-      <button class="btn pri wide" id="j-go">Join</button></div>`;
+  if (!LIVE.ready) { $("#team").innerHTML = `<p class="note">Connecting to the team feed. It needs signal the first time.</p>`; return; }
+  if (!LIVE.uid) {
+    $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Log in</h2><p>Use the username and 6-digit PIN your manager gave you. You stay logged in on this phone.</p>
+      <label class="fld">Username<input id="l-user" autocapitalize="none" autocomplete="username" spellcheck="false"></label>
+      <label class="fld">PIN<input id="l-pin" type="password" inputmode="numeric" maxlength="6" autocomplete="current-password"></label>
+      <button class="btn pri wide" id="l-go">Log in</button></div>
+      <details class="setup"><summary>First-time setup (manager only)</summary>
+        <p class="note">Creates the first manager account. You need the setup code you saved in Firebase.</p>
+        <label class="fld">Your name<input id="s-name" maxlength="40" autocomplete="name"></label>
+        <label class="fld">Username (lower case letters and numbers)<input id="s-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
+        <label class="fld">Choose a 6-digit PIN<input id="s-pin" type="password" inputmode="numeric" maxlength="6"></label>
+        <label class="fld">Setup code<input id="s-code" type="password" autocomplete="off"></label>
+        <button class="btn wide" id="s-go">Create manager account</button></details>`;
     return;
   }
-  $("#team").innerHTML = `<p class="note">You're in as <b>${esc(LIVE.me)}</b>${LIVE.admin ? " (manager)" : ""}.</p>
+  if (!LIVE.me) { $("#team").innerHTML = `<p class="note">Checking your account…</p>`; return; }
+  $("#team").innerHTML = `<p class="note">Logged in as <b>${esc(LIVE.me)}</b> (${esc(LIVE.username)})${LIVE.admin ? ", manager" : ""}. <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>
     <label class="fld">Write to the team<textarea id="c-text" rows="3" maxlength="2000" placeholder="Running low on limes, a guest comment, anything the team should know"></textarea></label>
-    <div class="actions"><button class="btn pri" id="c-post">Post</button></div>`;
+    <div class="actions"><button class="btn pri" id="c-post">Post</button></div>
+    ${LIVE.admin ? `<details class="setup" id="staff-box"${renderTeamTop.open ? " open" : ""}><summary>Team members</summary><div id="staff-list"></div>
+      <h3 style="font-size:18px;margin-top:16px">Add a person</h3>
+      <label class="fld">Name<input id="a-name" maxlength="40"></label>
+      <label class="fld">Username (lower case letters and numbers)<input id="a-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
+      <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="6" value="${newPin()}"></label>
+      <label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, manages the team)</option></select></label>
+      <button class="btn pri wide" id="a-go">Add person</button></details>` : ""}`;
+  renderStaff();
+}
+function renderStaff() {
+  const box = $("#staff-list"); if (!box) return;
+  box.innerHTML = (staffMsg ? `<div class="confirm" style="border-color:var(--brass)">${staffMsg}</div>` : "") + LIVE.staff.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}${p.uid === LIVE.uid ? " (you)" : ""}</div><div class="s">${esc(p.username)} · ${p.role === "manager" ? "Manager" : "Staff"}</div>
+    ${p.uid === LIVE.uid ? "" : `<div class="actions"><button class="btn" data-role="${p.uid}">${p.role === "manager" ? "Make staff" : "Make manager"}</button><button class="btn" data-reset="${p.uid}">Reset PIN</button><button class="btn danger" data-remove="${p.uid}">Remove</button></div>`}</div>`).join("");
 }
 function renderFeed() {
   if (!LIVE.me) { $("#feed").innerHTML = ""; return; }
@@ -969,27 +1000,59 @@ function liveChanged(what) {
     }
   }
   renderBell();
-  if (what !== "feed") renderList();
-  if (!$("#v-notices").hidden) { if (what === "feed") renderFeed(); else renderNotices(); }
+  if (what === "me" || what === "out") renderList();
+  if (!$("#v-notices").hidden) { if (what === "feed") renderFeed(); else if (what === "staff") renderStaff(); else if (!$("#team").contains(document.activeElement) || what === "me") renderNotices(); }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (what !== "feed" && !$("#v-tally").hidden && !typing) renderTally();
+  if ((what === "me" || what === "out") && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
+const val = (id) => $(id).value.trim();
+const busy = (b, label, p) => { b.disabled = true; const t = b.textContent; b.textContent = label; return p.finally(() => { b.disabled = false; b.textContent = t; }); };
+$("#v-notices").addEventListener("toggle", (e) => { if (e.target.id === "staff-box") renderTeamTop.open = e.target.open; }, true);
 $("#v-notices").addEventListener("click", (e) => {
-  if (e.target.closest("#j-go")) {
-    const name = $("#j-name").value.trim(), code = $("#j-code").value.trim();
-    if (!name || !code) return toast("Add your name and the team passcode");
-    e.target.closest("#j-go").disabled = true; e.target.closest("#j-go").textContent = "Joining…";
-    LIVE.api.join(name, code).then(() => { if (!shiftWho) { shiftWho = name; store.set("shiftWho", name); } toast(LIVE.admin ? "Joined as a manager" : "You're in"); })
-      .catch(() => { toast("That passcode didn't work"); renderNotices(); });
-    return;
+  const A = LIVE.api, b = e.target.closest("button");
+  if (!b) return;
+  const person = (id) => LIVE.staff.find((p) => p.uid === id);
+  if (b.id === "l-go") {
+    const u = val("#l-user").toLowerCase(), pin = val("#l-pin");
+    if (!u || !pin) return toast("Add your username and PIN");
+    busy(b, "Logging in…", A.login(u, pin).then(() => { toast("Logged in"); }).catch((x) => toast(x.message.startsWith("Wrong") ? x.message : "Could not log in. Check your signal")));
+  } else if (b.id === "s-go") {
+    const name = val("#s-name"), u = val("#s-user").toLowerCase(), pin = val("#s-pin"), code = val("#s-code");
+    if (!name || !A.USER.test(u) || !A.PIN.test(pin) || !code) return toast("Fill in every box. Username: lower case letters and numbers. PIN: 6 digits");
+    busy(b, "Creating…", A.setup(name, u, pin, code).then(() => toast("Manager account created")).catch((x) => toast(x.message)));
+  } else if (b.id === "l-out") {
+    if (confirm("Log out on this phone?")) A.logout();
+  } else if (b.id === "l-chg") {
+    const pin = (prompt("New 6-digit PIN") || "").trim(); if (!pin) return;
+    if (!A.PIN.test(pin)) return toast("The PIN must be 6 digits");
+    A.changePin(pin).then(() => toast("PIN changed")).catch(() => toast("Log out and back in, then try again"));
+  } else if (b.id === "c-post") {
+    const t = val("#c-text"); if (!t) return;
+    A.post(t).catch(() => toast("Post not sent. Try again")); $("#c-text").value = ""; haptic();
+  } else if (b.id === "a-go") {
+    const name = val("#a-name"), u = val("#a-user").toLowerCase(), pin = val("#a-pin"), role = $("#a-role").value;
+    if (!name || !A.USER.test(u) || !A.PIN.test(pin)) return toast("Fill in every box. Username: lower case letters and numbers. PIN: 6 digits");
+    busy(b, "Adding…", A.addPerson(name, u, pin, role).then(() => {
+      staffMsg = `Added ${esc(name)}. Tell them: username <b>${esc(u)}</b>, PIN <b>${pin}</b>. The PIN isn't shown again.`;
+      renderTeamTop();
+    }).catch((x) => toast(x.message === "That username is taken" ? x.message : "Could not add them. Check your signal")));
+  } else if (b.dataset.reset) {
+    const p = person(b.dataset.reset), pin = newPin();
+    if (!confirm(`Give ${p.name} a new PIN? Their old one stops working.`)) return;
+    busy(b, "…", A.resetPin(p, pin).then(() => { staffMsg = `New PIN for ${esc(p.name)} (${esc(p.username)}): <b>${pin}</b>. It isn't shown again.`; renderStaff(); }).catch(() => toast("Could not reset. Check your signal")));
+  } else if (b.dataset.remove) {
+    const p = person(b.dataset.remove);
+    if (!confirm(`Remove ${p.name}? They're logged out straight away.`)) return;
+    A.remove(p).then(() => { staffMsg = `${esc(p.name)} removed.`; renderStaff(); }).catch(() => toast("Could not remove. Check your signal"));
+  } else if (b.dataset.role) {
+    const p = person(b.dataset.role);
+    A.setRole(p, p.role === "manager" ? "staff" : "manager").catch(() => toast("Could not change the role"));
+  } else if (b.dataset.del) {
+    if (confirm("Delete this post for everyone?")) A.removePost(b.dataset.del).catch(() => toast("Could not delete"));
+  } else if (b.dataset.sign) {
+    A.signOff(b.dataset.sign).catch(() => toast("Could not sign off")); haptic();
   }
-  if (e.target.closest("#c-post")) {
-    const t = $("#c-text").value.trim(); if (!t) return;
-    LIVE.api.post(t).catch(() => toast("Post not sent. Try again")); $("#c-text").value = ""; haptic(); return;
-  }
-  const dl = e.target.closest("[data-del]"); if (dl) { if (confirm("Delete this post for everyone?")) LIVE.api.remove(dl.dataset.del).catch(() => toast("Could not delete")); return; }
-  const sg = e.target.closest("[data-sign]"); if (sg) { LIVE.api.signOff(sg.dataset.sign).catch(() => toast("Could not sign off")); haptic(); }
 });
 function renderNotices() {
   renderTeamTop(); renderFeed();
