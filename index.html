@@ -181,6 +181,9 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 .outbar { margin-top: 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); }
 .outbar.on { border-color: var(--warn); }
 .outbar.on b { color: var(--warn); }
+.fbbox { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-top: 12px; }
+.fbbtn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; text-decoration: none; margin-top: 4px; }
+a.link86 { text-align: center; margin-top: 0; }
 .link86 { display: block; margin: 18px auto 4px; background: none; border: 0; color: var(--muted); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; min-height: 40px; padding: 0 12px; }
 .star { width: 44px; height: 44px; font-size: 26px; color: var(--brass); line-height: 1; }
 .mult { display: inline-flex; gap: 4px; font-family: var(--body); text-transform: none; }
@@ -590,6 +593,7 @@ function openSheet(id, keepScroll) {
     ${d.pairsWith ? `<div class="pair"><b>Sell it with:</b> ${esc(d.pairsWith)}</div>` : ""}
     ${navHtml(id)}
     ${isOut(d.name) ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? Mark 86'd</button>`}
+    <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
   $("#car")?.addEventListener("scroll", carSync, { passive: true });
@@ -762,10 +766,15 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-yes")) { prepDone = []; store.set("prep", prepDone); out = new Set(); store.set("out", []); renderList(); tally = {}; store.set("tally", tally); confirmReset = false; renderTally(); toast("New night started"); }
 });
 
+/* ---------- Feedback (Google Form, responses go to the manager) ---------- */
+const FORM = "https://docs.google.com/forms/d/e/1FAIpQLScVcIMOdULYuawQSoi_AFHowwa86m3PZAyTOxmlcxhu678qTw/viewform";
+const formUrl = (drink) => FORM + (drink ? "?usp=pp_url&entry.1226892998=" + encodeURIComponent(drink) : "");
+
 /* ---------- Bar info ---------- */
 function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
+    <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and posts the good ones as notices.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
     <h2>Measures and the law</h2>
     <ul>
       <li>Gin, rum, vodka and whisky on their own or with one mixer go in 25 ml or 35 ml measures (or multiples). We use 25 ml and 50 ml.</li>
