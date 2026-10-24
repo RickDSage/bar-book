@@ -1,0 +1,57 @@
+rules_version = '2';
+// Black Tap Bar Book live team feed.
+// Passcodes live in config/pins (fields: staff, manager). Nobody can read that document; only these rules can.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function pins() { return get(/databases/$(database)/documents/config/pins).data; }
+    function signedIn() { return request.auth != null; }
+    function isMember() { return signedIn() && exists(/databases/$(database)/documents/members/$(request.auth.uid)); }
+    function isManager() { return signedIn() && exists(/databases/$(database)/documents/managers/$(request.auth.uid)); }
+    function myName() { return get(/databases/$(database)/documents/members/$(request.auth.uid)).data.name; }
+    function text(s, max) { return s is string && s.size() > 0 && s.size() <= max; }
+
+    match /config/{id} { allow read, write: if false; }
+
+    match /members/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['name', 'pin', 'at'])
+        && text(request.resource.data.name, 40)
+        && request.resource.data.pin in [pins().staff, pins().manager]
+        && request.resource.data.at == request.time;
+    }
+
+    match /managers/{uid} {
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow create: if signedIn() && request.auth.uid == uid
+        && request.resource.data.keys().hasOnly(['pin'])
+        && request.resource.data.pin == pins().manager;
+    }
+
+    match /feed/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && request.resource.data.keys().hasOnly(['kind', 'text', 'uid', 'name', 'at'])
+        && request.resource.data.kind in ['comment', 'report']
+        && text(request.resource.data.text, 4000)
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name == myName()
+        && request.resource.data.at == request.time;
+      // Managers sign off a shift report once.
+      allow update: if isManager() && resource.data.kind == 'report' && !('signedBy' in resource.data)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signedBy', 'signedAt'])
+        && request.resource.data.signedBy == myName()
+        && request.resource.data.signedAt == request.time;
+      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
+    }
+
+    match /out/{id} {
+      allow read, delete: if isMember();
+      allow create, update: if isMember()
+        && request.resource.data.keys().hasOnly(['name', 'by', 'at'])
+        && text(request.resource.data.name, 80)
+        && request.resource.data.by == myName()
+        && request.resource.data.at == request.time;
+    }
+  }
+}

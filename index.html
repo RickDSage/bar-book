@@ -206,6 +206,13 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .notice h3 { font-family: var(--body); text-transform: none; font-size: 18px; font-weight: 700; }
 .notice p { margin: 6px 0 0; }
 .notice .n86 { color: var(--warn); font-weight: 700; }
+.notice .meta { color: var(--muted); font-size: 14px; }
+.notice .meta b { color: var(--fg); }
+.notice .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
+.notice pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.45 var(--body); margin: 8px 0 0; }
+.notice summary { margin-top: 8px; color: var(--brass); font-weight: 700; min-height: 32px; }
+.notice .ok { color: var(--brass); font-weight: 700; }
+.notice .actions { margin-top: 10px; }
 /* Swipe between drinks: the page follows your finger */
 .sw { touch-action: pan-y; will-change: transform; }
 /* Step by step: one swipeable card per step */
@@ -304,8 +311,10 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
   </section>
 
   <section class="view" id="v-notices" hidden>
-    <h2 style="font-size:28px;margin-top:12px">Notices</h2>
-    <p class="lead">Messages from the manager and bar lead. Newest first.</p>
+    <h2 style="font-size:28px;margin-top:12px">Team</h2>
+    <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
+    <div id="team"></div>
+    <div id="feed"></div>
     <div id="notices"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
@@ -436,8 +445,14 @@ const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.s
 D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
-const isOut = (n) => out.has(n) || teamOut.has(n);
-function setOut(name, on) { on ? out.add(name) : out.delete(name); store.set("out", [...out]); }
+// Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
+const LIVE = { api: null, uid: null, me: null, admin: false, feed: [], out: new Set() };
+const outNow = () => (LIVE.me ? LIVE.out : out);
+const isOut = (n) => outNow().has(n) || teamOut.has(n);
+function setOut(name, on) {
+  if (LIVE.me) { LIVE.api.set86(name, on).catch(() => toast("Could not update the team 86 list")); return; }
+  on ? out.add(name) : out.delete(name); store.set("out", [...out]);
+}
 function rowHtml(d) {
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
@@ -577,7 +592,7 @@ function openSheet(id, keepScroll) {
     <div class="badges">
       ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
     </div>
-    ${teamOut.has(d.name) && !out.has(d.name) ? `<div class="outbar on"><span><b>86'd tonight</b> (team notice). Offer something else.</span></div>` : out.has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
+    ${teamOut.has(d.name) && !outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight</b> (team notice). Offer something else.</span></div>` : outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
     ${al ? `<div class="allergy"><b>Allergens:</b> ${esc(al)}</div>` : ""}
     ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
@@ -635,7 +650,7 @@ $("#sheet").addEventListener("click", (e) => {
   const cs = e.target.closest("[data-cs]"); if (cs) { const car = $("#car"); haptic(); carGo(cs.dataset.cs === "0" ? 0 : carIndex(car) + +cs.dataset.cs); return; }
   const mb = e.target.closest("[data-mult]"); if (mb) { const y = $("#sheet").scrollTop; mult = +mb.dataset.mult; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
   const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderChips(); renderList(); return; }
-  const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name; setOut(n, !out.has(n)); toast(out.has(n) ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
+  const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name, on = !outNow().has(n); setOut(n, on); toast(on ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
   const st = e.target.closest(".step"); if (st) {
     st.classList.toggle("done"); st.querySelector(".tick").textContent = st.classList.contains("done") ? "Done \u2713" : "Tap when done"; haptic();
     const car = st.closest(".car"); if (car && st.classList.contains("done")) setTimeout(() => carGo([...car.children].indexOf(st) + 1), 220); else carSync();
@@ -778,7 +793,7 @@ function tallyText() {
     const L = LISTS[k], miss = L.items.filter((_, i) => !ticks[k].includes(i));
     return `${L.title}: ${L.items.length - miss.length} of ${L.items.length} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
   };
-  return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${out.size ? [...out].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
+  return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
 function checklistHtml(k) {
   const L = LISTS[k], done = ticks[k].length;
@@ -786,18 +801,18 @@ function checklistHtml(k) {
     ${L.items.map((t, i) => `<button class="prep${ticks[k].includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${ticks[k].includes(i)}"><span class="box">${ticks[k].includes(i) ? "✓" : ""}</span><span>${esc(t)}</span></button>`).join("")}`;
 }
 function renderTally() {
-  const outList = [...out].sort();
+  const outList = [...outNow()].sort();
   $("#tally").innerHTML = `${checklistHtml("open")}
     <div class="sec">86'd tonight</div>
-    <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !out.has(x)).map((x) => `<option>${esc(x)}</option>`).join("")}</optgroup>`).join("")}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !out.has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !out.has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
+    <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !outNow().has(x)).map((x) => `<option>${esc(x)}</option>`).join("")}</optgroup>`).join("")}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me ? `<div class="s">Shared with the team</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
     ${checklistHtml("close")}
     <div class="sec">Comments for the manager</div>
     <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
     <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the bar tonight"></label>
     <label class="fld">Note for handover<textarea id="s-note" rows="4" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
-    <p class="note">At close, send the report to the manager to sign off. It includes both checklists, anything not done, the 86'd list and your handover note.</p>
+    <p class="note">${LIVE.me ? "At close, send the report to the team feed. The closing manager signs it off there." : "At close, send the report to the manager to sign off."} It includes both checklists, anything not done, the 86'd list and your handover note.</p>
     <div class="actions"><button class="btn pri" id="t-copy">Send for sign-off</button><button class="btn danger" id="t-reset">Start a new night</button></div>
-    ${confirmReset ? `<div class="confirm">Clear the checklists, handover note and the 86'd list on this phone? <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
+    ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear the checklists and handover note on this phone? The team 86'd list stays until each item is marked back in stock." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
     <textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea>`;
 }
 $("#tally").addEventListener("change", (e) => {
@@ -812,6 +827,8 @@ $("#tally").addEventListener("input", (e) => {
 $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-copy")) {
     const txt = tallyText();
+    // Firestore queues the write with no signal and sends it when the phone reconnects.
+    if (LIVE.me) { LIVE.api.sendReport(txt).catch(() => toast("Report not sent. Try again")); haptic(); toast("Sent to the team feed for sign-off"); return; }
     if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (err) { if (err.name === "AbortError") return; } }
     try { await navigator.clipboard.writeText(txt); toast("Copied. Paste it to the manager"); }
     catch { const ta = $("#t-text"); ta.focus(); ta.select(); toast("Text selected. Tap Copy"); }
@@ -899,12 +916,84 @@ function parseNotices(txt) {
   });
 }
 function renderBell() {
-  const n = notices.filter((x) => !seen.has(x.key)).length;
+  const n = notices.filter((x) => !seen.has(x.key)).length + feedNew().length;
   $("#bell").hidden = false; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
-  $("#bell").setAttribute("aria-label", n ? `Notices, ${n} new` : "Notices");
+  $("#bell").setAttribute("aria-label", n ? `Team, ${n} new` : "Team");
 }
+/* ---------- Team feed (live) ---------- */
+const ms = (t) => (t ? t.toMillis() : Date.now());
+const when = (t) => {
+  const d = new Date(ms(t)), hm = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  return d.toDateString() === new Date().toDateString() ? hm : d.toLocaleDateString("en-GB", { weekday: "short" }) + " " + hm;
+};
+let feedSeen = store.get("feedSeen", 0);
+const feedNew = () => LIVE.feed.filter((x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen);
+function renderTeamTop() {
+  $("#team-lead").textContent = LIVE.api ? "Comments, shift reports and notices from the team. Newest first." : "Messages from the manager and bar lead. Newest first.";
+  if (!LIVE.api) { $("#team").innerHTML = ""; return; }
+  if (!LIVE.uid) { $("#team").innerHTML = `<p class="note">Connecting to the team feed. It needs signal the first time.</p>`; return; }
+  if (!LIVE.me) {
+    $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Join the team feed</h2><p>See comments, the 86'd list and shift reports from everyone on shift, as they happen. Ask the manager for the team passcode. You only do this once on each phone.</p>
+      <label class="fld">Your name<input id="j-name" maxlength="40" autocomplete="name" value="${esc(shiftWho)}"></label>
+      <label class="fld">Team passcode<input id="j-code" type="password" autocomplete="off"></label>
+      <button class="btn pri wide" id="j-go">Join</button></div>`;
+    return;
+  }
+  $("#team").innerHTML = `<p class="note">You're in as <b>${esc(LIVE.me)}</b>${LIVE.admin ? " (manager)" : ""}.</p>
+    <label class="fld">Write to the team<textarea id="c-text" rows="3" maxlength="2000" placeholder="Running low on limes, a guest comment, anything the team should know"></textarea></label>
+    <div class="actions"><button class="btn pri" id="c-post">Post</button></div>`;
+}
+function renderFeed() {
+  if (!LIVE.me) { $("#feed").innerHTML = ""; return; }
+  const del = (x) => (LIVE.admin || x.uid === LIVE.uid ? `<button class="btn" data-del="${x.id}">Delete</button>` : "");
+  $("#feed").innerHTML = LIVE.feed.length ? LIVE.feed.map((x) => {
+    const fresh = x.uid !== LIVE.uid && ms(x.at) > feedSeen ? " new" : "";
+    if (x.kind === "report") return `<article class="notice${fresh}"><div class="meta"><b>Shift report</b> from ${esc(x.name)} · ${when(x.at)}</div><details><summary>Show the report</summary><pre>${esc(x.text)}</pre></details>
+      ${x.signedBy ? `<p class="ok">Signed off by ${esc(x.signedBy)}, ${when(x.signedAt)}</p>` : LIVE.admin ? "" : `<p class="note">Waiting for a manager to sign it off.</p>`}
+      <div class="actions">${!x.signedBy && LIVE.admin ? `<button class="btn pri" data-sign="${x.id}">Sign off</button>` : ""}${del(x)}</div></article>`;
+    return `<article class="notice${fresh}"><div class="meta"><b>${esc(x.name)}</b> · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${del(x) ? `<div class="actions">${del(x)}</div>` : ""}</article>`;
+  }).join("") : `<p class="note">Nothing posted yet.</p>`;
+  feedSeen = Math.max(feedSeen, ...LIVE.feed.map((x) => ms(x.at))); store.set("feedSeen", feedSeen); renderBell();
+}
+// Called by live.js whenever membership, the feed or the shared 86 list changes.
+const told = new Set();
+function liveChanged(what) {
+  if (what === "feed") {
+    const first = !liveChanged.ready; liveChanged.ready = true;
+    for (const x of LIVE.feed) {
+      const k = x.id + (x.signedBy ? ":s" : "");
+      if (told.has(k)) continue; told.add(k);
+      if (first || !$("#v-notices").hidden) continue;
+      if (x.signedBy && x.uid === LIVE.uid) toast(`${x.signedBy} signed off your shift report`);
+      else if (!x.signedBy && x.uid !== LIVE.uid) toast(x.kind === "report" ? `${x.name} sent a shift report` : `${x.name}: ${x.text.slice(0, 70)}`);
+    }
+  }
+  renderBell();
+  if (what !== "feed") renderList();
+  if (!$("#v-notices").hidden) { if (what === "feed") renderFeed(); else renderNotices(); }
+  const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
+  if (what !== "feed" && !$("#v-tally").hidden && !typing) renderTally();
+  if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
+}
+$("#v-notices").addEventListener("click", (e) => {
+  if (e.target.closest("#j-go")) {
+    const name = $("#j-name").value.trim(), code = $("#j-code").value.trim();
+    if (!name || !code) return toast("Add your name and the team passcode");
+    e.target.closest("#j-go").disabled = true; e.target.closest("#j-go").textContent = "Joining…";
+    LIVE.api.join(name, code).then(() => { if (!shiftWho) { shiftWho = name; store.set("shiftWho", name); } toast(LIVE.admin ? "Joined as a manager" : "You're in"); })
+      .catch(() => { toast("That passcode didn't work"); renderNotices(); });
+    return;
+  }
+  if (e.target.closest("#c-post")) {
+    const t = $("#c-text").value.trim(); if (!t) return;
+    LIVE.api.post(t).catch(() => toast("Post not sent. Try again")); $("#c-text").value = ""; haptic(); return;
+  }
+  const dl = e.target.closest("[data-del]"); if (dl) { if (confirm("Delete this post for everyone?")) LIVE.api.remove(dl.dataset.del).catch(() => toast("Could not delete")); return; }
+  const sg = e.target.closest("[data-sign]"); if (sg) { LIVE.api.signOff(sg.dataset.sign).catch(() => toast("Could not sign off")); haptic(); }
+});
 function renderNotices() {
-  $("#notices").innerHTML = notices.length ? notices.map((x) => `<article class="notice${seen.has(x.key) ? "" : " new"}">${x.lines.map((l, i) => /^86\s*:/i.test(l) ? `<p class="n86">86'd: ${esc(l.replace(/^86\s*:/i, "").trim())}</p>` : i === 0 ? `<h3>${esc(l)}</h3>` : `<p>${esc(l)}</p>`).join("")}</article>`).join("") : `<p class="note">No notices right now.</p>`;
+  renderTeamTop(); renderFeed();
+  $("#notices").innerHTML = (LIVE.me && notices.length ? `<div class="sec">Notices</div>` : "") + (notices.length ? notices.map((x) => `<article class="notice${seen.has(x.key) ? "" : " new"}">${x.lines.map((l, i) => /^86\s*:/i.test(l) ? `<p class="n86">86'd: ${esc(l.replace(/^86\s*:/i, "").trim())}</p>` : i === 0 ? `<h3>${esc(l)}</h3>` : `<p>${esc(l)}</p>`).join("")}</article>`).join("") : LIVE.me ? "" : `<p class="note">No notices right now.</p>`);
   notices.forEach((x) => seen.add(x.key)); store.set("seen", [...seen].slice(-200)); renderBell();
 }
 async function loadNotices() {
