@@ -13,6 +13,7 @@ service cloud.firestore {
     function roleOf(uid) { return get(/databases/$(database)/documents/staff/$(uid)).data.role; }
     function roleAfter(uid) { return getAfter(/databases/$(database)/documents/staff/$(uid)).data.role; }
     function text(s, max) { return s is string && s.size() > 0 && s.size() <= max; }
+    function tickList(k) { return request.resource.data.get(k, []) is list && request.resource.data.get(k, []).size() <= 60; }
     function validStaff() {
       let d = request.resource.data;
       return d.keys().hasOnly(['name', 'username', 'role', 'setup']) && text(d.name, 40)
@@ -111,9 +112,8 @@ service cloud.firestore {
     // Tonight's shared checklist ticks, one document per business day.
     match /shift/{day} {
       allow read, delete: if isMember();
-      allow create, update: if isMember() && request.resource.data.keys().hasOnly(['open', 'close'])
-        && request.resource.data.get('open', []) is list && request.resource.data.get('open', []).size() <= 60
-        && request.resource.data.get('close', []) is list && request.resource.data.get('close', []).size() <= 60;
+      allow create, update: if isMember() && request.resource.data.keys().hasOnly(['open', 'close', 'fset', 'fshake', 'fclose'])
+        && tickList('open') && tickList('close') && tickList('fset') && tickList('fshake') && tickList('fclose');
     }
 
     // Stock requests: anyone on the team asks, managers mark them ordered.
