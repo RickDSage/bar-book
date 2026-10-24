@@ -202,6 +202,8 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .prep.done { opacity: .62; }
 .shift-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; }
 .shift-top h2 { font-size: 28px; }
+.modesw { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.modesw .chip { justify-content: center; }
 #shift-day { color: var(--muted); font-size: 14px; }
 .ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.6); }
 .ptabs button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 52px; padding: 6px 2px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--muted); }
@@ -304,6 +306,8 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
 .welcome li { padding: 9px 0 9px 30px; position: relative; border-bottom: 1px solid var(--line); }
 .welcome li::before { content: "\2713"; position: absolute; left: 4px; color: var(--brass); font-weight: 700; }
 .welcome .wip { color: var(--muted); font-size: 15px; margin: 0 0 22px; }
+.welcome .wbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.welcome .wbtns .btn { min-height: 56px; font-size: 20px; }
 .welcome .sig { font-style: italic; color: var(--brass); font-size: 18px; margin: 18px 0 0; text-align: center; }
 .credit { text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .04em; margin: 28px 0 8px; }
 .credit b { color: var(--brass); font-weight: 700; }
@@ -322,7 +326,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (Bar info shows how)</li></ul>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in Bar info.</p>
-  <button class="btn pri wide" id="w-ok">Continue</button>
+  <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
@@ -351,7 +355,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
   </section>
 
   <section class="view" id="v-tally" hidden>
-    <div class="shift-top"><h2>Tonight's shift</h2><span id="shift-day"></span></div>
+    <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
     <div id="tally"></div>
   </section>
 
@@ -821,6 +825,49 @@ const LISTS = {
     "Spirits locked away, bar lights off",
   ] },
 };
+// Floor lists. An item with days only shows on those days of the week (0 = Sunday).
+Object.assign(LISTS, {
+  fset: { title: "Tables and cutlery", short: "Tables", items: [
+    "Cutlery polished, every piece",
+    "Set tables: two napkins and two forks on each",
+    "Right amount of cutlery for each table",
+    "Side plates dressed and brought to the top floor",
+    "Knives by the kitchen pass",
+  ] },
+  fshake: { title: "Milkshake station", short: "Shakes", items: [
+    "All desserts dated: opened today plus 2 days (see Date labels)",
+    "Strawberry and raspberry dated: 2 weeks",
+    "Maraschino cherries labelled: 4 weeks",
+    "Everything opened is labelled",
+    "Ice cream refilled",
+    "Shakers and cup holders replenished",
+    "Shake machine off (back button)",
+    "Ice cream drip tray cleaned",
+  ] },
+  fclose: { title: "Floor close", short: "Close", items: [
+    "Outside furniture brought in: chairs, tables and umbrellas",
+    "Napkin dispensers replenished",
+    "Ketchup and mustard put away",
+    "Menus cleaned",
+    "Fridges and touch points wiped",
+    "Chairs flipped",
+    "Floor swept and mopped",
+    { t: "Toilets bleached, swept and mopped", days: [0, 1] },
+  ] },
+});
+LISTS.open.short = "Opening"; LISTS.close.short = "Closing";
+const MODE_LISTS = { bar: ["open", "close"], floor: ["fset", "fshake", "fclose"] };
+let mode = store.get("mode", "bar");
+function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); renderTally(); }
+// Use-by dates for the milkshake station, counted from the day it is opened.
+const LABELS = [
+  ["Desserts", "Guinness cake, sprinkle cake, brownies, cheesecake, ice cream, Oreo and Jammie Dodger ice cream sandwiches", 2],
+  ["Strawberry and raspberry", "", 14],
+  ["Maraschino cherries", "", 28],
+];
+const useBy = (days) => new Date(Date.now() + days * 864e5).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+const labelsHtml = () => `<div class="sec">Date labels</div><p class="note">Opened today? Write this use-by date on the label.</p>
+  ${LABELS.map(([n, s, d]) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${n}${s ? `<div class="s" style="font-weight:400">${s}</div>` : ""}</div><b class="dt">${useBy(d)}</b></div>`).join("")}`;
 const MANAGERS = ["Illias", "Olaya", "Sarul", "Johnny"];
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
@@ -840,30 +887,42 @@ const STOCK = {
   "Tequila and mezcal": ["El Jimador Blanco", "El Jimador Reposado", "Don Julio Blanco", "Don Julio Añejo", "Don Julio 1942", "Clase Azul Reposado", "Amarás Mezcal"],
   "Whiskey": ["Jack Daniel's", "Jameson", "Buffalo Trace", "Bulleit", "Bulleit Rye", "Elijah Craig", "Michter's", "Johnnie Walker Black", "Johnnie Walker Blue", "Talisker 10", "Port Charlotte 10", "Glenmorangie Signet", "Hakushu 12", "Hibiki Harmony", "Sheep Dog Peanut Butter"],
   "Brandy": ["Martell VS", "Courvoisier VSOP", "Hennessy XO", "Rémy Martin XO", "Avallen Calvados"],
+  "Desserts and shakes": ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Raspberries", "Maraschino cherries", "Shake cups", "Cup holders"],
+  "Floor supplies": ["Napkins", "Side plates", "Toilet roll", "Bleach", "Mop heads"],
   "Liqueurs and vermouth": ["Aperol", "Campari", "Sarti Rosa", "Martini Rosso", "Martini Extra Dry", "Pimm's", "Cointreau", "Grand Marnier", "Kahlúa", "Baileys", "Disaronno", "Frangelico", "Chambord", "Heering Cherry", "Luxardo Limoncello", "Midori", "Passoa", "Archers", "Apple liqueur", "Ancho Reyes", "Yellow Chartreuse", "Jägermeister", "Absinthe", "Crème de violette", "Maraschino"],
 };
 // Business day: anything before 6am belongs to the night before, so a close that runs past midnight stays one shift.
 const shiftDay = () => new Date(Date.now() - 6 * 36e5).toISOString().slice(0, 10);
 const ticksNow = () => (LIVE.me ? LIVE.ticks : ticks);
+const ticked = (k) => ticksNow()[k] || [];
+// Items showing on tonight's list, as [index, text]. Indexes stay fixed so shared ticks line up.
+const shown = (k) => {
+  const day = new Date(shiftDay()).getUTCDay();
+  return LISTS[k].items.map((t, i) => (typeof t === "string" ? [i, t] : t.days.includes(day) ? [i, t.t] : null)).filter(Boolean);
+};
 let closer = store.get("closer", "");
 let ticks = store.get("ticks2", { open: [], close: [] });
 let shiftNote = store.get("shiftNote", ""), shiftWho = store.get("shiftWho", "");
 function tallyText() {
   const day = stamp(new Date());
   const list = (k) => {
-    const L = LISTS[k], miss = L.items.filter((_, i) => !ticksNow()[k].includes(i));
-    return `${L.title}: ${L.items.length - miss.length} of ${L.items.length} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
+    const p = progress(k), miss = shown(k).filter(([i]) => !ticked(k).includes(i)).map(([, t]) => t);
+    return `${LISTS[k].title}: ${p.n} of ${p.of} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
   };
-  return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
-const PANES = [["open", "Open"], ["stock", "Stock"], ["close", "Close"], ["send", "Send"]];
-let pane = new Date().getHours() >= 6 && new Date().getHours() < 16 ? "open" : "close";
-const progress = (k) => { const n = ticksNow()[k].length, of = LISTS[k].items.length; return { n, of, pct: Math.round((n / of) * 100) }; };
+const PANES = {
+  bar: [["open", "Open"], ["stock", "Stock"], ["close", "Close"], ["send", "Send"]],
+  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["fclose", "Close"], ["send", "Send"]],
+};
+const defaultPane = () => (new Date().getHours() >= 6 && new Date().getHours() < 16 ? PANES[mode][0][0] : mode === "bar" ? "close" : "fclose");
+let pane = defaultPane();
+const progress = (k) => { const S = shown(k), n = S.filter(([i]) => ticked(k).includes(i)).length, of = S.length; return { n, of, pct: Math.round((n / of) * 100) }; };
 function checklistHtml(k) {
-  const T = ticksNow()[k], L = LISTS[k], p = progress(k);
+  const T = ticked(k), p = progress(k);
   return `<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}</span><b>${p.pct}%</b></div>
     <div class="prog${p.n === p.of ? " full" : ""}"><i style="width:${p.pct}%"></i></div>
-    ${L.items.map((t, i) => `<button class="prep${T.includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${T.includes(i)}"><span class="box">${T.includes(i) ? "✓" : ""}</span><span>${esc(t)}</span></button>`).join("")}`;
+    ${shown(k).map(([i, t]) => `<button class="prep${T.includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${T.includes(i)}"><span class="box">${T.includes(i) ? "✓" : ""}</span><span>${esc(t)}</span></button>`).join("")}`;
 }
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
 /* Stock requests: staff ask, management marks them ordered. */
@@ -906,34 +965,38 @@ async function shrink(file) {
   return out;
 }
 function paneBadge(k) {
-  if (k === "open" || k === "close") { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
+  if (LISTS[k]) { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
   if (k === "stock") return outNow().size ? `${outNow().size} out` : "";
   return "";
 }
 function renderTally() {
   $("#shift-day").textContent = new Date(Date.now() - 6 * 36e5).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const outList = [...outNow()].sort();
-  const tabs = `<div class="ptabs" role="tablist">${PANES.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
+  $("#shift-title").textContent = mode === "bar" ? "Bar shift" : "Floor shift";
+  const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
+  const tabs = `<div class="modesw">${["bar", "floor"].map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${m === "bar" ? "Bar" : "Floor"}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
   const body = {
     open: () => `${checklistHtml("open")}${nextBtn("stock", "Next: stock and 86s")}`,
+    fset: () => `${checklistHtml("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
+    fshake: () => `${labelsHtml()}<div class="sec">Station checklist</div>${checklistHtml("fshake")}${nextBtn("stock", "Next: stock and 86s")}`,
+    fclose: () => `${checklistHtml("fclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     stock: () => `<div class="sec">86'd tonight</div>
       <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       ${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}
       ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd.</p>`}
-      ${requestsHtml()}${nextBtn("close", "Next: closing checklist")}`,
+      ${requestsHtml()}${nextBtn(mode === "bar" ? "close" : "fclose", "Next: closing checklist")}`,
     close: () => `${checklistHtml("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     send: () => {
-      const o = progress("open"), c = progress("close");
       return `<div class="sumcard">
-        <div><span>Opening</span><b>${o.n}/${o.of}</b></div><div><span>Closing</span><b>${c.n}/${c.of}</b></div><div><span>86'd</span><b>${outNow().size}</b></div>${LIVE.me ? `<div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>` : ""}
+        ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div>${LIVE.me ? `<div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>` : ""}
       </div>
       <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
-      <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the bar tonight"></label>
+      <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the ${mode} tonight"></label>
       <label class="fld">Note for handover<textarea id="s-note" rows="3" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
       <button class="btn pri wide" id="t-copy">${LIVE.me ? "Send to managers for sign-off" : "Send for sign-off"}</button>
       <details class="setup"><summary>Preview the report</summary><textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea></details>
       <button class="btn danger wide" id="t-reset">Start a new night</button>
-      ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear tonight's shared checklists for everyone, and the handover note on this phone? The team 86'd list stays until each item is marked back in stock." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}`;
+      ${confirmReset ? `<div class="confirm">${LIVE.me ? `Clear tonight's shared ${mode} checklists for everyone, and the handover note on this phone? The team 86'd list stays until each item is marked back in stock.` : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}`;
     },
   }[pane]();
   $("#tally").innerHTML = tabs + `<div class="pane">${body}</div>`;
@@ -962,9 +1025,9 @@ $("#tally").addEventListener("click", async (e) => {
     const txt = tallyText();
     // Firestore queues the write with no signal and sends it when the phone reconnects.
     if (LIVE.me) {
-      const done = (k) => `${ticksNow()[k].length}/${LISTS[k].items.length}`;
+      const done = (k) => `${progress(k).n}/${progress(k).of}`;
       const n = LIVE.myPhotos.length;
-      const summary = `Opening ${done("open")} · Closing ${done("close")} · ${outNow().size} 86'd${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closing manager ${closer}` : ""}`;
+      const summary = `${mode === "bar" ? "Bar" : "Floor"} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closing manager ${closer}` : ""}`;
       LIVE.api.sendReport(txt, summary).catch(() => toast("Report not sent. Try again")); haptic(); toast("Sent to the team for sign-off"); return;
     }
     if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (err) { if (err.name === "AbortError") return; } }
@@ -974,13 +1037,14 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-reset")) { confirmReset = true; renderTally(); }
   if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
   const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
+  const md = e.target.closest("[data-mode]"); if (md) { haptic(); setMode(md.dataset.mode); return; }
   const pn = e.target.closest("[data-pane]"); if (pn) { pane = pn.dataset.pane; renderTally(); $("#v-tally").scrollIntoView({ block: "start" }); window.scrollTo(0, 0); return; }
   const ck = e.target.closest("[data-list]"); if (ck) {
-    const k = ck.dataset.list, i = +ck.dataset.i, on = !ticksNow()[k].includes(i);
-    if (on && ticksNow()[k].length === LISTS[k].items.length - 1) { toast(`${LISTS[k].title} complete`); try { navigator.vibrate?.([12, 60, 12]); } catch {} }
+    const k = ck.dataset.list, i = +ck.dataset.i, on = !ticked(k).includes(i);
+    if (on && progress(k).n === progress(k).of - 1) { toast(`${LISTS[k].title} complete`); try { navigator.vibrate?.([12, 60, 12]); } catch {} }
     // Logged in, ticks are shared with everyone on tonight's shift.
     if (LIVE.me) LIVE.api.tick(k, i, on).catch(() => toast("Tick not saved. Try again"));
-    else { ticks[k] = on ? [...ticks[k], i] : ticks[k].filter((x) => x !== i); store.set("ticks2", ticks); }
+    else { ticks[k] = on ? [...ticked(k), i] : ticked(k).filter((x) => x !== i); store.set("ticks2", ticks); }
     haptic(); renderTally(); return;
   }
   const rq = e.target.closest("#rq-go"); if (rq) {
@@ -993,7 +1057,7 @@ $("#tally").addEventListener("click", async (e) => {
   const rd = e.target.closest("[data-rq-del]"); if (rd) { if (confirm("Cancel this request?")) LIVE.api.cancelRequest(rd.dataset.rqDel).catch(() => toast("Could not cancel")); return; }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) LIVE.api.deletePhoto(pd.dataset.phDel).catch(() => toast("Could not delete")); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks2", ticks); if (LIVE.me) LIVE.api.clearTicks().catch(() => {}); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); confirmReset = false; renderTally(); toast("New night started"); }
+  if (e.target.closest("#t-yes")) { MODE_LISTS[mode].forEach((k) => (ticks[k] = [])); store.set("ticks2", ticks); if (LIVE.me) LIVE.api.clearTicks(MODE_LISTS[mode]).catch(() => {}); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); confirmReset = false; renderTally(); toast("New night started"); }
 });
 
 /* ---------- Feedback (Google Form, responses go to the manager) ---------- */
@@ -1323,7 +1387,12 @@ tick(); setInterval(tick, 10000);
 renderChips(); renderList();
 {
   const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
-  $("#w-ok").addEventListener("click", () => { haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300); });
+  w.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-start]"); if (!b) return;
+    haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
+    setMode(b.dataset.start);
+    if (mode === "floor") show("tally");
+  });
 }
 show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 </script>
