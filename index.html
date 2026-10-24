@@ -837,8 +837,9 @@ function checklistHtml(k) {
 const OTHER = "Other (write it in)";
 let rqItem = "", rqNote = ""; // kept outside the form so live updates don't wipe a half-filled request
 const stockOptions = (skip, pick = "") => Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
+const SOON = `<p class="note">Switches on once team logins are set up (Firebase).</p>`;
 function requestsHtml() {
-  if (!LIVE.api) return "";
+  if (!LIVE.api) return `<div class="sec">Need something?</div><p class="note">Request blue roll, fruit, spirits or anything missing, straight to management.</p>${SOON}`;
   if (!LIVE.me) return `<div class="sec">Need something?</div><p class="note">Log in on the Team page (the bell) to send requests to management.</p>`;
   const open = LIVE.requests.filter((r) => !r.done);
   return `<div class="sec">Need something?</div>
@@ -849,7 +850,7 @@ function requestsHtml() {
 }
 /* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
 function photosHtml() {
-  if (!LIVE.api) return "";
+  if (!LIVE.api) return `<div class="sec">Closing photos</div><p class="note">Take photos of the close with a note on each. They go with your shift report and aren't saved on your phone.</p>${SOON}`;
   if (!LIVE.me) return `<div class="sec">Closing photos</div><p class="note">Log in on the Team page (the bell) to add photos of the close.</p>`;
   return `<div class="sec">Closing photos</div>
     <p class="note">Photos of the close or anything you worked on. They go with your shift report and aren't saved on your phone.</p>
@@ -1036,7 +1037,7 @@ const SLOTS = ["#team", "#pins", "#pin-form", "#requests", "#compose", "#feed", 
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Notices, comments and shift reports from the team. Newest first." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
-  if (!LIVE.api) return;
+  if (!LIVE.api) { $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Team logins</h2><p>Logins, live comments, pinned notices, shift sign-off, stock requests and closing photos.</p>${SOON}</div>`; return; }
   if (!LIVE.ready) { $("#team").innerHTML = `<p class="note">Connecting to the team feed. It needs signal the first time.</p>`; return; }
   if (!LIVE.uid) {
     $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Log in</h2><p>Use the username and 6-digit PIN your manager gave you. You stay logged in on this phone.</p>
