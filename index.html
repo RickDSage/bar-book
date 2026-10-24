@@ -39,7 +39,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: .01e
 /* Header */
 .brandbar { padding-block: 12px 0; }
 header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 2px 8px; border-bottom: 1px solid var(--line); }
-.brand { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand h1 { font-size: 26px; }
 .brand h1 span { color: var(--brass); }
 .brand small { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
@@ -197,10 +197,20 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 .prep .box { width: 26px; height: 26px; border-radius: 7px; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 700; color: var(--brass-ink); }
 .prep.done .box { background: var(--ok); border-color: var(--ok); }
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
+.brandr { display: flex; align-items: center; gap: 6px; }
+.brandr small { text-align: right; font-size: 11px; line-height: 1.3; }
+.bell { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg); }
+.bell svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.bell .dot { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--warn); color: var(--brass-ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.notice { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-top: 12px; }
+.notice.new { border-color: var(--brass); }
+.notice h3 { font-family: var(--body); text-transform: none; font-size: 18px; font-weight: 700; }
+.notice p { margin: 6px 0 0; }
+.notice .n86 { color: var(--warn); font-weight: 700; }
 @media (prefers-reduced-motion: no-preference) { .sheet { animation: up .18s ease-out; } @keyframes up { from { transform: translateY(16px); opacity: .6; } } }
 </style>
 
-<div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><small>Soho · Staff<span id="offl"></span></small></div></div>
+<div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><div class="brandr"><small>Soho · Staff<span id="offl"></span></small><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
 <header class="gut" id="hdr">
   <div id="hdr-drinks">
     <div class="search"><input id="q" type="search" placeholder="Search drink, spirit or glass" autocomplete="off" enterkeyhint="search" aria-label="Search drinks"></div>
@@ -231,6 +241,11 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
     <div id="tally"></div>
   </section>
 
+  <section class="view" id="v-notices" hidden>
+    <h2 style="font-size:28px;margin-top:12px">Notices</h2>
+    <p class="lead">Messages from the manager and bar lead. Newest first.</p>
+    <div id="notices"></div>
+  </section>
   <section class="view info" id="v-info" hidden></section>
 </main>
 
@@ -360,10 +375,12 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
+let teamOut = new Set();
+const isOut = (n) => out.has(n) || teamOut.has(n);
 function setOut(name, on) { on ? out.add(name) : out.delete(name); store.set("out", [...out]); }
 function rowHtml(d) {
   const sug = !d.official;
-  if (out.has(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
+  if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.glass)} · ${esc(blurb(d))}</div></div><span class="price${sug ? " sug" : ""}">${priceText(d)}<i>${sug ? "Suggested" : "Official"}</i></span></button>`;
 }
 const TONIGHT = [
@@ -390,7 +407,7 @@ function renderQuick(show) {
   const hide = store.get("pushHidden", false);
   const head = `<div class="sec" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">Push tonight<button class="chip" data-hidepush style="font-family:var(--body);text-transform:none;min-height:36px">${hide ? "Show" : "Hide"}</button></div>`;
   if (hide) { $("#quick").innerHTML = head + rec + fl; return; }
-  $("#quick").innerHTML = `${head}<div class="tonight">${TONIGHT.map((t, i) => `<div class="tn"><span class="k">${t.drink && out.has(t.drink) ? "<span style=\"color:var(--warn)\">86'd tonight</span>" : esc(t.k)}</span><b>${esc(t.tally.replace(/ \(.*\)/, ""))}</b><span class="say">${esc(t.say)}</span><div class="actions"><button class="btn" data-tn="${i}">${t.sec ? "See shakes" : "How to make"}</button><button class="btn pri" data-tnplus="${i}">+1 sold</button></div></div>`).join("")}</div>${rec}${fl}`;
+  $("#quick").innerHTML = `${head}<div class="tonight">${TONIGHT.map((t, i) => `<div class="tn"><span class="k">${t.drink && isOut(t.drink) ? "<span style=\"color:var(--warn)\">86'd tonight</span>" : esc(t.k)}</span><b>${esc(t.tally.replace(/ \(.*\)/, ""))}</b><span class="say">${esc(t.say)}</span><div class="actions"><button class="btn" data-tn="${i}">${t.sec ? "See shakes" : "How to make"}</button><button class="btn pri" data-tnplus="${i}">+1 sold</button></div></div>`).join("")}</div>${rec}${fl}`;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
@@ -451,11 +468,11 @@ const baseOf = (d) => { const t = d.spec.join(" "); const b = BASES.find(([, re]
 const kindOf = (d) => /Shots|Bombs/.test(d.section) ? "shot" : d.section === "Zero Proof" ? "zero" : d.section === "Spike Your Shake" ? "shake" : d.section === "Pitchers" ? "pitcher" : "cocktail";
 D.forEach((d) => { d._b = baseOf(d); d._k = kindOf(d); });
 function tryInstead(d) {
-  const picks = D.filter((x) => x !== d && x._k === d._k && !out.has(x.name))
+  const picks = D.filter((x) => x !== d && x._k === d._k && !isOut(x.name))
     .map((x) => [x, (x._b === d._b && d._b !== "other" ? 3 : 0) + x.tags.filter((t) => d.tags.includes(t)).length + (x.section === d.section ? 0.5 : 0) + (x.official ? 0.25 : 0)])
     .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([x]) => x);
   if (!picks.length) return "";
-  return `<div class="h3">${out.has(d.name) ? "Offer instead" : "Similar drinks"}</div><div class="recent">${picks.map((x) => `<button class="chip" data-open="${x.id}">${esc(x.name)}</button>`).join("")}</div>`;
+  return `<div class="h3">${isOut(d.name) ? "Offer instead" : "Similar drinks"}</div><div class="recent">${picks.map((x) => `<button class="chip" data-open="${x.id}">${esc(x.name)}</button>`).join("")}</div>`;
 }
 let lastFocus = null, view = store.get("view", "spec"), curId = null;
 let ctx = null;
@@ -481,7 +498,7 @@ function openSheet(id, keepScroll) {
       ${d.official ? `<span class="badge b-off">${priceText(d)} official</span>` : `<span class="badge b-sug">${priceText(d)} suggested, not approved</span>`}
       ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
     </div>
-    <div class="outbar${out.has(d.name) ? " on" : ""}"><span>${out.has(d.name) ? "<b>86'd tonight.</b> Offer something else." : "In stock"}</span><button class="btn${out.has(d.name) ? "" : " danger"}" id="sh-86" data-name="${esc(d.name)}">${out.has(d.name) ? "Back in stock" : "Mark 86'd"}</button></div>
+    ${teamOut.has(d.name) && !out.has(d.name) ? `<div class="outbar on"><span><b>86'd tonight</b> (team notice). Offer something else.</span></div>` : `<div class="outbar${out.has(d.name) ? " on" : ""}"><span>${out.has(d.name) ? "<b>86'd tonight.</b> Offer something else." : "In stock"}</span><button class="btn${out.has(d.name) ? "" : " danger"}" id="sh-86" data-name="${esc(d.name)}">${out.has(d.name) ? "Back in stock" : "Mark 86'd"}</button></div>`}
     ${al ? `<div class="allergy"><b>Allergens:</b> ${esc(al)}</div>` : ""}
     ${view === "steps" ? `<p class="note">Tap each step when it is done. ${esc(d.glass)}, ${esc(d.ice)}, garnish: ${esc(d.garnish)}.</p>` + guideHtml(DATA.guides[d.name]) : `
     <dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl>
@@ -610,7 +627,7 @@ function renderTally() {
   const pd = prepDone.length;
   $("#tally").innerHTML = `<div class="sec" style="display:flex;justify-content:space-between">Prep before doors<span style="font-family:var(--body);font-size:14px;color:var(--muted);text-transform:none">${pd} of ${PREP.length} done</span></div>
     ${PREP.map((t, i) => `<button class="prep${prepDone.includes(i) ? " done" : ""}" data-prep="${i}" aria-pressed="${prepDone.includes(i)}"><span class="box">${prepDone.includes(i) ? "\u2713" : ""}</span><span>${esc(t)}</span></button>`).join("")}
-    <div class="sec">86'd tonight</div>${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd. Open a drink and tap \u201cMark 86'd\u201d when you run out.</p>`}
+    <div class="sec">86'd tonight</div>${[...teamOut].filter((n) => !out.has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap \u201cMark 86'd\u201d when you run out.</p>`}
     <div class="sec">Push these five</div>${PUSH.map(([n, s]) => row(n, s)).join("")}
     <div class="sec">Everything else sold</div>${others.length ? others.map((n) => row(n, "")).join("") : `<p class="note">Open any drink and tap “+1 to tally” to add it here.</p>`}
     <div class="total"><span>Total sold</span><b>${total}</b></div>
@@ -676,7 +693,50 @@ function renderInfo() {
 }
 
 /* ---------- Tabs ---------- */
-const TABS = ["drinks", "allergens", "practice", "tally", "info"];
+/* ---------- Notices ---------- */
+let notices = [];
+const nkey = (t) => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) | 0; return String(h); };
+let seen = new Set(store.get("seen", []));
+function parseNotices(txt) {
+  const names = D.map((d) => [d.name.toLowerCase(), d.name]);
+  teamOut = new Set();
+  return txt.replace(/\r/g, "").split("\n").filter((l) => !l.startsWith("#")).join("\n").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => {
+    const lines = p.split("\n");
+    for (const l of lines.filter((l) => /^86\s*:/i.test(l))) for (const part of l.replace(/^86\s*:/i, "").split(",")) {
+      const w = part.trim().toLowerCase(); if (!w) continue;
+      const hit = names.find(([lc]) => lc === w) || names.find(([lc]) => lc.includes(w));
+      if (hit) teamOut.add(hit[1]);
+    }
+    return { key: nkey(p), lines };
+  });
+}
+function renderBell() {
+  const n = notices.filter((x) => !seen.has(x.key)).length;
+  $("#bell").hidden = false; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
+  $("#bell").setAttribute("aria-label", n ? `Notices, ${n} new` : "Notices");
+}
+function renderNotices() {
+  $("#notices").innerHTML = notices.length ? notices.map((x) => `<article class="notice${seen.has(x.key) ? "" : " new"}">${x.lines.map((l, i) => /^86\s*:/i.test(l) ? `<p class="n86">86'd: ${esc(l.replace(/^86\s*:/i, "").trim())}</p>` : i === 0 ? `<h3>${esc(l)}</h3>` : `<p>${esc(l)}</p>`).join("")}</article>`).join("") : `<p class="note">No notices right now.</p>`;
+  notices.forEach((x) => seen.add(x.key)); store.set("seen", [...seen].slice(-200)); renderBell();
+}
+async function loadNotices() {
+  try {
+    const r = await fetch("notices.txt", { cache: "no-store" });
+    if (!r.ok) return;
+    const before = notices.filter((x) => !seen.has(x.key)).length;
+    notices = parseNotices(await r.text());
+    renderBell(); renderList();
+    const now = notices.filter((x) => !seen.has(x.key)).length;
+    if (now > before && before >= 0 && loadNotices.done) toast(`${now} new notice${now > 1 ? "s" : ""}`);
+    loadNotices.done = true;
+    if (!$("#v-notices").hidden) renderNotices();
+  } catch {}
+}
+$("#bell").addEventListener("click", () => show("notices"));
+document.addEventListener("visibilitychange", () => { if (!document.hidden) loadNotices(); });
+setInterval(loadNotices, 5 * 60 * 1000);
+
+const TABS = ["drinks", "allergens", "practice", "tally", "info", "notices"];
 function show(tab) {
   if (!TABS.includes(tab)) tab = "drinks";
   TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
@@ -686,6 +746,7 @@ function show(tab) {
   if (tab === "practice" && !pDrink) nextCard();
   if (tab === "tally") renderTally();
   if (tab === "info") renderInfo();
+  if (tab === "notices") renderNotices();
   store.set("tab", tab); window.scrollTo(0, 0);
 }
 document.querySelector("nav.tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
@@ -694,6 +755,7 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { if (hit) $("#offl").textContent = " · Offline ready ✓"; }).catch(() => {});
 }
+loadNotices();
 renderChips(); renderList();
 show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 </script>
