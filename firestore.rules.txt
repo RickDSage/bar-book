@@ -96,6 +96,33 @@ service cloud.firestore {
       allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid && resource.data.report == null);
     }
 
+    // Tonight's shared checklist ticks, one document per business day.
+    match /shift/{day} {
+      allow read, delete: if isMember();
+      allow create, update: if isMember() && request.resource.data.keys().hasOnly(['open', 'close'])
+        && request.resource.data.get('open', []) is list && request.resource.data.get('open', []).size() <= 60
+        && request.resource.data.get('close', []) is list && request.resource.data.get('close', []).size() <= 60;
+    }
+
+    // Stock requests: anyone on the team asks, managers mark them ordered.
+    match /requests/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && request.resource.data.keys().hasOnly(['item', 'note', 'done', 'uid', 'name', 'at'])
+        && text(request.resource.data.item, 200)
+        && request.resource.data.note is string && request.resource.data.note.size() <= 200
+        && request.resource.data.done == false
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name == me().name
+        && request.resource.data.at == request.time;
+      allow update: if isManager() && resource.data.done == false
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done', 'doneBy', 'doneAt'])
+        && request.resource.data.done == true
+        && request.resource.data.doneBy == me().name
+        && request.resource.data.doneAt == request.time;
+      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid && resource.data.done == false);
+    }
+
     // Append-only record of every 86 and back-in-stock. Managers read it.
     match /outlog/{id} {
       allow read: if isManager();

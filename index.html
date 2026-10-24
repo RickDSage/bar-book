@@ -331,7 +331,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="pins"></div><div id="pin-form"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="outlog"></div><div id="mgr"></div>
+    <div id="team"></div><div id="pins"></div><div id="pin-form"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="outlog"></div><div id="mgr"></div>
     <div id="notices"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
@@ -465,7 +465,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, uid: null, me: null, username: null, admin: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [] };
+const LIVE = { api: null, ready: false, uid: null, me: null, username: null, admin: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: { open: [], close: [] } };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -802,22 +802,50 @@ const STOCK = {
   "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Red Bull", "Red Bull Zero", "Crodino", "Tonic", "Slimline tonic"],
   "Water": ["Still water, large", "Still water, small", "Sparkling water, large", "Sparkling water, small"],
   "Wine": ["Prosecco bottle"],
+  "Bar supplies": ["Blue roll", "Bar napkins", "Straws", "Cocktail picks", "Coasters", "Bin bags", "Cling film", "Labels and day dots", "Glass cloths", "Till roll", "Hand soap", "Sanitiser", "Glass washer detergent", "Rinse aid", "Ice"],
+  "Fruit and garnish": ["Limes", "Lemons", "Oranges", "Grapefruit", "Mint", "Basil", "Cherries", "Strawberries", "Passion fruit", "Pineapple", "Cucumber", "Olives", "Jalapeños"],
+  "Juices": ["Lime juice", "Lemon juice", "Orange juice", "Pineapple juice", "Cranberry juice", "Apple juice", "Grapefruit juice", "Tomato juice"],
+  "Syrups, bitters and prep": ["Sugar syrup", "Coco Real", "Orgeat", "Vanilla syrup", "Marshmallow syrup", "Grenadine", "Elderflower cordial", "Honey syrup", "Salted caramel sauce", "Espresso beans", "Foamer", "Aquafaba", "Angostura bitters", "Peychaud's bitters", "Cocoa bitters", "Strawberry powder", "Pickle brine"],
+  "Vodka": ["Smirnoff", "Smirnoff Vanilla", "Smirnoff Miami Peach", "Grey Goose", "Belvedere Blackberry & Lemongrass", "Cîroc Red Berry", "Cîroc Apple", "Cîroc Pineapple", "Cîroc Mango", "Chase Marmalade", "Chase Rhubarb"],
+  "Gin": ["Tanqueray", "Tanqueray Flor de Sevilla", "Drumshanbo Gunpowder", "Roku", "Monkey 47", "Aviation", "The Botanist", "Cygnet", "Brockmans"],
+  "Rum and cachaça": ["Captain Morgan White", "Captain Morgan Spiced Gold", "Captain Morgan Dark", "Kraken", "Zacapa 23", "52North Spiced", "Malibu", "Abelha cachaça"],
+  "Tequila and mezcal": ["El Jimador Blanco", "El Jimador Reposado", "Don Julio Blanco", "Don Julio Añejo", "Don Julio 1942", "Clase Azul Reposado", "Amarás Mezcal"],
+  "Whiskey": ["Jack Daniel's", "Jameson", "Buffalo Trace", "Bulleit", "Bulleit Rye", "Elijah Craig", "Michter's", "Johnnie Walker Black", "Johnnie Walker Blue", "Talisker 10", "Port Charlotte 10", "Glenmorangie Signet", "Hakushu 12", "Hibiki Harmony", "Sheep Dog Peanut Butter"],
+  "Brandy": ["Martell VS", "Courvoisier VSOP", "Hennessy XO", "Rémy Martin XO", "Avallen Calvados"],
+  "Liqueurs and vermouth": ["Aperol", "Campari", "Sarti Rosa", "Martini Rosso", "Martini Extra Dry", "Pimm's", "Cointreau", "Grand Marnier", "Kahlúa", "Baileys", "Disaronno", "Frangelico", "Chambord", "Heering Cherry", "Luxardo Limoncello", "Midori", "Passoa", "Archers", "Apple liqueur", "Ancho Reyes", "Yellow Chartreuse", "Jägermeister", "Absinthe", "Crème de violette", "Maraschino"],
 };
+// Business day: anything before 6am belongs to the night before, so a close that runs past midnight stays one shift.
+const shiftDay = () => new Date(Date.now() - 6 * 36e5).toISOString().slice(0, 10);
+const ticksNow = () => (LIVE.me ? LIVE.ticks : ticks);
 let closer = store.get("closer", "");
 let ticks = store.get("ticks2", { open: [], close: [] });
 let shiftNote = store.get("shiftNote", ""), shiftWho = store.get("shiftWho", "");
 function tallyText() {
   const day = stamp(new Date());
   const list = (k) => {
-    const L = LISTS[k], miss = L.items.filter((_, i) => !ticks[k].includes(i));
+    const L = LISTS[k], miss = L.items.filter((_, i) => !ticksNow()[k].includes(i));
     return `${L.title}: ${L.items.length - miss.length} of ${L.items.length} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
   };
   return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
 function checklistHtml(k) {
-  const L = LISTS[k], done = ticks[k].length;
+  const T = ticksNow()[k], L = LISTS[k], done = T.length;
   return `<div class="sec" style="display:flex;justify-content:space-between">${L.title}<span style="font-family:var(--body);font-size:14px;color:var(--muted);text-transform:none">${done} of ${L.items.length} done</span></div>
-    ${L.items.map((t, i) => `<button class="prep${ticks[k].includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${ticks[k].includes(i)}"><span class="box">${ticks[k].includes(i) ? "✓" : ""}</span><span>${esc(t)}</span></button>`).join("")}`;
+    ${L.items.map((t, i) => `<button class="prep${T.includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${T.includes(i)}"><span class="box">${T.includes(i) ? "✓" : ""}</span><span>${esc(t)}</span></button>`).join("")}`;
+}
+/* Stock requests: staff ask, management marks them ordered. */
+const OTHER = "Other (write it in)";
+let rqItem = "", rqNote = ""; // kept outside the form so live updates don't wipe a half-filled request
+const stockOptions = (skip, pick = "") => Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
+function requestsHtml() {
+  if (!LIVE.api) return "";
+  if (!LIVE.me) return `<div class="sec">Need something?</div><p class="note">Log in on the Team page (the bell) to send requests to management.</p>`;
+  const open = LIVE.requests.filter((r) => !r.done);
+  return `<div class="sec">Need something?</div>
+    <label class="fld">What's needed or missing<select id="rq-item"><option value="">Choose…</option><option${rqItem === OTHER ? " selected" : ""}>${OTHER}</option>${stockOptions(() => false, rqItem)}</select></label>
+    <label class="fld">Details (how much, or what it is if Other)<input id="rq-note" maxlength="200" value="${esc(rqNote)}" placeholder="2 rolls, running low, broken…"></label>
+    <div class="actions"><button class="btn pri" id="rq-go">Send to management</button></div>
+    ${open.length ? `<div class="h3" style="margin-top:14px">Waiting to be ordered</div>${open.map((r) => `<div class="staffrow"><div class="n">${esc(r.item)}</div>${r.note ? `<div class="s">${esc(r.note)}</div>` : ""}<div class="s">${esc(r.name)} · ${when(r.at)}</div>${r.uid === LIVE.uid ? `<div class="actions"><button class="btn" data-rq-del="${r.id}">Cancel</button></div>` : ""}</div>`).join("")}` : ""}`;
 }
 /* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
 function photosHtml() {
@@ -847,7 +875,8 @@ function renderTally() {
   const outList = [...outNow()].sort();
   $("#tally").innerHTML = `${checklistHtml("open")}
     <div class="sec">86'd tonight</div>
-    <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !outNow().has(x)).map((x) => `<option>${esc(x)}</option>`).join("")}</optgroup>`).join("")}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
+    <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
+    ${requestsHtml()}
     ${checklistHtml("close")}
     ${photosHtml()}
     <div class="sec">Comments for the manager</div>
@@ -856,7 +885,7 @@ function renderTally() {
     <label class="fld">Note for handover<textarea id="s-note" rows="4" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
     <p class="note">${LIVE.me ? "At close, send the report to the Team page with your photos. A manager signs it off there." : "At close, send the report to the manager to sign off."} It includes both checklists, anything not done, the 86'd list and your handover note.</p>
     <div class="actions"><button class="btn pri" id="t-copy">Send for sign-off</button><button class="btn danger" id="t-reset">Start a new night</button></div>
-    ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear the checklists and handover note on this phone? The team 86'd list stays until each item is marked back in stock." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
+    ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear tonight's shared checklists for everyone, and the handover note on this phone? The team 86'd list stays until each item is marked back in stock." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
     <textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea>`;
 }
 $("#tally").addEventListener("change", async (e) => {
@@ -867,11 +896,13 @@ $("#tally").addEventListener("change", async (e) => {
     catch { toast("Couldn't read that photo"); }
     photoBusy = false; renderTally(); return;
   }
+  if (e.target.id === "rq-item") { rqItem = e.target.value; return; }
   if (e.target.dataset.phNote) { LIVE.api.notePhoto(e.target.dataset.phNote, e.target.value.trim()).catch(() => toast("Note not saved")); return; }
   if (e.target.id !== "s-86" || !e.target.value) return;
   const n = e.target.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
 });
 $("#tally").addEventListener("input", (e) => {
+  if (e.target.id === "rq-note") { rqNote = e.target.value; return; }
   if (e.target.id === "s-who") { shiftWho = e.target.value; store.set("shiftWho", shiftWho); }
   if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
   $("#t-text").value = tallyText();
@@ -881,7 +912,7 @@ $("#tally").addEventListener("click", async (e) => {
     const txt = tallyText();
     // Firestore queues the write with no signal and sends it when the phone reconnects.
     if (LIVE.me) {
-      const done = (k) => `${ticks[k].length}/${LISTS[k].items.length}`;
+      const done = (k) => `${ticksNow()[k].length}/${LISTS[k].items.length}`;
       const n = LIVE.myPhotos.length;
       const summary = `Opening ${done("open")} · Closing ${done("close")} · ${outNow().size} 86'd${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closing manager ${closer}` : ""}`;
       LIVE.api.sendReport(txt, summary).catch(() => toast("Report not sent. Try again")); haptic(); toast("Sent to the team for sign-off"); return;
@@ -893,10 +924,24 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-reset")) { confirmReset = true; renderTally(); }
   if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
   const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
-  const ck = e.target.closest("[data-list]"); if (ck) { const k = ck.dataset.list, i = +ck.dataset.i; ticks[k] = ticks[k].includes(i) ? ticks[k].filter((x) => x !== i) : [...ticks[k], i]; store.set("ticks2", ticks); haptic(); renderTally(); return; }
+  const ck = e.target.closest("[data-list]"); if (ck) {
+    const k = ck.dataset.list, i = +ck.dataset.i, on = !ticksNow()[k].includes(i);
+    // Logged in, ticks are shared with everyone on tonight's shift.
+    if (LIVE.me) LIVE.api.tick(k, i, on).catch(() => toast("Tick not saved. Try again"));
+    else { ticks[k] = on ? [...ticks[k], i] : ticks[k].filter((x) => x !== i); store.set("ticks2", ticks); }
+    haptic(); renderTally(); return;
+  }
+  const rq = e.target.closest("#rq-go"); if (rq) {
+    const item = rqItem, note = rqNote.trim();
+    if (!item) return toast("Pick what's needed");
+    if (item === OTHER && !note) return toast("Write what's needed in the box");
+    LIVE.api.request(item === OTHER ? note : item, item === OTHER ? "" : note).catch(() => toast("Request not sent. Try again"));
+    haptic(); toast("Sent to management"); rqItem = rqNote = ""; renderTally(); return;
+  }
+  const rd = e.target.closest("[data-rq-del]"); if (rd) { if (confirm("Cancel this request?")) LIVE.api.cancelRequest(rd.dataset.rqDel).catch(() => toast("Could not cancel")); return; }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) LIVE.api.deletePhoto(pd.dataset.phDel).catch(() => toast("Could not delete")); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks2", ticks); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); confirmReset = false; renderTally(); toast("New night started"); }
+  if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks2", ticks); if (LIVE.me) LIVE.api.clearTicks().catch(() => {}); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); confirmReset = false; renderTally(); toast("New night started"); }
 });
 
 /* ---------- Feedback (Google Form, responses go to the manager) ---------- */
@@ -987,7 +1032,7 @@ const isNew = (x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen;
 const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(isNew);
 const newPin = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, "0");
 let staffMsg = "";
-const SLOTS = ["#team", "#pins", "#pin-form", "#compose", "#feed", "#reports", "#outlog", "#mgr"];
+const SLOTS = ["#team", "#pins", "#pin-form", "#requests", "#compose", "#feed", "#reports", "#outlog", "#mgr"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Notices, comments and shift reports from the team. Newest first." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -1022,7 +1067,7 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="6" value="${newPin()}"></label>
       <label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, manages the team)</option></select></label>
       <button class="btn pri wide" id="a-go">Add person</button></details>`;
-  renderPins(); renderFeed(); renderReports(); renderOutlog(); renderStaff();
+  renderPins(); renderRequests(); renderFeed(); renderReports(); renderOutlog(); renderStaff();
 }
 function renderStaff() {
   const box = $("#staff-list"); if (!box) return;
@@ -1048,6 +1093,11 @@ function renderReports() {
       ${LIVE.admin ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
     (done.length ? `<details class="setup"><summary>Report history (${done.length})</summary>${done.map((r) => `<div class="staffrow"><div class="n">${when(r.at)} · ${esc(r.name)}</div><div class="s">${esc(r.summary)}</div><div class="s ok">Signed off by ${esc(r.signedBy)}, ${when(r.signedAt)}</div>${body(r)}</div>`).join("")}</details>` : "");
 }
+function renderRequests() {
+  if (!LIVE.admin) return;
+  const open = LIVE.requests.filter((r) => !r.done);
+  $("#requests").innerHTML = `<div class="sec">Stock requests</div>` + (open.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt"><b>${esc(r.item)}</b>${r.note ? `<br>${esc(r.note)}` : ""}</p><div class="actions"><button class="btn pri" data-ordered="${r.id}">Ordered</button><button class="btn" data-rq-drop="${r.id}">Delete</button></div></article>`).join("") || `<p class="note">Nothing requested.</p>`);
+}
 // Photos load only when asked for, so the feed stays quick and cheap on data.
 const shownPhotos = {};
 async function showPhotos(id) {
@@ -1071,26 +1121,28 @@ const TOAST = {
   feed: (x) => `${x.name}: ${x.text.slice(0, 70)}`,
   notices: (x) => `Notice: ${x.text.slice(0, 70)}`,
   reports: (x) => `${x.name} sent a shift report`,
+  requests: (x) => (LIVE.admin && !x.done ? `${x.name} needs: ${x.item}` : ""),
 };
 function liveChanged(what) {
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
-      const k = what + x.id + (x.signedBy ? ":s" : "");
-      if (told.has(k)) continue; told.add(k);
+      const k = what + x.id + (x.signedBy ? ":s" : "") + (x.done ? ":d" : "");
+      if (x.pending || told.has(k)) continue; told.add(k);
       if (first || !$("#v-notices").hidden) continue;
       if (x.signedBy) { if (x.uid === LIVE.uid) toast(`${x.signedBy} signed off your shift report`); }
-      else if (x.uid !== LIVE.uid) toast(TOAST[what](x));
+      else if (x.done) { if (x.uid === LIVE.uid) toast(`${x.doneBy} ordered ${x.item}`); }
+      else if (x.uid !== LIVE.uid && TOAST[what](x)) toast(TOAST[what](x));
     }
   }
   renderBell();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: renderFeed, notices: renderPins, reports: renderReports, outlog: renderOutlog, staff: renderStaff }[what];
+    const R = { feed: renderFeed, notices: renderPins, reports: renderReports, outlog: renderOutlog, staff: renderStaff, requests: renderRequests }[what];
     if (R) { R(); markSeen(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if ((what === "me" || what === "out" || what === "photos") && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "ticks", "requests"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 function markSeen() {
@@ -1146,6 +1198,10 @@ $("#v-notices").addEventListener("click", (e) => {
     A.pin(t).catch(() => toast("Notice not pinned. Try again")); $("#p-text").value = ""; haptic(); toast("Notice pinned for everyone");
   } else if (b.dataset.unpin) {
     if (confirm("Remove this notice for everyone?")) A.unpin(b.dataset.unpin).catch(() => toast("Could not remove"));
+  } else if (b.dataset.ordered) {
+    A.markOrdered(b.dataset.ordered).catch(() => toast("Could not update")); haptic();
+  } else if (b.dataset.rqDrop) {
+    if (confirm("Delete this request?")) A.cancelRequest(b.dataset.rqDrop).catch(() => toast("Could not delete"));
   } else if (b.dataset.photos) {
     b.disabled = true; b.textContent = "Loading photos…";
     showPhotos(b.dataset.photos).catch(() => { toast("Couldn't load the photos"); b.disabled = false; });
