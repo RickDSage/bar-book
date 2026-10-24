@@ -213,6 +213,10 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .notice summary { margin-top: 8px; color: var(--brass); font-weight: 700; min-height: 32px; }
 .notice .ok { color: var(--brass); font-weight: 700; }
 .notice .actions { margin-top: 10px; }
+.notice.pinned { border: 2px solid var(--brass); background: color-mix(in srgb, var(--brass) 10%, var(--surface)); }
+.staffrow details summary { margin-top: 4px; }
+.staffrow pre { white-space: pre-wrap; font: 14px/1.45 var(--body); }
+.s.ok { color: var(--brass); }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
 details.setup { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 8px; }
 details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px; display: flex; align-items: center; }
@@ -321,8 +325,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div>
-    <div id="feed"></div>
+    <div id="team"></div><div id="pins"></div><div id="pin-form"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="outlog"></div><div id="mgr"></div>
     <div id="notices"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
@@ -454,7 +457,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, uid: null, me: null, username: null, admin: false, feed: [], out: new Set(), staff: [] };
+const LIVE = { api: null, ready: false, uid: null, me: null, username: null, admin: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -600,7 +603,7 @@ function openSheet(id, keepScroll) {
     <div class="badges">
       ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
     </div>
-    ${teamOut.has(d.name) && !outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight</b> (team notice). Offer something else.</span></div>` : outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
+    ${teamOut.has(d.name) && !outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight</b> (team notice). Offer something else.</span></div>` : outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${LIVE.me && outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
     ${al ? `<div class="allergy"><b>Allergens:</b> ${esc(al)}</div>` : ""}
     ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
@@ -812,13 +815,13 @@ function renderTally() {
   const outList = [...outNow()].sort();
   $("#tally").innerHTML = `${checklistHtml("open")}
     <div class="sec">86'd tonight</div>
-    <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !outNow().has(x)).map((x) => `<option>${esc(x)}</option>`).join("")}</optgroup>`).join("")}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me ? `<div class="s">Shared with the team</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
+    <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !outNow().has(x)).map((x) => `<option>${esc(x)}</option>`).join("")}</optgroup>`).join("")}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
     ${checklistHtml("close")}
     <div class="sec">Comments for the manager</div>
     <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
     <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the bar tonight"></label>
     <label class="fld">Note for handover<textarea id="s-note" rows="4" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
-    <p class="note">${LIVE.me ? "At close, send the report to the team feed. The closing manager signs it off there." : "At close, send the report to the manager to sign off."} It includes both checklists, anything not done, the 86'd list and your handover note.</p>
+    <p class="note">${LIVE.me ? "At close, send the report to the Team page. A manager signs it off there." : "At close, send the report to the manager to sign off."} It includes both checklists, anything not done, the 86'd list and your handover note.</p>
     <div class="actions"><button class="btn pri" id="t-copy">Send for sign-off</button><button class="btn danger" id="t-reset">Start a new night</button></div>
     ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear the checklists and handover note on this phone? The team 86'd list stays until each item is marked back in stock." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
     <textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea>`;
@@ -836,7 +839,11 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-copy")) {
     const txt = tallyText();
     // Firestore queues the write with no signal and sends it when the phone reconnects.
-    if (LIVE.me) { LIVE.api.sendReport(txt).catch(() => toast("Report not sent. Try again")); haptic(); toast("Sent to the team feed for sign-off"); return; }
+    if (LIVE.me) {
+      const done = (k) => `${ticks[k].length}/${LISTS[k].items.length}`;
+      const summary = `Opening ${done("open")} · Closing ${done("close")} · ${outNow().size} 86'd${closer ? ` · Closing manager ${closer}` : ""}`;
+      LIVE.api.sendReport(txt, summary).catch(() => toast("Report not sent. Try again")); haptic(); toast("Sent to the team for sign-off"); return;
+    }
     if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (err) { if (err.name === "AbortError") return; } }
     try { await navigator.clipboard.writeText(txt); toast("Copied. Paste it to the manager"); }
     catch { const ta = $("#t-text"); ta.focus(); ta.select(); toast("Text selected. Tap Copy"); }
@@ -932,15 +939,18 @@ function renderBell() {
 const ms = (t) => (t ? t.toMillis() : Date.now());
 const when = (t) => {
   const d = new Date(ms(t)), hm = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  return d.toDateString() === new Date().toDateString() ? hm : d.toLocaleDateString("en-GB", { weekday: "short" }) + " " + hm;
+  return d.toDateString() === new Date().toDateString() ? hm : d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + ", " + hm;
 };
 let feedSeen = store.get("feedSeen", 0);
-const feedNew = () => LIVE.feed.filter((x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen);
+const isNew = (x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen;
+const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(isNew);
 const newPin = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, "0");
 let staffMsg = "";
+const SLOTS = ["#team", "#pins", "#pin-form", "#compose", "#feed", "#reports", "#outlog", "#mgr"];
 function renderTeamTop() {
-  $("#team-lead").textContent = LIVE.api ? "Comments, shift reports and notices from the team. Newest first." : "Messages from the manager and bar lead. Newest first.";
-  if (!LIVE.api) { $("#team").innerHTML = ""; return; }
+  $("#team-lead").textContent = LIVE.api ? "Notices, comments and shift reports from the team. Newest first." : "Messages from the manager and bar lead. Newest first.";
+  SLOTS.forEach((s) => ($(s).innerHTML = ""));
+  if (!LIVE.api) return;
   if (!LIVE.ready) { $("#team").innerHTML = `<p class="note">Connecting to the team feed. It needs signal the first time.</p>`; return; }
   if (!LIVE.uid) {
     $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Log in</h2><p>Use the username and 6-digit PIN your manager gave you. You stay logged in on this phone.</p>
@@ -957,55 +967,90 @@ function renderTeamTop() {
     return;
   }
   if (!LIVE.me) { $("#team").innerHTML = `<p class="note">Checking your account…</p>`; return; }
-  $("#team").innerHTML = `<p class="note">Logged in as <b>${esc(LIVE.me)}</b> (${esc(LIVE.username)})${LIVE.admin ? ", manager" : ""}. <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>
+  $("#team").innerHTML = `<p class="note">Logged in as <b>${esc(LIVE.me)}</b> (${esc(LIVE.username)})${LIVE.admin ? ", manager" : ""}. <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>`;
+  if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Pin a notice</summary>
+    <label class="fld">Notice for everyone<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
+    <div class="actions"><button class="btn pri" id="p-go">Pin it</button></div></details>`;
+  $("#compose").innerHTML = `<div class="sec">Team feed</div>
     <label class="fld">Write to the team<textarea id="c-text" rows="3" maxlength="2000" placeholder="Running low on limes, a guest comment, anything the team should know"></textarea></label>
-    <div class="actions"><button class="btn pri" id="c-post">Post</button></div>
-    ${LIVE.admin ? `<details class="setup" id="staff-box"${renderTeamTop.open ? " open" : ""}><summary>Team members</summary><div id="staff-list"></div>
+    <div class="actions"><button class="btn pri" id="c-post">Post</button></div>`;
+  if (LIVE.admin) $("#mgr").innerHTML = `<details class="setup" id="staff-box"${renderTeamTop.open ? " open" : ""}><summary>Team members</summary><div id="staff-list"></div>
       <h3 style="font-size:18px;margin-top:16px">Add a person</h3>
       <label class="fld">Name<input id="a-name" maxlength="40"></label>
       <label class="fld">Username (lower case letters and numbers)<input id="a-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="6" value="${newPin()}"></label>
       <label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, manages the team)</option></select></label>
-      <button class="btn pri wide" id="a-go">Add person</button></details>` : ""}`;
-  renderStaff();
+      <button class="btn pri wide" id="a-go">Add person</button></details>`;
+  renderPins(); renderFeed(); renderReports(); renderOutlog(); renderStaff();
 }
 function renderStaff() {
   const box = $("#staff-list"); if (!box) return;
   box.innerHTML = (staffMsg ? `<div class="confirm" style="border-color:var(--brass)">${staffMsg}</div>` : "") + LIVE.staff.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}${p.uid === LIVE.uid ? " (you)" : ""}</div><div class="s">${esc(p.username)} · ${p.role === "manager" ? "Manager" : "Staff"}</div>
     ${p.uid === LIVE.uid ? "" : `<div class="actions"><button class="btn" data-role="${p.uid}">${p.role === "manager" ? "Make staff" : "Make manager"}</button><button class="btn" data-reset="${p.uid}">Reset PIN</button><button class="btn danger" data-remove="${p.uid}">Remove</button></div>`}</div>`).join("");
 }
-function renderFeed() {
-  if (!LIVE.me) { $("#feed").innerHTML = ""; return; }
-  const del = (x) => (LIVE.admin || x.uid === LIVE.uid ? `<button class="btn" data-del="${x.id}">Delete</button>` : "");
-  $("#feed").innerHTML = LIVE.feed.length ? LIVE.feed.map((x) => {
-    const fresh = x.uid !== LIVE.uid && ms(x.at) > feedSeen ? " new" : "";
-    if (x.kind === "report") return `<article class="notice${fresh}"><div class="meta"><b>Shift report</b> from ${esc(x.name)} · ${when(x.at)}</div><details><summary>Show the report</summary><pre>${esc(x.text)}</pre></details>
-      ${x.signedBy ? `<p class="ok">Signed off by ${esc(x.signedBy)}, ${when(x.signedAt)}</p>` : LIVE.admin ? "" : `<p class="note">Waiting for a manager to sign it off.</p>`}
-      <div class="actions">${!x.signedBy && LIVE.admin ? `<button class="btn pri" data-sign="${x.id}">Sign off</button>` : ""}${del(x)}</div></article>`;
-    return `<article class="notice${fresh}"><div class="meta"><b>${esc(x.name)}</b> · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${del(x) ? `<div class="actions">${del(x)}</div>` : ""}</article>`;
-  }).join("") : `<p class="note">Nothing posted yet.</p>`;
-  feedSeen = Math.max(feedSeen, ...LIVE.feed.map((x) => ms(x.at))); store.set("feedSeen", feedSeen); renderBell();
+function renderPins() {
+  if (!LIVE.me) return;
+  $("#pins").innerHTML = LIVE.notices.map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Notice</b> from ${esc(x.name)} · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${LIVE.admin ? `<div class="actions"><button class="btn" data-unpin="${x.id}">Remove notice</button></div>` : ""}</article>`).join("");
 }
-// Called by live.js whenever membership, the feed or the shared 86 list changes.
-const told = new Set();
+function renderFeed() {
+  if (!LIVE.me) return;
+  const del = (x) => (LIVE.admin || x.uid === LIVE.uid ? `<div class="actions"><button class="btn" data-del="${x.id}">Delete</button></div>` : "");
+  $("#feed").innerHTML = LIVE.feed.length ? LIVE.feed.map((x) => `<article class="notice${isNew(x) ? " new" : ""}"><div class="meta"><b>${esc(x.name)}</b> · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${del(x)}</article>`).join("") : `<p class="note">Nothing posted yet.</p>`;
+}
+// Waiting reports sit open at the top; signed ones go into the history list.
+function renderReports() {
+  if (!LIVE.me) return;
+  const waiting = LIVE.reports.filter((r) => !r.signedBy), done = LIVE.reports.filter((r) => r.signedBy);
+  const body = (r) => `<details><summary>Show the report</summary><pre>${esc(r.text)}</pre></details>`;
+  $("#reports").innerHTML = `<div class="sec">Shift reports</div>` +
+    (waiting.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt">${esc(r.summary)}</p>${body(r)}
+      ${LIVE.admin ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
+    (done.length ? `<details class="setup"><summary>Report history (${done.length})</summary>${done.map((r) => `<div class="staffrow"><div class="n">${when(r.at)} · ${esc(r.name)}</div><div class="s">${esc(r.summary)}</div><div class="s ok">Signed off by ${esc(r.signedBy)}, ${when(r.signedAt)}</div>${body(r)}</div>`).join("")}</details>` : "");
+}
+function renderOutlog() {
+  if (!LIVE.admin) return;
+  const counts = {};
+  LIVE.outlog.filter((x) => x.action === "out").forEach((x) => (counts[x.name] = (counts[x.name] || 0) + 1));
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  $("#outlog").innerHTML = `<details class="setup"><summary>86 log</summary>
+    ${top.length ? `<h3 style="font-size:18px;margin-top:10px">Runs out most</h3>${top.map(([n, c]) => `<div class="staffrow"><div class="n">${esc(n)}</div><div class="s">86'd ${c} time${c > 1 ? "s" : ""}</div></div>`).join("")}<h3 style="font-size:18px;margin-top:16px">Latest</h3>` : ""}
+    ${LIVE.outlog.map((x) => `<div class="staffrow"><div class="n">${esc(x.name)} ${x.action === "out" ? "<span style=\"color:var(--warn)\">86'd</span>" : "back in stock"}</div><div class="s">${esc(x.by)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">Nothing 86'd yet.</p>`}
+    <p class="note">Last 100 changes.</p></details>`;
+}
+// Called by live.js whenever membership, the feed, notices, reports, the 86 list or the team list changes.
+const told = new Set(), firstSnap = new Set();
+const TOAST = {
+  feed: (x) => `${x.name}: ${x.text.slice(0, 70)}`,
+  notices: (x) => `Notice: ${x.text.slice(0, 70)}`,
+  reports: (x) => `${x.name} sent a shift report`,
+};
 function liveChanged(what) {
-  if (what === "feed") {
-    const first = !liveChanged.ready; liveChanged.ready = true;
-    for (const x of LIVE.feed) {
-      const k = x.id + (x.signedBy ? ":s" : "");
+  if (TOAST[what]) {
+    const first = !firstSnap.has(what); firstSnap.add(what);
+    for (const x of LIVE[what]) {
+      const k = what + x.id + (x.signedBy ? ":s" : "");
       if (told.has(k)) continue; told.add(k);
       if (first || !$("#v-notices").hidden) continue;
-      if (x.signedBy && x.uid === LIVE.uid) toast(`${x.signedBy} signed off your shift report`);
-      else if (!x.signedBy && x.uid !== LIVE.uid) toast(x.kind === "report" ? `${x.name} sent a shift report` : `${x.name}: ${x.text.slice(0, 70)}`);
+      if (x.signedBy) { if (x.uid === LIVE.uid) toast(`${x.signedBy} signed off your shift report`); }
+      else if (x.uid !== LIVE.uid) toast(TOAST[what](x));
     }
   }
   renderBell();
   if (what === "me" || what === "out") renderList();
-  if (!$("#v-notices").hidden) { if (what === "feed") renderFeed(); else if (what === "staff") renderStaff(); else if (!$("#team").contains(document.activeElement) || what === "me") renderNotices(); }
+  if (!$("#v-notices").hidden) {
+    const R = { feed: renderFeed, notices: renderPins, reports: renderReports, outlog: renderOutlog, staff: renderStaff }[what];
+    if (R) { R(); markSeen(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
+  }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
   if ((what === "me" || what === "out") && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
+function markSeen() {
+  const all = [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].map((x) => ms(x.at));
+  if (all.length) { feedSeen = Math.max(feedSeen, ...all); store.set("feedSeen", feedSeen); }
+  renderBell();
+}
+const outBy = (n) => { const i = LIVE.outInfo.get(n); return i ? `${esc(i.by)}, ${when(i.at)}` : ""; };
 const val = (id) => $(id).value.trim();
 const busy = (b, label, p) => { b.disabled = true; const t = b.textContent; b.textContent = label; return p.finally(() => { b.disabled = false; b.textContent = t; }); };
 $("#v-notices").addEventListener("toggle", (e) => { if (e.target.id === "staff-box") renderTeamTop.open = e.target.open; }, true);
@@ -1048,6 +1093,11 @@ $("#v-notices").addEventListener("click", (e) => {
   } else if (b.dataset.role) {
     const p = person(b.dataset.role);
     A.setRole(p, p.role === "manager" ? "staff" : "manager").catch(() => toast("Could not change the role"));
+  } else if (b.id === "p-go") {
+    const t = val("#p-text"); if (!t) return;
+    A.pin(t).catch(() => toast("Notice not pinned. Try again")); $("#p-text").value = ""; haptic(); toast("Notice pinned for everyone");
+  } else if (b.dataset.unpin) {
+    if (confirm("Remove this notice for everyone?")) A.unpin(b.dataset.unpin).catch(() => toast("Could not remove"));
   } else if (b.dataset.del) {
     if (confirm("Delete this post for everyone?")) A.removePost(b.dataset.del).catch(() => toast("Could not delete"));
   } else if (b.dataset.sign) {
@@ -1055,7 +1105,7 @@ $("#v-notices").addEventListener("click", (e) => {
   }
 });
 function renderNotices() {
-  renderTeamTop(); renderFeed();
+  renderTeamTop(); markSeen();
   $("#notices").innerHTML = (LIVE.me && notices.length ? `<div class="sec">Notices</div>` : "") + (notices.length ? notices.map((x) => `<article class="notice${seen.has(x.key) ? "" : " new"}">${x.lines.map((l, i) => /^86\s*:/i.test(l) ? `<p class="n86">86'd: ${esc(l.replace(/^86\s*:/i, "").trim())}</p>` : i === 0 ? `<h3>${esc(l)}</h3>` : `<p>${esc(l)}</p>`).join("")}</article>`).join("") : LIVE.me ? "" : `<p class="note">No notices right now.</p>`);
   notices.forEach((x) => seen.add(x.key)); store.set("seen", [...seen].slice(-200)); renderBell();
 }
