@@ -192,8 +192,30 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .hero.solo { grid-template-columns: 1fr !important; }
 .row .g { width: 44px; height: 55px; }
 .row { grid-template-columns: 44px 1fr auto; }
-.prep { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; width: 100%; text-align: left; padding: 10px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
-.prep .box { width: 26px; height: 26px; border-radius: 7px; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 700; color: var(--brass-ink); }
+.prep { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15.5px; line-height: 1.35; transition: opacity .2s; }
+.prep .box { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 700; color: var(--brass-ink); transition: background .15s, border-color .15s, transform .15s; }
+.prep.done .box { transform: scale(1.06); }
+.prep.done { opacity: .62; }
+.shift-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.shift-top h2 { font-size: 28px; }
+#shift-day { color: var(--muted); font-size: 14px; }
+.ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.6); }
+.ptabs button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 52px; padding: 6px 2px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--muted); }
+.ptabs small { font-size: 11.5px; font-weight: 600; opacity: .85; min-height: 14px; }
+.ptabs button[aria-selected="true"] { background: var(--brass); color: var(--brass-ink); }
+.pane { animation: paneIn .18s ease-out; }
+@keyframes paneIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.prog-head { display: flex; justify-content: space-between; margin-top: 14px; font-size: 14px; color: var(--muted); }
+.prog-head b { color: var(--fg); }
+.prog { height: 8px; margin: 6px 0 4px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--brass); border-radius: 99px; transition: width .3s ease-out; }
+.prog.full i { background: var(--ok); }
+.btn.next { margin-top: 20px; border-color: var(--brass); color: var(--brass); }
+.sumcard { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; margin-top: 14px; }
+.sumcard div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
+.sumcard span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.sumcard b { font-family: var(--display); font-size: 26px; }
+.soon { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 99px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .prep.done .box { background: var(--ok); border-color: var(--ok); }
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
 .brandr { display: flex; align-items: center; gap: 6px; }
@@ -323,8 +345,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
   </section>
 
   <section class="view" id="v-tally" hidden>
-    <h2 style="font-size:28px;margin-top:12px">Tonight's shift</h2>
-    <p class="lead">Opening and closing checklists, the 86'd list and the handover note in one place. It stays on this phone, so one person runs it per shift and sends it to the manager to sign off at close.</p>
+    <div class="shift-top"><h2>Tonight's shift</h2><span id="shift-day"></span></div>
     <div id="tally"></div>
   </section>
 
@@ -828,19 +849,24 @@ function tallyText() {
   };
   return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
+const PANES = [["open", "Open"], ["stock", "Stock"], ["close", "Close"], ["send", "Send"]];
+let pane = new Date().getHours() >= 6 && new Date().getHours() < 16 ? "open" : "close";
+const progress = (k) => { const n = ticksNow()[k].length, of = LISTS[k].items.length; return { n, of, pct: Math.round((n / of) * 100) }; };
 function checklistHtml(k) {
-  const T = ticksNow()[k], L = LISTS[k], done = T.length;
-  return `<div class="sec" style="display:flex;justify-content:space-between">${L.title}<span style="font-family:var(--body);font-size:14px;color:var(--muted);text-transform:none">${done} of ${L.items.length} done</span></div>
+  const T = ticksNow()[k], L = LISTS[k], p = progress(k);
+  return `<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}</span><b>${p.pct}%</b></div>
+    <div class="prog${p.n === p.of ? " full" : ""}"><i style="width:${p.pct}%"></i></div>
     ${L.items.map((t, i) => `<button class="prep${T.includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${T.includes(i)}"><span class="box">${T.includes(i) ? "✓" : ""}</span><span>${esc(t)}</span></button>`).join("")}`;
 }
+const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
 /* Stock requests: staff ask, management marks them ordered. */
 const OTHER = "Other (write it in)";
 let rqItem = "", rqNote = ""; // kept outside the form so live updates don't wipe a half-filled request
 const stockOptions = (skip, pick = "") => Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
-const SOON = `<p class="note">Switches on once team logins are set up (Firebase).</p>`;
+const SOON = `<p class="soon">Switches on with team logins</p>`;
 function requestsHtml() {
-  if (!LIVE.api) return `<div class="sec">Need something?</div><p class="note">Request blue roll, fruit, spirits or anything missing, straight to management.</p>${SOON}`;
-  if (!LIVE.me) return `<div class="sec">Need something?</div><p class="note">Log in on the Team page (the bell) to send requests to management.</p>`;
+  if (!LIVE.api) return `<div class="sec">Need something?</div><p class="note">Ask management for blue roll, fruit, spirits or anything missing.</p>${SOON}`;
+  if (!LIVE.me) return `<div class="sec">Need something?</div><p class="note">Log in on the Team page (the bell) to send requests.</p>`;
   const open = LIVE.requests.filter((r) => !r.done);
   return `<div class="sec">Need something?</div>
     <label class="fld">What's needed or missing<select id="rq-item"><option value="">Choose…</option><option${rqItem === OTHER ? " selected" : ""}>${OTHER}</option>${stockOptions(() => false, rqItem)}</select></label>
@@ -850,10 +876,10 @@ function requestsHtml() {
 }
 /* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
 function photosHtml() {
-  if (!LIVE.api) return `<div class="sec">Closing photos</div><p class="note">Take photos of the close with a note on each. They go with your shift report and aren't saved on your phone.</p>${SOON}`;
+  if (!LIVE.api) return `<div class="sec">Closing photos</div><p class="note">Photos of the close, with a note on each, sent with your report.</p>${SOON}`;
   if (!LIVE.me) return `<div class="sec">Closing photos</div><p class="note">Log in on the Team page (the bell) to add photos of the close.</p>`;
   return `<div class="sec">Closing photos</div>
-    <p class="note">Photos of the close or anything you worked on. They go with your shift report and aren't saved on your phone.</p>
+    <p class="note">The close, or anything you worked on. Sent with your report, not saved on your phone.</p>
     ${LIVE.myPhotos.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
     <label class="btn pri wide" style="cursor:pointer">${photoBusy ? "Adding photo…" : "Take a photo"}<input id="ph-in" type="file" accept="image/*" capture="environment" hidden></label>`;
 }
@@ -872,22 +898,38 @@ async function shrink(file) {
   URL.revokeObjectURL(url);
   return out;
 }
+function paneBadge(k) {
+  if (k === "open" || k === "close") { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
+  if (k === "stock") return outNow().size ? `${outNow().size} out` : "";
+  return "";
+}
 function renderTally() {
+  $("#shift-day").textContent = new Date(Date.now() - 6 * 36e5).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const outList = [...outNow()].sort();
-  $("#tally").innerHTML = `${checklistHtml("open")}
-    <div class="sec">86'd tonight</div>
-    <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
-    ${requestsHtml()}
-    ${checklistHtml("close")}
-    ${photosHtml()}
-    <div class="sec">Comments for the manager</div>
-    <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
-    <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the bar tonight"></label>
-    <label class="fld">Note for handover<textarea id="s-note" rows="4" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
-    <p class="note">${LIVE.me ? "At close, send the report to the Team page with your photos. A manager signs it off there." : "At close, send the report to the manager to sign off."} It includes both checklists, anything not done, the 86'd list and your handover note.</p>
-    <div class="actions"><button class="btn pri" id="t-copy">Send for sign-off</button><button class="btn danger" id="t-reset">Start a new night</button></div>
-    ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear tonight's shared checklists for everyone, and the handover note on this phone? The team 86'd list stays until each item is marked back in stock." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
-    <textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea>`;
+  const tabs = `<div class="ptabs" role="tablist">${PANES.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
+  const body = {
+    open: () => `${checklistHtml("open")}${nextBtn("stock", "Next: stock and 86s")}`,
+    stock: () => `<div class="sec">86'd tonight</div>
+      <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
+      ${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}
+      ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd.</p>`}
+      ${requestsHtml()}${nextBtn("close", "Next: closing checklist")}`,
+    close: () => `${checklistHtml("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
+    send: () => {
+      const o = progress("open"), c = progress("close");
+      return `<div class="sumcard">
+        <div><span>Opening</span><b>${o.n}/${o.of}</b></div><div><span>Closing</span><b>${c.n}/${c.of}</b></div><div><span>86'd</span><b>${outNow().size}</b></div>${LIVE.me ? `<div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>` : ""}
+      </div>
+      <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
+      <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the bar tonight"></label>
+      <label class="fld">Note for handover<textarea id="s-note" rows="3" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
+      <button class="btn pri wide" id="t-copy">${LIVE.me ? "Send to managers for sign-off" : "Send for sign-off"}</button>
+      <details class="setup"><summary>Preview the report</summary><textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea></details>
+      <button class="btn danger wide" id="t-reset">Start a new night</button>
+      ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear tonight's shared checklists for everyone, and the handover note on this phone? The team 86'd list stays until each item is marked back in stock." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}`;
+    },
+  }[pane]();
+  $("#tally").innerHTML = tabs + `<div class="pane">${body}</div>`;
 }
 $("#tally").addEventListener("change", async (e) => {
   if (e.target.id === "ph-in") {
@@ -906,7 +948,7 @@ $("#tally").addEventListener("input", (e) => {
   if (e.target.id === "rq-note") { rqNote = e.target.value; return; }
   if (e.target.id === "s-who") { shiftWho = e.target.value; store.set("shiftWho", shiftWho); }
   if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
-  $("#t-text").value = tallyText();
+  if ($("#t-text")) $("#t-text").value = tallyText();
 });
 $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-copy")) {
@@ -925,8 +967,10 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-reset")) { confirmReset = true; renderTally(); }
   if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
   const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
+  const pn = e.target.closest("[data-pane]"); if (pn) { pane = pn.dataset.pane; renderTally(); $("#v-tally").scrollIntoView({ block: "start" }); window.scrollTo(0, 0); return; }
   const ck = e.target.closest("[data-list]"); if (ck) {
     const k = ck.dataset.list, i = +ck.dataset.i, on = !ticksNow()[k].includes(i);
+    if (on && ticksNow()[k].length === LISTS[k].items.length - 1) { toast(`${LISTS[k].title} complete`); try { navigator.vibrate?.([12, 60, 12]); } catch {} }
     // Logged in, ticks are shared with everyone on tonight's shift.
     if (LIVE.me) LIVE.api.tick(k, i, on).catch(() => toast("Tick not saved. Try again"));
     else { ticks[k] = on ? [...ticks[k], i] : ticks[k].filter((x) => x !== i); store.set("ticks2", ticks); }
@@ -1035,9 +1079,9 @@ const newPin = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6)
 let staffMsg = "";
 const SLOTS = ["#team", "#pins", "#pin-form", "#requests", "#compose", "#feed", "#reports", "#outlog", "#mgr"];
 function renderTeamTop() {
-  $("#team-lead").textContent = LIVE.api ? "Notices, comments and shift reports from the team. Newest first." : "Messages from the manager and bar lead. Newest first.";
+  $("#team-lead").textContent = LIVE.api ? "Notices, the team board and shift reports. Newest first." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
-  if (!LIVE.api) { $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Team logins</h2><p>Logins, live comments, pinned notices, shift sign-off, stock requests and closing photos.</p>${SOON}</div>`; return; }
+  if (!LIVE.api) { $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Team logins</h2><p>Your own login, the team board, pinned notices, shift sign-off, stock requests and closing photos.</p>${SOON}</div>`; return; }
   if (!LIVE.ready) { $("#team").innerHTML = `<p class="note">Connecting to the team feed. It needs signal the first time.</p>`; return; }
   if (!LIVE.uid) {
     $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Log in</h2><p>Use the username and 6-digit PIN your manager gave you. You stay logged in on this phone.</p>
@@ -1058,8 +1102,8 @@ function renderTeamTop() {
   if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Pin a notice</summary>
     <label class="fld">Notice for everyone<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
     <div class="actions"><button class="btn pri" id="p-go">Pin it</button></div></details>`;
-  $("#compose").innerHTML = `<div class="sec">Team feed</div>
-    <label class="fld">Write to the team<textarea id="c-text" rows="3" maxlength="2000" placeholder="Running low on limes, a guest comment, anything the team should know"></textarea></label>
+  $("#compose").innerHTML = `<div class="sec">Team board</div>
+    <label class="fld">Post to the board<textarea id="c-text" rows="3" maxlength="2000" placeholder="Running low on limes, a guest comment, anything the team should know"></textarea></label>
     <div class="actions"><button class="btn pri" id="c-post">Post</button></div>`;
   if (LIVE.admin) $("#mgr").innerHTML = `<details class="setup" id="staff-box"${renderTeamTop.open ? " open" : ""}><summary>Team members</summary><div id="staff-list"></div>
       <h3 style="font-size:18px;margin-top:16px">Add a person</h3>
