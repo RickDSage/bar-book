@@ -246,6 +246,17 @@ a.link86 { text-align: center; margin-top: 0; }
 .btn:active, .chip:active, .tile:active, .round:active, .star:active { transform: scale(.96); }
 .row { transition: background .12s; border-radius: 10px; }
 .row:active { background: var(--surface); }
+.welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); overflow-y: auto; transition: opacity .3s, transform .3s; }
+.welcome.bye { opacity: 0; transform: scale(1.03); pointer-events: none; }
+.welcome .wi { max-width: 420px; margin: 0 auto; width: 100%; }
+.welcome svg { width: 84px; height: 84px; display: block; margin-bottom: 18px; }
+.welcome h2 { font-family: var(--display); font-size: 48px; line-height: .95; margin: 0 0 14px; text-transform: uppercase; }
+.welcome h2 span { color: var(--brass); }
+.welcome ul { list-style: none; padding: 0; margin: 18px 0; }
+.welcome li { padding: 9px 0 9px 30px; position: relative; border-bottom: 1px solid var(--line); }
+.welcome li::before { content: "\2713"; position: absolute; left: 4px; color: var(--brass); font-weight: 700; }
+.welcome .wip { color: var(--muted); font-size: 15px; margin: 0 0 22px; }
+.welcome .sig { font-style: italic; color: var(--brass); font-size: 18px; margin: 18px 0 0; text-align: center; }
 .credit { text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .04em; margin: 28px 0 8px; }
 .credit b { color: var(--brass); font-weight: 700; }
 .swhint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); transform: translateX(-50%); z-index: 25; background: var(--brass); color: var(--brass-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.5); pointer-events: none; white-space: nowrap; }
@@ -257,6 +268,15 @@ a.link86 { text-align: center; margin-top: 0; }
 }
 </style>
 
+<div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
+  <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" fill="#e0ad4f"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" stroke="#f4eee4" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
+  <p>Every drink we make, in your pocket.</p>
+  <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen (Bar info shows how)</li></ul>
+  <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in Bar info.</p>
+  <button class="btn pri wide" id="w-ok">Accept</button>
+  <p class="sig">Thank me later ~ Derek</p>
+</div></div>
 <div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><div class="brandr"><small>Soho · Staff<span id="offl"></span></small><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
 <header class="gut" id="hdr">
   <div id="hdr-drinks">
@@ -873,6 +893,10 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
 }
 loadNotices();
 renderChips(); renderList();
+if (!store.get("welcome", false)) {
+  const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
+  $("#w-ok").addEventListener("click", () => { store.set("welcome", true); haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300); });
+} else $("#welcome").remove();
 show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 </script>
 </body></html>
