@@ -40,7 +40,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: .01e
 .brandbar { padding-block: 12px 0; }
 header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 2px 8px; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.brand h1 { font-size: 26px; }
+.brand h1 { font-size: clamp(20px, 6vw, 26px); white-space: nowrap; }
 .brand h1 span { color: var(--brass); }
 .brand small { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
 .search { margin-top: 8px; display: flex; gap: 8px; }
@@ -198,6 +198,9 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
 .brandr { display: flex; align-items: center; gap: 6px; }
 .brandr small { text-align: right; font-size: 11px; line-height: 1.3; }
+.brandr .clock { color: var(--fg); font-size: 16px; letter-spacing: .04em; }
+#offl { display: block; white-space: nowrap; }
+b.dt { color: var(--fg); font-weight: 700; }
 .bell { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg); }
 .bell svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .bell .dot { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--warn); color: var(--brass-ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
@@ -291,7 +294,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
   <button class="btn pri wide" id="w-ok">Continue</button>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><div class="brandr"><small>Soho · Staff<span id="offl"></span></small><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
 <header class="gut" id="hdr">
   <div id="hdr-drinks">
     <div class="search"><input id="q" type="search" placeholder="Search drink, spirit or glass" autocomplete="off" enterkeyhint="search" aria-label="Search drinks"></div>
@@ -429,6 +432,8 @@ const store = {
   get(k, f) { try { const v = localStorage.getItem("btbar." + k); return v == null ? f : JSON.parse(v); } catch { return f; } },
   set(k, v) { try { localStorage.setItem("btbar." + k, JSON.stringify(v)); } catch {} },
 };
+const hhmm = (d) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+const stamp = (d) => `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}, ${hhmm(d)}`;
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 1800); }
 
 /* ---------- Drinks list ---------- */
@@ -799,7 +804,7 @@ let closer = store.get("closer", "");
 let ticks = store.get("ticks2", { open: [], close: [] });
 let shiftNote = store.get("shiftNote", ""), shiftWho = store.get("shiftWho", "");
 function tallyText() {
-  const day = new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
+  const day = stamp(new Date());
   const list = (k) => {
     const L = LISTS[k], miss = L.items.filter((_, i) => !ticks[k].includes(i));
     return `${L.title}: ${L.items.length - miss.length} of ${L.items.length} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
@@ -937,10 +942,8 @@ function renderBell() {
 }
 /* ---------- Team feed (live) ---------- */
 const ms = (t) => (t ? t.toMillis() : Date.now());
-const when = (t) => {
-  const d = new Date(ms(t)), hm = d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
-  return d.toDateString() === new Date().toDateString() ? hm : d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }) + ", " + hm;
-};
+// Every post, notice, report and 86 shows its full date and time in bold.
+const when = (t) => `<b class="dt">${stamp(new Date(ms(t)))}</b>`;
 let feedSeen = store.get("feedSeen", 0);
 const isNew = (x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen;
 const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(isNew);
@@ -1143,9 +1146,11 @@ document.querySelector("nav.tabs").addEventListener("click", (e) => { const b = 
 
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
-  navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { if (hit) $("#offl").textContent = " · Offline ready ✓"; }).catch(() => {});
+  navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { if (hit) $("#offl").textContent = "Offline ready ✓"; }).catch(() => {});
 }
 loadNotices();
+const tick = () => { const d = new Date(); $("#clock").textContent = hhmm(d); $("#today").textContent = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); };
+tick(); setInterval(tick, 10000);
 renderChips(); renderList();
 {
   const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
