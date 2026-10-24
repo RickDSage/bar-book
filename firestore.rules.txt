@@ -136,6 +136,57 @@ service cloud.firestore {
       allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid && resource.data.done == false);
     }
 
+    function str(s, max) { return s is string && s.size() <= max; }
+    function stamped() {
+      return request.resource.data.uid == request.auth.uid && request.resource.data.name == me().name && request.resource.data.at == request.time;
+    }
+
+    // Running late, time off and shift swaps. Staff see their own; managers see and decide all of them.
+    match /asks/{id} {
+      allow read: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
+      allow create: if isMember() && stamped()
+        && request.resource.data.keys().hasOnly(['kind', 'date1', 'date2', 'eta', 'with', 'note', 'status', 'uid', 'name', 'at'])
+        && request.resource.data.kind in ['late', 'off', 'swap'] && request.resource.data.status == 'pending'
+        && str(request.resource.data.date1, 10) && str(request.resource.data.date2, 10) && str(request.resource.data.eta, 5)
+        && str(request.resource.data.with, 40) && str(request.resource.data.note, 300);
+      allow update: if isManager() && resource.data.status == 'pending'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'by', 'byAt'])
+        && request.resource.data.status in ['approved', 'declined', 'seen']
+        && request.resource.data.by == me().name && request.resource.data.byAt == request.time;
+      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid && resource.data.status == 'pending');
+    }
+
+    // Incident log: anyone can log one, managers read them, only the owner can delete one.
+    match /incidents/{id} {
+      allow read: if isManager();
+      allow create: if isMember() && stamped()
+        && request.resource.data.keys().hasOnly(['kind', 'text', 'uid', 'name', 'at'])
+        && text(request.resource.data.kind, 40) && text(request.resource.data.text, 1000);
+      allow delete: if isOwner();
+    }
+
+    // Managers' thumbs up, flags and comments on shift reports.
+    match /reviews/{id} {
+      allow read: if isManager();
+      allow create: if isManager() && stamped()
+        && request.resource.data.keys().hasOnly(['report', 'verdict', 'text', 'uid', 'name', 'at'])
+        && request.resource.data.verdict in ['up', 'flag', 'note'] && str(request.resource.data.report, 40)
+        && str(request.resource.data.text, 500);
+      allow delete: if isOwner() || (isManager() && resource.data.uid == request.auth.uid);
+    }
+
+    // Anonymous feedback between managers. No author is stored. The owner reads all; a manager reads what's about them.
+    match /ratings/{id} {
+      allow read: if isOwner() || (isManager() && resource.data.about == request.auth.uid);
+      allow create: if isManager()
+        && request.resource.data.keys().hasOnly(['about', 'aboutName', 'score', 'text', 'at'])
+        && request.resource.data.about != request.auth.uid && roleOf(request.resource.data.about) in ['manager', 'owner']
+        && request.resource.data.aboutName == get(/databases/$(database)/documents/staff/$(request.resource.data.about)).data.name
+        && request.resource.data.score in ['Excellent', 'Efficient', 'Good', 'Needs improvement']
+        && str(request.resource.data.text, 500) && request.resource.data.at == request.time;
+      allow delete: if isOwner();
+    }
+
     // Append-only record of every 86 and back-in-stock. Managers read it.
     match /outlog/{id} {
       allow read: if isManager();

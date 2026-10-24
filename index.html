@@ -208,7 +208,7 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.6); }
 .ptabs button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 52px; padding: 6px 2px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--muted); }
 .ptabs small { font-size: 11.5px; font-weight: 600; opacity: .85; min-height: 14px; }
-#tpanes .ptabs button { min-height: 44px; justify-content: center; }
+#tpanes .ptabs button { min-height: 44px; justify-content: center; font-size: 14px; }
 #tpanes .ptabs small:empty { display: none; }
 .ptabs button[aria-selected="true"] { background: var(--brass); color: var(--brass-ink); }
 .pane { animation: paneIn .18s ease-out; }
@@ -256,6 +256,11 @@ b.dt { color: var(--fg); font-weight: 700; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
 details.setup { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 8px; }
 details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px; display: flex; align-items: center; }
+.rvrow { display: grid; grid-template-columns: 1fr auto auto; gap: 6px; margin-top: 10px; }
+.rvrow input { min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.rvrow .btn { min-height: 40px; padding: 8px 12px; }
+.pill { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); vertical-align: 1px; }
+.pill.ok { color: var(--ok); border-color: var(--ok); } .pill.no { color: var(--warn); border-color: var(--warn); } .pill.wait { color: var(--brass); border-color: var(--brass); }
 .staffrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .staffrow .n { font-weight: 700; }
 .staffrow .s { color: var(--muted); font-size: 14px; }
@@ -362,7 +367,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="outlog"></div><div id="mgr"></div>
+    <div id="team"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="mgrs"></div><div id="outlog"></div><div id="mgr"></div><div id="me"></div>
     <div id="notices"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
@@ -496,7 +501,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: { open: [], close: [] } };
+const LIVE = { api: null, ready: false, uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, asks: [], incidents: [], reviews: [], ratings: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -1148,7 +1153,7 @@ const isNew = (x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen;
 const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(isNew);
 const newPin = () => String(crypto.getRandomValues(new Uint32Array(1))[0] % 1e6).padStart(6, "0");
 let staffMsg = "";
-const SLOTS = ["#team", "#pins", "#pin-form", "#requests", "#compose", "#feed", "#reports", "#outlog", "#mgr"];
+const SLOTS = ["#team", "#pins", "#pin-form", "#requests", "#compose", "#feed", "#reports", "#mgrs", "#outlog", "#mgr", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Notices, the team board and shift reports. Newest first." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -1183,17 +1188,17 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="6" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button></details>`;
-  renderPins(); renderRequests(); renderFeed(); renderReports(); renderOutlog(); renderStaff(); renderTeamTabs();
+  renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderStaff(); renderMe(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#compose", "#feed", "#notices"], reports: ["#reports"], requests: ["#requests"], manage: ["#outlog", "#mgr"] };
+const TSLOTS = { board: ["#pins", "#pin-form", "#compose", "#feed", "#notices"], reports: ["#reports"], requests: ["#requests"], managers: ["#mgrs", "#outlog", "#mgr"], me: ["#me"] };
 function renderTeamTabs() {
   const all = Object.values(TSLOTS).flat();
   if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
-  const tabs = [["board", "Board"], ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["manage", "Manage"]] : [])];
+  const tabs = [["board", "Board"], ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
   if (!tabs.some(([k]) => k === tpane)) tpane = "board";
-  const badge = { reports: LIVE.reports.filter((r) => !r.signedBy).length, requests: LIVE.requests.filter((r) => !r.done).length };
+  const badge = { reports: LIVE.reports.filter((r) => !r.signedBy).length, requests: LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter((a) => a.status === "pending").length };
   $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge[k] ? `${badge[k]} waiting` : ""}</small></button>`).join("")}</div>`;
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
 }
@@ -1219,13 +1224,18 @@ function renderReports() {
   const body = (r) => `<details><summary>Show the report</summary><pre>${esc(r.text)}</pre></details>${r.photos ? `<div data-photos-of="${r.id}">${shownPhotos[r.id] || `<button class="btn" data-photos="${r.id}">Show ${r.photos} photo${r.photos > 1 ? "s" : ""}</button>`}</div>` : ""}`;
   $("#reports").innerHTML = `<div class="sec">Shift reports</div>` +
     (waiting.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt">${esc(r.summary)}</p>${body(r)}
-      ${LIVE.admin ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
-    (done.length ? `<details class="setup"><summary>Report history (${done.length})</summary>${done.map((r) => `<div class="staffrow"><div class="n">${when(r.at)} · ${esc(r.name)}</div><div class="s">${esc(r.summary)}</div><div class="s ok">Signed off by ${esc(r.signedBy)}, ${when(r.signedAt)}</div>${body(r)}</div>`).join("")}</details>` : "");
+      ${LIVE.admin ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>${reviewHtml(r)}` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
+    (done.length ? `<details class="setup"><summary>Report history (${done.length})</summary>${done.map((r) => `<div class="staffrow"><div class="n">${when(r.at)} · ${esc(r.name)}</div><div class="s">${esc(r.summary)}</div><div class="s ok">Signed off by ${esc(r.signedBy)}, ${when(r.signedAt)}</div>${body(r)}${LIVE.admin ? reviewHtml(r) : ""}</div>`).join("")}</details>` : "");
 }
 function renderRequests() {
   if (!LIVE.admin) return;
   const open = LIVE.requests.filter((r) => !r.done);
-  $("#requests").innerHTML = `<div class="sec">Stock requests</div>` + (open.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt"><b>${esc(r.item)}</b>${r.note ? `<br>${esc(r.note)}` : ""}</p><div class="actions"><button class="btn pri" data-ordered="${r.id}">Ordered</button><button class="btn" data-rq-drop="${r.id}">Delete</button></div></article>`).join("") || `<p class="note">Nothing requested.</p>`);
+  const pend = LIVE.asks.filter((a) => a.status === "pending"), decided = LIVE.asks.filter((a) => a.status !== "pending").slice(0, 30);
+  $("#requests").innerHTML = `<div class="sec">Staff requests</div>` +
+    (pend.map((a) => `<article class="notice${isNew(a) ? " new" : ""}"><div class="meta"><b>${esc(a.name)}</b> · ${when(a.at)}</div><p class="txt"><b>${askLine(a)}</b>${a.note ? `<br>${esc(a.note)}` : ""}</p>
+      <div class="actions">${a.kind === "late" ? `<button class="btn pri" data-decide="${a.id}" data-to="seen">Seen</button>` : `<button class="btn pri" data-decide="${a.id}" data-to="approved">Approve</button><button class="btn danger" data-decide="${a.id}" data-to="declined">Decline</button>`}</div></article>`).join("") || `<p class="note">Nothing waiting.</p>`) +
+    (decided.length ? `<details class="setup"><summary>Decided (${decided.length})</summary>${decided.map((a) => `<div class="staffrow"><div class="n">${esc(a.name)} · ${askLine(a)}</div><div class="s">${statusPill(a)} by ${esc(a.by)}, ${when(a.byAt)}</div></div>`).join("")}</details>` : "") +
+    `<div class="sec">Stock requests</div>` + (open.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt"><b>${esc(r.item)}</b>${r.note ? `<br>${esc(r.note)}` : ""}</p><div class="actions"><button class="btn pri" data-ordered="${r.id}">Ordered</button><button class="btn" data-rq-drop="${r.id}">Delete</button></div></article>`).join("") || `<p class="note">Nothing requested.</p>`);
 }
 // Photos load only when asked for, so the feed stays quick and cheap on data.
 const shownPhotos = {};
@@ -1233,6 +1243,72 @@ async function showPhotos(id) {
   const ps = await LIVE.api.loadPhotos(id);
   shownPhotos[id] = ps.length ? ps.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><p class="txt">${p.note ? esc(p.note) : "<span class=\"note\">No note</span>"}</p></div>`).join("") : `<p class="note">These photos were cleared (photos are kept for ${LIVE.api.KEEP_DAYS} days).</p>`;
   const box = document.querySelector(`[data-photos-of="${id}"]`); if (box) box.innerHTML = shownPhotos[id];
+}
+/* ---------- Managers page, staff asks, incidents, reviews, anonymous feedback ---------- */
+const bday = (t) => new Date(ms(t) - 6 * 36e5).toISOString().slice(0, 10);
+const dayName = (k, o = { weekday: "short", day: "numeric", month: "short" }) => (k ? new Date(k + "T12:00").toLocaleDateString("en-GB", o) : "?");
+const askText = (a) => (a.kind === "late" ? `Running late · ETA ${a.eta}` : a.kind === "off" ? `Time off · ${dayName(a.date1)} to ${dayName(a.date2)}` : `Shift swap · ${dayName(a.date1)} with ${a.with}`);
+const askLine = (a) => esc(askText(a));
+const STATUS = { pending: ["Waiting", "wait"], approved: ["Approved", "ok"], declined: ["Declined", "no"], seen: ["Seen", "ok"] };
+const statusPill = (a) => `<span class="pill ${STATUS[a.status][1]}">${STATUS[a.status][0]}</span>`;
+const INCIDENTS = ["Accident or injury", "Guest complaint", "Refused service", "Aggressive guest", "Breakage or damage", "Theft or loss", "Other"];
+const SCORES = ["Excellent", "Efficient", "Good", "Needs improvement"];
+const ME_KINDS = [["late", "Running late"], ["off", "Time off"], ["swap", "Shift swap"], ["incident", "Incident"]];
+// Half-filled forms live here, so live updates re-render without wiping what someone is typing.
+let meKind = "late";
+const meF = { eta: "", date1: "", date2: "", with: "", note: "", ikind: "", itext: "", fbWho: "", fbScore: "", fbText: "" };
+const rvText = {};
+const etaIn = (m) => hhmm(new Date(Date.now() + m * 6e4));
+function renderMe() {
+  if (!LIVE.me) return;
+  const fld = (label, f, attrs = "") => `<label class="fld">${label}<input data-f="${f}" value="${esc(meF[f])}" ${attrs}></label>`;
+  const form = {
+    late: () => `<p class="note">Roughly when will you get here? Managers see it straight away.</p>
+      <div class="recent">${[10, 15, 20, 30, 45, 60].map((m) => `<button class="chip" data-eta="${m}">+${m} min</button>`).join("")}</div>${fld("Arriving at", "eta", 'type="time"')}`,
+    off: () => fld("From", "date1", 'type="date"') + fld("To", "date2", 'type="date"'),
+    swap: () => fld("Shift date", "date1", 'type="date"') + fld("Swapping with", "with", 'maxlength="40" placeholder="Their name"'),
+    incident: () => `<label class="fld">What kind<select data-f="ikind"><option value="">Choose…</option>${INCIDENTS.map((k) => `<option${k === meF.ikind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
+      <label class="fld">What happened<textarea data-f="itext" rows="4" maxlength="1000" placeholder="Who, what, where, and what was done about it">${esc(meF.itext)}</textarea></label>
+      <p class="note">Injuries also go in the accident book.</p>`,
+  }[meKind]();
+  const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
+  $("#me").innerHTML = `<div class="sec">Tell the managers</div>
+    <div class="recent">${ME_KINDS.map(([k, t]) => `<button class="chip" data-mek="${k}" aria-pressed="${k === meKind}">${t}</button>`).join("")}</div>
+    ${form}${meKind === "incident" ? "" : fld("Note (optional)", "note", 'maxlength="300"')}
+    <button class="btn pri wide" id="me-go">Send to managers</button>
+    ${mine.length ? `<div class="sec">Your requests</div>${mine.map((a) => `<div class="staffrow"><div class="n">${askLine(a)}</div><div class="s">${statusPill(a)}${a.by ? ` by ${esc(a.by)}` : ""} · sent ${when(a.at)}</div>${a.status === "pending" ? `<div class="actions"><button class="btn" data-ask-del="${a.id}">Cancel</button></div>` : ""}</div>`).join("")}` : ""}`;
+}
+function reviewHtml(r) {
+  const vs = LIVE.reviews.filter((v) => v.report === r.id).reverse();
+  return `${vs.map((v) => `<div class="s" style="margin-top:6px"><b>${esc(v.name)}</b> ${v.verdict === "up" ? "👍" : v.verdict === "flag" ? `<span class="pill no">Flagged</span>` : ""}${v.text ? ` ${esc(v.text)}` : ""} · ${when(v.at)}</div>`).join("")}
+    <div class="rvrow"><input data-rvt="${r.id}" maxlength="500" placeholder="Comment for managers" value="${esc(rvText[r.id] || "")}" aria-label="Comment for managers"><button class="btn" data-rv="${r.id}" data-v="up" aria-label="Thumbs up">👍</button><button class="btn" data-rv="${r.id}" data-v="flag">Flag</button></div>`;
+}
+// Each night's bar and floor reports side by side, with flags, incidents and lateness counted.
+function renderMgrs() {
+  if (!LIVE.admin) return;
+  const days = {};
+  LIVE.reports.forEach((r) => (days[bday(r.at)] ||= []).push(r));
+  const count = (k, xs, f = () => true) => xs.filter((x) => bday(x.at) === k && f(x)).length;
+  const nights = Object.keys(days).sort().reverse().slice(0, 7).map((k) => {
+    const rs = days[k], vs = LIVE.reviews.filter((v) => rs.some((r) => r.id === v.report));
+    const facts = [[vs.filter((v) => v.verdict === "up").length, "👍"], [vs.filter((v) => v.verdict === "flag").length, "flagged"], [count(k, LIVE.incidents), "incident"], [count(k, LIVE.asks, (a) => a.kind === "late"), "late"]]
+      .filter(([n]) => n).map(([n, t]) => `${n} ${t}${t === "incident" && n > 1 ? "s" : ""}`);
+    return `<article class="notice"><div class="meta"><b>${dayName(k, { weekday: "long", day: "numeric", month: "long" })}</b></div>
+      ${rs.map((r) => `<div class="staffrow"><div class="n">${r.summary.startsWith("Floor") ? "Floor" : "Bar"} · ${esc(r.name)} ${r.signedBy ? `<span class="pill ok">Signed off</span>` : `<span class="pill wait">Waiting</span>`}</div><div class="s">${esc(r.summary.replace(/^(Floor|Bar) · /, ""))}</div></div>`).join("")}
+      <p class="note" style="margin:8px 0 0">${facts.join(" · ") || "No flags, incidents or lateness"}</p></article>`;
+  }).join("");
+  const others = LIVE.staff.filter((p) => p.role !== "staff" && p.uid !== LIVE.uid);
+  $("#mgrs").innerHTML = `<div class="sec">Nights</div>${nights || `<p class="note">No shift reports yet.</p>`}
+    <div class="sec">Incidents</div>
+    ${LIVE.incidents.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p></div>`).join("") || `<p class="note">No incidents logged. Anyone can log one from the Me tab.</p>`}
+    <div class="sec">Anonymous feedback</div>
+    <p class="note">For another manager. Your name isn't saved with it, so nobody can see who sent it.</p>
+    <label class="fld">About<select data-f="fbWho"><option value="">Choose a manager…</option>${others.map((p) => `<option value="${p.uid}"${p.uid === meF.fbWho ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+    <div class="recent" style="flex-wrap:wrap">${SCORES.map((x) => `<button class="chip" data-score="${x}" aria-pressed="${x === meF.fbScore}">${x}</button>`).join("")}</div>
+    <label class="fld">Comment (optional)<textarea data-f="fbText" rows="2" maxlength="500">${esc(meF.fbText)}</textarea></label>
+    <button class="btn pri wide" id="fb-go">Send anonymously</button>
+    <h3 style="font-size:18px;margin-top:18px">${LIVE.owner ? "Feedback for every manager" : "Feedback about you"}</h3>
+    ${LIVE.ratings.map((x) => `<div class="staffrow"><div class="n">${LIVE.owner ? `${esc(x.aboutName)} · ` : ""}<span class="pill ${x.score === "Needs improvement" ? "no" : "ok"}">${x.score}</span></div>${x.text ? `<p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>` : ""}<div class="s">${when(x.at)}</div></div>`).join("") || `<p class="note">None yet.</p>`}`;
 }
 function renderOutlog() {
   if (!LIVE.admin) return;
@@ -1251,24 +1327,30 @@ const TOAST = {
   notices: (x) => `Notice: ${x.text.slice(0, 70)}`,
   reports: (x) => `${x.name} sent a shift report`,
   requests: (x) => (LIVE.admin && !x.done ? `${x.name} needs: ${x.item}` : ""),
+  asks: (x) => (LIVE.admin && x.status === "pending" ? `${x.name}: ${askText(x)}` : ""),
+  incidents: (x) => `Incident logged: ${x.kind}`,
+  reviews: (x) => `${x.name} ${x.verdict === "flag" ? "flagged" : "gave a thumbs up to"} a report`,
+  ratings: (x) => (x.about === LIVE.uid ? "You have new anonymous feedback" : ""),
 };
 function liveChanged(what) {
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
-      const k = what + x.id + (x.signedBy ? ":s" : "") + (x.done ? ":d" : "");
+      const k = what + x.id + (x.signedBy ? ":s" : "") + (x.done ? ":d" : "") + (x.status || "");
       if (x.pending || told.has(k)) continue; told.add(k);
       if (first || !$("#v-notices").hidden) continue;
       if (x.signedBy) { if (x.uid === LIVE.uid) toast(`${x.signedBy} signed off your shift report`); }
       else if (x.done) { if (x.uid === LIVE.uid) toast(`${x.doneBy} ordered ${x.item}`); }
+      else if (x.status && x.status !== "pending") { if (x.uid === LIVE.uid) toast(`${STATUS[x.status][0]} by ${x.by}${": "}${askText(x)}`); }
       else if (x.uid !== LIVE.uid && TOAST[what](x)) toast(TOAST[what](x));
     }
   }
   renderBell();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: renderFeed, notices: renderPins, reports: renderReports, outlog: renderOutlog, staff: renderStaff, requests: renderRequests }[what];
-    if (R) { R(); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
+    const R = { feed: [renderFeed], notices: [renderPins], reports: [renderReports, renderMgrs], outlog: [renderOutlog], staff: [renderStaff, renderMgrs], requests: [renderRequests],
+      asks: [renderRequests, renderMe, renderMgrs], incidents: [renderMgrs], reviews: [renderReports, renderMgrs], ratings: [renderMgrs] }[what];
+    if (R) { R.forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
   if (["me", "out", "photos", "ticks", "requests"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
@@ -1282,9 +1364,44 @@ function markSeen() {
 const outBy = (n) => { const i = LIVE.outInfo.get(n); return i ? `${esc(i.by)}, ${when(i.at)}` : ""; };
 const val = (id) => $(id).value.trim();
 const busy = (b, label, p) => { b.disabled = true; const t = b.textContent; b.textContent = label; return p.finally(() => { b.disabled = false; b.textContent = t; }); };
+$("#v-notices").addEventListener("input", (e) => {
+  const t = e.target;
+  if (t.dataset.f) meF[t.dataset.f] = t.value;
+  if (t.dataset.rvt) rvText[t.dataset.rvt] = t.value;
+});
+$("#v-notices").addEventListener("change", (e) => { if (e.target.dataset.f) meF[e.target.dataset.f] = e.target.value; });
+function sendMe(A) {
+  const f = meF, sent = () => { haptic(); toast("Sent to the managers"); Object.keys(meF).filter((k) => !k.startsWith("fb")).forEach((k) => (meF[k] = "")); renderMe(); };
+  if (meKind === "incident") {
+    if (!f.ikind || !f.itext.trim()) return toast("Pick what kind and say what happened");
+    A.incident(f.ikind, f.itext.trim()).catch(() => toast("Not sent. Try again")); return sent();
+  }
+  if (meKind === "late" && !f.eta) return toast("Pick when you'll arrive");
+  if (meKind === "off" && (!f.date1 || !f.date2 || f.date2 < f.date1)) return toast("Pick the first and last day off");
+  if (meKind === "swap" && (!f.date1 || !f.with.trim())) return toast("Pick the date and who you're swapping with");
+  A.ask({ kind: meKind, date1: f.date1, date2: f.date2, eta: f.eta, with: f.with.trim(), note: f.note.trim() }).catch(() => toast("Not sent. Try again"));
+  sent();
+}
 $("#v-notices").addEventListener("click", (e) => {
   const A = LIVE.api, b = e.target.closest("button");
   if (!b) return;
+  if (b.dataset.mek) { meKind = b.dataset.mek; renderMe(); return; }
+  if (b.dataset.eta) { meF.eta = etaIn(+b.dataset.eta); renderMe(); return; }
+  if (b.id === "me-go") return sendMe(A);
+  if (b.dataset.askDel) { if (confirm("Cancel this request?")) A.cancelAsk(b.dataset.askDel).catch(() => toast("Could not cancel")); return; }
+  if (b.dataset.decide) { A.decide(b.dataset.decide, b.dataset.to).catch(() => toast("Could not update")); haptic(); return; }
+  if (b.dataset.rv) {
+    const id = b.dataset.rv, text = (rvText[id] || "").trim();
+    A.review(id, b.dataset.v, text).catch(() => toast("Not saved. Try again"));
+    rvText[id] = ""; haptic(); renderReports(); return;
+  }
+  if (b.dataset.score) { meF.fbScore = b.dataset.score; renderMgrs(); return; }
+  if (b.id === "fb-go") {
+    const p = LIVE.staff.find((x) => x.uid === meF.fbWho);
+    if (!p || !meF.fbScore) return toast("Pick a manager and a rating");
+    A.rate(p, meF.fbScore, meF.fbText.trim()).catch(() => toast("Not sent. Try again"));
+    meF.fbWho = meF.fbScore = meF.fbText = ""; haptic(); toast("Sent anonymously"); renderMgrs(); return;
+  }
   if (b.dataset.tpane) { tpane = b.dataset.tpane; renderTeamTabs(); window.scrollTo(0, 0); return; }
   const person = (id) => LIVE.staff.find((p) => p.uid === id);
   if (b.id === "l-go") {
