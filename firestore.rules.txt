@@ -62,9 +62,10 @@ service cloud.firestore {
     match /reports/{id} {
       allow read: if isMember();
       allow create: if isMember()
-        && request.resource.data.keys().hasOnly(['text', 'summary', 'uid', 'name', 'at'])
+        && request.resource.data.keys().hasOnly(['text', 'summary', 'photos', 'uid', 'name', 'at'])
         && text(request.resource.data.text, 4000)
         && text(request.resource.data.summary, 200)
+        && request.resource.data.photos is int
         && request.resource.data.uid == request.auth.uid
         && request.resource.data.name == me().name
         && request.resource.data.at == request.time;
@@ -74,6 +75,25 @@ service cloud.firestore {
         && request.resource.data.signedBy == me().name
         && request.resource.data.signedAt == request.time;
       allow delete: if isManager();
+    }
+
+    // Closing photos: a compressed JPEG each, attached to a shift report when it is sent.
+    match /photos/{id} {
+      allow read: if isMember();
+      allow create: if isMember()
+        && request.resource.data.keys().hasOnly(['data', 'note', 'report', 'uid', 'name', 'at'])
+        && request.resource.data.data is string && request.resource.data.data.size() < 1000000
+        && request.resource.data.data.matches('data:image/jpeg;base64,.*')
+        && request.resource.data.note == '' && request.resource.data.report == null
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.name == me().name
+        && request.resource.data.at == request.time;
+      // The person who took it can edit the note, or attach it to their report, until the report is sent.
+      allow update: if isMember() && resource.data.uid == request.auth.uid && resource.data.report == null
+        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['note']) && request.resource.data.note is string && request.resource.data.note.size() <= 300)
+          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['report']) && request.resource.data.report is string
+            && getAfter(/databases/$(database)/documents/reports/$(request.resource.data.report)).data.uid == request.auth.uid));
+      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid && resource.data.report == null);
     }
 
     // Append-only record of every 86 and back-in-stock. Managers read it.

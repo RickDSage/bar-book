@@ -220,6 +220,9 @@ b.dt { color: var(--fg); font-weight: 700; }
 .staffrow details summary { margin-top: 4px; }
 .staffrow pre { white-space: pre-wrap; font: 14px/1.45 var(--body); }
 .s.ok { color: var(--brass); }
+.photo { margin-top: 12px; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.photo img { display: block; width: 100%; border-radius: 8px; }
+.photo .btn { margin-top: 8px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
 details.setup { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 8px; }
 details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px; display: flex; align-items: center; }
@@ -462,7 +465,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, uid: null, me: null, username: null, admin: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [] };
+const LIVE = { api: null, ready: false, uid: null, me: null, username: null, admin: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -816,22 +819,55 @@ function checklistHtml(k) {
   return `<div class="sec" style="display:flex;justify-content:space-between">${L.title}<span style="font-family:var(--body);font-size:14px;color:var(--muted);text-transform:none">${done} of ${L.items.length} done</span></div>
     ${L.items.map((t, i) => `<button class="prep${ticks[k].includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${ticks[k].includes(i)}"><span class="box">${ticks[k].includes(i) ? "✓" : ""}</span><span>${esc(t)}</span></button>`).join("")}`;
 }
+/* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
+function photosHtml() {
+  if (!LIVE.api) return "";
+  if (!LIVE.me) return `<div class="sec">Closing photos</div><p class="note">Log in on the Team page (the bell) to add photos of the close.</p>`;
+  return `<div class="sec">Closing photos</div>
+    <p class="note">Photos of the close or anything you worked on. They go with your shift report and aren't saved on your phone.</p>
+    ${LIVE.myPhotos.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
+    <label class="btn pri wide" style="cursor:pointer">${photoBusy ? "Adding photo…" : "Take a photo"}<input id="ph-in" type="file" accept="image/*" capture="environment" hidden></label>`;
+}
+let photoBusy = false;
+// Phone photos are several MB; shrink to a JPEG under ~900 KB so each one fits in a single database record.
+async function shrink(file) {
+  const url = URL.createObjectURL(file), img = new Image();
+  img.src = url; await img.decode();
+  let max = 1280, q = 0.7, out;
+  do {
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    out = c.toDataURL("image/jpeg", q); max -= 256; q -= 0.1;
+  } while (out.length > 900000 && max > 500);
+  URL.revokeObjectURL(url);
+  return out;
+}
 function renderTally() {
   const outList = [...outNow()].sort();
   $("#tally").innerHTML = `${checklistHtml("open")}
     <div class="sec">86'd tonight</div>
     <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !outNow().has(x)).map((x) => `<option>${esc(x)}</option>`).join("")}</optgroup>`).join("")}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
     ${checklistHtml("close")}
+    ${photosHtml()}
     <div class="sec">Comments for the manager</div>
     <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
     <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the bar tonight"></label>
     <label class="fld">Note for handover<textarea id="s-note" rows="4" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
-    <p class="note">${LIVE.me ? "At close, send the report to the Team page. A manager signs it off there." : "At close, send the report to the manager to sign off."} It includes both checklists, anything not done, the 86'd list and your handover note.</p>
+    <p class="note">${LIVE.me ? "At close, send the report to the Team page with your photos. A manager signs it off there." : "At close, send the report to the manager to sign off."} It includes both checklists, anything not done, the 86'd list and your handover note.</p>
     <div class="actions"><button class="btn pri" id="t-copy">Send for sign-off</button><button class="btn danger" id="t-reset">Start a new night</button></div>
     ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear the checklists and handover note on this phone? The team 86'd list stays until each item is marked back in stock." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
     <textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea>`;
 }
-$("#tally").addEventListener("change", (e) => {
+$("#tally").addEventListener("change", async (e) => {
+  if (e.target.id === "ph-in") {
+    const f = e.target.files[0]; if (!f) return;
+    photoBusy = true; renderTally();
+    try { LIVE.api.addPhoto(await shrink(f)).catch(() => toast("Photo not saved. Try again")); haptic(); }
+    catch { toast("Couldn't read that photo"); }
+    photoBusy = false; renderTally(); return;
+  }
+  if (e.target.dataset.phNote) { LIVE.api.notePhoto(e.target.dataset.phNote, e.target.value.trim()).catch(() => toast("Note not saved")); return; }
   if (e.target.id !== "s-86" || !e.target.value) return;
   const n = e.target.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
 });
@@ -846,7 +882,8 @@ $("#tally").addEventListener("click", async (e) => {
     // Firestore queues the write with no signal and sends it when the phone reconnects.
     if (LIVE.me) {
       const done = (k) => `${ticks[k].length}/${LISTS[k].items.length}`;
-      const summary = `Opening ${done("open")} · Closing ${done("close")} · ${outNow().size} 86'd${closer ? ` · Closing manager ${closer}` : ""}`;
+      const n = LIVE.myPhotos.length;
+      const summary = `Opening ${done("open")} · Closing ${done("close")} · ${outNow().size} 86'd${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closing manager ${closer}` : ""}`;
       LIVE.api.sendReport(txt, summary).catch(() => toast("Report not sent. Try again")); haptic(); toast("Sent to the team for sign-off"); return;
     }
     if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (err) { if (err.name === "AbortError") return; } }
@@ -857,6 +894,7 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
   const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
   const ck = e.target.closest("[data-list]"); if (ck) { const k = ck.dataset.list, i = +ck.dataset.i; ticks[k] = ticks[k].includes(i) ? ticks[k].filter((x) => x !== i) : [...ticks[k], i]; store.set("ticks2", ticks); haptic(); renderTally(); return; }
+  const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) LIVE.api.deletePhoto(pd.dataset.phDel).catch(() => toast("Could not delete")); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
   if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks2", ticks); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); confirmReset = false; renderTally(); toast("New night started"); }
 });
@@ -1004,11 +1042,18 @@ function renderFeed() {
 function renderReports() {
   if (!LIVE.me) return;
   const waiting = LIVE.reports.filter((r) => !r.signedBy), done = LIVE.reports.filter((r) => r.signedBy);
-  const body = (r) => `<details><summary>Show the report</summary><pre>${esc(r.text)}</pre></details>`;
+  const body = (r) => `<details><summary>Show the report</summary><pre>${esc(r.text)}</pre></details>${r.photos ? `<div data-photos-of="${r.id}">${shownPhotos[r.id] || `<button class="btn" data-photos="${r.id}">Show ${r.photos} photo${r.photos > 1 ? "s" : ""}</button>`}</div>` : ""}`;
   $("#reports").innerHTML = `<div class="sec">Shift reports</div>` +
     (waiting.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt">${esc(r.summary)}</p>${body(r)}
       ${LIVE.admin ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
     (done.length ? `<details class="setup"><summary>Report history (${done.length})</summary>${done.map((r) => `<div class="staffrow"><div class="n">${when(r.at)} · ${esc(r.name)}</div><div class="s">${esc(r.summary)}</div><div class="s ok">Signed off by ${esc(r.signedBy)}, ${when(r.signedAt)}</div>${body(r)}</div>`).join("")}</details>` : "");
+}
+// Photos load only when asked for, so the feed stays quick and cheap on data.
+const shownPhotos = {};
+async function showPhotos(id) {
+  const ps = await LIVE.api.loadPhotos(id);
+  shownPhotos[id] = ps.length ? ps.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><p class="txt">${p.note ? esc(p.note) : "<span class=\"note\">No note</span>"}</p></div>`).join("") : `<p class="note">These photos were cleared (photos are kept for ${LIVE.api.KEEP_DAYS} days).</p>`;
+  const box = document.querySelector(`[data-photos-of="${id}"]`); if (box) box.innerHTML = shownPhotos[id];
 }
 function renderOutlog() {
   if (!LIVE.admin) return;
@@ -1045,7 +1090,7 @@ function liveChanged(what) {
     if (R) { R(); markSeen(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if ((what === "me" || what === "out") && !$("#v-tally").hidden && !typing) renderTally();
+  if ((what === "me" || what === "out" || what === "photos") && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 function markSeen() {
@@ -1101,6 +1146,9 @@ $("#v-notices").addEventListener("click", (e) => {
     A.pin(t).catch(() => toast("Notice not pinned. Try again")); $("#p-text").value = ""; haptic(); toast("Notice pinned for everyone");
   } else if (b.dataset.unpin) {
     if (confirm("Remove this notice for everyone?")) A.unpin(b.dataset.unpin).catch(() => toast("Could not remove"));
+  } else if (b.dataset.photos) {
+    b.disabled = true; b.textContent = "Loading photos…";
+    showPhotos(b.dataset.photos).catch(() => { toast("Couldn't load the photos"); b.disabled = false; });
   } else if (b.dataset.del) {
     if (confirm("Delete this post for everyone?")) A.removePost(b.dataset.del).catch(() => toast("Could not delete"));
   } else if (b.dataset.sign) {
