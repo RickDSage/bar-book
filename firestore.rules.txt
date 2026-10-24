@@ -20,7 +20,8 @@ service cloud.firestore {
         && d.username is string && d.username.matches('^[a-z0-9.]{2,20}$') && d.role in ['staff', 'manager', 'owner'];
     }
 
-    match /config/{id} { allow read, write: if false; }
+    // The owner's app deletes the setup code straight after first-time setup, so a second owner can never be made.
+    match /config/{id} { allow read, create, update: if false; allow delete: if isOwner(); }
 
     // Login looks up a username before signing in, so single lookups are public. Listing is not.
     // Managers can only point usernames at staff accounts (adding and PIN resets).
@@ -111,7 +112,7 @@ service cloud.firestore {
 
     // Tonight's shared checklist ticks, one document per business day.
     match /shift/{day} {
-      allow read, delete: if isMember();
+      allow read: if isMember();
       allow create, update: if isMember() && request.resource.data.keys().hasOnly(['open', 'close', 'fset', 'fshake', 'fclose'])
         && tickList('open') && tickList('close') && tickList('fset') && tickList('fshake') && tickList('fclose');
     }
