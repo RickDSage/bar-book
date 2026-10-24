@@ -307,7 +307,7 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 
   <section class="view" id="v-tally" hidden>
     <h2 style="font-size:28px;margin-top:12px">Tonight's shift</h2>
-    <p class="lead">Opening and closing checklists, 86'd drinks, the tally and comments in one place. It stays on this phone, so one person runs it per shift and sends it to the manager to sign off at close.</p>
+    <p class="lead">Opening and closing checklists, the 86'd list and the handover note in one place. It stays on this phone, so one person runs it per shift and sends it to the manager to sign off at close.</p>
     <div id="tally"></div>
   </section>
 
@@ -737,17 +737,8 @@ $("#v-practice").addEventListener("click", (e) => {
   if (b.dataset.p === "show") { pShown = true; renderPractice(); } else { pScore[b.dataset.p]++; nextCard(); }
 });
 
-/* ---------- Tally ---------- */
-const PUSH = [
-  ["London Cosmo", "Signature. Offer on the first round"],
-  ["Salted Caramel Buzz", "Signature. Offer after food"],
-  ["The Paddington", "Signature. Offer to whiskey drinkers"],
-  ["Shot tray (any 4)", "Second round for groups"],
-  ["The Boilermaker", "Beer drinkers: half pint and a shot"],
-];
-let tally = store.get("tally", {});
+/* ---------- Shift ---------- */
 let confirmReset = false;
-function bump(name, n) { tally[name] = Math.max(0, (tally[name] || 0) + n); if (!tally[name]) delete tally[name]; store.set("tally", tally); if (!$("#v-tally").hidden) renderTally(); }
 // Opening and closing checklists. Ticks, comments and the name stay on this phone until "Start a new night".
 const LISTS = {
   open: { title: "Opening checklist", items: [
@@ -806,13 +797,11 @@ let ticks = store.get("ticks2", { open: [], close: [] });
 let shiftNote = store.get("shiftNote", ""), shiftWho = store.get("shiftWho", "");
 function tallyText() {
   const day = new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" });
-  const lines = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([n, c]) => `${n}: ${c}`);
-  const total = Object.values(tally).reduce((a, b) => a + b, 0);
   const list = (k) => {
     const L = LISTS[k], miss = L.items.filter((_, i) => !ticks[k].includes(i));
     return `${L.title}: ${L.items.length - miss.length} of ${L.items.length} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
   };
-  return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${out.size ? [...out].join(", ") : "nothing"}\n\nSold:\n${lines.join("\n") || "Nothing counted"}\nTotal: ${total}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
+  return `Black Tap Soho bar shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${list("open")}\n\n${list("close")}\n\n86'd: ${out.size ? [...out].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
 function checklistHtml(k) {
   const L = LISTS[k], done = ticks[k].length;
@@ -820,24 +809,18 @@ function checklistHtml(k) {
     ${L.items.map((t, i) => `<button class="prep${ticks[k].includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${ticks[k].includes(i)}"><span class="box">${ticks[k].includes(i) ? "✓" : ""}</span><span>${esc(t)}</span></button>`).join("")}`;
 }
 function renderTally() {
-  const others = Object.keys(tally).filter((n) => !PUSH.some((p) => p[0] === n)).sort();
-  const total = Object.values(tally).reduce((a, b) => a + b, 0);
-  const row = (n, s) => `<div class="tally-row"><div><div class="n">${esc(n)}</div>${s ? `<div class="s">${esc(s)}</div>` : ""}</div><button class="round" data-t="-1" data-n="${esc(n)}" aria-label="Remove one ${esc(n)}">−</button><span class="v">${tally[n] || 0}</span><button class="round plus" data-t="1" data-n="${esc(n)}" aria-label="Add one ${esc(n)}">+</button></div>`;
   const outList = [...out].sort();
   $("#tally").innerHTML = `${checklistHtml("open")}
     <div class="sec">86'd tonight</div>
     <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !out.has(x)).map((x) => `<option>${esc(x)}</option>`).join("")}</optgroup>`).join("")}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !out.has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>${[...teamOut].filter((n) => !out.has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd. Open a drink and tap “Mark 86'd” when you run out.</p>`}
-    <div class="sec">Push these five</div>${PUSH.map(([n, s]) => row(n, s)).join("")}
-    ${others.length ? `<div class="sec">Everything else sold</div>${others.map((n) => row(n, "")).join("")}` : ""}
-    <div class="total"><span>Total sold</span><b>${total}</b></div>
     ${checklistHtml("close")}
     <div class="sec">Comments for the manager</div>
     <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
     <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the bar tonight"></label>
     <label class="fld">Note for handover<textarea id="s-note" rows="4" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
-    <p class="note">At close, send the report to the manager to sign off. It includes both checklists, anything not done, the 86'd list, the tally and your comments.</p>
+    <p class="note">At close, send the report to the manager to sign off. It includes both checklists, anything not done, the 86'd list and your handover note.</p>
     <div class="actions"><button class="btn pri" id="t-copy">Send for sign-off</button><button class="btn danger" id="t-reset">Start a new night</button></div>
-    ${confirmReset ? `<div class="confirm">Clear the checklists, comments, counts and the 86'd list on this phone? <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
+    ${confirmReset ? `<div class="confirm">Clear the checklists, handover note and the 86'd list on this phone? <div class="actions"><button class="btn danger" id="t-yes">Clear it all</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
     <textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea>`;
 }
 $("#tally").addEventListener("change", (e) => {
@@ -850,7 +833,6 @@ $("#tally").addEventListener("input", (e) => {
   $("#t-text").value = tallyText();
 });
 $("#tally").addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-t]"); if (b) { bump(b.dataset.n, +b.dataset.t); return; }
   if (e.target.closest("#t-copy")) {
     const txt = tallyText();
     if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (err) { if (err.name === "AbortError") return; } }
@@ -862,7 +844,7 @@ $("#tally").addEventListener("click", async (e) => {
   const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
   const ck = e.target.closest("[data-list]"); if (ck) { const k = ck.dataset.list, i = +ck.dataset.i; ticks[k] = ticks[k].includes(i) ? ticks[k].filter((x) => x !== i) : [...ticks[k], i]; store.set("ticks2", ticks); haptic(); renderTally(); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks2", ticks); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); tally = {}; store.set("tally", tally); confirmReset = false; renderTally(); toast("New night started"); }
+  if (e.target.closest("#t-yes")) { ticks = { open: [], close: [] }; store.set("ticks2", ticks); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); confirmReset = false; renderTally(); toast("New night started"); }
 });
 
 /* ---------- Feedback (Google Form, responses go to the manager) ---------- */
