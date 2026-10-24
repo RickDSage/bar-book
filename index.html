@@ -259,7 +259,7 @@ a.link86 { text-align: center; margin-top: 0; }
 .welcome .sig { font-style: italic; color: var(--brass); font-size: 18px; margin: 18px 0 0; text-align: center; }
 .credit { text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .04em; margin: 28px 0 8px; }
 .credit b { color: var(--brass); font-weight: 700; }
-.swhint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 22px); transform: translateX(-50%); z-index: 25; background: var(--brass); color: var(--brass-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.5); pointer-events: none; white-space: nowrap; }
+.swhint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); transform: translateX(-50%); z-index: 25; background: var(--brass); color: var(--brass-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.5); pointer-events: none; white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) {
   .sheet { animation: up .22s cubic-bezier(.2,.8,.2,1); } @keyframes up { from { transform: translateY(40px); opacity: .4; } }
   .sheet.closing { animation: down .18s ease-in forwards; } @keyframes down { to { transform: translateY(60px); opacity: 0; } }
@@ -272,7 +272,7 @@ a.link86 { text-align: center; margin-top: 0; }
   <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" fill="#e0ad4f"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" stroke="#f4eee4" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
   <p>Every drink we make, in your pocket.</p>
-  <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen (Bar info shows how)</li></ul>
+  <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (Bar info shows how)</li></ul>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in Bar info.</p>
   <button class="btn pri wide" id="w-ok">Accept</button>
   <p class="sig">Thank me later ~ Derek</p>
@@ -619,13 +619,18 @@ function openSheet(id, keepScroll) {
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
   $("#car")?.addEventListener("scroll", carSync, { passive: true });
-  if (!keepScroll) { $("#sheet").scrollTop = 0; $("#sh-close").focus(); }
+  if (!keepScroll) { $("#sheet").scrollTop = 0; $("#sh-close").focus(); if (view === "steps") stepsIntoView(); }
   const seen = store.get("swHint", 0);
   if (!keepScroll && seen < 3 && $("#sheet .pn")) { store.set("swHint", seen + 1); hint("\u2039 Swipe for the next drink \u203a"); }
 }
 function nextName(id) { const i = ctx.indexOf(id); return i < 0 || ctx.length < 2 ? "" : D[ctx[(i + 1) % ctx.length]].name; }
 function hint(text) { document.querySelector(".swhint")?.remove(); const h = document.createElement("div"); h.className = "swhint"; h.textContent = text; document.body.append(h); setTimeout(() => h.remove(), 3400); }
 // The phone's back gesture (and Android back button) closes the drink instead of leaving the app.
+// Step by step: scroll so the step counter sits under the sticky bar and the whole step card fits on screen.
+function stepsIntoView() {
+  const sh = $("#sheet"), c = $("#sheet .cprog"); if (!c) return;
+  sh.scrollTop = c.getBoundingClientRect().top - sh.getBoundingClientRect().top + sh.scrollTop - $("#sheet .sheet-top").offsetHeight - 6;
+}
 function showSheet(keepScroll) {
   const sh = $("#sheet"); sh.classList.remove("closing"); sh.hidden = false; document.body.style.overflow = "hidden";
   if (!keepScroll && !history.state?.sheet) history.pushState({ sheet: 1 }, "");
@@ -659,7 +664,7 @@ $("#sheet").addEventListener("click", (e) => {
     const car = st.closest(".car"); if (car && st.classList.contains("done")) setTimeout(() => carGo([...car.children].indexOf(st) + 1), 220); else carSync();
     return;
   }
-  const v = e.target.closest("[data-view]"); if (v && v.dataset.view !== view) { view = v.dataset.view; store.set("view", view); openSheet(curId, true); $("#sheet").scrollTop = 0; }
+  const v = e.target.closest("[data-view]"); if (v && v.dataset.view !== view) { view = v.dataset.view; store.set("view", view); openSheet(curId, true); $("#sheet").scrollTop = 0; if (view === "steps") stepsIntoView(); }
 });
 document.addEventListener("keydown", (e) => {
   if ($("#sheet").hidden) return;
@@ -793,6 +798,15 @@ $("#tally").addEventListener("click", async (e) => {
 const FORM = "https://docs.google.com/forms/d/e/1FAIpQLScVcIMOdULYuawQSoi_AFHowwa86m3PZAyTOxmlcxhu678qTw/viewform";
 const formUrl = (drink) => FORM + (drink ? "?usp=pp_url&entry.1226892998=" + encodeURIComponent(drink) : "");
 
+/* Android Chrome offers a one-tap install; keep the prompt for the Bar info button. */
+let installEvt = null;
+addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; const b = $("#install"); if (b) b.hidden = false; });
+addEventListener("appinstalled", () => { installEvt = null; $("#install")?.setAttribute("hidden", ""); toast("Installed. Open it from your home screen."); });
+document.addEventListener("click", async (e) => {
+  if (!e.target.closest("#install") || !installEvt) return;
+  installEvt.prompt(); await installEvt.userChoice; installEvt = null; $("#install").hidden = true;
+});
+
 /* ---------- Bar info ---------- */
 function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
@@ -818,10 +832,18 @@ function renderInfo() {
     <h2>Prep and batches</h2>${prep}
     <h2>Shot tray, step by step</h2>${guideHtml(DATA.guides["Shot tray"])}
     <h2>Put this app on your home screen</h2>
+    <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
+    <h3 style="font-size:18px;margin-top:14px">iPhone</h3>
     <ol>
-      <li>Open the link in Safari on your iPhone (on Android, use Chrome).</li>
+      <li>Open the link in <b>Safari</b>.</li>
       <li>Tap the Share button, then <b>Add to Home Screen</b>.</li>
-      <li>Name it “BT Bar Book” and tap Add. It now opens like an app.</li>
+      <li>Tap <b>Add</b>. It now opens like an app.</li>
+    </ol>
+    <h3 style="font-size:18px;margin-top:14px">Android</h3>
+    <ol>
+      <li>Open the link in <b>Chrome</b>.</li>
+      <li>Tap <b>Install the app</b> above, or tap ⋮ then <b>Add to Home screen</b> (or <b>Install app</b>).</li>
+      <li>Tap <b>Install</b>. It now opens like an app.</li>
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>
     <p class="note">Data from the Soho build cards and blacktap.com, last updated 24 October 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
