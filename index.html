@@ -184,7 +184,7 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 @media (prefers-reduced-motion: no-preference) { .sheet { animation: up .18s ease-out; } @keyframes up { from { transform: translateY(16px); opacity: .6; } } }
 </style>
 
-<div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><small>Soho · Staff</small></div></div>
+<div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><small>Soho · Staff<span id="offl"></span></small></div></div>
 <header class="gut" id="hdr">
   <div id="hdr-drinks">
     <div class="search"><input id="q" type="search" placeholder="Search drink, spirit or glass" autocomplete="off" enterkeyhint="search" aria-label="Search drinks"></div>
@@ -535,7 +535,10 @@ function show(tab) {
 }
 document.querySelector("nav.tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
 
-if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) navigator.serviceWorker.register("sw.js").catch(() => {});
+if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+  navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { if (hit) $("#offl").textContent = " · Offline ready ✓"; }).catch(() => {});
+}
 renderChips(); renderList();
 show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 </script>
