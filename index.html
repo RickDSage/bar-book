@@ -1,5 +1,4 @@
-<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
-<title>Black Tap Bar Book</title>
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><meta name="theme-color" content="#15130f"><meta name="apple-mobile-web-app-status-bar-style" content="black"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Black Tap Bar Book</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="BT Bar Book">
@@ -176,6 +175,12 @@ textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background:
 .step.done { opacity: .45; }
 .step.done h4 span { background: var(--ok); }
 .step .tick { float: right; font-size: 13px; color: var(--muted); font-weight: 400; margin-top: 4px; }
+.row.out .n { text-decoration: line-through; color: var(--muted); }
+.row.out .g { opacity: .4; }
+.price .x { color: var(--warn); font-weight: 700; }
+.outbar { margin-top: 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); }
+.outbar.on { border-color: var(--warn); }
+.outbar.on b { color: var(--warn); }
 @media (prefers-reduced-motion: no-preference) { .sheet { animation: up .18s ease-out; } @keyframes up { from { transform: translateY(16px); opacity: .6; } } }
 </style>
 
@@ -252,8 +257,11 @@ $("#secs").addEventListener("click", (e) => {
 });
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
+let out = new Set(store.get("out", []));
+function setOut(name, on) { on ? out.add(name) : out.delete(name); store.set("out", [...out]); }
 function rowHtml(d) {
   const sug = !d.official;
+  if (out.has(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.glass)} · ${esc(blurb(d))}</div></div><span class="price${sug ? " sug" : ""}">${priceText(d)}<i>${sug ? "Suggested" : "Official"}</i></span></button>`;
 }
 const TONIGHT = [
@@ -271,7 +279,7 @@ function renderQuick(show) {
   const hide = store.get("pushHidden", false);
   const head = `<div class="sec" style="margin-top:10px;display:flex;justify-content:space-between;align-items:center">Push tonight<button class="chip" data-hidepush style="font-family:var(--body);text-transform:none;min-height:36px">${hide ? "Show" : "Hide"}</button></div>`;
   if (hide) { $("#quick").innerHTML = head + rec; return; }
-  $("#quick").innerHTML = `${head}<div class="tonight">${TONIGHT.map((t, i) => `<div class="tn"><span class="k">${esc(t.k)}</span><b>${esc(t.tally.replace(/ \(.*\)/, ""))}</b><span class="say">${esc(t.say)}</span><div class="actions"><button class="btn" data-tn="${i}">${t.sec ? "See shakes" : "How to make"}</button><button class="btn pri" data-tnplus="${i}">+1 sold</button></div></div>`).join("")}</div>${rec}`;
+  $("#quick").innerHTML = `${head}<div class="tonight">${TONIGHT.map((t, i) => `<div class="tn"><span class="k">${t.drink && out.has(t.drink) ? "<span style=\"color:var(--warn)\">86'd tonight</span>" : esc(t.k)}</span><b>${esc(t.tally.replace(/ \(.*\)/, ""))}</b><span class="say">${esc(t.say)}</span><div class="actions"><button class="btn" data-tn="${i}">${t.sec ? "See shakes" : "How to make"}</button><button class="btn pri" data-tnplus="${i}">+1 sold</button></div></div>`).join("")}</div>${rec}`;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
@@ -329,6 +337,7 @@ function openSheet(id, keepScroll) {
       ${d.official ? `<span class="badge b-off">${priceText(d)} official</span>` : `<span class="badge b-sug">${priceText(d)} suggested, not approved</span>`}
       ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
     </div>
+    <div class="outbar${out.has(d.name) ? " on" : ""}"><span>${out.has(d.name) ? "<b>86'd tonight.</b> Offer something else." : "In stock"}</span><button class="btn${out.has(d.name) ? "" : " danger"}" id="sh-86" data-name="${esc(d.name)}">${out.has(d.name) ? "Back in stock" : "Mark 86'd"}</button></div>
     ${al ? `<div class="allergy"><b>Allergens:</b> ${esc(al)}</div>` : ""}
     ${view === "steps" ? `<p class="note">Tap each step when it is done. ${esc(d.glass)}, ${esc(d.ice)}, garnish: ${esc(d.garnish)}.</p>` + guideHtml(DATA.guides[d.name]) : `
     <dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl>
@@ -351,6 +360,7 @@ function openGuide(name) {
 function closeSheet() { $("#sheet").hidden = true; document.body.style.overflow = ""; lock?.release?.().catch(() => {}); lock = null; renderQuick(!$("#q").value.trim() && sec === "All"); lastFocus?.focus?.(); }
 $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
+  const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name; setOut(n, !out.has(n)); toast(out.has(n) ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
   const st = e.target.closest(".step"); if (st) { st.classList.toggle("done"); st.querySelector(".tick").textContent = st.classList.contains("done") ? "Done \u2713" : "Tap when done"; return; }
   const v = e.target.closest("[data-view]"); if (v && v.dataset.view !== view) { view = v.dataset.view; store.set("view", view); openSheet(curId, true); $("#sheet").scrollTop = 0; }
   const t = e.target.closest("#sh-tally"); if (t) { bump(t.dataset.name, 1); toast(`${t.dataset.name}: ${tally[t.dataset.name]} sold`); }
@@ -416,17 +426,19 @@ function bump(name, n) { tally[name] = Math.max(0, (tally[name] || 0) + n); if (
 function tallyText() {
   const lines = Object.entries(tally).sort((a, b) => b[1] - a[1]).map(([n, c]) => `${n}: ${c}`);
   const total = Object.values(tally).reduce((a, b) => a + b, 0);
-  return `Black Tap Soho trial tally, ${new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}\n${lines.join("\n") || "Nothing counted yet"}\nTotal: ${total}`;
+  return `Black Tap Soho trial tally, ${new Date().toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}\n${lines.join("\n") || "Nothing counted yet"}\nTotal: ${total}${out.size ? `\n86'd: ${[...out].join(", ")}` : ""}`;
 }
 function renderTally() {
   const others = Object.keys(tally).filter((n) => !PUSH.some((p) => p[0] === n)).sort();
   const total = Object.values(tally).reduce((a, b) => a + b, 0);
   const row = (n, s) => `<div class="tally-row"><div><div class="n">${esc(n)}</div>${s ? `<div class="s">${esc(s)}</div>` : ""}</div><button class="round" data-t="-1" data-n="${esc(n)}" aria-label="Remove one ${esc(n)}">−</button><span class="v">${tally[n] || 0}</span><button class="round plus" data-t="1" data-n="${esc(n)}" aria-label="Add one ${esc(n)}">+</button></div>`;
-  $("#tally").innerHTML = `<div class="sec">Push these five</div>${PUSH.map(([n, s]) => row(n, s)).join("")}
+  const outList = [...out].sort();
+  $("#tally").innerHTML = `<div class="sec">86'd tonight</div>${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd. Open a drink and tap \u201cMark 86'd\u201d when you run out.</p>`}
+    <div class="sec">Push these five</div>${PUSH.map(([n, s]) => row(n, s)).join("")}
     <div class="sec">Everything else sold</div>${others.length ? others.map((n) => row(n, "")).join("") : `<p class="note">Open any drink and tap “+1 to tally” to add it here.</p>`}
     <div class="total"><span>Total sold</span><b>${total}</b></div>
     <div class="actions"><button class="btn pri" id="t-copy">Copy for team chat</button><button class="btn danger" id="t-reset">Start a new night</button></div>
-    ${confirmReset ? `<div class="confirm">Clear every count on this phone? <div class="actions"><button class="btn danger" id="t-yes">Clear counts</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
+    ${confirmReset ? `<div class="confirm">Clear every count and the 86'd list on this phone? <div class="actions"><button class="btn danger" id="t-yes">Clear counts</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}
     <textarea class="copybox" id="t-text" readonly aria-label="Tally summary">${esc(tallyText())}</textarea>`;
 }
 $("#tally").addEventListener("click", async (e) => {
@@ -438,7 +450,8 @@ $("#tally").addEventListener("click", async (e) => {
   }
   if (e.target.closest("#t-reset")) { confirmReset = true; renderTally(); }
   if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
-  if (e.target.closest("#t-yes")) { tally = {}; store.set("tally", tally); confirmReset = false; renderTally(); toast("Counts cleared"); }
+  const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
+  if (e.target.closest("#t-yes")) { out = new Set(); store.set("out", []); renderList(); tally = {}; store.set("tally", tally); confirmReset = false; renderTally(); toast("Counts cleared"); }
 });
 
 /* ---------- Bar info ---------- */
@@ -480,6 +493,7 @@ function renderInfo() {
       <li>Tap the Share button, then <b>Add to Home Screen</b>.</li>
       <li>Name it “BT Bar Book” and tap Add. It now opens like an app.</li>
     </ol>
+    <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>
     <p class="note">Data from the Soho build cards and blacktap.com, last updated 23 October 2026. 130 drinks, each with a step-by-step picture guide.</p>`;
 }
 
@@ -498,6 +512,7 @@ function show(tab) {
 }
 document.querySelector("nav.tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
 
+if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) navigator.serviceWorker.register("sw.js").catch(() => {});
 renderChips(); renderList();
 show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 </script>
