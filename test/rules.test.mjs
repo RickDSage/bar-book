@@ -34,7 +34,7 @@ const emailOf = (u) => `${u}-1a2b3c4d@users.example.com`;
 const db = (uid) => (uid ? env.authenticatedContext(uid) : env.unauthenticatedContext()).firestore();
 const seed = (fn) => env.withSecurityRulesDisabled((ctx) => fn(ctx.firestore()));
 const now = serverTimestamp;
-const by = (uid) => ({ uid, name: TEAM[uid].name, at: now() });
+const by = (uid) => ({ uid, name: TEAM[uid]?.name ?? "Stray", at: now() });
 const daysAgo = (n) => Timestamp.fromMillis(Date.now() - n * 864e5);
 // Business day in UK time, as the app works it out (rolls over at 6am).
 const ukDay = (ms) => {
@@ -124,8 +124,51 @@ function sendReport(d, uid, photoIds, extra = {}) {
   photoIds.forEach((id) => b.update(doc(d, "photos", id), { report: ref.id }));
   return { b, id: ref.id };
 }
-const tick = (d, uid, list, item, day = today(), extra = {}) =>
-  setDoc(doc(d, "shift", day, "ticks", `${list}-${item}`), { list, item, ...by(uid), ...extra });
+// A refusal, saying which case it was if the write goes through after all.
+const fails = (p, why) => assertFails(p).catch((e) => { throw new Error(`${why}: ${e.message}`); });
+// What a record holds now, read past the rules (the app reads it from its live copy).
+async function current(path) {
+  let x = null;
+  await seed(async (s) => { const d = await getDoc(doc(s, path)); x = d.exists() ? d.data() : null; });
+  return x;
+}
+// Tonight's tasks and procedures, and restocking: each change writes the record and its event in one batch, from the
+// record as it is now, as the app does. A give of null takes a task off whoever it was for.
+const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor" };
+async function taskBatch(d, uid, list, item, to, { note = "", give, day = today(), task = {}, event = {}, eventId } = {}) {
+  const id = `${list}-${item}`, cur = await current(`shift/${day}/tasks/${id}`), v = (cur?.v || 0) + 1, from = cur?.status || "todo";
+  const who = give === undefined ? cur?.who ?? null : give ? TEAM[give]?.name ?? "Gus Ghost" : null;
+  const whoUid = give === undefined ? cur?.whoUid ?? null : give;
+  const status = give === undefined ? to : from, b = writeBatch(d);
+  b.set(doc(d, "shift", day, "tasks", id), { list, item, status, who, whoUid, note, v, ...by(uid), ...task });
+  b.set(doc(d, "events", eventId || `t-${day}-${id}-${v}`), { kind: "task", day, list, item, label: "Ice well emptied", area: SIDE[list] ?? "bar", from, to: status, who, note, v, ...by(uid), ...event });
+  return b;
+}
+async function runBatch(d, uid, list, to, { done = 0, required = 21, note = "", day = today(), run = {}, event = {} } = {}) {
+  const cur = await current(`shift/${day}/runs/${list}`), v = (cur?.v || 0) + 1, from = cur?.status || "todo", b = writeBatch(d);
+  b.set(doc(d, "shift", day, "runs", list), { list, status: to, done, required, note, v, ...by(uid), ...run });
+  b.set(doc(d, "events", `r-${day}-${list}-${v}`), { kind: "run", day, list, label: "Closing checklist", area: SIDE[list] ?? "bar", from, to, done, required, note, v, ...by(uid), ...event });
+  return b;
+}
+const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor" };
+function askBatch(d, uid, { item = "Limes", qty = 2, unit = "bag", dest = "up", detail = "", day = today(), r = {}, event = {} } = {}) {
+  const ref = doc(collection(d, "restock")), b = writeBatch(d);
+  b.set(ref, { item, qty, unit, dest, detail, day, status: "asked", who: null, whoUid: null, moved: null, got: null, note: "", v: 1, askedBy: TEAM[uid].name, askedUid: uid, askedAt: now(), ...by(uid), ...r });
+  b.set(doc(d, "events", `s-${ref.id}-1`), { kind: "restock", day, ref: ref.id, label: item, area: DEST_SIDE[dest] ?? "bar", from: "new", to: "asked", who: null, qty, unit, dest, note: "", v: 1, ...by(uid), ...event });
+  return { b, id: ref.id };
+}
+// Taking it on puts the taker's name on it, back to waiting takes every name and amount off, and anything else keeps
+// them unless the test says otherwise.
+async function moveBatch(d, uid, id, to, { note = "", give, moved, got, day = today(), r = {}, event = {}, eventId } = {}) {
+  const cur = await current(`restock/${id}`), v = cur.v + 1, clear = to === "asked";
+  const who = give !== undefined ? give && (TEAM[give]?.name ?? "Gus Ghost") : to === "doing" ? TEAM[uid].name : clear ? null : cur.who;
+  const whoUid = give !== undefined ? give : to === "doing" ? uid : clear ? null : cur.whoUid;
+  const m = moved !== undefined ? moved : clear ? null : cur.moved, g = got !== undefined ? got : clear ? null : cur.got, b = writeBatch(d);
+  b.update(doc(d, "restock", id), { status: to, who, whoUid, moved: m, got: g, note, v, ...by(uid), ...r });
+  b.set(doc(d, "events", eventId || `s-${id}-${v}`), { kind: "restock", day, ref: id, label: cur.item, area: DEST_SIDE[cur.dest], from: cur.status, to, who,
+    qty: to === "delivered" ? m : to === "received" ? g : null, unit: cur.unit, dest: cur.dest, note, v, ...by(uid), ...event });
+  return b;
+}
 const ask = (uid, kind, fields) => ({ kind, note: "", status: "pending", ...by(uid), ...fields });
 const issue = (uid, extra = {}) => ({ title: "Glass washer leaking", detail: "", area: "bar", urgent: false, again: null, status: "open", ...by(uid), ...extra });
 
@@ -133,10 +176,11 @@ const issue = (uid, extra = {}) => ({ title: "Glass washer leaking", detail: "",
 describe("visitors who aren't logged in", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const PRIVATE = ["staff/staff1", "config/owner", "config/pins", "feed/a", "notices/a", "reports/a", "photos/a", "shift/2026-10-25/ticks/open-1",
+    "shift/2026-10-25/tasks/open-1", "shift/2026-10-25/runs/open", "events/a", "restock/a",
     "requests/a", "out/gin", "outlog/a", "asks/a", "incidents/a", "reviews/a", "ratings/a", "audit/a", "issues/a", "seen/a-staff1",
     "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0"];
   for (const p of PRIVATE) test(`can't read ${p}`, () => assertFails(getDoc(doc(db(), p))));
-  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos"]) {
+  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos", "events", "restock"]) {
     test(`can't list ${c}`, () => assertFails(getDocs(collection(db(), c))));
   }
   test("can look up one username, and it holds only the sign-in address and uid", async () => {
@@ -167,6 +211,12 @@ describe("signed in but not on the team", () => {
     await assertFails(setupBatch(db("stranger"), "stranger", { username: "stray" }).commit());
   });
   test("can't post to the board", () => assertFails(addDoc(collection(db("stranger"), "feed"), { kind: "comment", text: "hi", uid: "stranger", name: "Stray", at: now() })));
+  test("can't read or change tonight's tasks, procedures, restocking or events", async () => {
+    for (const p of [`shift/${today()}/tasks/open-1`, `shift/${today()}/runs/open`, "events/a", "restock/a"]) await assertFails(getDoc(doc(db("stranger"), p)));
+    await assertFails(getDocs(query(collection(db("stranger"), "events"), where("day", "==", today()))));
+    await assertFails((await taskBatch(db("stranger"), "stranger", "open", 1, "done")).commit());
+    await assertFails((await runBatch(db("stranger"), "stranger", "open", "started")).commit());
+  });
 });
 
 // =====================================================================================
@@ -328,53 +378,256 @@ describe("team accounts", () => {
 });
 
 // =====================================================================================
-describe("tonight's checklists", () => {
+describe("tonight's tasks: statuses, with an event for every change", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
-  test("anyone on the team ticks an item, signed with their own name", async () => {
-    await assertSucceeds(tick(db("staff1"), "staff1", "open", 3));
-    await assertSucceeds(getDocs(collection(db("staff2"), "shift", today(), "ticks")));
+  const task = async (d, uid, list, item, to, o) => (await taskBatch(d, uid, list, item, to, o)).commit();
+  const eventsOf = async (id) => (await getDocs(collection(db("mgr1"), "events"))).docs.filter((x) => x.id.startsWith(`t-${today()}-${id}-`))
+    .map((x) => x.data()).sort((a, b) => a.v - b.v);
+
+  test("anyone on the team starts and finishes a task, signed with their own name, and each change has its event", async () => {
+    await assertSucceeds(task(db("staff1"), "staff1", "close", 10, "doing"));
+    await assertSucceeds(task(db("staff1"), "staff1", "close", 10, "done"));
+    const t = (await getDoc(doc(db("staff2"), "shift", today(), "tasks", "close-10"))).data();
+    assert.deepEqual([t.status, t.v, t.uid, t.name], ["done", 2, "staff1", "Sam Staff"]);
+    const ev = await eventsOf("close-10");
+    assert.deepEqual(ev.map((e) => [e.from, e.to, e.v, e.name, e.area]), [["todo", "doing", 1, "Sam Staff", "bar"], ["doing", "done", 2, "Sam Staff", "bar"]]);
+    assert.ok(ev.every((e) => e.at instanceof Timestamp), "stamped by the server's clock");
+    await assertSucceeds(getDocs(query(collection(db("staff2"), "events"), where("day", "==", today()))));
   });
-  test("ticks that don't match the list, item, name or time are refused", async () => {
+  test("a change without its event, or with an event that doesn't match it, is refused", async () => {
     const d = db("staff1");
-    await assertFails(setDoc(doc(d, "shift", today(), "ticks", "open-4"), { list: "open", item: 3, ...by("staff1") }));
-    await assertFails(tick(d, "staff1", "bins", 1));
-    await assertFails(tick(d, "staff1", "open", 60));
-    await assertFails(tick(d, "staff1", "open", -1));
-    await assertFails(tick(d, "staff1", "open", 2, today(), { name: "Tia Staff" }));
-    await assertFails(tick(d, "staff1", "open", 2, today(), { uid: "staff2" }));
-    await assertFails(tick(d, "staff1", "open", 2, today(), { at: Timestamp.now() }));
-    await assertFails(tick(d, "staff1", "open", 2, today(), { done: true }));
+    await fails(setDoc(doc(d, "shift", today(), "tasks", "open-1"), { list: "open", item: 1, status: "done", who: null, whoUid: null, note: "", v: 1, ...by("staff1") }), "no event");
+    await fails(setDoc(doc(d, "events", `t-${today()}-open-1-1`), { kind: "task", day: today(), list: "open", item: 1, label: "Ice well", area: "bar", from: "todo", to: "done", who: null, note: "", v: 1, ...by("staff1") }), "an event with no change");
+    for (const event of [{ from: "doing" }, { to: "doing" }, { area: "floor" }, { who: "Tia Staff" }, { note: "late" }, { label: " " }, { name: "Tia Staff" }, { uid: "staff2" },
+      { at: Timestamp.now() }, { kind: "run" }, { kind: "note" }, { v: 2 }, { item: "1" }, { extra: 1 }]) {
+      await fails(task(d, "staff1", "open", 1, "done", { event }), JSON.stringify(event));
+    }
+    await fails(task(d, "staff1", "open", 1, "done", { eventId: `t-${today()}-open-1-2` }), "event named for another version");
+    await fails(task(d, "staff1", "open", 1, "done", { eventId: "anything" }), "event with a made-up name");
+    assert.equal((await eventsOf("open-1")).length, 0);
   });
-  test("only today's business day (give or take a day for late syncing) can be ticked", async () => {
-    await assertSucceeds(tick(db("staff1"), "staff1", "open", 1, dayFromNow(-1)));
-    await assertFails(tick(db("staff1"), "staff1", "open", 1, dayFromNow(-5)));
-    await assertFails(tick(db("staff1"), "staff1", "open", 1, dayFromNow(3)));
-    await assertFails(tick(db("staff1"), "staff1", "open", 1, "2026-02-31"));
-    await assertFails(tick(db("staff1"), "staff1", "open", 1, "tonight"));
+  test("tasks that don't match their list, item, version, name or time are refused", async () => {
+    const d = db("staff1");
+    for (const [why, list, item, o] of [["unknown list", "bins", 1, {}], ["item 60", "open", 60, {}], ["item -1", "open", -1, {}], ["id for another item", "open", 1, { task: { item: 2 }, event: { item: 2 } }],
+      ["skipped version", "open", 1, { task: { v: 2 } }], ["long note", "open", 1, { note: "x".repeat(201) }], ["someone else's name", "open", 1, { task: { name: "Tia Staff" } }],
+      ["someone else's uid", "open", 1, { task: { uid: "staff2" } }], ["phone's clock", "open", 1, { task: { at: Timestamp.now() } }], ["extra field", "open", 1, { task: { done: true } }]]) {
+      await fails(task(d, "staff1", list, item, "done", o), why);
+    }
+    await fails(task(d, "staff1", "open", 1, "finished"), "unknown status");
   });
-  test("staff can't untick or overwrite someone else's tick; managers can clear it", async () => {
-    await assertSucceeds(tick(db("staff1"), "staff1", "close", 5));
-    await assertFails(deleteDoc(doc(db("staff2"), "shift", today(), "ticks", "close-5")));
-    await assertFails(tick(db("staff2"), "staff2", "close", 5));
-    await assertSucceeds(deleteDoc(doc(db("mgr1"), "shift", today(), "ticks", "close-5")));
+  test("only tonight's business day (give or take a day for late syncing) can be changed", async () => {
+    await assertSucceeds(task(db("staff1"), "staff1", "open", 1, "done", { day: dayFromNow(-1) }));
+    for (const day of [dayFromNow(-5), dayFromNow(3), "2026-02-31", "tonight"]) await fails(task(db("staff1"), "staff1", "open", 1, "done", { day }), day);
   });
-  test("people untick their own", async () => {
-    await assertSucceeds(tick(db("staff1"), "staff1", "fset", 0));
-    await assertSucceeds(deleteDoc(doc(db("staff1"), "shift", today(), "ticks", "fset-0")));
+  test("blocked needs a reason, and anyone can unblock it or carry on", async () => {
+    await fails(task(db("staff1"), "staff1", "fclose", 8, "blocked"), "no reason");
+    await assertSucceeds(task(db("staff1"), "staff1", "fclose", 8, "blocked", { note: "Bin room locked" }));
+    await assertSucceeds(task(db("staff2"), "staff2", "fclose", 8, "todo"));
+    await assertSucceeds(task(db("staff2"), "staff2", "fclose", 8, "blocked", { note: "Still locked" }));
+    await assertSucceeds(task(db("staff1"), "staff1", "fclose", 8, "doing"));
+    await assertSucceeds(task(db("staff1"), "staff1", "fclose", 8, "done"));
+    assert.deepEqual((await eventsOf("fclose-8")).map((e) => `${e.to}:${e.note}`), ["blocked:Bin room locked", "todo:", "blocked:Still locked", "doing:", "done:"]);
   });
-  test("two phones ticking at the same moment keep both ticks", async () => {
-    await Promise.all([tick(db("staff1"), "staff1", "open", 1), tick(db("staff2"), "staff2", "open", 2)]);
-    const all = await getDocs(collection(db("mgr1"), "shift", today(), "ticks"));
-    assert.deepEqual(all.docs.map((d) => d.id).sort(), ["open-1", "open-2"]);
+  test("only managers mark a task not needed, with a reason, and only they bring it back", async () => {
+    await fails(task(db("staff1"), "staff1", "fclose", 7, "cancelled", { note: "Not Sunday" }), "staff");
+    await fails(task(db("mgr1"), "mgr1", "fclose", 7, "cancelled"), "no reason");
+    await assertSucceeds(task(db("mgr1"), "mgr1", "fclose", 7, "cancelled", { note: "Cleaners did the toilets" }));
+    await fails(task(db("staff1"), "staff1", "fclose", 7, "done"), "a task that isn't needed can't be done");
+    await fails(task(db("staff1"), "staff1", "fclose", 7, "todo"), "staff bringing it back");
+    await assertSucceeds(task(db("mgr2"), "mgr2", "fclose", 7, "todo"));
   });
-  test("two phones ticking the same item: the first tick and its name stay", async () => {
-    await assertSucceeds(tick(db("staff1"), "staff1", "open", 7));
-    await assertFails(tick(db("staff2"), "staff2", "open", 7));
-    const t = await getDoc(doc(db("mgr1"), "shift", today(), "ticks", "open-7"));
-    assert.equal(t.data().uid, "staff1");
+  test("stopping a task: whoever started it, or a manager", async () => {
+    await assertSucceeds(task(db("staff1"), "staff1", "close", 3, "doing"));
+    await fails(task(db("staff2"), "staff2", "close", 3, "todo"), "someone else");
+    await assertSucceeds(task(db("staff1"), "staff1", "close", 3, "todo"));
+    await assertSucceeds(task(db("staff2"), "staff2", "close", 3, "doing"));
+    await assertSucceeds(task(db("mgr1"), "mgr1", "close", 3, "todo"));
+  });
+  test("taking back a done task: a mis-tap within 5 minutes, otherwise with a reason, and never someone else's unless a manager", async () => {
+    await assertSucceeds(task(db("staff1"), "staff1", "open", 4, "done"));
+    await fails(task(db("staff2"), "staff2", "open", 4, "todo", { note: "Not done properly" }), "another member of staff");
+    await assertSucceeds(task(db("staff1"), "staff1", "open", 4, "todo"));
+    await assertSucceeds(task(db("staff1"), "staff1", "open", 4, "done"));
+    await fails(task(db("mgr1"), "mgr1", "open", 4, "todo"), "a manager without a reason");
+    await assertSucceeds(task(db("mgr1"), "mgr1", "open", 4, "todo", { note: "Glasses still cloudy" }));
+    // Done six minutes ago.
+    await seed((s) => setDoc(doc(s, "shift", today(), "tasks", "open-5"), { list: "open", item: 5, status: "done", who: null, whoUid: null, note: "", v: 1, uid: "staff1", name: "Sam Staff", at: Timestamp.fromMillis(Date.now() - 6 * 6e4) }));
+    await fails(task(db("staff1"), "staff1", "open", 5, "todo"), "after 5 minutes without a reason");
+    await assertSucceeds(task(db("staff1"), "staff1", "open", 5, "todo", { note: "Ticked the wrong one" }));
+  });
+  test("moves that make no sense are refused", async () => {
+    await assertSucceeds(task(db("staff1"), "staff1", "open", 6, "done"));
+    for (const to of ["done", "doing", "blocked", "cancelled", "started"]) await fails(task(db("mgr1"), "mgr1", "open", 6, to, { note: "Because" }), `done to ${to}`);
+    await fails(task(db("staff1"), "staff1", "open", 7, "todo"), "not started to not started");
+  });
+  test("managers give a task to someone or take it off them; staff can't; a change of status keeps who it's for", async () => {
+    await assertSucceeds(task(db("mgr1"), "mgr1", "close", 16, null, { give: "staff2" }));
+    let t = (await getDoc(doc(db("staff2"), "shift", today(), "tasks", "close-16"))).data();
+    assert.deepEqual([t.status, t.who, t.whoUid], ["todo", "Tia Staff", "staff2"]);
+    await fails(task(db("staff1"), "staff1", "close", 16, null, { give: "staff1" }), "staff giving one to themselves");
+    await fails(task(db("mgr1"), "mgr1", "close", 16, null, { give: "staff2" }), "to the same person again");
+    await fails(task(db("mgr1"), "mgr1", "close", 16, null, { give: "ghost" }), "someone not on the team");
+    await fails(task(db("mgr1"), "mgr1", "close", 16, null, { give: "staff1", task: { who: "Someone Else" }, event: { who: "Someone Else" } }), "under another name");
+    await assertSucceeds(task(db("staff1"), "staff1", "close", 16, "done"));
+    t = (await getDoc(doc(db("staff2"), "shift", today(), "tasks", "close-16"))).data();
+    assert.deepEqual([t.status, t.who, t.name], ["done", "Tia Staff", "Sam Staff"]);
+    await fails(task(db("mgr1"), "mgr1", "close", 16, null, { give: "staff1" }), "a done task");
+    await assertSucceeds(task(db("mgr1"), "mgr1", "close", 17, null, { give: "staff1" }));
+    await fails(task(db("staff1"), "staff1", "close", 17, "doing", { task: { who: null, whoUid: null }, event: { who: null } }), "starting it takes it off them");
+    await assertSucceeds(task(db("mgr1"), "mgr1", "close", 17, null, { give: null }));
+    assert.deepEqual((await eventsOf("close-17")).map((e) => [e.from, e.to, e.who]), [["todo", "todo", "Sam Staff"], ["todo", "todo", null]]);
+  });
+  test("a phone working from an old copy is refused, so two phones can't overwrite each other, and no second event appears", async () => {
+    await assertSucceeds(task(db("staff1"), "staff1", "close", 12, "doing"));
+    const [a, b] = await Promise.all([taskBatch(db("staff1"), "staff1", "close", 12, "done"), taskBatch(db("staff2"), "staff2", "close", 12, "blocked", { note: "No bags" })]);
+    await assertSucceeds(a.commit());
+    await fails(b.commit(), "built from the copy before");
+    // The same change sent twice, as a retry would.
+    const [c, again] = await Promise.all([taskBatch(db("staff1"), "staff1", "close", 12, "todo"), taskBatch(db("staff1"), "staff1", "close", 12, "todo")]);
+    await assertSucceeds(c.commit());
+    await fails(again.commit(), "sent twice");
+    // Nor can a phone jump ahead a version to get round that.
+    await fails(task(db("staff2"), "staff2", "close", 12, "doing", { task: { v: 9 }, event: { v: 9 }, eventId: `t-${today()}-close-12-9` }), "jumping a version");
+    assert.deepEqual((await eventsOf("close-12")).map((e) => e.to), ["doing", "done", "todo"]);
+  });
+  test("nobody deletes a task, procedure or event, or edits an event, the owner included", async () => {
+    await assertSucceeds(task(db("staff1"), "staff1", "open", 2, "done"));
+    await assertSucceeds((await runBatch(db("staff1"), "staff1", "open", "started")).commit());
+    for (const who of ["staff1", "mgr1", "owner1"]) {
+      const d = db(who);
+      await fails(deleteDoc(doc(d, "shift", today(), "tasks", "open-2")), `${who} deletes a task`);
+      await fails(deleteDoc(doc(d, "shift", today(), "runs", "open")), `${who} deletes a procedure`);
+      await fails(deleteDoc(doc(d, "events", `t-${today()}-open-2-1`)), `${who} deletes an event`);
+      await fails(updateDoc(doc(d, "events", `t-${today()}-open-2-1`), { note: "Changed" }), `${who} edits an event`);
+    }
+  });
+  test("ticks from before tasks stay readable, and nothing new is ticked or cleared", async () => {
+    await seed((s) => setDoc(doc(s, "shift", "2026-10-24", "ticks", "open-1"), { list: "open", item: 1, uid: "staff1", name: "Sam Staff", at: daysAgo(1) }));
+    await assertSucceeds(getDocs(collection(db("staff2"), "shift", "2026-10-24", "ticks")));
+    await fails(setDoc(doc(db("staff1"), "shift", today(), "ticks", "open-2"), { list: "open", item: 2, ...by("staff1") }), "a new tick");
+    await fails(deleteDoc(doc(db("mgr1"), "shift", "2026-10-24", "ticks", "open-1")), "clearing an old tick");
   });
   test("the old one-document-per-day checklist can't be written", () =>
     assertFails(setDoc(doc(db("staff1"), "shift", today()), { open: [], close: [] })));
+});
+
+describe("opening and closing procedures", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const run = async (d, uid, list, to, o) => (await runBatch(d, uid, list, to, o)).commit();
+  const task = async (d, uid, list, item, to, o) => (await taskBatch(d, uid, list, item, to, o)).commit();
+  const runEvents = async () => (await getDocs(collection(db("staff2"), "events"))).docs.map((x) => x.data()).filter((e) => e.kind === "run").sort((a, b) => a.v - b.v);
+
+  test("starting is separate from finishing, and finishing with tasks left needs a manager and a reason", async () => {
+    await assertSucceeds(run(db("staff1"), "staff1", "close", "started", { done: 0, required: 21 }));
+    await fails(run(db("staff1"), "staff1", "close", "started", { done: 0, required: 21 }), "started twice");
+    await fails(run(db("staff1"), "staff1", "close", "finished", { done: 20, required: 21, note: "Ran out of time" }), "staff with one left");
+    await fails(run(db("mgr1"), "mgr1", "close", "finished", { done: 20, required: 21 }), "a manager without a reason");
+    await assertSucceeds(run(db("mgr1"), "mgr1", "close", "finished", { done: 20, required: 21, note: "Fridge light fault, reported" }));
+    await fails(run(db("mgr1"), "mgr1", "close", "finished", { done: 21, required: 21 }), "finished twice");
+    assert.deepEqual((await runEvents()).map((e) => [e.from, e.to, e.done, e.required, e.name]), [["todo", "started", 0, 21, "Sam Staff"], ["started", "finished", 20, 21, "Mia Manager"]]);
+  });
+  test("anyone finishes once everything is done, and the counts must add up", async () => {
+    // The phone counts done and required from tonight's tasks. The rules can't count tasks, so the tasks and their
+    // events stay the record of what was done.
+    await assertSucceeds(run(db("staff1"), "staff1", "open", "finished", { done: 15, required: 15 }));
+    for (const [done, required] of [[16, 15], [-1, 15], [61, 61], [1.5, 15]]) await fails(run(db("staff1"), "staff1", "fset", "finished", { done, required }), `${done} of ${required}`);
+    await fails(run(db("staff1"), "staff1", "fset", "finished", { done: 5, required: 5, event: { done: 4 } }), "event with other counts");
+    await fails(run(db("staff1"), "staff1", "fset", "finished", { done: 5, required: 5, run: { list: "open" } }), "record for another list");
+    await fails(run(db("staff1"), "staff1", "bins", "started"), "unknown list");
+  });
+  test("a finished procedure locks its tasks until a manager reopens it, with a reason", async () => {
+    await assertSucceeds(task(db("staff1"), "staff1", "fshake", 0, "done"));
+    await assertSucceeds(run(db("staff1"), "staff1", "fshake", "finished", { done: 8, required: 8 }));
+    await fails(task(db("staff1"), "staff1", "fshake", 0, "todo"), "locked");
+    await fails(task(db("mgr1"), "mgr1", "fshake", 1, "done"), "locked for managers too");
+    await fails(run(db("staff1"), "staff1", "fshake", "started", { done: 8, required: 8, note: "Missed one" }), "staff reopening");
+    await fails(run(db("mgr1"), "mgr1", "fshake", "started", { done: 8, required: 8 }), "reopening without a reason");
+    await assertSucceeds(run(db("mgr1"), "mgr1", "fshake", "started", { done: 7, required: 8, note: "Drip tray not cleaned" }));
+    await assertSucceeds(task(db("staff1"), "staff1", "fshake", 7, "done"));
+    assert.deepEqual((await runEvents()).map((e) => `${e.from}>${e.to}`), ["todo>finished", "finished>started"]);
+  });
+});
+
+describe("restocking from the cellar", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const move = async (d, uid, id, to, o) => (await moveBatch(d, uid, id, to, o)).commit();
+  const asked = async (uid = "staff1", o) => { const x = askBatch(db(uid), uid, o); await x.b.commit(); return x.id; };
+
+  test("ask, take it on, bring it up and confirm what arrived: asked, moved and received are kept apart", async () => {
+    const id = await asked("staff1", { item: "Limes", qty: 2, unit: "bag", dest: "up", detail: "For the weekend" });
+    await assertSucceeds(move(db("staff2"), "staff2", id, "doing"));
+    await fails(move(db("staff1"), "staff1", id, "delivered", { moved: 2 }), "not theirs to bring up");
+    await fails(move(db("staff2"), "staff2", id, "delivered"), "without how much was moved");
+    await assertSucceeds(move(db("staff2"), "staff2", id, "delivered", { moved: 1 }));
+    await fails(move(db("staff1"), "staff1", id, "received", { got: 0 }), "nothing arrived");
+    await fails(move(db("staff1"), "staff1", id, "received", { got: 1, moved: 2 }), "changing what was moved");
+    await assertSucceeds(move(db("staff1"), "staff1", id, "received", { got: 1 }));
+    const r = (await getDoc(doc(db("mgr1"), "restock", id))).data();
+    assert.deepEqual([r.qty, r.moved, r.got, r.status, r.who, r.askedBy, r.detail], [2, 1, 1, "received", "Tia Staff", "Sam Staff", "For the weekend"]);
+    const ev = (await getDocs(collection(db("mgr1"), "events"))).docs.map((x) => x.data()).sort((a, b) => a.v - b.v);
+    assert.deepEqual(ev.map((e) => [e.from, e.to, e.qty, e.name, e.area]), [["new", "asked", 2, "Sam Staff", "bar"], ["asked", "doing", null, "Tia Staff", "bar"],
+      ["doing", "delivered", 1, "Tia Staff", "bar"], ["delivered", "received", 1, "Sam Staff", "bar"]]);
+  });
+  test("bad asks are refused", async () => {
+    for (const [why, o] of [["no item", { item: " " }], ["nothing", { qty: 0 }], ["too much", { qty: 1001 }], ["amount as text", { qty: "2" }], ["unknown unit", { unit: "crate" }],
+      ["unknown place", { dest: "roof" }], ["already taken", { r: { status: "doing" } }], ["someone else's name", { r: { askedBy: "Tia Staff" } }], ["phone's clock", { r: { askedAt: Timestamp.now() } }],
+      ["moved already", { r: { moved: 2 } }], ["version", { r: { v: 2 } }], ["event amount", { event: { qty: 3 } }], ["event status", { event: { to: "doing" } }], ["event area", { event: { area: "floor" } }],
+      ["event from", { event: { from: "asked" } }], ["event unit", { event: { unit: "box" } }], ["event place", { event: { dest: "down" } }], ["event item", { event: { label: "Lemons" } }], ["extra field", { r: { urgent: true } }], ["old night", { day: dayFromNow(-5) }], ["long detail", { detail: "x".repeat(201) }], ["a reason on asking", { r: { note: "Why" }, event: { note: "Why" } }]]) {
+      await fails(askBatch(db("staff1"), "staff1", o).b.commit(), why);
+    }
+    const r = { item: "Limes", qty: 2, unit: "bag", dest: "up", detail: "", day: today(), status: "asked", who: null, whoUid: null, moved: null, got: null, note: "", v: 1, askedBy: "Sam Staff", askedUid: "staff1", askedAt: now(), ...by("staff1") };
+    await fails(setDoc(doc(collection(db("staff1"), "restock")), r), "without its event");
+    await fails(setDoc(doc(db("staff1"), "restock", "limes"), r), "a made-up id");
+  });
+  test("managers give it to someone, and then only that person or a manager takes it on", async () => {
+    const id = await asked();
+    await fails(move(db("staff1"), "staff1", id, "given", { give: "staff2" }), "staff giving it");
+    await fails(move(db("mgr1"), "mgr1", id, "given", { give: "ghost" }), "someone not on the team");
+    await assertSucceeds(move(db("mgr1"), "mgr1", id, "given", { give: "staff2" }));
+    await fails(move(db("staff1"), "staff1", id, "doing"), "given to someone else");
+    await assertSucceeds(move(db("staff2"), "staff2", id, "doing"));
+    await assertSucceeds(move(db("mgr1"), "mgr1", id, "given", { give: "staff1" }));
+    await assertSucceeds(move(db("mgr2"), "mgr2", id, "doing"));
+  });
+  test("not in the cellar, blocked with a reason, or cancelled by whoever asked (or a manager, with a reason)", async () => {
+    const one = await asked();
+    await assertSucceeds(move(db("staff2"), "staff2", one, "doing"));
+    await fails(move(db("staff2"), "staff2", one, "blocked"), "blocked without a reason");
+    await assertSucceeds(move(db("staff2"), "staff2", one, "blocked", { note: "Cellar door jammed" }));
+    await assertSucceeds(move(db("staff2"), "staff2", one, "unavailable"));
+    const two = await asked();
+    await fails(move(db("staff2"), "staff2", two, "cancelled"), "someone else's ask");
+    await fails(move(db("mgr1"), "mgr1", two, "cancelled"), "a manager without a reason");
+    await assertSucceeds(move(db("staff1"), "staff1", two, "cancelled"));
+    const three = await asked("staff2");
+    await assertSucceeds(move(db("mgr1"), "mgr1", three, "cancelled", { note: "Asked twice" }));
+  });
+  test("back to waiting: let go by whoever has it, not there after all with a reason, or reopened by a manager with a reason", async () => {
+    const id = await asked();
+    await assertSucceeds(move(db("staff2"), "staff2", id, "doing"));
+    await fails(move(db("staff1"), "staff1", id, "asked"), "letting go of someone else's");
+    await assertSucceeds(move(db("staff2"), "staff2", id, "asked"));
+    await assertSucceeds(move(db("staff2"), "staff2", id, "doing"));
+    await assertSucceeds(move(db("staff2"), "staff2", id, "delivered", { moved: 2 }));
+    await fails(move(db("staff1"), "staff1", id, "asked"), "not there after all, without a reason");
+    await assertSucceeds(move(db("staff1"), "staff1", id, "asked", { note: "Not on the bar" }));
+    await assertSucceeds(move(db("staff2"), "staff2", id, "doing"));
+    await assertSucceeds(move(db("staff2"), "staff2", id, "delivered", { moved: 2 }));
+    await assertSucceeds(move(db("staff1"), "staff1", id, "received", { got: 2 }));
+    await fails(move(db("staff1"), "staff1", id, "asked", { note: "Need more" }), "staff reopening a received one");
+    await assertSucceeds(move(db("mgr1"), "mgr1", id, "asked", { note: "Wrong limes" }));
+  });
+  test("a stale copy is refused, what was asked for never changes, and nobody deletes one", async () => {
+    const id = await asked();
+    const [x, y] = await Promise.all([moveBatch(db("staff1"), "staff1", id, "doing"), moveBatch(db("staff2"), "staff2", id, "doing")]);
+    await assertSucceeds(x.commit());
+    await fails(y.commit(), "two people taking it on at once");
+    await fails(move(db("staff1"), "staff1", id, "asked", { r: { v: 5 }, event: { v: 5 }, eventId: `s-${id}-5` }), "jumping a version");
+    for (const r of [{ item: "Lemons" }, { qty: 5 }, { dest: "down" }, { unit: "box" }, { detail: "Changed" }, { askedBy: "Tia Staff" }, { day: dayFromNow(-1) }]) {
+      await fails(move(db("staff1"), "staff1", id, "delivered", { moved: 2, r }), JSON.stringify(r));
+    }
+    for (const who of ["staff1", "mgr1", "owner1"]) await fails(deleteDoc(doc(db(who), "restock", id)), `${who} deletes`);
+  });
 });
 
 // =====================================================================================
@@ -496,29 +749,25 @@ describe("shift reports and photos", () => {
 });
 
 // =====================================================================================
-describe("stock requests", () => {
-  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
-  const rq = (uid, extra = {}) => ({ item: "Limes", note: "2 boxes", done: false, ...by(uid), ...extra });
-  test("ask, then a manager marks it ordered once, with their uid", async () => {
-    const ref = await assertSucceeds(addDoc(collection(db("staff1"), "requests"), rq("staff1")));
-    await assertFails(updateDoc(doc(db("staff2"), "requests", ref.id), { done: true, doneBy: "Tia Staff", doneByUid: "staff2", doneAt: now() }));
-    await assertFails(updateDoc(doc(db("mgr1"), "requests", ref.id), { done: true, doneBy: "Mia Manager", doneAt: now() }));
-    await assertFails(updateDoc(doc(db("mgr1"), "requests", ref.id), { done: true, doneBy: "Mia Manager", doneByUid: "mgr1", doneAt: now(), item: "Lemons" }));
-    await assertSucceeds(updateDoc(doc(db("mgr1"), "requests", ref.id), { done: true, doneBy: "Mia Manager", doneByUid: "mgr1", doneAt: now() }));
-    await assertFails(updateDoc(doc(db("mgr2"), "requests", ref.id), { done: true, doneBy: "Max Manager", doneByUid: "mgr2", doneAt: now() }));
-    for (const who of ["staff1", "mgr1", "owner1"]) await assertFails(deleteDoc(doc(db(who), "requests", ref.id)));
+describe("stock requests from before restocking (kept for the record)", () => {
+  beforeEach(async () => {
+    await env.clearFirestore(); await seedTeam();
+    await seed(async (s) => { for (const id of ["r1", "r2", "r3"]) await setDoc(doc(s, "requests", id), { item: "Limes", note: "2 boxes", done: false, uid: "staff1", name: "Sam Staff", at: daysAgo(1) }); });
   });
-  test("bad requests are refused", async () => {
-    for (const bad of [{ item: "  " }, { done: true }, { note: "x".repeat(201) }, { name: "Someone Else" }, { extra: 1 }]) {
-      await assertFails(addDoc(collection(db("staff1"), "requests"), rq("staff1", bad)));
-    }
+  test("nothing new is asked for here", () =>
+    assertFails(addDoc(collection(db("staff1"), "requests"), { item: "Limes", note: "", done: false, ...by("staff1") })));
+  test("a manager marks an old one ordered once, with their uid", async () => {
+    await assertFails(updateDoc(doc(db("staff2"), "requests", "r1"), { done: true, doneBy: "Tia Staff", doneByUid: "staff2", doneAt: now() }));
+    await assertFails(updateDoc(doc(db("mgr1"), "requests", "r1"), { done: true, doneBy: "Mia Manager", doneAt: now() }));
+    await assertFails(updateDoc(doc(db("mgr1"), "requests", "r1"), { done: true, doneBy: "Mia Manager", doneByUid: "mgr1", doneAt: now(), item: "Lemons" }));
+    await assertSucceeds(updateDoc(doc(db("mgr1"), "requests", "r1"), { done: true, doneBy: "Mia Manager", doneByUid: "mgr1", doneAt: now() }));
+    await assertFails(updateDoc(doc(db("mgr2"), "requests", "r1"), { done: true, doneBy: "Max Manager", doneByUid: "mgr2", doneAt: now() }));
+    for (const who of ["staff1", "mgr1", "owner1"]) await assertFails(deleteDoc(doc(db(who), "requests", "r1")));
   });
   test("before it's ordered, the asker cancels it and a manager can turn it down; other staff can't", async () => {
-    const a = await addDoc(collection(db("staff1"), "requests"), rq("staff1"));
-    await assertFails(deleteDoc(doc(db("staff2"), "requests", a.id)));
-    await assertSucceeds(deleteDoc(doc(db("staff1"), "requests", a.id)));
-    const b = await addDoc(collection(db("staff1"), "requests"), rq("staff1"));
-    await assertSucceeds(deleteDoc(doc(db("mgr1"), "requests", b.id)));
+    await assertFails(deleteDoc(doc(db("staff2"), "requests", "r2")));
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "requests", "r2")));
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "requests", "r3")));
   });
 });
 
@@ -976,6 +1225,14 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "reports"), orderBy("at", "desc"), limit(30)),
     query(collection(d, "requests"), orderBy("at", "desc"), limit(50)),
     collection(d, "shift", today(), "ticks"),
+    collection(d, "shift", today(), "tasks"),
+    collection(d, "shift", today(), "runs"),
+    query(collection(d, "events"), where("day", "==", today()), limit(2000)),
+    query(collection(d, "restock"), where("status", "in", ["asked", "given", "doing", "blocked", "delivered"])),
+    query(collection(d, "restock"), orderBy("at", "desc"), limit(30)),
+    // The KPIs, Activity's earlier nights and the downloads: a range of nights.
+    query(collection(d, "events"), where("day", ">=", dayFromNow(-31)), orderBy("day", "desc"), limit(5000)),
+    query(collection(d, "restock"), where("day", ">=", dayFromNow(-31)), orderBy("day", "desc"), limit(2000)),
     query(collection(d, "photos"), where("uid", "==", uid), where("report", "==", null)),
     query(collection(d, "issues"), where("status", "in", ["open", "taken"])),
     query(collection(d, "issues"), orderBy("at", "desc"), limit(30)),

@@ -9,7 +9,7 @@ Written for rules version 2 (`firestore.rules`). Official limits were checked on
 - What a login can do depends only on its record in `staff/{uid}`: **owner**, **manager** or **staff**. No record means no access to anything. Names saved on posts are labels for the screen; the rules check the login's uid.
 - There is exactly one owner, created once with a setup code. The owner can't be removed, demoted, reset or copied by anyone through the app.
 - Every account change (added, new PIN, role changed, removed) writes an audit entry in the same write. The rules refuse the change without it, and nobody can edit or delete the entries.
-- History can't be rewritten: sent reports, signed-off reports, the 86 log, decisions on requests, closed incidents, fixed issues and the audit trail are all locked once written.
+- History can't be rewritten: sent reports, signed-off reports, the 86 log, decisions on requests, closed incidents, fixed issues and the account audit are all locked once written. Every change to a checklist item, a list or a restock writes an event in the same write, checked against the change; nobody can edit or delete an event, the owner included, so a correction is a new change with its own event.
 - The Firebase web config in the site is public by design. It names the project; it doesn't grant access. The rules do.
 - What people type is always shown as text, never run. Record ids aren't checked by the rules, so the app skips any record whose id isn't plain letters, digits and dashes, and a field called id inside a record can't take the real id's place (the rules refuse such a field, so only a write from the Firebase console could add one). Until 25 October 2026 a team login used from a script could have planted code in a manager's screen through an id; a browser test now covers it.
 
@@ -29,10 +29,14 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `seen/{broadcast}-{uid}` (Got it) | O: all. M: for broadcasts that include managers. S: their own | O, M, S: their own, once, for a broadcast that exists | nobody | nobody |
 | `reports` (shift reports) | O, M, S | O, M, S, as themselves | O, M: sign off once | nobody |
 | `photos` (closing photos) | O, M: all. S: their own, and any on a sent report | O, M, S: JPEG up to 700,000 characters | the uploader, before it's sent: a note, or attaching it to their own report in that report's write | the uploader before it's sent; O, M once it's over 30 days old |
-| `shift/{day}/ticks/{list}-{item}` (checklists) | O, M, S | O, M, S: tonight's lists (a day either side, for phones that sync late), as themselves | nobody | whoever ticked it; O, M any |
+| `shift/{day}/tasks/{list}-{item}` (tonight's checklist items) | O, M, S | O, M, S, as themselves, for tonight (a day or two either side, for phones that sync late), with its event in the same write and the version one higher than before. Start, Done, Unblock: anyone. Blocked: anyone, with a reason. Not needed tonight (with a reason), Bring back, and giving it to someone: O, M. Stop: whoever started it, or O, M. Taking back a done item: whoever did it (within 5 minutes, or later with a reason), or O, M with a reason. Nothing changes once its list is finished | the same as create | nobody |
+| `shift/{day}/runs/{list}` (each list, started then finished) | O, M, S | O, M, S: start it, or finish it once done equals required. Finishing with items left, and reopening: O, M, with a reason. Each change writes its event | the same as create | nobody |
+| `restock` (restocking from the cellar) | O, M, S | O, M, S, as themselves: the item, how many (over 0, up to 1,000), the unit, where it's going and any detail, with its event | Take it on: anyone, or once it's given to someone, them or O, M. Give it to someone: O, M. Brought up, saying how many: whoever has it, or O, M. Got it, saying how many arrived: anyone. Not in the cellar: anyone. Blocked: anyone, with a reason. Cancel: the asker, or O, M with a reason. Back to waiting: whoever has it or O, M; anyone with a reason once it's brought up; O, M with a reason once it's received, cancelled or marked not in the cellar. What was asked for never changes, and each change writes its event | nobody |
+| `events` (the audit trail of tasks, lists and restocks) | O, M, S | only inside a change to a task, a list or a restock, matching it exactly: before and after, version, who, reason and time, and for a restock the item, amount and place | nobody | nobody |
+| `shift/{day}/ticks/{list}-{item}` (old ticks, before tasks) | O, M, S | nobody | nobody | nobody |
 | `out` (86 board) | O, M, S | O, M, S, only with its log entry | nobody | O, M, S, only with its back-in-stock log entry |
 | `outlog` (86 history) | O, M | only paired with a board change | nobody | nobody |
-| `requests` (stock) | O, M, S | O, M, S | O, M: mark ordered once | before it's ordered: the asker; O, M |
+| `requests` (old stock requests, before restocking) | O, M, S (the app loads them for O, M only) | nobody | O, M: mark ordered once | before it's ordered: the asker; O, M |
 | `asks` (late, time off, swaps) | O, M: all. S: their own | O, M, S, with the details that kind needs | O, M: seen, approved or declined (seen can still be approved); never their own unless owner | O any; the asker until it's decided |
 | `incidents` | O, M | O, M, S | O, M: close once, saying what was done | O |
 | `reviews` (of reports) | O, M | O, M, on a report that exists | nobody | O any; M their own |
@@ -98,6 +102,9 @@ These are the trade-offs of running with no server and no billing. None of them 
 5. **Anonymous feedback and anonymous concerns** save no author, and no app account can see who sent them. Someone could still guess from timing ("only one other manager was on that night") or from what's in a photo. They're anonymous to the app, not to deduction. An anonymous concern sent to the whole team could also be used to have a dig at someone; managers can take any concern down.
 6. **Photos live in the database**, because Firebase Storage needs the paid plan. Each is shrunk until it's under 600,000 characters as stored (about 450 KB of JPEG), 8 at most per report and 3 per concern, and the rules refuse anything over 700,000. They're cleared after 30 days by the first manager's phone to open the app after that (there's no server to do it on a timer).
 7. **No App Check yet.** Scripts using the public config are still bound by the rules; App Check would only make abuse harder. See "App Check, later".
+8. **A finished list's counts come from the phone.** Done and required are counted by the phone that taps Finish, because the rules can't count the tasks. Someone with a login and a script could finish a list early without a manager by sending made-up counts. Each item's change is still its own record with its event, so the item rows, Activity and the audit trail show what was really done.
+9. **The audit trail isn't tamper-proof.** No app account can edit or delete an event, and each one is checked against the change it describes. But anyone with access to the Firebase console can change any record, and there are no backups on Spark. It's a strong record of who tapped what and when, not proof that can't be questioned. Keep console access to the project owners.
+10. **Monitoring staff.** Live, Activity and the KPIs show who did what and when, by name. Under UK GDPR that is monitoring workers: tell the team what's logged, why and who sees it before using it to hold anyone to account, and treat the KPIs as a reason to ask, not proof (they count taps, not work). The ICO's guidance is linked at the end.
 
 ## What it costs
 
@@ -106,24 +113,24 @@ Nothing, on the Spark plan as set up today. Spark can't bill you: when a free qu
 | | Free on Spark | My estimate for this team |
 |---|---|---|
 | Stored data | 1 GiB | photos at most around 290 MB with the 30-day clear-out (16 a night at the 600 KB worst case; usually far less), text a few MB |
-| Document reads | 50,000 a day | roughly 15,000 to 40,000 on a busy day (each phone loads up to about 600 records as staff or 1,300 as a manager when it opens, plus the Got it records for the broadcasts on show, a few hundred more when a manager opens Training, then only changes). This is an estimate from the list sizes, not a measurement |
+| Document reads | 50,000 a day | roughly 25,000 to 50,000 on a busy day. Each phone loads up to about 850 records as staff or 1,550 as a manager when it opens (tonight's tasks, lists, changes and restocks are about 250 of that by the close), plus the Got it records for the broadcasts on show and a few hundred more when a manager opens Training. After that only changes are read: each tap on an item or a restock is two records for every phone that's open. A manager opening the KPIs reads the last 7 nights of changes (about 1,000 to 1,500), and the spreadsheets read 31 nights of them once a night (a few thousand). This is an estimate from the list sizes, not a measurement |
 | Writes / deletes | 20,000 a day each | a few hundred |
 | Outbound data | 10 GiB a month | photos load only when someone taps "Show photos" |
 | GitHub Pages | 1 GB site, soft 100 GB a month | about 2 MB per launch with signal, before compression |
 
-Firestore's daily quotas reset around midnight Pacific time (about 8am UK time). If the reads ever get close, the cheapest fix is smaller list limits in `src/live-src.js`, not a paid plan. Check Usage after the first busy night after a release: running out at 11pm would pause the live features until 8am.
+Firestore's daily quotas reset around midnight Pacific time (about 8am UK time). The top of the reads estimate is the free limit, so check Usage after the first busy nights with tasks and restocking: running out at 11pm would pause the live features until 8am. If the reads get close, the cheapest fix is smaller list limits in `src/live-src.js` (or fewer downloads on busy days), not a paid plan.
 
-Not used, because they need the Blaze (pay as you go) plan: Cloud Storage for Firebase and Cloud Functions, which is why there are no push notifications to phones that are closed. Blaze has no spending cap; budget alerts only send emails. Don't upgrade without deciding that on purpose.
+Not used, because they need the Blaze (pay as you go) plan: Cloud Storage for Firebase and Cloud Functions, which is why there are no push notifications to phones that are closed and no emails sent automatically. The WhatsApp and Email buttons open the phone's own app with the text written in; Bar Book sends nothing itself. Blaze has no spending cap; budget alerts only send emails. Don't upgrade without deciding that on purpose.
 
 ## Before and after each release
 
 1. `npm test` on the laptop: rules tests and browser tests, all green. Both run on the local emulators, never the live project.
 2. Read the rules diff (`git diff main -- firestore.rules`). A rules change and the app change it needs ship together.
 3. If there is live data by then: no automatic backups exist on Spark. Export what matters first (for example, copy key documents from the console) before any rules change that renames or reshapes data.
-4. Publish the rules: Firebase console, Firestore Database, Rules, paste `firestore.rules` (also served at `/bar-book/firestore.rules.txt` so it can be copied on a phone), Publish. Or from the laptop: `npx firebase deploy --only firestore:rules --project black-tap-foh-book`.
+4. Publish the rules: Firebase console, Firestore Database, Rules, paste `firestore.rules` (also served at `/bar-book/firestore.rules.txt` so it can be copied on a phone), Publish. Or from the laptop: `npx firebase deploy --only firestore:rules --project black-tap-foh-book`. When a release changes the rules, publish them and merge within a few minutes of each other, outside service: in between, the old app's writes or the new app's are refused.
 5. Merge the pull request. GitHub Pages publishes `main` in a few minutes. Phones pick up the new version on their next launch with signal.
-6. Check as each role, on a phone: owner, manager and staff can log in; Tonight shows real counts; tick, untick, 86 and back, a stock request, a report with a photo, sign-off, an issue raised, taken and fixed.
-7. Check refusals as staff: no Requests or Managers tab; can't untick someone else's tick (the app says who ticked it).
+6. Check as each role, on a phone: owner, manager and staff can log in; Tonight shows real counts; an item started, done, blocked with a reason and taken back; a list finished; a restock asked for, taken on, brought up and confirmed; 86 and back; a report with a photo, sign-off; an issue raised, taken and fixed; Live, Activity and the KPIs as a manager.
+7. Check refusals as staff: no Requests or Managers tab; can't take back someone else's done item (the app says who did it); can't mark an item not needed or finish a list with items left.
 8. Watch Firebase console, Usage, for the first week.
 
 ## Rolling back
@@ -132,7 +139,7 @@ The app and the rules go back together; version 2 of the app doesn't work with t
 
 1. **App:** on GitHub, open the merged pull request and press Revert, then merge the revert. Pages republishes the old version in a few minutes.
 2. **Rules:** paste the old rules back. They're in the old `firestore.rules.txt` on `main` (before the merge), and the console's Rules page also keeps a history of published versions.
-3. **Data:** a rollback deletes nothing. What was written under version 2 stays where it is; the old app ignores most of it and may show the 86 board oddly until items are marked back in stock.
+3. **Data:** a rollback deletes nothing. What was written under version 2 stays where it is; the old app ignores most of it and may show the 86 board oddly until items are marked back in stock. The same goes for tonight's tasks, lists, events and restocks if you roll back past the release that added them: the older app doesn't read them, and they're there again when you roll forward.
 
 ## Moving from the old rules (migration)
 
@@ -144,6 +151,8 @@ What changed, for anyone reading old notes:
 - The 86 board (`out/{item}`) is keyed by a slug of the item name, holds the name, and links to its log entry; the log (`outlog`) stores `item`, `itemName`, `action`, `uid`, `name`, `at`.
 - Owner setup now writes `config/owner` and deletes `config/pins` in one write. The setup code must be at least 16 characters.
 - New: `audit` (account changes) and `issues` (handover). Reports have a `side` (bar or floor). Sign-offs, orders and decisions record the uid as well as the name. Asks save only the fields their kind needs. Incidents have `status`, and closing one records the outcome.
+
+**Tasks, lists and restocking (25 October 2026).** Checklist ticks (`shift/{day}/ticks`) became tasks (`shift/{day}/tasks/{list}-{item}`), each list became a procedure (`shift/{day}/runs/{list}`), and every change writes an event (`events`). Stock requests (`requests`) became restocking (`restock`). Nothing needs moving or deleting: the old ticks are read-only and appear in the Checklists download for the nights they cover, and managers can still mark the last stock requests ordered or turn them down, under Requests, until they're cleared.
 
 ## App Check, later
 
@@ -205,3 +214,4 @@ Either way, the rules tests keep running on GitHub. In a private repo they use t
 - Chilled food at 8°C or below, fridges at 5°C or below: https://www.gov.uk/food-hygiene-businesses/chilling-and-freezing
 - Freezers at -18°C or colder (FSA, Safer Food, Better Business): https://food.gov.uk/sites/default/files/media/document/sfbb-retailers-chilling-02-frozen-storage.pdf
 - Cellar 11 to 13°C (Cask Marque cellar card): https://cask-marque.co.uk/wp-content/uploads/2017/10/a4-cask-cellar-card.pdf
+- Monitoring workers (ICO, UK GDPR): https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/monitoring-workers/

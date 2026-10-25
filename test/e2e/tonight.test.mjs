@@ -14,23 +14,27 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await O.evaluate(() => show("notices"));
-  assert.deepEqual(await tiles(O), ["0/36 Bar checklists ticked", "0 86'd right now", "0 open issues", "0 open concerns", "0 stock requests not ordered", "Not yet bar report tonight", "Not yet floor report tonight",
+  assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 open issues", "0 open concerns", "Not yet bar report tonight", "Not yet floor report tonight",
     "0 reports to sign off", "0 staff requests to answer", "0 open incidents"]);
 
   await S.evaluate(async () => {
     const A = LIVE.api;
-    await Promise.all([A.tick("close", 0, true), A.set86("Limes", true), A.request("Blue roll", ""), A.ask({ kind: "late", eta: "18:00", note: "" }),
+    await Promise.all([A.setTask("close", 0, itemText("close", 0), "done"), A.setTask("close", 1, itemText("close", 1), "blocked", { note: "No hot water" }), A.set86("Limes", true),
+      A.askRestock({ item: "Blue roll", qty: 1, unit: "each", dest: "up", detail: "" }), A.ask({ kind: "late", eta: "18:00", note: "" }),
       A.incident("Breakage or damage", "Glass washer door cracked"), A.raise({ title: "Glass washer leaking", detail: "", area: "bar", urgent: true, again: null }), A.sendReport("bar", "Bar report", "Bar · test")]);
   });
-  await O.waitForFunction(() => [...document.querySelectorAll("#dash b")].filter((b) => b.textContent === "1").length === 6);
-  assert.deepEqual(await tiles(O), ["1/36 Bar checklists ticked", "1 86'd right now (hot)", "1 open issues, 1 urgent (hot)", "0 open concerns", "1 stock requests not ordered", "Sent bar report tonight", "Not yet floor report tonight",
+  await O.waitForFunction(() => [...document.querySelectorAll("#dash b")].filter((b) => b.textContent === "1").length === 7);
+  assert.deepEqual(await tiles(O), ["1/36 Bar checklists done", "1 blocked task (hot)", "1 restock open", "1 86'd right now (hot)", "1 open issues, 1 urgent (hot)", "0 open concerns", "Sent bar report tonight", "Not yet floor report tonight",
     "1 reports to sign off (hot)", "1 staff requests to answer", "1 open incidents (hot)"]);
   await S.evaluate(() => show("notices"));
-  assert.equal((await tiles(S)).length, 7, "staff see the shift tiles, not the managers' ones");
+  assert.equal((await tiles(S)).length, 8, "staff see the shift tiles, not the managers' ones");
 
   await O.click('[data-go="stock"]');
   assert.deepEqual(await O.evaluate(() => [$("#v-tally").hidden, document.querySelector(".ptabs [aria-selected=true]").dataset.pane]), [false, "stock"]);
-  for (const [go, tab] of [["requests", "requests"], ["incidents", "managers"], ["reports", "reports"], ["issues", "board"]]) {
+  // Blocked tasks go to a manager's Live view, and to the list with the blocked item for staff.
+  await S.click('[data-go="blocked"]');
+  assert.deepEqual(await S.evaluate(() => [$("#v-tally").hidden, pane]), [false, "close"]);
+  for (const [go, tab] of [["requests", "requests"], ["incidents", "managers"], ["blocked", "managers"], ["reports", "reports"], ["issues", "board"]]) {
     await O.evaluate(() => show("notices"));
     await O.click(`[data-go="${go}"]`);
     assert.equal(await O.$eval("[data-tpane][aria-selected=true]", (e) => e.dataset.tpane), tab, `${go} tile opens the ${tab} tab`);

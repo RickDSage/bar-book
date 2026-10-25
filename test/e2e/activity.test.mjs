@@ -25,8 +25,9 @@ test("activity, downloads and broadcasts", async () => {
   await S.evaluate(async (d) => {
     await LIVE.api.post("=1+1 limes, please");
     await LIVE.api.set86(d, true);
-    await LIVE.api.tick("open", 0, true);
-    await LIVE.api.request("Limes", "2 bags");
+    await LIVE.api.setTask("open", 0, itemText("open", 0), "done");
+    await LIVE.api.setRun("open", LISTS.open.title, "started", 0, shown("open").length);
+    await LIVE.api.askRestock({ item: "Limes", qty: 2, unit: "bag", dest: "up", detail: "" });
     await LIVE.api.raise({ title: "Glass washer leaking", detail: "", area: "bar", urgent: true });
   }, drink);
 
@@ -41,12 +42,14 @@ test("activity, downloads and broadcasts", async () => {
   await S.waitForSelector("#bcast .bcast", { state: "detached" });
   assert.equal(await S.evaluate(() => (renderBcast(), document.querySelectorAll("#bcast .bcast").length)), 0, "Got it is remembered");
 
-  // Managers: Activity opens first in the Managers tab, with every section.
+  // Managers: Live opens first in the Managers tab, and Activity has every section.
   await O.evaluate(() => show("notices")); await O.click("[data-tpane=managers]");
-  await O.waitForFunction(() => LIVE.feed.length && LIVE.outlog.length && LIVE.issues.length && LIVE.requests.length && Object.keys(LIVE.tickBy).length);
+  assert.equal(await O.$eval("[data-msub][aria-selected=true]", (e) => e.dataset.msub), "live");
+  await O.click("[data-msub=act]");
+  await O.waitForFunction(() => LIVE.feed.length && LIVE.outlog.length && LIVE.issues.length && LIVE.restock.length && LIVE.events.length === 3);
   await O.waitForFunction(() => /sent a broadcast/.test(document.querySelector("#act").textContent));
   const act = await text(O, "#act");
-  for (const re of [/Sam Staff posted on the board/, new RegExp(`Sam Staff 86'd ${rx(drink)}`), /Sam Staff ticked/, /Sam Staff asked for Limes/, /Sam Staff raised \(urgent\): Glass washer leaking/, /Mia Manager sent a broadcast/, /Olly Owner added Sam Staff \(staff\)/]) assert.match(act, re);
+  for (const re of [/Sam Staff posted on the board/, new RegExp(`Sam Staff 86'd ${rx(drink)}`), /Sam Staff completed: Fridges at 5°C/, /Sam Staff started the opening checklist/, /Sam Staff asked for 2 bags of Limes for the upstairs bar/, /Sam Staff raised \(urgent\): Glass washer leaking/, /Mia Manager sent a broadcast/, /Olly Owner added Sam Staff \(staff\)/]) assert.match(act, re);
   assert.equal(await O.$$eval("#act [data-act]", (x) => x.length), 12);
   await O.click('[data-act="86"]');
   assert.deepEqual(await O.$$eval("#act .staffrow .n", (x) => x.map((e) => e.textContent)), [`Sam Staff 86'd ${drink}`]);
@@ -64,7 +67,11 @@ test("activity, downloads and broadcasts", async () => {
   const all = await download(O, "all");
   assert.match(all.name, /^black-tap-activity-/);
   assert.match(all.csv, /,Team,Olly Owner,added Mia Manager \(manager\),/);
-  assert.match((await download(O, "checks")).csv, /,Opening checklist,.*,Sam Staff/);
+  assert.match((await download(O, "checks")).csv, /\r\n\d{4}-\d\d-\d\d,\d\d:\d\d,Opening checklist,"Fridges at 5°C or below, temperatures logged in Alert65",Not started → Done,,,Sam Staff(\r\n|$)/);
+  const stock = await download(O, "stock");
+  assert.match(stock.name, /^black-tap-restocking-/);
+  assert.match(stock.csv, /^Night,Asked at,Item,Asked for,Unit,Where,Detail,Asked by,Status,Who has it,Brought up,Received,/);
+  assert.match(stock.csv, /\r\n\d{4}-\d\d-\d\d,\d\d:\d\d,Limes,2,bag,Upstairs bar,,Sam Staff,Waiting,,,,Sam Staff,/);
 
   // Managers' other pages are one tap away.
   await O.click("[data-msub=incidents]");

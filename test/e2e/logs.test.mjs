@@ -36,7 +36,7 @@ test("temperatures, waste and stock counts are left to Alert65 and Nory; what wa
   assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["fset", "fshake", "stock", "fclose", "send"]);
   assert.deepEqual(await S.evaluate(() => ["waste", "logCheck", "addKit", "setPar", "saveCount"].filter((k) => LIVE.api[k])), []);
   await managers(O, "act");
-  assert.deepEqual(await O.$$eval("[data-msub]", (x) => x.map((b) => b.dataset.msub)), ["act", "nights", "incidents", "out", "training", "team", "feedback"]);
+  assert.deepEqual(await O.$$eval("#msub [data-msub]", (x) => x.map((b) => b.dataset.msub)), ["live", "act", "kpis", "nights", "incidents", "out", "training", "team", "feedback"]);
 
   // Managers download the old records from Activity.
   const safety = await download(O, "old-safety");
@@ -92,15 +92,30 @@ test("records written outside the app can't run code on a manager's phone", asyn
   await adminWrite("requests/plain", { id: str('"><img src=x onerror="window.pwned=5">'), item: str("Lemons"), note: str(""), done: { booleanValue: false }, uid: str("x"), name: str("Sam Staff"), at: now });
   await adminWrite("concerns/plain", { id: str('"><img src=x onerror="window.pwned=3">'), reason: str("hazard"), area: str("bar"), note: str("Ice bucket cracked"),
     to: str("all"), photos: str('<img src=x onerror="window.pwned=4">'), anon: { booleanValue: true }, status: str("open"), at: now });
-  await S.evaluate(() => LIVE.api.request("Blue roll", ""));
+  // Stock requests from before restocking still show to managers until they're cleared.
+  await adminWrite("requests/blueroll0000000000000", { item: str("Blue roll"), note: str(""), done: { booleanValue: false }, uid: str("x"), name: str("Sam Staff"), at: now });
+  // Tasks, events and restocks with HTML where text goes (only possible past the rules, which check every field).
+  const day = str(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(Date.now() - 6 * 36e5)), html = (n) => str(`<img src=x onerror="window.pwned=${n}">`), int = (n) => ({ integerValue: String(n) }), nul = { nullValue: null };
+  await adminWrite(`events/${odd}`, { kind: str("task"), day, list: str("close"), item: int(0), label: html(6), area: str("bar"), from: str("todo"), to: str("blocked"), who: nul, note: html(7), v: int(1), uid: str("x"), name: html(8), at: now });
+  await adminWrite("events/plainevent", { kind: str("restock"), day, ref: str("plainrestock"), label: html(9), area: str("bar"), from: str("new"), to: str("asked"), who: nul, qty: int(1), unit: str("each"), dest: str("up"), note: html(10), v: int(1), uid: str("x"), name: html(11), at: now });
+  await adminWrite("restock/plainrestock", { item: html(12), qty: int(1), unit: str("each"), dest: str("up"), detail: html(13), day, status: str("blocked"), who: html(14), whoUid: str("x"), moved: nul, got: nul, note: html(15), v: int(2),
+    askedBy: html(16), askedUid: str("x"), askedAt: now, uid: str("x"), name: html(17), at: now });
 
   await O.evaluate(() => show("notices")); await O.click("[data-tpane=requests]");
-  await waitText(O, "#requests", /Blue roll/);
+  await waitText(O, "#requests", /Old stock requests[\s\S]*Blue roll/);
+  await O.click("[data-tpane=managers]");
+  await waitText(O, "#live", /Restock blocked/);
+  await O.click("[data-msub=act]");
+  await waitText(O, "#act", /asked for 1 <img/);
+  await O.evaluate(() => { pane = "stock"; show("tally"); });
+  await waitText(O, "#tally", /Restock blocked|Blocked/);
+  await O.evaluate(() => show("notices"));
   await O.click("[data-tpane=board]");
   await waitText(O, "#concerns", /Ice bucket cracked/);
   await O.waitForTimeout(300);
   assert.equal(await O.evaluate(() => window.pwned), undefined);
   assert.equal(await O.evaluate(() => LIVE.requests.length), 2, "records with odd ids are ignored");
+  assert.equal(await O.evaluate(() => LIVE.events.length), 1, "events with odd ids are ignored too");
   assert.equal(await O.evaluate(() => LIVE.requests.filter((x) => x.id === "plain").length), 1, "a field called id doesn't replace the id");
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });

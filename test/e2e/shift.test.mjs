@@ -1,7 +1,8 @@
-// Tonight's shift end to end: the 86 board, shared checklists, stock requests, notices, the board and reports.
+// Tonight's shift end to end: the 86 board, the handover note, old stock requests, notices, the board and reports.
+// Tasks and restocking have their own file, tasks.test.mjs.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -35,62 +36,51 @@ test("the 86 board is shared, says who did it, and keeps a log managers can read
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
-test("tonight's checklists are shared, and only whoever ticked it or a manager can untick", async () => {
+test("logged in, clearing the handover note leaves tonight's tasks alone for everyone, managers included", async () => {
   await resetEmulators();
   const { O, S } = await team(browser, site, people);
   for (const p of [O, S]) { await p.click("[data-tab=tally]"); await p.click(".ptabs [data-pane=close]"); }
-  await S.click('[data-list=close][data-i="0"]'); await S.click('[data-list=close][data-i="3"]');
-  await O.waitForFunction(() => (LIVE.ticks.close || []).length === 2 && !Object.values(LIVE.tickBy).some((t) => t.pending));
-  await O.waitForFunction(() => /Sam Staff · \d\d:\d\d/.test(document.querySelector('[data-list=close][data-i="3"]').innerText));
-  await O.click('[data-list=close][data-i="3"]');
-  await S.waitForFunction(() => LIVE.ticks.close.length === 1);
-
-  await O.click('[data-list=close][data-i="5"]');
-  await S.waitForFunction(() => LIVE.ticks.close.includes(5));
-  await S.click('[data-list=close][data-i="5"]');
-  assert.equal(await toastOf(S), "Ticked by Olly Owner. Only they or a manager can untick it");
-  assert.equal(await attempt(S, () => LIVE.api.tick("close", 5, false)), "permission-denied");
-  assert.equal(await attempt(S, () => LIVE.api.tick("hack", 1, true)), "permission-denied");
-
-  // Floor lists sit beside the bar ones. Staff starting a new night only clear their own note.
-  await S.click("[data-mode=floor]"); await S.click(".ptabs [data-pane=fset]"); await S.click('[data-list=fset][data-i="1"]');
-  await O.waitForFunction(() => (LIVE.ticks.fset || []).length === 1);
-  await S.click(".ptabs [data-pane=send]"); await S.click("#t-reset"); await S.click("#t-yes");
-  assert.equal(await toastOf(S), "Note cleared");
+  await S.click('[data-list=close][data-i="0"]');
+  await O.waitForFunction(() => LIVE.tasks["close-0"]?.status === "done" && !LIVE.tasks["close-0"].pending);
+  for (const p of [S, O]) {
+    await p.click(".ptabs [data-pane=send]"); await p.fill("#s-note", "Ice machine slow");
+    await p.click("#t-reset");
+    assert.match(await p.$eval(".confirm", (e) => e.innerText), /Tonight's tasks stay on record for everyone/);
+    await p.click("#t-yes");
+    assert.equal(await toastOf(p), "Note cleared");
+    assert.equal(await p.$eval("#s-note", (e) => e.value), "");
+  }
   await O.waitForTimeout(500);
-  assert.equal(await O.evaluate(() => (LIVE.ticks.fset || []).length), 1);
-  // A manager starting a new floor night clears the floor ticks for everyone and leaves the bar's alone.
-  await O.click("[data-mode=floor]"); await O.click(".ptabs [data-pane=send]"); await O.click("#t-reset"); await O.click("#t-yes");
-  await S.waitForFunction(() => !(LIVE.ticks.fset || []).length);
-  assert.deepEqual(await S.evaluate(() => LIVE.ticks.close.sort()), [0, 5]);
+  assert.deepEqual(await S.evaluate(() => [LIVE.tasks["close-0"].status, LIVE.events.length]), ["done", 2], "the done task and its run start stay");
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
-test("stock requests go to managers, who order or turn them down", async () => {
+test("old stock requests from before restocking: only managers see them, and mark them ordered or turn them down", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
-  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=stock]");
-  await S.selectOption("#rq-item", "Blue roll"); await S.fill("#rq-note", "2 rolls"); await S.click("#rq-go");
-  await waitToast(S, /^Sent to management$/);
-  await S.selectOption("#rq-item", "Other (write it in)"); await S.click("#rq-go");
-  assert.equal(await toastOf(S), "Write what's needed in the box");
-  await S.fill("#rq-note", "Large black bin liners"); await S.click("#rq-go");
-  await S.selectOption("#rq-item", "Limes"); await S.click("#rq-go");
+  const sam = await S.evaluate(() => LIVE.uid);
+  const old = (item, note, mins) => ({ item: { stringValue: item }, note: { stringValue: note }, done: { booleanValue: false }, uid: { stringValue: sam },
+    name: { stringValue: "Sam Staff" }, at: { timestampValue: new Date(Date.now() - mins * 6e4).toISOString() } });
+  await adminWrite("requests/a", old("Blue roll", "2 rolls", 30));
+  await adminWrite("requests/b", old("Large black bin liners", "", 20));
+  await adminWrite("requests/c", old("Limes", "", 10));
   await O.waitForFunction(() => LIVE.requests.length === 3);
-  assert.deepEqual(await O.evaluate(() => LIVE.requests.map((r) => `${r.item}|${r.note}`).reverse()), ["Blue roll|2 rolls", "Large black bin liners|", "Limes|"]);
+  assert.equal(await S.evaluate(() => LIVE.requests.length), 0, "staff don't load them any more");
+  assert.equal(await attempt(S, () => LIVE.api.markOrdered("a")), "permission-denied");
 
-  assert.equal(await attempt(S, (id) => LIVE.api.markOrdered(id), await S.evaluate(() => LIVE.requests[0].id)), "permission-denied");
-  await S.click('[data-rq-del]');
-  await O.waitForFunction(() => LIVE.requests.length === 2);
   await O.evaluate(() => show("notices")); await O.click("[data-tpane=requests]");
-  await O.click("[data-ordered] >> nth=0");
-  await waitToast(S, /^Olly Owner ordered Large black bin liners$/);
-  const ordered = await S.evaluate(() => LIVE.requests.find((r) => r.done).id);
-  assert.equal(await attempt(S, (id) => LIVE.api.cancelRequest(id), ordered), "permission-denied", "an ordered request stays on record");
+  assert.match(await O.$eval("#requests", (e) => e.innerText), /Old stock requests[\s\S]*Limes[\s\S]*Large black bin liners[\s\S]*Blue roll\n2 rolls/i);
+  await O.click('[data-ordered="b"]');
+  await M.waitForFunction(() => LIVE.requests.find((r) => r.id === "b")?.done);
+  assert.equal(await attempt(M, () => LIVE.api.cancelRequest("b")), "permission-denied", "an ordered request stays on record");
   await M.evaluate(() => show("notices")); await M.click("[data-tpane=requests]");
-  await M.click("[data-rq-drop]");
-  await S.waitForFunction(() => LIVE.requests.length === 1 && LIVE.requests[0].done);
-  assert.deepEqual(await O.evaluate(() => LIVE.requests.map((r) => [r.doneBy, r.doneByUid === LIVE.uid])), [["Olly Owner", true]]);
+  await M.click('[data-rq-drop="c"]');
+  await O.waitForFunction(() => LIVE.requests.length === 2);
+  // Once the last one is cleared, the section goes.
+  await M.click('[data-ordered="a"]');
+  await O.waitForFunction(() => LIVE.requests.every((r) => r.done));
+  assert.doesNotMatch(await O.$eval("#requests", (e) => e.innerText), /Old stock requests/i);
+  assert.deepEqual(await O.evaluate(() => LIVE.requests.map((r) => [r.id, r.doneBy])), [["b", "Olly Owner"], ["a", "Mia Manager"]]);
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
