@@ -1086,3 +1086,86 @@ describe("every query the app makes works for the roles that make it", () => {
     for (const q of [...common(d, "owner1"), ...managers(d), query(collection(d, "ratings"), orderBy("at", "desc"), limit(100)), collection(d, "notices"), query(collection(d, "seen"), where("notice", "in", ["a", "b"]))]) await assertSucceeds(getDocs(q));
   });
 });
+
+// =====================================================================================
+describe("menu allergens", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const ITEM = "snacks-hot-fried-pickles";
+  const by = (uid) => ({ uid, name: TEAM[uid]?.name ?? "Stray Person", at: now() });
+  const al = (extra = {}) => ({ itemName: "Hot Fried Pickles", section: "snacks", contains: ["gluten", "milk"], may: ["mustard"], note: "", ...extra });
+  // The record and its log entry in one write, as the app sends them. logExtra changes only the log entry.
+  function save(uid, item = ITEM, extra = {}, logExtra = {}) {
+    const d = db(uid), b = writeBatch(d), log = doc(collection(d, "menuAllergenLog"));
+    b.set(doc(d, "menuAllergens", item), { ...al(extra), log: log.id, ...by(uid) });
+    b.set(log, { item, ...al(extra), action: "set", ...by(uid), ...logExtra });
+    return { b, log: log.id };
+  }
+  const saved = async (uid, item, extra) => { const x = save(uid, item, extra); await assertSucceeds(x.b.commit()); return x.log; };
+  function clear(uid, item, logId, extra = {}) {
+    const d = db(uid), b = writeBatch(d);
+    b.delete(doc(d, "menuAllergens", item));
+    b.set(doc(d, "menuAllergenLog", logId + "-clear"), { item, itemName: "Hot Fried Pickles", section: "snacks", contains: [], may: [], note: "", action: "clear", ...by(uid), ...extra });
+    return b;
+  }
+
+  test("managers and the owner confirm and change an item's allergens; staff and strangers can't", async () => {
+    await saved("mgr1");
+    await saved("owner1", ITEM, { contains: [], may: [], note: "Checked with the kitchen" });
+    await saved("mgr2", "added-snacks-chilli-poppers", { itemName: "Chilli Poppers", contains: ["milk", "gluten", "eggs"] });
+    await assertFails(save("staff1").b.commit());
+    await assertFails(save("stranger").b.commit());
+    const r = (await getDoc(doc(db("staff1"), "menuAllergens", ITEM))).data();
+    assert.deepEqual([r.name, r.contains, r.note], ["Olly Owner", [], "Checked with the kitchen"]);
+  });
+
+  test("only the 14 allergens, each once, never both contains and may contain", async () => {
+    for (const bad of [{ contains: ["nuts", "nuts"] }, { contains: ["egg"] }, { contains: "milk" }, { may: ["milk"] }, { note: "x".repeat(301) },
+      { itemName: " " }, { section: "Snacks" }, { contains: Array(15).fill("milk") }]) {
+      await assertFails(save("mgr1", ITEM, bad).b.commit(), JSON.stringify(bad));
+    }
+    await assertFails(save("mgr1", "Bad id").b.commit(), "id isn't lower case and dashes");
+    const all = ["celery", "gluten", "crustaceans", "eggs", "fish", "lupin", "milk", "molluscs", "mustard", "nuts", "peanuts", "sesame", "soya", "sulphites"];
+    await saved("mgr1", ITEM, { contains: all.slice(0, 7), may: all.slice(7) });
+  });
+
+  test("the record and its log entry must match, carry who saved it, and go together", async () => {
+    for (const bad of [{ contains: ["milk"] }, { may: [] }, { note: "different" }, { itemName: "Fried Pickles" }, { item: "snacks-queso-chips" }, { action: "clear" }]) {
+      await assertFails(save("mgr1", ITEM, {}, bad).b.commit(), JSON.stringify(bad));
+    }
+    const d = db("mgr1"), b = writeBatch(d), log = doc(collection(d, "menuAllergenLog"));
+    b.set(doc(d, "menuAllergens", ITEM), { ...al(), log: log.id, ...by("mgr1"), name: "Max Manager" });
+    b.set(log, { item: ITEM, ...al(), action: "set", ...by("mgr1"), name: "Max Manager" });
+    await assertFails(b.commit(), "someone else's name");
+    await assertFails(setDoc(doc(d, "menuAllergens", ITEM), { ...al(), log: autoId(), ...by("mgr1") }), "no log entry");
+    await assertFails(addDoc(collection(d, "menuAllergenLog"), { item: ITEM, ...al(), action: "set", ...by("mgr1") }), "log entry alone");
+    await assertFails(setDoc(doc(d, "menuAllergens", ITEM), { ...al(), log: "x", ...by("mgr1") }), "made-up log id");
+  });
+
+  test("clearing writes its own log entry; the log can't be changed or deleted", async () => {
+    const log = await saved("mgr1");
+    await assertFails(deleteDoc(doc(db("mgr1"), "menuAllergens", ITEM)), "no log entry");
+    await assertFails(clear("staff1", ITEM, log).commit());
+    await assertFails(clear("mgr1", ITEM, "wrongid").commit());
+    await assertFails(clear("mgr1", ITEM, log, { contains: ["milk"] }).commit());
+    await assertFails(clear("mgr1", ITEM, log, { itemName: "Other" }).commit());
+    await assertSucceeds(clear("mgr2", ITEM, log).commit());
+    assert.equal((await getDoc(doc(db("staff1"), "menuAllergens", ITEM))).exists(), false);
+    for (const uid of ["mgr1", "owner1"]) {
+      await assertFails(updateDoc(doc(db(uid), "menuAllergenLog", log), { note: "edited" }));
+      await assertFails(deleteDoc(doc(db(uid), "menuAllergenLog", log)));
+      await assertFails(deleteDoc(doc(db(uid), "menuAllergenLog", log + "-clear")));
+    }
+    await saved("mgr1");
+  });
+
+  test("everyone on the team reads what's confirmed; only managers read the changes", async () => {
+    const log = await saved("mgr1");
+    for (const uid of ["staff1", "mgr1", "owner1"]) assert.equal((await getDocs(collection(db(uid), "menuAllergens"))).size, 1);
+    await assertFails(getDocs(collection(db("stranger"), "menuAllergens")));
+    await assertFails(getDocs(collection(db(null), "menuAllergens")));
+    await assertFails(getDocs(query(collection(db("staff1"), "menuAllergenLog"), where("item", "==", ITEM))));
+    await assertFails(getDoc(doc(db("staff1"), "menuAllergenLog", log)));
+    for (const uid of ["mgr1", "owner1"]) assert.equal((await getDocs(query(collection(db(uid), "menuAllergenLog"), where("item", "==", ITEM)))).size, 1);
+    assert.equal((await getDocs(query(collection(db("mgr1"), "menuAllergenLog"), orderBy("at", "desc")))).size, 1);
+  });
+});

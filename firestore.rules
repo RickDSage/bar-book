@@ -465,5 +465,50 @@ service cloud.firestore {
       allow delete: if isMember() && (resource == null || !existsAfter(concernDoc(resource.data.concern))
         || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
     }
+
+    // ---------- Menu allergens ----------
+    // What each food, shake and drink on the menu contains, entered by a manager from the kitchen's own allergen sheet.
+    // Staff see only what a manager has confirmed here. menuAllergens/{item} is the current answer and menuAllergenLog
+    // keeps every change, written in the same batch, and can't be edited or deleted: a save points at its new log entry,
+    // which must say exactly the same; clearing deletes the record and adds the entry {its log id}-clear.
+    // Items from the app's menu have ids like snacks-hot-fried-pickles; items a manager adds have ids starting added-.
+    function menuAlDoc(item) { return /databases/$(database)/documents/menuAllergens/$(item); }
+    function menuLogDoc(id) { return /databases/$(database)/documents/menuAllergenLog/$(id); }
+    // The 14 allergens UK law requires us to declare, each at most once.
+    function allergenList(l) {
+      return l is list && l.size() <= 14 && l.toSet().size() == l.size()
+        && l.toSet().hasOnly(['celery', 'gluten', 'crustaceans', 'eggs', 'fish', 'lupin', 'milk', 'molluscs', 'mustard',
+          'nuts', 'peanuts', 'sesame', 'soya', 'sulphites']);
+    }
+    function menuItemId(s) { return s is string && s.matches('[a-z0-9-]{1,100}'); }
+    // Contains and may contain never name the same allergen.
+    function validMenuAllergens(d) {
+      return reqText(d.itemName, 80) && d.section is string && d.section.matches('[a-z]{2,20}')
+        && allergenList(d.contains) && allergenList(d.may) && !d.contains.toSet().hasAny(d.may) && optText(d.note, 300);
+    }
+    function sameMenuAllergens(a, b) {
+      return a.itemName == b.itemName && a.section == b.section && a.contains == b.contains && a.may == b.may && a.note == b.note;
+    }
+    match /menuAllergens/{item} {
+      allow read: if isMember();
+      allow create, update: if isManager() && menuItemId(item)
+        && exactly(['itemName', 'section', 'contains', 'may', 'note', 'log', 'uid', 'name', 'at'])
+        && validMenuAllergens(incoming()) && autoId(incoming().log) && stamped()
+        && getAfter(menuLogDoc(incoming().log)).data.item == item
+        && getAfter(menuLogDoc(incoming().log)).data.action == 'set'
+        && sameMenuAllergens(getAfter(menuLogDoc(incoming().log)).data, incoming());
+      allow delete: if isManager() && existsAfter(menuLogDoc(resource.data.log + '-clear'));
+    }
+    match /menuAllergenLog/{id} {
+      allow read: if isManager();
+      allow create: if isManager() && exactly(['item', 'itemName', 'section', 'contains', 'may', 'note', 'action', 'uid', 'name', 'at'])
+        && menuItemId(incoming().item) && validMenuAllergens(incoming()) && stamped()
+        && ((incoming().action == 'set' && getAfter(menuAlDoc(incoming().item)).data.log == id)
+          || (incoming().action == 'clear' && get(menuAlDoc(incoming().item)).data.log + '-clear' == id
+              && getAfter(menuAlDoc(incoming().item)) == null
+              && incoming().contains.size() == 0 && incoming().may.size() == 0 && incoming().note == ''
+              && incoming().itemName == get(menuAlDoc(incoming().item)).data.itemName
+              && incoming().section == get(menuAlDoc(incoming().item)).data.section));
+    }
   }
 }

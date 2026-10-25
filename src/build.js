@@ -45,7 +45,7 @@ for (const d of drinks) if (!guides[d.name]) throw new Error("No guide for " + d
 for (const d of drinks) d.method = tidyMethod(d, guides[d.name]);
 const names = drinks.map((d) => d.name);
 if (new Set(names).size !== names.length) throw new Error("Duplicate drink name");
-const data = { guides, scenes, drinks, prep: src.prep.map((p) => ({ ...p, spec: p.spec.map(clean) })), };
+const data = { guides, scenes, drinks, prep: src.prep.map((p) => ({ ...p, spec: p.spec.map(clean) })), menu: require("./menu.js") };
 const tpl = fs.readFileSync("template.html", "utf8");
 fs.writeFileSync("black-tap-bar-app.html", tpl.replace("/*DATA*/", () => "const DATA = " + JSON.stringify(data) + ";\n" + fs.readFileSync("art.js", "utf8")));
 console.log("drinks", drinks.length, "bytes", fs.statSync("black-tap-bar-app.html").size);

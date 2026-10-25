@@ -16,6 +16,7 @@ Open it at https://rickdsage.github.io/bar-book/ and add it to your home screen 
 | `src/live-src.js` | Team logins and live data. Bundled into `live.js` only when `firebase-config.json` exists. |
 | `src/build.js`, `src/site.js` | Bundle the drinks data into the page, then write the site files. |
 | `src/extras.js`, `src/builds.js`, `src/art.js` | Extra drinks, guide corrections and artwork. |
+| `src/menu.js` | The Soho food, shakes and drinks for the Allergens tab, from blacktap.com and Toast. No allergens are set here: managers confirm them in the app. |
 | `test/rules.test.mjs` | 155 allowed and refused cases for every collection and role. |
 | `test/e2e/` | 31 browser tests: the real app on phone-sized screens, as owner, manager and staff at once. |
 | `docs/SECURITY.md` | Permissions, owner setup, risks, costs, safety check limits, release checklist, rollback and keeping the code private. |
@@ -47,6 +48,8 @@ Both test suites run against the local Firebase emulators, never the live projec
 - **One record per tick:** two people ticking at once can't wipe each other's work, and only whoever ticked an item (or a manager) can untick it.
 - **History is locked:** sent reports, the 86 log, decisions, closed incidents, fixed issues, account changes and stock counts can't be edited, and only the owner can delete a count. Waste and safety records can't be edited either: whoever logged one can take it back for 15 minutes, and after that only the owner can delete it.
 - **Safety check limits** follow UK guidance (fridges 5°C or below and never over the legal 8°C, freezers -18°C or colder, cellar 11 to 13°C, beer lines cleaned at least every 7 days). Sources are in [docs/SECURITY.md](docs/SECURITY.md).
+
+- **Menu allergens:** Black Tap's website, Toast and Deliveroo list no allergens per item, so the app assumes none. An item shows its allergens only once a manager has confirmed them from the kitchen's allergen sheet, with their name and the time on it, and every change is kept. Logged out, the list shows the menu only. The Cocktails part still comes from our specs.
 
 ## Known limitations
 

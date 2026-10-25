@@ -46,6 +46,8 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `training/{uid}-{drink}` (sign-offs) | O, M: all. S: their own | O, M: someone else on the team, once per drink | nobody | O, M (taking it back) |
 | `concerns` (Report a concern) | O, M: all. S: those sent to everyone, the bar or the floor, and their own named ones | O, M, S: a reason, where, an optional note (required for Something else), who it's for and up to 3 photos. Named as themselves, or anonymous with no uid or name saved | anyone it was sent to: mark it dealt with, once (managers only ones need O or M) | O, M any; the sender of a named one while it's open |
 | `concernPhotos/{concern}-{n}` | O, M: all. S: those on concerns sent to the team | only in the write that creates their concern: a JPEG up to 700,000 characters, carrying the concern's audience, no uid | nobody | with their concern; O, M once over 30 days old |
+| `menuAllergens/{item}` (menu allergens) | O, M, S | O, M: an item's allergens from the 14 (contains and may contain, never both), a note, their name and the time, in the same write as a matching log entry | O, M, the same way | O, M, with a clear entry in the log |
+| `menuAllergenLog` | O, M | O, M: only in the write that saves or clears its item, saying exactly the same | nobody | nobody |
 
 Concerns sent to the bar or the floor reach every staff phone, and each shows the ones for the side it's set to, like broadcasts. Managers only is enforced: a staff login can't read that concern or its photos, and the anonymous sender can't see it again either. Photos are re-saved by the app before upload, which drops the location and camera details a phone puts in its photos.
 

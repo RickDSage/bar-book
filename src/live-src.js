@@ -383,6 +383,35 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
+// Menu allergens: what a manager has confirmed from the kitchen's allergen sheet for each food, shake and drink.
+// Loads the first time someone opens Allergens. Each save or clear writes the record and its log entry in one batch.
+Object.assign(LIVE.api, {
+  watchMenu() {
+    sub("menuAl", collection(db, "menuAllergens"), (snap) => {
+      LIVE.menuAl = new Map(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
+      liveChanged("menuAl");
+    });
+  },
+  // item: { id, name, key (its section) }. a: { contains, may, note }.
+  confirmAllergens(item, a) {
+    const b = writeBatch(db), log = doc(collection(db, "menuAllergenLog"));
+    const x = { itemName: item.name, section: item.key, contains: a.contains, may: a.may, note: a.note };
+    b.set(doc(db, "menuAllergens", item.id), { ...x, log: log.id, ...me() });
+    b.set(log, { item: item.id, ...x, action: "set", ...me() });
+    return b.commit();
+  },
+  clearAllergens(id) {
+    const now = LIVE.menuAl.get(id);
+    if (!now) return Promise.reject(new Error("Nothing confirmed for it"));
+    const b = writeBatch(db);
+    b.delete(doc(db, "menuAllergens", id));
+    b.set(doc(db, "menuAllergenLog", now.log + "-clear"), { item: id, itemName: now.itemName, section: now.section, contains: [], may: [], note: "", action: "clear", ...me() });
+    return b.commit();
+  },
+  // Managers: every change to one item, newest first.
+  allergenHistory: (id) => getDocs(query(collection(db, "menuAllergenLog"), where("item", "==", id))).then(rows),
+});
+
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
   waste: [], kit: [], safety: [], pars: {}, counts: [], training: [], concerns: [] });
 onAuthStateChanged(auth, (u) => {
