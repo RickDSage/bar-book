@@ -1,0 +1,20 @@
+{
+  "name": "bar-book",
+  "private": true,
+  "description": "Black Tap Bar Book: phone web app for the Black Tap Soho bar and floor team",
+  "scripts": {
+    "build": "cd src && node build.js && node site.js ..",
+    "build:emu": "cd src && node build.js && node site.js ../.emusite --emu",
+    "emulators": "firebase emulators:start --only firestore,auth --project demo-bar-book",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-bar-book \"node --test test/rules.test.mjs\"",
+    "test:e2e": "npm run build:emu && firebase emulators:exec --only firestore,auth --project demo-bar-book \"node --test --test-concurrency=1 test/e2e/*.test.mjs\"",
+    "test": "npm run test:rules && npm run test:e2e"
+  },
+  "devDependencies": {
+    "@firebase/rules-unit-testing": "6.0.0",
+    "esbuild": "0.28.2",
+    "firebase": "13.1.0",
+    "firebase-tools": "15.34.1",
+    "playwright": "1.63.0"
+  }
+}

@@ -1,0 +1,1628 @@
+<title>Black Tap Bar Book</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BT Bar Book">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* Layout: one-column phone app. Sticky search header, scrolling list, full-screen spec sheet, fixed bottom tab bar.
+   Deliberately dark-only: it is read behind a dim bar at night. */
+:root {
+  color-scheme: dark;
+  --bg: #15130f;        /* back-bar wood in low light */
+  --surface: #211d18;
+  --line: #3a332b;
+  --fg: #f4eee4;
+  --muted: #b3a998;
+  --brass: #e0ad4f;     /* tap handles and jigger brass */
+  --brass-ink: #1b1408;
+  --warn: #ff8a6b;      /* allergens and unconfirmed */
+  --ok: #8fd39a;
+  --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
+  --body: "Atkinson Hyperlegible", -apple-system, "Segoe UI", Roboto, sans-serif;
+  --tabh: 62px;
+  --paper: #f6f1e7;     /* pictures sit on a light card, like the printed guides */
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  background: var(--bg); color: var(--fg); font: 16px/1.45 var(--body);
+  -webkit-tap-highlight-color: transparent; font-variant-numeric: tabular-nums;
+}
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; touch-action: manipulation; }
+.row:active, .chip:active, .btn:active, .round:active, .tile:active, nav.tabs button:active { opacity: .7; }
+button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid var(--brass); outline-offset: 2px; }
+.gut { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: .01em; text-wrap: balance; margin: 0; line-height: 1.05; text-transform: uppercase; }
+
+/* Header */
+.brandbar { padding-block: 12px 0; }
+header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 2px 8px; border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.brand h1 { font-size: clamp(20px, 6vw, 26px); white-space: nowrap; }
+.brand h1 span { color: var(--brass); }
+.brand small { color: var(--muted); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.search { margin-top: 8px; display: flex; gap: 8px; }
+.search input { flex: 1; min-width: 0; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; -webkit-appearance: none; appearance: none; }
+.search input::placeholder { color: var(--muted); }
+.chips { display: flex; gap: 8px; overflow-x: auto; padding-block: 10px 2px; scrollbar-width: none; margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.chips::-webkit-scrollbar { display: none; }
+.chip { flex: none; min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 15px; white-space: nowrap; }
+.chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); font-weight: 700; }
+
+main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 0px)); }
+.view[hidden] { display: none; }
+.count { color: var(--muted); font-size: 13px; margin: 6px 0 4px; }
+
+/* Drink rows */
+.sec { font-family: var(--display); font-size: 20px; color: var(--brass); text-transform: uppercase; margin: 18px 0 4px; }
+.mini { margin-top: 12px; font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.chips.hrow { padding-block: 6px 2px; }
+.chips.hrow .chip { color: var(--fg); min-height: 38px; }
+.sec .cnt { font-family: var(--body); font-size: 13px; color: var(--muted); text-transform: none; margin-left: 8px; }
+.row { display: grid; grid-template-columns: 40px 1fr auto; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.row .g { width: 40px; height: 46px; color: var(--fg); }
+.row .g svg { width: 100%; height: 100%; }
+.row .n { font-weight: 700; font-size: 17px; }
+.row .s { color: var(--muted); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.row > div { min-width: 0; }
+.price { font-weight: 700; text-align: right; white-space: nowrap; }
+.price i { display: block; font-style: normal; font-weight: 400; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.empty { color: var(--muted); padding: 30px 0; text-align: center; }
+
+/* Spec sheet overlay */
+.sheet { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-block: 0 calc(env(safe-area-inset-bottom, 0px) + 30px); }
+.sheet-top { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); padding-top: calc(env(safe-area-inset-top, 0px) + 4px); padding-bottom: 8px; margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.bar1 { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.bar1 .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
+.sheet-top .seg { margin-top: 6px; }
+.back { min-height: 44px; padding: 8px 0; color: var(--brass); font-weight: 700; font-size: 17px; }
+.hero { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; margin-top: 14px; }
+.hero .g { width: 64px; height: 76px; }
+.hero .g svg { width: 100%; height: 100%; }
+.hero h2 { font-size: 34px; overflow-wrap: anywhere; }
+.hero .sub { color: var(--muted); margin-top: 4px; }
+.badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.badge { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
+.allergy { margin-top: 14px; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--warn); color: var(--fg); }
+.allergy b { color: var(--warn); }
+.facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 16px; }
+.facts div { background: var(--surface); padding: 10px; min-width: 0; }
+.facts dt { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.facts dd { margin: 2px 0 0; font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
+.h3 { font-family: var(--display); font-size: 22px; color: var(--brass); text-transform: uppercase; margin: 22px 0 6px; }
+.spec { list-style: none; margin: 0; padding: 0; }
+.spec li { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 18px; }
+.spec .q { font-weight: 700; color: var(--brass); text-align: right; }
+.steps { margin: 0; padding-left: 26px; font-size: 18px; }
+.steps li { padding: 4px 0; }
+.steps li::marker { color: var(--brass); font-weight: 700; }
+.note { color: var(--muted); font-size: 14px; margin-top: 8px; }
+.pair { margin-top: 18px; padding: 12px; background: var(--surface); border-radius: 12px; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 16px; border-radius: 10px; border: 1px solid var(--line); font-weight: 700; }
+.btn.pri { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
+.btn.wide { width: 100%; margin-top: 18px; font-size: 17px; }
+.btn.danger { color: var(--warn); border-color: var(--warn); }
+
+/* Tabs */
+nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+nav.tabs button { height: var(--tabh); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; color: var(--muted); }
+nav.tabs button svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
+
+/* Allergens, tally, practice, info */
+.lead { color: var(--muted); margin: 8px 0 0; max-width: 62ch; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin-top: 12px; }
+.tile { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px; text-align: left; }
+.tile b { display: block; font-size: 17px; }
+.tile span { color: var(--muted); font-size: 13px; }
+.tile[aria-pressed="true"] { border-color: var(--warn); }
+.tally-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.tally-row > div { min-width: 0; }
+.tally-row .n { font-weight: 700; }
+.tally-row .s { color: var(--muted); font-size: 13px; }
+.tally-row .v { min-width: 34px; text-align: center; font-family: var(--display); font-size: 26px; }
+.round { width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--line); font-size: 22px; font-weight: 700; }
+.round.plus { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
+.total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; }
+.total b { font-family: var(--display); font-size: 40px; color: var(--brass); }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+.confirm { margin-top: 10px; padding: 12px; border: 1px solid var(--warn); border-radius: 10px; }
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 700; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-top: 14px; text-align: center; }
+.card .g { display: block; width: 90px; height: 104px; margin: 0 auto; }
+.card .g svg { width: 100%; height: 100%; }
+.card h2 { font-size: 36px; margin-top: 8px; }
+.score { color: var(--muted); margin-top: 10px; text-align: center; }
+.info h2 { font-size: 24px; color: var(--brass); margin-top: 22px; }
+.info ul, .info ol { padding-left: 20px; margin: 8px 0; }
+.info li { margin: 5px 0; }
+.info p { max-width: 64ch; }
+.kv { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 4px 12px; margin-top: 8px; }
+.kv dt { font-weight: 700; }
+.kv dd { margin: 0; color: var(--muted); }
+.fld { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); }
+.fld input, .fld textarea, .fld select { display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; -webkit-appearance: none; appearance: none; }
+textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 14px/1.4 var(--body); }
+.seg { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin-top: 18px; position: relative; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.seg button { min-height: 40px; padding: 8px; border-radius: 9px; font-weight: 700; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--brass); color: var(--brass-ink); }
+.tools { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.step { margin-top: 16px; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; background: var(--surface); }
+.step .pic { background: var(--paper); padding: 6px; }
+.step .pic svg { display: block; width: 100%; height: auto; max-width: 100%; max-height: 30vh; margin: 0 auto; }
+.step .body { padding: 12px 14px 14px; }
+.step h4 { margin: 0; font-size: 19px; }
+.step h4 span { display: inline-grid; place-items: center; width: 28px; height: 28px; margin-right: 8px; border-radius: 50%; background: var(--brass); color: var(--brass-ink); font-size: 15px; vertical-align: 2px; }
+.step p { margin: 6px 0 0; font-size: 17px; }
+.ing { list-style: none; margin: 12px 0 0; padding: 0; border-top: 1px solid var(--line); }
+.ing li { display: grid; grid-template-columns: 76px 1fr; gap: 12px; align-items: baseline; padding: 10px 0; border-bottom: 1px dashed var(--line); font-size: 18px; }
+.ing b { color: var(--brass); font-size: 20px; text-align: right; white-space: nowrap; }
+.ing span { font-weight: 700; }
+.ing em { display: block; font-style: normal; font-weight: 400; color: var(--muted); font-size: 14px; }
+.how { margin-top: 14px; padding: 12px 14px; border-radius: 12px; background: var(--surface); border: 1px solid var(--brass); }
+.how .lab { display: block; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--brass); }
+.how .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; margin-top: 4px; font-weight: 700; font-size: 17px; }
+.how .flow i { font-style: normal; color: var(--muted); font-weight: 400; }
+.how .into { margin-top: 6px; color: var(--muted); font-size: 15px; }
+.how .into b { color: var(--fg); }
+.recent { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+.recent .chip { color: var(--fg); }
+.step { cursor: pointer; transition: opacity .15s; }
+.step.done { opacity: .45; }
+.step.done h4 span { background: var(--ok); }
+.step .tick { float: right; font-size: 13px; color: var(--muted); font-weight: 400; margin-top: 4px; }
+.row.out .n { text-decoration: line-through; color: var(--muted); }
+.row.out .g { opacity: .4; }
+.price .x { color: var(--warn); font-weight: 700; }
+.outbar { margin-top: 14px; display: flex; gap: 10px; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); }
+.outbar.on { border-color: var(--warn); }
+.outbar.on b { color: var(--warn); }
+.fbbox { border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; margin-top: 12px; }
+.fbbtn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; text-decoration: none; margin-top: 4px; }
+a.link86 { text-align: center; margin-top: 0; }
+button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52px; border: 2px solid var(--warn); border-radius: 12px; color: var(--warn); font-weight: 700; font-size: 17px; text-decoration: none; }
+.link86 { display: block; margin: 18px auto 4px; background: none; border: 0; color: var(--muted); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; min-height: 40px; padding: 0 12px; }
+.star { width: 44px; height: 44px; font-size: 26px; color: var(--brass); line-height: 1; }
+.mult { display: inline-flex; gap: 4px; font-family: var(--body); text-transform: none; }
+.mult button { min-width: 44px; min-height: 36px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); font-weight: 700; font-size: 15px; }
+.mult button[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
+.pn { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 22px; }
+.pn .btn { min-height: 48px; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+.pn .btn:last-child { text-align: right; }
+.hero .g { width: 88px !important; height: 110px !important; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+.hero { grid-template-columns: 88px 1fr !important; }
+.hero.solo { grid-template-columns: 1fr !important; }
+.row .g { width: 44px; height: 55px; }
+.row { grid-template-columns: 44px 1fr auto; }
+.prep { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15.5px; line-height: 1.35; transition: opacity .2s; }
+.prep .box { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 700; color: var(--brass-ink); transition: background .15s, border-color .15s, transform .15s; }
+.prep.done .box { transform: scale(1.06); }
+.prep.done { opacity: .62; }
+.shift-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; }
+.shift-top h2 { font-size: 28px; }
+.modesw { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
+.modesw .chip { justify-content: center; }
+#shift-day { color: var(--muted); font-size: 14px; }
+.ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.6); }
+.ptabs button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 52px; padding: 6px 2px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--muted); }
+.ptabs small { font-size: 11.5px; font-weight: 600; opacity: .85; min-height: 14px; }
+#tpanes .ptabs button { min-height: 44px; justify-content: center; font-size: 14px; }
+#tpanes .ptabs small:empty { display: none; }
+.ptabs button[aria-selected="true"] { background: var(--brass); color: var(--brass-ink); }
+.pane { animation: paneIn .18s ease-out; }
+@keyframes paneIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.prog-head { display: flex; justify-content: space-between; margin-top: 14px; font-size: 14px; color: var(--muted); }
+.prog-head b { color: var(--fg); }
+.prog { height: 8px; margin: 6px 0 4px; border-radius: 99px; background: var(--surface); border: 1px solid var(--line); overflow: hidden; }
+.prog i { display: block; height: 100%; background: var(--brass); border-radius: 99px; transition: width .3s ease-out; }
+.prog.full i { background: var(--ok); }
+.btn.next { margin-top: 20px; border-color: var(--brass); color: var(--brass); }
+.sumcard { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; margin-top: 14px; }
+.sumcard div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
+.sumcard span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.sumcard b { font-family: var(--display); font-size: 26px; }
+.soon { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 99px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
+.prep.done .box { background: var(--ok); border-color: var(--ok); }
+.prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
+.prep.done > span:last-child .who { text-decoration: none; display: block; }
+.brandr { display: flex; align-items: center; gap: 6px; }
+.brandr small { text-align: right; font-size: 11px; line-height: 1.3; }
+.brandr .clock { color: var(--fg); font-size: 16px; letter-spacing: .04em; }
+#offl { display: block; white-space: nowrap; }
+b.dt { color: var(--fg); font-weight: 700; }
+.bell { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg); }
+.bell svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.bell .dot { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--warn); color: var(--brass-ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.notice { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-top: 12px; }
+.notice.new { border-color: var(--brass); }
+.notice h3 { font-family: var(--body); text-transform: none; font-size: 18px; font-weight: 700; }
+.notice p { margin: 6px 0 0; }
+.notice .n86 { color: var(--warn); font-weight: 700; }
+.notice .meta { color: var(--muted); font-size: 14px; }
+.notice .meta b { color: var(--fg); }
+.notice .txt { white-space: pre-wrap; overflow-wrap: anywhere; }
+.notice pre { white-space: pre-wrap; overflow-wrap: anywhere; font: 14px/1.45 var(--body); margin: 8px 0 0; }
+.notice summary { margin-top: 8px; color: var(--brass); font-weight: 700; min-height: 32px; }
+.notice .ok { color: var(--brass); font-weight: 700; }
+.notice .actions { margin-top: 10px; }
+.notice.pinned { border: 2px solid var(--brass); background: color-mix(in srgb, var(--brass) 10%, var(--surface)); }
+.staffrow details summary { margin-top: 4px; }
+.staffrow pre { white-space: pre-wrap; font: 14px/1.45 var(--body); }
+.s.ok { color: var(--brass); }
+.photo { margin-top: 12px; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.photo img { display: block; width: 100%; border-radius: 8px; }
+.photo .btn { margin-top: 8px; }
+.linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+details.setup { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 8px; }
+details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px; display: flex; align-items: center; }
+.rvrow { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; margin-top: 10px; }
+.rvrow input { min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+.rvrow .btn { min-height: 40px; padding: 8px 12px; }
+.pill { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); vertical-align: 1px; }
+.pill.ok { color: var(--ok); border-color: var(--ok); } .pill.no { color: var(--warn); border-color: var(--warn); } .pill.wait { color: var(--brass); border-color: var(--brass); }
+.staffrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.staffrow .n { font-weight: 700; }
+.staffrow .s { color: var(--muted); font-size: 14px; }
+.staffrow .actions { margin-top: 8px; }
+.staffrow .actions .btn { padding: 8px 12px; font-size: 15px; min-height: 40px; }
+/* Saving state: shown while a change is waiting to reach the server, or when there's no signal */
+.net { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 25; padding: 7px 16px; text-align: center; font-size: 14px; font-weight: 700; background: var(--surface); border-bottom: 2px solid var(--brass); }
+.net.off { border-color: var(--warn); }
+/* Tonight on the Team page: live counts that jump to the right place */
+.dash { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 8px; margin-top: 12px; }
+.dash button { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; min-height: 64px; }
+.dash button.hot { border-color: var(--warn); }
+.dash b { display: block; font-family: var(--display); font-size: 26px; line-height: 1.05; }
+.dash span { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.25; }
+.dash button.hot b { color: var(--warn); }
+.prep .who { display: block; font-size: 12.5px; color: var(--muted); text-decoration: none; }
+.issue .tags { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+.issue select { font: inherit; font-size: 15px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-height: 40px; }
+.check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 16px; }
+.check input { width: 22px; height: 22px; accent-color: var(--brass); }
+/* Swipe between drinks: the page follows your finger */
+.sw { touch-action: pan-y; will-change: transform; }
+/* Step by step: one swipeable card per step */
+.need { margin: 10px 0 0; color: var(--muted); font-size: 15px; }
+.need b { color: var(--fg); }
+.sw.compact .hero { grid-template-columns: 56px 1fr !important; margin-top: 8px; }
+.sw.compact .hero .g { width: 56px !important; height: 70px !important; }
+.sw.compact .hero h2 { font-size: 26px; }
+.sw.compact .hero .sub { display: none; }
+.sw.compact .badges { display: none; }
+.cprog { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 16px; }
+.cprog b { font-family: var(--display); font-size: 22px; text-transform: uppercase; color: var(--brass); }
+.dots { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: background .2s, transform .2s; }
+.dots i.on { background: var(--brass); transform: scale(1.35); }
+.dots i.ok { background: var(--ok); }
+.car { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x pan-y; margin-top: 10px; }
+.car::-webkit-scrollbar { display: none; }
+.car > * { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; margin-top: 0 !important; }
+.car .step .pic svg { max-height: 34vh; }
+.car .step.done { opacity: 1; }
+.car .step.done .pic { opacity: .5; }
+.fin { display: grid; place-items: center; align-content: center; gap: 12px; text-align: center; border: 1px solid var(--ok); border-radius: 14px; background: var(--surface); padding: 30px 16px; }
+.fin .big { font-size: 54px; line-height: 1; color: var(--ok); }
+.fin h4 { margin: 0; font-family: var(--display); font-size: 30px; text-transform: uppercase; }
+.car { align-items: flex-start; }
+.cnav { display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-top: 10px; position: sticky; bottom: 0; z-index: 2; padding: 10px 0 calc(env(safe-area-inset-bottom, 0px) + 10px); background: linear-gradient(to bottom, transparent, var(--bg) 14px); }
+.cnav .btn { min-height: 52px; font-size: 17px; }
+.cnav .btn[disabled] { opacity: .35; }
+/* Touch feedback */
+.row, .btn, .chip, .tile, .tab, .round, .prep { -webkit-tap-highlight-color: transparent; }
+.btn, .chip, .tile, .round, .star { transition: transform .08s ease-out; }
+.btn:active, .chip:active, .tile:active, .round:active, .star:active { transform: scale(.96); }
+.row { transition: background .12s; border-radius: 10px; }
+.row:active { background: var(--surface); }
+.welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); overflow-y: auto; transition: opacity .3s, transform .3s; }
+.welcome.bye { opacity: 0; transform: scale(1.03); pointer-events: none; }
+.welcome .wi { max-width: 420px; margin: 0 auto; width: 100%; }
+.welcome svg { width: 84px; height: 84px; display: block; margin-bottom: 18px; }
+.welcome h2 { font-family: var(--display); font-size: 48px; line-height: .95; margin: 0 0 14px; text-transform: uppercase; }
+.welcome h2 span { color: var(--brass); }
+.welcome ul { list-style: none; padding: 0; margin: 18px 0; }
+.welcome li { padding: 9px 0 9px 30px; position: relative; border-bottom: 1px solid var(--line); }
+.welcome li::before { content: "\2713"; position: absolute; left: 4px; color: var(--brass); font-weight: 700; }
+.welcome .wip { color: var(--muted); font-size: 15px; margin: 0 0 22px; }
+.welcome .wbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.welcome .wbtns .btn { min-height: 56px; font-size: 20px; }
+.welcome .sig { font-style: italic; color: var(--brass); font-size: 18px; margin: 18px 0 0; text-align: center; }
+.credit { text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .04em; margin: 28px 0 8px; }
+.credit b { color: var(--brass); font-weight: 700; }
+.swhint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); transform: translateX(-50%); z-index: 25; background: var(--brass); color: var(--brass-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.5); pointer-events: none; white-space: nowrap; }
+@media (prefers-reduced-motion: no-preference) {
+  .sheet { animation: up .22s cubic-bezier(.2,.8,.2,1); } @keyframes up { from { transform: translateY(40px); opacity: .4; } }
+  .sheet.closing { animation: down .18s ease-in forwards; } @keyframes down { to { transform: translateY(60px); opacity: 0; } }
+  .swhint { animation: nudge 1.6s ease-in-out 2; } @keyframes nudge { 0%, 100% { transform: translateX(-50%); } 30% { transform: translateX(calc(-50% - 18px)); } 60% { transform: translateX(calc(-50% + 18px)); } }
+  .step h4 span { transition: background .2s; }
+}
+</style>
+
+<div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
+  <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" fill="#e0ad4f"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" stroke="#f4eee4" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
+  <p>Every drink we make, in your pocket.</p>
+  <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (Bar info shows how)</li></ul>
+  <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in Bar info.</p>
+  <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
+  <p class="sig">Thank me later ~ Derek</p>
+</div></div>
+<div class="gut brandbar"><div class="brand"><h1>Black Tap <span>Bar Book</span></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
+<div class="net" id="net" role="status" aria-live="polite" hidden></div>
+<header class="gut" id="hdr">
+  <div id="hdr-drinks">
+    <div class="search"><input id="q" type="search" placeholder="Search drink, spirit or glass" autocomplete="off" enterkeyhint="search" aria-label="Search drinks"></div>
+    <div class="chips" id="secs" role="toolbar" aria-label="Sections"></div>
+  </div>
+</header>
+
+<main class="gut">
+  <section class="view" id="v-drinks"><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b></p></section>
+
+  <section class="view" id="v-allergens" hidden>
+    <h2 style="font-size:28px;margin-top:12px">Allergens</h2>
+    <p class="lead">Tap an allergen to see which drinks carry it. This only covers what is in our specs. The venue's allergen matrix and the bottle labels are the final word.</p>
+    <div class="grid2" id="algrid"></div>
+    <div id="allist"></div>
+  </section>
+
+  <section class="view" id="v-practice" hidden>
+    <h2 style="font-size:28px;margin-top:12px">Practise specs</h2>
+    <p class="lead">Say the spec out loud, then check it.</p>
+    <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
+    <div id="pcard"></div>
+  </section>
+
+  <section class="view" id="v-tally" hidden>
+    <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
+    <div id="tally"></div>
+    <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
+  </section>
+
+  <section class="view" id="v-notices" hidden>
+    <h2 style="font-size:28px;margin-top:12px">Team</h2>
+    <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
+    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="mgrs"></div><div id="outlog"></div><div id="mgr"></div><div id="me"></div>
+    <div id="notices"></div>
+  </section>
+  <section class="view info" id="v-info" hidden></section>
+</main>
+
+<nav class="tabs" aria-label="Sections of the app">
+  <button data-tab="drinks" aria-current="page"><svg viewBox="0 0 24 24"><path d="M5 4h14l-6 8v6l3 2H8l3-2v-6z"/></svg>Drinks</button>
+  <button data-tab="allergens"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>Allergens</button>
+  <button data-tab="practice"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></svg>Practise</button>
+  <button data-tab="tally"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l2 2 4-4M8.5 16h7"/></svg>Shift</button>
+  <button data-tab="info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>Bar info</button>
+</nav>
+
+<div id="sheet" class="sheet gut" hidden role="dialog" aria-modal="true" aria-labelledby="sh-name"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script>
+/*DATA*/
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => r.querySelectorAll(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const D = DATA.drinks;
+const SECTIONS = [...new Set(D.map((d) => d.section))];
+const glass = (d) => ART(d.g, d.c, d.garnish, d.ice);
+const blurb = (d) => d.blurb || (d.desc || "").replace(/\s*Pairs with.*$/, "");
+const store = {
+  get(k, f) { try { const v = localStorage.getItem("btbar." + k); return v == null ? f : JSON.parse(v); } catch { return f; } },
+  set(k, v) { try { localStorage.setItem("btbar." + k, JSON.stringify(v)); } catch {} },
+};
+// Times and dates always show in UK time, whatever a phone is set to.
+const UK = "Europe/London";
+const hhmm = (d) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: UK });
+const stamp = (d) => `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: UK })}, ${hhmm(d)}`;
+/* Saving state. Firestore keeps a change on the phone until the server takes it, so nothing is called sent until then.
+   After a moment, or with no signal, a banner says what's still waiting. */
+let unsent = 0, slow = 0;
+function renderNet() {
+  const n = $("#net"), off = !navigator.onLine, many = (k) => `${k} change${k > 1 ? "s" : ""}`;
+  n.hidden = !LIVE.me || (!off && !slow);
+  n.classList.toggle("off", off);
+  n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : "No signal. Showing what this phone last saw")
+    : `Sending ${many(unsent)}…`;
+}
+function track(p, ok, fail = "Not saved. Try again") {
+  unsent++; let late = false;
+  const t = setTimeout(() => { late = true; slow++; renderNet(); }, 1200);
+  renderNet();
+  p.then(() => ok && toast(ok), () => toast(fail)).finally(() => { clearTimeout(t); unsent--; if (late) slow--; renderNet(); });
+}
+addEventListener("online", () => renderNet()); addEventListener("offline", () => renderNet());
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 1800); }
+
+/* ---------- Drinks list ---------- */
+const CATS = {
+  "Signatures": ["Black Tap Signatures"],
+  "Cocktails": ["Fresh & Fruity", "Tiki & Tropical", "Sour & Zesty", "Martinis", "Bold & Stirred", "Long & Refreshing", "After Dinner", "Born in NYC"],
+  "Spritz & serves": ["Spritz & Sparkling", "Perfect Serves"],
+  "Shots & bombs": ["Classic Shots", "House Shots", "Bombs & Boilermakers"],
+  "No alcohol": ["Zero Proof"],
+  "Pitchers": ["Pitchers"],
+};
+const CHIPS = ["All", "\u2605 Favourites", ...Object.keys(CATS)];
+let fav = new Set(store.get("fav", []));
+let sec = store.get("sec", "All");
+if (!CHIPS.includes(sec)) sec = "All";
+const inSec = (d) => sec === "All" || (sec === CHIPS[1] ? fav.has(d.name) : CATS[sec].includes(d.section));
+function renderChips() {
+  $("#secs").innerHTML = CHIPS.map((s) => `<button class="chip" aria-pressed="${s === sec}" data-sec="${esc(s)}">${esc(s)}${s === CHIPS[1] && fav.size ? ` (${fav.size})` : ""}</button>`).join("");
+}
+$("#secs").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-sec]"); if (!b) return;
+  sec = b.dataset.sec; store.set("sec", sec); renderChips(); renderList();
+});
+const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+D.forEach((d) => (d._h = hay(d)));
+let out = new Set(store.get("out", []));
+let teamOut = new Set();
+// Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [] };
+const outNow = () => (LIVE.me ? LIVE.out : out);
+const isOut = (n) => outNow().has(n) || teamOut.has(n);
+function setOut(name, on) {
+  if (LIVE.me) { track(LIVE.api.set86(name, on), null, "86 list not updated. Someone may have just changed it"); return; }
+  on ? out.add(name) : out.delete(name); store.set("out", [...out]);
+}
+function rowHtml(d) {
+  if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
+  return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
+}
+const byName = (n) => D.find((d) => d.name === n);
+let recent = store.get("recent", []).filter((id) => D[id]);
+const FLAVOURS = {
+  "Fruity": ["Fruity"], "Sweet": ["Sweet"], "Sour": ["Sour", "Zesty", "Citrus"], "Fresh & light": ["Fresh", "Light", "Easy"],
+  "Fizzy": ["Fizzy"], "Tropical": ["Tropical"], "Creamy": ["Creamy", "Silky", "Rich"], "Coffee": ["Coffee"],
+  "Strong": ["Strong", "Bold"], "Spicy": ["Spicy", "Hot", "Spiced", "Smoky"], "Bitter": ["Bittersweet", "Bitter", "Dry", "Herbal"],
+};
+let flav = null;
+const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Proof" || d.tags.includes("No alcohol") : d.tags.some((t) => FLAVOURS[flav].includes(t)));
+function renderQuick(show) {
+  if (!show) { $("#quick").innerHTML = ""; return; }
+  const fl = `<div class="mini">What does the guest fancy?</div><div class="chips hrow">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
+  if (flav || sec !== "All") { $("#quick").innerHTML = fl; return; }
+  const rec = recent.length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
+  $("#quick").innerHTML = rec + fl;
+}
+$("#quick").addEventListener("click", (e) => {
+  const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
+  const f = e.target.closest("[data-flav]"); if (f) { flav = flav === f.dataset.flav ? null : f.dataset.flav; renderList(); return; }
+});
+let listIds = D.map((d) => d.id);
+function renderList() {
+  const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const words = q.split(/\s+/).filter(Boolean);
+  renderQuick(!q);
+  let rows = D.filter((d) => inSec(d) && words.every((w) => d._h.includes(w)) && (q ? true : flavHit(d)));
+  $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}${q ? ` matching “${$("#q").value.trim()}”` : ""}`;
+  listIds = rows.map((d) => d.id);
+  if (!rows.length && sec === CHIPS[1] && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here.</p>`; return; }
+  if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search.</p>`; return; }
+  let html = "", last = "";
+  const per = {}; rows.forEach((d) => (per[d.section] = (per[d.section] || 0) + 1));
+  for (const d of rows) { if (d.section !== last) { html += `<div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; } html += rowHtml(d); }
+  $("#list").innerHTML = html;
+}
+$("#q").addEventListener("input", renderList);
+document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); });
+
+/* ---------- Spec sheet ---------- */
+const QTY = /^((?:\d+(?:\.\d+)?|half|one|two|three)\s?(?:ml|cl|l|g)\b|(?:\d+|a|half a|one|two|three)\s(?:dash(?:es)?|drops?|slices?|heaped spoons?|spoons?|wedges?|leaves|sprigs?|scoops?|can|cans|shots?|pinch(?:es)?)(?: of)?|dash of|pinch of|half pinch of|top with|top up with)\s+(.*)$/i;
+let mult = 1;
+const fmtN = (n) => String(Math.round(n * 10) / 10);
+function scaleQ(q) {
+  if (mult === 1 || !q) return q;
+  if (/^top|^rim|^side|^add to/i.test(q)) return q;
+  if (/\d/.test(q)) return q.replace(/(\d+(?:\.\d+)?)(?: to (\d+))?/, (m, a, b) => fmtN(a * mult) + (b ? " to " + fmtN(b * mult) : ""));
+  return q + " \u00d7" + mult;
+}
+function specRow(line) {
+  const m = line.replace(/^batch:\s*/i, "").match(QTY) || line.match(/^(top(?: about)?(?: \d+ ml)?|half pint|half a|splash of|1 handful|side: \d+ ml|rim:|add to a|\d+(?: to \d+)? (?:mint |cucumber )?(?:leaves|slices)|1 bar spoon)\s+(.*)$/i);
+  const [q, rest] = m ? [m[1], m[2]] : ["", line];
+  return `<li><span class="q">${esc(scaleQ(q))}</span><span>${esc(rest)}</span></li>`;
+}
+function steps(method) {
+  const parts = method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i).map((s) => s.replace(/\.$/, "").trim()).filter(Boolean);
+  const cap = (s) => s[0].toUpperCase() + s.slice(1);
+  return parts.length > 1 ? `<ol class="steps">${parts.map((p) => `<li>${esc(cap(p))}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0">${esc(method)}</p>`;
+}
+function guideHtml(g, nextName) {
+  const chip = (i) => `<li><b>${i.ml != null ? `${i.ml} ml` : ""}</b><span>${esc(i.item)}${i.hint || i.note ? `<em>${esc([i.hint, i.note].filter(Boolean).join(", "))}</em>` : ""}</span></li>`;
+  return `<p class="need"><b>You need:</b> ${g.tools.map(esc).join(", ")}</p>
+    <div class="cprog"><b id="cnum">Step 1 of ${g.steps.length}</b><span class="dots" aria-hidden="true">${g.steps.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}<i></i></span></div>
+    <div class="car" id="car">${g.steps.map((st) => `<div class="step"><div class="pic" aria-hidden="true">${DATA.scenes[st.sv]}</div><div class="body"><span class="tick">Tap when done</span><h4><span>${st.n}</span>${esc(st.title)}</h4><p>${esc(st.text)}</p>${st.items.length ? `<ul class="ing">${st.items.map(chip).join("")}</ul>` : ""}</div></div>`).join("")}
+      <div class="fin"><span class="big">\u2713</span><h4>Ready to serve</h4><p class="note" style="margin:0">Check the garnish and the glass, then send it.</p>${nextName ? `<button class="btn pri" data-go="1">Next drink: ${esc(nextName)} \u203a</button>` : ""}<button class="btn" data-cs="0">Back to step 1</button></div></div>
+    <div class="cnav"><button class="btn" data-cs="-1" disabled>\u2039 Back</button><button class="btn pri" data-cs="1">Next step \u203a</button></div>`;
+}
+// One line that says how the drink is made, built from its guide.
+function howHtml(d) {
+  const g = DATA.guides[d.name], acts = [];
+  for (const st of g.steps) {
+    const a = /^Roll$/.test(st.title) ? "Roll" : /Dry shake/.test(st.title) ? "Dry shake" : /^Shake/.test(st.title) && !/cream/i.test(st.title) ? "Shake" : /^Stir$/.test(st.title) ? "Stir"
+      : /^Double strain$/.test(st.title) ? "Double strain" : /^Strain$/.test(st.title) ? "Strain" : /^Press/.test(st.title) ? "Press" : /^Then /.test(st.title) ? "Layer"
+      : /^Top up$/.test(st.title) ? "Top up" : /^Float/.test(st.title) ? "Float" : /^(Sink|Drizzle)/.test(st.title) ? "Sink" : /^Pour into the glass$/.test(st.title) ? "Build" : "";
+    if (a && acts[acts.length - 1] !== a && !(a === "Shake" && acts.includes("Dry shake"))) acts.push(a);
+  }
+  const flow = acts.length ? acts : ["Pour"];
+  return `<div class="how"><span class="lab">How to make it</span><div class="flow">${flow.map(esc).join(" <i>\u2192</i> ")}</div><div class="into">Into <b>${esc(d.glass)}</b> \u00b7 ${esc(d.ice)} \u00b7 garnish <b>${esc(d.garnish)}</b></div></div>`;
+}
+function carIndex(car) { return Math.round(car.scrollLeft / (car.clientWidth + 12)); }
+function carGo(i) { const car = $("#car"); if (!car) return; const n = car.children.length; i = Math.max(0, Math.min(n - 1, i)); car.scrollTo({ left: i * (car.clientWidth + 12), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }
+function carSync() {
+  const car = $("#car"); if (!car) return;
+  const i = carIndex(car), n = car.children.length;
+  $("#cnum").textContent = i < n - 1 ? `Step ${i + 1} of ${n - 1}` : "All done";
+  [...$$(".dots i")].forEach((d, k) => { d.classList.toggle("on", k === i); d.classList.toggle("ok", k !== i && car.children[k].classList.contains("done")); });
+  const [b, f] = $$(".cnav .btn"); b.disabled = i === 0; f.hidden = i >= n - 1; b.style.gridColumn = i >= n - 1 ? "1 / -1" : "";
+}
+function haptic() { try { navigator.vibrate?.(8); } catch {} }
+const BASES = [["vodka", /vodka|smirnoff|c[iî]roc|grey goose|belvedere|chase/i], ["gin", /\bgin\b|tanqueray|aviation|roku|monkey 47|botanist|drumshanbo|brockmans|cygnet/i], ["rum", /\brum\b|captain morgan|kraken|zacapa|52north|cacha/i], ["tequila", /tequila|jimador|casamigos|don julio|clase azul|mezcal/i], ["whisky", /whisk|bourbon|buffalo trace|jack daniel|jameson|bulleit|elijah|michter/i], ["fizz", /prosecco/i]];
+const baseOf = (d) => { const t = d.spec.join(" "); const b = BASES.find(([, re]) => re.test(t)); return b ? b[0] : "other"; };
+const kindOf = (d) => /Shots|Bombs/.test(d.section) ? "shot" : d.section === "Zero Proof" ? "zero" : d.section === "Pitchers" ? "pitcher" : "cocktail";
+D.forEach((d) => { d._b = baseOf(d); d._k = kindOf(d); });
+function tryInstead(d) {
+  const picks = D.filter((x) => x !== d && x._k === d._k && !isOut(x.name))
+    .map((x) => [x, (x._b === d._b && d._b !== "other" ? 3 : 0) + x.tags.filter((t) => d.tags.includes(t)).length + (x.section === d.section ? 0.5 : 0) + (x.official ? 0.25 : 0)])
+    .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([x]) => x);
+  if (!picks.length) return "";
+  return `<div class="h3">${isOut(d.name) ? "Offer instead" : "Similar drinks"}</div><div class="recent">${picks.map((x) => `<button class="chip" data-open="${x.id}">${esc(x.name)}</button>`).join("")}</div>`;
+}
+let lastFocus = null, view = store.get("view", "spec"), curId = null;
+let ctx = null;
+function navHtml(id) {
+  const i = ctx.indexOf(id); if (i < 0 || ctx.length < 2) return "";
+  const pv = D[ctx[(i - 1 + ctx.length) % ctx.length]], nx = D[ctx[(i + 1) % ctx.length]];
+  return `<div class="pn"><button class="btn" data-go="-1">\u2039 ${esc(pv.name)}</button><button class="btn" data-go="1">${esc(nx.name)} \u203a</button></div><p class="note" style="text-align:center">${i + 1} of ${ctx.length} \u00b7 swipe the page for the next drink</p>`;
+}
+function go(step) { const i = ctx.indexOf(curId); if (i < 0) return; mult = 1; openSheet(ctx[(i + step + ctx.length) % ctx.length], true); $("#sheet").scrollTop = 0; }
+const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Slide the current drink off in the swipe direction, then slide the next one in from the other side.
+function slideTo(step) {
+  const sw = $("#sw"); haptic();
+  if (!sw || calm()) return go(step);
+  sw.style.transition = "transform .16s ease-in, opacity .16s ease-in";
+  sw.style.transform = `translateX(${step > 0 ? -60 : 60}%)`; sw.style.opacity = "0";
+  setTimeout(() => {
+    go(step);
+    const nw = $("#sw"); nw.style.transition = "none"; nw.style.transform = `translateX(${step > 0 ? 40 : -40}%)`; nw.style.opacity = "0";
+    nw.getBoundingClientRect();
+    nw.style.transition = "transform .24s cubic-bezier(.2,.8,.2,1), opacity .2s"; nw.style.transform = ""; nw.style.opacity = "";
+  }, 150);
+}
+function openSheet(id, keepScroll) {
+  const d = D[id];
+  if (!keepScroll) { ctx = listIds.includes(id) && !$("#v-drinks").hidden ? listIds.slice() : D.map((x) => x.id); mult = 1; }
+  if (!ctx.includes(id)) ctx = D.map((x) => x.id);
+  curId = id;
+  if (!keepScroll) { lastFocus = document.activeElement; recent = [id, ...recent.filter((r) => r !== id)].slice(0, 6); store.set("recent", recent); keepAwake(); }
+  const al = d.allergens && d.allergens !== "None" ? d.allergens : "";
+  $("#sheet").innerHTML = `
+    <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">${esc(d.name)}</span><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></div>
+      <div class="seg" role="group" aria-label="View"><button data-view="spec" aria-pressed="${view === "spec"}">Spec</button><button data-view="steps" aria-pressed="${view === "steps"}">Step by step</button></div></div>
+    <div class="sw${view === "steps" ? " compact" : ""}" id="sw">
+    <div class="hero"><span class="g" aria-hidden="true">${glass(d)}</span><div><h2 id="sh-name">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div></div></div>
+    <div class="badges">
+      ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
+    </div>
+    ${teamOut.has(d.name) && !outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight</b> (team notice). Offer something else.</span></div>` : outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${LIVE.me && outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
+    ${al ? `<div class="allergy"><b>Allergens:</b> ${esc(al)}</div>` : ""}
+    ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
+    ${howHtml(d)}
+    <dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl>
+    <div class="h3" style="display:flex;justify-content:space-between;align-items:center;gap:8px">Spec<span class="mult" role="group" aria-label="How many">${[1, 2, 3, 4].map((n) => `<button data-mult="${n}" aria-pressed="${n === mult}">\u00d7${n}</button>`).join("")}</span></div>
+    ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.${mult > 2 ? " A tin holds 2 shaken drinks, so split it across tins." : ""}</p>` : ""}
+    <ul class="spec">${d.spec.map(specRow).join("")}</ul>
+    <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger.</p>
+    <div class="h3">Method</div>${steps(d.method)}
+    `}
+    ${tryInstead(d)}
+    ${d.pairsWith ? `<div class="pair"><b>Sell it with:</b> ${esc(d.pairsWith)}</div>` : ""}
+    ${navHtml(id)}
+    ${isOut(d.name) ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
+    <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
+    <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
+  showSheet(keepScroll);
+  $("#car")?.addEventListener("scroll", carSync, { passive: true });
+  if (!keepScroll) { $("#sheet").scrollTop = 0; $("#sh-close").focus(); if (view === "steps") stepsIntoView(); }
+  const seen = store.get("swHint", 0);
+  if (!keepScroll && seen < 3 && $("#sheet .pn")) { store.set("swHint", seen + 1); hint("\u2039 Swipe for the next drink \u203a"); }
+}
+function nextName(id) { const i = ctx.indexOf(id); return i < 0 || ctx.length < 2 ? "" : D[ctx[(i + 1) % ctx.length]].name; }
+function hint(text) { document.querySelector(".swhint")?.remove(); const h = document.createElement("div"); h.className = "swhint"; h.textContent = text; document.body.append(h); setTimeout(() => h.remove(), 3400); }
+// The phone's back gesture (and Android back button) closes the drink instead of leaving the app.
+// Step by step: scroll so the step counter sits under the sticky bar and the whole step card fits on screen.
+function stepsIntoView() {
+  const sh = $("#sheet"), c = $("#sheet .cprog"); if (!c) return;
+  sh.scrollTop = c.getBoundingClientRect().top - sh.getBoundingClientRect().top + sh.scrollTop - $("#sheet .sheet-top").offsetHeight - 6;
+}
+function showSheet(keepScroll) {
+  const sh = $("#sheet"); sh.classList.remove("closing"); sh.hidden = false; document.body.style.overflow = "hidden";
+  if (!keepScroll && !history.state?.sheet) history.pushState({ sheet: 1 }, "");
+}
+window.addEventListener("popstate", () => { if (!$("#sheet").hidden) hideSheet(); });
+let lock = null;
+async function keepAwake() { try { if (!lock && navigator.wakeLock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch {} }
+function openGuide(name) {
+  lastFocus = document.activeElement; keepAwake();
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">${esc(name)}</span><span></span></div></div><div class="hero solo"><div><h2 id="sh-name">${esc(name)}</h2><div class="sub">Tap each step when it is done</div></div></div>${guideHtml(DATA.guides[name])}<button class="btn wide" id="sh-close2">Back to drinks</button>`;
+  showSheet(false); $("#car").addEventListener("scroll", carSync, { passive: true }); $("#sheet").scrollTop = 0; $("#sh-close").focus();
+}
+function closeSheet() { if (history.state?.sheet) history.back(); else hideSheet(); }
+function hideSheet() {
+  document.querySelector(".swhint")?.remove();
+  const sh = $("#sheet");
+  const done = () => { sh.hidden = true; sh.classList.remove("closing"); };
+  if (calm()) done(); else { sh.classList.add("closing"); setTimeout(done, 170); }
+  document.body.style.overflow = ""; lock?.release?.().catch(() => {}); lock = null; renderQuick(!$("#q").value.trim()); lastFocus?.focus?.();
+}
+$("#sheet").addEventListener("click", (e) => {
+  if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
+  const op = e.target.closest("[data-open]"); if (op) { mult = 1; openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
+  const gb = e.target.closest("[data-go]"); if (gb) { slideTo(+gb.dataset.go); return; }
+  const cs = e.target.closest("[data-cs]"); if (cs) { const car = $("#car"); haptic(); carGo(cs.dataset.cs === "0" ? 0 : carIndex(car) + +cs.dataset.cs); return; }
+  const mb = e.target.closest("[data-mult]"); if (mb) { const y = $("#sheet").scrollTop; mult = +mb.dataset.mult; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
+  const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderChips(); renderList(); return; }
+  const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name, on = !outNow().has(n); setOut(n, on); toast(on ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
+  const st = e.target.closest(".step"); if (st) {
+    st.classList.toggle("done"); st.querySelector(".tick").textContent = st.classList.contains("done") ? "Done \u2713" : "Tap when done"; haptic();
+    const car = st.closest(".car"); if (car && st.classList.contains("done")) setTimeout(() => carGo([...car.children].indexOf(st) + 1), 220); else carSync();
+    return;
+  }
+  const v = e.target.closest("[data-view]"); if (v && v.dataset.view !== view) { view = v.dataset.view; store.set("view", view); openSheet(curId, true); $("#sheet").scrollTop = 0; if (view === "steps") stepsIntoView(); }
+});
+document.addEventListener("keydown", (e) => {
+  if ($("#sheet").hidden) return;
+  if (e.key === "Escape") closeSheet();
+  if (curId != null && ctx && $("#sheet .pn")) { if (e.key === "ArrowRight") slideTo(1); if (e.key === "ArrowLeft") slideTo(-1); }
+});
+let drag = null;
+$("#sheet").addEventListener("touchstart", (e) => {
+  drag = null;
+  if (e.touches.length > 1 || e.target.closest(".car, .mult") || !$("#sheet .pn")) return;
+  const t = e.touches[0]; drag = { x: t.clientX, y: t.clientY, dx: 0, lock: null, t: Date.now() };
+}, { passive: true });
+$("#sheet").addEventListener("touchmove", (e) => {
+  if (!drag) return;
+  const t = e.touches[0], dx = t.clientX - drag.x, dy = t.clientY - drag.y;
+  if (!drag.lock && Math.hypot(dx, dy) > 10) drag.lock = Math.abs(dx) > Math.abs(dy) * 1.3 ? "x" : "y";
+  if (drag.lock !== "x") return;
+  e.preventDefault(); drag.dx = dx;
+  const sw = $("#sw"); sw.style.transition = "none"; sw.style.transform = `translateX(${dx}px)`; sw.style.opacity = String(1 - Math.min(Math.abs(dx) / 500, 0.5));
+}, { passive: false });
+$("#sheet").addEventListener("touchend", () => {
+  if (!drag || drag.lock !== "x") { drag = null; return; }
+  const { dx, t } = drag; drag = null;
+  const fast = Math.abs(dx) > 40 && Date.now() - t < 250;
+  if (Math.abs(dx) > 90 || fast) return slideTo(dx < 0 ? 1 : -1);
+  const sw = $("#sw"); sw.style.transition = "transform .2s cubic-bezier(.2,.8,.2,1), opacity .2s"; sw.style.transform = ""; sw.style.opacity = "";
+});
+
+/* ---------- Allergens ---------- */
+const ALLERGENS = [["Milk", /milk/i], ["Gluten", /gluten/i], ["Peanut", /peanut/i], ["Almond", /almond/i], ["Hazelnut", /hazelnut/i], ["Oats", /oat/i], ["Soya", /soya/i], ["Celery", /celery/i], ["Fish", /fish/i]];
+const alHit = (d, re) => re.test(d.allergens || "");
+let alSel = null;
+function renderAllergens() {
+  $("#algrid").innerHTML = ALLERGENS.map(([n, re]) => {
+    const c = D.filter((d) => alHit(d, re)).length;
+    return `<button class="tile" aria-pressed="${alSel === n}" data-al="${n}"><b>${n}</b><span>${c} ${c === 1 ? "drink" : "drinks"}</span></button>`;
+  }).join("");
+  if (!alSel) { $("#allist").innerHTML = `<p class="note" style="margin-top:14px">Foam on the house cards is foamer or aquafaba (chickpea water), never egg white. Check the foamer label for its own allergens.</p>`; return; }
+  const re = ALLERGENS.find((a) => a[0] === alSel)[1];
+  const rows = D.filter((d) => alHit(d, re));
+  $("#allist").innerHTML = `<div class="sec">${esc(alSel)}: ${rows.length}</div>` + rows.map(rowHtml).join("");
+}
+$("#algrid").addEventListener("click", (e) => { const b = e.target.closest("[data-al]"); if (!b) return; alSel = alSel === b.dataset.al ? null : b.dataset.al; renderAllergens(); });
+
+/* ---------- Practise ---------- */
+const POOLS = {
+  "Signatures": (d) => d.section === "Black Tap Signatures",
+  "Classics": (d) => ["Martinis", "Sour & Zesty", "Long & Refreshing", "Bold & Stirred", "Fresh & Fruity", "Tiki & Tropical", "Spritz & Sparkling", "After Dinner", "Born in NYC"].includes(d.section),
+  "Shots & bombs": (d) => /Shots|Bombs/.test(d.section),
+  "Everything": () => true,
+};
+let pool = store.get("pool", "Signatures"); if (!POOLS[pool]) pool = "Signatures";
+let pDrink = null, pShown = false, pScore = { got: 0, miss: 0 };
+function nextCard() {
+  const list = D.filter(POOLS[pool]).filter((d) => d !== pDrink);
+  pDrink = list[Math.floor(Math.random() * list.length)]; pShown = false; renderPractice();
+}
+function renderPractice() {
+  $("#ppool").innerHTML = Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}</button>`).join("");
+  const d = pDrink;
+  $("#pcard").innerHTML = `<div class="card"><span class="g" aria-hidden="true">${glass(d)}</span><h2>${esc(d.name)}</h2><p class="lead" style="margin:6px auto 0">What goes in, which glass, which ice, what garnish?</p>
+    ${pShown ? `<div style="text-align:left;margin-top:14px"><dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl><ul class="spec" style="margin-top:10px">${d.spec.map(specRow).join("")}</ul><p style="margin:10px 0 0">${esc(d.method)}</p></div>
+      <div class="actions" style="justify-content:center"><button class="btn danger" data-p="miss">Missed it</button><button class="btn pri" data-p="got">Got it</button></div>`
+      : `<button class="btn pri wide" data-p="show">Show the spec</button>`}
+  </div><p class="score">${pScore.got} right, ${pScore.miss} to practise this session</p>`;
+}
+$("#v-practice").addEventListener("click", (e) => {
+  const pb = e.target.closest("[data-pool]"); if (pb) { pool = pb.dataset.pool; store.set("pool", pool); pDrink = null; nextCard(); return; }
+  const b = e.target.closest("[data-p]"); if (!b) return;
+  if (b.dataset.p === "show") { pShown = true; renderPractice(); } else { pScore[b.dataset.p]++; nextCard(); }
+});
+
+/* ---------- Shift ---------- */
+let confirmReset = false;
+// Opening and closing checklists. Ticks, comments and the name stay on this phone until "Start a new night".
+const LISTS = {
+  open: { title: "Opening checklist", items: [
+    "Fridges below 5°C. Write the temperatures in the log",
+    "Ice well full and clean, ice scoop in its holder (never use a glass)",
+    "Glass washer on, rinse aid and detergent topped up, up to temperature",
+    "Glassware stocked and polished: coupes, rocks, highballs, flutes, shot glasses",
+    "Fresh lemon and lime juice bottles refilled, sugar syrup and aquafaba chilled, all labelled and dated",
+    "Fresh fruit cut and covered: lemon slices, limes, oranges, mint, cherries",
+    "Salted caramel sauce, espresso, foamer and strawberry powder ready",
+    "Red Bull, pickle brine and Prosecco chilled",
+    "Speed rail and back bar stocked, pour spouts on, bottles wiped",
+    "Tools clean and out: tins, jiggers, strainers, bar spoons, muddler",
+    "Beer lines checked, clingfilm off the taps, pour one of each to waste",
+    "Bar mats down, bins lined, surfaces sanitised",
+    "Stock deliveries received and put away",
+    "Table menus and easy-read menus out, allergen folder at the bar",
+    "Read the notices, last night's handover note and the 86'd list",
+  ] },
+  close: { title: "Closing checklist", items: [
+    "Last orders called on time, then stop serving",
+    "Upstairs restaurant floor: host station restocked and cleaned",
+    "Milkshake bar closed",
+    "Downstairs bar closed",
+    "Front bar: all surfaces wiped",
+    "Back bar: coffee machine, all surfaces, all fridges, bar trays, tip trays and glasses cleaned",
+    "Beer taps, post mix and taps cleaned and clingfilmed",
+    "All open products labelled and dated: juices, syrups, garnish. Bin anything past its date",
+    "Bottles capped, necks wiped, pour spouts soaking",
+    "Tins, jiggers, strainers and spoons washed and left to dry",
+    "Ice well emptied, cleaned and dried",
+    "Glass washer drained and cleaned",
+    "All required bar stock replenished, oldest at the front. Anything we're out of goes on the 86 list",
+    "New batch of sugar syrup made for tomorrow",
+    "Bar storage tidied",
+    "Bar fridge lights off",
+    "Bins emptied and cleaned, new bin bags in",
+    "Chairs flipped, floor mopped",
+    "Breakages and wastage written in the log",
+    "Photos of the upstairs bar uploaded to the group",
+    "Spirits locked away, bar lights off",
+  ] },
+};
+// Floor lists. An item with days only shows on those days of the week (0 = Sunday).
+Object.assign(LISTS, {
+  fset: { title: "Tables and cutlery", short: "Tables", items: [
+    "Cutlery polished, every piece",
+    "Set tables: two napkins and two forks on each",
+    "Right amount of cutlery for each table",
+    "Side plates dressed and brought to the top floor",
+    "Knives by the kitchen pass",
+  ] },
+  fshake: { title: "Milkshake station", short: "Shakes", items: [
+    "All desserts dated: opened today plus 2 days (see Date labels)",
+    "Strawberry and raspberry dated: 2 weeks",
+    "Maraschino cherries labelled: 4 weeks",
+    "Everything opened is labelled",
+    "Ice cream refilled",
+    "Shakers and cup holders replenished",
+    "Shake machine off (back button)",
+    "Ice cream drip tray cleaned",
+  ] },
+  fclose: { title: "Floor close", short: "Close", items: [
+    "Outside furniture brought in: chairs, tables and umbrellas",
+    "Napkin dispensers replenished",
+    "Ketchup and mustard put away",
+    "Menus cleaned",
+    "Fridges and touch points wiped",
+    "Chairs flipped",
+    "Floor swept and mopped",
+    { t: "Toilets bleached, swept and mopped", days: [0, 1] },
+  ] },
+});
+LISTS.open.short = "Opening"; LISTS.close.short = "Closing";
+const MODE_LISTS = { bar: ["open", "close"], floor: ["fset", "fshake", "fclose"] };
+let mode = store.get("mode", "bar");
+function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); renderTally(); }
+// Use-by dates for the milkshake station, counted from the day it is opened.
+const LABELS = [
+  ["Desserts", "Guinness cake, sprinkle cake, brownies, cheesecake, ice cream, Oreo and Jammie Dodger ice cream sandwiches", 2],
+  ["Strawberry and raspberry", "", 14],
+  ["Maraschino cherries", "", 28],
+];
+const useBy = (days) => new Date(Date.now() + days * 864e5).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: UK });
+const labelsHtml = () => `<div class="sec">Date labels</div><p class="note">Opened today? Write this use-by date on the label.</p>
+  ${LABELS.map(([n, s, d]) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${n}${s ? `<div class="s" style="font-weight:400">${s}</div>` : ""}</div><b class="dt">${useBy(d)}</b></div>`).join("")}`;
+const MANAGERS = ["Illias", "Olaya", "Sarul", "Johnny"];
+// Things that run out besides cocktails. Drinks come from the full list.
+const STOCK = {
+  "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
+  "Bottled beer": ["Stella bottles", "Corona Cero"],
+  "Cider": ["Kopparberg Apple (draught)", "Kopparberg Strawberry & Lime (bottle)", "Kopparberg Mixed Fruit (bottle)"],
+  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Red Bull", "Red Bull Zero", "Crodino", "Tonic", "Slimline tonic"],
+  "Water": ["Still water, large", "Still water, small", "Sparkling water, large", "Sparkling water, small"],
+  "Wine": ["Prosecco bottle"],
+  "Bar supplies": ["Blue roll", "Bar napkins", "Straws", "Cocktail picks", "Coasters", "Bin bags", "Cling film", "Labels and day dots", "Glass cloths", "Till roll", "Hand soap", "Sanitiser", "Glass washer detergent", "Rinse aid", "Ice"],
+  "Fruit and garnish": ["Limes", "Lemons", "Oranges", "Grapefruit", "Mint", "Basil", "Cherries", "Strawberries", "Passion fruit", "Pineapple", "Cucumber", "Olives", "Jalapeños"],
+  "Juices": ["Lime juice", "Lemon juice", "Orange juice", "Pineapple juice", "Cranberry juice", "Apple juice", "Grapefruit juice", "Tomato juice"],
+  "Syrups, bitters and prep": ["Sugar syrup", "Coco Real", "Orgeat", "Vanilla syrup", "Marshmallow syrup", "Grenadine", "Elderflower cordial", "Honey syrup", "Salted caramel sauce", "Espresso beans", "Foamer", "Aquafaba", "Angostura bitters", "Peychaud's bitters", "Cocoa bitters", "Strawberry powder", "Pickle brine"],
+  "Vodka": ["Smirnoff", "Smirnoff Vanilla", "Smirnoff Miami Peach", "Grey Goose", "Belvedere Blackberry & Lemongrass", "Cîroc Red Berry", "Cîroc Apple", "Cîroc Pineapple", "Cîroc Mango", "Chase Marmalade", "Chase Rhubarb"],
+  "Gin": ["Tanqueray", "Tanqueray Flor de Sevilla", "Drumshanbo Gunpowder", "Roku", "Monkey 47", "Aviation", "The Botanist", "Cygnet", "Brockmans"],
+  "Rum and cachaça": ["Captain Morgan White", "Captain Morgan Spiced Gold", "Captain Morgan Dark", "Kraken", "Zacapa 23", "52North Spiced", "Malibu", "Abelha cachaça"],
+  "Tequila and mezcal": ["El Jimador Blanco", "El Jimador Reposado", "Don Julio Blanco", "Don Julio Añejo", "Don Julio 1942", "Clase Azul Reposado", "Amarás Mezcal"],
+  "Whiskey": ["Jack Daniel's", "Jameson", "Buffalo Trace", "Bulleit", "Bulleit Rye", "Elijah Craig", "Michter's", "Johnnie Walker Black", "Johnnie Walker Blue", "Talisker 10", "Port Charlotte 10", "Glenmorangie Signet", "Hakushu 12", "Hibiki Harmony", "Sheep Dog Peanut Butter"],
+  "Brandy": ["Martell VS", "Courvoisier VSOP", "Hennessy XO", "Rémy Martin XO", "Avallen Calvados"],
+  "Desserts and shakes": ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Raspberries", "Maraschino cherries", "Shake cups", "Cup holders"],
+  "Floor supplies": ["Napkins", "Side plates", "Toilet roll", "Bleach", "Mop heads"],
+  "Liqueurs and vermouth": ["Aperol", "Campari", "Sarti Rosa", "Martini Rosso", "Martini Extra Dry", "Pimm's", "Cointreau", "Grand Marnier", "Kahlúa", "Baileys", "Disaronno", "Frangelico", "Chambord", "Heering Cherry", "Luxardo Limoncello", "Midori", "Passoa", "Archers", "Apple liqueur", "Ancho Reyes", "Yellow Chartreuse", "Jägermeister", "Absinthe", "Crème de violette", "Maraschino"],
+};
+// Business day in UK time: anything before 6am belongs to the night before, so a close that runs past midnight
+// stays one shift. (Taking the UTC date instead would roll the day over at 7am all summer.)
+const UKDAY = new Intl.DateTimeFormat("en-GB", { timeZone: UK, year: "numeric", month: "2-digit", day: "2-digit" });
+const ukDay = (t) => { const p = Object.fromEntries(UKDAY.formatToParts(t).map((x) => [x.type, x.value])); return `${p.year}-${p.month}-${p.day}`; };
+const shiftDay = () => ukDay(Date.now() - 6 * 36e5);
+const ticksNow = () => (LIVE.me ? LIVE.ticks : ticks);
+const ticked = (k) => ticksNow()[k] || [];
+// Items showing on tonight's list, as [index, text]. Indexes stay fixed so shared ticks line up.
+const shown = (k) => {
+  const day = new Date(shiftDay()).getUTCDay();
+  return LISTS[k].items.map((t, i) => (typeof t === "string" ? [i, t] : t.days.includes(day) ? [i, t.t] : null)).filter(Boolean);
+};
+let closer = store.get("closer", "");
+let ticks = store.get("ticks2", { open: [], close: [] });
+let shiftNote = store.get("shiftNote", ""), shiftWho = store.get("shiftWho", "");
+function tallyText() {
+  const day = stamp(new Date());
+  const list = (k) => {
+    const p = progress(k), miss = shown(k).filter(([i]) => !ticked(k).includes(i)).map(([, t]) => t);
+    return `${LISTS[k].title}: ${p.n} of ${p.of} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
+  };
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
+}
+const PANES = {
+  bar: [["open", "Open"], ["stock", "Stock"], ["close", "Close"], ["send", "Send"]],
+  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["fclose", "Close"], ["send", "Send"]],
+};
+const defaultPane = () => (new Date().getHours() >= 6 && new Date().getHours() < 16 ? PANES[mode][0][0] : mode === "bar" ? "close" : "fclose");
+let pane = defaultPane();
+const progress = (k) => { const S = shown(k), n = S.filter(([i]) => ticked(k).includes(i)).length, of = S.length; return { n, of, pct: Math.round((n / of) * 100) }; };
+// Logged in, each tick says who did it. Only they or a manager can untick it.
+const tickedBy = (k, i) => (LIVE.me ? LIVE.tickBy[`${k}-${i}`] : null);
+const whoTicked = (k, i) => { const t = tickedBy(k, i); return t ? `<small class="who">${esc(t.name)} · ${t.pending ? "sending…" : hhmm(new Date(ms(t.at)))}</small>` : ""; };
+function checklistHtml(k) {
+  const T = ticked(k), p = progress(k);
+  return `<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}</span><b>${p.pct}%</b></div>
+    <div class="prog${p.n === p.of ? " full" : ""}"><i style="width:${p.pct}%"></i></div>
+    ${shown(k).map(([i, t]) => `<button class="prep${T.includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${T.includes(i)}"><span class="box">${T.includes(i) ? "✓" : ""}</span><span>${esc(t)}${whoTicked(k, i)}</span></button>`).join("")}`;
+}
+const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
+/* Stock requests: staff ask, management marks them ordered. */
+const OTHER = "Other (write it in)";
+let rqItem = "", rqNote = ""; // kept outside the form so live updates don't wipe a half-filled request
+const stockOptions = (skip, pick = "") => Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
+const SOON = `<p class="soon">Switches on with team logins</p>`;
+function requestsHtml() {
+  if (!LIVE.api) return `<div class="sec">Need something?</div><p class="note">Ask management for blue roll, fruit, spirits or anything missing.</p>${SOON}`;
+  if (!LIVE.me) return `<div class="sec">Need something?</div><p class="note">Log in on the Team page (the bell) to send requests.</p>`;
+  const open = LIVE.requests.filter((r) => !r.done);
+  return `<div class="sec">Need something?</div>
+    <label class="fld">What's needed or missing<select id="rq-item"><option value="">Choose…</option><option${rqItem === OTHER ? " selected" : ""}>${OTHER}</option>${stockOptions(() => false, rqItem)}</select></label>
+    <label class="fld">Details (how much, or what it is if Other)<input id="rq-note" maxlength="200" value="${esc(rqNote)}" placeholder="2 rolls, running low, broken…"></label>
+    <div class="actions"><button class="btn pri" id="rq-go">Send to management</button></div>
+    ${open.length ? `<div class="h3" style="margin-top:14px">Waiting to be ordered</div>${open.map((r) => `<div class="staffrow"><div class="n">${esc(r.item)}</div>${r.note ? `<div class="s">${esc(r.note)}</div>` : ""}<div class="s">${esc(r.name)} · ${when(r.at)}</div>${r.uid === LIVE.uid ? `<div class="actions"><button class="btn" data-rq-del="${r.id}">Cancel</button></div>` : ""}</div>`).join("")}` : ""}`;
+}
+/* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
+function photosHtml() {
+  if (!LIVE.api) return `<div class="sec">Closing photos</div><p class="note">Photos of the close, with a note on each, sent with your report.</p>${SOON}`;
+  if (!LIVE.me) return `<div class="sec">Closing photos</div><p class="note">Log in on the Team page (the bell) to add photos of the close.</p>`;
+  return `<div class="sec">Closing photos</div>
+    <p class="note">The close, or anything you worked on. Sent with your report, not saved on your phone.</p>
+    ${LIVE.myPhotos.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
+    ${LIVE.myPhotos.length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>` : `<label class="btn pri wide" for="ph-in" style="cursor:pointer">${photoBusy ? "Adding photo…" : "Take a photo"}</label>`}`;
+}
+let photoBusy = false;
+// Phone photos are several MB; shrink to a JPEG under about 450 KB (600,000 characters of text) so each fits in one
+// database record and a month of them stays well inside the free storage. The rules refuse anything over 700,000.
+async function shrink(file) {
+  const url = URL.createObjectURL(file), img = new Image();
+  img.src = url; await img.decode();
+  let max = 1280, q = 0.7, out;
+  do {
+    const k = Math.min(1, max / Math.max(img.naturalWidth, img.naturalHeight)), c = document.createElement("canvas");
+    c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+    c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+    out = c.toDataURL("image/jpeg", q); max -= 256; q -= 0.1;
+  } while (out.length > 600000 && max > 500);
+  URL.revokeObjectURL(url);
+  return out;
+}
+function paneBadge(k) {
+  if (LISTS[k]) { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
+  if (k === "stock") return outNow().size ? `${outNow().size} out` : "";
+  return "";
+}
+function renderTally() {
+  $("#shift-day").textContent = new Date(Date.now() - 6 * 36e5).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: UK });
+  const outList = [...outNow()].sort();
+  $("#shift-title").textContent = mode === "bar" ? "Bar shift" : "Floor shift";
+  const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
+  const tabs = `<div class="modesw">${["bar", "floor"].map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${m === "bar" ? "Bar" : "Floor"}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
+  const body = {
+    open: () => `${checklistHtml("open")}${nextBtn("stock", "Next: stock and 86s")}`,
+    fset: () => `${checklistHtml("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
+    fshake: () => `${labelsHtml()}<div class="sec">Station checklist</div>${checklistHtml("fshake")}${nextBtn("stock", "Next: stock and 86s")}`,
+    fclose: () => `${checklistHtml("fclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
+    stock: () => `<div class="sec">86'd tonight</div>
+      <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
+      ${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}
+      ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd.</p>`}
+      ${requestsHtml()}${nextBtn(mode === "bar" ? "close" : "fclose", "Next: closing checklist")}`,
+    close: () => `${checklistHtml("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
+    send: () => {
+      return `<div class="sumcard">
+        ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div>${LIVE.me ? `<div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>` : ""}
+      </div>
+      <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
+      <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the ${mode} tonight"></label>
+      <label class="fld">Note for handover<textarea id="s-note" rows="3" maxlength="1000" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
+      <button class="btn pri wide" id="t-copy">${LIVE.me ? "Send to managers for sign-off" : "Send for sign-off"}</button>
+      <details class="setup"><summary>Preview the report</summary><textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea></details>
+      <button class="btn danger wide" id="t-reset">Start a new night</button>
+      ${confirmReset ? `<div class="confirm">${LIVE.admin ? `Clear tonight's shared ${mode} checklists for everyone, and the handover note on this phone? The team 86'd list stays until each item is marked back in stock.` : LIVE.me ? "Clear the handover note on this phone? The shared checklists start fresh at 6am, or a manager can clear them sooner." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">${LIVE.me && !LIVE.admin ? "Clear my note" : "Clear it all"}</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}`;
+    },
+  }[pane]();
+  $("#tally").innerHTML = tabs + `<div class="pane">${body}</div>`;
+}
+// The camera input lives outside #tally. A teammate's tick re-draws the list, and if the input were redrawn while the
+// camera was open, the photo would be lost without a word.
+$("#ph-in").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f || !LIVE.me) return;
+  if (LIVE.myPhotos.length >= LIVE.api.MAX_PHOTOS) return toast(`${LIVE.api.MAX_PHOTOS} photos is the most for one report`);
+  photoBusy = true; renderTally();
+  try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try again"); else { track(LIVE.api.addPhoto(data), null, "Photo not saved. Try again"); haptic(); } }
+  catch { toast("Couldn't read that photo"); }
+  photoBusy = false; renderTally();
+});
+$("#tally").addEventListener("change", async (e) => {
+  if (e.target.id === "rq-item") { rqItem = e.target.value; return; }
+  if (e.target.dataset.phNote) { track(LIVE.api.notePhoto(e.target.dataset.phNote, e.target.value.trim()), null, "Note not saved"); return; }
+  if (e.target.id !== "s-86" || !e.target.value) return;
+  const n = e.target.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
+});
+$("#tally").addEventListener("input", (e) => {
+  if (e.target.id === "rq-note") { rqNote = e.target.value; return; }
+  if (e.target.id === "s-who") { shiftWho = e.target.value; store.set("shiftWho", shiftWho); }
+  if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
+  if ($("#t-text")) $("#t-text").value = tallyText();
+});
+$("#tally").addEventListener("click", async (e) => {
+  if (e.target.closest("#t-copy")) {
+    const txt = tallyText();
+    // Firestore queues the write with no signal and sends it when the phone reconnects.
+    if (LIVE.me) {
+      const done = (k) => `${progress(k).n}/${progress(k).of}`;
+      const n = Math.min(LIVE.myPhotos.length, LIVE.api.MAX_PHOTOS);
+      const summary = `${mode === "bar" ? "Bar" : "Floor"} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closing manager ${closer}` : ""}`;
+      track(LIVE.api.sendReport(mode, txt, summary), "Sent to the managers for sign-off", "Report not sent. Try again"); haptic(); return;
+    }
+    if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (err) { if (err.name === "AbortError") return; } }
+    try { await navigator.clipboard.writeText(txt); toast("Copied. Paste it to the manager"); }
+    catch { const ta = $("#t-text"); ta.focus(); ta.select(); toast("Text selected. Tap Copy"); }
+  }
+  if (e.target.closest("#t-reset")) { confirmReset = true; renderTally(); }
+  if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
+  const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
+  const md = e.target.closest("[data-mode]"); if (md) { haptic(); setMode(md.dataset.mode); return; }
+  const pn = e.target.closest("[data-pane]"); if (pn) { pane = pn.dataset.pane; renderTally(); $("#v-tally").scrollIntoView({ block: "start" }); window.scrollTo(0, 0); return; }
+  const ck = e.target.closest("[data-list]"); if (ck) {
+    const k = ck.dataset.list, i = +ck.dataset.i, on = !ticked(k).includes(i);
+    if (on && progress(k).n === progress(k).of - 1) { toast(`${LISTS[k].title} complete`); try { navigator.vibrate?.([12, 60, 12]); } catch {} }
+    // Logged in, ticks are shared with everyone on tonight's shift.
+    const t = tickedBy(k, i);
+    if (!on && t && t.uid !== LIVE.uid && !LIVE.admin) return toast(`Ticked by ${t.name}. Only they or a manager can untick it`);
+    if (LIVE.me) track(LIVE.api.tick(k, i, on), null, on ? "Tick not saved. Someone may have just ticked it" : "Not unticked. Try again");
+    else { ticks[k] = on ? [...ticked(k), i] : ticked(k).filter((x) => x !== i); store.set("ticks2", ticks); }
+    haptic(); renderTally(); return;
+  }
+  const rq = e.target.closest("#rq-go"); if (rq) {
+    const item = rqItem, note = rqNote.trim();
+    if (!item) return toast("Pick what's needed");
+    if (item === OTHER && !note) return toast("Write what's needed in the box");
+    track(LIVE.api.request(item === OTHER ? note : item, item === OTHER ? "" : note), "Sent to management", "Request not sent. Try again");
+    haptic(); rqItem = rqNote = ""; renderTally(); return;
+  }
+  const rd = e.target.closest("[data-rq-del]"); if (rd) { if (confirm("Cancel this request?")) track(LIVE.api.cancelRequest(rd.dataset.rqDel), null, "Could not cancel. It may have been ordered"); return; }
+  const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
+  const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
+  if (e.target.closest("#t-yes")) { MODE_LISTS[mode].forEach((k) => (ticks[k] = [])); store.set("ticks2", ticks); if (LIVE.admin) track(LIVE.api.clearTicks(MODE_LISTS[mode]), null, "Shared ticks not cleared. Try again"); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); confirmReset = false; renderTally(); toast(LIVE.me && !LIVE.admin ? "Note cleared" : "New night started"); }
+});
+
+/* ---------- Feedback (Google Form, responses go to the manager) ---------- */
+const FORM = "https://docs.google.com/forms/d/e/1FAIpQLScVcIMOdULYuawQSoi_AFHowwa86m3PZAyTOxmlcxhu678qTw/viewform";
+const formUrl = (drink) => FORM + (drink ? "?usp=pp_url&entry.1226892998=" + encodeURIComponent(drink) : "");
+
+/* Android Chrome offers a one-tap install; keep the prompt for the Bar info button. */
+let installEvt = null;
+addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; const b = $("#install"); if (b) b.hidden = false; });
+addEventListener("appinstalled", () => { installEvt = null; $("#install")?.setAttribute("hidden", ""); toast("Installed. Open it from your home screen."); });
+document.addEventListener("click", async (e) => {
+  if (!e.target.closest("#install") || !installEvt) return;
+  installEvt.prompt(); await installEvt.userChoice; installEvt = null; $("#install").hidden = true;
+});
+
+/* ---------- Bar info ---------- */
+function renderInfo() {
+  const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
+  $("#v-info").innerHTML = `
+    <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and posts the good ones as notices.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
+    <h2>Measures and the law</h2>
+    <ul>
+      <li>Gin, rum, vodka and whisky on their own or with one mixer go in 25 ml or 35 ml measures (or multiples). We use 25 ml and 50 ml.</li>
+      <li>Cocktails with three or more liquids are exempt, which is why the house cards use 10, 15, 20 and 35 ml.</li>
+      <li>Jigger everything. No free pouring.</li>
+      <li>No drinking games, no “drink as much as you can” deals, free tap water on request. Shot trays and pitchers are fine as fixed amounts.</li>
+      <li>ID check on bombs and shots under the venue's Challenge policy.</li>
+    </ul>
+    <h2>Technique key</h2>
+    <dl class="kv">
+      <dt>Dry shake</dt><dd>Shake without ice to whip the foam, then add ice and shake again.</dd>
+      <dt>Double strain</dt><dd>Hawthorne strainer plus a fine strainer, so no ice chips or pulp.</dd>
+      <dt>Aquafaba</dt><dd>Chickpea water. Used for foam instead of egg white.</dd>
+      <dt>Foamer</dt><dd>2 drops, as on the house cards.</dd>
+      <dt>Build</dt><dd>Pour straight into the glass over ice. No shaker.</dd>
+      <dt>Float</dt><dd>Pour slowly over the back of a bar spoon so it sits on top.</dd>
+    </dl>
+    <h2>Prep and batches</h2>${prep}
+    <h2>Shot tray, step by step</h2>${guideHtml(DATA.guides["Shot tray"])}
+    <h2>Put this app on your home screen</h2>
+    <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
+    <h3 style="font-size:18px;margin-top:14px">iPhone</h3>
+    <ol>
+      <li>Open the link in <b>Safari</b>.</li>
+      <li>Tap the Share button, then <b>Add to Home Screen</b>.</li>
+      <li>Tap <b>Add</b>. It now opens like an app.</li>
+    </ol>
+    <h3 style="font-size:18px;margin-top:14px">Android</h3>
+    <ol>
+      <li>Open the link in <b>Chrome</b>.</li>
+      <li>Tap <b>Install the app</b> above, or tap ⋮ then <b>Add to Home screen</b> (or <b>Install app</b>).</li>
+      <li>Tap <b>Install</b>. It now opens like an app.</li>
+    </ol>
+    <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>
+    <p class="note">Data from the Soho build cards and blacktap.com, last updated 24 October 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
+    <p class="credit">Developed by <b>Charles Agyei II</b></p>`;
+}
+
+/* ---------- Tabs ---------- */
+/* ---------- Notices ---------- */
+let notices = [];
+const nkey = (t) => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) | 0; return String(h); };
+let seen = new Set(store.get("seen", []));
+function parseNotices(txt) {
+  const names = D.map((d) => [d.name.toLowerCase(), d.name]);
+  teamOut = new Set();
+  return txt.replace(/\r/g, "").split("\n").filter((l) => !l.startsWith("#")).join("\n").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => {
+    const lines = p.split("\n");
+    for (const l of lines.filter((l) => /^86\s*:/i.test(l))) for (const part of l.replace(/^86\s*:/i, "").split(",")) {
+      const w = part.trim().toLowerCase(); if (!w) continue;
+      const hit = names.find(([lc]) => lc === w) || names.find(([lc]) => lc.includes(w));
+      if (hit) teamOut.add(hit[1]);
+    }
+    return { key: nkey(p), lines };
+  });
+}
+function renderBell() {
+  const n = notices.filter((x) => !seen.has(x.key)).length + feedNew().length;
+  $("#bell").hidden = false; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
+  $("#bell").setAttribute("aria-label", n ? `Team, ${n} new` : "Team");
+}
+/* ---------- Team feed (live) ---------- */
+const ms = (t) => (t ? t.toMillis() : Date.now());
+// Every post, notice, report and 86 shows its full date and time in bold.
+const when = (t) => `<b class="dt">${stamp(new Date(ms(t)))}</b>`;
+let feedSeen = store.get("feedSeen", 0);
+const isNew = (x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen;
+const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(isNew);
+// Random PINs for new people: 6 digits for staff, 8 for managers.
+const newPin = (n = 6) => [...crypto.getRandomValues(new Uint32Array(n))].map((x) => x % 10).join("");
+const pinLen = (role) => (role === "staff" ? 6 : LIVE.api.BOSS_PIN);
+let staffMsg = "";
+const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#issues", "#requests", "#compose", "#feed", "#reports", "#mgrs", "#outlog", "#mgr", "#me"];
+function renderTeamTop() {
+  $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
+  SLOTS.forEach((s) => ($(s).innerHTML = ""));
+  if (!LIVE.api) { $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Team logins</h2><p>Your own login, the team board, pinned notices, shift sign-off, stock requests and closing photos.</p>${SOON}</div>`; return; }
+  if (!LIVE.ready) { $("#team").innerHTML = `<p class="note">Connecting to the team feed. It needs signal the first time.</p>`; return; }
+  if (!LIVE.uid) {
+    $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Log in</h2><p>Use the username and PIN your manager gave you. You stay logged in on this phone.</p>
+      <label class="fld">Username<input id="l-user" autocapitalize="none" autocomplete="username" spellcheck="false"></label>
+      <label class="fld">PIN<input id="l-pin" type="password" inputmode="numeric" maxlength="12" autocomplete="current-password"></label>
+      <button class="btn pri wide" id="l-go">Log in</button></div>
+      <details class="setup"><summary>First-time setup (owner only)</summary>
+        <p class="note">Creates the owner account, once. You need the setup code you saved in Firebase (at least ${LIVE.api.CODE_MIN} characters). It stops working the moment setup is done.</p>
+        <label class="fld">Your name<input id="s-name" maxlength="40" autocomplete="name"></label>
+        <label class="fld">Username (lower case letters and numbers)<input id="s-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
+        <label class="fld">Choose a PIN of ${LIVE.api.BOSS_PIN} to 12 digits<input id="s-pin" type="password" inputmode="numeric" maxlength="12"></label>
+        <label class="fld">Setup code<input id="s-code" type="password" autocomplete="off"></label>
+        <button class="btn wide" id="s-go">Create owner account</button></details>`;
+    return;
+  }
+  if (!LIVE.me) { $("#team").innerHTML = `<p class="note">Checking your account…</p>`; return; }
+  $("#team").innerHTML = `<p class="note"><b>${esc(LIVE.me)}</b>${LIVE.owner ? " · owner" : LIVE.admin ? " · manager" : ""} · <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>`;
+  if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Pin a notice</summary>
+    <label class="fld">Notice for everyone<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
+    <div class="actions"><button class="btn pri" id="p-go">Pin it</button></div></details>`;
+  $("#compose").innerHTML = `<div class="sec">Team board</div>
+    <label class="fld">Post to the board<textarea id="c-text" rows="3" maxlength="2000" placeholder="Running low on limes, a guest comment, anything the team should know"></textarea></label>
+    <div class="actions"><button class="btn pri" id="c-post">Post</button></div>`;
+  if (LIVE.admin) $("#mgr").innerHTML = `<details class="setup" id="staff-box" open><summary>Team members</summary><div id="staff-list"></div>
+      <h3 style="font-size:18px;margin-top:16px">Add a person</h3>
+      <label class="fld">Name<input id="a-name" maxlength="40"></label>
+      <label class="fld">Username (lower case letters and numbers)<input id="a-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
+      <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin(6)}"></label>
+      ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
+      <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
+  renderDash(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderStaff(); renderMe(); renderTeamTabs();
+}
+// Team page sections as tabs, so nobody scrolls past the team list to find the board.
+let tpane = "board";
+const TSLOTS = { board: ["#pins", "#pin-form", "#issues", "#compose", "#feed", "#notices"], reports: ["#reports"], requests: ["#requests"], managers: ["#mgrs", "#outlog", "#mgr"], me: ["#me"] };
+// Off and swap requests wait for a decision; a late one is done once a manager has seen it.
+const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
+const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
+function renderTeamTabs() {
+  const all = Object.values(TSLOTS).flat();
+  if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
+  const tabs = [["board", "Board"], ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
+  if (!tabs.some(([k]) => k === tpane)) tpane = "board";
+  const count = { board: [openIssues().length, "open"], reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"], requests: [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length, "waiting"] };
+  const badge = (k) => (count[k] && count[k][0] ? `${count[k][0]} ${count[k][1]}` : "");
+  $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge(k)}</small></button>`).join("")}</div>`;
+  for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
+}
+/* Tonight at a glance: counts worked out from the live data, each one a shortcut to where it's dealt with.
+   "…" means that part hasn't loaded yet (it needs signal the first time). */
+function renderDash() {
+  if (!LIVE.me) { $("#dash").innerHTML = ""; return; }
+  const v = (k, x) => (LIVE.loaded.has(k) ? x : "…");
+  const ps = MODE_LISTS[mode].map(progress), done = ps.reduce((a, p) => a + p.n, 0), of = ps.reduce((a, p) => a + p.of, 0);
+  const open = openIssues(), urgent = open.filter((x) => x.urgent).length;
+  const tonight = LIVE.reports.filter((r) => bday(r.at) === shiftDay());
+  const sent = (side) => (tonight.some((r) => r.side === side) ? "Sent" : "Not yet");
+  const unsigned = LIVE.reports.filter((r) => !r.signedBy).length, inc = LIVE.incidents.filter((x) => x.status !== "closed").length;
+  const tiles = [
+    [v("shift", `${done}/${of}`), `${mode === "bar" ? "Bar" : "Floor"} checklists ticked`, "shift"],
+    [v("out", LIVE.out.size), "86'd right now", "stock", LIVE.out.size > 0],
+    [v("issues", open.length), urgent ? `open issues, ${urgent} urgent` : "open issues", "issues", urgent > 0],
+    [v("requests", LIVE.requests.filter((r) => !r.done).length), "stock requests not ordered", LIVE.admin ? "requests" : "stock"],
+    [v("reports", sent("bar")), "bar report tonight", "reports"],
+    [v("reports", sent("floor")), "floor report tonight", "reports"],
+    ...(LIVE.admin ? [
+      [v("reports", unsigned), "reports to sign off", "reports", unsigned > 0],
+      [v("asks", LIVE.asks.filter(waiting).length), "staff requests to answer", "requests"],
+      [v("incidents", inc), "open incidents", "managers", inc > 0],
+    ] : []),
+  ];
+  $("#dash").innerHTML = `<div class="sec">Tonight</div><div class="dash">${tiles.map(([x, label, go, hot]) => `<button data-go="${go}"${hot ? ' class="hot"' : ""}><b>${x}</b><span>${label}</span></button>`).join("")}</div>`;
+}
+function go(where) {
+  if (where === "shift" || where === "stock") { pane = where === "stock" ? "stock" : defaultPane(); show("tally"); return; }
+  tpane = where === "issues" ? "board" : where; renderTeamTabs();
+  $(where === "issues" ? "#issues" : "#tpanes").scrollIntoView({ block: "start" });
+}
+const ROLE = { owner: "Owner", manager: "Manager", staff: "Staff" };
+const AUDIT = { setup: "owner account set up", add: "added", reset: "new PIN", remove: "removed", role: "role changed" };
+const isOwnerUid = (uid) => LIVE.staff.some((p) => p.uid === uid && p.role === "owner");
+function renderStaff() {
+  const box = $("#staff-list"); if (!box) return;
+  box.innerHTML = (staffMsg ? `<div class="confirm" style="border-color:var(--brass)">${staffMsg}</div>` : "") + LIVE.staff.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}${p.uid === LIVE.uid ? " (you)" : ""}</div><div class="s">${esc(p.username)} · ${ROLE[p.role]}</div>
+    ${p.uid === LIVE.uid || p.role === "owner" || (!LIVE.owner && p.role !== "staff") ? "" : `<div class="actions">${LIVE.owner ? `<button class="btn" data-role="${p.uid}">${p.role === "manager" ? "Make staff" : "Make manager"}</button>` : ""}<button class="btn" data-reset="${p.uid}">Reset PIN</button><button class="btn danger" data-remove="${p.uid}">Remove</button></div>`}</div>`).join("");
+  // A PIN reset writes two entries (the new account and the old one); show it once.
+  const log = LIVE.audit.filter((x) => x.action !== "reset" || x.id.endsWith("-in")).slice(0, 15);
+  $("#audit-list").innerHTML = log.length ? `<h3 style="font-size:18px;margin-top:18px">Account changes</h3>${log.map((x) => `<div class="staffrow"><div class="n">${esc(x.targetName)} · ${x.action === "role" ? `now ${ROLE[x.role]}` : AUDIT[x.action]}</div><div class="s">${esc(x.username)} · ${ROLE[x.role]} · by ${esc(x.name)}, ${when(x.at)}</div></div>`).join("")}` : "";
+}
+// Managers can take down posts and notices, except the owner's.
+const canTakeDown = (x) => x.uid === LIVE.uid || LIVE.owner || (LIVE.admin && !isOwnerUid(x.uid));
+function renderPins() {
+  if (!LIVE.me) return;
+  $("#pins").innerHTML = LIVE.notices.map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Notice</b> from ${esc(x.name)} · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${LIVE.admin && canTakeDown(x) ? `<div class="actions"><button class="btn" data-unpin="${x.id}">Remove notice</button></div>` : ""}</article>`).join("");
+}
+function renderFeed() {
+  if (!LIVE.me) return;
+  const del = (x) => (canTakeDown(x) ? `<div class="actions"><button class="btn" data-del="${x.id}">Delete</button></div>` : "");
+  $("#feed").innerHTML = LIVE.feed.length ? LIVE.feed.map((x) => `<article class="notice${isNew(x) ? " new" : ""}"><div class="meta"><b>${esc(x.name)}</b> · ${when(x.at)}${x.pending ? " · sending…" : ""}</div><p class="txt">${esc(x.text)}</p>${del(x)}</article>`).join("") : `<p class="note">Nothing posted yet.</p>`;
+}
+// Waiting reports sit open at the top; signed ones go into the history list. Neither can be edited or deleted.
+function renderReports() {
+  if (!LIVE.me) return;
+  const waitingR = LIVE.reports.filter((r) => !r.signedBy), done = LIVE.reports.filter((r) => r.signedBy);
+  const body = (r) => `<details><summary>Show the report</summary><pre>${esc(r.text)}</pre></details>${r.photos ? `<div data-photos-of="${r.id}">${shownPhotos[r.id] || `<button class="btn" data-photos="${r.id}">Show ${r.photos} photo${r.photos > 1 ? "s" : ""}</button>`}</div>` : ""}`;
+  $("#reports").innerHTML = `<div class="sec">Shift reports</div>` +
+    (waitingR.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}${r.pending ? " · sending…" : ""}</div><p class="txt">${esc(r.summary)}</p>${body(r)}
+      ${LIVE.admin ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>${reviewHtml(r)}` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
+    (done.length ? `<details class="setup"><summary>Report history (${done.length})</summary>${done.map((r) => `<div class="staffrow"><div class="n">${when(r.at)} · ${esc(r.name)}</div><div class="s">${esc(r.summary)}</div><div class="s ok">Signed off by ${esc(r.signedBy)}, ${when(r.signedAt)}</div>${body(r)}${LIVE.admin ? reviewHtml(r) : ""}</div>`).join("")}</details>` : "");
+}
+function renderRequests() {
+  if (!LIVE.admin) return;
+  const open = LIVE.requests.filter((r) => !r.done);
+  const pend = LIVE.asks.filter(waiting), decided = LIVE.asks.filter((a) => !waiting(a)).slice(0, 30);
+  // Managers don't decide their own requests; another manager or the owner does.
+  const own = (a) => a.uid === LIVE.uid && !LIVE.owner;
+  $("#requests").innerHTML = `<div class="sec">Staff requests</div>` +
+    (pend.map((a) => `<article class="notice${isNew(a) ? " new" : ""}"><div class="meta"><b>${esc(a.name)}</b> · ${when(a.at)}${a.status === "seen" ? ` · seen by ${esc(a.by)}` : ""}</div><p class="txt"><b>${askLine(a)}</b>${a.note ? `<br>${esc(a.note)}` : ""}</p>
+      ${own(a) ? `<p class="note">Another manager or the owner decides this one.</p>` : `<div class="actions">${a.kind === "late" ? `<button class="btn pri" data-decide="${a.id}" data-to="seen">Seen</button>` : `<button class="btn pri" data-decide="${a.id}" data-to="approved">Approve</button><button class="btn danger" data-decide="${a.id}" data-to="declined">Decline</button>`}</div>`}</article>`).join("") || `<p class="note">Nothing waiting.</p>`) +
+    (decided.length ? `<details class="setup"><summary>Decided (${decided.length})</summary>${decided.map((a) => `<div class="staffrow"><div class="n">${esc(a.name)} · ${askLine(a)}</div><div class="s">${statusPill(a)} by ${esc(a.by)}, ${when(a.byAt)}</div></div>`).join("")}</details>` : "") +
+    `<div class="sec">Stock requests</div>` + (open.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt"><b>${esc(r.item)}</b>${r.note ? `<br>${esc(r.note)}` : ""}</p><div class="actions"><button class="btn pri" data-ordered="${r.id}">Ordered</button><button class="btn" data-rq-drop="${r.id}">Turn down</button></div></article>`).join("") || `<p class="note">Nothing requested.</p>`);
+}
+// Photos load only when asked for, so the feed stays quick and cheap on data.
+const shownPhotos = {};
+async function showPhotos(id) {
+  const ps = await LIVE.api.loadPhotos(id);
+  shownPhotos[id] = ps.length ? ps.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><p class="txt">${p.note ? esc(p.note) : "<span class=\"note\">No note</span>"}</p></div>`).join("") : `<p class="note">These photos were cleared (photos are kept for ${LIVE.api.KEEP_DAYS} days).</p>`;
+  const box = document.querySelector(`[data-photos-of="${id}"]`); if (box) box.innerHTML = shownPhotos[id];
+}
+/* ---------- Issues and handover ---------- */
+// Faults, jobs and anything the next shift should know. Open ones stay on the board, however old, until someone
+// fixes them. Fixed ones can't be reopened; "Still broken" raises a new one linked to the old.
+const AREAS = [["bar", "Bar"], ["floor", "Floor"], ["kitchen", "Kitchen"], ["toilets", "Toilets"], ["terrace", "Terrace"], ["cellar", "Cellar"], ["other", "Other"]];
+const AREA = Object.fromEntries(AREAS);
+const isF = { title: "", detail: "", area: "", urgent: false, again: null, open: false };
+const fixText = {}, incText = {};
+function renderIssues() {
+  if (!LIVE.me) return;
+  const open = openIssues().sort((a, b) => (b.urgent - a.urgent) || (ms(a.at) - ms(b.at)));
+  const fixed = LIVE.issues.filter((x) => x.status === "fixed").slice(0, 10);
+  const row = (x) => `<article class="notice issue${x.urgent ? " new" : ""}"><div class="meta"><b>${esc(x.title)}</b>${x.pending ? " · sending…" : ""}</div>
+    <div class="tags">${x.urgent ? `<span class="pill no">Urgent</span>` : ""}<span class="pill">${AREA[x.area] || "Other"}</span>${x.status === "taken" ? `<span class="pill wait">On it: ${esc(x.who)}</span>` : `<span class="pill">Nobody on it yet</span>`}${x.again ? `<span class="pill">Raised again</span>` : ""}</div>
+    ${x.detail ? `<p class="txt">${esc(x.detail)}</p>` : ""}
+    <p class="note" style="margin-top:6px">Raised by ${esc(x.name)} · ${when(x.at)}</p>
+    <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${LIVE.admin ? `<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}">${esc(p.name)}</option>`).join("")}</select>` : ""}${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
+    <div class="rvrow" style="grid-template-columns:1fr auto"><input data-fixt="${x.id}" maxlength="500" placeholder="What was done to fix it" value="${esc(fixText[x.id] || "")}" aria-label="What was done to fix it"><button class="btn pri" data-fix="${x.id}">Fixed</button></div></article>`;
+  $("#issues").innerHTML = `<div class="sec">Issues and handover</div>
+    <details class="setup" id="is-form"${isF.open ? " open" : ""}><summary>${isF.again ? "Raise it again" : "Raise an issue"}</summary>
+      <label class="fld">What's wrong, or what the next shift needs to know<input data-is="title" maxlength="120" value="${esc(isF.title)}" placeholder="Glass washer leaking, terrace heater out…"></label>
+      <label class="fld">Where<select data-is="area"><option value="">Choose…</option>${AREAS.map(([k, t]) => `<option value="${k}"${k === isF.area ? " selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label class="fld">More detail (optional)<textarea data-is="detail" rows="2" maxlength="1000">${esc(isF.detail)}</textarea></label>
+      <label class="check"><input type="checkbox" data-is="urgent"${isF.urgent ? " checked" : ""}> Urgent: needs sorting this shift</label>
+      <div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
+    ${open.map(row).join("") || `<p class="note">No open issues.</p>`}
+    ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${esc(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${esc(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
+}
+/* ---------- Managers page, staff asks, incidents, reviews, anonymous feedback ---------- */
+const bday = (t) => ukDay(ms(t) - 6 * 36e5);
+const dayName = (k, o = { weekday: "short", day: "numeric", month: "short" }) => (k ? new Date(k + "T12:00").toLocaleDateString("en-GB", o) : "?");
+const askText = (a) => (a.kind === "late" ? `Running late · ETA ${a.eta}` : a.kind === "off" ? `Time off · ${dayName(a.date1)} to ${dayName(a.date2)}` : `Shift swap · ${dayName(a.date1)} with ${a.with}`);
+const askLine = (a) => esc(askText(a));
+const STATUS = { pending: ["Waiting", "wait"], approved: ["Approved", "ok"], declined: ["Declined", "no"], seen: ["Seen", "ok"] };
+const statusPill = (a) => `<span class="pill ${STATUS[a.status][1]}">${STATUS[a.status][0]}</span>`;
+const INCIDENTS = ["Accident or injury", "Near miss", "Guest complaint", "Refused service", "Aggressive guest", "Breakage or damage", "Lost property", "Theft or loss", "Other"];
+const SCORES = ["Excellent", "Efficient", "Good", "Needs improvement"];
+const ME_KINDS = [["late", "Running late"], ["off", "Time off"], ["swap", "Shift swap"], ["incident", "Incident"]];
+// Half-filled forms live here, so live updates re-render without wiping what someone is typing.
+let meKind = "late";
+const meF = { eta: "", date1: "", date2: "", with: "", note: "", ikind: "", itext: "", fbWho: "", fbScore: "", fbText: "" };
+const rvText = {};
+const etaIn = (m) => hhmm(new Date(Date.now() + m * 6e4));
+function renderMe() {
+  if (!LIVE.me) return;
+  const fld = (label, f, attrs = "") => `<label class="fld">${label}<input data-f="${f}" value="${esc(meF[f])}" ${attrs}></label>`;
+  const from = `type="date" min="${shiftDay()}"`;
+  const form = {
+    late: () => `<p class="note">Roughly when will you get here? Managers see it straight away.</p>
+      <div class="recent">${[10, 15, 20, 30, 45, 60].map((m) => `<button class="chip" data-eta="${m}">+${m} min</button>`).join("")}</div>${fld("Arriving at", "eta", 'type="time"')}`,
+    off: () => fld("From", "date1", from) + fld("To", "date2", from),
+    swap: () => fld("Shift date", "date1", from) + fld("Swapping with", "with", 'maxlength="40" placeholder="Their name"'),
+    incident: () => `<label class="fld">What kind<select data-f="ikind"><option value="">Choose…</option>${INCIDENTS.map((k) => `<option${k === meF.ikind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
+      <label class="fld">What happened<textarea data-f="itext" rows="4" maxlength="1000" placeholder="What happened, where, and what was done. Use table numbers, not guests' names or contact details.">${esc(meF.itext)}</textarea></label>
+      <p class="note">Only managers can read it. Injuries also go in the accident book.</p>`,
+  }[meKind]();
+  const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
+  $("#me").innerHTML = `<div class="sec">Tell the managers</div>
+    <div class="recent">${ME_KINDS.map(([k, t]) => `<button class="chip" data-mek="${k}" aria-pressed="${k === meKind}">${t}</button>`).join("")}</div>
+    ${form}${meKind === "incident" ? "" : fld("Note (optional)", "note", 'maxlength="300"')}
+    <button class="btn pri wide" id="me-go">Send to managers</button>
+    ${mine.length ? `<div class="sec">Your requests</div>${mine.map((a) => `<div class="staffrow"><div class="n">${askLine(a)}</div><div class="s">${statusPill(a)}${a.by ? ` by ${esc(a.by)}` : ""} · sent ${when(a.at)}${a.pending ? " · sending…" : ""}</div>${waiting(a) ? `<div class="actions"><button class="btn" data-ask-del="${a.id}">Cancel</button></div>` : ""}</div>`).join("")}` : ""}`;
+}
+// A thumbs up can stand alone. A flag or a note needs a comment, so the team knows what it's about.
+function reviewHtml(r) {
+  const vs = LIVE.reviews.filter((v) => v.report === r.id).reverse();
+  return `${vs.map((v) => `<div class="s" style="margin-top:6px"><b>${esc(v.name)}</b> ${v.verdict === "up" ? "👍" : v.verdict === "flag" ? `<span class="pill no">Flagged</span>` : ""}${v.text ? ` ${esc(v.text)}` : ""} · ${when(v.at)}</div>`).join("")}
+    <div class="rvrow"><input data-rvt="${r.id}" maxlength="500" placeholder="Comment for managers" value="${esc(rvText[r.id] || "")}" aria-label="Comment for managers"><button class="btn" data-rv="${r.id}" data-v="up" aria-label="Thumbs up">👍</button><button class="btn" data-rv="${r.id}" data-v="flag">Flag</button><button class="btn" data-rv="${r.id}" data-v="note">Note</button></div>`;
+}
+// Each night's bar and floor reports side by side, with flags, incidents and lateness counted.
+function renderMgrs() {
+  if (!LIVE.admin) return;
+  const days = {};
+  LIVE.reports.forEach((r) => (days[bday(r.at)] ||= []).push(r));
+  const count = (k, xs, f = () => true) => xs.filter((x) => bday(x.at) === k && f(x)).length;
+  const nights = Object.keys(days).sort().reverse().slice(0, 7).map((k) => {
+    const rs = days[k], vs = LIVE.reviews.filter((v) => rs.some((r) => r.id === v.report));
+    const facts = [[vs.filter((v) => v.verdict === "up").length, "👍"], [vs.filter((v) => v.verdict === "flag").length, "flagged"], [count(k, LIVE.incidents), "incident"], [count(k, LIVE.asks, (a) => a.kind === "late"), "late"]]
+      .filter(([n]) => n).map(([n, t]) => `${n} ${t}${t === "incident" && n > 1 ? "s" : ""}`);
+    return `<article class="notice"><div class="meta"><b>${dayName(k, { weekday: "long", day: "numeric", month: "long" })}</b></div>
+      ${rs.map((r) => `<div class="staffrow"><div class="n">${r.side === "floor" ? "Floor" : "Bar"} · ${esc(r.name)} ${r.signedBy ? `<span class="pill ok">Signed off</span>` : `<span class="pill wait">Waiting</span>`}</div><div class="s">${esc(r.summary.replace(/^(Floor|Bar) · /, ""))}</div></div>`).join("")}
+      <p class="note" style="margin:8px 0 0">${facts.join(" · ") || "No flags, incidents or lateness"}</p></article>`;
+  }).join("");
+  const others = LIVE.staff.filter((p) => p.role !== "staff" && p.uid !== LIVE.uid);
+  const openInc = LIVE.incidents.filter((x) => x.status !== "closed"), closedInc = LIVE.incidents.filter((x) => x.status === "closed");
+  $("#mgrs").innerHTML = `<div class="sec">Nights</div>${nights || `<p class="note">No shift reports yet.</p>`}
+    <div class="sec">Incidents</div>
+    ${openInc.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill wait">Open</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>
+      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-inct="${x.id}" maxlength="500" placeholder="What was done about it" value="${esc(incText[x.id] || "")}" aria-label="What was done about it"><button class="btn" data-inc-close="${x.id}">Close</button></div></div>`).join("") || `<p class="note">No open incidents. Anyone can log one from the Me tab.</p>`}
+    ${closedInc.length ? `<details class="setup"><summary>Closed incidents (${closedInc.length})</summary>${closedInc.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill ok">Closed</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p><div class="s">What was done: ${esc(x.outcome)} · ${esc(x.closedBy)}, ${when(x.closedAt)}</div></div>`).join("")}</details>` : ""}
+    <div class="sec">Anonymous feedback</div>
+    <p class="note">For another manager. Your name isn't saved with it, so nobody can see who sent it.</p>
+    <label class="fld">About<select data-f="fbWho"><option value="">Choose a manager…</option>${others.map((p) => `<option value="${p.uid}"${p.uid === meF.fbWho ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+    <div class="recent" style="flex-wrap:wrap">${SCORES.map((x) => `<button class="chip" data-score="${x}" aria-pressed="${x === meF.fbScore}">${x}</button>`).join("")}</div>
+    <label class="fld">Comment (${meF.fbScore === "Needs improvement" ? "say what needs to improve" : "optional"})<textarea data-f="fbText" rows="2" maxlength="500">${esc(meF.fbText)}</textarea></label>
+    <button class="btn pri wide" id="fb-go">Send anonymously</button>
+    <h3 style="font-size:18px;margin-top:18px">${LIVE.owner ? "Feedback for every manager" : "Feedback about you"}</h3>
+    ${LIVE.ratings.map((x) => `<div class="staffrow"><div class="n">${LIVE.owner ? `${esc(x.aboutName)} · ` : ""}<span class="pill ${x.score === "Needs improvement" ? "no" : "ok"}">${x.score}</span></div>${x.text ? `<p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>` : ""}<div class="s">${when(x.at)}</div></div>`).join("") || `<p class="note">None yet.</p>`}`;
+}
+function renderOutlog() {
+  if (!LIVE.admin) return;
+  const counts = {};
+  LIVE.outlog.filter((x) => x.action === "out").forEach((x) => (counts[x.itemName] = (counts[x.itemName] || 0) + 1));
+  const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+  $("#outlog").innerHTML = `<details class="setup" open><summary>86 log</summary>
+    ${top.length ? `<h3 style="font-size:18px;margin-top:10px">Runs out most</h3>${top.map(([n, c]) => `<div class="staffrow"><div class="n">${esc(n)}</div><div class="s">86'd ${c} time${c > 1 ? "s" : ""}</div></div>`).join("")}<h3 style="font-size:18px;margin-top:16px">Latest</h3>` : ""}
+    ${LIVE.outlog.map((x) => `<div class="staffrow"><div class="n">${esc(x.itemName)} ${x.action === "out" ? "<span style=\"color:var(--warn)\">86'd</span>" : "back in stock"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">Nothing 86'd yet.</p>`}
+    <p class="note">Last 100 changes. The log can't be edited or deleted.</p></details>`;
+}
+// Called by live.js whenever membership or any shared list changes. New things from other people pop up as a toast;
+// so do changes to your own things (a report signed off, a request ordered, an issue fixed).
+const told = new Set(), firstSnap = new Set();
+// Issues: being given one beats everything; on your own you hear when someone takes it on or fixes it; anyone else's
+// only pops up when it's urgent.
+const issueToast = (x) => (x.status === "taken" && x.whoUid === LIVE.uid && x.setByUid !== LIVE.uid ? `${x.setBy} gave you: ${x.title}`
+  : x.uid !== LIVE.uid ? (x.status === "open" && x.urgent ? `Urgent: ${x.title}` : "")
+  : x.status === "fixed" && x.fixedByUid !== LIVE.uid ? `${x.fixedBy} fixed: ${x.title}`
+  : x.status === "taken" && x.setByUid !== LIVE.uid ? `${x.who} is on it: ${x.title}` : "");
+const TOAST = {
+  feed: (x) => `${x.name}: ${x.text.slice(0, 70)}`,
+  notices: (x) => `Notice: ${x.text.slice(0, 70)}`,
+  reports: (x) => (x.signedBy ? "" : `${x.name} sent a shift report`),
+  requests: (x) => (LIVE.admin && !x.done ? `${x.name} needs: ${x.item}` : ""),
+  asks: (x) => (LIVE.admin && x.status === "pending" ? `${x.name}: ${askText(x)}` : ""),
+  incidents: (x) => (x.status !== "closed" ? `Incident logged: ${x.kind}` : ""),
+  reviews: (x) => `${x.name} ${x.verdict === "flag" ? "flagged" : x.verdict === "up" ? "gave a thumbs up to" : "commented on"} a report`,
+  ratings: (x) => (x.about === LIVE.uid ? "You have new anonymous feedback" : ""),
+  issues: issueToast,
+};
+const MINE = {
+  reports: (x) => (x.signedBy ? `${x.signedBy} signed off your shift report` : ""),
+  requests: (x) => (x.done ? `${x.doneBy} ordered ${x.item}` : ""),
+  asks: (x) => (x.status !== "pending" ? `${STATUS[x.status][0]} by ${x.by}: ${askText(x)}` : ""),
+  issues: issueToast,
+};
+function liveChanged(what) {
+  if (TOAST[what]) {
+    const first = !firstSnap.has(what); firstSnap.add(what);
+    for (const x of LIVE[what]) {
+      const k = what + x.id + (x.signedBy ? ":s" : "") + (x.done ? ":d" : "") + (x.status || "") + (x.whoUid || "");
+      if (x.pending || told.has(k)) continue; told.add(k);
+      if (first || !$("#v-notices").hidden) continue;
+      const msg = (x.uid === LIVE.uid ? MINE[what] : TOAST[what])?.(x);
+      if (msg) toast(msg);
+    }
+  }
+  renderBell(); renderNet();
+  if (what === "me" || what === "out") renderList();
+  if (!$("#v-notices").hidden) {
+    const R = { feed: [renderFeed], notices: [renderPins, renderDash], reports: [renderReports, renderMgrs, renderDash], outlog: [renderOutlog], staff: [renderStaff, renderMgrs, renderIssues], requests: [renderRequests, renderDash],
+      asks: [renderRequests, renderMe, renderMgrs, renderDash], incidents: [renderMgrs, renderDash], reviews: [renderReports, renderMgrs], ratings: [renderMgrs], issues: [renderIssues, renderDash], audit: [renderStaff],
+      out: [renderDash], ticks: [renderDash], photos: [] }[what];
+    const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
+    if (R) { R.filter((f) => !(f === renderIssues && typing($("#issues")))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
+  }
+  const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
+  if (["me", "out", "photos", "ticks", "requests"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
+}
+function markSeen() {
+  const all = [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].map((x) => ms(x.at));
+  if (all.length) { feedSeen = Math.max(feedSeen, ...all); store.set("feedSeen", feedSeen); }
+  renderBell();
+}
+const outBy = (n) => { const i = LIVE.outInfo.get(n); return i ? `${esc(i.name)}, ${when(i.at)}` : ""; };
+const val = (id) => $(id).value.trim();
+const busy = (b, label, p) => { b.disabled = true; const t = b.textContent; b.textContent = label; return p.finally(() => { b.disabled = false; b.textContent = t; }); };
+$("#v-notices").addEventListener("input", (e) => {
+  const t = e.target;
+  if (t.dataset.f) meF[t.dataset.f] = t.value;
+  if (t.dataset.rvt) rvText[t.dataset.rvt] = t.value;
+  if (t.dataset.fixt) fixText[t.dataset.fixt] = t.value;
+  if (t.dataset.inct) incText[t.dataset.inct] = t.value;
+  if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
+});
+$("#v-notices").addEventListener("change", (e) => {
+  const t = e.target;
+  if (t.dataset.f) meF[t.dataset.f] = t.value;
+  if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
+  if (t.id === "a-role") $("#a-pin").value = newPin(pinLen(t.value));
+  if (t.dataset.give && t.value) {
+    const p = LIVE.staff.find((x) => x.uid === t.value);
+    track(LIVE.api.take(t.dataset.give, p), `Given to ${p.name}`, "Not updated. It may have just been fixed");
+  }
+});
+$("#v-notices").addEventListener("toggle", (e) => { if (e.target.id === "is-form") isF.open = e.target.open; }, true);
+function sendMe(A) {
+  const f = meF, sent = () => { haptic(); Object.keys(meF).filter((k) => !k.startsWith("fb")).forEach((k) => (meF[k] = "")); renderMe(); };
+  if (meKind === "incident") {
+    if (!f.ikind || !f.itext.trim()) return toast("Pick what kind and say what happened");
+    track(A.incident(f.ikind, f.itext.trim()), "Sent to the managers", "Not sent. Try again"); return sent();
+  }
+  if (meKind === "late" && !f.eta) return toast("Pick when you'll arrive");
+  if (meKind === "off" && (!f.date1 || !f.date2 || f.date2 < f.date1)) return toast("Pick the first and last day off");
+  if (meKind === "swap" && (!f.date1 || !f.with.trim())) return toast("Pick the date and who you're swapping with");
+  if (meKind !== "late" && f.date1 < ukDay(Date.now() - 864e5)) return toast("That date has already gone");
+  if (meKind !== "late" && (f.date2 || f.date1) > ukDay(Date.now() + 365 * 864e5)) return toast("Pick a date in the next year");
+  track(A.ask({ kind: meKind, date1: f.date1, date2: f.date2, eta: f.eta, with: f.with.trim(), note: f.note.trim() }), "Sent to the managers", "Not sent. Try again");
+  sent();
+}
+$("#v-notices").addEventListener("click", (e) => {
+  const A = LIVE.api, b = e.target.closest("button");
+  if (!b) return;
+  if (b.dataset.go) return go(b.dataset.go);
+  if (b.dataset.mek) { meKind = b.dataset.mek; renderMe(); return; }
+  if (b.dataset.eta) { meF.eta = etaIn(+b.dataset.eta); renderMe(); return; }
+  if (b.id === "me-go") return sendMe(A);
+  if (b.dataset.askDel) { if (confirm("Cancel this request?")) track(A.cancelAsk(b.dataset.askDel), null, "Could not cancel. It may have just been decided"); return; }
+  if (b.dataset.decide) { track(A.decide(b.dataset.decide, b.dataset.to), null, "Could not update. It may have been decided already"); haptic(); return; }
+  if (b.dataset.rv) {
+    const id = b.dataset.rv, v = b.dataset.v, text = (rvText[id] || "").trim();
+    if (v !== "up" && !text) return toast(v === "flag" ? "Say what's wrong in the comment box, then flag it" : "Write the note in the comment box first");
+    track(A.review(id, v, text), null, "Not saved. Try again");
+    rvText[id] = ""; haptic(); renderReports(); return;
+  }
+  if (b.dataset.score) { meF.fbScore = b.dataset.score; renderMgrs(); return; }
+  if (b.id === "fb-go") {
+    const p = LIVE.staff.find((x) => x.uid === meF.fbWho);
+    if (!p || !meF.fbScore) return toast("Pick a manager and a rating");
+    if (meF.fbScore === "Needs improvement" && !meF.fbText.trim()) return toast("Say what needs to improve");
+    track(A.rate(p, meF.fbScore, meF.fbText.trim()), "Sent anonymously", "Not sent. Try again");
+    meF.fbWho = meF.fbScore = meF.fbText = ""; haptic(); renderMgrs(); return;
+  }
+  if (b.dataset.incClose) {
+    const id = b.dataset.incClose, outcome = (incText[id] || "").trim();
+    if (!outcome) return toast("Say what was done about it first");
+    track(A.closeIncident(id, outcome), "Incident closed", "Not closed. Someone may have just closed it");
+    incText[id] = ""; haptic(); return;
+  }
+  if (b.id === "is-go") {
+    if (!isF.title.trim() || !isF.area) return toast("Say what it is and where");
+    track(A.raise({ title: isF.title.trim(), detail: isF.detail.trim(), area: isF.area, urgent: !!isF.urgent, again: isF.again }), "Issue raised", "Not raised. Try again");
+    Object.assign(isF, { title: "", detail: "", area: "", urgent: false, again: null, open: false }); haptic(); renderIssues(); return;
+  }
+  if (b.id === "is-clear") { Object.assign(isF, { title: "", detail: "", area: "", urgent: false, again: null }); renderIssues(); return; }
+  if (b.dataset.take) { track(A.take(b.dataset.take, { uid: LIVE.uid, name: LIVE.me }), null, "Not updated. It may have just been fixed"); haptic(); return; }
+  if (b.dataset.fix) {
+    const id = b.dataset.fix, text = (fixText[id] || "").trim();
+    if (!text) return toast("Say what was done to fix it first");
+    track(A.fixed(id, text), "Marked fixed", "Not saved. Someone may have just fixed it");
+    fixText[id] = ""; haptic(); return;
+  }
+  if (b.dataset.withdraw) { if (confirm("Withdraw this issue?")) track(A.withdrawIssue(b.dataset.withdraw), null, "Could not withdraw. Someone has taken it on"); return; }
+  if (b.dataset.again) {
+    const x = LIVE.issues.find((i) => i.id === b.dataset.again);
+    Object.assign(isF, { title: x.title, detail: "", area: x.area, urgent: false, again: x.id, open: true }); renderIssues();
+    $("#is-form").scrollIntoView({ block: "start" }); return;
+  }
+  if (b.dataset.tpane) { tpane = b.dataset.tpane; renderTeamTabs(); window.scrollTo(0, 0); return; }
+  const person = (id) => LIVE.staff.find((p) => p.uid === id);
+  if (b.id === "l-go") {
+    const u = val("#l-user").toLowerCase(), pin = val("#l-pin");
+    if (!u || !pin) return toast("Add your username and PIN");
+    busy(b, "Logging in…", A.login(u, pin).then(() => { toast("Logged in"); }).catch((x) => toast(/^(Wrong|Too many)/.test(x.message) ? x.message : "Could not log in. Check your signal")));
+  } else if (b.id === "s-go") {
+    const name = val("#s-name"), u = val("#s-user").toLowerCase(), pin = val("#s-pin"), code = val("#s-code");
+    if (!name || !A.USER.test(u) || !A.PIN.test(pin) || pin.length < A.BOSS_PIN) return toast(`Fill in every box. Username: lower case letters and numbers. PIN: ${A.BOSS_PIN} to 12 digits`);
+    if (code.length < A.CODE_MIN) return toast(`The setup code is at least ${A.CODE_MIN} characters`);
+    busy(b, "Creating…", A.setup(name, u, pin, code).then(() => toast("Owner account created")).catch((x) => toast(x.message)));
+  } else if (b.id === "l-out") {
+    if (confirm("Log out on this phone? This also clears the team's data saved on it.")) A.logout();
+  } else if (b.id === "l-chg") {
+    const min = LIVE.admin ? A.BOSS_PIN : 6, pin = (prompt(`New PIN (${min} to 12 digits)`) || "").trim(); if (!pin) return;
+    if (!A.PIN.test(pin) || pin.length < min) return toast(`The PIN must be ${min} to 12 digits`);
+    A.changePin(pin).then(() => toast("PIN changed")).catch(() => toast("Log out and back in, then try again"));
+  } else if (b.id === "c-post") {
+    const t = val("#c-text"); if (!t) return;
+    track(A.post(t), null, "Post not sent. Try again"); $("#c-text").value = ""; haptic();
+  } else if (b.id === "a-go") {
+    const name = val("#a-name"), u = val("#a-user").toLowerCase(), pin = val("#a-pin"), role = LIVE.owner ? $("#a-role").value : "staff";
+    if (!name || !A.USER.test(u) || !A.PIN.test(pin)) return toast("Fill in every box. Username: lower case letters and numbers. PIN: 6 to 12 digits");
+    if (pin.length < pinLen(role)) return toast(`A manager's PIN needs at least ${A.BOSS_PIN} digits`);
+    busy(b, "Adding…", A.addPerson(name, u, pin, role).then(() => {
+      staffMsg = `Added ${esc(name)}. Tell them: username <b>${esc(u)}</b>, PIN <b>${pin}</b>. The PIN isn't shown again.`;
+      renderTeamTop();
+    }).catch((x) => toast(x.message === "That username is taken" ? x.message : "Could not add them. Check your signal")));
+  } else if (b.dataset.reset) {
+    const p = person(b.dataset.reset), pin = newPin(pinLen(p.role));
+    if (!confirm(`Give ${p.name} a new PIN? Their old one stops working.`)) return;
+    busy(b, "…", A.resetPin(p, pin).then(() => { staffMsg = `New PIN for ${esc(p.name)} (${esc(p.username)}): <b>${pin}</b>. It isn't shown again.`; renderStaff(); }).catch(() => toast("Could not reset. Check your signal")));
+  } else if (b.dataset.remove) {
+    const p = person(b.dataset.remove);
+    if (!confirm(`Remove ${p.name}? They're logged out straight away. What they wrote keeps their name.`)) return;
+    A.remove(p).then(() => { staffMsg = `${esc(p.name)} removed.`; renderStaff(); }).catch(() => toast("Could not remove. Check your signal"));
+  } else if (b.dataset.role) {
+    const p = person(b.dataset.role), up = p.role === "staff", w = A.setRole(p, up ? "manager" : "staff");
+    track(w, null, "Could not change the role");
+    w.then(() => { staffMsg = up ? `${esc(p.name)} is now a manager. Managers need a PIN of at least ${A.BOSS_PIN} digits, so tap Reset PIN to give them one.` : `${esc(p.name)} is now staff.`; renderStaff(); }, () => {});
+  } else if (b.id === "p-go") {
+    const t = val("#p-text"); if (!t) return;
+    track(A.pin(t), "Notice pinned for everyone", "Notice not pinned. Try again"); $("#p-text").value = ""; haptic();
+  } else if (b.dataset.unpin) {
+    if (confirm("Remove this notice for everyone?")) track(A.unpin(b.dataset.unpin), null, "Could not remove");
+  } else if (b.dataset.ordered) {
+    track(A.markOrdered(b.dataset.ordered), null, "Could not update. It may be marked ordered already"); haptic();
+  } else if (b.dataset.rqDrop) {
+    if (confirm("Turn this request down? It's deleted for everyone.")) track(A.cancelRequest(b.dataset.rqDrop), null, "Could not delete. It may have been ordered");
+  } else if (b.dataset.photos) {
+    b.disabled = true; b.textContent = "Loading photos…";
+    showPhotos(b.dataset.photos).catch(() => { toast("Couldn't load the photos"); b.disabled = false; });
+  } else if (b.dataset.del) {
+    if (confirm("Delete this post for everyone?")) track(A.removePost(b.dataset.del), null, "Could not delete");
+  } else if (b.dataset.sign) {
+    track(A.signOff(b.dataset.sign), null, "Could not sign off. Someone may have just signed it"); haptic();
+  }
+});
+function renderNotices() {
+  renderTeamTop(); markSeen();
+  $("#notices").innerHTML = (LIVE.me && notices.length ? `<div class="sec">Notices</div>` : "") + (notices.length ? notices.map((x) => `<article class="notice${seen.has(x.key) ? "" : " new"}">${x.lines.map((l, i) => /^86\s*:/i.test(l) ? `<p class="n86">86'd: ${esc(l.replace(/^86\s*:/i, "").trim())}</p>` : i === 0 ? `<h3>${esc(l)}</h3>` : `<p>${esc(l)}</p>`).join("")}</article>`).join("") : LIVE.me ? "" : `<p class="note">No notices right now.</p>`);
+  notices.forEach((x) => seen.add(x.key)); store.set("seen", [...seen].slice(-200)); renderBell();
+}
+async function loadNotices() {
+  try {
+    const r = await fetch("notices.txt", { cache: "no-store" });
+    if (!r.ok) return;
+    const before = notices.filter((x) => !seen.has(x.key)).length;
+    notices = parseNotices(await r.text());
+    renderBell(); renderList();
+    const now = notices.filter((x) => !seen.has(x.key)).length;
+    if (now > before && before >= 0 && loadNotices.done) toast(`${now} new notice${now > 1 ? "s" : ""}`);
+    loadNotices.done = true;
+    if (!$("#v-notices").hidden) renderNotices();
+  } catch {}
+}
+$("#bell").addEventListener("click", () => show("notices"));
+document.addEventListener("visibilitychange", () => { if (!document.hidden) loadNotices(); });
+setInterval(loadNotices, 5 * 60 * 1000);
+
+const TABS = ["drinks", "allergens", "practice", "tally", "info", "notices"];
+function show(tab) {
+  if (!TABS.includes(tab)) tab = "drinks";
+  TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
+  document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
+  $("#hdr").hidden = tab !== "drinks";
+  if (tab === "allergens") renderAllergens();
+  if (tab === "practice" && !pDrink) nextCard();
+  if (tab === "tally") renderTally();
+  if (tab === "info") renderInfo();
+  if (tab === "notices") renderNotices();
+  store.set("tab", tab); window.scrollTo(0, 0);
+}
+document.querySelector("nav.tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
+
+if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
+  navigator.serviceWorker.register("sw.js").catch(() => {});
+  navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { if (hit) $("#offl").textContent = "Offline ready ✓"; }).catch(() => {});
+}
+loadNotices();
+const tick = () => { const d = new Date(); $("#clock").textContent = hhmm(d); $("#today").textContent = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); };
+tick(); setInterval(tick, 10000);
+renderChips(); renderList();
+{
+  const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
+  w.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-start]"); if (!b) return;
+    haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
+    setMode(b.dataset.start);
+    if (mode === "floor") show("tally");
+  });
+}
+show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
+</script>

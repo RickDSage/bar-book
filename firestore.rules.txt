@@ -1,210 +1,338 @@
 rules_version = '2';
-// Black Tap Bar Book live team feed.
-// Access comes from a staff/{uid} document. Roles: owner (Derek, one account), manager, staff.
-// The owner manages everyone; managers can add, reset and remove staff only.
-// config/pins.setup is a one-off code for creating the owner account. Nobody can read config; only these rules can.
+// Black Tap Bar Book: Firestore security rules, version 2.
+//
+// Identity is the signed-in Firebase Auth uid. Membership is a staff/{uid} record with a role:
+// owner (one account, claimed once through config/owner), manager, or staff. Removing that record removes
+// all access. Names on records are display snapshots; the uid fields are what these rules check.
+//
+// Anything not matched below is denied, including every collection that isn't listed.
+//
+// Batched writes are kept to 20 document lookups or fewer even if Firestore caches nothing between the
+// writes in a batch (the documented limit). The heaviest is a PIN reset at 15.
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // ---------- Who is asking ----------
     function signedIn() { return request.auth != null; }
-    function me() { return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data; }
-    function isMember() { return signedIn() && exists(/databases/$(database)/documents/staff/$(request.auth.uid)); }
-    function isManager() { return isMember() && me().role in ['manager', 'owner']; }
-    function isOwner() { return isMember() && me().role == 'owner'; }
-    function roleOf(uid) { return get(/databases/$(database)/documents/staff/$(uid)).data.role; }
-    function roleAfter(uid) { return getAfter(/databases/$(database)/documents/staff/$(uid)).data.role; }
-    function text(s, max) { return s is string && s.size() > 0 && s.size() <= max; }
-    function tickList(k) { return request.resource.data.get(k, []) is list && request.resource.data.get(k, []).size() <= 60; }
+    function staffDoc(uid) { return /databases/$(database)/documents/staff/$(uid); }
+    function nameDoc(username) { return /databases/$(database)/documents/usernames/$(username); }
+    function ownerDoc() { return /databases/$(database)/documents/config/owner; }
+    function auditDoc(id) { return /databases/$(database)/documents/audit/$(id); }
+    // The caller's staff record, or null when they aren't on the team.
+    function profile() { return get(staffDoc(request.auth.uid)); }
+    function isMember() { return signedIn() && profile() != null; }
+    function isManager() { return isMember() && profile().data.role in ['manager', 'owner']; }
+    function isOwner() { return isMember() && profile().data.role == 'owner'; }
+    // True unless uid belongs to the owner. Someone who has left counts as not the owner.
+    function notOwner(uid) { let p = get(staffDoc(uid)); return p == null || p.data.role != 'owner'; }
+
+    // ---------- Field checks ----------
+    function incoming() { return request.resource.data; }
+    function exactly(keys) { return incoming().keys().hasAll(keys) && incoming().keys().hasOnly(keys); }
+    function changesOnly(keys) { return incoming().diff(resource.data).affectedKeys().hasOnly(keys); }
+    // Required text needs something besides spaces. Optional text may be empty.
+    function reqText(s, max) { return s is string && s.trim().size() > 0 && s.size() <= max; }
+    function optText(s, max) { return s is string && s.size() <= max; }
+    // timestamp.date() refuses impossible dates such as 2026-02-31, so this also checks the date is real.
+    function dayOf(s) { return timestamp.date(int(s[0:4]), int(s[5:7]), int(s[8:10])); }
+    function isDay(s) { return s is string && s.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}'); }
+    function isTime(s) { return s is string && s.matches('([01][0-9]|2[0-3]):[0-5][0-9]'); }
+    // Written by the caller: their uid, their name as it is on their staff record, and the server's clock.
+    function stamped() {
+      return incoming().uid == request.auth.uid && incoming().name == profile().data.name && incoming().at == request.time;
+    }
+    // The same for a change, under that change's own field names.
+    function signedAs(nameKey, uidKey, atKey) {
+      return incoming()[nameKey] == profile().data.name && incoming()[uidKey] == request.auth.uid && incoming()[atKey] == request.time;
+    }
+    // Lower case, with every run of other characters turned into one dash. The app does exactly the same.
+    function slug(s) { return s.lower().replace('[^a-z0-9]+', '-'); }
+    function autoId(s) { return s is string && s.matches('[A-Za-z0-9]{20}'); }
+
+    // ---------- Owner setup ----------
+    // config/pins {setup} is made by hand in the Firebase console just before first-time setup. No app can read it.
+    // Setup is one batch: config/owner {uid, proof}, the owner's staff and username records, an audit entry and
+    // the deletion of config/pins. config/owner can never be changed or deleted, so only one owner can ever be
+    // claimed, even if two phones try at once, and the setup code is dead the moment setup succeeds.
+    match /config/{id} {
+      allow read, update: if false;
+      allow create: if id == 'owner' && signedIn() && exactly(['uid', 'proof'])
+        && incoming().uid == request.auth.uid
+        && incoming().proof is string && incoming().proof.size() >= 16
+        && incoming().proof == get(/databases/$(database)/documents/config/pins).data.setup
+        && getAfter(/databases/$(database)/documents/config/pins) == null
+        && getAfter(staffDoc(request.auth.uid)).data.role == 'owner';
+      allow delete: if id == 'pins' && signedIn() && getAfter(ownerDoc()).data.uid == request.auth.uid;
+    }
+
+    // ---------- Team accounts ----------
+    // An account is three things kept in step by one batched write each time: the Firebase Auth login,
+    // staff/{uid} (membership and role) and usernames/{username} (the login lookup). Every add, PIN reset
+    // and removal also writes an audit entry, which these rules require.
     function validStaff() {
-      let d = request.resource.data;
-      return d.keys().hasOnly(['name', 'username', 'role', 'setup']) && text(d.name, 40)
-        && d.username is string && d.username.matches('^[a-z0-9.]{2,20}$') && d.role in ['staff', 'manager', 'owner'];
+      return exactly(['name', 'username', 'role']) && reqText(incoming().name, 40)
+        && incoming().username is string && incoming().username.matches('[a-z0-9.]{2,20}')
+        && incoming().role in ['staff', 'manager', 'owner'];
     }
-
-    // The owner's app deletes the setup code straight after first-time setup, so a second owner can never be made.
-    match /config/{id} { allow read, create, update: if false; allow delete: if isOwner(); }
-
-    // Login looks up a username before signing in, so single lookups are public. Listing is not.
-    // Managers can only point usernames at staff accounts (adding and PIN resets).
-    match /usernames/{username} {
-      allow get: if true;
-      allow create, update: if username.matches('^[a-z0-9.]{2,20}$')
-        && request.resource.data.keys().hasOnly(['email', 'uid']) && request.resource.data.email is string && request.resource.data.uid is string
-        && (isOwner() || (isManager() && roleAfter(request.resource.data.uid) == 'staff'
-              && (resource == null || roleOf(resource.data.uid) == 'staff')));
-      allow delete: if isOwner() || (isManager() && roleOf(resource.data.uid) == 'staff');
-    }
-
     match /staff/{uid} {
       allow get: if signedIn() && (request.auth.uid == uid || isManager());
       allow list: if isManager();
-      allow create: if validStaff() && (
-        (isOwner() && request.resource.data.role in ['staff', 'manager'])
-        || (isManager() && request.resource.data.role == 'staff')
-        || (request.auth.uid == uid && request.resource.data.role == 'owner'
-            && request.resource.data.setup == get(/databases/$(database)/documents/config/pins).data.setup));
-      // Only the owner changes roles, and never their own.
-      allow update: if isOwner() && validStaff() && request.auth.uid != uid
-        && resource.data.role != 'owner' && request.resource.data.role in ['staff', 'manager'];
+      allow create: if validStaff()
+        && getAfter(nameDoc(incoming().username)).data.uid == uid
+        && existsAfter(auditDoc(uid + '-in'))
+        && ((isOwner() && incoming().role in ['staff', 'manager'])
+          || (isManager() && incoming().role == 'staff')
+          // First-time setup: the owner's own record, in the same write that claims config/owner.
+          || (request.auth.uid == uid && incoming().role == 'owner' && getAfter(ownerDoc()).data.uid == uid));
+      // Only the owner changes a role, never their own, and never to or from owner.
+      allow update: if isOwner() && request.auth.uid != uid && changesOnly(['role'])
+        && resource.data.role in ['staff', 'manager'] && incoming().role in ['staff', 'manager'];
+      // Managers remove staff; the owner removes staff and managers; nobody removes the owner or themselves.
+      // The username goes too, or moves to the new account on a PIN reset, in the same write.
       allow delete: if request.auth.uid != uid && resource.data.role != 'owner'
-        && (isOwner() || (isManager() && resource.data.role == 'staff'));
+        && (isOwner() || (isManager() && resource.data.role == 'staff'))
+        && (getAfter(nameDoc(resource.data.username)) == null || getAfter(nameDoc(resource.data.username)).data.uid != uid)
+        && existsAfter(auditDoc(uid + '-out'));
     }
 
+    // Login looks up a username before signing in, so a single lookup is public. Listing them is not.
+    // A record holds the account's made-up sign-in address (never a real email) and its uid.
+    function validLogin(username) {
+      return username.matches('[a-z0-9.]{2,20}') && exactly(['email', 'uid'])
+        && incoming().email is string && incoming().email.matches('[a-z0-9.]{2,20}-[a-z0-9]{6,12}@users[.]example[.]com')
+        && incoming().uid is string
+        && getAfter(staffDoc(incoming().uid)).data.username == username;
+    }
+    match /usernames/{username} {
+      allow get: if true;
+      allow create: if validLogin(username)
+        && (isOwner()
+          || (isManager() && getAfter(staffDoc(incoming().uid)).data.role == 'staff')
+          || (incoming().uid == request.auth.uid && getAfter(staffDoc(request.auth.uid)).data.role == 'owner'
+              && getAfter(ownerDoc()).data.uid == request.auth.uid));
+      // PIN reset: the username moves to a new account and the old account is removed in the same write.
+      allow update: if validLogin(username) && getAfter(staffDoc(resource.data.uid)) == null
+        && (isOwner() || (isManager() && getAfter(staffDoc(incoming().uid)).data.role == 'staff'));
+      // Removal: the account goes in the same write. The staff rules decide who may remove whom.
+      allow delete: if isManager() && getAfter(staffDoc(resource.data.uid)) == null;
+    }
+
+    // ---------- Audit of account changes ----------
+    // {uid}-in when an account joins (setup, add, PIN reset), {uid}-out when it leaves (removal, PIN reset),
+    // and an automatic ID for a role change. Each entry must match a change made in the same write.
+    // Nobody can edit or delete an entry.
+    function joins(t) { return get(staffDoc(t)) == null && getAfter(staffDoc(t)) != null; }
+    function leaves(t) { return get(staffDoc(t)) != null && getAfter(staffDoc(t)) == null; }
+    function describes(s) {
+      return incoming().targetName == s.name && incoming().username == s.username && incoming().role == s.role;
+    }
+    match /audit/{id} {
+      allow read: if isManager();
+      allow create: if signedIn()
+        && exactly(['action', 'target', 'targetName', 'username', 'role', 'uid', 'name', 'at'])
+        && incoming().target is string && incoming().uid == request.auth.uid && incoming().at == request.time
+        // Read after the write, so this also covers the owner's first-time setup.
+        && getAfter(staffDoc(request.auth.uid)).data.role in ['manager', 'owner']
+        && incoming().name == getAfter(staffDoc(request.auth.uid)).data.name
+        && ((id == incoming().target + '-in' && joins(incoming().target) && describes(getAfter(staffDoc(incoming().target)).data)
+              && incoming().action in (incoming().role == 'owner' ? ['setup'] : ['add', 'reset']))
+          || (id == incoming().target + '-out' && leaves(incoming().target) && describes(get(staffDoc(incoming().target)).data)
+              && incoming().action in ['remove', 'reset'])
+          || (incoming().action == 'role' && autoId(id) && get(staffDoc(incoming().target)) != null
+              && get(staffDoc(incoming().target)).data.role != getAfter(staffDoc(incoming().target)).data.role
+              && describes(getAfter(staffDoc(incoming().target)).data)));
+    }
+
+    // ---------- Team board and notices ----------
     match /feed/{id} {
       allow read: if isMember();
-      allow create: if isMember()
-        && request.resource.data.keys().hasOnly(['kind', 'text', 'uid', 'name', 'at'])
-        && request.resource.data.kind == 'comment'
-        && text(request.resource.data.text, 2000)
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.name == me().name
-        && request.resource.data.at == request.time;
-      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
+      allow create: if isMember() && exactly(['kind', 'text', 'uid', 'name', 'at'])
+        && incoming().kind == 'comment' && reqText(incoming().text, 2000) && stamped();
+      // The author or a manager can take a post down. Only the owner takes down the owner's posts.
+      allow delete: if isMember() && (resource.data.uid == request.auth.uid || isOwner()
+        || (isManager() && notOwner(resource.data.uid)));
     }
-
-    // Pinned notices: managers write and remove them, everyone reads.
+    // Notices can't be edited: pin a new one and remove the old.
     match /notices/{id} {
       allow read: if isMember();
-      allow create: if isManager()
-        && request.resource.data.keys().hasOnly(['text', 'uid', 'name', 'at'])
-        && text(request.resource.data.text, 1000)
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.name == me().name
-        && request.resource.data.at == request.time;
-      allow delete: if isManager();
+      allow create: if isManager() && exactly(['text', 'uid', 'name', 'at']) && reqText(incoming().text, 1000) && stamped();
+      allow delete: if isOwner() || (isManager() && notOwner(resource.data.uid));
     }
 
+    // ---------- Shift reports and closing photos ----------
+    // A report is sent once, with its photos attached in the same write, then signed off once by a manager.
+    // Nobody can edit or delete a report from the app.
     match /reports/{id} {
       allow read: if isMember();
-      allow create: if isMember()
-        && request.resource.data.keys().hasOnly(['text', 'summary', 'photos', 'uid', 'name', 'at'])
-        && text(request.resource.data.text, 4000)
-        && text(request.resource.data.summary, 200)
-        && request.resource.data.photos is int
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.name == me().name
-        && request.resource.data.at == request.time;
-      // Managers sign off a shift report once.
+      allow create: if isMember() && exactly(['side', 'text', 'summary', 'photos', 'uid', 'name', 'at'])
+        && incoming().side in ['bar', 'floor']
+        && reqText(incoming().text, 8000) && reqText(incoming().summary, 200)
+        && incoming().photos is int && incoming().photos >= 0 && incoming().photos <= 8
+        && stamped();
       allow update: if isManager() && !('signedBy' in resource.data)
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['signedBy', 'signedAt'])
-        && request.resource.data.signedBy == me().name
-        && request.resource.data.signedAt == request.time;
-      allow delete: if isManager();
+        && changesOnly(['signedBy', 'signedByUid', 'signedAt']) && signedAs('signedBy', 'signedByUid', 'signedAt');
     }
-
-    // Closing photos: a compressed JPEG each, attached to a shift report when it is sent.
+    function reportDoc(id) { return /databases/$(database)/documents/reports/$(id); }
     match /photos/{id} {
-      allow read: if isMember();
-      allow create: if isMember()
-        && request.resource.data.keys().hasOnly(['data', 'note', 'report', 'uid', 'name', 'at'])
-        && request.resource.data.data is string && request.resource.data.data.size() < 1000000
-        && request.resource.data.data.matches('data:image/jpeg;base64,.*')
-        && request.resource.data.note == '' && request.resource.data.report == null
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.name == me().name
-        && request.resource.data.at == request.time;
-      // The person who took it can edit the note, or attach it to their report, until the report is sent.
+      // Your own drafts, photos on a sent report, and (for the 30-day clear-out) managers see everything.
+      allow read: if isManager() || (isMember() && (resource.data.uid == request.auth.uid || resource.data.report != null));
+      allow create: if isMember() && exactly(['data', 'note', 'report', 'uid', 'name', 'at'])
+        && incoming().data is string && incoming().data.size() <= 700000
+        && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+')
+        && incoming().note == '' && incoming().report == null && stamped();
+      // Until it's sent, the person who took it can change the note. It is attached only inside the write that
+      // creates their report (the report's time is this request's time), so it can't move onto an older report.
       allow update: if isMember() && resource.data.uid == request.auth.uid && resource.data.report == null
-        && ((request.resource.data.diff(resource.data).affectedKeys().hasOnly(['note']) && request.resource.data.note is string && request.resource.data.note.size() <= 300)
-          || (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['report']) && request.resource.data.report is string
-            && getAfter(/databases/$(database)/documents/reports/$(request.resource.data.report)).data.uid == request.auth.uid));
-      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid && resource.data.report == null);
+        && ((changesOnly(['note']) && optText(incoming().note, 300))
+          || (changesOnly(['report']) && autoId(incoming().report)
+              && getAfter(reportDoc(incoming().report)).data.uid == request.auth.uid
+              && getAfter(reportDoc(incoming().report)).data.at == request.time));
+      // Drafts can be binned by whoever took them. Anything over 30 days old is cleared by a manager's app.
+      allow delete: if isMember() && ((resource.data.uid == request.auth.uid && resource.data.report == null)
+        || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
     }
 
-    // Tonight's shared checklist ticks, one document per business day.
-    match /shift/{day} {
+    // ---------- Tonight's checklists ----------
+    // One small record per ticked item, so ticks from different phones never overwrite each other.
+    // {day} is the business day (YYYY-MM-DD, rolling over at 6am UK time). Writes are only accepted within
+    // a day or two of it, which allows for a phone that was offline and syncs late.
+    function nearNow(day) {
+      return isDay(day) && dayOf(day) > request.time - duration.value(2, 'd') && dayOf(day) < request.time + duration.value(1, 'd');
+    }
+    match /shift/{day}/ticks/{id} {
       allow read: if isMember();
-      allow create, update: if isMember() && request.resource.data.keys().hasOnly(['open', 'close', 'fset', 'fshake', 'fclose'])
-        && tickList('open') && tickList('close') && tickList('fset') && tickList('fshake') && tickList('fclose');
+      allow create: if isMember() && nearNow(day) && exactly(['list', 'item', 'uid', 'name', 'at'])
+        && incoming().list in ['open', 'close', 'fset', 'fshake', 'fclose']
+        && incoming().item is int && incoming().item >= 0 && incoming().item < 60
+        && id == incoming().list + '-' + string(incoming().item) && stamped();
+      // Untick your own. Managers can clear anyone's.
+      allow delete: if isMember() && (resource.data.uid == request.auth.uid || isManager());
     }
 
-    // Stock requests: anyone on the team asks, managers mark them ordered.
+    // ---------- 86 board ----------
+    // out/{item} is what's off tonight and outlog is its history. Each change writes both in one batch and the
+    // rules check they match: an 86 creates out/{item} pointing at its new log entry; back in stock deletes it
+    // and adds the entry {that log id}-back. So the board and its history can't drift apart, the same item
+    // can't be 86'd twice, and nothing comes back that wasn't out. Log entries can never be edited or deleted.
+    function outDoc(item) { return /databases/$(database)/documents/out/$(item); }
+    function logDoc(id) { return /databases/$(database)/documents/outlog/$(id); }
+    match /out/{item} {
+      allow read: if isMember();
+      allow create: if isMember() && exactly(['itemName', 'log', 'uid', 'name', 'at'])
+        && reqText(incoming().itemName, 80) && slug(incoming().itemName) == item && autoId(incoming().log)
+        && getAfter(logDoc(incoming().log)).data.action == 'out' && getAfter(logDoc(incoming().log)).data.item == item
+        && stamped();
+      allow delete: if isMember() && existsAfter(logDoc(resource.data.log + '-back'));
+    }
+    match /outlog/{id} {
+      allow read: if isManager();
+      allow create: if isMember() && exactly(['item', 'itemName', 'action', 'uid', 'name', 'at']) && stamped()
+        && reqText(incoming().itemName, 80) && incoming().item == slug(incoming().itemName)
+        && ((incoming().action == 'out' && getAfter(outDoc(incoming().item)).data.log == id)
+          || (incoming().action == 'back' && get(outDoc(incoming().item)).data.log + '-back' == id
+              && getAfter(outDoc(incoming().item)) == null));
+    }
+
+    // ---------- Stock requests ----------
     match /requests/{id} {
       allow read: if isMember();
-      allow create: if isMember()
-        && request.resource.data.keys().hasOnly(['item', 'note', 'done', 'uid', 'name', 'at'])
-        && text(request.resource.data.item, 200)
-        && request.resource.data.note is string && request.resource.data.note.size() <= 200
-        && request.resource.data.done == false
-        && request.resource.data.uid == request.auth.uid
-        && request.resource.data.name == me().name
-        && request.resource.data.at == request.time;
+      allow create: if isMember() && exactly(['item', 'note', 'done', 'uid', 'name', 'at'])
+        && reqText(incoming().item, 200) && optText(incoming().note, 200) && incoming().done == false && stamped();
+      // A manager marks it ordered, once. What was asked for never changes.
       allow update: if isManager() && resource.data.done == false
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['done', 'doneBy', 'doneAt'])
-        && request.resource.data.done == true
-        && request.resource.data.doneBy == me().name
-        && request.resource.data.doneAt == request.time;
-      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid && resource.data.done == false);
+        && changesOnly(['done', 'doneBy', 'doneByUid', 'doneAt']) && incoming().done == true
+        && signedAs('doneBy', 'doneByUid', 'doneAt');
+      // Until it's ordered, the person who asked can cancel it and a manager can turn it down.
+      allow delete: if isMember() && resource.data.done == false && (resource.data.uid == request.auth.uid || isManager());
     }
 
-    function str(s, max) { return s is string && s.size() <= max; }
-    function stamped() {
-      return request.resource.data.uid == request.auth.uid && request.resource.data.name == me().name && request.resource.data.at == request.time;
+    // ---------- Running late, time off and shift swaps ----------
+    // A real date from yesterday to about a year ahead.
+    function soonDay(s) {
+      return isDay(s) && dayOf(s) > request.time - duration.value(2, 'd') && dayOf(s) < request.time + duration.value(400, 'd');
     }
-
-    // Running late, time off and shift swaps. Staff see their own; managers see and decide all of them.
+    function validAsk() {
+      let a = incoming();
+      let base = ['kind', 'note', 'status', 'uid', 'name', 'at'];
+      return a.status == 'pending' && optText(a.note, 300) && stamped()
+        && ((a.kind == 'late' && exactly(base.concat(['eta'])) && isTime(a.eta))
+          || (a.kind == 'off' && exactly(base.concat(['date1', 'date2'])) && soonDay(a.date1) && soonDay(a.date2) && a.date2 >= a.date1)
+          || (a.kind == 'swap' && exactly(base.concat(['date1', 'with'])) && soonDay(a.date1) && reqText(a.with, 40)));
+    }
     match /asks/{id} {
       allow read: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
-      allow create: if isMember() && stamped()
-        && request.resource.data.keys().hasOnly(['kind', 'date1', 'date2', 'eta', 'with', 'note', 'status', 'uid', 'name', 'at'])
-        && request.resource.data.kind in ['late', 'off', 'swap'] && request.resource.data.status == 'pending'
-        && str(request.resource.data.date1, 10) && str(request.resource.data.date2, 10) && str(request.resource.data.eta, 5)
-        && str(request.resource.data.with, 40) && str(request.resource.data.note, 300);
-      allow update: if isManager() && resource.data.status == 'pending'
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'by', 'byAt'])
-        && request.resource.data.status in ['approved', 'declined', 'seen']
-        && request.resource.data.by == me().name && request.resource.data.byAt == request.time;
-      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid && resource.data.status == 'pending');
+      allow create: if isMember() && validAsk();
+      // Seen means a manager has read it, and it can still be approved or declined afterwards.
+      // Approved and declined are final. Managers don't decide their own; the owner can decide any.
+      allow update: if isManager() && (resource.data.uid != request.auth.uid || isOwner())
+        && changesOnly(['status', 'by', 'byUid', 'byAt']) && signedAs('by', 'byUid', 'byAt')
+        && ((resource.data.status == 'pending' && incoming().status in ['seen', 'approved', 'declined'])
+          || (resource.data.status == 'seen' && incoming().status in ['approved', 'declined']));
+      // The person who asked can withdraw it until it's decided. The owner can delete any.
+      allow delete: if isOwner() || (isMember() && resource.data.uid == request.auth.uid && resource.data.status in ['pending', 'seen']);
     }
 
-    // Incident log: anyone can log one, managers read them, only the owner can delete one.
+    // ---------- Incidents ----------
+    // Anyone on the team logs one; only managers read them. A manager closes it once, saying what was done.
+    // The original account can't be edited. Only the owner can delete one.
     match /incidents/{id} {
       allow read: if isManager();
-      allow create: if isMember() && stamped()
-        && request.resource.data.keys().hasOnly(['kind', 'text', 'uid', 'name', 'at'])
-        && text(request.resource.data.kind, 40) && text(request.resource.data.text, 1000);
+      allow create: if isMember() && exactly(['kind', 'text', 'status', 'uid', 'name', 'at'])
+        && reqText(incoming().kind, 40) && reqText(incoming().text, 1000) && incoming().status == 'open' && stamped();
+      allow update: if isManager() && resource.data.status == 'open'
+        && changesOnly(['status', 'outcome', 'closedBy', 'closedByUid', 'closedAt'])
+        && incoming().status == 'closed' && reqText(incoming().outcome, 500)
+        && signedAs('closedBy', 'closedByUid', 'closedAt');
       allow delete: if isOwner();
     }
 
-    // Managers' thumbs up, flags and comments on shift reports.
+    // ---------- Managers' reviews of shift reports ----------
+    // A thumbs up can stand alone; a flag or a comment must say something. Reviews can't be edited.
     match /reviews/{id} {
       allow read: if isManager();
-      allow create: if isManager() && stamped()
-        && request.resource.data.keys().hasOnly(['report', 'verdict', 'text', 'uid', 'name', 'at'])
-        && request.resource.data.verdict in ['up', 'flag', 'note'] && str(request.resource.data.report, 40)
-        && str(request.resource.data.text, 500);
+      allow create: if isManager() && exactly(['report', 'verdict', 'text', 'uid', 'name', 'at']) && stamped()
+        && autoId(incoming().report) && exists(reportDoc(incoming().report))
+        && ((incoming().verdict == 'up' && optText(incoming().text, 500))
+          || (incoming().verdict in ['flag', 'note'] && reqText(incoming().text, 500)));
       allow delete: if isOwner() || (isManager() && resource.data.uid == request.auth.uid);
     }
 
-    // Anonymous feedback between managers. No author is stored. The owner reads all; a manager reads what's about them.
+    // ---------- Anonymous feedback between managers ----------
+    // No author is stored, so it can't be traced, withdrawn or limited per person in the app.
+    // The owner reads all of it; a manager reads only what's about them. "Needs improvement" must say why.
     match /ratings/{id} {
       allow read: if isOwner() || (isManager() && resource.data.about == request.auth.uid);
-      allow create: if isManager()
-        && request.resource.data.keys().hasOnly(['about', 'aboutName', 'score', 'text', 'at'])
-        && request.resource.data.about != request.auth.uid && roleOf(request.resource.data.about) in ['manager', 'owner']
-        && request.resource.data.aboutName == get(/databases/$(database)/documents/staff/$(request.resource.data.about)).data.name
-        && request.resource.data.score in ['Excellent', 'Efficient', 'Good', 'Needs improvement']
-        && str(request.resource.data.text, 500) && request.resource.data.at == request.time;
+      allow create: if isManager() && exactly(['about', 'aboutName', 'score', 'text', 'at'])
+        && incoming().about is string && incoming().about != request.auth.uid
+        && get(staffDoc(incoming().about)).data.role in ['manager', 'owner']
+        && incoming().aboutName == get(staffDoc(incoming().about)).data.name
+        && ((incoming().score in ['Excellent', 'Efficient', 'Good'] && optText(incoming().text, 500))
+          || (incoming().score == 'Needs improvement' && reqText(incoming().text, 500)))
+        && incoming().at == request.time;
       allow delete: if isOwner();
     }
 
-    // Append-only record of every 86 and back-in-stock. Managers read it.
-    match /outlog/{id} {
-      allow read: if isManager();
-      allow create: if isMember()
-        && request.resource.data.keys().hasOnly(['name', 'action', 'by', 'at'])
-        && request.resource.data.action in ['out', 'back']
-        && text(request.resource.data.name, 80)
-        && request.resource.data.by == me().name
-        && request.resource.data.at == request.time;
-    }
-
-    match /out/{id} {
-      allow read, delete: if isMember();
-      allow create, update: if isMember()
-        && request.resource.data.keys().hasOnly(['name', 'by', 'at'])
-        && text(request.resource.data.name, 80)
-        && request.resource.data.by == me().name
-        && request.resource.data.at == request.time;
+    // ---------- Issues and handover ----------
+    // Faults, jobs and anything the next shift needs to know. Open until someone fixes it, then kept as history.
+    // A fixed issue can't be edited or reopened; "still broken" raises a new one that links back to it.
+    match /issues/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && exactly(['title', 'detail', 'area', 'urgent', 'again', 'status', 'uid', 'name', 'at'])
+        && reqText(incoming().title, 120) && optText(incoming().detail, 1000)
+        && incoming().area in ['bar', 'floor', 'kitchen', 'toilets', 'terrace', 'cellar', 'other']
+        && incoming().urgent is bool && incoming().status == 'open'
+        && (incoming().again == null || (autoId(incoming().again) && exists(/databases/$(database)/documents/issues/$(incoming().again))))
+        && stamped();
+      // Take it on yourself (managers can give it to anyone on the team), or mark it fixed saying what was done.
+      allow update: if isMember() && resource.data.status in ['open', 'taken']
+        && ((incoming().status == 'taken' && changesOnly(['status', 'who', 'whoUid', 'setBy', 'setByUid', 'setAt'])
+              && signedAs('setBy', 'setByUid', 'setAt') && incoming().whoUid is string
+              && ((incoming().whoUid == request.auth.uid && incoming().who == profile().data.name)
+                || (isManager() && get(staffDoc(incoming().whoUid)).data.name == incoming().who)))
+          || (incoming().status == 'fixed' && changesOnly(['status', 'fix', 'fixedBy', 'fixedByUid', 'fixedAt'])
+              && reqText(incoming().fix, 500) && signedAs('fixedBy', 'fixedByUid', 'fixedAt')));
+      // Whoever raised it can withdraw it before anyone takes it on. The owner can delete any.
+      allow delete: if isOwner() || (isMember() && resource.data.uid == request.auth.uid && resource.data.status == 'open');
     }
   }
 }
