@@ -19,7 +19,7 @@ const unpairShake = (d) => ({
   pairsWith: /shake$/i.test(d.pairsWith || "") ? undefined : d.pairsWith,
 });
 const extras = require("./extras.js")(icons);
-const { fixGuide, fixDrink } = require("./builds.js");
+const { fixGuide, fixDrink, tidyMethod } = require("./builds.js");
 const drinks = [...src.drinks.filter((d) => !DROP.has(d.name) && noShake(d)).map(unpairShake), ...extras.map((x) => x.drink)].map(fixDrink).map(({ price, ...d }, i) => ({
   // No prices in the staff app (owner, 24 Oct)
   id: i, ...d, spec: d.spec.map(clean),
@@ -42,6 +42,7 @@ for (const raw of [...require(DATA + "guides.json").guides.filter((g) => !DROP.h
   }) };
 }
 for (const d of drinks) if (!guides[d.name]) throw new Error("No guide for " + d.name);
+for (const d of drinks) d.method = tidyMethod(d, guides[d.name]);
 const names = drinks.map((d) => d.name);
 if (new Set(names).size !== names.length) throw new Error("Duplicate drink name");
 const data = { guides, scenes, drinks, prep: src.prep.map((p) => ({ ...p, spec: p.spec.map(clean) })), };

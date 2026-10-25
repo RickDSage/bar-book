@@ -5,7 +5,7 @@
 const FIZZ = /lemonade|soda|prosecco|tonic|ginger beer|ginger ale|cola|coke|red bull|sprite/i;
 const BITS = /mint|basil|passion fruit|marmalade|jalape|chilli|cucumber|purée|puree|raspberr|blackberr|strawberr|lime, cut/i;
 
-// Spec and method text that the rules above change.
+// Spec and method text that the rules above change, and method lines reworded to match the rest of their family.
 const METHOD = {
   "London Cosmo": "Shake hard, double strain, top with a dash of lemonade",
   "Uptown Hustle": "Shake hard, double strain",
@@ -14,11 +14,16 @@ const METHOD = {
   "Margarita": "Shake, strain over fresh ice",
   "Tommy's Margarita": "Shake, strain over fresh ice",
   "Mezcal Margarita": "Shake, strain over fresh ice",
+  "Bellini": "Purée first, top Prosecco slowly, gentle lift",
+  "Chambord Royale": "Chambord first, top Prosecco slowly",
+  "Mimosa": "Orange juice first, top Prosecco slowly",
+  "Jägerbomb": "Pour the shot. Pour half a can of Red Bull into a rocks glass. Serve side by side, guest drops the shot in",
 };
-// Checked against the IBA official recipes (iba-world.com, 24 Oct 2026). Ratios follow IBA, rounded to our jiggers.
+// Checked against the IBA official recipes (iba-world.com, 24 Oct 2026) and Difford's Guide (25 Oct 2026).
+// Ratios follow the source, rounded to our jiggers.
 // ml: new measure by ingredient; rename: swap an ingredient; drop: remove it; text: replace step text by scene.
 const HINT = { 50: "the 50 side", 25: "the 25 side", 12.5: "half a 25", 75: "50 + 25", 100: "50 + 50" };
-const IBA = {
+const FIX = {
   "Margarita": { ml: { "Cointreau": 20, "lime juice": 15 } },
   "Mezcal Margarita": { ml: { "Cointreau": 20, "lime juice": 15 } },
   "Daiquiri": { ml: { "lime juice": 20 } },
@@ -31,26 +36,96 @@ const IBA = {
     spec: ["15 ml each: Smirnoff, Tanqueray, Captain Morgan White, El Jimador Blanco, Cointreau", "25 ml lemon juice", "25 ml sugar syrup", "Top Coca-Cola"],
     text: { pourGlass: "Measure each one with the jigger. Five spirits at 15 ml each, then lemon and sugar." } },
   "Mimosa": { ml: { "orange juice": 75, "Prosecco": 75 } },
+  // Four of the single serve, and "As Mojito" means the same lime and sugar.
+  "Mojito Pitcher": { ml: { "lime juice": 80, "sugar syrup": 60 } },
+  "Virgin Mojito": { ml: { "lime juice": 20, "sugar syrup": 15 } },
+  // The guide presses a lime wedge with the mint.
+  "Hugo Spritz": { spec: ["4 mint leaves", "1 lime wedge", "25 ml elderflower cordial", "100 ml Prosecco", "25 ml soda"] },
+  "Bellini": { text: { lift: "Lift once with the bar spoon to mix the purée through." } },
+  "Tequila Sunrise": { ml: { "grenadine": 15 } },
+  "Lynchburg Lemonade": { ml: { "Cointreau": 25, "lemon juice": 25 } },
+  // Camden Hells isn't on our taps.
+  "Pickleback & a Half": { spec: ["Half pint Stella Artois", "25 ml Jameson", "25 ml chilled pickle brine"], rename: { "Half pint Camden Hells": "Half pint Stella Artois" },
+    text: { half: "Pour a half pint of Stella Artois with a neat head." } },
 };
-function ibaSpec(name, spec) {
-  const f = IBA[name]; if (!f) return spec;
+// One name for each ingredient in every drink, and one choice where a spec offered two.
+const WORDS = {
+  "cranberry": "cranberry juice",
+  "espresso": "fresh espresso",
+  "Amarás Mezcal": "Amarás Mezcal Verde",
+  "Fever-Tree tonic": "Fever-Tree Indian Tonic",
+  "Tanqueray or Grey Goose": "Tanqueray, or Grey Goose on request",
+  "Tanqueray, or vodka on request": "Tanqueray, or Grey Goose on request",
+  "lemonade or Sprite Zero": "lemonade",
+  "hot filter coffee or Americano": "hot Americano",
+  "soda or Fever-Tree Light Tonic": "soda",
+};
+const word = (w) => WORDS[w] || w;
+const PHRASES = Object.keys(WORDS).filter((w) => w.includes(" or "));
+const wordText = (t) => PHRASES.reduce((s, w) => s.split(w).join(WORDS[w]), t);
+function fixSpec(name, spec) {
+  const f = FIX[name] || {};
   if (f.spec) return f.spec;
   return spec.flatMap((l) => {
-    const m = l.match(/^(Top )?([\d.]+) ml (.*)$/); if (!m) return [l];
-    const item = (f.rename || {})[m[3]] || m[3];
+    const t = l.match(/^Top (.*)$/);
+    const m = l.match(/^(Top )?([\d.]+) ml (.*)$/); if (!m) return [t ? `Top ${word(t[1])}` : l];
+    const item = word((f.rename || {})[m[3]] || m[3]);
     if ((f.drop || []).includes(item)) return [];
     return [`${m[1] || ""}${(f.ml || {})[item] ?? m[2]} ml ${item}`];
   });
 }
-function ibaGuide(name, steps) {
-  const f = IBA[name]; if (!f) return steps;
+function fixSteps(name, steps) {
+  const f = FIX[name] || {};
   return steps.map((s) => {
-    const items = s.items && s.items.map((i) => ({ ...i, item: (f.rename || {})[i.item] || i.item })).filter((i) => !(f.drop || []).includes(i.item))
+    const items = s.items && s.items.map((i) => ({ ...i, item: word((f.rename || {})[i.item] || i.item) })).filter((i) => !(f.drop || []).includes(i.item))
       .map((i) => (f.ml || {})[i.item] != null && i.ml != null ? { ...i, ml: f.ml[i.item], hint: HINT[f.ml[i.item]] || null } : i);
-    return { ...s, items, text: (f.text || {})[s.scene] || s.text };
+    return { ...s, items, text: wordText((f.text || {})[s.scene] || s.text) };
   });
 }
 const fizzLast = (spec) => [...spec.filter((l) => !(FIZZ.test(l) && !/^\d/.test(l))), ...spec.filter((l) => FIZZ.test(l) && !/^\d/.test(l))];
+// A mixer that fills the glass always reads "Top ...".
+const topLine = (l) => (FIZZ.test(l) && !/^(Top |Side|Splash|Dash|\d)/.test(l) ? `Top ${l}` : l);
+// Every drink served up goes in a chilled coupe, and its guide already chills it. One name for each glass.
+const GLASS = { "Rocks glass": "Rocks" };
+const glassFor = (d) => GLASS[d.glass] || (/none|served up/i.test(d.ice) && /^Coupe( \+ shot glass)?$/.test(d.glass) ? `Chilled c${d.glass.slice(1)}` : d.glass);
+
+// Allergens the hand-written list missed, read from the spec. The labels in the allergen folder have the final word.
+const AUTO = [
+  [/prosecco|champagne/i, "Sulphites", "Prosecco"],
+  [/martini rosso|martini extra dry/i, "Sulphites", "vermouth"],
+  [/lillet/i, "Sulphites", "Lillet"],
+  [/budweiser|guinness|stella artois|corona/i, "Gluten", "barley in the beer"],
+  [/celery bitters/i, "Celery", "celery bitters"],
+  // Oats are one of the cereals containing gluten in UK allergen law.
+  [/oat milk/i, "Gluten", "oats in the oat milk"],
+];
+function allergens(d) {
+  const have = d.allergens && d.allergens !== "None" ? d.allergens : "";
+  const add = new Map();
+  for (const [re, what, from] of AUTO) {
+    if (!d.spec.some((l) => re.test(l)) || new RegExp(what, "i").test(have)) continue;
+    add.set(what, [...new Set([...(add.get(what) || []), from])]);
+  }
+  return [have, ...[...add].map(([what, from]) => `${what} (${from.join(", ")})`)].filter(Boolean).join(", ") || undefined;
+}
+// One way to say each step in a method line.
+const SAY = [
+  [/^Stir for /, "Stir "],
+  [/^Shake(?: and strain)?, pour over/, "Shake, strain over"],
+  [/, pour over 1 large cube/, ", strain over a large cube"],
+  [/\bfine strain\b/, "double strain"],
+  [/over (?:1 )?large cube/, "over a large cube"],
+  [/^Build(?=,|$)|^Build in the glass$/, "Build over ice"],
+];
+// The method line agrees with the steps: "Stir," gets the guide's seconds, a strain is double when the steps double
+// strain, and a stirred drink served up says where it goes.
+function tidyMethod(d, guide) {
+  const st = guide.steps.find((s) => s.title === "Stir"), secs = st && st.text.match(/(\d+(?: to \d+)?) seconds/);
+  let m = SAY.reduce((t, [re, to]) => t.replace(re, to), d.method).replace(/^Stir,/, secs ? `Stir ${secs[1]} seconds,` : "Stir,");
+  if (guide.steps.some((s) => s.double) && !/double strain/.test(m)) m = m.replace(/\bstrain\b/, "double strain");
+  if (/^Stir/.test(m) && /^Chilled coupe/.test(d.glass)) m = m.replace(/, strain(?=$|\.)/, ", strain into a chilled coupe");
+  return m;
+}
 
 function destination(d) {
   const ice = d.ice.toLowerCase();
@@ -64,7 +139,12 @@ function destination(d) {
 }
 
 function fixGuide(g, d) {
-  let steps = ibaGuide(g.name, g.steps.map((s) => ({ ...s, items: s.items ? [...s.items] : s.items })));
+  let steps = fixSteps(g.name, g.steps.map((s) => ({ ...s, items: s.items ? [...s.items] : s.items })));
+  // A glass the card calls chilled gets chilled first.
+  if (/^chilled/i.test(d.glass) && !steps.some((s) => s.scene === "chill")) {
+    const glass = /rocks/i.test(d.glass) ? "rocks glass" : "coupe";
+    steps.unshift({ scene: "chill", title: "Chill the glass", text: `Fill the ${glass} with ice and water. Tip it out just before you pour.` });
+  }
   // Rule 1: pull fizzy toppers out of the tin and add them after the strain.
   const tops = [];
   for (const s of steps) if (s.scene === "pourTin" && s.items) {
@@ -102,6 +182,10 @@ function fixGuide(g, d) {
   if (steps.some((s) => s.double)) tools.splice(tools.indexOf("Hawthorne strainer") + 1, 0, "fine strainer");
   return { ...g, tools, steps };
 }
-const fixDrink = (d) => ({ ...d, spec: fizzLast(ibaSpec(d.name, d.spec)), method: METHOD[d.name] || d.method.replace(/\s*\(card does not state method[^)]*\)/, "") });
+function fixDrink(d) {
+  const spec = fizzLast(fixSpec(d.name, d.spec).map(topLine));
+  return { ...d, spec, glass: glassFor(d), allergens: allergens({ ...d, spec }),
+    method: METHOD[d.name] || d.method.replace(/\s*\(card does not state method[^)]*\)/, "") };
+}
 
-module.exports = { fixGuide, fixDrink };
+module.exports = { fixGuide, fixDrink, tidyMethod };

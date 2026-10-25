@@ -1,5 +1,5 @@
-// Live team layer: individual logins, the team board, notices, shift reports, the shared 86 list and checklists,
-// synced through Firebase. Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE
+// Live team layer: individual logins, the team board, notices, shift reports, the shared 86 list, tonight's tasks and
+// procedures, restocking from the cellar and the events behind them, synced through Firebase. Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE
 // and calls liveChanged(). Every write here has a matching rule in firestore.rules and a test in test/rules.test.mjs.
 // Each person logs in with a username and a PIN. Under the hood that is a Firebase email/password account with a
 // made-up address; usernames/{username} maps the username to it. Access comes from having a staff/{uid} record.
@@ -80,13 +80,17 @@ function listen(uid) {
       LIVE.notices = rows(snap); liveChanged("notices"); watchSeen(uid);
     });
     sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
-    sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
     watchDays();
-    // The equipment that gets temperature checks and line cleans. A short list, set up by managers.
-    sub("kit", collection(db, "kit"), (snap) => {
-      LIVE.kit = snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id })).sort((a, b) => a.name.localeCompare(b.name));
-      liveChanged("kit");
-    });
+    // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
+    // same record a moment apart, so the newer version wins.
+    const rs = { open: [], recent: [] };
+    const mergeRestock = () => {
+      const by = new Map();
+      for (const x of [...rs.recent, ...rs.open]) if (!by.has(x.id) || x.v >= by.get(x.id).v) by.set(x.id, x);
+      LIVE.restock = [...by.values()].sort((a, b) => ms(b.at) - ms(a.at)); liveChanged("restock");
+    };
+    sub("restock", query(collection(db, "restock"), where("status", "in", RS_OPEN)), (snap) => { rs.open = rows(snap); mergeRestock(); });
+    sub("restock-recent", query(collection(db, "restock"), orderBy("at", "desc"), limit(30)), (snap) => { rs.recent = rows(snap); mergeRestock(); });
     // Closing photos this person has taken that aren't on a sent report yet.
     sub("photos", query(collection(db, "photos"), where("uid", "==", uid), where("report", "==", null)), (snap) => {
       LIVE.myPhotos = rows(snap).reverse(); liveChanged("photos");
@@ -106,7 +110,9 @@ function listen(uid) {
     sub("asks", LIVE.admin ? query(collection(db, "asks"), orderBy("at", "desc"), limit(100)) : query(collection(db, "asks"), where("uid", "==", uid)), (snap) => {
       LIVE.asks = rows(snap); liveChanged("asks");
     });
-    if (!LIVE.admin) { Object.assign(LIVE, { staff: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], pars: {}, counts: [], training: [] }); return; }
+    if (!LIVE.admin) { Object.assign(LIVE, { staff: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], training: [], requests: [] }); return; }
+    // Stock requests from before restocking, kept so managers can still clear the last ones.
+    sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
     sub("incidents", query(collection(db, "incidents"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.incidents = rows(snap); liveChanged("incidents"); });
     sub("reviews", query(collection(db, "reviews"), orderBy("at", "desc"), limit(200)), (snap) => { LIVE.reviews = rows(snap); liveChanged("reviews"); });
     // Anonymous feedback: the owner reads all of it, a manager only what's about them.
@@ -162,23 +168,6 @@ async function clearOldPhotos() {
   }
 }
 
-// Tonight's checklist ticks: one small record per ticked item, shared by everyone on shift.
-// A new business day starts a fresh list.
-let shiftKey = null;
-function watchShift() {
-  if (shiftKey === shiftDay() && subs.shift) return;
-  unsub("shift"); shiftKey = shiftDay();
-  sub("shift", collection(db, "shift", shiftKey, "ticks"), (snap) => {
-    const ticks = {}, by = {};
-    for (const x of snap.docs) {
-      const t = x.data({ serverTimestamps: "estimate" });
-      (ticks[t.list] ||= []).push(t.item);
-      by[x.id] = { ...t, pending: x.metadata.hasPendingWrites };
-    }
-    LIVE.ticks = ticks; LIVE.tickBy = by;
-    liveChanged("ticks");
-  });
-}
 // Listeners tied to the business day start again with that day's query when it rolls over at 6am.
 const dayKeys = {};
 function subDay(k, ref, fn) {
@@ -186,17 +175,19 @@ function subDay(k, ref, fn) {
   unsub(k); dayKeys[k] = shiftDay();
   sub(k, ref(), fn);
 }
+// Tonight's tasks (one record per checklist item), procedures (one per list) and every change to them or to restocking,
+// for the business day. A record still saving shows the phone's estimate of the time, and says it's pending.
+const byId = (snap) => Object.fromEntries(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
 function watchDays() {
-  const uid = auth.currentUser.uid, waste = collection(db, "waste");
-  watchShift();
-  // Safety checks from the last 8 nights: tonight's readings, and when the lines were last cleaned (due every 7 days).
-  subDay("safety", () => query(collection(db, "safety"), where("day", "in", lastNights(8))), (snap) => { LIVE.safety = rows(snap); liveChanged("safety"); });
-  // Waste: staff get what they logged tonight; managers the last 14 nights, for this week's and last week's totals.
-  subDay("waste", () => (LIVE.admin ? query(waste, where("day", "in", lastNights(14))) : query(waste, where("uid", "==", uid), where("day", "==", shiftDay()))),
-    (snap) => { LIVE.waste = rows(snap); liveChanged("waste"); });
+  subDay("tasks", () => collection(db, "shift", shiftDay(), "tasks"), (snap) => { LIVE.tasks = byId(snap); liveChanged("tasks"); });
+  subDay("runs", () => collection(db, "shift", shiftDay(), "runs"), (snap) => { LIVE.runs = byId(snap); liveChanged("runs"); });
+  subDay("events", () => query(collection(db, "events"), where("day", "==", shiftDay()), limit(2000)), (snap) => { LIVE.events = rows(snap); liveChanged("events"); });
 }
 setInterval(() => { if (LIVE.me) watchDays(); }, 60000);
-const tickRef = (list, i) => doc(db, "shift", shiftDay(), "ticks", `${list}-${i}`);
+// Which side of the venue each list and each restocking destination belongs to, as the rules work it out.
+const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor" };
+const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor" };
+const RS_OPEN = ["asked", "given", "doing", "blocked", "delivered"];
 
 // Makes a login for someone else, runs the database write, and deletes the login again if the write is refused.
 async function withAccount(username, pin, write) {
@@ -291,10 +282,51 @@ LIVE.api = {
     photos.forEach((p) => b.update(doc(db, "photos", p.id), { report: ref.id }));
     return b.commit();
   },
-  tick: (list, i, on) => (on ? setDoc(tickRef(list, i), { list, item: i, ...me() }) : deleteDoc(tickRef(list, i))),
-  // Managers only: clears one side's ticks (bar or floor) for everyone and leaves the other side's alone.
-  clearTicks: (lists) => Promise.all(Object.values(LIVE.tickBy).filter((t) => lists.includes(t.list)).map((t) => deleteDoc(tickRef(t.list, t.item)))),
-  request: (item, note) => addDoc(collection(db, "requests"), { item, note, done: false, ...me() }),
+  // A change to one of tonight's tasks: to is todo, doing, done, blocked or cancelled (not needed), or give is someone
+  // ({name, uid}, or null for nobody) to give it to without changing where it's up to. The task and its event go in one
+  // write. Each change raises the version by one, so a change made from an old copy (two phones at once, or a phone
+  // that was offline) is refused instead of overwriting the newer one, and a retried write can't add a second event.
+  // Giving it to someone keeps the reason it's blocked, if it is.
+  setTask(list, item, label, to, { note, give } = {}) {
+    const day = shiftDay(), id = `${list}-${item}`, cur = LIVE.tasks[id], v = (cur?.v || 0) + 1, from = cur?.status || "todo";
+    note ??= give === undefined ? "" : cur?.note || "";
+    const who = give === undefined ? cur?.who ?? null : give?.name ?? null, whoUid = give === undefined ? cur?.whoUid ?? null : give?.uid ?? null;
+    const status = give === undefined ? to : from, b = writeBatch(db);
+    b.set(doc(db, "shift", day, "tasks", id), { list, item, status, who, whoUid, note, v, ...me() });
+    b.set(doc(db, "events", `t-${day}-${id}-${v}`), { kind: "task", day, list, item, label, area: SIDE[list], from, to: status, who, note, v, ...me() });
+    return b.commit();
+  },
+  // A procedure (one list, tonight): started, then finished. done and required are counted from tonight's tasks.
+  setRun(list, label, to, done, required, note = "") {
+    const day = shiftDay(), cur = LIVE.runs[list], v = (cur?.v || 0) + 1, from = cur?.status || "todo", b = writeBatch(db);
+    b.set(doc(db, "shift", day, "runs", list), { list, status: to, done, required, note, v, ...me() });
+    b.set(doc(db, "events", `r-${day}-${list}-${v}`), { kind: "run", day, list, label, area: SIDE[list], from, to, done, required, note, v, ...me() });
+    return b.commit();
+  },
+  // Restocking from the cellar: what, how much, which unit, where it's going (up, down, shakes or floor) and any detail.
+  askRestock({ item, qty, unit, dest, detail }) {
+    const day = shiftDay(), ref = doc(collection(db, "restock")), b = writeBatch(db);
+    b.set(ref, { item, qty, unit, dest, detail, day, status: "asked", who: null, whoUid: null, moved: null, got: null, note: "", v: 1, askedBy: LIVE.me, askedUid: auth.currentUser.uid, askedAt: serverTimestamp(), ...me() });
+    b.set(doc(db, "events", `s-${ref.id}-1`), { kind: "restock", day, ref: ref.id, label: item, area: DEST_SIDE[dest], from: "new", to: "asked", who: null, qty, unit, dest, note: "", v: 1, ...me() });
+    return b.commit();
+  },
+  // to: given (to give, {name, uid}), doing (taken on by this person), delivered (moved: how much was brought up),
+  // received (got: how much arrived), unavailable, blocked, cancelled, or asked (back to waiting, which clears who has
+  // it and the amounts). Asked, moved and received stay separate, and no stock level changes here.
+  moveRestock(r, to, { note = "", give, moved, got } = {}) {
+    const v = r.v + 1, back = to === "asked";
+    const p = to === "given" ? give : to === "doing" ? { name: LIVE.me, uid: auth.currentUser.uid } : back ? null : { name: r.who, uid: r.whoUid };
+    const m = to === "delivered" ? moved : back ? null : r.moved, g = to === "received" ? got : back ? null : r.got, b = writeBatch(db);
+    b.update(doc(db, "restock", r.id), { status: to, who: p?.name ?? null, whoUid: p?.uid ?? null, moved: m, got: g, note, v, ...me() });
+    b.set(doc(db, "events", `s-${r.id}-${v}`), { kind: "restock", day: shiftDay(), ref: r.id, label: r.item, area: DEST_SIDE[r.dest], from: r.status, to, who: p?.name ?? null,
+      qty: to === "delivered" ? m : to === "received" ? g : null, unit: r.unit, dest: r.dest, note, v, ...me() });
+    return b.commit();
+  },
+  // Earlier nights, read once: the KPIs, Activity's earlier nights and the downloads. Newest nights first, so if there
+  // are ever more than the limit, the oldest are the ones left out.
+  eventsOn: (day) => getDocs(query(collection(db, "events"), where("day", "==", day), limit(2000))).then(rows),
+  eventsFrom: (day) => getDocs(query(collection(db, "events"), where("day", ">=", day), orderBy("day", "desc"), limit(5000))).then(rows),
+  restockFrom: (day) => getDocs(query(collection(db, "restock"), where("day", ">=", day), orderBy("day", "desc"), limit(2000))).then(rows),
   cancelRequest: (id) => deleteDoc(doc(db, "requests", id)),
   markOrdered: (id) => updateDoc(doc(db, "requests", id), { done: true, doneBy: LIVE.me, doneByUid: auth.currentUser.uid, doneAt: serverTimestamp() }),
   addPhoto: (data) => addDoc(collection(db, "photos"), { data, note: "", report: null, ...me() }),
@@ -352,22 +384,6 @@ LIVE.api = {
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),
   fixed: (id, fix) => updateDoc(doc(db, "issues", id), { status: "fixed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
   withdrawIssue: (id) => deleteDoc(doc(db, "issues", id)),
-  // Waste: quantities only. The business night goes with it, so the weekly totals add up by night.
-  waste: (x) => addDoc(collection(db, "waste"), { item: x.item, qty: x.qty, unit: x.unit, reason: x.reason, note: x.note, side: x.side, day: shiftDay(), ...me() }),
-  unwaste: (id) => deleteDoc(doc(db, "waste", id)),
-  addKit: (name, kind, side) => addDoc(collection(db, "kit"), { name, kind, side }),
-  removeKit: (id) => deleteDoc(doc(db, "kit", id)),
-  // A temperature in °C, or null for a line clean. It carries its equipment's details, as the rules require.
-  logCheck: (k, c, note) => addDoc(collection(db, "safety"), { kit: k.id, kitName: k.name, kind: k.kind, side: k.side, c, note, day: shiftDay(), ...me() }),
-  unlogCheck: (id) => deleteDoc(doc(db, "safety", id)),
-  // Par levels and counts load the first time a manager opens Stock, not on every launch.
-  watchStock() {
-    sub("pars", collection(db, "pars"), (snap) => { LIVE.pars = Object.fromEntries(snap.docs.map((x) => [x.data().item, x.data().par])); liveChanged("pars"); });
-    sub("counts", query(collection(db, "counts"), orderBy("at", "desc"), limit(10)), (snap) => { LIVE.counts = rows(snap); liveChanged("counts"); });
-  },
-  // No par means the item isn't counted.
-  setPar: (item, par) => (par ? setDoc(doc(db, "pars", slug(item)), { item, par, ...me() }) : deleteDoc(doc(db, "pars", slug(item)))),
-  saveCount: (lines, note) => addDoc(collection(db, "counts"), { lines, note, ...me() }),
   // Training sign-offs load the first time someone opens Practise or Training: staff their own, managers everyone's.
   watchTraining() {
     const t = collection(db, "training");
@@ -376,21 +392,21 @@ LIVE.api = {
   // One record per person per drink, named after both, so the same drink can't be signed off twice.
   passDrink: (person, drinkName) => setDoc(doc(db, "training", `${person.uid}-${slug(drinkName)}`), { trainee: person.uid, traineeName: person.name, drinkName, ...me() }),
   unpass: (id) => deleteDoc(doc(db, "training", id)),
-  // Managers' spreadsheet downloads: the whole of one collection, read once (the live lists keep only the latest).
+  // Managers' spreadsheet downloads: the whole of one collection, read once (the live lists keep only the latest). Waste,
+  // temperatures, line cleans and stock counts are read-only old records now (Alert65 and Nory took them over).
   history: (name) => getDocs(query(collection(db, name), orderBy("at", "desc"))).then(rows),
-  // Checklist ticks for the given business days.
+  // Checklist ticks from before tasks (24 and 25 October 2026), for the given business days.
   ticksFor: (days) => Promise.all(days.map((day) => getDocs(collection(db, "shift", day, "ticks")).then((s) => s.docs.map((x) => ({ day, ...x.data() }))))).then((xs) => xs.flat()),
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  waste: [], kit: [], safety: [], pars: {}, counts: [], training: [], concerns: [] });
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
+  training: [], concerns: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }
   unsubAll(); LIVE.loaded.clear();
   Object.assign(LIVE, EMPTY());
-  shiftKey = null;
   liveChanged("me");
 });
 liveChanged("me");
