@@ -133,9 +133,9 @@ const issue = (uid, extra = {}) => ({ title: "Glass washer leaking", detail: "",
 describe("visitors who aren't logged in", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const PRIVATE = ["staff/staff1", "config/owner", "config/pins", "feed/a", "notices/a", "reports/a", "photos/a", "shift/2026-10-25/ticks/open-1",
-    "requests/a", "out/gin", "outlog/a", "asks/a", "incidents/a", "reviews/a", "ratings/a", "audit/a", "issues/a"];
+    "requests/a", "out/gin", "outlog/a", "asks/a", "incidents/a", "reviews/a", "ratings/a", "audit/a", "issues/a", "seen/a-staff1"];
   for (const p of PRIVATE) test(`can't read ${p}`, () => assertFails(getDoc(doc(db(), p))));
-  for (const c of ["staff", "usernames", "feed", "notices", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues"]) {
+  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues"]) {
     test(`can't list ${c}`, () => assertFails(getDocs(collection(db(), c))));
   }
   test("can look up one username, and it holds only the sign-in address and uid", async () => {
@@ -691,7 +691,7 @@ describe("anonymous feedback between managers", () => {
 describe("team board and notices", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const post = (uid, extra = {}) => addDoc(collection(db(uid), "feed"), { kind: "comment", text: "Guinness line down", ...by(uid), ...extra });
-  const notice = (uid, extra = {}) => addDoc(collection(db(uid), "notices"), { text: "Tasting at 4", ...by(uid), ...extra });
+  const notice = (uid, extra = {}) => addDoc(collection(db(uid), "notices"), { text: "Tasting at 4", side: "all", managers: true, ...by(uid), ...extra });
   test("posts are signed by the real author", async () => {
     await assertSucceeds(post("staff1"));
     await assertFails(post("staff1", { name: "Olly Owner" }));
@@ -716,6 +716,50 @@ describe("team board and notices", () => {
     await assertFails(deleteDoc(doc(db("mgr2"), "notices", o.id)));
     await assertSucceeds(deleteDoc(doc(db("mgr2"), "notices", m.id)));
     await assertSucceeds(deleteDoc(doc(db("owner1"), "notices", o.id)));
+  });
+  test("broadcasts go to everyone, the bar or the floor; only the owner can leave managers out", async () => {
+    await assertSucceeds(notice("mgr1", { side: "bar" }));
+    await assertSucceeds(notice("mgr1", { side: "floor" }));
+    await assertFails(notice("mgr1", { side: "kitchen" }));
+    await assertFails(notice("mgr1", { managers: "no" }));
+    await assertFails(addDoc(collection(db("mgr1"), "notices"), { text: "No audience", ...by("mgr1") }));
+    await assertFails(notice("mgr1", { managers: false }));
+    const hidden = await assertSucceeds(notice("owner1", { managers: false }));
+    await assertFails(getDoc(doc(db("mgr1"), "notices", hidden.id)));
+    await assertSucceeds(getDoc(doc(db("staff1"), "notices", hidden.id)));
+    await assertSucceeds(getDoc(doc(db("owner1"), "notices", hidden.id)));
+    await assertFails(getDocs(collection(db("mgr1"), "notices")), "a manager can't list them all");
+    const mine = await getDocs(query(collection(db("mgr1"), "notices"), where("managers", "==", true)));
+    assert.equal(mine.size, 2);
+    await assertFails(deleteDoc(doc(db("mgr1"), "notices", hidden.id)));
+    // One from before audiences existed has no managers field: staff and the owner still read it.
+    await seed((s) => setDoc(doc(s, "notices/old"), { text: "Old notice", ...by("owner1") }));
+    await assertSucceeds(getDoc(doc(db("staff1"), "notices/old")));
+    await assertSucceeds(getDoc(doc(db("owner1"), "notices/old")));
+    await assertFails(getDoc(doc(db("mgr1"), "notices/old")));
+  });
+  test("Got it: your own record, for a broadcast that exists, carrying its managers setting", async () => {
+    const open = await notice("mgr1"), hidden = await notice("owner1", { managers: false });
+    const seen = (uid, id, extra = {}) => setDoc(doc(db(uid), "seen", id), { notice: open.id, managers: true, ...by(uid), ...extra });
+    await assertSucceeds(seen("staff1", `${open.id}-staff1`));
+    await assertFails(seen("staff1", `${open.id}-staff2`), "the record's name is the broadcast and the reader");
+    await assertFails(seen("staff2", `${open.id}-staff2`, { uid: "staff1", name: "Sam Staff" }));
+    await assertFails(seen("staff2", "nope-staff2", { notice: "nope" }), "no such broadcast");
+    await assertFails(seen("staff2", `${hidden.id}-staff2`, { notice: hidden.id }), "must say managers were left out");
+    await assertSucceeds(seen("staff2", `${hidden.id}-staff2`, { notice: hidden.id, managers: false }));
+    await assertSucceeds(seen("mgr2", `${open.id}-mgr2`));
+    await assertFails(updateDoc(doc(db("staff1"), "seen", `${open.id}-staff1`), { at: now() }));
+    await assertFails(deleteDoc(doc(db("staff1"), "seen", `${open.id}-staff1`)));
+    // Staff read only their own; managers what they weren't left out of; the owner everything.
+    await assertSucceeds(getDocs(query(collection(db("staff2"), "seen"), where("uid", "==", "staff2"))));
+    await assertFails(getDocs(collection(db("staff2"), "seen")));
+    await assertFails(getDoc(doc(db("staff2"), "seen", `${open.id}-staff1`)));
+    const m = await getDocs(query(collection(db("mgr1"), "seen"), where("managers", "==", true), where("notice", "in", [open.id])));
+    assert.equal(m.size, 2);
+    await assertFails(getDoc(doc(db("mgr1"), "seen", `${hidden.id}-staff2`)));
+    await assertFails(getDocs(query(collection(db("mgr1"), "seen"), where("notice", "in", [open.id, hidden.id]))));
+    const o = await getDocs(query(collection(db("owner1"), "seen"), where("notice", "in", [open.id, hidden.id])));
+    assert.equal(o.size, 3);
   });
 });
 
@@ -767,7 +811,6 @@ describe("every query the app makes works for the roles that make it", () => {
   const common = (d, uid) => [
     query(collection(d, "feed"), orderBy("at", "desc"), limit(40)),
     collection(d, "out"),
-    query(collection(d, "notices"), orderBy("at", "desc")),
     query(collection(d, "reports"), orderBy("at", "desc"), limit(30)),
     query(collection(d, "requests"), orderBy("at", "desc"), limit(50)),
     collection(d, "shift", today(), "ticks"),
@@ -786,16 +829,17 @@ describe("every query the app makes works for the roles that make it", () => {
   ];
   test("staff", async () => {
     const d = db("staff1");
-    for (const q of [...common(d, "staff1"), query(collection(d, "asks"), where("uid", "==", "staff1"))]) await assertSucceeds(getDocs(q));
+    for (const q of [...common(d, "staff1"), query(collection(d, "asks"), where("uid", "==", "staff1")), collection(d, "notices"), query(collection(d, "seen"), where("uid", "==", "staff1"))]) await assertSucceeds(getDocs(q));
     for (const q of managers(d)) await assertFails(getDocs(q));
   });
   test("manager", async () => {
     const d = db("mgr1");
-    for (const q of [...common(d, "mgr1"), ...managers(d), query(collection(d, "ratings"), where("about", "==", "mgr1"))]) await assertSucceeds(getDocs(q));
+    for (const q of [...common(d, "mgr1"), ...managers(d), query(collection(d, "ratings"), where("about", "==", "mgr1")), query(collection(d, "notices"), where("managers", "==", true)),
+      query(collection(d, "seen"), where("managers", "==", true), where("notice", "in", ["a", "b"]))]) await assertSucceeds(getDocs(q));
     await assertFails(getDocs(query(collection(d, "ratings"), orderBy("at", "desc"), limit(100))));
   });
   test("owner", async () => {
     const d = db("owner1");
-    for (const q of [...common(d, "owner1"), ...managers(d), query(collection(d, "ratings"), orderBy("at", "desc"), limit(100))]) await assertSucceeds(getDocs(q));
+    for (const q of [...common(d, "owner1"), ...managers(d), query(collection(d, "ratings"), orderBy("at", "desc"), limit(100)), collection(d, "notices"), query(collection(d, "seen"), where("notice", "in", ["a", "b"]))]) await assertSucceeds(getDocs(q));
   });
 });

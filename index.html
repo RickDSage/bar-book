@@ -260,6 +260,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
 .rvrow { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; margin-top: 10px; }
 .rvrow input { min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .rvrow .btn { min-height: 40px; padding: 8px 12px; }
+a.btn { text-decoration: none; }
 .ptabs.msub { position: static; grid-template-columns: repeat(3, 1fr); box-shadow: none; margin-top: 10px; }
 .ptabs.msub button { min-height: 44px; justify-content: center; font-size: 14px; }
 .actday { font-family: var(--body); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 0; }
@@ -547,7 +548,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -909,7 +910,7 @@ Object.assign(LISTS, {
 LISTS.open.short = "Opening"; LISTS.close.short = "Closing";
 const MODE_LISTS = { bar: ["open", "close"], floor: ["fset", "fshake", "fclose"] };
 let mode = store.get("mode", "bar");
-function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); renderTally(); }
+function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); renderTally(); renderBcast(); }
 // Use-by dates for the milkshake station, counted from the day it is opened.
 const LABELS = [
   ["Desserts", "Guinness cake, sprinkle cake, brownies, cheesecake, ice cream, Oreo and Jammie Dodger ice cream sandwiches", 2],
@@ -1235,10 +1236,14 @@ function renderTeamTop() {
   }
   if (!LIVE.me) { $("#team").innerHTML = `<p class="note">Checking your account… · <button class="linkbtn" id="l-out">Log out</button></p>`; return; }
   $("#team").innerHTML = `<p class="note"><b>${esc(LIVE.me)}</b>${LIVE.owner ? " · owner" : LIVE.admin ? " · manager" : ""} · <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>`;
-  if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Broadcast to everyone</summary>
-    <p class="note">It stays at the top of every page until each person taps Got it, and stays pinned here until you remove it.</p>
-    <label class="fld">Message for everyone<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
-    <div class="actions"><button class="btn pri" id="p-go">Send to everyone</button></div></details>`;
+  if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Send a broadcast</summary>
+    <p class="note">It stays at the top of every page until each person taps Got it, and stays pinned here until you remove it. You'll see who has read it.</p>
+    <label class="fld">Message<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
+    <div class="mini">Who it's for</div>
+    <div class="recent">${Object.entries(SIDES).map(([k, t]) => `<button class="chip" data-bc-side="${k}" aria-pressed="${k === bcSide}">${t}</button>`).join("")}</div>
+    <p class="note">Bar and floor follow the side each phone is set to in Shift.</p>
+    ${LIVE.owner ? `<label class="check"><input type="checkbox" id="p-mgrs" checked> Managers can see it</label>` : ""}
+    <div class="actions"><button class="btn pri" id="p-go">Send</button></div></details>`;
   $("#compose").innerHTML = `<div class="sec">Team board</div>
     <label class="fld">Post to the board<textarea id="c-text" rows="3" maxlength="2000" placeholder="Running low on limes, a guest comment, anything the team should know"></textarea></label>
     <div class="actions"><button class="btn pri" id="c-post">Post</button></div>`;
@@ -1318,9 +1323,21 @@ function renderStaff() {
 }
 // Managers can take down posts and notices, except the owner's.
 const canTakeDown = (x) => x.uid === LIVE.uid || LIVE.owner || (LIVE.admin && !isOwnerUid(x.uid));
+// Broadcasts go to everyone, the bar or the floor; a phone shows those for the side it's set to. Managers see them all.
+const SIDES = { all: "Everyone", bar: "Bar", floor: "Floor" }, TO = { all: "everyone", bar: "the bar", floor: "the floor" };
+let bcSide = "all";
+const forSide = (x) => !x.side || x.side === "all" || x.side === mode;
+const forMe = (x) => LIVE.admin || forSide(x);
+const audience = (x) => (x.side && x.side !== "all" ? `<span class="pill">${SIDES[x.side]} only</span>` : "") + (x.managers === false ? `<span class="pill">Managers left out</span>` : "");
+// Who has tapped Got it, and for a broadcast to everyone, who hasn't yet.
+function readers(x) {
+  const got = LIVE.seen.filter((s) => s.notice === x.id);
+  const due = x.side && x.side !== "all" ? [] : LIVE.staff.filter((p) => p.uid !== x.uid && (x.managers !== false || p.role !== "manager") && !got.some((s) => s.uid === p.uid));
+  return `<p class="note">Read by ${got.length ? `${got.length}: ${got.map((s) => esc(s.name)).join(", ")}` : "nobody yet"}${due.length ? `. Not yet: ${due.map((p) => esc(p.name)).join(", ")}` : ""}</p>`;
+}
 function renderPins() {
   if (!LIVE.me) return;
-  $("#pins").innerHTML = LIVE.notices.map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${LIVE.admin && canTakeDown(x) ? `<div class="actions"><button class="btn" data-unpin="${x.id}">Remove broadcast</button></div>` : ""}</article>`).join("");
+  $("#pins").innerHTML = LIVE.notices.filter(forMe).map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div>${audience(x) ? `<div class="tags">${audience(x)}</div>` : ""}<p class="txt">${esc(x.text)}</p>${LIVE.admin ? readers(x) : ""}${LIVE.admin && canTakeDown(x) ? `<div class="actions"><button class="btn" data-unpin="${x.id}">Remove broadcast</button></div>` : ""}</article>`).join("");
 }
 function renderFeed() {
   if (!LIVE.me) return;
@@ -1480,7 +1497,7 @@ function events(x) {
   const ev = [], add = (sec, at, who, what, detail, more) => ev.push({ t: ms(at), sec, who, what, detail: detail || "", ...more });
   const whose = (id) => { const r = x.reports.find((r) => r.id === id); return r ? `${r.name}'s ${r.side} report` : "a report"; };
   x.feed.forEach((p) => add("board", p.at, p.name, "posted on the board", p.text));
-  x.notices.forEach((p) => add("board", p.at, p.name, "sent a broadcast", p.text));
+  x.notices.forEach((p) => add("board", p.at, p.name, `sent a broadcast${p.side && p.side !== "all" ? ` to ${TO[p.side]}` : ""}${p.managers === false ? " (managers left out)" : ""}`, p.text));
   x.ticks.forEach((t) => add("checks", t.at, t.name, `ticked ${tickName(t)}`, LISTS[t.list]?.title, { list: t.list }));
   x.outlog.forEach((o) => add("86", o.at, o.name, o.action === "out" ? `86'd ${o.itemName}` : `put ${o.itemName} back in stock`));
   x.requests.forEach((r) => { add("stock", r.at, r.name, `asked for ${r.item}`, r.note); if (r.done) add("stock", r.doneAt, r.doneBy, `ordered ${r.item}`, `Asked for by ${r.name}`); });
@@ -1500,7 +1517,7 @@ function events(x) {
 function liveData() {
   const staff = !LIVE.admin;
   return {
-    feed: LIVE.feed, notices: LIVE.notices, requests: LIVE.requests, issues: LIVE.issues, reviews: LIVE.reviews, incidents: LIVE.incidents, audit: LIVE.audit,
+    feed: LIVE.feed, notices: LIVE.notices.filter(forMe), requests: LIVE.requests, issues: LIVE.issues, reviews: LIVE.reviews, incidents: LIVE.incidents, audit: LIVE.audit,
     ticks: Object.values(LIVE.tickBy).filter((t) => !staff || MODE_LISTS[mode].includes(t.list)),
     outlog: staff ? [...LIVE.outInfo.values()].map((o) => ({ ...o, action: "out" })) : LIVE.outlog,
     asks: staff ? [] : LIVE.asks,
@@ -1549,7 +1566,7 @@ const KIND = { late: "Running late", off: "Time off", swap: "Shift swap" };
 const ISSUE = { open: "Open", taken: "Being dealt with", fixed: "Fixed" };
 const TABLES = {
   all: (x) => [["Date", "Time", "Section", "Who", "What", "Details"], ...events(x).map((e) => [ukDay(e.t), hhmm(new Date(e.t)), ACT_NAME[e.sec], e.who, e.what, e.detail])],
-  board: (x) => [["Date", "Time", "Type", "By", "Text"], ...[...x.notices.map((p) => [...dt(p.at), "Broadcast", p.name, p.text]), ...x.feed.map((p) => [...dt(p.at), "Post", p.name, p.text])].sort((a, b) => (b[0] + b[1]).localeCompare(a[0] + a[1]))],
+  board: (x) => [["Date", "Time", "Type", "By", "For", "Text"], ...[...x.notices.map((p) => [...dt(p.at), "Broadcast", p.name, `${SIDES[p.side || "all"]}${p.managers === false ? ", managers left out" : ""}`, p.text]), ...x.feed.map((p) => [...dt(p.at), "Post", p.name, "", p.text])].sort((a, b) => (b[0] + b[1]).localeCompare(a[0] + a[1]))],
   checks: (x) => [["Night", "Time", "Checklist", "Item", "Ticked by"], ...x.ticks.sort((a, b) => ms(b.at) - ms(a.at)).map((t) => [t.day, dt(t.at)[1], LISTS[t.list]?.title, tickName(t), t.name])],
   86: (x) => [["Date", "Time", "Item", "Change", "By"], ...x.outlog.map((o) => [...dt(o.at), o.itemName, o.action === "out" ? "86'd" : "Back in stock", o.name])],
   stock: (x) => [["Date", "Time", "Item", "Note", "Asked by", "Status", "Ordered by", "Ordered on", "Ordered at"], ...x.requests.map((r) => [...dt(r.at), r.item, r.note, r.name, r.done ? "Ordered" : "Waiting", r.doneBy, ...dt(r.doneAt)])],
@@ -1572,15 +1589,17 @@ async function prepareDownload(sec) {
   renderAct();
 }
 /* ---------- Broadcasts ----------
-   A manager's broadcast stays at the top of every page on each phone until that person taps Got it. */
-const bcOk = new Set(store.get("bcOk", []));
+   A broadcast stays at the top of every page until that person taps Got it, on any of their phones. */
 function renderBcast() {
-  const xs = LIVE.notices.filter((x) => x.uid !== LIVE.uid && !x.pending && !bcOk.has(x.id));
+  // Until the Got it records arrive, a broadcast this person has already read would flash up as the app opens.
+  if (!LIVE.loaded.has("seen")) { $("#bcast").innerHTML = ""; return; }
+  const mine = new Set(LIVE.seen.filter((s) => s.uid === LIVE.uid).map((s) => s.notice));
+  const xs = LIVE.notices.filter((x) => forSide(x) && x.uid !== LIVE.uid && !x.pending && !mine.has(x.id));
   $("#bcast").innerHTML = xs.map((x) => `<article class="bcast"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div><p>${esc(x.text)}</p><button class="btn pri" data-bc-ok="${x.id}">Got it</button></article>`).join("");
 }
 $("#bcast").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-bc-ok]"); if (!b) return;
-  bcOk.add(b.dataset.bcOk); store.set("bcOk", [...bcOk].slice(-200)); haptic(); renderBcast();
+  const b = e.target.closest("[data-bc-ok]"), n = b && LIVE.notices.find((x) => x.id === b.dataset.bcOk); if (!n) return;
+  track(LIVE.api.gotIt(n), null, "Not saved. Try again"); haptic();
 });
 // Called by live.js whenever membership or any shared list changes. New things from other people pop up as a toast;
 // so do changes to your own things (a report signed off, a request ordered, an issue fixed).
@@ -1593,7 +1612,7 @@ const issueToast = (x) => (x.status === "taken" && x.whoUid === LIVE.uid && x.se
   : x.status === "taken" && x.setByUid !== LIVE.uid ? `${x.who} is on it: ${x.title}` : "");
 const TOAST = {
   feed: (x) => `${x.name}: ${x.text.slice(0, 70)}`,
-  notices: (x) => `Broadcast: ${x.text.slice(0, 70)}`,
+  notices: (x) => (forSide(x) ? `Broadcast: ${x.text.slice(0, 70)}` : ""),
   reports: (x) => (x.signedBy ? "" : `${x.name} sent a shift report`),
   requests: (x) => (LIVE.admin && !x.done ? `${x.name} needs: ${x.item}` : ""),
   asks: (x) => (LIVE.admin && x.status === "pending" ? `${x.name}: ${askText(x)}` : ""),
@@ -1609,7 +1628,7 @@ const MINE = {
   issues: issueToast,
 };
 function liveChanged(what) {
-  if (what === "notices" || what === "me") renderBcast();
+  if (what === "notices" || what === "seen" || what === "me") renderBcast();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
@@ -1625,7 +1644,7 @@ function liveChanged(what) {
   if (!$("#v-notices").hidden) {
     const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues], requests: [renderRequests, renderDash, renderAct],
       asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct], ticks: [renderDash, renderAct], photos: [] }[what];
+      out: [renderDash, renderAct], ticks: [renderDash, renderAct], seen: [renderPins], photos: [] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     if (R) { R.filter((f) => !(f === renderIssues && typing($("#issues")))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
@@ -1678,6 +1697,7 @@ $("#v-notices").addEventListener("click", (e) => {
   if (!b) return;
   if (b.dataset.go) return go(b.dataset.go);
   if (b.dataset.msub) { msub = b.dataset.msub; renderTeamTabs(); return; }
+  if (b.dataset.bcSide) { bcSide = b.dataset.bcSide; $$("[data-bc-side]").forEach((c) => c.setAttribute("aria-pressed", c === b)); return; }
   if (b.dataset.act) { actSec = b.dataset.act; actMax = 50; renderAct(); return; }
   if (b.id === "act-more") { actMax += 50; renderAct(); return; }
   if (b.id === "act-csv") { busy(b, "Getting the full history…", prepareDownload(actSec).catch(() => toast("Couldn't get it. Check your signal and try again"))); return; }
@@ -1766,7 +1786,7 @@ $("#v-notices").addEventListener("click", (e) => {
     w.then(() => { staffMsg = `${esc(p.name)} is now ${up ? "a manager" : "staff"}.`; renderStaff(); }, () => {});
   } else if (b.id === "p-go") {
     const t = val("#p-text"); if (!t) return;
-    track(A.pin(t), "Broadcast sent to everyone", "Not sent. Try again"); $("#p-text").value = ""; haptic();
+    track(A.pin(t, bcSide, LIVE.owner ? $("#p-mgrs").checked : true), `Broadcast sent to ${TO[bcSide]}`, "Not sent. Try again"); $("#p-text").value = ""; haptic();
   } else if (b.dataset.unpin) {
     if (confirm("Remove this broadcast for everyone?")) track(A.unpin(b.dataset.unpin), null, "Could not remove");
   } else if (b.dataset.ordered) {

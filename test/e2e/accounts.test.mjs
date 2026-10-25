@@ -98,7 +98,7 @@ test("adding someone, logging in, promoting, resetting a PIN and removing them",
   await S.fill("#l-user", "Sam"); await S.fill("#l-pin", pin1); await S.click("#l-go");
   await S.waitForFunction(() => LIVE.me === "Sam Staff");
   assert.equal(await S.evaluate(() => LIVE.admin), false);
-  assert.equal(await S.$("#a-go"), null, "staff don't get the add-person form");
+  assert.equal(await S.locator("#a-go").count(), 0, "staff don't get the add-person form");
 
   await S.fill("#c-text", "Limes low"); await S.click("#c-post");
   await O.waitForFunction(() => LIVE.feed.length === 1);
@@ -173,7 +173,7 @@ test("what managers and staff can do to accounts", async () => {
 test("logging out clears this phone's copy of the team's data", async () => {
   await resetEmulators();
   const { O, S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
-  await O.evaluate(() => LIVE.api.pin("Tasting at 4"));
+  await O.evaluate(() => LIVE.api.pin("Tasting at 4", "all", true));
   await S.waitForFunction(() => LIVE.notices.length === 1);
   assert.ok((await cachedDocs(S)) > 0);
   await S.evaluate(() => show("notices"));

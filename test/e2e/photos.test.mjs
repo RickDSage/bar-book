@@ -73,7 +73,7 @@ test("eight photos is the most for one report", async () => {
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=close]");
   for (let n = 1; n <= 8; n++) await addPhoto(S, small, n);
   await S.waitForFunction(() => /8 photos is the most for one report/.test(document.querySelector("#tally").innerText));
-  assert.equal(await S.$('label[for="ph-in"]'), null, "no button for a ninth");
+  assert.equal(await S.locator('label[for="ph-in"]').count(), 0, "no button for a ninth");
   await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
   await S.waitForFunction(() => LIVE.myPhotos.length === 0 && LIVE.reports.length === 1 && !LIVE.reports[0].pending);
   assert.equal(await S.evaluate(() => LIVE.reports[0].photos), 8);

@@ -143,7 +143,7 @@ service cloud.firestore {
               && describes(getAfter(staffDoc(incoming().target)).data)));
     }
 
-    // ---------- Team board and notices ----------
+    // ---------- Team board and broadcasts ----------
     match /feed/{id} {
       allow read: if isMember();
       allow create: if isMember() && exactly(['kind', 'text', 'uid', 'name', 'at'])
@@ -152,11 +152,25 @@ service cloud.firestore {
       allow delete: if isMember() && (resource.data.uid == request.auth.uid || isOwner()
         || (isManager() && notOwner(resource.data.uid)));
     }
-    // Notices can't be edited: pin a new one and remove the old.
+    // Broadcasts (stored as notices). They can't be edited: send a new one and remove the old.
+    // side is who it's for: everyone, the bar or the floor. Each phone shows the ones for the side it's set to, which is
+    // about relevance, not privacy. The owner can leave managers out (managers false), and then no manager can read it,
+    // so a manager's phone asks only for the ones with managers true. (No default value for a missing field here: with
+    // one, a query that asks for everything gets through. Broadcasts from before audiences existed are for staff and
+    // the owner only.)
     match /notices/{id} {
-      allow read: if isMember();
-      allow create: if isManager() && exactly(['text', 'uid', 'name', 'at']) && reqText(incoming().text, 1000) && stamped();
+      allow read: if isMember() && (resource.data.managers == true || profile().data.role != 'manager');
+      allow create: if isManager() && exactly(['text', 'side', 'managers', 'uid', 'name', 'at']) && reqText(incoming().text, 1000)
+        && incoming().side in ['all', 'bar', 'floor'] && incoming().managers is bool && (incoming().managers || isOwner()) && stamped();
       allow delete: if isOwner() || (isManager() && notOwner(resource.data.uid));
+    }
+    // "Got it" on a broadcast: one record per person per broadcast, so the team can see who has read it. It copies the
+    // broadcast's managers setting, so managers can't see who read one they were left out of. Records can't be changed.
+    match /seen/{id} {
+      allow read: if isMember() && (resource.data.uid == request.auth.uid || isOwner() || (isManager() && resource.data.managers == true));
+      allow create: if isMember() && exactly(['notice', 'managers', 'uid', 'name', 'at']) && stamped()
+        && incoming().notice is string && id == incoming().notice + '-' + request.auth.uid
+        && incoming().managers == get(/databases/$(database)/documents/notices/$(incoming().notice)).data.get('managers', true);
     }
 
     // ---------- Shift reports and closing photos ----------
