@@ -17,6 +17,7 @@ test("first-time setup works once, with the right code and a PIN of at least 6 d
     await O.fill("#s-name", "Olly Owner"); await O.fill("#s-user", "olly"); await O.fill("#s-pin", pin); await O.fill("#s-code", code);
     await O.click("#s-go");
   };
+  assert.equal(await O.evaluate(() => (renderNotices(), document.querySelector("#s-code").type)), "text", "the setup code is shown, so typos can be spotted");
   await fillSetup("11111", SETUP_CODE);
   assert.match(await toastOf(O), /PIN: 6 to 12 digits/);
   await fillSetup(OWNER_PIN, "short-code");
@@ -37,6 +38,34 @@ test("first-time setup works once, with the right code and a PIN of at least 6 d
   await X.waitForFunction(() => LIVE.uid === null);
   assert.equal(await authAccounts(), 1);
   assert.deepEqual([O.errs, X.errs], [[], []]);
+});
+
+// Another tab in the same browser. It shares the login with the first one, as real tabs do.
+async function secondTab(p) {
+  const t = await p.context().newPage();
+  t.errs = [];
+  t.on("pageerror", (e) => t.errs.push(e.message));
+  await t.goto(site.url);
+  if (await t.isVisible("#w-ok")) await t.click("#w-ok");
+  await t.waitForFunction(() => LIVE.ready);
+  return t;
+}
+
+test("first-time setup while the app is open in another tab", { timeout: 60000 }, async () => {
+  await resetEmulators();
+  const O = await phone(browser, site), O2 = await secondTab(O);
+  let reloads = 0;
+  O2.on("load", () => reloads++);
+  // On a real connection saving takes a moment, so the other tab sees the new login before the owner's records exist.
+  await O.route(/Firestore\/Write\/channel/, async (r) => { await new Promise((ok) => setTimeout(ok, 1000)); r.continue().catch(() => {}); });
+  const done = O.evaluate(([pin, code]) => LIVE.api.setup("Olly Owner", "olly", pin, code).then(() => "saved", (e) => e.message), [OWNER_PIN, SETUP_CODE]);
+  const outcome = await Promise.race([done, new Promise((ok) => setTimeout(() => ok("never finished"), 20000))]);
+  assert.equal(outcome, "saved");
+  await O2.waitForFunction(() => LIVE.owner, null, { timeout: 15000 });
+  assert.deepEqual(await O.evaluate(() => [LIVE.me, LIVE.role]), ["Olly Owner", "owner"]);
+  assert.equal(reloads, 0, "the other tab doesn't log both tabs out");
+  assert.equal((await adminGet("usernames/olly")).status, 200);
+  assert.deepEqual([O.errs, O2.errs], [[], []]);
 });
 
 test("adding someone, logging in, promoting, resetting a PIN and removing them", async () => {

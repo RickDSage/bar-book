@@ -25,14 +25,14 @@ if (__EMU__) {
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
 }
 
-// PINs are 6 to 12 digits. Managers and the owner can see far more, so theirs must be at least 8.
+// PINs are 6 to 12 digits for everyone; 6 is the shortest password Firebase accepts.
 const USER = /^[a-z0-9.]{2,20}$/, PIN = /^\d{6,12}$/, MAX_PHOTOS = 8, CODE_MIN = 16;
 const emailFor = (u) => `${u}-${crypto.randomUUID().slice(0, 8)}@users.example.com`;
 // The 86 board keys each item by this, and the rules check it the same way.
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const ms = (t) => (t ? t.toMillis() : Date.now());
 const err = (msg) => { throw new Error(msg); };
-let stop = null, subs = {}, settingUp = false;
+let stop = null, subs = {};
 const unsub = (k) => { if (subs[k]) { subs[k](); delete subs[k]; } };
 const unsubAll = () => { Object.keys(subs).forEach(unsub); if (stop) { stop(); stop = null; } };
 // A listen the rules refuse (account not confirmed by the server yet) is dropped and retried on the next staff snapshot.
@@ -48,9 +48,13 @@ const me = () => ({ uid: auth.currentUser.uid, name: LIVE.me, at: serverTimestam
 function listen(uid) {
   unsubAll();
   // Removal or a role change by a manager takes effect straight away.
+  let seen = false;
   stop = onSnapshot(doc(db, "staff", uid), { includeMetadataChanges: true }, (d) => {
-    // A first launch with no signal has nothing cached yet; wait for the server rather than logging out.
-    if (!d.exists()) { if (!settingUp && !d.metadata.fromCache) leave(); return; }
+    // Only a record this phone has seen going away logs it out (removal, or a PIN reset). A record that isn't there yet
+    // means a first launch with no signal, or first-time setup still saving, perhaps in another tab: wait for it.
+    if (!d.exists()) { if (seen && !d.metadata.fromCache) leave(); return; }
+    // A record still being saved doesn't count as seen: a refused setup takes it away again.
+    if (!d.metadata.hasPendingWrites) seen = true;
     const s = d.data();
     if (LIVE.me !== s.name || LIVE.role !== s.role) {
       // What someone can read depends on their role, so a new role starts every listener again.
@@ -174,17 +178,18 @@ LIVE.api = {
   // config/owner, writes the owner's records and deletes the code, so it can't be used again.
   async setup(name, username, pin, code) {
     if ((await getDoc(doc(db, "usernames", username))).exists()) err("That username is taken");
-    settingUp = true;
-    try {
-      const { user } = await createUserWithEmailAndPassword(auth, emailFor(username), pin);
-      const owner = { uid: user.uid, name, username, role: "owner" }, b = writeBatch(db);
-      b.set(doc(db, "config", "owner"), { uid: user.uid, proof: code });
-      b.set(doc(db, "staff", user.uid), staffRecord(owner));
-      b.set(doc(db, "usernames", username), { email: user.email, uid: user.uid });
-      audit(b, user.uid + "-in", "setup", owner, owner);
-      b.delete(doc(db, "config", "pins"));
-      await b.commit().catch(async () => { await deleteUser(user).catch(() => {}); err("That setup code didn't work, or setup has already been done"); });
-    } finally { settingUp = false; }
+    const { user } = await createUserWithEmailAndPassword(auth, emailFor(username), pin);
+    const owner = { uid: user.uid, name, username, role: "owner" }, b = writeBatch(db);
+    b.set(doc(db, "config", "owner"), { uid: user.uid, proof: code });
+    b.set(doc(db, "staff", user.uid), staffRecord(owner));
+    b.set(doc(db, "usernames", username), { email: user.email, uid: user.uid });
+    audit(b, user.uid + "-in", "setup", owner, owner);
+    b.delete(doc(db, "config", "pins"));
+    // The rules refuse a wrong code or a second owner. Anything else (no signal, say) isn't the code's fault.
+    await b.commit().catch(async (e) => {
+      await deleteUser(user).catch(() => {});
+      err(e.code === "permission-denied" ? "That setup code didn't work, or setup has already been done" : "Setup didn't finish. Check your signal and try again");
+    });
   },
   async addPerson(name, username, pin, role) {
     if ((await getDoc(doc(db, "usernames", username))).exists()) err("That username is taken");
