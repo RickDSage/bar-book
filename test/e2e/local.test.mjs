@@ -9,7 +9,7 @@ before(async () => { site = await serve(".emusite"); browser = await launch(); }
 after(async () => { await browser.close(); site.close(); });
 
 async function open({ start = "#w-ok", at, width = 390, recent } = {}) {
-  const c = await browser.newContext({ viewport: { width, height: 844 }, deviceScaleFactor: 2, isMobile: true, timezoneId: "Europe/London" });
+  const c = await browser.newContext({ viewport: { width, height: 844 }, deviceScaleFactor: 2, isMobile: true, timezoneId: "Europe/London", colorScheme: "dark" });
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = [];
@@ -77,5 +77,38 @@ test("the floor's lists follow the UK business day, which ends at 6am", async ()
   assert.match(await p.$eval("#tally", (e) => e.innerText), /Desserts[\s\S]*Mon 26 Oct[\s\S]*Strawberry and raspberry[\s\S]*Sat 7 Nov[\s\S]*Maraschino cherries[\s\S]*Sat 21 Nov/);
   await p.click("[data-mode=bar]");
   assert.equal(await p.$eval("#shift-title", (e) => e.textContent), "Bar shift");
+  assert.deepEqual(p.errs, []);
+});
+
+test("light, dark or the phone's own setting, remembered on this phone", async () => {
+  const bg = (p) => p.evaluate(() => getComputedStyle(document.body).backgroundColor);
+  const p = await open();
+  assert.equal(await p.evaluate(() => document.documentElement.dataset.theme), "dark", "a phone set to dark (the test default) gets dark");
+  const dark = await bg(p);
+  await p.click("[data-tab=info]"); await p.click("[data-theme-pick=light]");
+  assert.equal(await p.evaluate(() => document.documentElement.dataset.theme), "light");
+  assert.notEqual(await bg(p), dark);
+  assert.equal(await p.$eval('meta[name="theme-color"]', (m) => m.content), "#f6f1e6");
+  await p.reload(); await p.click("#w-ok").catch(() => {});
+  assert.equal(await p.evaluate(() => document.documentElement.dataset.theme), "light", "kept after a reload");
+  // Auto follows the phone: switch the phone to light and back.
+  await p.click("[data-tab=info]"); await p.click("[data-theme-pick=auto]");
+  await p.emulateMedia({ colorScheme: "light" });
+  await p.waitForFunction(() => document.documentElement.dataset.theme === "light");
+  await p.emulateMedia({ colorScheme: "dark" });
+  await p.waitForFunction(() => document.documentElement.dataset.theme === "dark");
+  assert.equal(await p.$eval("[data-theme-pick=auto]", (b) => b.getAttribute("aria-pressed")), "true");
+  assert.deepEqual(p.errs, []);
+});
+
+test("allergen tiles include sulphites, and oat milk shows under gluten", async () => {
+  const p = await open();
+  await p.click("[data-tab=allergens]");
+  await p.click("[data-al=Sulphites]");
+  const sul = await p.$eval("#allist", (e) => e.innerText);
+  assert.match(sul, /Negroni/); assert.match(sul, /Aperol Spritz/);
+  await p.click("[data-al=Gluten]");
+  const glu = await p.$eval("#allist", (e) => e.innerText);
+  assert.match(glu, /The Paddington/); assert.match(glu, /The Boilermaker/);
   assert.deepEqual(p.errs, []);
 });

@@ -4,6 +4,8 @@ const HINT = { 50: "the 50 side", 25: "the 25 side", 12.5: "half a 25", 75: "50 
 function item(line) {
   const m = line.match(/^([\d.]+) ml (.*)$/);
   if (m) return { ml: +m[1], item: m[2], hint: HINT[m[1]] || null, note: null, role: "mix" };
+  const tm = line.match(/^Top ([\d.]+) ml (.*)$/);
+  if (tm) return { ml: +tm[1], item: tm[2], hint: HINT[tm[1]] || null, note: null, role: "top" };
   const t = line.match(/^Top (.*)$/);
   if (t) return { ml: null, item: t[1], hint: null, note: null, role: "top" };
   return { ml: null, item: line, hint: null, note: null, role: "mix" };
@@ -34,7 +36,21 @@ const S = {
   shot: (items, title, text) => ({ scene: "pourShot", title, text, items }),
   garnish: (g, extra = "Serve straight away.") => ({ scene: "garnish", title: "Garnish and serve", text: `${g}. ${extra}`, garnish: g }),
   serve: (text) => ({ scene: "serve", title: "Serve", text }),
+  sink: (items, title, text) => ({ scene: "sink", title, text, items }),
+  can: (items) => ({ scene: "can", title: "Pour the Red Bull", text: "Pour half a can of chilled Red Bull into a rocks glass. No ice.", items }),
+  half: (items, text) => ({ scene: "half", title: "Pour the beer", text, items }),
+  side: (text, pair) => ({ scene: "side", title: "Serve side by side", text, pair }),
 };
+// A Red Bull bomb: the shot and half a can, served side by side for the guest to drop in.
+const BOMB_METHOD = "Pour the shot. Pour half a can of Red Bull into a rocks glass. Serve side by side, guest drops the shot in";
+const DROP_IT = "Serve them together. The guest drops the shot into the Red Bull. Check ID.";
+const bomb = (name, shot, blurb, colour, tags = ["Sweet", "Energy"]) => ({ section: "Bombs & Boilermakers", name, tags, blurb, glass: "Shot glass in a rocks glass", ice: "None", colour,
+  method: BOMB_METHOD, spec: [shot, "125 ml Red Bull"], garnish: "None",
+  steps: () => [S.shot([item(shot)], "Pour the shot", "Measure with the jigger into a shot glass."), S.can([item("125 ml Red Bull")]), S.side(DROP_IT)] });
+// A layered shot: the first one poured, the rest floated over a bar spoon. bands are the colours, bottom first.
+const layered = (spec, bands) => [S.shot([item(spec[0])], `${item(spec[0]).item} first`, `Pour ${spec[0]} into the shot glass.`),
+  ...spec.slice(1).map((l, i) => S.layer([item(l)], i === spec.length - 2 ? "Pour it slowly over the back of a bar spoon to make the top layer." : "Pour it slowly over the back of a bar spoon so it sits on top.", bands.slice(0, i + 2))),
+  S.serve("Serve without stirring so the layers stay clean. Check ID if the guest looks under 25.")];
 const ALL = /./;
 const NOT_TOP = (l) => !/^Top /.test(l);
 const TOPS = /^Top /;
@@ -43,7 +59,7 @@ const ID = "Serve straight away. Check ID if the guest looks under 25.";
 const X = [
   // ---------- Cocktails ----------
   { section: "Long & Refreshing", name: "Bloody Mary", price: 14, tags: ["Savoury", "Spicy"], blurb: "tomato, spice and a squeeze of lemon", glass: "Highball", ice: "Cubed", colour: "#b3261e",
-    method: "Roll between two tins with ice, strain over fresh ice, garnish", spec: ["50 ml Smirnoff", "100 ml tomato juice", "15 ml lemon juice", "2 dashes Worcestershire sauce", "2 dashes Tabasco", "Pinch of celery salt and black pepper"], garnish: "Celery stick, lemon wedge", allergens: "Celery, Fish (Worcestershire sauce)",
+    method: "Roll between two tins with ice, strain over fresh ice", spec: ["50 ml Smirnoff", "100 ml tomato juice", "15 ml lemon juice", "2 dashes Worcestershire sauce", "2 dashes Tabasco", "Pinch of celery salt and black pepper"], garnish: "Celery stick, lemon wedge", allergens: "Celery, Fish (Worcestershire sauce)",
     steps: (sp) => [S.ice("cubed", "highball"), S.tin(pick(sp, ALL)), { scene: "strain", title: "Roll", text: "Add ice to the tin. Pour it back and forth into a second tin 4 or 5 times. Rolling mixes it without making the tomato frothy.", double: false }, S.strain("Strain over fresh ice in the highball."), S.garnish("Celery stick, lemon wedge", "Ask if they want it spicier. Contains celery and fish.")] },
   { section: "Sour & Zesty", name: "Caipirinha", price: 14, tags: ["Zesty", "Strong"], blurb: "Brazil's national drink: cachaça, lime and sugar", glass: "Rocks", ice: "Crushed", colour: "#d8e9a8",
     method: "Muddle lime wedges with sugar syrup in the glass, add cachaça and crushed ice, churn", spec: ["50 ml Abelha cachaça", "20 ml sugar syrup", "1 lime, cut into 8 wedges"], garnish: "Lime wedge",
@@ -87,14 +103,15 @@ const X = [
   { section: "Tiki & Tropical", name: "Painkiller", price: 14, tags: ["Tropical", "Creamy"], blurb: "dark rum, pineapple, orange and coconut", glass: "Hurricane", ice: "Crushed", colour: "#f2c46a",
     method: "Shake, strain over crushed ice, grate nutmeg", spec: ["50 ml Captain Morgan Dark", "100 ml pineapple juice", "25 ml orange juice", "25 ml Coco Real"], garnish: "Grated nutmeg, pineapple leaf",
     steps: (sp) => [S.ice("crushed", "hurricane glass"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Strain over the crushed ice."), S.garnish("Grated nutmeg, pineapple leaf")] },
-  { section: "Long & Refreshing", name: "El Diablo", price: 14, tags: ["Fruity", "Spicy"], blurb: "tequila, berry and lime, topped with ginger beer", glass: "Highball", ice: "Cubed", colour: "#a8244a",
-    method: "Shake tequila and lime, strain over ice, top ginger beer, drizzle Chambord", spec: ["50 ml El Jimador Reposado", "15 ml lime juice", "Top Fever-Tree Ginger Beer", "15 ml Chambord"], garnish: "Lime wedge",
-    steps: (sp) => [S.ice("cubed", "highball"), S.tin([item("50 ml El Jimador Reposado"), item("15 ml lime juice")]), S.shake(), S.strain("Strain over the ice."), S.top(pick(sp, TOPS)), { scene: "sink", title: "Drizzle the Chambord", text: "Pour the Chambord slowly down the inside of the glass. It sinks and bleeds through. Do not stir.", items: [item("15 ml Chambord")] }, S.garnish("Lime wedge")] },
+  // El Diablo is made with crème de cassis (Difford's Guide), not Chambord.
+  { section: "Long & Refreshing", name: "El Diablo", price: 14, tags: ["Fruity", "Spicy"], blurb: "tequila, blackcurrant and lime, topped with ginger beer", glass: "Highball", ice: "Cubed", colour: "#a8244a",
+    method: "Shake tequila and lime, strain over ice, top ginger beer, drizzle the cassis", spec: ["50 ml El Jimador Reposado", "20 ml lime juice", "Top Fever-Tree Ginger Beer", "15 ml crème de cassis"], garnish: "Lime wedge",
+    steps: (sp) => [S.ice("cubed", "highball"), S.tin([item("50 ml El Jimador Reposado"), item("20 ml lime juice")]), S.shake(), S.strain("Strain over the ice."), S.top(pick(sp, TOPS)), S.sink([item("15 ml crème de cassis")], "Drizzle the cassis", "Pour the cassis slowly down the inside of the glass. It sinks and bleeds through. Do not stir."), S.garnish("Lime wedge")] },
   { section: "Long & Refreshing", name: "Ranch Water", price: 13, tags: ["Light", "Zesty"], blurb: "Texas favourite: tequila, lots of lime and soda", glass: "Highball", ice: "Cubed", colour: "#eef3dc",
     method: "Build over ice, top soda", spec: ["50 ml El Jimador Blanco", "25 ml lime juice", "Top soda"], garnish: "Lime wedge",
     steps: (sp) => [S.ice("cubed", "highball"), S.glass(pick(sp, /ml/)), S.top(pick(sp, TOPS)), S.lift(), S.garnish("Lime wedge")] },
-  { section: "Long & Refreshing", name: "Batanga", price: 13, tags: ["Easy", "Fizzy"], blurb: "tequila and Coke with lime and a salt rim", glass: "Highball", ice: "Cubed", colour: "#3b2416",
-    method: "Salt rim, build over ice, top Coca-Cola", spec: ["50 ml El Jimador Blanco", "15 ml lime juice", "Top Coca-Cola"], garnish: "Salt rim, lime wedge",
+  { section: "Long & Refreshing", name: "Batanga", price: 13, tags: ["Easy", "Fizzy"], blurb: "tequila and Coke with lime and a salt rim", glass: "Highball, salt rim", ice: "Cubed", colour: "#3b2416",
+    method: "Salt rim, build over ice, top Coca-Cola", spec: ["50 ml El Jimador Blanco", "15 ml lime juice", "Top Coca-Cola"], garnish: "Lime wedge",
     steps: (sp) => [S.rim("salt", "Run a lime wedge round the outside rim and roll it in salt. Tap off the loose salt."), S.ice("cubed", "highball"), S.glass(pick(sp, /ml/)), S.top(pick(sp, TOPS)), S.lift(), S.garnish("Lime wedge")] },
   { section: "Fresh & Fruity", name: "Bay Breeze", price: 13, tags: ["Fruity", "Easy"], blurb: "vodka, cranberry and pineapple", glass: "Highball", ice: "Cubed", colour: "#e86a7a",
     method: "Build over ice, short stir", spec: ["50 ml Smirnoff", "75 ml cranberry juice", "75 ml pineapple juice"], garnish: "Lime wedge",
@@ -105,13 +122,13 @@ const X = [
   { section: "After Dinner", name: "Mudslide", price: 14, tags: ["Creamy", "Coffee"], blurb: "vodka, Kahlúa, Baileys and cream", glass: "Rocks", ice: "Cubed", colour: "#a8805a",
     method: "Shake, strain over fresh ice, drizzle chocolate", spec: ["25 ml Smirnoff", "25 ml Kahlúa", "25 ml Baileys", "25 ml double cream"], garnish: "Chocolate sauce drizzle", allergens: "Milk",
     steps: (sp) => [S.ice("cubed", "rocks glass"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Strain over the fresh ice."), S.garnish("Chocolate sauce drizzle", "Serve. Contains milk.")] },
-  { section: "Spritz & Sparkling", name: "Rossini", price: 13, tags: ["Fruity", "Fizzy"], blurb: "strawberry and Prosecco, the Bellini's cousin", glass: "Flute", ice: "None", colour: "#e8506a",
-    method: "Strawberry purée in the flute, top Prosecco slowly, gentle lift", spec: ["25 ml strawberry purée", "Top Prosecco"], garnish: "Strawberry on the rim",
-    steps: (sp) => [S.glass(pick(sp, /ml/), "Measure the purée with the jigger and pour it into the flute."), S.top(pick(sp, TOPS), "Tilt the glass and top with Prosecco slowly so it doesn't foam over."), { scene: "lift", title: "Gentle lift", text: "Lift once with the bar spoon to mix the purée through." }, S.garnish("Strawberry on the rim")] },
+  { section: "Spritz & Sparkling", name: "Rossini", price: 13, tags: ["Fruity", "Fizzy"], blurb: "strawberry and Prosecco, the Bellini's cousin", glass: "Coupe or flute", ice: "None", colour: "#e8506a",
+    method: "Purée first, top Prosecco slowly, gentle lift", spec: ["50 ml strawberry purée", "Top 100 ml Prosecco"], garnish: "Strawberry on the rim",
+    steps: (sp) => [S.glass(pick(sp, /ml/), "Measure the purée with the jigger and pour it into the coupe or flute."), S.top(pick(sp, TOPS), "Tilt the glass and top with Prosecco slowly so it doesn't foam over."), { scene: "lift", title: "Gentle lift", text: "Lift once with the bar spoon to mix the purée through." }, S.garnish("Strawberry on the rim")] },
   // Added 24 Oct (owner: "Add more cocktails"). All from bottles on the back bar.
   { section: "Spritz & Sparkling", name: "Negroni Sbagliato", tags: ["Bittersweet", "Fizzy"], blurb: "the “mistake” Negroni: Prosecco instead of gin", glass: "Rocks", ice: "Cubed", colour: "#d9482a",
-    method: "Build over ice, top Prosecco, gentle lift", spec: ["25 ml Campari", "25 ml Martini Rosso", "Top Prosecco"], garnish: "Orange slice",
-    steps: (sp) => [S.ice("cubed", "rocks glass"), S.glass(pick(sp, /ml/)), S.top(pick(sp, TOPS), "Top up slowly with Prosecco to just below the rim."), { scene: "lift", title: "Gentle lift", text: "Lift once with the bar spoon from the bottom up. Keep the bubbles." }, S.garnish("Orange slice")] },
+    method: "Build over ice, top Prosecco, gentle lift", spec: ["25 ml Campari", "25 ml Martini Rosso", "Top 25 ml Prosecco"], garnish: "Orange slice",
+    steps: (sp) => [S.ice("cubed", "rocks glass"), S.glass(pick(sp, /ml/)), S.top(pick(sp, TOPS), "Top with the Prosecco slowly."), { scene: "lift", title: "Gentle lift", text: "Lift once with the bar spoon from the bottom up. Keep the bubbles." }, S.garnish("Orange slice")] },
   { section: "Long & Refreshing", name: "Garibaldi", tags: ["Bittersweet", "Fruity", "Easy"], blurb: "Campari and orange juice, long and simple", glass: "Highball", ice: "Cubed", colour: "#f07a2a",
     method: "Build over ice, top orange juice, gentle lift", spec: ["50 ml Campari", "Top orange juice"], garnish: "Orange wedge",
     steps: (sp) => [S.ice("cubed", "highball"), S.glass(pick(sp, /ml/), "Measure with the jigger and pour over the ice."), S.top(pick(sp, TOPS), "Top up with orange juice to just below the rim."), { scene: "lift", title: "Gentle lift", text: "Lift once with the bar spoon from the bottom up." }, S.garnish("Orange wedge")] },
@@ -134,10 +151,10 @@ const X = [
     method: "Stir 30 seconds, strain over a large cube", spec: ["50 ml Zacapa 23", "7.5 ml rich sugar syrup (2:1)", "2 dashes Angostura", "1 dash orange bitters"], garnish: "Orange zest",
     steps: (sp) => [S.ice("large", "rocks glass"), S.mix(pick(sp, ALL)), S.stir(30), S.strainMix("Strain over the large cube in the rocks glass."), S.garnish("Orange zest", "Squeeze the zest over the drink so the oils land on top, then drop it in.")] },
   { section: "Born in NYC", name: "Jack Rose", tags: ["Classic", "Fruity", "Sour"], blurb: "apple brandy, lemon and grenadine, a New York favourite from the 1900s", glass: "Chilled coupe", ice: "None (served up)", colour: "#e0506a",
-    method: "Shake, double strain", spec: ["50 ml Avallen Calvados", "25 ml lemon juice", "15 ml grenadine"], garnish: "Lemon zest",
+    method: "Shake, double strain", spec: ["50 ml Avallen Calvados", "15 ml lemon juice", "10 ml grenadine"], garnish: "Lemon zest",
     steps: (sp) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Hawthorne strainer on the tin, fine strainer over the glass. Strain into the chilled coupe.", true), S.garnish("Lemon zest")] },
   { section: "After Dinner", name: "Toblerone", tags: ["Creamy", "Coffee", "Sweet"], blurb: "Baileys, Kahlúa, Frangelico and cream, like the chocolate bar", glass: "Chilled coupe", ice: "None (served up)", colour: "#b08a62",
-    method: "Shake hard, double strain", spec: ["25 ml Baileys", "25 ml Kahlúa", "25 ml Frangelico", "25 ml double cream"], garnish: "Chocolate sauce drizzle", allergens: "Milk, Nuts (Frangelico)",
+    method: "Shake hard, double strain", spec: ["25 ml Baileys", "25 ml Kahlúa", "25 ml Frangelico", "25 ml double cream"], garnish: "Chocolate sauce drizzle", allergens: "Milk, Hazelnut (Frangelico)",
     steps: (sp) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.shake("Fill the tin with ice. Seal it and shake very hard for 12 seconds."), S.strain("Hawthorne strainer on the tin, fine strainer over the glass. Strain into the chilled coupe.", true), S.garnish("Chocolate sauce drizzle", "Serve. Contains milk and nuts.")] },
   // Added 24 Oct, second batch (owner: "We store basically everything").
   { section: "Sour & Zesty", name: "Aviation", tags: ["Classic", "Floral", "Sour"], blurb: "gin, maraschino, violet and lemon, pale sky blue", glass: "Chilled coupe", ice: "None (served up)", colour: "#b8b4e0",
@@ -185,9 +202,9 @@ const X = [
   { section: "After Dinner", name: "Grasshopper", tags: ["Creamy", "Sweet", "Fresh"], blurb: "mint chocolate in a glass: crème de menthe, cacao and cream", glass: "Chilled coupe", ice: "None (served up)", colour: "#9ad8a0",
     method: "Shake hard, double strain", spec: ["25 ml green crème de menthe", "25 ml white crème de cacao", "25 ml double cream"], garnish: "Mint leaf", allergens: "Milk",
     steps: (sp) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.shake("Fill the tin with ice. Seal it and shake very hard for 12 seconds."), S.strain("Hawthorne strainer on the tin, fine strainer over the glass. Strain into the chilled coupe.", true), S.garnish("Mint leaf", "Float it on top. Serve. Contains milk.")] },
-  { section: "Spritz & Sparkling", name: "Kir Royale", tags: ["Fruity", "Fizzy"], blurb: "blackcurrant liqueur topped with fizz", glass: "Flute", ice: "None", colour: "#9a2a4a",
-    method: "Pour cassis, top Prosecco", spec: ["15 ml crème de cassis", "Top Prosecco"], garnish: "None",
-    steps: (sp) => [S.glass(pick(sp, /ml/), "Measure with the jigger and pour into the flute."), S.top(pick(sp, TOPS), "Tilt the flute and top up slowly with Prosecco so it doesn't foam over."), S.serve("No garnish. Serve straight away.")] },
+  { section: "Spritz & Sparkling", name: "Kir Royale", tags: ["Fruity", "Fizzy"], blurb: "blackcurrant liqueur topped with fizz", glass: "Coupe or flute", ice: "None", colour: "#9a2a4a",
+    method: "Cassis first, top Prosecco slowly", spec: ["15 ml crème de cassis", "Top 100 ml Prosecco"], garnish: "None",
+    steps: (sp) => [S.glass(pick(sp, /ml/), "Measure with the jigger and pour into the coupe or flute."), S.top(pick(sp, TOPS), "Tilt the glass and top up slowly with Prosecco so it doesn't foam over."), S.serve("No garnish. Serve straight away.")] },
   { section: "Long & Refreshing", name: "Blue Lagoon", tags: ["Fizzy", "Citrus", "Easy"], blurb: "vodka and blue curaçao topped with lemonade, bright blue", glass: "Highball", ice: "Cubed", colour: "#2a9ad8",
     method: "Build over ice, top lemonade, gentle lift", spec: ["50 ml Smirnoff", "25 ml blue curaçao", "Top lemonade"], garnish: "Lemon wheel, cherry",
     steps: (sp) => [S.ice("cubed", "highball"), S.glass(pick(sp, /ml/)), S.top(pick(sp, TOPS), "Top up with lemonade to just below the rim."), { scene: "lift", title: "Gentle lift", text: "Lift once with the bar spoon from the bottom up." }, S.garnish("Lemon wheel, cherry")] },
@@ -203,7 +220,7 @@ const X = [
     steps: (sp) => [S.chill("coupe"), S.mix(pick(sp, ALL)), S.stir(30), S.strainMix("Tip out the ice water. Strain into the chilled coupe."), S.garnish("Cherry and orange zest", "Perfect gets both. Squeeze the peel over the top, then drop in the peel and the cherry.")] },
   // ---------- Zero proof ----------
   { section: "Zero Proof", name: "Virgin Mary", price: 6, tags: ["Savoury", "Spicy", "No alcohol"], blurb: "all the Bloody Mary spice, no vodka", glass: "Highball", ice: "Cubed", colour: "#b3261e",
-    method: "Roll between two tins, strain over ice", spec: ["150 ml tomato juice", "15 ml lemon juice", "2 dashes Worcestershire sauce", "2 dashes Tabasco", "Pinch of celery salt and black pepper"], garnish: "Celery stick, lemon wedge", allergens: "Celery, Fish (Worcestershire sauce)",
+    method: "Roll between two tins with ice, strain over fresh ice", spec: ["150 ml tomato juice", "15 ml lemon juice", "2 dashes Worcestershire sauce", "2 dashes Tabasco", "Pinch of celery salt and black pepper"], garnish: "Celery stick, lemon wedge", allergens: "Celery, Fish (Worcestershire sauce)",
     steps: (sp) => [S.ice("cubed", "highball"), S.tin(pick(sp, ALL)), { scene: "strain", title: "Roll", text: "Add ice to the tin. Pour it back and forth into a second tin 4 or 5 times.", double: false }, S.strain("Strain over fresh ice in the highball."), S.garnish("Celery stick, lemon wedge", "Serve. Contains celery and fish.")] },
   // ---------- Shots ----------
   { section: "Classic Shots", name: "Mexican Flag", price: 8, tags: ["Sweet", "Strong"], blurb: "red, green and tequila in three layers", glass: "Shot glass", ice: "None", colour: "#7cb342",
@@ -230,6 +247,75 @@ const X = [
   { section: "House Shots", name: "Gummy Bear", price: 8, tags: ["Sweet", "Fruity"], blurb: "red berry vodka, peach and a splash of lemonade", glass: "Shot glass", ice: "None", colour: "#e0446a",
     method: "Shake, strain, splash of lemonade", spec: ["12.5 ml Cîroc Red Berry", "12.5 ml Archers", "10 ml cranberry juice", "Splash of lemonade"], garnish: "None",
     steps: (sp) => [S.tin(pick(sp, /ml/)), S.shake("Fill the tin with ice. Seal it and shake hard for 8 to 10 seconds."), S.strainShot(), S.top([item("Top lemonade")], "Add a small splash of lemonade on top."), S.serve(ID)] },
+
+  // Added 25 Oct (owner: "add more bombs, shots and cocktails"). Specs from IBA (iba-world.com) or Difford's Guide,
+  // rounded to our jiggers, using bottles on the back bar.
+  { section: "Tiki & Tropical", name: "Singapore Sling", tags: ["Classic", "Fruity", "Tropical"], blurb: "the gin sling from Singapore's Raffles Hotel: cherry, pineapple and lime", glass: "Hurricane", ice: "Cubed", colour: "#e8606a",
+    method: "Shake, strain over fresh ice", spec: ["30 ml Tanqueray", "15 ml Heering Cherry", "7.5 ml Cointreau", "7.5 ml Bénédictine", "120 ml pineapple juice", "15 ml lime juice", "10 ml grenadine", "1 dash Angostura"], garnish: "Pineapple wedge, cherry",
+    steps: (sp) => [S.ice("cubed", "hurricane glass"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Strain over the fresh ice."), S.garnish("Pineapple wedge, cherry")] },
+  { section: "Tiki & Tropical", name: "Blue Hawaiian", tags: ["Tropical", "Creamy", "Sweet"], blurb: "rum, blue curaçao, pineapple and coconut, bright blue", glass: "Hurricane", ice: "Crushed", colour: "#2a9ad8",
+    method: "Shake, strain over crushed ice", spec: ["50 ml Captain Morgan White", "25 ml blue curaçao", "25 ml Coco Real", "75 ml pineapple juice", "12.5 ml lime juice"], garnish: "Pineapple wedge, cherry",
+    steps: (sp) => [S.ice("crushed", "hurricane glass"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Strain over the crushed ice."), S.garnish("Pineapple wedge, cherry")] },
+  { section: "Sour & Zesty", name: "White Lady", tags: ["Classic", "Citrus", "Strong"], blurb: "gin, Cointreau and lemon, a 1920s classic", glass: "Chilled coupe", ice: "None (served up)", colour: "#f2efe2",
+    method: "Shake, double strain", spec: ["40 ml Tanqueray", "30 ml Cointreau", "20 ml lemon juice"], garnish: "None",
+    steps: (sp) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Hawthorne strainer on the tin, fine strainer over the glass. Strain into the chilled coupe.", true), S.serve("No garnish. Serve straight away.")] },
+  { section: "Sour & Zesty", name: "Aperol Sour", tags: ["Bittersweet", "Sour", "Silky"], blurb: "Aperol and lemon with a soft foam", glass: "Rocks", ice: "Cubed", colour: "#f5893a",
+    method: "Dry shake, shake with ice, strain over fresh ice", spec: ["50 ml Aperol", "25 ml lemon juice", "12.5 ml sugar syrup", "20 ml aquafaba"], garnish: "Orange slice",
+    steps: (sp) => [S.ice("cubed", "rocks glass"), S.tin(pick(sp, ALL)), S.dry(), S.shakeAgain(), S.strain("Strain over the fresh ice."), S.garnish("Orange slice", "Serve. The foam is aquafaba, so it is vegan.")] },
+  { section: "Martinis", name: "Vesper", tags: ["Classic", "Strong", "Dry"], blurb: "James Bond's Martini: gin, vodka and Lillet, shaken", glass: "Chilled coupe", ice: "None (served up)", colour: "#efe9c8",
+    method: "Shake, double strain, lemon zest", spec: ["45 ml Tanqueray", "15 ml Grey Goose", "7.5 ml Lillet Blanc"], garnish: "Lemon zest",
+    steps: (sp) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Hawthorne strainer on the tin, fine strainer over the glass. Strain into the chilled coupe.", true), { scene: "zest", title: "Lemon zest", text: "Squeeze a long strip of lemon zest over the top, skin side down, then drop it in." }, S.serve("Serve straight away.")] },
+  { section: "Martinis", name: "Apple Martini", tags: ["Fruity", "Sour", "Sweet"], blurb: "sharp green apple, shaken and served up", glass: "Chilled coupe", ice: "None (served up)", colour: "#c8e070",
+    method: "Shake, double strain", spec: ["50 ml Cîroc Apple", "20 ml apple liqueur", "15 ml lime juice", "7.5 ml sugar syrup"], garnish: "Thin apple slice",
+    steps: (sp) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Hawthorne strainer on the tin, fine strainer over the glass. Strain into the chilled coupe.", true), S.garnish("Thin apple slice", "Float it on top. Serve straight away.")] },
+  { section: "Fresh & Fruity", name: "Sea Breeze", tags: ["Fruity", "Easy", "Light"], blurb: "vodka, cranberry and grapefruit", glass: "Highball", ice: "Cubed", colour: "#ef6f7f",
+    method: "Build over ice, short stir", spec: ["40 ml Smirnoff", "120 ml cranberry juice", "30 ml grapefruit juice"], garnish: "Lime wedge",
+    steps: (sp) => [S.ice("cubed", "highball"), S.glass(pick(sp, ALL)), S.lift(), S.garnish("Lime wedge")] },
+  { section: "Long & Refreshing", name: "Michelada", tags: ["Savoury", "Spicy", "Light"], blurb: "Mexico's beer cocktail: Corona, lime, hot sauce and a salt rim", glass: "Highball, salt rim", ice: "Cubed", colour: "#e0a526",
+    method: "Salt rim, lime and sauces over ice, top Corona, short stir", spec: ["15 ml lime juice", "2 dashes Tabasco", "2 dashes Worcestershire sauce", "Top Corona"], garnish: "Lime wedge", allergens: "Fish (Worcestershire sauce)",
+    steps: (sp) => [S.rim("salt", "Run a lime wedge round the outside rim of the highball and roll it in salt."), S.ice("cubed", "highball"), S.glass(pick(sp, /ml|dash/), "Measure the lime juice in, then add the Tabasco and Worcestershire sauce."), S.top(pick(sp, TOPS), "Top slowly with Corona from the tap so it doesn't foam over."), S.lift(), S.garnish("Lime wedge", "Serve. Contains fish (Worcestershire sauce) and gluten (beer).")] },
+  { section: "Born in NYC", name: "Gold Rush", tags: ["Sour", "Sweet", "Strong"], blurb: "bourbon, honey and lemon, from New York's Milk & Honey", glass: "Rocks", ice: "1 large cube", colour: "#e8b04a",
+    method: "Shake, strain over a large cube", spec: ["50 ml Buffalo Trace", "20 ml lemon juice", "20 ml honey syrup (2:1)"], garnish: "Lemon zest",
+    steps: (sp) => [S.ice("large", "rocks glass"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Strain over the large cube."), S.garnish("Lemon zest", "Squeeze the zest over the drink so the oils land on top, then drop it in.")] },
+  { section: "Born in NYC", name: "Old Cuban", tags: ["Classic", "Fresh", "Fizzy"], blurb: "Audrey Saunders' 2001 New York classic: aged rum, lime and mint, topped with Prosecco", glass: "Chilled coupe", ice: "None (served up)", colour: "#d8e0a0",
+    method: "Shake, double strain, top Prosecco", spec: ["45 ml Zacapa 23", "20 ml lime juice", "25 ml sugar syrup", "2 dashes Angostura", "8 mint leaves", "Top 60 ml Prosecco"], garnish: "Mint leaf",
+    steps: (sp) => [S.chill("coupe"), S.tin(pick(sp, /^(?!Top )/)), S.shake(), S.strain("Hawthorne strainer on the tin, fine strainer over the glass, so no bits of mint get through.", true), S.top(pick(sp, TOPS), "Top with 60 ml Prosecco, poured slowly."), S.garnish("Mint leaf", "Float it on top. Serve straight away.")] },
+  { section: "Born in NYC", name: "Gin-Gin Mule", tags: ["Fresh", "Spicy", "Fizzy"], blurb: "Audrey Saunders' New York mule: gin, mint and lime with ginger beer", glass: "Highball", ice: "Cubed", colour: "#d8e8b0",
+    method: "Shake with mint, double strain over fresh ice, top ginger beer", spec: ["50 ml Tanqueray", "20 ml lime juice", "12.5 ml sugar syrup", "8 mint leaves", "Top Fever-Tree Ginger Beer"], garnish: "Mint sprig, lime wedge",
+    steps: (sp) => [S.ice("cubed", "highball"), S.tin(pick(sp, /^(?!Top )/)), S.shake(), S.strain("Strain over the fresh ice."), S.top(pick(sp, TOPS)), S.garnish("Mint sprig, lime wedge", "Slap the mint first to wake up the smell. Serve straight away.")] },
+  { section: "Born in NYC", name: "Greenpoint", tags: ["Classic", "Strong", "Herbal"], blurb: "Brooklyn's cousin of the Manhattan, with yellow Chartreuse", glass: "Chilled coupe", ice: "None (served up)", colour: "#b8862a",
+    method: "Stir 30 seconds, strain into a chilled coupe", spec: ["50 ml rye whiskey", "12.5 ml Martini Rosso", "12.5 ml yellow Chartreuse", "1 dash Angostura", "1 dash orange bitters"], garnish: "Lemon zest",
+    steps: (sp) => [S.chill("coupe"), S.mix(pick(sp, ALL)), S.stir(30), S.strainMix("Tip out the ice water. Strain into the chilled coupe."), S.garnish("Lemon zest", "Squeeze the zest over the drink so the oils land on top, then drop it in.")] },
+
+  bomb("Raspberry Bomb", "25 ml Chambord", "Chambord dropped into Red Bull", "#8b1a3a"),
+  bomb("Melon Bomb", "25 ml Midori", "Midori dropped into Red Bull, bright green", "#7cb342"),
+  bomb("Pineapple Bomb", "25 ml Cîroc Pineapple", "pineapple vodka dropped into Red Bull", "#f2c94c"),
+  bomb("Mango Bomb", "25 ml Cîroc Mango", "mango vodka dropped into Red Bull", "#f5a623"),
+  { section: "Bombs & Boilermakers", name: "Vegas Bomb", tags: ["Sweet", "Fruity", "Energy"], blurb: "whiskey, peach, coconut and cranberry, shaken and dropped into Red Bull", glass: "Shot glass in a rocks glass", ice: "None", colour: "#e86a5a",
+    method: "Shake the shot, strain. Pour half a can of Red Bull into a rocks glass. Serve side by side, guest drops the shot in", spec: ["12.5 ml Jameson", "7.5 ml Archers", "7.5 ml Malibu", "10 ml cranberry juice", "125 ml Red Bull"], garnish: "None",
+    steps: (sp) => [S.tin(pick(sp, /^(?!.*Red Bull)/)), S.shake("Fill the tin with ice. Seal it and shake hard for 8 to 10 seconds."), S.strainShot(), S.can([item("125 ml Red Bull")]), S.side(DROP_IT)] },
+  { section: "Bombs & Boilermakers", name: "Lunchbox", tags: ["Fruity", "Sweet", "Beer"], blurb: "beer and orange juice with a shot of amaretto dropped in", glass: "Half pint + shot glass", ice: "None", colour: "#f0a030",
+    method: "Beer, then orange juice. Serve the Disaronno shot on the side to drop in", spec: ["200 ml Budweiser", "50 ml orange juice", "25 ml Disaronno"], garnish: "None", allergens: "Almond flavour (Disaronno), ask about nut allergies",
+    steps: (sp) => [S.half([item("200 ml Budweiser")], "Pour 200 ml Budweiser into a half pint glass with a small head."), S.top([item("50 ml orange juice")], "Top with 50 ml orange juice."), S.shot([item("25 ml Disaronno")], "Pour the shot", "Measure with the jigger into a shot glass."), S.side("Serve them together. The guest drops the shot into the beer and drinks it straight away. Check ID.", "boiler")] },
+
+  { section: "House Shots", name: "Jam Doughnut", tags: ["Sweet", "Creamy", "Fruity"], blurb: "Chambord under Baileys with a sugar rim, like a doughnut", glass: "Shot glass, sugar rim", ice: "None", colour: "#c2185b",
+    method: "Sugar rim, Chambord first, layer the Baileys on top", spec: ["10 ml Chambord", "20 ml Baileys"], garnish: "Sugar rim", allergens: "Milk",
+    steps: (sp) => [S.rim("sugar", "Wet the rim with a lemon wedge and dip it in sugar."), ...layered(sp, ["#8b1a3a", "#f3ead2"])] },
+  { section: "Classic Shots", name: "Squashed Frog", tags: ["Sweet", "Creamy"], blurb: "grenadine, Midori and Baileys in three layers", glass: "Shot glass", ice: "None", colour: "#7cb342",
+    method: "Layer grenadine, then Midori, then Baileys", spec: ["10 ml grenadine", "10 ml Midori", "10 ml Baileys"], garnish: "None", allergens: "Milk",
+    steps: (sp) => layered(sp, ["#c4142e", "#7cb342", "#f3ead2"]) },
+  { section: "Classic Shots", name: "Irish Flag", tags: ["Sweet", "Creamy", "Minty"], blurb: "green, white and orange: crème de menthe, Baileys and Grand Marnier", glass: "Shot glass", ice: "None", colour: "#2e9a4a",
+    method: "Layer crème de menthe, then Baileys, then Grand Marnier", spec: ["10 ml green crème de menthe", "10 ml Baileys", "10 ml Grand Marnier"], garnish: "None", allergens: "Milk",
+    steps: (sp) => layered(sp, ["#2e9a4a", "#f3ead2", "#e8a33a"]) },
+  { section: "Classic Shots", name: "After Eight", tags: ["Sweet", "Creamy", "Minty"], blurb: "Kahlúa, crème de menthe and Baileys: mint chocolate in a shot", glass: "Shot glass", ice: "None", colour: "#3b2416",
+    method: "Layer Kahlúa, then crème de menthe, then Baileys", spec: ["10 ml Kahlúa", "10 ml green crème de menthe", "10 ml Baileys"], garnish: "None", allergens: "Milk",
+    steps: (sp) => layered(sp, ["#3b2416", "#2e9a4a", "#f3ead2"]) },
+  { section: "Classic Shots", name: "Chocolate Cake", tags: ["Sweet", "Nutty"], blurb: "Frangelico and vanilla vodka with a sugared lemon: tastes like chocolate cake", glass: "Shot glass", ice: "None", colour: "#b07a3a",
+    method: "Shake, strain. Serve with a lemon wedge dipped in sugar", spec: ["15 ml Frangelico", "15 ml Smirnoff Vanilla"], garnish: "Lemon wedge dipped in sugar", allergens: "Hazelnut (Frangelico)",
+    steps: (sp) => [S.tin(pick(sp, ALL)), S.shake("Fill the tin with ice. Seal it and shake hard for 8 to 10 seconds."), S.strainShot(), S.garnish("Lemon wedge dipped in sugar", "Serve it on the side. The guest bites the lemon, then drinks the shot. Check ID if the guest looks under 25.")] },
+  { section: "House Shots", name: "Pineapple Upside-Down", tags: ["Sweet", "Fruity"], blurb: "vanilla vodka and pineapple with grenadine sunk to the bottom", glass: "Shot glass", ice: "None", colour: "#f2c94c",
+    method: "Vodka, then pineapple juice, then sink the grenadine", spec: ["15 ml Smirnoff Vanilla", "20 ml pineapple juice", "7.5 ml grenadine"], garnish: "None",
+    steps: (sp) => [S.shot([item("15 ml Smirnoff Vanilla"), item("20 ml pineapple juice")], "Vodka and pineapple", "Pour the vodka, then the pineapple juice, into the shot glass."), S.sink([item("7.5 ml grenadine")], "Sink the grenadine", "Pour the grenadine slowly down the inside of the glass so it sinks to the bottom. Do not stir."), S.serve(ID)] },
 ];
 
 function tools(steps) {

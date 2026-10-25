@@ -6,7 +6,8 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
 /* Layout: one-column phone app. Sticky search header, scrolling list, full-screen spec sheet, fixed bottom tab bar.
-   Deliberately dark-only: it is read behind a dim bar at night. */
+   Dark by default, as it is read behind a dim bar at night. Light is for daytime set-up. Each phone picks one in Bar info,
+   or follows the phone's own setting; the script after this style sheet sets data-theme before anything draws. */
 :root {
   color-scheme: dark;
   --bg: #15130f;        /* back-bar wood in low light */
@@ -22,6 +23,21 @@
   --body: "Atkinson Hyperlegible", -apple-system, "Segoe UI", Roboto, sans-serif;
   --tabh: 62px;
   --paper: #f6f1e7;     /* pictures sit on a light card, like the printed guides */
+  --shadow: rgba(0,0,0,.5);
+}
+/* Daylight: the same brass and wood, darkened so text keeps at least 4.5:1 contrast on paper. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --bg: #f6f1e6;
+  --surface: #fffdf8;
+  --line: #d8cdb9;
+  --fg: #1f1b16;
+  --muted: #665c4e;
+  --brass: #8a5a0b;
+  --brass-ink: #fffaf0;
+  --warn: #b0361b;
+  --ok: #2d7a3a;
+  --shadow: rgba(60,40,10,.18);
 }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
@@ -192,7 +208,7 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .pn { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 22px; }
 .pn .btn { min-height: 48px; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
 .pn .btn:last-child { text-align: right; }
-.hero .g { width: 88px !important; height: 110px !important; filter: drop-shadow(0 6px 14px rgba(0,0,0,.45)); }
+.hero .g { width: 88px !important; height: 110px !important; filter: drop-shadow(0 6px 14px var(--shadow)); }
 .hero { grid-template-columns: 88px 1fr !important; }
 .hero.solo { grid-template-columns: 1fr !important; }
 .row .g { width: 44px; height: 55px; }
@@ -206,7 +222,7 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .modesw { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px; }
 .modesw .chip { justify-content: center; }
 #shift-day { color: var(--muted); font-size: 14px; }
-.ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px rgba(0,0,0,.6); }
+.ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px var(--shadow); }
 .ptabs button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 52px; padding: 6px 2px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--muted); }
 .ptabs small { font-size: 11.5px; font-weight: 600; opacity: .85; min-height: 14px; }
 #tpanes .ptabs button { min-height: 44px; justify-content: center; font-size: 14px; }
@@ -345,7 +361,7 @@ details.pargrp summary { min-height: 40px; display: flex; align-items: center; f
 .welcome .sig { font-style: italic; color: var(--brass); font-size: 18px; margin: 18px 0 0; text-align: center; }
 .credit { text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .04em; margin: 28px 0 8px; }
 .credit b { color: var(--brass); font-weight: 700; }
-.swhint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); transform: translateX(-50%); z-index: 25; background: var(--brass); color: var(--brass-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px rgba(0,0,0,.5); pointer-events: none; white-space: nowrap; }
+.swhint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); transform: translateX(-50%); z-index: 25; background: var(--brass); color: var(--brass-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px var(--shadow); pointer-events: none; white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) {
   .sheet { animation: up .22s cubic-bezier(.2,.8,.2,1); } @keyframes up { from { transform: translateY(40px); opacity: .4; } }
   .sheet.closing { animation: down .18s ease-in forwards; } @keyframes down { to { transform: translateY(60px); opacity: 0; } }
@@ -353,9 +369,20 @@ details.pargrp summary { min-height: 40px; display: flex; align-items: center; f
   .step h4 span { transition: background .2s; }
 }
 </style>
+<script>
+// Light, dark or auto (the phone's own setting, the default), picked in Bar info.
+const LIGHT = matchMedia("(prefers-color-scheme: light)");
+function applyTheme() {
+  let t = "auto"; try { t = JSON.parse(localStorage.getItem("btbar.theme")) || "auto"; } catch {}
+  const light = t === "light" || (t === "auto" && LIGHT.matches);
+  document.documentElement.dataset.theme = light ? "light" : "dark";
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", light ? "#f6f1e6" : "#15130f");
+}
+applyTheme(); LIGHT.addEventListener("change", applyTheme);
+</script>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
-  <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" fill="#e0ad4f"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" stroke="#f4eee4" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (Bar info shows how)</li></ul>
@@ -720,7 +747,7 @@ $("#sheet").addEventListener("touchend", () => {
 });
 
 /* ---------- Allergens ---------- */
-const ALLERGENS = [["Milk", /milk/i], ["Gluten", /gluten/i], ["Peanut", /peanut/i], ["Almond", /almond/i], ["Hazelnut", /hazelnut/i], ["Oats", /oat/i], ["Soya", /soya/i], ["Celery", /celery/i], ["Fish", /fish/i]];
+const ALLERGENS = [["Milk", /milk/i], ["Gluten", /gluten/i], ["Peanut", /peanut/i], ["Almond", /almond/i], ["Hazelnut", /hazelnut/i], ["Oats", /oat/i], ["Soya", /soya/i], ["Celery", /celery/i], ["Fish", /fish/i], ["Sulphites", /sulphite/i]];
 const alHit = (d, re) => re.test(d.allergens || "");
 let alSel = null;
 function renderAllergens() {
@@ -839,6 +866,10 @@ Object.assign(LISTS, {
     "Chairs flipped",
     "Floor swept and mopped",
     { t: "Toilets bleached, swept and mopped", days: [0, 1] },
+    // New items go at the end: ticks are saved by position.
+    "Bins taken to the bin room, new bin bags in",
+    "Bin room card put back in its place",
+    "Stock brought up from the cellar",
   ] },
 });
 LISTS.open.short = "Opening"; LISTS.close.short = "Closing";
@@ -1189,11 +1220,19 @@ document.addEventListener("click", async (e) => {
   if (!e.target.closest("#install") || !installEvt) return;
   installEvt.prompt(); await installEvt.userChoice; installEvt = null; $("#install").hidden = true;
 });
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-theme-pick]"); if (!t) return;
+  store.set("theme", t.dataset.themePick); applyTheme(); haptic();
+  $$("[data-theme-pick]").forEach((b) => b.setAttribute("aria-pressed", b === t));
+});
 
 /* ---------- Bar info ---------- */
 function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
+    <h2 style="margin-top:12px">Light or dark</h2>
+    <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
+    <p class="note">Auto follows your phone. This phone only.</p>
     <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and posts the good ones as notices.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
     <h2>Measures and the law</h2>
     <ul>
@@ -1229,7 +1268,7 @@ function renderInfo() {
       <li>Tap <b>Install</b>. It now opens like an app.</li>
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>
-    <p class="note">Data from the Soho build cards and blacktap.com, last updated 24 October 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
+    <p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 25 October 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
     <p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p>`;
 }
 
