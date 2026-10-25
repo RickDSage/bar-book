@@ -191,7 +191,7 @@ const X = [
   { section: "Long & Refreshing", name: "Blue Lagoon", tags: ["Fizzy", "Citrus", "Easy"], blurb: "vodka and blue curaçao topped with lemonade, bright blue", glass: "Highball", ice: "Cubed", colour: "#2a9ad8",
     method: "Build over ice, top lemonade, gentle lift", spec: ["50 ml Smirnoff", "25 ml blue curaçao", "Top lemonade"], garnish: "Lemon wheel, cherry",
     steps: (sp) => [S.ice("cubed", "highball"), S.glass(pick(sp, /ml/)), S.top(pick(sp, TOPS), "Top up with lemonade to just below the rim."), { scene: "lift", title: "Gentle lift", text: "Lift once with the bar spoon from the bottom up." }, S.garnish("Lemon wheel, cherry")] },
-  // Manhattans corrected by Emily (bar team), 24 Oct: rye, not bourbon. Replaces the Manhattan in drinks.json.
+  // Manhattans corrected by the bar team, 24 Oct: rye, not bourbon. Replaces the Manhattan in drinks.json.
   { section: "Bold & Stirred", name: "Manhattan", tags: ["Classic", "Strong", "Rich"], blurb: "the sweet Manhattan: rye, sweet vermouth and bitters · pairs with The Champ", glass: "Chilled coupe", ice: "None (served up)", colour: "#9a3a1e", pairsWith: "The Champ",
     method: "Stir 30 seconds, strain into a chilled coupe", spec: ["50 ml rye whiskey", "25 ml Martini Rosso", "2 dashes Angostura"], garnish: "Cherry",
     steps: (sp) => [S.chill("coupe"), S.mix(pick(sp, ALL)), S.stir(30), S.strainMix("Tip out the ice water. Strain into the chilled coupe."), S.garnish("Cherry", "Sweet Manhattan gets a cherry. Serve straight away.")] },

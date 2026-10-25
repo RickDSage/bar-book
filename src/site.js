@@ -3,11 +3,15 @@ const fs = require("fs");
 const { chromium } = require("playwright");
 const OUT = process.argv[2];
 const VERSION = new Date().toISOString().slice(0, 16);
-// Live team feed: only built once the owner's Firebase web config is in firebase-config.json (the config is public by design;
-// access is controlled by firestore.rules). LIVE_EMU=1 LIVE_CONFIG=firebase-config.emu.json points it at the local emulators for testing.
-const CONFIG_FILE = process.env.LIVE_CONFIG || "firebase-config.json";
+// Live team feed: only built once the owner's Firebase web config is in firebase-config.json at the repo root (the config
+// is public by design; access is controlled by firestore.rules). --emu builds a copy that talks to the local emulators.
+const EMU = process.argv.includes("--emu");
+const CONFIG_FILE = EMU ? "../test/firebase-config.emu.json" : "../firebase-config.json";
 const CONFIG = fs.existsSync(CONFIG_FILE) ? fs.readFileSync(CONFIG_FILE, "utf8") : null;
-if (CONFIG) require("esbuild").buildSync({ entryPoints: ["live-src.js"], bundle: true, format: "esm", minify: true, target: "es2020", outfile: OUT + "/live.js", define: { __CONFIG__: CONFIG, __EMU__: String(!!process.env.LIVE_EMU) } });
+fs.mkdirSync(OUT, { recursive: true });
+if (CONFIG) require("esbuild").buildSync({ entryPoints: ["live-src.js"], bundle: true, format: "esm", minify: true, target: "es2020", outfile: OUT + "/live.js", define: { __CONFIG__: CONFIG, __EMU__: String(EMU) } });
+// A copy of the rules the site can show, so they can be opened on a phone and pasted into the Firebase console.
+fs.copyFileSync("../firestore.rules", OUT + "/firestore.rules.txt");
 
 const head = `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><meta name="description" content="Every Black Tap Soho drink: specs, step-by-step guides and allergens. Staff only."><meta property="og:title" content="Black Tap Bar Book"><meta property="og:description" content="Every Black Tap Soho drink: specs, step-by-step guides and allergens. Staff only."><meta property="og:image" content="https://rickdsage.github.io/bar-book/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="https://rickdsage.github.io/bar-book/"><meta property="og:type" content="website"><meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#15130f"><meta name="apple-mobile-web-app-status-bar-style" content="black"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body>`;
 fs.writeFileSync(OUT + "/index.html", head + fs.readFileSync("black-tap-bar-app.html", "utf8") + (CONFIG ? `<script type="module" src="live.js"></script>` : "") + "</body></html>");

@@ -1,13 +1,14 @@
 // Bundles drinks.json + glass icons into the single-file app.
 const fs = require("fs");
-const DATA = "/mnt/project-files/black-tap-menu/data/";
+// Drinks data lives outside this repo. Point DATA_DIR at your copy of it to build somewhere else.
+const DATA = process.env.DATA_DIR || "/mnt/project-files/black-tap-menu/data/";
 const icons = require(DATA + "icons.js");
 const src = JSON.parse(fs.readFileSync(DATA + "drinks.json", "utf8"));
 const dark = (s) => s.replace(/#1a1a1a/g, "currentColor");
 // Notes about checking a wall card are for the menu writers, not the bar team.
 const clean = (t) => t && t.replace(/\s*\((?:website says|overwritten|as read|card says|card has)[^)]*\)/gi, "");
 // Owner's call: no frozen drinks, no spiked shakes, no shake-station dessert drinks and no shake pairings in the bar book.
-// Bramble: no crème de mûre behind the bar (Emily, 24 Oct). Manhattan: replaced by the corrected versions in extras.js.
+// Bramble: no crème de mûre behind the bar (bar team, 24 Oct). Manhattan: replaced by the corrected versions in extras.js.
 const DROP = new Set(["Soho Sizzle", "The Bronx Boss", "Bramble", "Manhattan"]);
 const SHAKE_STATION = new Set(["Spiked Egg Cream", "Brooklyn Egg Cream", "Fairground", "PB&J", "Salted Caramel"]);
 const noShake = (d) => d.section !== "Spike Your Shake" && d.section !== "Soho Originals" && !SHAKE_STATION.has(d.name);
