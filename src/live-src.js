@@ -70,7 +70,11 @@ function listen(uid) {
       LIVE.out = new Set(LIVE.outInfo.keys());
       liveChanged("out");
     });
-    sub("notices", query(collection(db, "notices"), orderBy("at", "desc")), (snap) => { LIVE.notices = rows(snap); liveChanged("notices"); });
+    // Broadcasts. The owner can leave managers out of one, so a manager's phone asks only for the ones they may read.
+    // (No orderBy: with the filter it would need an index made in the console. There are only ever a few.)
+    sub("notices", LIVE.role === "manager" ? query(collection(db, "notices"), where("managers", "==", true)) : collection(db, "notices"), (snap) => {
+      LIVE.notices = rows(snap); liveChanged("notices"); watchSeen(uid);
+    });
     sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
     sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
     watchShift();
@@ -102,6 +106,19 @@ function listen(uid) {
     sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
     clearOldPhotos();
   }, () => {});
+}
+
+// Who has tapped Got it on a broadcast. Staff need only their own records; managers and the owner get the records for
+// the broadcasts they can see (at most 30, Firestore's limit for "in"), and managers only those they weren't left out of.
+let seenKey = "";
+function watchSeen(uid) {
+  const ids = LIVE.notices.map((x) => x.id).slice(0, 30), key = LIVE.admin ? ids.join() : uid;
+  if (key === seenKey && subs.seen) return;
+  unsub("seen"); seenKey = key;
+  if (!ids.length && LIVE.admin) { LIVE.seen = []; liveChanged("seen"); return; }
+  const seen = collection(db, "seen");
+  sub("seen", !LIVE.admin ? query(seen, where("uid", "==", uid)) : LIVE.owner ? query(seen, where("notice", "in", ids))
+    : query(seen, where("managers", "==", true), where("notice", "in", ids)), (snap) => { LIVE.seen = rows(snap); liveChanged("seen"); });
 }
 
 // Logging out, or being removed, wipes this phone's copy of the team's data, then starts the app afresh.
@@ -229,7 +246,10 @@ LIVE.api = {
   },
   post: (text) => addDoc(collection(db, "feed"), { kind: "comment", text, ...me() }),
   removePost: (id) => deleteDoc(doc(db, "feed", id)),
-  pin: (text) => addDoc(collection(db, "notices"), { text, ...me() }),
+  // side: "all", "bar" or "floor". managers: false leaves managers out (the owner only).
+  pin: (text, side, managers) => addDoc(collection(db, "notices"), { text, side, managers, ...me() }),
+  // Got it: carries the broadcast's managers setting, as the rules require. Broadcasts from before audiences count as true.
+  gotIt: (n) => setDoc(doc(db, "seen", `${n.id}-${auth.currentUser.uid}`), { notice: n.id, managers: n.managers ?? true, ...me() }),
   unpin: (id) => deleteDoc(doc(db, "notices", id)),
   // The report and its photos go in one write, so the photos can't end up on the wrong report.
   sendReport(side, text, summary) {
@@ -290,7 +310,7 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [] });
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }

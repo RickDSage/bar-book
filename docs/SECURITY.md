@@ -24,7 +24,8 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `usernames/{name}` (login lookup) | anyone can look up one name; nobody can list them | with the matching staff record | only during a PIN reset | only with the staff record's removal |
 | `audit/{id}` (account changes) | O, M | only inside an account change, describing it exactly | nobody | nobody |
 | `feed` (team board) | O, M, S | O, M, S, as themselves | nobody | the author; O any; M any except the owner's |
-| `notices` (pinned) | O, M, S | O, M | nobody | O any; M any except the owner's |
+| `notices` (broadcasts) | O, S: all. M: those that include managers | O: to everyone, the bar or the floor, and may leave managers out. M: the same, always including managers | nobody | O any; M any except the owner's |
+| `seen/{broadcast}-{uid}` (Got it) | O: all. M: for broadcasts that include managers. S: their own | O, M, S: their own, once, for a broadcast that exists | nobody | nobody |
 | `reports` (shift reports) | O, M, S | O, M, S, as themselves | O, M: sign off once | nobody |
 | `photos` (closing photos) | O, M: all. S: their own, and any on a sent report | O, M, S: JPEG up to 700,000 characters | the uploader, before it's sent: a note, or attaching it to their own report in that report's write | the uploader before it's sent; O, M once it's over 30 days old |
 | `shift/{day}/ticks/{list}-{item}` (checklists) | O, M, S | O, M, S: tonight's lists (a day either side, for phones that sync late), as themselves | nobody | whoever ticked it; O, M any |
@@ -37,6 +38,8 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `ratings` (anonymous feedback) | O: all. M: only about themselves | O, M: about another manager or the owner, never themselves. No author is saved | nobody | O |
 | `issues` (handover) | O, M, S | O, M, S | O, M, S: take it on yourself (O, M can give it to anyone), or mark it fixed with a note. Fixed is final | O any; the raiser while nobody's on it |
 
+A broadcast for the bar or the floor reaches every staff phone, and each shows the ones for the side it's set to in Shift. That's about relevance, not privacy. Leaving managers out is enforced: a manager's login can't read that broadcast or who has read it.
+
 Visitors (V) can do one thing: look up a single username, which returns the made-up sign-in address and the uid. X can do the same, plus read their own (missing) staff record. Both are tested.
 
 Hiding a button is never the protection. Every row above is enforced by `firestore.rules` and covered by an allowed and a refused case in `test/rules.test.mjs`.
@@ -46,7 +49,7 @@ Hiding a button is never the protection. Every row above is enforced by `firesto
 The site includes the live features only when `firebase-config.json` is in the repo (it has been since 25 October 2026). These are the steps, in order, for this project or a fresh one. Steps 1 and 2 are safe to do straight away, before anything else.
 
 1. **Check the current rules.** Firebase console, Firestore Database, Rules. If you see `allow read, write: if request.time < timestamp.date(...)`, the database was created in test mode and is open to anyone until that date. Replace it now with the contents of `firestore.rules` and press Publish. Nothing uses the database yet, so this can't break anything.
-2. **Make the setup code.** Firestore Database, Data: start a collection `config`, document ID `pins`, one field `setup` (string) holding a long random code, at least 16 characters, with no spaces at the start or end (the app trims them off what you type, and the rules compare exactly). Generate it in a password manager and don't reuse it anywhere. Don't send it by message or put it in GitHub.
+2. **Make the setup code.** Firestore Database, Data: start a collection `config`, document ID `pins`, one field `setup` (string) holding a long random code, at least 16 characters, with no spaces at the start or end (the app trims them off what you type, and the rules compare exactly). Generate it in a password manager and don't reuse it anywhere. Do this step on a computer: on 25 October 2026 setup kept refusing a code typed into the console on a phone, and worked first time once `config/pins` was made again on a laptop. Don't send it by message or put it in GitHub.
 3. **Add the web config.** Project settings, Your apps (add a Web app there if there isn't one yet): copy the `firebaseConfig` values into `firebase-config.json` at the repo root, for example `{"apiKey":"...","authDomain":"black-tap-foh-book.firebaseapp.com","projectId":"black-tap-foh-book","appId":"..."}`. This file is public by design. Then run `npm run build`, commit and merge. GitHub Pages publishes it within a few minutes.
 4. **Create the owner.** On the live site, tap the bell at the top right, then open First-time setup (owner only). Enter your name, a username, a PIN of 6 to 12 digits and the setup code. One write creates the owner, records the claim in `config/owner` and deletes `config/pins`, so the code stops working at that moment.
 5. **Optional tidy-up.** `config/owner` keeps the used code in its `proof` field. No app account can read it and it can't be used again, but you can delete that field in the console if you'd rather it wasn't stored.
@@ -81,7 +84,7 @@ Nothing, on the Spark plan as set up today. Spark can't bill you: when a free qu
 | | Free on Spark | My estimate for this team |
 |---|---|---|
 | Stored data | 1 GiB | photos at most around 290 MB with the 30-day clear-out (16 a night at the 600 KB worst case; usually far less), text a few MB |
-| Document reads | 50,000 a day | roughly 10,000 to 25,000 on a busy day (each phone loads up to about 250 records as staff or 800 as a manager when it opens, then only changes) |
+| Document reads | 50,000 a day | roughly 10,000 to 25,000 on a busy day (each phone loads up to about 250 records as staff or 800 as a manager when it opens, plus the Got it records for the broadcasts on show, then only changes) |
 | Writes / deletes | 20,000 a day each | a few hundred |
 | Outbound data | 10 GiB a month | photos load only when someone taps "Show photos" |
 | GitHub Pages | 1 GB site, soft 100 GB a month | about 2 MB per launch with signal, before compression |

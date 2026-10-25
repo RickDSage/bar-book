@@ -101,14 +101,14 @@ test("notices and the team board: who can post and who can take things down", as
   await O.click("#pin-form summary"); await O.fill("#p-text", "Guinness line down tonight"); await O.click("#p-go");
   await waitToast(S, /^Broadcast: Guinness line down tonight$/);
   assert.equal(await S.$eval("#bell-n", (e) => (e.hidden ? "0" : e.textContent)), "1");
-  assert.equal(await attempt(S, () => LIVE.api.pin("Free drinks")), "permission-denied");
+  assert.equal(await attempt(S, () => LIVE.api.pin("Free drinks", "all", true)), "permission-denied");
 
   await M.evaluate(() => show("notices"));
   await M.waitForFunction(() => LIVE.notices.length === 1);
-  assert.equal(await M.$("[data-unpin]"), null, "no remove button on the owner's notice");
+  assert.equal(await M.locator("[data-unpin]").count(), 0, "no remove button on the owner's notice");
   const ownerNotice = await M.evaluate(() => LIVE.notices[0].id);
   assert.equal(await attempt(M, (id) => LIVE.api.unpin(id), ownerNotice), "permission-denied");
-  await M.evaluate(() => LIVE.api.pin("Tasting at 4"));
+  await M.evaluate(() => LIVE.api.pin("Tasting at 4", "all", true));
   await O.waitForFunction(() => LIVE.notices.length === 2);
   assert.equal(await attempt(O, (id) => LIVE.api.unpin(id), await O.evaluate(() => LIVE.notices.find((x) => x.name === "Mia Manager").id)), "allowed");
 
