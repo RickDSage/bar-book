@@ -2,7 +2,7 @@
 
 Phone web app for the Black Tap Soho bar and floor team: every drink spec with step-by-step picture guides, allergens, spec practice, opening and closing checklists, the 86 list and the shift report.
 
-Team logins add a live shift board shared by everyone on shift: Tonight at a glance, shared checklists, the 86 board, stock requests, issues and handover, shift reports with photos and sign-off, broadcasts to everyone, the bar or the floor (with who has read them), time off and swaps, incidents, a waste log, temperature and beer line cleaning checks, stock counts against par levels with an order list, training sign-off drink by drink, an Activity timeline of who did what (staff see their own side, bar or floor), and a Managers tab with spreadsheet downloads of each section's full history. They are switched on. How they were set up, what keeps them secure and how to recover are in [docs/SECURITY.md](docs/SECURITY.md).
+Team logins add a live shift board shared by everyone on shift: Tonight at a glance, shared checklists, the 86 board, stock requests, issues and handover, shift reports with photos and sign-off, broadcasts to everyone, the bar or the floor (with who has read them), time off and swaps, incidents, Report a concern (with photos, to the team or managers only, and anonymous if you like), a waste log, temperature and beer line cleaning checks, stock counts against par levels with an order list, training sign-off drink by drink, an Activity timeline of who did what (staff see their own side, bar or floor), and a Managers tab with spreadsheet downloads of each section's full history. They are switched on. How they were set up, what keeps them secure and how to recover are in [docs/SECURITY.md](docs/SECURITY.md).
 
 Open it at https://rickdsage.github.io/bar-book/ and add it to your home screen (Safari: Share, then Add to Home Screen). Always use the venue's allergen matrix as the final word.
 
@@ -16,8 +16,8 @@ Open it at https://rickdsage.github.io/bar-book/ and add it to your home screen 
 | `src/live-src.js` | Team logins and live data. Bundled into `live.js` only when `firebase-config.json` exists. |
 | `src/build.js`, `src/site.js` | Bundle the drinks data into the page, then write the site files. |
 | `src/extras.js`, `src/builds.js`, `src/art.js` | Extra drinks, guide corrections and artwork. |
-| `test/rules.test.mjs` | 147 allowed and refused cases for every collection and role. |
-| `test/e2e/` | 29 browser tests: the real app on phone-sized screens, as owner, manager and staff at once. |
+| `test/rules.test.mjs` | 155 allowed and refused cases for every collection and role. |
+| `test/e2e/` | 31 browser tests: the real app on phone-sized screens, as owner, manager and staff at once. |
 | `docs/SECURITY.md` | Permissions, owner setup, risks, costs, safety check limits, release checklist, rollback and keeping the code private. |
 | `LICENSE` | All rights reserved. No licence is granted. |
 

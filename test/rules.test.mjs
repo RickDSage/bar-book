@@ -134,9 +134,9 @@ describe("visitors who aren't logged in", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const PRIVATE = ["staff/staff1", "config/owner", "config/pins", "feed/a", "notices/a", "reports/a", "photos/a", "shift/2026-10-25/ticks/open-1",
     "requests/a", "out/gin", "outlog/a", "asks/a", "incidents/a", "reviews/a", "ratings/a", "audit/a", "issues/a", "seen/a-staff1",
-    "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni"];
+    "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0"];
   for (const p of PRIVATE) test(`can't read ${p}`, () => assertFails(getDoc(doc(db(), p))));
-  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training"]) {
+  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos"]) {
     test(`can't list ${c}`, () => assertFails(getDocs(collection(db(), c))));
   }
   test("can look up one username, and it holds only the sign-in address and uid", async () => {
@@ -949,6 +949,94 @@ describe("training sign-off", () => {
 });
 
 // =====================================================================================
+describe("concerns", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const named = (uid, extra = {}) => ({ reason: "cleaning", area: "toilets", note: "", to: "managers", anon: false, status: "open", ...by(uid), ...extra });
+  const anon = (extra = {}) => ({ reason: "unkempt", area: "terrace", note: "", to: "all", anon: true, status: "open", at: now(), ...extra });
+  // The concern and its photos in one write, as the app sends them.
+  function send(d, c, n = 0, photo = {}) {
+    const b = writeBatch(d), ref = doc(collection(d, "concerns"));
+    b.set(ref, { photos: n, ...c });
+    for (let i = 0; i < n; i++) b.set(doc(d, "concernPhotos", `${ref.id}-${i}`), { concern: ref.id, n: i, to: c.to, data: JPEG, at: now(), ...photo });
+    return { b, id: ref.id };
+  }
+  const sent = async (d, c, n) => { const x = send(d, c, n); await assertSucceeds(x.b.commit()); return x.id; };
+  const close = (uid, id, extra = {}) => updateDoc(doc(db(uid), "concerns", id), { status: "closed", fix: "Cleaned", fixedBy: TEAM[uid].name, fixedByUid: uid, fixedAt: now(), ...extra });
+
+  test("anyone on the team reports one, named or anonymous; bad ones are refused", async () => {
+    await sent(db("staff1"), named("staff1"));
+    await sent(db("staff1"), anon(), 3);
+    await sent(db("staff2"), named("staff2", { reason: "other", note: "Bins by the back door", to: "floor" }));
+    for (const bad of [{ reason: "rude" }, { area: "office" }, { reason: "other" }, { note: "x".repeat(301) }, { to: "kitchen" }, { photos: "1" },
+      { status: "closed" }, { anon: "no" }, { uid: "staff2" }, { name: "Olly Owner" }, { extra: 1 }]) {
+      await assertFails(send(db("staff1"), named("staff1", bad)).b.commit(), JSON.stringify(bad));
+    }
+    for (const bad of [{ uid: "staff1" }, { name: "Sam Staff" }, { anon: false }]) await assertFails(send(db("staff1"), anon(bad)).b.commit(), JSON.stringify(bad));
+    await assertFails(send(db("staff1"), anon(), 4).b.commit(), "four photos");
+    await assertFails(send(db("stranger"), anon()).b.commit(), "not on the team");
+  });
+
+  test("managers only concerns and their photos stay with managers; the team sees the rest", async () => {
+    const mine = await sent(db("staff1"), named("staff1"), 1), secret = await sent(db("staff2"), anon({ to: "managers" }), 1), team = await sent(db("staff2"), anon(), 1);
+    await assertSucceeds(getDoc(doc(db("staff1"), "concerns", mine)));
+    await assertFails(getDoc(doc(db("staff2"), "concerns", mine)));
+    await assertFails(getDoc(doc(db("staff2"), "concernPhotos", mine + "-0")));
+    await assertFails(getDoc(doc(db("staff2"), "concerns", secret)), "not even the anonymous sender");
+    await assertFails(getDoc(doc(db("staff1"), "concernPhotos", secret + "-0")));
+    await assertSucceeds(getDoc(doc(db("staff1"), "concerns", team)));
+    await assertSucceeds(getDoc(doc(db("staff1"), "concernPhotos", team + "-0")));
+    for (const id of [mine, secret, team]) {
+      await assertSucceeds(getDoc(doc(db("mgr1"), "concerns", id)));
+      await assertSucceeds(getDoc(doc(db("mgr1"), "concernPhotos", id + "-0")));
+    }
+    assert.ok(!("uid" in (await getDoc(doc(db("owner1"), "concerns", secret))).data()), "no trace of who sent it");
+    await assertFails(getDocs(collection(db("staff1"), "concerns")));
+    const open = await getDocs(query(collection(db("staff1"), "concerns"), where("to", "in", ["all", "bar", "floor"]), where("status", "==", "open")));
+    assert.deepEqual(open.docs.map((x) => x.id), [team]);
+    assert.equal((await getDocs(query(collection(db("staff1"), "concerns"), where("uid", "==", "staff1")))).size, 1);
+    assert.equal((await getDocs(collection(db("mgr1"), "concerns"))).size, 3);
+  });
+
+  test("photos only go in with a new concern, numbered, with its audience", async () => {
+    await assertFails(send(db("staff1"), named("staff1"), 1, { to: "all" }).b.commit(), "audience differs");
+    await assertFails(send(db("staff1"), named("staff1"), 1, { data: "data:image/png;base64,AAAA" }).b.commit(), "not a JPEG");
+    await assertFails(send(db("staff1"), named("staff1"), 1, { data: "data:image/jpeg;base64," + "A".repeat(700000) }).b.commit(), "too big");
+    await assertFails(send(db("staff1"), named("staff1"), 1, { uid: "staff1" }).b.commit(), "photos carry no uid");
+    const d = db("staff1"), one = send(d, named("staff1"), 1);
+    one.b.set(doc(d, "concernPhotos", `${one.id}-1`), { concern: one.id, n: 1, to: "managers", data: JPEG, at: now() });
+    await assertFails(one.b.commit(), "more photos than the concern says");
+    const id = await sent(d, named("staff1"), 1);
+    await assertFails(setDoc(doc(d, "concernPhotos", `${id}-1`), { concern: id, n: 1, to: "managers", data: JPEG, at: now() }), "added later");
+    await assertFails(setDoc(doc(d, "concernPhotos", `${id}-0`), { concern: id, n: 0, to: "managers", data: JPEG, at: now() }), "replaced later");
+  });
+
+  test("dealt with once; managers take any down; senders withdraw their own while it's open", async () => {
+    const team = await sent(db("staff1"), named("staff1", { to: "bar" })), secret = await sent(db("staff1"), anon({ to: "managers" })), mine = await sent(db("staff1"), named("staff1"), 2);
+    await assertFails(close("staff2", team, { fixedBy: "Olly Owner" }));
+    await assertFails(close("staff2", team, { note: "edited" }));
+    await assertSucceeds(close("staff2", team, { fix: "" }));
+    await assertFails(close("mgr1", team), "only once");
+    await assertFails(close("staff2", secret));
+    await assertSucceeds(close("mgr1", secret));
+    await assertFails(deleteDoc(doc(db("staff1"), "concerns", secret)), "anonymous: nobody can prove it's theirs");
+    await assertFails(deleteDoc(doc(db("staff2"), "concerns", mine)));
+    const d = db("staff1"), withdraw = writeBatch(d);
+    withdraw.delete(doc(d, "concerns", mine));
+    [0, 1].forEach((n) => withdraw.delete(doc(d, "concernPhotos", `${mine}-${n}`)));
+    await assertSucceeds(withdraw.commit());
+    await assertFails(deleteDoc(doc(db("staff1"), "concerns", team)), "dealt with: stays on record");
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "concerns", team)));
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "concerns", secret)));
+    const kept = await sent(db("staff2"), anon(), 1);
+    await assertFails(deleteDoc(doc(db("staff1"), "concernPhotos", `${kept}-0`)), "its concern is still there");
+    await seed((s) => setDoc(doc(s, "concernPhotos/old-0"), { concern: kept, n: 0, to: "all", data: JPEG, at: daysAgo(31) }));
+    await assertFails(deleteDoc(doc(db("staff1"), "concernPhotos/old-0")));
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "concernPhotos/old-0")));
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "concernPhotos/cleared-0")), "taking down an old concern names photos already cleared");
+  });
+});
+
+// =====================================================================================
 describe("every query the app makes works for the roles that make it", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const common = (d, uid) => [
@@ -962,6 +1050,7 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "issues"), orderBy("at", "desc"), limit(30)),
     collection(d, "kit"),
     query(collection(d, "safety"), where("day", "in", [today(), dayFromNow(-1)])),
+    query(collection(d, "concerns"), where("uid", "==", uid)),
   ];
   const managers = (d) => [
     query(collection(d, "asks"), orderBy("at", "desc"), limit(100)),
@@ -975,11 +1064,15 @@ describe("every query the app makes works for the roles that make it", () => {
     collection(d, "pars"),
     query(collection(d, "counts"), orderBy("at", "desc"), limit(10)),
     collection(d, "training"),
+    query(collection(d, "concerns"), where("status", "==", "open")),
+    query(collection(d, "concerns"), orderBy("at", "desc"), limit(50)),
+    query(collection(d, "concernPhotos"), where("at", "<", daysAgo(31)), limit(100)),
   ];
   test("staff", async () => {
     const d = db("staff1");
     for (const q of [...common(d, "staff1"), query(collection(d, "asks"), where("uid", "==", "staff1")), collection(d, "notices"), query(collection(d, "seen"), where("uid", "==", "staff1")),
-      query(collection(d, "waste"), where("uid", "==", "staff1"), where("day", "==", today())), query(collection(d, "training"), where("trainee", "==", "staff1"))]) await assertSucceeds(getDocs(q));
+      query(collection(d, "waste"), where("uid", "==", "staff1"), where("day", "==", today())), query(collection(d, "training"), where("trainee", "==", "staff1")),
+      query(collection(d, "concerns"), where("to", "in", ["all", "bar", "floor"]), where("status", "==", "open"))]) await assertSucceeds(getDocs(q));
     for (const q of managers(d)) await assertFails(getDocs(q));
   });
   test("manager", async () => {

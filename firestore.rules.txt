@@ -422,5 +422,48 @@ service cloud.firestore {
       // Whoever raised it can withdraw it before anyone takes it on. The owner can delete any.
       allow delete: if isOwner() || (isMember() && resource.data.uid == request.auth.uid && resource.data.status == 'open');
     }
+
+    // ---------- Concerns ----------
+    // Anyone on the team reports something that isn't right (needs cleaning, untidy, broken, a hazard) with up to three
+    // photos, to everyone, the bar, the floor or managers only. An anonymous concern saves no uid or name, so no app
+    // account can see who sent it, the sender included. Bar and floor are about relevance, like broadcasts; managers
+    // only is enforced, for the concern and its photos.
+    function concernDoc(id) { return /databases/$(database)/documents/concerns/$(id); }
+    function validConcern() {
+      let c = incoming();
+      return c.reason in ['cleaning', 'unkempt', 'broken', 'hazard', 'other']
+        && c.area in ['bar', 'floor', 'kitchen', 'toilets', 'terrace', 'cellar', 'other']
+        && optText(c.note, 300) && (c.reason != 'other' || reqText(c.note, 300))
+        && c.to in ['all', 'bar', 'floor', 'managers'] && c.photos is int && c.photos >= 0 && c.photos <= 3
+        && c.status == 'open' && c.at == request.time
+        && ((c.anon == true && exactly(['reason', 'area', 'note', 'to', 'photos', 'anon', 'status', 'at']))
+          || (c.anon == false && exactly(['reason', 'area', 'note', 'to', 'photos', 'anon', 'status', 'uid', 'name', 'at']) && stamped()));
+    }
+    match /concerns/{id} {
+      allow read: if isManager() || (isMember() && (resource.data.to in ['all', 'bar', 'floor'] || resource.data.uid == request.auth.uid));
+      allow create: if isMember() && validConcern();
+      // Dealt with, once, with an optional note. Anyone can for a concern sent to the team; managers only ones need a manager.
+      allow update: if isMember() && resource.data.status == 'open' && (isManager() || resource.data.to in ['all', 'bar', 'floor'])
+        && incoming().status == 'closed' && changesOnly(['status', 'fix', 'fixedBy', 'fixedByUid', 'fixedAt'])
+        && optText(incoming().fix, 300) && signedAs('fixedBy', 'fixedByUid', 'fixedAt');
+      // Managers can take any concern down. Whoever sent a named one can withdraw it while it's open.
+      allow delete: if isManager() || (isMember() && resource.data.get('uid', '') == request.auth.uid && resource.data.status == 'open');
+    }
+    // Photos are added only in the write that creates their concern, numbered from 0, and carry its audience so
+    // managers only photos stay with managers. They go when their concern goes, or after 30 days (a manager's app clears them).
+    match /concernPhotos/{id} {
+      allow read: if isManager() || (isMember() && resource.data.to in ['all', 'bar', 'floor']);
+      allow create: if isMember() && exactly(['concern', 'n', 'to', 'data', 'at'])
+        && incoming().concern is string && incoming().n is int && incoming().n >= 0
+        && id == incoming().concern + '-' + string(incoming().n)
+        && !exists(concernDoc(incoming().concern))
+        && getAfter(concernDoc(incoming().concern)).data.photos > incoming().n
+        && getAfter(concernDoc(incoming().concern)).data.to == incoming().to
+        && incoming().data is string && incoming().data.size() <= 700000
+        && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+') && incoming().at == request.time;
+      // (Removing an old concern also names photos that were already cleared; deleting nothing is allowed.)
+      allow delete: if isMember() && (resource == null || !existsAfter(concernDoc(resource.data.concern))
+        || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
+    }
   }
 }

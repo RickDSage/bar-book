@@ -47,7 +47,7 @@ test("activity, downloads and broadcasts", async () => {
   await O.waitForFunction(() => /sent a broadcast/.test(document.querySelector("#act").textContent));
   const act = await text(O, "#act");
   for (const re of [/Sam Staff posted on the board/, new RegExp(`Sam Staff 86'd ${rx(drink)}`), /Sam Staff ticked/, /Sam Staff asked for Limes/, /Sam Staff raised \(urgent\): Glass washer leaking/, /Mia Manager sent a broadcast/, /Olly Owner added Sam Staff \(staff\)/]) assert.match(act, re);
-  assert.equal(await O.$$eval("#act [data-act]", (x) => x.length), 13);
+  assert.equal(await O.$$eval("#act [data-act]", (x) => x.length), 14);
   await O.click('[data-act="86"]');
   assert.deepEqual(await O.$$eval("#act .staffrow .n", (x) => x.map((e) => e.textContent)), [`Sam Staff 86'd ${drink}`]);
 
@@ -73,7 +73,7 @@ test("activity, downloads and broadcasts", async () => {
   // Staff get their own Activity for their side of the venue, without the managers' sections or downloads.
   await S.evaluate(() => show("notices")); await S.click("[data-tpane=activity]");
   await S.waitForFunction(() => /86'd/.test(document.querySelector("#sact").textContent));
-  assert.deepEqual(await S.$$eval("#sact [data-act]", (x) => x.map((e) => e.dataset.act)), ["all", "board", "checks", "safety", "86", "stock", "waste", "issues", "reports"]);
+  assert.deepEqual(await S.$$eval("#sact [data-act]", (x) => x.map((e) => e.dataset.act)), ["all", "board", "checks", "safety", "86", "stock", "waste", "issues", "concerns", "reports"]);
   assert.equal(await S.locator("#act-csv").count(), 0);
   assert.match(await text(S, "#sact"), /Mia Manager sent a broadcast/);
   assert.doesNotMatch(await text(S, "#sact"), /added Sam Staff/);

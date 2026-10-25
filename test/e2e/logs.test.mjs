@@ -164,15 +164,22 @@ test("records written outside the app can't run code on a manager's phone", asyn
   // Count lines aren't checked one by one by the rules, so the page has to treat every value as text.
   const line = { mapValue: { fields: { item: str("Tanqueray"), group: str("Gin"), par: str("<z"), n: str('<img src=x onerror="window.pwned=2">') } } };
   await adminWrite("counts/a", { lines: { arrayValue: { values: [line] } }, note: str(""), uid: str("x"), name: str("Mia Manager"), at: now });
+  // A plain id with a field called id that is HTML, and a concern whose photo count is HTML.
+  await adminWrite("requests/plain", { id: str('"><img src=x onerror="window.pwned=5">'), item: str("Lemons"), note: str(""), done: { booleanValue: false }, uid: str("x"), name: str("Sam Staff"), at: now });
+  await adminWrite("concerns/plain", { id: str('"><img src=x onerror="window.pwned=3">'), reason: str("hazard"), area: str("bar"), note: str("Ice bucket cracked"),
+    to: str("all"), photos: str('<img src=x onerror="window.pwned=4">'), anon: { booleanValue: true }, status: str("open"), at: now });
   await S.evaluate(() => LIVE.api.request("Blue roll", ""));
 
   await managers(O, "stock");
   await waitText(O, "#mstock", /From the count on/);
   await O.click("[data-tpane=requests]");
   await waitText(O, "#requests", /Blue roll/);
+  await O.click("[data-tpane=board]");
+  await waitText(O, "#concerns", /Ice bucket cracked/);
   await O.click("[data-tpane=managers]"); await O.click("[data-msub=safety]");
   await O.waitForTimeout(300);
   assert.equal(await O.evaluate(() => window.pwned), undefined);
-  assert.deepEqual(await O.evaluate(() => [LIVE.requests.length, LIVE.kit.length]), [1, 0], "records with odd ids are ignored");
+  assert.deepEqual(await O.evaluate(() => [LIVE.requests.length, LIVE.kit.length]), [2, 0], "records with odd ids are ignored");
+  assert.equal(await O.evaluate(() => LIVE.requests.filter((x) => x.id === "plain").length), 1, "a field called id doesn't replace the id");
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });

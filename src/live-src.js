@@ -43,9 +43,10 @@ function sub(k, ref, fn) {
 // Something just written on this phone has no server time yet, so its "at" is null and it sorts as newest. (Firestore's
 // own estimate is rounded down to the second, which can put it below something written a moment earlier.)
 // Ids go into the page's HTML. The app only ever makes plain ones (letters, digits, dashes), so a record with any other
-// id was written some other way, for example by a script using someone's login, and is skipped.
+// id was written some other way, for example by a script using someone's login, and is skipped. The id goes after a
+// record's own fields so that a field called id can't take its place.
 const plain = (x) => /^[A-Za-z0-9-]+$/.test(x.id);
-const rows = (snap) => snap.docs.filter(plain).map((x) => ({ id: x.id, pending: x.metadata.hasPendingWrites, ...x.data() })).sort((a, b) => ms(b.at) - ms(a.at));
+const rows = (snap) => snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id, pending: x.metadata.hasPendingWrites })).sort((a, b) => ms(b.at) - ms(a.at));
 const me = () => ({ uid: auth.currentUser.uid, name: LIVE.me, at: serverTimestamp() });
 
 function listen(uid) {
@@ -83,7 +84,7 @@ function listen(uid) {
     watchDays();
     // The equipment that gets temperature checks and line cleans. A short list, set up by managers.
     sub("kit", collection(db, "kit"), (snap) => {
-      LIVE.kit = snap.docs.filter(plain).map((x) => ({ id: x.id, ...x.data() })).sort((a, b) => a.name.localeCompare(b.name));
+      LIVE.kit = snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id })).sort((a, b) => a.name.localeCompare(b.name));
       liveChanged("kit");
     });
     // Closing photos this person has taken that aren't on a sent report yet.
@@ -95,6 +96,12 @@ function listen(uid) {
     const mergeIssues = () => { LIVE.issues = [...new Map([...issues.recent, ...issues.open].map((x) => [x.id, x])).values()].sort((a, b) => ms(b.at) - ms(a.at)); liveChanged("issues"); };
     sub("issues", query(collection(db, "issues"), where("status", "in", ["open", "taken"])), (snap) => { issues.open = rows(snap); mergeIssues(); });
     sub("issues-recent", query(collection(db, "issues"), orderBy("at", "desc"), limit(30)), (snap) => { issues.recent = rows(snap); mergeIssues(); });
+    // Concerns: managers get every open one plus the latest 50; staff get the open ones sent to the team, and their own
+    // named ones. (Anonymous ones carry no uid, so after sending, the sender sees them only if they went to the team.)
+    const concerns = collection(db, "concerns"), cn = { open: [], more: [] };
+    const mergeConcerns = () => { LIVE.concerns = [...new Map([...cn.more, ...cn.open].map((x) => [x.id, x])).values()].sort((a, b) => ms(b.at) - ms(a.at)); liveChanged("concerns"); };
+    sub("concerns", LIVE.admin ? query(concerns, where("status", "==", "open")) : query(concerns, where("to", "in", ["all", "bar", "floor"]), where("status", "==", "open")), (snap) => { cn.open = rows(snap); mergeConcerns(); });
+    sub("concerns-more", LIVE.admin ? query(concerns, orderBy("at", "desc"), limit(50)) : query(concerns, where("uid", "==", uid)), (snap) => { cn.more = rows(snap); mergeConcerns(); });
     // Time off, swaps and lateness: staff see their own, managers see everyone's.
     sub("asks", LIVE.admin ? query(collection(db, "asks"), orderBy("at", "desc"), limit(100)) : query(collection(db, "asks"), where("uid", "==", uid)), (snap) => {
       LIVE.asks = rows(snap); liveChanged("asks");
@@ -108,7 +115,7 @@ function listen(uid) {
     });
     sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); });
     sub("staff", collection(db, "staff"), (snap) => {
-      LIVE.staff = snap.docs.filter(plain).map((x) => ({ uid: x.id, ...x.data() })).sort((a, b) => a.name.localeCompare(b.name));
+      LIVE.staff = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
       liveChanged("staff");
     });
     sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
@@ -145,11 +152,13 @@ async function leave() {
 const KEEP_DAYS = 30;
 async function clearOldPhotos() {
   const cutoff = Timestamp.fromMillis(Date.now() - (KEEP_DAYS + 1) * 864e5);
-  const old = await getDocs(query(collection(db, "photos"), where("at", "<", cutoff), limit(100))).catch(() => null);
-  if (!old || old.empty) return;
-  // Ten at a time: each delete is checked against the manager's staff record, and one batch may only make 20 such checks.
-  for (let i = 0; i < old.docs.length; i += 10) {
-    const b = writeBatch(db); old.docs.slice(i, i + 10).forEach((d) => b.delete(d.ref)); await b.commit().catch(() => {});
+  for (const c of ["photos", "concernPhotos"]) {
+    const old = await getDocs(query(collection(db, c), where("at", "<", cutoff), limit(100))).catch(() => null);
+    if (!old || old.empty) continue;
+    // Ten at a time: each delete is checked against the manager's staff record, and one batch may only make 20 such checks.
+    for (let i = 0; i < old.docs.length; i += 10) {
+      const b = writeBatch(db); old.docs.slice(i, i + 10).forEach((d) => b.delete(d.ref)); await b.commit().catch(() => {});
+    }
   }
 }
 
@@ -291,8 +300,24 @@ LIVE.api = {
   addPhoto: (data) => addDoc(collection(db, "photos"), { data, note: "", report: null, ...me() }),
   notePhoto: (id, note) => updateDoc(doc(db, "photos", id), { note }),
   deletePhoto: (id) => deleteDoc(doc(db, "photos", id)),
-  loadPhotos: (reportId) => getDocs(query(collection(db, "photos"), where("report", "==", reportId))).then((s) => s.docs.filter(plain).map((x) => ({ id: x.id, ...x.data() })).sort((a, b) => ms(a.at) - ms(b.at))),
+  loadPhotos: (reportId) => getDocs(query(collection(db, "photos"), where("report", "==", reportId))).then((s) => s.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id })).sort((a, b) => ms(a.at) - ms(b.at))),
   KEEP_DAYS,
+  // A concern and its photos go in one write. An anonymous one carries no uid or name.
+  reportConcern(c, photos) {
+    const b = writeBatch(db), ref = doc(collection(db, "concerns"));
+    b.set(ref, { ...c, photos: photos.length, status: "open", ...(c.anon ? { at: serverTimestamp() } : me()) });
+    photos.forEach((data, n) => b.set(doc(db, "concernPhotos", `${ref.id}-${n}`), { concern: ref.id, n, to: c.to, data, at: serverTimestamp() }));
+    return b.commit();
+  },
+  closeConcern: (id, fix) => updateDoc(doc(db, "concerns", id), { status: "closed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
+  removeConcern(c) {
+    const b = writeBatch(db);
+    b.delete(doc(db, "concerns", c.id));
+    for (let n = 0; n < c.photos; n++) b.delete(doc(db, "concernPhotos", `${c.id}-${n}`));
+    return b.commit();
+  },
+  // Each photo's data, or null where it has been cleared after 30 days.
+  concernPhotos: (c) => Promise.all(Array.from({ length: c.photos }, (_, n) => getDoc(doc(db, "concernPhotos", `${c.id}-${n}`)).then((x) => (x.exists() ? x.data().data : null)))),
   signOff: (id) => updateDoc(doc(db, "reports", id), { signedBy: LIVE.me, signedByUid: auth.currentUser.uid, signedAt: serverTimestamp() }),
   // The board and its log change in one write. Back in stock writes "{the 86's log id}-back", so the two always match.
   set86(name, on) {
@@ -359,7 +384,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  waste: [], kit: [], safety: [], pars: {}, counts: [], training: [] });
+  waste: [], kit: [], safety: [], pars: {}, counts: [], training: [], concerns: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }
