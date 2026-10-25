@@ -17,6 +17,7 @@ test("first-time setup works once, with the right code and a PIN of at least 6 d
     await O.fill("#s-name", "Olly Owner"); await O.fill("#s-user", "olly"); await O.fill("#s-pin", pin); await O.fill("#s-code", code);
     await O.click("#s-go");
   };
+  assert.equal(await O.evaluate(() => (renderNotices(), document.querySelector("#s-code").type)), "text", "the setup code is shown, so typos can be spotted");
   await fillSetup("11111", SETUP_CODE);
   assert.match(await toastOf(O), /PIN: 6 to 12 digits/);
   await fillSetup(OWNER_PIN, "short-code");

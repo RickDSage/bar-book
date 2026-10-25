@@ -185,7 +185,11 @@ LIVE.api = {
     b.set(doc(db, "usernames", username), { email: user.email, uid: user.uid });
     audit(b, user.uid + "-in", "setup", owner, owner);
     b.delete(doc(db, "config", "pins"));
-    await b.commit().catch(async () => { await deleteUser(user).catch(() => {}); err("That setup code didn't work, or setup has already been done"); });
+    // The rules refuse a wrong code or a second owner. Anything else (no signal, say) isn't the code's fault.
+    await b.commit().catch(async (e) => {
+      await deleteUser(user).catch(() => {});
+      err(e.code === "permission-denied" ? "That setup code didn't work, or setup has already been done" : "Setup didn't finish. Check your signal and try again");
+    });
   },
   async addPerson(name, username, pin, role) {
     if ((await getDoc(doc(db, "usernames", username))).exists()) err("That username is taken");
