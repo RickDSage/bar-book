@@ -807,114 +807,45 @@ describe("issues and handover", () => {
 });
 
 // =====================================================================================
-describe("waste log", () => {
-  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
-  const entry = (uid, extra = {}) => ({ item: "Guinness", qty: 2, unit: "pint", reason: "spilt", note: "", side: "bar", day: today(), ...by(uid), ...extra });
-  const log = (uid, extra) => addDoc(collection(db(uid), "waste"), entry(uid, extra));
-  test("anyone on the team logs waste as themselves; bad entries are refused", async () => {
-    await assertSucceeds(log("staff1"));
-    await assertSucceeds(log("staff1", { qty: 0.5, unit: "bottle", reason: "broken", side: "floor" }));
-    await assertSucceeds(log("staff1", { reason: "other", note: "Dropped the tray" }));
-    for (const bad of [{ qty: 0 }, { qty: -1 }, { qty: 1001 }, { qty: "2" }, { unit: "crate" }, { reason: "drunk" }, { reason: "other" },
-      { item: "  " }, { side: "kitchen" }, { day: dayFromNow(-5) }, { day: "2026-02-31" }, { price: 4.5 }, { name: "Olly Owner" }, { uid: "staff2" }]) {
-      await assertFails(log("staff1", bad), JSON.stringify(bad));
-    }
-    await assertFails(addDoc(collection(db("stranger"), "waste"), { ...entry("staff1"), uid: "stranger", name: "Stray" }));
+describe("old records: waste, temperatures, line cleans and stock counts", () => {
+  // Read-only since 25 October 2026: Alert65 and Nory took them over. What was saved before stays as the record.
+  const at = Timestamp.fromMillis(Date.now() - 3 * 864e5);
+  const waste = (uid) => ({ item: "Guinness", qty: 2, unit: "pint", reason: "spilt", note: "", side: "bar", day: dayFromNow(-3), uid, name: TEAM[uid].name, at });
+  const kit = { name: "Back bar fridge", kind: "fridge", side: "bar" };
+  const reading = { kit: "fridge1", kitName: "Back bar fridge", kind: "fridge", side: "bar", c: 3.5, note: "", day: dayFromNow(-3), uid: "staff1", name: "Sam Staff", at };
+  const count = { lines: [{ item: "Tanqueray", group: "Gin", par: 6, n: 2 }], note: "", uid: "mgr1", name: "Mia Manager", at };
+  beforeEach(async () => {
+    await env.clearFirestore(); await seedTeam();
+    await seed(async (s) => {
+      await setDoc(doc(s, "waste/w1"), waste("staff1")); await setDoc(doc(s, "waste/w2"), waste("staff2"));
+      await setDoc(doc(s, "kit/fridge1"), kit); await setDoc(doc(s, "safety/r1"), reading);
+      await setDoc(doc(s, "pars/tanqueray"), { item: "Tanqueray", par: 6, uid: "mgr1", name: "Mia Manager", at });
+      await setDoc(doc(s, "counts/c1"), count);
+    });
   });
-  test("staff see only their own; managers see everyone's", async () => {
-    const a = await log("staff1"), b = await log("staff2");
-    await assertSucceeds(getDoc(doc(db("staff1"), "waste", a.id)));
-    await assertFails(getDoc(doc(db("staff1"), "waste", b.id)));
-    await assertFails(getDocs(collection(db("staff1"), "waste")));
-    const mine = await getDocs(query(collection(db("staff1"), "waste"), where("uid", "==", "staff1"), where("day", "==", today())));
-    assert.equal(mine.size, 1);
-    const all = await getDocs(query(collection(db("mgr1"), "waste"), where("day", "in", [today(), dayFromNow(-1)])));
-    assert.equal(all.size, 2);
-  });
-  test("a mistake can be taken back for 15 minutes, then only the owner deletes it; nobody edits", async () => {
-    const a = await log("staff1"), b = await log("staff2");
-    await assertFails(updateDoc(doc(db("staff1"), "waste", a.id), { qty: 1 }));
-    await assertFails(deleteDoc(doc(db("staff1"), "waste", b.id)));
-    await assertFails(deleteDoc(doc(db("mgr1"), "waste", b.id)));
-    await assertSucceeds(deleteDoc(doc(db("staff1"), "waste", a.id)));
-    await seed((s) => setDoc(doc(s, "waste/old"), { ...entry("staff1"), at: Timestamp.fromMillis(Date.now() - 20 * 6e4) }));
-    await assertFails(deleteDoc(doc(db("staff1"), "waste/old")));
-    await assertFails(deleteDoc(doc(db("mgr1"), "waste/old")));
-    await assertSucceeds(deleteDoc(doc(db("owner1"), "waste/old")));
-  });
-});
-
-// =====================================================================================
-describe("due diligence: temperatures and line cleaning", () => {
-  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
-  const kit = (uid, extra = {}) => addDoc(collection(db(uid), "kit"), { name: "Back bar fridge", kind: "fridge", side: "bar", ...extra });
-  const reading = (uid, k, extra = {}) => addDoc(collection(db(uid), "safety"), { kit: k.id, kitName: k.name, kind: k.kind, side: k.side, c: 3.5, note: "", day: today(), ...by(uid), ...extra });
-  test("managers set up the equipment; staff can't", async () => {
-    const k = await assertSucceeds(kit("mgr1"));
-    await assertSucceeds(kit("owner1", { name: "Cellar", kind: "cellar" }));
-    await assertFails(kit("staff1"));
-    for (const bad of [{ kind: "oven" }, { side: "kitchen" }, { name: " " }, { min: 0 }]) await assertFails(kit("mgr1", bad), JSON.stringify(bad));
+  test("managers read all of it for the downloads; staff read their own waste and the safety log", async () => {
+    for (const c of ["waste", "safety", "counts"]) assert.equal((await getDocs(query(collection(db("mgr1"), c), orderBy("at", "desc")))).size, c === "waste" ? 2 : 1, c);
+    await assertSucceeds(getDocs(collection(db("owner1"), "pars")));
+    await assertSucceeds(getDoc(doc(db("staff1"), "waste/w1")));
+    await assertFails(getDoc(doc(db("staff1"), "waste/w2")));
+    await assertSucceeds(getDocs(collection(db("staff1"), "safety")));
     await assertSucceeds(getDocs(collection(db("staff1"), "kit")));
-    await assertFails(updateDoc(doc(db("mgr1"), "kit", k.id), { name: "Renamed" }));
-    await assertFails(deleteDoc(doc(db("staff1"), "kit", k.id)));
-    await assertSucceeds(deleteDoc(doc(db("mgr2"), "kit", k.id)));
-  });
-  test("a reading must match its equipment; temperatures are numbers, a line clean has none", async () => {
-    const f = { id: (await kit("mgr1")).id, name: "Back bar fridge", kind: "fridge", side: "bar" };
-    const l = { id: (await kit("mgr1", { name: "Upstairs lines", kind: "lines" })).id, name: "Upstairs lines", kind: "lines", side: "bar" };
-    await assertSucceeds(reading("staff1", f));
-    await assertSucceeds(reading("staff1", f, { c: -2, note: "Door left open" }));
-    await assertSucceeds(reading("staff1", l, { c: null }));
-    for (const bad of [{ c: null }, { c: "3" }, { c: 101 }, { c: -41 }, { kitName: "Other fridge" }, { kind: "freezer" }, { side: "floor" },
-      { kit: "nope" }, { day: dayFromNow(-5) }, { name: "Olly Owner" }, { ok: true }]) {
-      await assertFails(reading("staff1", f, bad), JSON.stringify(bad));
-    }
-    await assertFails(reading("staff1", l, { c: 4 }));
-    await assertFails(addDoc(collection(db("stranger"), "safety"), { kit: f.id, kitName: f.name, kind: "fridge", side: "bar", c: 3, note: "", day: today(), uid: "stranger", name: "Stray", at: now() }));
-  });
-  test("readings are the record: everyone reads them, nobody edits, mistakes go within 15 minutes", async () => {
-    const f = { id: (await kit("mgr1")).id, name: "Back bar fridge", kind: "fridge", side: "bar" };
-    const a = await reading("staff1", f), b = await reading("staff2", f);
-    const week = await getDocs(query(collection(db("staff2"), "safety"), where("day", "in", [today(), dayFromNow(-1)])));
-    assert.equal(week.size, 2);
-    await assertFails(updateDoc(doc(db("staff1"), "safety", a.id), { c: 4 }));
-    await assertFails(deleteDoc(doc(db("staff1"), "safety", b.id)));
-    await assertSucceeds(deleteDoc(doc(db("staff1"), "safety", a.id)));
-    await seed((s) => setDoc(doc(s, "safety/old"), { kit: f.id, kitName: f.name, kind: "fridge", side: "bar", c: 9, note: "", day: today(), uid: "staff1", name: "Sam Staff", at: Timestamp.fromMillis(Date.now() - 20 * 6e4) }));
-    await assertFails(deleteDoc(doc(db("staff1"), "safety/old")));
-    await assertFails(deleteDoc(doc(db("mgr1"), "safety/old")));
-    await assertSucceeds(deleteDoc(doc(db("owner1"), "safety/old")));
-  });
-});
-
-// =====================================================================================
-describe("stock counts and par levels", () => {
-  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
-  const par = (uid, item, n, extra = {}) => setDoc(doc(db(uid), "pars", slug(item)), { item, par: n, ...by(uid), ...extra });
-  const lines = [{ item: "Tanqueray", group: "Gin", par: 6, n: 2 }, { item: "Limes", group: "Fruit and garnish", par: 40, n: 45 }];
-  const count = (uid, extra = {}) => addDoc(collection(db(uid), "counts"), { lines, note: "", ...by(uid), ...extra });
-  test("managers set par levels, named after the item; staff can't see or set them", async () => {
-    await assertSucceeds(par("mgr1", "Tanqueray", 6));
-    await assertSucceeds(par("mgr2", "Tanqueray", 8));
-    await assertSucceeds(par("owner1", "Cîroc Red Berry", 2.5));
-    await assertFails(setDoc(doc(db("mgr1"), "pars", "gin"), { item: "Tanqueray", par: 6, ...by("mgr1") }), "the record is named after its item");
-    for (const n of [0, -1, 1001, "6"]) await assertFails(par("mgr1", "Tanqueray", n), String(n));
-    await assertFails(par("mgr1", "Tanqueray", 6, { name: "Olly Owner" }));
-    await assertFails(par("staff1", "Tanqueray", 6));
-    await assertFails(getDoc(doc(db("staff1"), "pars", "tanqueray")));
-    await assertSucceeds(getDocs(collection(db("mgr1"), "pars")));
-    await assertFails(deleteDoc(doc(db("staff1"), "pars", "tanqueray")));
-    await assertSucceeds(deleteDoc(doc(db("mgr1"), "pars", "tanqueray")));
-  });
-  test("counts: managers save them, nobody edits them, only the owner deletes one", async () => {
-    const c = await assertSucceeds(count("mgr1"));
-    for (const bad of [{ lines: [] }, { lines: "Tanqueray 2" }, { note: "x".repeat(301) }, { side: "bar" }]) await assertFails(count("mgr1", bad), JSON.stringify(bad));
-    await assertFails(count("staff1"));
     await assertFails(getDocs(collection(db("staff1"), "counts")));
-    await assertSucceeds(getDocs(query(collection(db("mgr2"), "counts"), orderBy("at", "desc"), limit(10))));
-    await assertFails(updateDoc(doc(db("mgr1"), "counts", c.id), { note: "edited" }));
-    await assertFails(deleteDoc(doc(db("mgr1"), "counts", c.id)));
-    await assertSucceeds(deleteDoc(doc(db("owner1"), "counts", c.id)));
+    await assertFails(getDocs(collection(db("staff1"), "pars")));
+  });
+  test("nobody, the owner included, adds, edits or deletes any of it", async () => {
+    for (const uid of ["owner1", "mgr1", "staff1"]) {
+      const d = db(uid), mine = { uid, name: TEAM[uid].name, at: now() };
+      await assertFails(addDoc(collection(d, "waste"), { ...waste(uid), day: today(), ...mine }), uid);
+      await assertFails(addDoc(collection(d, "kit"), kit), uid);
+      await assertFails(addDoc(collection(d, "safety"), { ...reading, day: today(), ...mine }), uid);
+      await assertFails(setDoc(doc(d, "pars", "limes"), { item: "Limes", par: 40, ...mine }), uid);
+      await assertFails(addDoc(collection(d, "counts"), { ...count, ...mine }), uid);
+      await assertFails(updateDoc(doc(d, "waste/w1"), { qty: 1 }), uid);
+      await assertFails(updateDoc(doc(d, "safety/r1"), { c: 4 }), uid);
+      await assertFails(updateDoc(doc(d, "pars/tanqueray"), { par: 8 }), uid);
+      for (const p of ["waste/w1", "kit/fridge1", "safety/r1", "pars/tanqueray", "counts/c1"]) await assertFails(deleteDoc(doc(d, p)), `${uid} ${p}`);
+    }
   });
 });
 
@@ -1048,8 +979,6 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "photos"), where("uid", "==", uid), where("report", "==", null)),
     query(collection(d, "issues"), where("status", "in", ["open", "taken"])),
     query(collection(d, "issues"), orderBy("at", "desc"), limit(30)),
-    collection(d, "kit"),
-    query(collection(d, "safety"), where("day", "in", [today(), dayFromNow(-1)])),
     query(collection(d, "concerns"), where("uid", "==", uid)),
   ];
   const managers = (d) => [
@@ -1060,9 +989,9 @@ describe("every query the app makes works for the roles that make it", () => {
     collection(d, "staff"),
     query(collection(d, "audit"), orderBy("at", "desc"), limit(50)),
     query(collection(d, "photos"), where("at", "<", daysAgo(31)), limit(100)),
-    query(collection(d, "waste"), where("day", "in", [today(), dayFromNow(-1)])),
-    collection(d, "pars"),
-    query(collection(d, "counts"), orderBy("at", "desc"), limit(10)),
+    // The old records' downloads.
+    query(collection(d, "waste"), orderBy("at", "desc")),
+    query(collection(d, "counts"), orderBy("at", "desc")),
     collection(d, "training"),
     query(collection(d, "concerns"), where("status", "==", "open")),
     query(collection(d, "concerns"), orderBy("at", "desc"), limit(50)),
@@ -1071,7 +1000,7 @@ describe("every query the app makes works for the roles that make it", () => {
   test("staff", async () => {
     const d = db("staff1");
     for (const q of [...common(d, "staff1"), query(collection(d, "asks"), where("uid", "==", "staff1")), collection(d, "notices"), query(collection(d, "seen"), where("uid", "==", "staff1")),
-      query(collection(d, "waste"), where("uid", "==", "staff1"), where("day", "==", today())), query(collection(d, "training"), where("trainee", "==", "staff1")),
+      query(collection(d, "training"), where("trainee", "==", "staff1")),
       query(collection(d, "concerns"), where("to", "in", ["all", "bar", "floor"]), where("status", "==", "open"))]) await assertSucceeds(getDocs(q));
     for (const q of managers(d)) await assertFails(getDocs(q));
   });

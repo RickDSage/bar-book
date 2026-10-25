@@ -38,18 +38,16 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `reviews` (of reports) | O, M | O, M, on a report that exists | nobody | O any; M their own |
 | `ratings` (anonymous feedback) | O: all. M: only about themselves | O, M: about another manager or the owner, never themselves. No author is saved | nobody | O |
 | `issues` (handover) | O, M, S | O, M, S | O, M, S: take it on yourself (O, M can give it to anyone), or mark it fixed with a note. Fixed is final | O any; the raiser while nobody's on it |
-| `waste` (waste log) | O, M: all. S: their own | O, M, S, as themselves, dated tonight: an item, an amount up to 1,000, a unit and a reason (a note too when the reason is Other) | nobody | whoever logged it, within 15 minutes; O any time |
-| `kit` (equipment that gets checked) | O, M, S | O, M: a fridge, freezer, cellar, glass washer or beer lines, for the bar or the floor | nobody | O, M |
-| `safety` (temperatures and line cleans) | O, M, S | O, M, S, as themselves, dated tonight: a reading that matches its equipment, -40 to 100°C, or no temperature for a line clean | nobody | whoever logged it, within 15 minutes; O any time |
-| `pars/{item}` (par levels) | O, M | O, M: 1 to 1,000 | O, M | O, M |
-| `counts` (stock counts) | O, M | O, M: 1 to 400 lines | nobody | O |
+| `waste` (old waste log, read-only) | O, M: all. S: their own | nobody | nobody | nobody |
+| `kit`, `safety` (old temperatures and line cleans, read-only) | O, M, S | nobody | nobody | nobody |
+| `pars/{item}`, `counts` (old par levels and stock counts, read-only) | O, M | nobody | nobody | nobody |
 | `training/{uid}-{drink}` (sign-offs) | O, M: all. S: their own | O, M: someone else on the team, once per drink | nobody | O, M (taking it back) |
 | `concerns` (Report a concern) | O, M: all. S: those sent to everyone, the bar or the floor, and their own named ones | O, M, S: a reason, where, an optional note (required for Something else), who it's for and up to 3 photos. Named as themselves, or anonymous with no uid or name saved | anyone it was sent to: mark it dealt with, once (managers only ones need O or M) | O, M any; the sender of a named one while it's open |
 | `concernPhotos/{concern}-{n}` | O, M: all. S: those on concerns sent to the team | only in the write that creates their concern: a JPEG up to 700,000 characters, carrying the concern's audience, no uid | nobody | with their concern; O, M once over 30 days old |
 
 Concerns sent to the bar or the floor reach every staff phone, and each shows the ones for the side it's set to, like broadcasts. Managers only is enforced: a staff login can't read that concern or its photos, and the anonymous sender can't see it again either. Photos are re-saved by the app before upload, which drops the location and camera details a phone puts in its photos.
 
-Waste and safety records are the venue's record, so nobody edits them. One logged by mistake can be taken back by whoever logged it for 15 minutes (the app offers Undo for 14, to allow for a phone's clock being a little out); after that only the owner can delete it. "Dated tonight" allows a day either side, like the checklists. The rules can't check a stock count line by line (they have no loops), so only managers can write counts and the app shows every value in them as text.
+Since 25 October 2026 temperatures, line cleans, cleaning checks, accidents and near misses are logged in Alert65, and waste, stock counts and ordering are done in Nory. Bar Book stopped logging them so nobody records the same thing twice. What it saved before then is read-only: nobody can add, edit or delete it, and managers download it from Activity, Old records. The app shows every value in an old stock count as text, since the rules never checked count lines one by one.
 
 A broadcast for the bar or the floor reaches every staff phone, and each shows the ones for the side it's set to in Shift. That's about relevance, not privacy. Leaving managers out is enforced: a manager's login can't read that broadcast or who has read it.
 
@@ -57,19 +55,16 @@ Visitors (V) can do one thing: look up a single username, which returns the made
 
 Hiding a button is never the protection. Every row above is enforced by `firestore.rules` and covered by an allowed and a refused case in `test/rules.test.mjs`.
 
-## Safety check limits
+## Old safety check limits
 
-The app colours each reading against these. They're guidance for the record, not a substitute for the venue's own food safety procedures.
+The Old records download marks each temperature Bar Book saved against these, as the app did when it was logged. Alert65 has its own.
 
-| Equipment | In range | What the app says otherwise | Source |
+| Equipment | In range | Otherwise | Source |
 |---|---|---|---|
-| Fridge | 5°C or below | Above 5°C (amber); over 8°C (red): "the legal limit for chilled food. Tell a manager" | GOV.UK: chilled food must be kept at 8°C or below, a legal requirement in England; set fridges to 5°C or below |
-| Freezer | -18°C or colder | Warmer than -18°C (amber) | FSA Safer Food, Better Business: good practice is -18°C or colder, checked at least once a day |
-| Cellar | 11 to 13°C | Outside 11 to 13°C (amber) | Cask Marque cellar card |
-| Beer lines | cleaned in the last 7 days | Due tonight, then overdue | Cask Marque: clean lines at least every 7 days |
+| Fridge | 5°C or below | Above 5°C; over 8°C: "the legal limit for chilled food" | GOV.UK: chilled food must be kept at 8°C or below, a legal requirement in England; set fridges to 5°C or below |
+| Freezer | -18°C or colder | Warmer than -18°C | FSA Safer Food, Better Business: good practice is -18°C or colder |
+| Cellar | 11 to 13°C | Outside 11 to 13°C | Cask Marque cellar card |
 | Glass washer | recorded, not judged | | Machines differ; follow the maker's figures |
-
-Equipment is set up by a manager in Managers, Safety. Staff log readings in Shift, Logs, and Tonight shows how many are still due.
 
 ## Switching team logins on (owner setup)
 
@@ -111,12 +106,12 @@ Nothing, on the Spark plan as set up today. Spark can't bill you: when a free qu
 | | Free on Spark | My estimate for this team |
 |---|---|---|
 | Stored data | 1 GiB | photos at most around 290 MB with the 30-day clear-out (16 a night at the 600 KB worst case; usually far less), text a few MB |
-| Document reads | 50,000 a day | roughly 15,000 to 40,000 on a busy day (each phone loads up to about 600 records as staff or 1,300 as a manager when it opens, plus the Got it records for the broadcasts on show, a few hundred more when a manager opens Stock or Training, then only changes). This is an estimate from the list sizes, not a measurement |
+| Document reads | 50,000 a day | roughly 15,000 to 40,000 on a busy day (each phone loads up to about 600 records as staff or 1,300 as a manager when it opens, plus the Got it records for the broadcasts on show, a few hundred more when a manager opens Training, then only changes). This is an estimate from the list sizes, not a measurement |
 | Writes / deletes | 20,000 a day each | a few hundred |
 | Outbound data | 10 GiB a month | photos load only when someone taps "Show photos" |
 | GitHub Pages | 1 GB site, soft 100 GB a month | about 2 MB per launch with signal, before compression |
 
-Firestore's daily quotas reset around midnight Pacific time (about 8am UK time). If the reads ever get close, the cheapest fix is smaller list limits in `src/live-src.js`, not a paid plan. The safety log (8 nights for everyone) and the managers' waste log (14 nights) are the first to shrink. Check Usage after the first busy night with the new logs: running out at 11pm would pause the live features until 8am.
+Firestore's daily quotas reset around midnight Pacific time (about 8am UK time). If the reads ever get close, the cheapest fix is smaller list limits in `src/live-src.js`, not a paid plan. Check Usage after the first busy night after a release: running out at 11pm would pause the live features until 8am.
 
 Not used, because they need the Blaze (pay as you go) plan: Cloud Storage for Firebase and Cloud Functions, which is why there are no push notifications to phones that are closed. Blaze has no spending cap; budget alerts only send emails. Don't upgrade without deciding that on purpose.
 
@@ -127,7 +122,7 @@ Not used, because they need the Blaze (pay as you go) plan: Cloud Storage for Fi
 3. If there is live data by then: no automatic backups exist on Spark. Export what matters first (for example, copy key documents from the console) before any rules change that renames or reshapes data.
 4. Publish the rules: Firebase console, Firestore Database, Rules, paste `firestore.rules` (also served at `/bar-book/firestore.rules.txt` so it can be copied on a phone), Publish. Or from the laptop: `npx firebase deploy --only firestore:rules --project black-tap-foh-book`.
 5. Merge the pull request. GitHub Pages publishes `main` in a few minutes. Phones pick up the new version on their next launch with signal.
-6. Check as each role, on a phone: owner, manager and staff can log in; Tonight shows real counts; tick, untick, 86 and back, a stock request, a report with a photo, sign-off, an issue raised, taken and fixed, a temperature and a waste entry logged and undone.
+6. Check as each role, on a phone: owner, manager and staff can log in; Tonight shows real counts; tick, untick, 86 and back, a stock request, a report with a photo, sign-off, an issue raised, taken and fixed.
 7. Check refusals as staff: no Requests or Managers tab; can't untick someone else's tick (the app says who ticked it).
 8. Watch Firebase console, Usage, for the first week.
 
@@ -208,5 +203,5 @@ Either way, the rules tests keep running on GitHub. In a private repo they use t
 - GitHub plans (Pages from private repositories needs Pro or above; Actions minutes): https://docs.github.com/en/get-started/learning-about-github/githubs-plans
 - Firebase Hosting on Spark (10 GB stored, 360 MB a day): https://firebase.google.com/pricing
 - Chilled food at 8°C or below, fridges at 5°C or below: https://www.gov.uk/food-hygiene-businesses/chilling-and-freezing
-- Freezers at -18°C or colder, checked daily (FSA, Safer Food, Better Business): https://food.gov.uk/sites/default/files/media/document/sfbb-retailers-chilling-02-frozen-storage.pdf
-- Cellar 11 to 13°C, lines cleaned at least every 7 days (Cask Marque cellar card): https://cask-marque.co.uk/wp-content/uploads/2017/10/a4-cask-cellar-card.pdf
+- Freezers at -18°C or colder (FSA, Safer Food, Better Business): https://food.gov.uk/sites/default/files/media/document/sfbb-retailers-chilling-02-frozen-storage.pdf
+- Cellar 11 to 13°C (Cask Marque cellar card): https://cask-marque.co.uk/wp-content/uploads/2017/10/a4-cask-cellar-card.pdf

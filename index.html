@@ -281,8 +281,6 @@ a.btn { text-decoration: none; }
 .ptabs.msub { position: static; grid-template-columns: repeat(3, 1fr); box-shadow: none; margin-top: 10px; }
 .ptabs.msub button { min-height: 44px; justify-content: center; font-size: 14px; }
 .two { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
-details.pargrp { border-top: 1px solid var(--line); }
-details.pargrp summary { min-height: 40px; display: flex; align-items: center; font-weight: 700; }
 .actday { font-family: var(--body); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 0; }
 .staffrow .did { font-weight: 400; }
 .bcast { margin-top: 12px; padding: 14px; border: 2px solid var(--brass); border-radius: 14px; background: color-mix(in srgb, var(--brass) 14%, var(--surface)); }
@@ -427,7 +425,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="act"></div><div id="mgrs"></div><div id="incs"></div><div id="mwaste"></div><div id="msafety"></div><div id="mstock"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="act"></div><div id="mgrs"></div><div id="incs"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
     <div id="notices"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
@@ -580,7 +578,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], waste: [], kit: [], safety: [], pars: {}, counts: [], training: [], concerns: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -872,7 +870,7 @@ let confirmReset = false;
 // Opening and closing checklists. Ticks, comments and the name stay on this phone until "Start a new night".
 const LISTS = {
   open: { title: "Opening checklist", items: [
-    "Fridges at 5°C or below. Log the temperatures in Logs",
+    "Fridges at 5°C or below, temperatures logged in Alert65",
     "Ice well full and clean, ice scoop in its holder (never use a glass)",
     "Glass washer on, rinse aid and detergent topped up, up to temperature",
     "Glassware stocked and polished: coupes, rocks, highballs, flutes, shot glasses",
@@ -907,7 +905,7 @@ const LISTS = {
     "Bar fridge lights off",
     "Bins emptied and cleaned, new bin bags in",
     "Chairs flipped, floor mopped",
-    "Breakages and waste logged in Logs",
+    "Breakages and waste logged in Nory",
     "Photos of the upstairs bar uploaded to the group",
     "Spirits locked away, bar lights off",
   ] },
@@ -1006,8 +1004,8 @@ function tallyText() {
   return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
 const PANES = {
-  bar: [["open", "Open"], ["stock", "Stock"], ["logs", "Logs"], ["close", "Close"], ["send", "Send"]],
-  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["logs", "Logs"], ["fclose", "Close"], ["send", "Send"]],
+  bar: [["open", "Open"], ["stock", "Stock"], ["close", "Close"], ["send", "Send"]],
+  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["fclose", "Close"], ["send", "Send"]],
 };
 const defaultPane = () => (new Date().getHours() >= 6 && new Date().getHours() < 16 ? PANES[mode][0][0] : mode === "bar" ? "close" : "fclose");
 let pane = defaultPane();
@@ -1065,7 +1063,6 @@ async function shrink(file) {
 function paneBadge(k) {
   if (LISTS[k]) { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
   if (k === "stock") return outNow().size ? `${outNow().size} out` : "";
-  if (k === "logs") return logsDue() ? `${logsDue()} due` : "";
   return "";
 }
 function renderTally() {
@@ -1083,8 +1080,7 @@ function renderTally() {
       <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       ${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}
       ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd.</p>`}
-      ${requestsHtml()}${nextBtn("logs", "Next: temperatures and waste")}`,
-    logs: () => `${logsHtml()}${nextBtn(mode === "bar" ? "close" : "fclose", "Next: closing checklist")}`,
+      ${requestsHtml()}${nextBtn(mode === "bar" ? "close" : "fclose", "Next: closing checklist")}`,
     close: () => `${checklistHtml("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     send: () => {
       return `<div class="sumcard">
@@ -1114,18 +1110,12 @@ $("#ph-in").addEventListener("change", async (e) => {
 });
 $("#tally").addEventListener("change", async (e) => {
   if (e.target.id === "rq-item") { rqItem = e.target.value; return; }
-  if (e.target.id === "w-item") { wF.item = e.target.value; if (wF.item && wF.item !== OTHER) wF.unit = unitFor(wF.item); renderTally(); return; }
-  if (e.target.id === "w-unit") { wF.unit = e.target.value; return; }
-  if (e.target.id === "w-reason") { wF.reason = e.target.value; renderTally(); return; }
   if (e.target.dataset.phNote) { track(LIVE.api.notePhoto(e.target.dataset.phNote, e.target.value.trim()), null, "Note not saved"); return; }
   if (e.target.id !== "s-86" || !e.target.value) return;
   const n = e.target.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
 });
 $("#tally").addEventListener("input", (e) => {
   if (e.target.id === "rq-note") { rqNote = e.target.value; return; }
-  const wk = { "w-qty": "qty", "w-other": "other", "w-note": "note" }[e.target.id]; if (wk) { wF[wk] = e.target.value; return; }
-  if (e.target.dataset.tc) { tC[e.target.dataset.tc] = e.target.value; return; }
-  if (e.target.dataset.ln) { lnNote[e.target.dataset.ln] = e.target.value; return; }
   if (e.target.id === "s-who") { shiftWho = e.target.value; store.set("shiftWho", shiftWho); }
   if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
   if ($("#t-text")) $("#t-text").value = tallyText();
@@ -1159,29 +1149,6 @@ $("#tally").addEventListener("click", async (e) => {
     else { ticks[k] = on ? [...ticked(k), i] : ticked(k).filter((x) => x !== i); store.set("ticks2", ticks); }
     haptic(); renderTally(); return;
   }
-  if (e.target.closest("#w-go")) {
-    const item = (wF.item === OTHER ? wF.other : wF.item).trim(), qty = +wF.qty, note = wF.note.trim();
-    if (!item || !wF.reason) return toast("Say what it was and why");
-    if (!(qty > 0 && qty <= 1000)) return toast("How much? A number above 0");
-    if (wF.reason === "other" && !note) return toast("Say what happened in the note");
-    const w = { item, qty, unit: wF.unit, reason: wF.reason, note, side: mode };
-    track(LIVE.api.waste(w), `Logged: ${wasteText(w)}`, "Not logged. Try again");
-    Object.assign(wF, { item: "", other: "", qty: "1", unit: "each", reason: "", note: "" }); haptic(); renderTally(); return;
-  }
-  const wu = e.target.closest("[data-w-undo]"); if (wu) { track(LIVE.api.unwaste(wu.dataset.wUndo), "Taken back", "Too late to undo. The owner can delete it"); return; }
-  const tp = e.target.closest("[data-temp]"); if (tp) {
-    const k = LIVE.kit.find((x) => x.id === tp.dataset.temp), c = Math.round(parseFloat(tC[k.id]) * 10) / 10;
-    if (!Number.isFinite(c) || c < -40 || c > 100) return toast("Type the temperature in °C");
-    const msg = judge(k.kind, c)[1];
-    track(LIVE.api.logCheck(k, c, ""), `${k.name}: ${c}°C logged${msg ? `. ${msg}` : ""}`, "Not logged. Try again");
-    tC[k.id] = ""; haptic(); renderTally(); return;
-  }
-  const cn = e.target.closest("[data-clean]"); if (cn) {
-    const k = LIVE.kit.find((x) => x.id === cn.dataset.clean);
-    track(LIVE.api.logCheck(k, null, (lnNote[k.id] || "").trim()), `${k.name}: clean logged`, "Not logged. Try again");
-    lnNote[k.id] = ""; haptic(); renderTally(); return;
-  }
-  const cu = e.target.closest("[data-chk-undo]"); if (cu) { track(LIVE.api.unlogCheck(cu.dataset.chkUndo), "Taken back", "Too late to undo. The owner can delete it"); return; }
   const rq = e.target.closest("#rq-go"); if (rq) {
     const item = rqItem, note = rqNote.trim();
     if (!item) return toast("Pick what's needed");
@@ -1195,19 +1162,12 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-yes")) { MODE_LISTS[mode].forEach((k) => (ticks[k] = [])); store.set("ticks2", ticks); if (LIVE.admin) track(LIVE.api.clearTicks(MODE_LISTS[mode]), null, "Shared ticks not cleared. Try again"); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); confirmReset = false; renderTally(); toast(LIVE.me && !LIVE.admin ? "Note cleared" : "New night started"); }
 });
 
-/* ---------- Logs: temperatures, line cleaning and waste ----------
-   Kept as the venue's due-diligence record. Anything logged by mistake can be taken back for 15 minutes; after that
-   only the owner can delete it. */
+/* ---------- Old records: temperatures, line cleans and waste ----------
+   Logged in Alert65 and Nory since 25 October 2026. What Bar Book saved before stays read-only, in the managers'
+   downloads, so these say how each old record reads in the spreadsheet. */
 // Limits: gov.uk (chilled food must be kept at 8°C or below by law; set fridges to 5°C or below), the FSA's Safer Food
-// Better Business (freezers at -18°C or colder, checked at least once a day) and Cask Marque (cellar 11 to 13°C, beer
-// lines cleaned at least every 7 days). The glass washer's rinse temperature is recorded as the machine shows it.
-const KITS = {
-  fridge: { name: "Fridge", hint: "5°C or below. 8°C is the legal limit for chilled food" },
-  freezer: { name: "Freezer", hint: "-18°C or colder" },
-  cellar: { name: "Cellar", hint: "11 to 13°C" },
-  washer: { name: "Glass washer", hint: "Rinse temperature, as the machine shows it" },
-  lines: { name: "Beer lines", hint: "Clean at least every 7 days" },
-};
+// Better Business (freezers at -18°C or colder) and Cask Marque (cellar 11 to 13°C).
+const KITS = { fridge: "Fridge", freezer: "Freezer", cellar: "Cellar", washer: "Glass washer", lines: "Beer lines" };
 // [result, what to say]. The glass washer is recorded, not judged.
 function judge(kind, c) {
   if (kind === "fridge") return c <= 5 ? ["ok", ""] : c <= 8 ? ["warn", "Above 5°C"] : ["bad", "Over 8°C, the legal limit for chilled food. Tell a manager"];
@@ -1215,40 +1175,7 @@ function judge(kind, c) {
   if (kind === "cellar") return c >= 11 && c <= 13 ? ["ok", ""] : ["warn", "Outside 11 to 13°C"];
   return ["", ""];
 }
-const PILL = { ok: "ok", warn: "wait", bad: "no" };
-const addDays = (day, n) => { const d = new Date(day + "T12:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-const tonightOf = (k) => LIVE.safety.filter((r) => r.kit === k.id && r.day === shiftDay());
-// Lines: the latest clean in the last 8 nights, and the night the next one is due (7 days on).
-function linesDue(k) {
-  const last = LIVE.safety.find((r) => r.kit === k.id);
-  return last ? { last, next: addDays(last.day, 7) } : { last: null, next: "" };
-}
-const needsDoing = (k) => (k.kind === "lines" ? !linesDue(k).last || linesDue(k).next <= shiftDay() : !tonightOf(k).length);
-const logsDue = () => (LIVE.me ? LIVE.kit.filter((k) => k.side === mode && needsDoing(k)).length : 0);
-const outOfRange = () => LIVE.safety.filter((r) => r.day === shiftDay() && ["warn", "bad"].includes(judge(r.kind, r.c)[0]));
-// Undo while the rules allow it (15 minutes; a minute less here, for a phone clock that runs a little fast).
-const undoBtn = (x, attr) => (x.uid === LIVE.uid && Date.now() - ms(x.at) < 14 * 6e4 ? ` <button class="linkbtn" data-${attr}="${x.id}">Undo</button>` : "");
-const tempLine = (r) => {
-  const [st, msg] = judge(r.kind, r.c);
-  return `${st ? `<span class="pill ${PILL[st]}">${r.c}°C</span>` : `<b>${r.c}°C</b>`} ${esc(r.name)} · ${r.pending ? "sending…" : hhmm(new Date(ms(r.at)))}${msg ? ` · ${msg}` : ""}${r.note ? ` · ${esc(r.note)}` : ""}`;
-};
-function lineState(k) {
-  const { last, next } = linesDue(k), today = shiftDay();
-  return !last ? `<span class="pill no">No clean logged in 8 nights</span>` : next < today ? `<span class="pill no">Overdue since ${dayName(next)}</span>`
-    : next === today ? `<span class="pill wait">Due tonight</span>` : `<span class="pill ok">Next due ${dayName(next)}</span>`;
-}
-const tC = {}, lnNote = {}; // half-typed readings and notes, so live updates don't wipe them
-function checksHtml() {
-  const kit = LIVE.kit.filter((k) => k.side === mode), temps = kit.filter((k) => k.kind !== "lines"), lines = kit.filter((k) => k.kind === "lines");
-  if (!kit.length) return `<div class="sec">Temperatures</div><p class="note">Nothing set up for the ${mode} yet. ${LIVE.admin ? "Add fridges, freezers, the cellar, the glass washer and beer lines in Team, Managers, Safety." : "A manager adds them in Team, Managers, Safety."}</p>`;
-  return (temps.length ? `<div class="sec">Temperatures</div><p class="note">At least once a night, from the display or a probe.</p>${temps.map((k) => `<div class="staffrow"><div class="n">${esc(k.name)}</div><div class="s">${KITS[k.kind].hint}</div>
-      ${tonightOf(k).map((r) => `<div class="s">${tempLine(r)}${undoBtn(r, "chk-undo")}</div>`).join("") || `<div class="s">No reading yet tonight</div>`}
-      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-tc="${k.id}" type="number" step="0.1" placeholder="°C" value="${esc(tC[k.id] || "")}" aria-label="${esc(k.name)} in °C"><button class="btn pri" data-temp="${k.id}">Log</button></div></div>`).join("")}` : "")
-    + (lines.length ? `<div class="sec">Beer lines</div>${lines.map((k) => { const { last } = linesDue(k); return `<div class="staffrow"><div class="n">${esc(k.name)} ${lineState(k)}</div>
-      ${last ? `<div class="s">Last cleaned ${dayName(last.day)} by ${esc(last.name)}${last.note ? ` · ${esc(last.note)}` : ""}${undoBtn(last, "chk-undo")}</div>` : ""}
-      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-ln="${k.id}" maxlength="200" placeholder="Note (optional)" value="${esc(lnNote[k.id] || "")}" aria-label="Note on the clean"><button class="btn pri" data-clean="${k.id}">Cleaned</button></div></div>`; }).join("")}` : "");
-}
-// Waste is a quantity and a reason, never a price: the managers add costs in the spreadsheet.
+// Waste was a quantity and a reason, never a price.
 const UNITS = { each: "Each", pint: "Pints", half: "Halves", single: "25 ml measures", double: "50 ml measures", bottle: "Bottles", glass: "Glasses", ml: "ml" };
 const ONE = { pint: "pint", half: "half", bottle: "bottle", glass: "glass" };
 const REASONS = { spilt: "Spilt or dropped", remade: "Made wrong, remade", returned: "Sent back by a guest", expired: "Out of date or gone off", broken: "Broken bottle or glass", lines: "Line cleaning or flushing", other: "Other (say what in the note)" };
@@ -1258,28 +1185,6 @@ function wasteText(w) {
   const amt = w.unit === "single" || w.unit === "double" ? `${q} × ${w.unit === "single" ? 25 : 50} ml` : w.unit === "ml" ? `${q} ml`
     : ONE[w.unit] ? `${q} ${q === 1 ? ONE[w.unit] : UNITS[w.unit].toLowerCase()}` : `${q} ×`;
   return `${amt} ${w.item}`;
-}
-const UNIT_FOR = { "Beer lines": "pint", "Bottled beer": "bottle", "Cider": "bottle", "Soft drinks and mixers": "bottle", "Water": "bottle", "Wine": "glass", "Juices": "ml", "Syrups, bitters and prep": "ml",
-  "Vodka": "single", "Gin": "single", "Rum and cachaça": "single", "Tequila and mezcal": "single", "Whiskey": "single", "Brandy": "single", "Liqueurs and vermouth": "single" };
-const groupOf = (item) => Object.keys(STOCK).find((g) => STOCK[g].includes(item)) || "";
-const unitFor = (item) => (/\(draught\)/.test(item) ? "pint" : UNIT_FOR[groupOf(item)] || "each");
-const wF = { item: "", other: "", qty: "1", unit: "each", reason: "", note: "" }; // kept outside the form, like requests
-function wasteHtml() {
-  const xs = LIVE.waste.filter((w) => w.day === shiftDay() && (!LIVE.admin || w.side === mode)), other = wF.item === OTHER;
-  return `<div class="sec">Waste</div>
-    <p class="note">Anything poured away, dropped, remade or past its date. Quantities only: the managers add the costs.</p>
-    <label class="fld">What<select id="w-item"><option value="">Choose…</option><option${other ? " selected" : ""}>${OTHER}</option><optgroup label="Drinks">${D.map((d) => d.name).sort().map((n) => `<option${n === wF.item ? " selected" : ""}>${esc(n)}</option>`).join("")}</optgroup>${stockOptions(() => false, wF.item)}</select></label>
-    ${other ? `<label class="fld">What it was<input id="w-other" maxlength="80" value="${esc(wF.other)}" placeholder="Highball glass, burger bun…"></label>` : ""}
-    <div class="two"><label class="fld">How much<input id="w-qty" type="number" min="0" step="0.5" value="${esc(wF.qty)}"></label><label class="fld">Measured in<select id="w-unit">${Object.entries(UNITS).map(([k, t]) => `<option value="${k}"${k === wF.unit ? " selected" : ""}>${t}</option>`).join("")}</select></label></div>
-    <label class="fld">Why<select id="w-reason"><option value="">Choose…</option>${Object.entries(REASONS).map(([k, t]) => `<option value="${k}"${k === wF.reason ? " selected" : ""}>${t}</option>`).join("")}</select></label>
-    <label class="fld">Note${wF.reason === "other" ? "" : " (optional)"}<input id="w-note" maxlength="200" value="${esc(wF.note)}" placeholder="Table 12 sent it back, too sweet"></label>
-    <button class="btn pri wide" id="w-go">Log waste</button>
-    ${xs.length ? `<div class="h3" style="margin-top:14px">${LIVE.admin ? `Logged on the ${mode} tonight` : "You've logged tonight"}</div>${xs.map((w) => `<div class="staffrow"><div class="n">${esc(wasteText(w))}</div><div class="s">${REASONS[w.reason]}${w.note ? ` · ${esc(w.note)}` : ""} · ${LIVE.admin ? `${esc(w.name)} · ` : ""}${w.pending ? "sending…" : hhmm(new Date(ms(w.at)))}${undoBtn(w, "w-undo")}</div></div>`).join("")}` : ""}`;
-}
-function logsHtml() {
-  if (!LIVE.api) return `<div class="sec">Temperatures and waste</div><p class="note">Fridge temperatures, line cleaning and waste, kept as the venue's record.</p>${SOON}`;
-  if (!LIVE.me) return `<div class="sec">Temperatures and waste</div><p class="note">Log in on the Team page (the bell) to log temperatures and waste.</p>`;
-  return checksHtml() + wasteHtml();
 }
 
 /* ---------- Feedback (Google Form, responses go to the manager) ---------- */
@@ -1379,7 +1284,7 @@ const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(is
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#act", "#mgrs", "#incs", "#mwaste", "#msafety", "#mstock", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#act", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -1419,16 +1324,16 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
-  renderDash(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderWaste(); renderSafety(); renderStock(); renderTraining(); renderStaff(); renderMe(); renderAct(); renderTeamTabs();
+  renderDash(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderAct(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#compose", "#feed", "#notices"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#act", "#mgrs", "#incs", "#mwaste", "#msafety", "#mstock", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
+const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#compose", "#feed", "#notices"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#act", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
-// The Managers tab in parts, so nothing is a long scroll away. The 86 log sits under Stock.
-const MSUB = [["act", "Activity", ["#act"]], ["nights", "Nights", ["#mgrs"]], ["incidents", "Incidents", ["#incs"]], ["waste", "Waste", ["#mwaste"]], ["safety", "Safety", ["#msafety"]],
-  ["stock", "Stock", ["#mstock", "#outlog"]], ["training", "Training", ["#mtrain"]], ["team", "Team", ["#mgr"]], ["feedback", "Feedback", ["#fb"]]];
+// The Managers tab in parts, so nothing is a long scroll away.
+const MSUB = [["act", "Activity", ["#act"]], ["nights", "Nights", ["#mgrs"]], ["incidents", "Incidents", ["#incs"]], ["out", "86 log", ["#outlog"]],
+  ["training", "Training", ["#mtrain"]], ["team", "Team", ["#mgr"]], ["feedback", "Feedback", ["#fb"]]];
 let msub = "act";
 const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 function renderTeamTabs() {
@@ -1442,11 +1347,10 @@ function renderTeamTabs() {
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
   if (tpane !== "managers") return;
   const open = LIVE.incidents.filter((x) => x.status !== "closed").length;
-  const off = outOfRange().length, small = { incidents: open ? `${open} open` : "", safety: off ? `${off} out of range` : "" };
+  const small = { incidents: open ? `${open} open` : "" };
   $("#msub").innerHTML = `<div class="ptabs msub" role="tablist" aria-label="Managers">${MSUB.map(([k, t]) => `<button role="tab" data-msub="${k}" aria-selected="${k === msub}">${t}${small[k] ? `<small>${small[k]}</small>` : ""}</button>`).join("")}</div>`;
   for (const [k, , sels] of MSUB) sels.forEach((x) => ($(x).hidden = k !== msub));
-  // Stock and Training load their records the first time they're opened.
-  if (msub === "stock") LIVE.api.watchStock();
+  // Training loads its records the first time it's opened.
   if (msub === "training") LIVE.api.watchTraining();
 }
 /* Tonight at a glance: counts worked out from the live data, each one a shortcut to where it's dealt with.
@@ -1461,7 +1365,6 @@ function renderDash() {
   const unsigned = LIVE.reports.filter((r) => !r.signedBy).length, inc = LIVE.incidents.filter((x) => x.status !== "closed").length;
   const tiles = [
     [v("shift", `${done}/${of}`), `${mode === "bar" ? "Bar" : "Floor"} checklists ticked`, "shift"],
-    [v("safety", logsDue()), `safety checks due on the ${mode}`, "logs", logsDue() > 0],
     [v("out", LIVE.out.size), "86'd right now", "stock", LIVE.out.size > 0],
     [v("issues", open.length), urgent ? `open issues, ${urgent} urgent` : "open issues", "issues", urgent > 0],
     [v("concerns", openConcerns().length), "open concerns", "concerns", openConcerns().some((x) => x.reason === "hazard")],
@@ -1472,14 +1375,13 @@ function renderDash() {
       [v("reports", unsigned), "reports to sign off", "reports", unsigned > 0],
       [v("asks", LIVE.asks.filter(waiting).length), "staff requests to answer", "requests"],
       [v("incidents", inc), "open incidents", "incidents", inc > 0],
-      [v("safety", outOfRange().length), "readings out of range tonight", "safety", outOfRange().length > 0],
     ] : []),
   ];
   $("#dash").innerHTML = `<div class="sec">Tonight</div><div class="dash">${tiles.map(([x, label, go, hot]) => `<button data-go="${go}"${hot ? ' class="hot"' : ""}><b>${x}</b><span>${label}</span></button>`).join("")}</div>`;
 }
 function go(where) {
-  if (where === "shift" || where === "stock" || where === "logs") { pane = where === "shift" ? defaultPane() : where; show("tally"); return; }
-  if (where === "incidents" || where === "safety") { msub = where; where = "managers"; }
+  if (where === "shift" || where === "stock") { pane = where === "shift" ? defaultPane() : where; show("tally"); return; }
+  if (where === "incidents") { msub = where; where = "managers"; }
   const board = where === "issues" || where === "concerns";
   tpane = board ? "board" : where; renderTeamTabs();
   $(board ? `#${where}` : "#tpanes").scrollIntoView({ block: "start" });
@@ -1631,7 +1533,8 @@ const askText = (a) => (a.kind === "late" ? `Running late · ETA ${a.eta}` : a.k
 const askLine = (a) => esc(askText(a));
 const STATUS = { pending: ["Waiting", "wait"], approved: ["Approved", "ok"], declined: ["Declined", "no"], seen: ["Seen", "ok"] };
 const statusPill = (a) => `<span class="pill ${STATUS[a.status][1]}">${STATUS[a.status][0]}</span>`;
-const INCIDENTS = ["Accident or injury", "Near miss", "Guest complaint", "Refused service", "Aggressive guest", "Breakage or damage", "Lost property", "Theft or loss", "Other"];
+// Accidents, injuries and near misses are logged in Alert65.
+const INCIDENTS = ["Guest complaint", "Refused service", "Aggressive guest", "Breakage or damage", "Lost property", "Theft or loss", "Other"];
 const SCORES = ["Excellent", "Efficient", "Good", "Needs improvement"];
 const ME_KINDS = [["late", "Running late"], ["off", "Time off"], ["swap", "Shift swap"], ["incident", "Incident"]];
 // Half-filled forms live here, so live updates re-render without wiping what someone is typing.
@@ -1650,7 +1553,7 @@ function renderMe() {
     swap: () => fld("Shift date", "date1", from) + fld("Swapping with", "with", 'maxlength="40" placeholder="Their name"'),
     incident: () => `<label class="fld">What kind<select data-f="ikind"><option value="">Choose…</option>${INCIDENTS.map((k) => `<option${k === meF.ikind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
       <label class="fld">What happened<textarea data-f="itext" rows="4" maxlength="1000" placeholder="What happened, where, and what was done. Use table numbers, not guests' names or contact details.">${esc(meF.itext)}</textarea></label>
-      <p class="note">Only managers can read it. Injuries also go in the accident book.</p>`,
+      <p class="note">Only managers can read it. Accidents, injuries and near misses go in Alert65.</p>`,
   }[meKind]();
   const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
   $("#me").innerHTML = `<div class="sec">Tell the managers</div>
@@ -1706,86 +1609,8 @@ function renderOutlog() {
     ${LIVE.outlog.map((x) => `<div class="staffrow"><div class="n">${esc(x.itemName)} ${x.action === "out" ? "<span style=\"color:var(--warn)\">86'd</span>" : "back in stock"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">Nothing 86'd yet.</p>`}
     <p class="note">Last 100 changes. The log can't be edited or deleted.</p>`;
 }
-/* ---------- Managers: waste, safety checks, stock and training ---------- */
-// Business weeks run Monday to Sunday, by business night.
-const weekOf = (day) => addDays(day, -((new Date(day + "T12:00Z").getUTCDay() + 6) % 7));
-const tally = (xs, key) => { const m = new Map(); xs.forEach((x) => m.set(key(x), (m.get(key(x)) || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]); };
+/* ---------- Managers: training ---------- */
 const sideName = (s) => (s === "floor" ? "Floor" : "Bar");
-let wWeek = 0;
-function renderWaste() {
-  if (!LIVE.admin) return;
-  const start = addDays(weekOf(shiftDay()), -7 * wWeek), end = addDays(start, 6), xs = LIVE.waste.filter((w) => w.day >= start && w.day <= end);
-  const items = new Map();
-  for (const w of xs) {
-    const k = w.item + "|" + w.unit, g = items.get(k) || { item: w.item, unit: w.unit, qty: 0, why: [] };
-    g.qty += w.qty; g.why.push(w.reason); items.set(k, g);
-  }
-  const top = [...items.values()].sort((a, b) => b.why.length - a.why.length || a.item.localeCompare(b.item));
-  let night = "";
-  $("#mwaste").innerHTML = `<div class="sec">Waste</div>
-    <div class="recent">${["This week", "Last week"].map((t, i) => `<button class="chip" data-wweek="${i}" aria-pressed="${i === wWeek}">${t}</button>`).join("")}</div>
-    <p class="note">${dayName(start)} to ${dayName(end)}: ${xs.length} entr${xs.length === 1 ? "y" : "ies"}${xs.length ? ` (${tally(xs, (w) => sideName(w.side)).map(([k, n]) => `${k.toLowerCase()} ${n}`).join(", ")})` : ""}. No prices here: add a cost per item and unit in the spreadsheet.</p>
-    <div class="actions">${dlHtml("waste", "Download the full waste log as a spreadsheet", "waste")}</div>
-    ${xs.length ? `<h3 class="actday">By item</h3>${top.map((g) => `<div class="staffrow"><div class="n">${esc(wasteText(g))}</div><div class="s">${tally(g.why, (r) => r).map(([r, n]) => `${REASONS[r]}${n > 1 ? ` ×${n}` : ""}`).join(", ")}</div></div>`).join("")}
-      <h3 class="actday">Why</h3><p class="note">${tally(xs, (w) => w.reason).map(([r, n]) => `${REASONS[r]}: ${n}`).join(" · ")}</p>
-      <h3 class="actday">Who logged it</h3><p class="note">${tally(xs, (w) => w.name).map(([p, n]) => `${esc(p)}: ${n}`).join(" · ")}</p>
-      <h3 class="actday">Every entry</h3>${xs.map((w) => {
-        const head = w.day === night ? "" : `<div class="mini">${dayName(w.day, { weekday: "long", day: "numeric", month: "long" })}</div>`; night = w.day;
-        return `${head}<div class="staffrow"><div class="n">${esc(wasteText(w))}</div><div class="s">${REASONS[w.reason]}${w.note ? ` · ${esc(w.note)}` : ""} · ${sideName(w.side)} · ${esc(w.name)}, ${w.pending ? "sending…" : hhmm(new Date(ms(w.at)))}</div></div>`;
-      }).join("")}`
-    : `<p class="note">Nothing logged ${wWeek ? "last week" : "this week"} yet. Staff log waste in Shift, Logs.</p>`}`;
-}
-const kitF = { name: "", kind: "fridge", side: "bar" };
-const keepOpen = {}; // which folding sections are open, so live updates don't close them
-const fold = (k) => `data-keep="${k}"${keepOpen[k] ? " open" : ""}`;
-function renderSafety() {
-  if (!LIVE.admin) return;
-  const kit = [...LIVE.kit].sort((a, b) => a.side.localeCompare(b.side) || a.name.localeCompare(b.name));
-  const off = (r) => ["warn", "bad"].includes(judge(r.kind, r.c)[0]);
-  const nights = lastNights(7).filter((d) => LIVE.safety.some((r) => r.day === d && r.kind !== "lines"));
-  $("#msafety").innerHTML = `<div class="sec">Safety checks</div>
-    <p class="note">Temperatures and line cleaning, kept as the venue's due-diligence record. Staff log them in Shift, Logs.</p>
-    <div class="actions">${dlHtml("safety", "Download the full safety log as a spreadsheet", "safety")}</div>
-    <h3 class="actday">Tonight</h3>
-    ${kit.map((k) => `<div class="staffrow"><div class="n">${esc(k.name)} <span class="pill">${sideName(k.side)}</span> ${k.kind === "lines" ? lineState(k) : tonightOf(k).length ? "" : `<span class="pill wait">No reading yet</span>`}</div>
-      ${k.kind === "lines" ? "" : tonightOf(k).map((r) => `<div class="s">${tempLine(r)}</div>`).join("")}</div>`).join("") || `<p class="note">Nothing set up yet. Add the fridges, freezers, cellar, glass washer and beer lines below.</p>`}
-    ${nights.length ? `<h3 class="actday">Last 7 nights</h3>${nights.map((d) => {
-      const rs = LIVE.safety.filter((r) => r.day === d && r.kind !== "lines"), bad = rs.filter(off).length;
-      return `<div class="staffrow"><div class="n">${dayName(d, { weekday: "long", day: "numeric", month: "long" })} ${bad ? `<span class="pill no">${bad} out of range</span>` : `<span class="pill ok">All in range</span>`}</div><div class="s">${rs.map((r) => `${esc(r.kitName)} ${r.c}°C`).join(" · ")}</div></div>`;
-    }).join("")}` : ""}
-    <details class="setup" ${fold("kit")}><summary>Equipment (${kit.length})</summary>
-      ${kit.map((k) => `<div class="staffrow"><div class="n">${esc(k.name)}</div><div class="s">${KITS[k.kind].name} · ${sideName(k.side)}</div><div class="actions"><button class="btn danger" data-kit-del="${k.id}">Remove</button></div></div>`).join("")}
-      <h3 style="font-size:18px;margin-top:16px">Add equipment</h3>
-      <label class="fld">Name<input id="k-name" maxlength="40" value="${esc(kitF.name)}" placeholder="Back bar fridge, Cellar, Upstairs lines"></label>
-      <label class="fld">What it is<select id="k-kind">${Object.entries(KITS).map(([k, x]) => `<option value="${k}"${k === kitF.kind ? " selected" : ""}>${x.name}</option>`).join("")}</select></label>
-      <div class="mini">Who logs it</div><div class="recent">${["bar", "floor"].map((x) => `<button class="chip" data-kit-side="${x}" aria-pressed="${x === kitF.side}">${sideName(x)}</button>`).join("")}</div>
-      <button class="btn pri wide" id="k-go">Add</button>
-      <p class="note">Removing something keeps its past readings.</p></details>`;
-}
-let countNote = "";
-const countDraft = store.get("countDraft", {}); // kept on this phone until the count is saved
-function renderStock() {
-  if (!LIVE.admin) return;
-  if (!LIVE.loaded.has("pars") || !LIVE.loaded.has("counts")) { $("#mstock").innerHTML = `<div class="sec">Stock</div><p class="note">Loading par levels and counts…</p>`; return; }
-  const last = LIVE.counts[0], order = last ? last.lines.filter((l) => l.n < l.par) : [], nPar = Object.keys(LIVE.pars).length;
-  const counted = Object.entries(STOCK).map(([g, xs]) => [g, xs.filter((x) => LIVE.pars[x])]).filter(([, xs]) => xs.length);
-  const row = (x, input) => `<div class="rvrow" style="grid-template-columns:1fr 92px;align-items:center"><span>${esc(x)}</span>${input}</div>`;
-  $("#mstock").innerHTML = `<div class="sec">Order list</div>
-    ${last ? `<p class="note">From the count on ${stamp(new Date(ms(last.at)))} by ${esc(last.name)}${last.note ? ` (${esc(last.note)})` : ""}: ${order.length} item${order.length === 1 ? "" : "s"} below par.</p>
-      ${order.map((l) => `<div class="staffrow"><div class="n">${esc(l.item)} · order ${Math.ceil(l.par - l.n)}</div><div class="s">${esc(l.n)} of ${esc(l.par)} · ${esc(l.group)}</div></div>`).join("")}
-      <div class="actions">${dlHtml("order", "Download the order list", "order")}${dlHtml("counts", "Download every count", "counts")}</div>`
-    : `<p class="note">No count yet. Set par levels, then count the stock.</p>`}
-    <details class="setup" ${fold("count")}><summary>Count the stock</summary>
-      ${counted.length ? `<p class="note">Only items with a par level are counted. What you type stays on this phone until you save.</p>
-        ${counted.map(([g, xs]) => `<div class="mini">${esc(g)}</div>${xs.map((x) => row(`${x} (par ${LIVE.pars[x]})`, `<input data-cnt="${esc(x)}" type="number" min="0" step="0.1" value="${esc(countDraft[x] ?? "")}" aria-label="${esc(x)} counted">`)).join("")}`).join("")}
-        <label class="fld">Note (optional)<input id="cnt-note" maxlength="300" value="${esc(countNote)}" placeholder="Sunday close count"></label>
-        <button class="btn pri wide" id="cnt-go">Save the count</button>` : `<p class="note">Set some par levels first.</p>`}</details>
-    <details class="setup" ${fold("pars")}><summary>Par levels (${nPar} set)</summary>
-      <p class="note">How much should be on the shelf. Leave it blank for anything you don't count. Saved as you go.</p>
-      ${Object.entries(STOCK).map(([g, xs]) => `<details class="pargrp" ${fold("par-" + g)}><summary>${esc(g)} (${xs.filter((x) => LIVE.pars[x]).length} of ${xs.length})</summary>
-        ${xs.map((x) => row(x, `<input data-par="${esc(x)}" type="number" min="0" step="0.5" value="${LIVE.pars[x] ?? ""}" aria-label="Par for ${esc(x)}">`)).join("")}</details>`).join("")}
-    </details>`;
-}
 // Sign-offs, drink by drink. Practise shows each person their own.
 const TRAIN_POOLS = ["Signatures", "Classics", "Shots & bombs"];
 let trWho = "", trPool = "Signatures";
@@ -1809,9 +1634,10 @@ function renderTraining() {
    Worked out from the records themselves, since every change keeps who made it and when. Deleting something leaves
    no record, so take-downs, unticks and cancellations don't show. Managers see every section and can download the
    full history; staff see the team's side of things for their own side of the venue (bar or floor). */
-const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["safety", "Safety"], ["86", "86"], ["stock", "Stock"], ["waste", "Waste"], ["asks", "Staff requests"], ["issues", "Issues"],
+const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["86", "86"], ["stock", "Stock"], ["asks", "Staff requests"], ["issues", "Issues"],
   ["concerns", "Concerns"], ["reports", "Reports"], ["incidents", "Incidents"], ["training", "Training"], ["team", "Team"]];
-const ACT_NAME = Object.fromEntries(ACT), STAFF_ACT = ["all", "board", "checks", "safety", "86", "stock", "waste", "issues", "concerns", "reports"];
+// Old records keep their section's name in the spreadsheets.
+const ACT_NAME = { ...Object.fromEntries(ACT), safety: "Safety", waste: "Waste" }, STAFF_ACT = ["all", "board", "checks", "86", "stock", "issues", "concerns", "reports"];
 const tickName = (t) => LISTS[t.list]?.items[t.item] || `Item ${t.item + 1}`;
 const DID = { setup: () => "set up the owner account", add: (a) => `added ${a.targetName} (${ROLE[a.role].toLowerCase()})`, reset: (a) => `gave ${a.targetName} a new PIN`, remove: (a) => `removed ${a.targetName}`, role: (a) => `made ${a.targetName} ${a.role === "manager" ? "a manager" : "staff"}` };
 const DECIDED = { seen: "saw", approved: "approved", declined: "declined" };
@@ -1854,8 +1680,9 @@ function liveData() {
     outlog: staff ? [...LIVE.outInfo.values()].map((o) => ({ ...o, action: "out" })) : LIVE.outlog,
     asks: staff ? [] : LIVE.asks,
     reports: staff ? LIVE.reports.filter((r) => r.side === mode) : LIVE.reports,
-    safety: staff ? LIVE.safety.filter((r) => r.side === mode) : LIVE.safety, waste: LIVE.waste,
-    counts: staff ? [] : LIVE.counts, training: staff ? [] : LIVE.training, concerns: LIVE.concerns.filter(cnForMe),
+    training: staff ? [] : LIVE.training, concerns: LIVE.concerns.filter(cnForMe),
+    // Old records (temperatures, line cleans, waste, stock counts) are in the downloads only.
+    safety: [], waste: [], counts: [],
   };
 }
 // In All, one line per person per checklist, at their latest tick.
@@ -1883,12 +1710,14 @@ function renderAct() {
     return `${head}<div class="staffrow"><div class="n">${actSec === "all" ? `<span class="pill">${ACT_NAME[e.sec]}</span> ` : ""}${esc(e.who)} <span class="did">${esc(e.what)}</span></div><div class="s">${hhmm(new Date(e.t))}${d ? ` · ${esc(d)}` : ""}</div></div>`;
   }).join("");
   const file = LIVE.admin ? dlHtml(actSec, `Download ${actSec === "all" ? "everything" : ACT_NAME[actSec].toLowerCase()} as a spreadsheet`, "act") : "";
+  const old = LIVE.admin ? `<h3 class="actday">Old records</h3><p class="note">Temperatures, line cleans and waste are logged in Alert65 and Nory now, and stock is counted in Nory. What Bar Book saved before 25 October 2026 is here, read-only.</p>
+    <div class="actions">${dlHtml("safety", "Temperatures and line cleans", "old-safety")}${dlHtml("waste", "Waste", "old-waste")}${dlHtml("counts", "Stock counts", "old-counts")}</div>` : "";
   $(box).innerHTML = `<div class="sec">Activity</div>
     <div class="chips" role="toolbar" aria-label="Show">${secs.map(([k, t]) => `<button class="chip" data-act="${k}" aria-pressed="${k === actSec}">${t}</button>`).join("")}</div>
     ${file ? `<div class="actions">${file}</div>` : ""}
     ${list || `<p class="note">Nothing here yet.</p>`}
     ${ev.length > actMax ? `<button class="btn wide" id="act-more">Show more</button>` : ""}
-    <p class="note">Newest first. ${LIVE.admin ? "This shows the latest of each kind; the spreadsheet has the full history (checklists: the last 7 nights)." : `Checklists and reports for the ${mode === "bar" ? "bar" : "floor"}, as set in Shift.`} Deleted posts, unticked items and cancelled requests leave no record.</p>`;
+    <p class="note">Newest first. ${LIVE.admin ? "This shows the latest of each kind; the spreadsheet has the full history (checklists: the last 7 nights)." : `Checklists and reports for the ${mode === "bar" ? "bar" : "floor"}, as set in Shift.`} Deleted posts, unticked items and cancelled requests leave no record.</p>${old}`;
 }
 /* Spreadsheet downloads (managers). The full history is read once, then saved with a tap on Save, which works on
    iPhone too. Excel treats a cell starting with = + - or @ as a formula, so those get a leading apostrophe. */
@@ -1911,17 +1740,16 @@ const TABLES = {
   waste: (x) => [["Night", "Time", "Side", "Item", "Quantity", "Unit", "Reason", "Note", "Logged by"], ...x.waste.map((w) => [w.day, dt(w.at)[1], sideName(w.side), w.item, w.qty, UNITS[w.unit], REASONS[w.reason], w.note, w.name])],
   safety: (x) => [["Night", "Time", "Side", "Equipment", "Type", "Reading (°C)", "Result", "Note", "By"], ...x.safety.map((r) => {
     const [st, msg] = judge(r.kind, r.c);
-    return [r.day, dt(r.at)[1], sideName(r.side), r.kitName, KITS[r.kind].name, r.c ?? "", r.kind === "lines" ? "Cleaned" : st === "ok" ? "In range" : msg || "Recorded", r.note, r.name];
+    return [r.day, dt(r.at)[1], sideName(r.side), r.kitName, KITS[r.kind], r.c ?? "", r.kind === "lines" ? "Cleaned" : st === "ok" ? "In range" : msg || "Recorded", r.note, r.name];
   })],
   training: (x) => [["Person", "Drink", "Section", "Signed off by", "Date"], ...x.training.map((t) => [t.traineeName, t.drinkName, D.find((d) => d.name === t.drinkName)?.section || "", t.name, dt(t.at)[0]])],
   concerns: (x) => [["Date", "Time", "Concern", "Where", "Sent to", "From", "Note", "Photos", "Status", "Dealt with by", "Dealt with on", "Dealt with at", "What was done"],
     ...x.concerns.map((c) => [...dt(c.at), CN_NAME[c.reason], AREA[c.area] || "Other", CN_TO_NAME[c.to], c.anon ? "Anonymous" : c.name, c.note, c.photos, c.status === "closed" ? "Dealt with" : "Open", c.fixedBy, ...dt(c.fixedAt), c.fix])],
   counts: (x) => [["Date", "Time", "Counted by", "Item", "Group", "Par", "Counted", "To order"], ...x.counts.flatMap((c) => c.lines.map((l) => [...dt(c.at), c.name, l.item, l.group, l.par, l.n, Math.max(0, Math.ceil(l.par - l.n))]))],
-  order: (x) => [["Item", "Group", "Par", "Counted", "To order"], ...(x.counts[0]?.lines || []).filter((l) => l.n < l.par).map((l) => [l.item, l.group, l.par, l.n, Math.ceil(l.par - l.n)])],
 };
 const NEEDS = { all: ["feed", "notices", "ticks", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit", "safety", "waste", "counts", "training", "concerns"], board: ["feed", "notices"], checks: ["ticks"],
-  86: ["outlog"], stock: ["requests"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"], incidents: ["incidents"], team: ["audit"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], order: ["counts"], concerns: ["concerns"] };
-const FILE = { all: "activity", order: "order-list", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
+  86: ["outlog"], stock: ["requests"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"], incidents: ["incidents"], team: ["audit"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], concerns: ["concerns"] };
+const FILE = { all: "activity", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
 // A download button, or once the file is ready, the Save link (a separate tap, which iPhone needs).
 const dlHtml = (sec, label, id) => (actFile && actFile.sec === sec
   ? `<a class="btn pri" id="${id}-save" href="${actFile.url}" download="${actFile.name}">Save the spreadsheet (${actFile.n} row${actFile.n === 1 ? "" : "s"})</a>`
@@ -1934,7 +1762,7 @@ async function prepareDownload(sec) {
   if (actFile) URL.revokeObjectURL(actFile.url);
   const name = FILE[sec] || ACT_NAME[sec].toLowerCase().replace(/ /g, "-");
   actFile = { sec, n: rows.length - 1, name: `black-tap-${name}-${ukDay(Date.now())}.csv`, url: URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })) };
-  [renderAct, renderWaste, renderSafety, renderStock, renderTraining].forEach((f) => f());
+  [renderAct, renderTraining].forEach((f) => f());
 }
 /* ---------- Broadcasts ----------
    A broadcast stays at the top of every page until that person taps Got it, on any of their phones. */
@@ -1995,16 +1823,15 @@ function liveChanged(what) {
   if (!$("#v-notices").hidden) {
     const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues], requests: [renderRequests, renderDash, renderAct],
       asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct], ticks: [renderDash, renderAct], seen: [renderPins], photos: [], waste: [renderWaste, renderAct], safety: [renderSafety, renderDash, renderAct],
-      kit: [renderSafety, renderDash], pars: [renderStock], counts: [renderStock, renderAct], training: [renderTraining, renderAct],
+      out: [renderDash, renderAct], ticks: [renderDash, renderAct], seen: [renderPins], photos: [], training: [renderTraining, renderAct],
       concerns: [renderConcerns, renderDash, renderAct] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderSafety, "#msafety"], [renderStock, "#mstock"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "ticks", "requests", "waste", "safety", "kit"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "ticks", "requests"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
@@ -2025,17 +1852,12 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
   if (t.id === "cn-note") cnF.note = t.value;
   if (t.dataset.cnFixt) cnText[t.dataset.cnFixt] = t.value;
-  if (t.id === "k-name") kitF.name = t.value;
-  if (t.id === "cnt-note") countNote = t.value;
-  if (t.dataset.cnt) { countDraft[t.dataset.cnt] = t.value; store.set("countDraft", countDraft); }
 });
 $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset.f) meF[t.dataset.f] = t.value;
-  if (t.id === "k-kind") kitF.kind = t.value;
   if (t.id === "cn-area") cnF.area = t.value;
   if (t.id === "cn-anon") cnF.anon = t.checked;
-  if (t.dataset.par) { const n = Math.round(+t.value * 100) / 100; track(LIVE.api.setPar(t.dataset.par, n > 0 && n <= 1000 ? n : 0), null, "Par not saved. Try again"); }
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.give && t.value) {
     const p = LIVE.staff.find((x) => x.uid === t.value);
@@ -2045,7 +1867,6 @@ $("#v-notices").addEventListener("change", (e) => {
 $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
   if (e.target.id === "cn-form") cnF.open = e.target.open;
-  if (e.target.dataset.keep) keepOpen[e.target.dataset.keep] = e.target.open;
 }, true);
 function sendMe(A) {
   const f = meF, sent = () => { haptic(); Object.keys(meF).filter((k) => !k.startsWith("fb")).forEach((k) => (meF[k] = "")); renderMe(); };
@@ -2070,7 +1891,6 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.dataset.act) { actSec = b.dataset.act; actMax = 50; renderAct(); return; }
   if (b.id === "act-more") { actMax += 50; renderAct(); return; }
   if (b.dataset.dl) { busy(b, "Getting the full history…", prepareDownload(b.dataset.dl).catch(() => toast("Couldn't get it. Check your signal and try again"))); return; }
-  if (b.dataset.wweek) { wWeek = +b.dataset.wweek; renderWaste(); return; }
   if (b.dataset.cnReason) { cnF.reason = b.dataset.cnReason; renderConcerns(); return; }
   if (b.dataset.cnTo) { cnF.to = b.dataset.cnTo; renderConcerns(); return; }
   if (b.dataset.cnUnphoto) { cnF.photos.splice(+b.dataset.cnUnphoto, 1); renderConcerns(); return; }
@@ -2089,21 +1909,6 @@ $("#v-notices").addEventListener("click", (e) => {
     return;
   }
   if (b.dataset.cnPhotos) { busy(b, "Loading photos…", showConcernPhotos(b.dataset.cnPhotos).catch(() => toast("Couldn't load the photos. Check your signal"))); return; }
-  if (b.dataset.kitSide) { kitF.side = b.dataset.kitSide; renderSafety(); return; }
-  if (b.id === "k-go") {
-    const name = kitF.name.trim(); if (!name) return toast("Give it a name");
-    track(A.addKit(name, kitF.kind, kitF.side), `Added ${name}`, "Not added. Try again");
-    kitF.name = ""; haptic(); renderSafety(); return;
-  }
-  if (b.dataset.kitDel) { const k = LIVE.kit.find((x) => x.id === b.dataset.kitDel); if (k && confirm(`Remove ${k.name}? Its past readings stay.`)) track(A.removeKit(k.id), null, "Could not remove"); return; }
-  if (b.id === "cnt-go") {
-    const lines = Object.entries(STOCK).flatMap(([g, xs]) => xs.filter((x) => LIVE.pars[x] && String(countDraft[x] ?? "").trim() !== "" && +countDraft[x] >= 0)
-      .map((x) => ({ item: x, group: g, par: LIVE.pars[x], n: Math.round(+countDraft[x] * 100) / 100 })));
-    if (!lines.length) return toast("Type at least one count");
-    const missed = Object.values(STOCK).flat().filter((x) => LIVE.pars[x]).length - lines.length;
-    track(A.saveCount(lines, countNote.trim()), `Count saved: ${lines.length} item${lines.length === 1 ? "" : "s"}${missed ? `. ${missed} with a par weren't counted` : ""}`, "Not saved. Try again");
-    Object.keys(countDraft).forEach((k) => delete countDraft[k]); store.set("countDraft", countDraft); countNote = ""; haptic(); renderStock(); return;
-  }
   if (b.dataset.trWho) { trWho = b.dataset.trWho === trWho ? "" : b.dataset.trWho; renderTraining(); return; }
   if (b.dataset.trPool) { trPool = b.dataset.trPool; renderTraining(); return; }
   if (b.dataset.trSign) {
