@@ -245,7 +245,7 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 #tpanes .ptabs button { min-height: 44px; justify-content: center; font-size: 14px; }
 #tpanes .ptabs small:empty { display: none; }
 .ptabs button[aria-selected="true"] { background: var(--brass); color: var(--brass-ink); }
-.pane { animation: paneIn .18s ease-out; }
+.pane.enter { animation: paneIn .18s ease-out; }
 @keyframes paneIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 .prog-head { display: flex; justify-content: space-between; margin-top: 14px; font-size: 14px; color: var(--muted); }
 .prog-head b { color: var(--fg); }
@@ -260,7 +260,6 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .soon { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 99px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .prep.done .box { background: var(--ok); border-color: var(--ok); }
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
-.prep.done > span:last-child .who { text-decoration: none; display: block; }
 .brandr { display: flex; align-items: center; gap: 6px; }
 .brandr small { text-align: right; font-size: 11px; line-height: 1.3; }
 .brandr .clock { color: var(--fg); font-size: 16px; letter-spacing: .04em; }
@@ -294,12 +293,10 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
 .rvrow { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; margin-top: 10px; }
 .rvrow input { min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .rvrow .btn { min-height: 40px; padding: 8px 12px; }
-a.btn { text-decoration: none; }
+a.btn { text-decoration: none; color: inherit; }
 .ptabs.msub { position: static; grid-template-columns: repeat(3, 1fr); box-shadow: none; margin-top: 10px; }
 .ptabs.msub button { min-height: 44px; justify-content: center; font-size: 14px; }
 .two { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
-details.pargrp { border-top: 1px solid var(--line); }
-details.pargrp summary { min-height: 40px; display: flex; align-items: center; font-weight: 700; }
 .actday { font-family: var(--body); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 0; }
 .staffrow .did { font-weight: 400; }
 .bcast { margin-top: 12px; padding: 14px; border: 2px solid var(--brass); border-radius: 14px; background: color-mix(in srgb, var(--brass) 14%, var(--surface)); }
@@ -323,7 +320,31 @@ details.pargrp summary { min-height: 40px; display: flex; align-items: center; f
 .dash b { display: block; font-family: var(--display); font-size: 26px; line-height: 1.05; }
 .dash span { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.25; }
 .dash button.hot b { color: var(--warn); }
-.prep .who { display: block; font-size: 12.5px; color: var(--muted); text-decoration: none; }
+/* Tonight's tasks: the item, then ⋯ for its options and history. Status shows as a word and a mark, not colour alone. */
+.task { display: grid; grid-template-columns: 1fr 44px; align-items: center; border-bottom: 1px solid var(--line); }
+.task .prep { border-bottom: 0; }
+.task .more { min-height: 44px; border-radius: 10px; color: var(--muted); font-size: 22px; line-height: 1; }
+.task .more[aria-expanded="true"] { background: var(--surface); color: var(--fg); }
+.tmore { padding: 2px 0 12px 40px; border-bottom: 1px solid var(--line); }
+.tmore .actions { margin-top: 6px; }
+.tmore .btn, .run .btn, .rs .btn { padding: 8px 12px; min-height: 40px; font-size: 15px; }
+.rs select { font: inherit; font-size: 15px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-height: 40px; }
+.hist { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
+.hist .s { padding: 3px 0; }
+.prep.st-doing .box { border-color: var(--brass); color: var(--brass); }
+.prep.st-blocked .box { border-color: var(--warn); color: var(--warn); }
+.prep.st-cancelled { opacity: .62; }
+.prep.st-cancelled .box { color: var(--muted); }
+.prep .who .pill { margin-right: 2px; }
+.late { color: var(--warn); }
+.run { margin-top: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
+.run .n { font-size: 14.5px; }
+.run .s { color: var(--muted); font-size: 13px; margin-top: 4px; }
+.run .actions { margin-top: 8px; }
+.rs .s { color: var(--muted); font-size: 14px; margin: 4px 0 0; }
+.filters { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.staffrow .prog { margin: 8px 0 6px; }
+.prep .who { display: inline-block; width: 100%; font-size: 12.5px; color: var(--muted); }
 .issue .tags, .notice .tags { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
 .issue select { font: inherit; font-size: 15px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-height: 40px; }
 .check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 16px; }
@@ -384,6 +405,8 @@ details.pargrp summary { min-height: 40px; display: flex; align-items: center; f
   .sheet.closing { animation: down .18s ease-in forwards; } @keyframes down { to { transform: translateY(60px); opacity: 0; } }
   .swhint { animation: nudge 1.6s ease-in-out 2; } @keyframes nudge { 0%, 100% { transform: translateX(-50%); } 30% { transform: translateX(calc(-50% - 18px)); } 60% { transform: translateX(calc(-50% + 18px)); } }
   .step h4 span { transition: background .2s; }
+  /* What just changed on someone else's phone. */
+  .flash { animation: flash 1.6s ease-out; } @keyframes flash { from { background: color-mix(in srgb, var(--brass) 24%, transparent); } }
 }
 </style>
 <script>
@@ -448,7 +471,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="act"></div><div id="mgrs"></div><div id="incs"></div><div id="mwaste"></div><div id="msafety"></div><div id="mstock"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="mgrs"></div><div id="incs"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
     <div id="notices"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
@@ -500,6 +523,16 @@ function track(p, ok, fail = "Not saved. Try again") {
 }
 addEventListener("online", () => renderNet()); addEventListener("offline", () => renderNet());
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 1800); }
+/* WhatsApp and Email: each opens the app with the text written in, and the person picks who it goes to. Bar Book sends
+   nothing itself. They're plain links whose address is filled in as they're tapped, from SHARE[k]() (the subject and
+   the text right then), so it's never out of date and nothing blocks it as a pop-up. */
+const SHARE = {};
+const shareBtns = (k) => `<a class="btn" data-share="${k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a><a class="btn" data-share="${k}" data-via="mail" href="mailto:">Email</a>`;
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("a[data-share]"); if (!a) return;
+  const [subject, text] = SHARE[a.dataset.share]();
+  a.href = a.dataset.via === "wa" ? `https://wa.me/?text=${encodeURIComponent(text)}` : `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+});
 
 /* ---------- Drinks list ---------- */
 const CATS = {
@@ -527,7 +560,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], waste: [], kit: [], safety: [], pars: {}, counts: [], training: [], concerns: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -967,7 +1000,7 @@ let confirmReset = false;
 // Opening and closing checklists. Ticks, comments and the name stay on this phone until "Start a new night".
 const LISTS = {
   open: { title: "Opening checklist", items: [
-    "Fridges at 5°C or below. Log the temperatures in Logs",
+    "Fridges at 5°C or below, temperatures logged in Alert65",
     "Ice well full and clean, ice scoop in its holder (never use a glass)",
     "Glass washer on, rinse aid and detergent topped up, up to temperature",
     "Glassware stocked and polished: coupes, rocks, highballs, flutes, shot glasses",
@@ -1002,7 +1035,7 @@ const LISTS = {
     "Bar fridge lights off",
     "Bins emptied and cleaned, new bin bags in",
     "Chairs flipped, floor mopped",
-    "Breakages and waste logged in Logs",
+    "Breakages and waste logged in Nory",
     "Photos of the upstairs bar uploaded to the group",
     "Spirits locked away, bar lights off",
   ] },
@@ -1082,9 +1115,7 @@ const STOCK = {
 const UKDAY = new Intl.DateTimeFormat("en-GB", { timeZone: UK, year: "numeric", month: "2-digit", day: "2-digit" });
 const ukDay = (t) => { const p = Object.fromEntries(UKDAY.formatToParts(t).map((x) => [x.type, x.value])); return `${p.year}-${p.month}-${p.day}`; };
 const shiftDay = () => ukDay(Date.now() - 6 * 36e5);
-const ticksNow = () => (LIVE.me ? LIVE.ticks : ticks);
-const ticked = (k) => ticksNow()[k] || [];
-// Items showing on tonight's list, as [index, text]. Indexes stay fixed so shared ticks line up.
+// Items showing on tonight's list, as [index, text]. Indexes stay fixed so shared tasks line up.
 const shown = (k) => {
   const day = new Date(shiftDay()).getUTCDay();
   return LISTS[k].items.map((t, i) => (typeof t === "string" ? [i, t] : t.days.includes(day) ? [i, t.t] : null)).filter(Boolean);
@@ -1095,42 +1126,226 @@ let shiftNote = store.get("shiftNote", ""), shiftWho = store.get("shiftWho", "")
 function tallyText() {
   const day = stamp(new Date());
   const list = (k) => {
-    const p = progress(k), miss = shown(k).filter(([i]) => !ticked(k).includes(i)).map(([, t]) => t);
-    return `${LISTS[k].title}: ${p.n} of ${p.of} done${miss.length ? `\nNot done:\n${miss.map((m) => "- " + m).join("\n")}` : ""}`;
+    const p = progress(k), r = runOf(k);
+    const items = (title, sts) => {
+      const xs = shown(k).filter(([i]) => sts.includes(statusOf(k, i))).map(([i, t]) => { const x = LIVE.me && taskOf(k, i); return `- ${t}${x?.status === "doing" ? " (in progress)" : x?.note ? ` (${x.note})` : ""}`; });
+      return xs.length ? `\n${title}:\n${xs.join("\n")}` : "";
+    };
+    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
   return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
+SHARE.shift = () => [`Black Tap Soho ${mode} shift, ${stamp(new Date())}`, tallyText()];
 const PANES = {
-  bar: [["open", "Open"], ["stock", "Stock"], ["logs", "Logs"], ["close", "Close"], ["send", "Send"]],
-  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["logs", "Logs"], ["fclose", "Close"], ["send", "Send"]],
+  bar: [["open", "Open"], ["stock", "Stock"], ["close", "Close"], ["send", "Send"]],
+  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["fclose", "Close"], ["send", "Send"]],
 };
 const defaultPane = () => (new Date().getHours() >= 6 && new Date().getHours() < 16 ? PANES[mode][0][0] : mode === "bar" ? "close" : "fclose");
 let pane = defaultPane();
-const progress = (k) => { const S = shown(k), n = S.filter(([i]) => ticked(k).includes(i)).length, of = S.length; return { n, of, pct: Math.round((n / of) * 100) }; };
-// Logged in, each tick says who did it. Only they or a manager can untick it.
-const tickedBy = (k, i) => (LIVE.me ? LIVE.tickBy[`${k}-${i}`] : null);
-const whoTicked = (k, i) => { const t = tickedBy(k, i); return t ? `<small class="who">${esc(t.name)} · ${t.pending ? "sending…" : hhmm(new Date(ms(t.at)))}</small>` : ""; };
+/* ---------- Tonight's tasks ----------
+   Logged in, each checklist item is a task the whole team sees change as it happens: Not started, In progress, Done,
+   Blocked (with a reason) or Not needed tonight (managers only, with a reason), each with who and when. Every change is
+   saved together with an event, which is its history. Each list is a procedure that's started and then finished:
+   finishing with items left needs a manager and a reason, and a finished list is locked until a manager reopens it.
+   Logged out, ticks stay on this phone. */
+const TS = { todo: "Not started", doing: "In progress", done: "Done", blocked: "Blocked", cancelled: "Not needed tonight" };
+const BOX = { todo: "", doing: "…", done: "✓", blocked: "!", cancelled: "–" };
+const RUN = { todo: "Not started", started: "In progress", finished: "Finished" };
+const listSide = (k) => (MODE_LISTS.bar.includes(k) ? "bar" : "floor");
+const itemText = (k, i) => { const t = LISTS[k]?.items[i]; return t == null ? `Item ${i + 1}` : typeof t === "string" ? t : t.t; };
+const taskOf = (k, i) => LIVE.tasks[`${k}-${i}`];
+const statusOf = (k, i) => (LIVE.me ? taskOf(k, i)?.status || "todo" : (ticks[k] || []).includes(i) ? "done" : "todo");
+const runOf = (k) => (LIVE.me ? LIVE.runs[k] : null);
+const isLocked = (k) => runOf(k)?.status === "finished";
+// Not needed tonight doesn't count towards what's required, so it can't count as done either.
+const progress = (k) => {
+  const S = shown(k).filter(([i]) => statusOf(k, i) !== "cancelled"), n = S.filter(([i]) => statusOf(k, i) === "done").length, of = S.length;
+  return { n, of, pct: of ? Math.round((n / of) * 100) : 100, skipped: shown(k).length - of };
+};
+const at = (x) => (x.pending ? "sending…" : hhmm(new Date(ms(x.at))));
+const mins = (t) => Math.max(0, Math.floor((Date.now() - ms(t)) / 6e4));
+// In progress for longer than this many minutes, or a restock waiting longer than RS_LATE, is overdue.
+const TASK_LATE = 30, RS_LATE = 15;
+// The change that put a task where it is now, from tonight's events (giving it to someone doesn't change who did it).
+// Until that event arrives, the task itself.
+const lastMove = (k, i, x) => { const e = LIVE.events.find((e) => e.kind === "task" && e.list === k && e.item === i && e.from !== e.to && e.v <= x.v); return e && e.to === x.status ? e : x; };
+function taskLine(k, i, x) {
+  if (!x) return "";
+  const m = lastMove(k, i, x), by = `${esc(m.name)}, ${at(m)}`, why = m.note ? `: ${esc(m.note)}` : "";
+  const late = x.status === "doing" && !x.pending && mins(m.at) >= TASK_LATE ? ` · <b class="late">Overdue: ${mins(m.at)} min</b>` : "";
+  const s = { todo: m.note ? `Reopened by ${by}${why}` : "", doing: `Started by ${by}${late}`, done: `By ${by}`, blocked: `By ${by}${why}`, cancelled: `By ${by}${why}` }[x.status];
+  return [s, x.who && `For ${esc(x.who)}`].filter(Boolean).join(" · ");
+}
+const moveText = (e) => (e.from === e.to ? (e.who ? `gave it to ${e.who}` : "took it off whoever it was for") : `${TS[e.from]} → ${TS[e.to]}`);
+function histHtml(k, i) {
+  const xs = LIVE.events.filter((e) => e.kind === "task" && e.list === k && e.item === i).reverse();
+  return xs.length ? `<div class="hist">${xs.map((e) => `<div class="s">${at(e)} · ${esc(e.name)}: ${esc(moveText(e))}${e.note ? ` (${esc(e.note)})` : ""}</div>`).join("")}</div>` : `<p class="note">No changes yet tonight.</p>`;
+}
+// Options for one task. Who can do what follows the rules: Stop and Take back are for whoever made the last change, or
+// a manager; Not needed, Bring back and Give to are for managers.
+function taskMore(k, i, x) {
+  const id = `${k}-${i}`, st = x?.status || "todo", A = LIVE.admin, mine = x?.uid === LIVE.uid;
+  if (isLocked(k)) return `<div class="tmore"><p class="note">This list is finished. ${A ? "Reopen it above to change anything." : "A manager can reopen it."}</p>${histHtml(k, i)}</div>`;
+  const b = (to, label, cls = "") => `<button class="btn${cls}" data-task="${id}" data-to="${to}">${label}</button>`;
+  const btns = {
+    todo: [b("doing", "Start"), b("done", "Done", " pri"), b("blocked", "Blocked…"), A && b("cancelled", "Not needed…")],
+    doing: [b("done", "Done", " pri"), b("blocked", "Blocked…"), (mine || A) && b("todo", "Stop"), A && b("cancelled", "Not needed…")],
+    blocked: [b("doing", "Start"), b("done", "Done", " pri"), b("todo", "Unblock"), A && b("cancelled", "Not needed…")],
+    done: [(mine || A) && b("todo", "Take back")],
+    cancelled: [A && b("todo", "Bring back")],
+  }[st].filter(Boolean).join("");
+  const give = A && ["todo", "doing", "blocked"].includes(st) ? `<label class="fld">Give it to someone<select data-give-task="${id}"><option value="">Choose…</option>${x?.who ? `<option value="-">Nobody (take it off ${esc(x.who)})</option>` : ""}${LIVE.staff.filter((p) => p.uid !== x?.whoUid).map((p) => `<option value="${p.uid}">${esc(p.name)}</option>`).join("")}</select></label>` : "";
+  return `<div class="tmore">${btns ? `<div class="actions">${btns}</div>` : ""}${give}<div class="mini">Tonight</div>${histHtml(k, i)}</div>`;
+}
+let more = "";
+// A change from someone else's phone flashes for a moment, so it's easy to see what just moved.
+const seenV = {}, flashTill = {};
+function flashed(id, x) {
+  if (x && seenV[id] !== undefined && x.v > seenV[id] && x.uid !== LIVE.uid) flashTill[id] = Date.now() + 1500;
+  seenV[id] = x ? x.v : 0;
+  return flashTill[id] > Date.now();
+}
+function taskRow(k, i, t) {
+  const st = statusOf(k, i);
+  if (!LIVE.me) return `<button class="prep${st === "done" ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${st === "done"}"><span class="box">${BOX[st]}</span><span>${esc(t)}</span></button>`;
+  const id = `${k}-${i}`, x = taskOf(k, i), pill = { doing: "wait", done: "ok", blocked: "no" }[st] || "";
+  return `<div class="task${flashed(id, x) ? " flash" : ""}"><button class="prep st-${st}${st === "done" ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${st === "done"}"><span class="box" aria-hidden="true">${BOX[st]}</span><span>${esc(t)} <small class="who">${st === "todo" ? "" : `<span class="pill ${pill}">${TS[st]}</span> `}${taskLine(k, i, x)}</small></span></button>
+    <button class="more" data-more="${id}" aria-expanded="${more === id}" aria-label="Options and history: ${esc(t)}">⋯</button></div>${more === id ? taskMore(k, i, x) : ""}`;
+}
+// When a procedure was first started, from tonight's events (the procedure itself keeps only its latest change).
+const runStart = (k) => LIVE.events.filter((e) => e.kind === "run" && e.list === k && e.from === "todo").pop();
+function runText(k) {
+  const r = runOf(k); if (!r) return "";
+  const by = (x) => `${x.name}, ${at(x)}`, s = runStart(k);
+  const start = s ? (s.to === "started" ? `Started by ${by(s)}` : "") : r.v === 1 && r.status === "started" ? `Started by ${by(r)}` : "";
+  const end = r.status === "finished" ? `Finished by ${by(r)}${r.done < r.required ? `, with ${r.required - r.done} of ${r.required} not done. Reason: ${r.note}` : ""}`
+    : r.v > 1 ? `Reopened by ${by(r)}. Reason: ${r.note}` : "";
+  return [start, end].filter(Boolean).join(". ");
+}
+// The procedure: started, then finished. Finishing with items left is a manager's call, with a reason.
+function runHtml(k) {
+  const r = runOf(k), st = r?.status || "todo", p = progress(k), A = LIVE.admin;
+  const b = (to, label, cls = "") => `<button class="btn${cls}" data-run="${k}" data-to="${to}">${label}</button>`;
+  const btns = st === "finished" ? (A ? b("reopen", "Reopen…") : "") : [st === "todo" && b("started", "Start"), p.n === p.of ? b("finished", "Finish", " pri") : A && b("override", "Finish anyway…")].filter(Boolean).join("");
+  const hint = st !== "finished" && p.n < p.of && !A ? `<div class="s">Finish shows once every item is done.</div>` : "";
+  return `<div class="run"><div class="n"><span class="pill ${st === "finished" ? "ok" : st === "started" ? "wait" : ""}">${RUN[st]}</span> ${r ? esc(runText(k)) : "Tap Start when you begin, or just start ticking."}</div>${hint}${btns ? `<div class="actions">${btns}</div>` : ""}</div>`;
+}
 function checklistHtml(k) {
-  const T = ticked(k), p = progress(k);
-  return `<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}</span><b>${p.pct}%</b></div>
-    <div class="prog${p.n === p.of ? " full" : ""}"><i style="width:${p.pct}%"></i></div>
-    ${shown(k).map(([i, t]) => `<button class="prep${T.includes(i) ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${T.includes(i)}"><span class="box">${T.includes(i) ? "✓" : ""}</span><span>${esc(t)}${whoTicked(k, i)}</span></button>`).join("")}`;
+  const p = progress(k);
+  return `${LIVE.me ? runHtml(k) : ""}<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}${p.skipped ? ` · ${p.skipped} not needed tonight` : ""}</span><b>${p.pct}%</b></div>
+    <div class="prog${p.n === p.of ? " full" : ""}" role="progressbar" aria-label="${esc(LISTS[k].title)}" aria-valuenow="${p.pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${p.pct}%"></i></div>
+    ${shown(k).map(([i, t]) => taskRow(k, i, t)).join("")}`;
+}
+// A reason for the record. Cancelling or leaving it empty means don't make the change.
+const reason = (q) => (prompt(q) || "").trim().slice(0, 200);
+function changeTask(k, i, to) {
+  const x = taskOf(k, i), t = itemText(k, i);
+  let note = "";
+  if (to === "blocked" && !(note = reason(`What's stopping it?\n${t}`))) return;
+  if (to === "cancelled" && !(note = reason(`Why isn't it needed tonight?\n${t}`))) return;
+  if (to === "todo" && x?.status === "done") {
+    const mine = x.uid === LIVE.uid;
+    if (!mine && !LIVE.admin) return toast(`Done by ${x.name}. Only they or a manager can take it back`);
+    // A mis-tap can be taken back straight away. After a few minutes it needs a reason, which goes on the record.
+    if (!(mine && mins(x.at) < 4) && !(note = reason(`Why take it back?\n${t}`))) return;
+  }
+  const p = progress(k);
+  if (to === "done" && p.n === p.of - 1 && statusOf(k, i) !== "done") { toast(`All done. Tap Finish to close the ${LISTS[k].title.toLowerCase()}`); try { navigator.vibrate?.([12, 60, 12]); } catch {} }
+  track(LIVE.api.setTask(k, i, t, to, { note }), null, "Not saved. Someone may have just changed it");
+  // The first change on a list starts it, if nobody has yet.
+  if (!runOf(k)) LIVE.api.setRun(k, LISTS[k].title, "started", p.n, p.of).catch(() => {});
+  haptic();
+}
+function runTo(k, to) {
+  const p = progress(k), t = LISTS[k].title;
+  let note = "";
+  if (to === "override" && !(note = reason(`Finish with ${p.of - p.n} of ${p.of} not done? Say why, for the record.\n${t}`))) return;
+  if (to === "reopen" && !(note = reason(`Why reopen it?\n${t}`))) return;
+  const ok = { started: `${t} started`, finished: `${t} finished`, override: `${t} finished, with your reason on record`, reopen: `${t} reopened` }[to];
+  track(LIVE.api.setRun(k, t, to === "override" ? "finished" : to === "reopen" ? "started" : to, p.n, p.of, note), ok, "Not saved. Someone may have just changed it");
+  haptic();
 }
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
-/* Stock requests: staff ask, management marks them ordered. */
 const OTHER = "Other (write it in)";
-let rqItem = "", rqNote = ""; // kept outside the form so live updates don't wipe a half-filled request
 const stockOptions = (skip, pick = "") => Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
 const SOON = `<p class="soon">Switches on with team logins</p>`;
-function requestsHtml() {
-  if (!LIVE.api) return `<div class="sec">Need something?</div><p class="note">Ask management for blue roll, fruit, spirits or anything missing.</p>${SOON}`;
-  if (!LIVE.me) return `<div class="sec">Need something?</div><p class="note">Log in on the Team page (the bell) to send requests.</p>`;
-  const open = LIVE.requests.filter((r) => !r.done);
-  return `<div class="sec">Need something?</div>
-    <label class="fld">What's needed or missing<select id="rq-item"><option value="">Choose…</option><option${rqItem === OTHER ? " selected" : ""}>${OTHER}</option>${stockOptions(() => false, rqItem)}</select></label>
-    <label class="fld">Details (how much, or what it is if Other)<input id="rq-note" maxlength="200" value="${esc(rqNote)}" placeholder="2 rolls, running low, broken…"></label>
-    <div class="actions"><button class="btn pri" id="rq-go">Send to management</button></div>
-    ${open.length ? `<div class="h3" style="margin-top:14px">Waiting to be ordered</div>${open.map((r) => `<div class="staffrow"><div class="n">${esc(r.item)}</div>${r.note ? `<div class="s">${esc(r.note)}</div>` : ""}<div class="s">${esc(r.name)} · ${when(r.at)}</div>${r.uid === LIVE.uid ? `<div class="actions"><button class="btn" data-rq-del="${r.id}">Cancel</button></div>` : ""}</div>`).join("")}` : ""}`;
+/* ---------- Restocking from the cellar (logged in) ----------
+   Ask for something, how much and where it's going. Anyone can take it on (or a manager gives it to someone), bring it
+   up saying how much they moved, and whoever is there confirms how much arrived, so a request is never taken as proof
+   that it arrived. Nothing here changes a stock level: stock is counted in Nory. */
+const UNIT = { each: ["", ""], bottle: ["bottle", "bottles"], case: ["case", "cases"], box: ["box", "boxes"], pack: ["pack", "packs"], bag: ["bag", "bags"], roll: ["roll", "rolls"], keg: ["keg", "kegs"], tub: ["tub", "tubs"] };
+const amt = (n, u) => `${n}${UNIT[u]?.[0] ? ` ${UNIT[u][n === 1 ? 0 : 1]}` : ""}`;
+// "2 Limes", "2 bags of Limes".
+const amtOf = (n, u, item) => (UNIT[u]?.[0] ? `${amt(n, u)} of ${item}` : `${n} ${item}`);
+const DEST = { up: "Upstairs bar", down: "Downstairs bar", shakes: "Milkshake bar", floor: "Floor" };
+const RS = { asked: "Waiting", given: "Given to someone", doing: "Being brought up", delivered: "Brought up", received: "Received", unavailable: "Not in the cellar", blocked: "Blocked", cancelled: "Cancelled" };
+const RS_OPEN = ["asked", "given", "doing", "blocked", "delivered"];
+const rsOpen = () => LIVE.restock.filter((r) => RS_OPEN.includes(r.status));
+// Minutes waiting for someone to take it on, or once brought up, for someone to confirm it arrived.
+const rsWait = (r) => (r.pending ? 0 : ["asked", "given"].includes(r.status) ? mins(r.askedAt) : r.status === "delivered" ? mins(r.at) : 0);
+const rsLate = (r) => rsWait(r) >= RS_LATE;
+const rsLateText = (r) => (r.status === "delivered" ? `Not confirmed after ${rsWait(r)} min` : `Waiting ${rsWait(r)} min`);
+// Kept outside the form so live updates don't wipe a half-filled ask.
+const rsF = { item: "", other: "", qty: "1", unit: "each", dest: "", detail: "" };
+const rsDest = () => rsF.dest || (mode === "bar" ? "up" : "floor");
+function rsCard(r) {
+  const A = LIVE.admin, mine = r.whoUid === LIVE.uid, asker = r.askedUid === LIVE.uid, st = r.status;
+  const b = (to, label, cls = "") => `<button class="btn${cls}" data-rs="${r.id}" data-to="${to}">${label}</button>`;
+  const cancel = (asker || A) && b("cancelled", asker ? "Cancel" : "Cancel…");
+  const btns = {
+    asked: [b("doing", "I'll get it", " pri"), b("unavailable", "Not in the cellar"), cancel],
+    given: [(mine || A) && b("doing", "I'll get it", " pri"), (mine || A) && b("asked", "Let go"), b("unavailable", "Not in the cellar"), cancel],
+    doing: [(mine || A) && b("delivered", "Brought it up…", " pri"), b("blocked", "Blocked…"), b("unavailable", "Not in the cellar"), (mine || A) && b("asked", "Let go"), cancel],
+    blocked: [b("doing", "I'll get it", " pri"), b("unavailable", "Not in the cellar"), cancel],
+    delivered: [b("received", "Got it…", " pri"), b("asked", "It didn't arrive…")],
+  }[st]?.filter(Boolean).join("") || (A ? b("asked", "Reopen…") : "");
+  const give = A && ["asked", "given", "doing", "blocked"].includes(st) ? `<select data-give-rs="${r.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== r.whoUid).map((p) => `<option value="${p.uid}">${esc(p.name)}</option>`).join("")}</select>` : "";
+  const by = `${esc(r.name)}, ${at(r)}`, why = r.note ? `: ${esc(r.note)}` : "";
+  const line = { asked: r.v > 1 ? `Back to waiting (${by})${why}` : "", given: `Given to ${esc(r.who)} (${by})`, doing: `${esc(r.who)} is bringing it up (${by})`, blocked: `Blocked (${by})${why}`,
+    delivered: `${esc(r.who)} brought up ${amt(r.moved, r.unit)} (${at(r)}). Waiting for someone to confirm it arrived`,
+    received: `${amt(r.got, r.unit)} arrived, confirmed by ${by}${r.got !== r.moved ? ` (${amt(r.moved, r.unit)} brought up by ${esc(r.who)})` : ""}`,
+    unavailable: `Not in the cellar (${by})${why}`, cancelled: `Cancelled (${by})${why}` }[st];
+  const pill = st === "received" ? "ok" : ["blocked", "unavailable", "cancelled"].includes(st) ? "no" : "wait";
+  return `<article class="notice rs${flashed("rs-" + r.id, r) ? " flash" : ""}" data-rs-card="${r.id}"><div class="meta"><b>${esc(r.item)}</b> · ${amt(r.qty, r.unit)} for the ${DEST[r.dest].toLowerCase()}</div>
+    <div class="tags"><span class="pill ${pill}">${RS[st]}</span>${rsLate(r) ? `<span class="pill no">${rsLateText(r)}</span>` : ""}</div>
+    <p class="s">Asked by ${esc(r.askedBy)}, ${r.pending && r.v === 1 ? "sending…" : hhmm(new Date(ms(r.askedAt)))}${r.detail ? ` · ${esc(r.detail)}` : ""}</p>${line ? `<p class="s">${line}</p>` : ""}
+    ${btns || give ? `<div class="actions">${btns}${give}</div>` : ""}</article>`;
+}
+function restockHtml() {
+  const head = `<div class="sec">Restock from the cellar</div>`;
+  if (!LIVE.api) return `${head}<p class="note">Ask for stock from the cellar and see it brought up.</p>${SOON}`;
+  if (!LIVE.me) return `${head}<p class="note">Log in on the Team page (the bell) to ask for stock from the cellar.</p>`;
+  const open = rsOpen().sort((a, b) => ms(a.askedAt) - ms(b.askedAt)), done = LIVE.restock.filter((r) => !RS_OPEN.includes(r.status) && bday(r.at) === shiftDay());
+  return `${head}
+    <label class="fld">What's needed<select id="rs-item"><option value="">Choose…</option><option${rsF.item === OTHER ? " selected" : ""}>${OTHER}</option>${stockOptions(() => false, rsF.item)}</select></label>
+    ${rsF.item === OTHER ? `<label class="fld">What is it<input id="rs-other" maxlength="80" value="${esc(rsF.other)}"></label>` : ""}
+    <div class="two"><label class="fld">How many<input id="rs-qty" inputmode="decimal" value="${esc(rsF.qty)}"></label><label class="fld">Unit<select id="rs-unit">${Object.keys(UNIT).map((u) => `<option value="${u}"${u === rsF.unit ? " selected" : ""}>${u === "each" ? "Each" : UNIT[u][1][0].toUpperCase() + UNIT[u][1].slice(1)}</option>`).join("")}</select></label></div>
+    <div class="fld">Where it's going<div class="recent" style="margin-top:6px">${Object.entries(DEST).map(([k, t]) => `<button class="chip" data-rs-dest="${k}" aria-pressed="${k === rsDest()}">${t}</button>`).join("")}</div></div>
+    <label class="fld">Detail (optional)<input id="rs-detail" maxlength="200" value="${esc(rsF.detail)}" placeholder="Running low, the big bottles, for the weekend…"></label>
+    <div class="actions"><button class="btn pri" id="rs-go">Ask for it</button></div>
+    ${open.map(rsCard).join("") || `<p class="note">Nothing waiting to come up.</p>`}
+    ${done.length ? `<details class="setup"><summary>Done tonight (${done.length})</summary>${done.map(rsCard).join("")}</details>` : ""}`;
+}
+// How many, asked for in a box with a suggestion filled in. Nothing, or not a sensible amount, means don't make the change.
+function askAmount(q, def) {
+  const v = prompt(q, def == null ? "" : String(def));
+  if (v == null) return null;
+  const n = Number(v.replace(",", "."));
+  if (!(n > 0 && n <= 1000)) { toast("Enter an amount over 0 and up to 1,000"); return null; }
+  return n;
+}
+function moveRs(r, to) {
+  const what = UNIT[r.unit][1] ? `${UNIT[r.unit][1]} of ${r.item}` : r.item;
+  let note = "", moved, got;
+  if (to === "delivered" && (moved = askAmount(`How many ${what} did you bring up?`, r.qty)) == null) return;
+  if (to === "received" && (got = askAmount(`How many ${what} arrived?`, r.moved)) == null) return;
+  if (to === "blocked" && !(note = reason(`What's stopping it?\n${r.item}`))) return;
+  if (to === "cancelled" && r.askedUid !== LIVE.uid && !(note = reason(`Why cancel it?\n${r.item}`))) return;
+  if (to === "asked" && r.status === "delivered" && !(note = reason(`What's wrong? It goes back to waiting.\n${r.item}`))) return;
+  if (to === "asked" && ["received", "unavailable", "cancelled"].includes(r.status) && !(note = reason(`Why reopen it?\n${r.item}`))) return;
+  const ok = { doing: "It's yours. Tap Brought it up when it's there", delivered: "Brought up. Whoever is there confirms it", received: "Confirmed", unavailable: "Marked not in the cellar", cancelled: "Cancelled" }[to];
+  track(LIVE.api.moveRestock(r, to, { note, moved, got }), ok, "Not saved. Someone may have just changed it");
+  haptic();
 }
 /* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
 function photosHtml() {
@@ -1159,10 +1374,10 @@ async function shrink(file) {
 }
 function paneBadge(k) {
   if (LISTS[k]) { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
-  if (k === "stock") return outNow().size ? `${outNow().size} out` : "";
-  if (k === "logs") return logsDue() ? `${logsDue()} due` : "";
+  if (k === "stock") return [outNow().size && `${outNow().size} out`, LIVE.me && rsOpen().length && `${rsOpen().length} up`].filter(Boolean).join(" \u00b7 ");
   return "";
 }
+let lastPane = "";
 function renderTally() {
   $("#shift-day").textContent = new Date(Date.now() - 6 * 36e5).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: UK });
   const outList = [...outNow()].sort();
@@ -1178,8 +1393,7 @@ function renderTally() {
       <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       ${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}
       ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd.</p>`}
-      ${requestsHtml()}${nextBtn("logs", "Next: temperatures and waste")}`,
-    logs: () => `${logsHtml()}${nextBtn(mode === "bar" ? "close" : "fclose", "Next: closing checklist")}`,
+      ${restockHtml()}${nextBtn(mode === "bar" ? "close" : "fclose", "Next: closing checklist")}`,
     close: () => `${checklistHtml("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     send: () => {
       return `<div class="sumcard">
@@ -1189,14 +1403,17 @@ function renderTally() {
       <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the ${mode} tonight"></label>
       <label class="fld">Note for handover<textarea id="s-note" rows="3" maxlength="1000" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
       <button class="btn pri wide" id="t-copy">${LIVE.me ? "Send to managers for sign-off" : "Send for sign-off"}</button>
+      <div class="actions">${shareBtns("shift")}</div>
       <details class="setup"><summary>Preview the report</summary><textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea></details>
-      <button class="btn danger wide" id="t-reset">Start a new night</button>
-      ${confirmReset ? `<div class="confirm">${LIVE.admin ? `Clear tonight's shared ${mode} checklists for everyone, and the handover note on this phone? The team 86'd list stays until each item is marked back in stock.` : LIVE.me ? "Clear the handover note on this phone? The shared checklists start fresh at 6am, or a manager can clear them sooner." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">${LIVE.me && !LIVE.admin ? "Clear my note" : "Clear it all"}</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}`;
+      <button class="btn danger wide" id="t-reset">${LIVE.me ? "Clear my handover note" : "Start a new night"}</button>
+      ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear the handover note and closing manager on this phone? Tonight's tasks stay on record for everyone and start fresh at 6am." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">${LIVE.me ? "Clear my note" : "Clear it all"}</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}`;
     },
   }[pane]();
-  $("#tally").innerHTML = tabs + `<div class="pane">${body}</div>`;
+  // The pane slides in when it's switched to, not each time a teammate's change redraws it.
+  const enter = lastPane !== mode + pane; lastPane = mode + pane;
+  $("#tally").innerHTML = tabs + `<div class="pane${enter ? " enter" : ""}">${body}</div>`;
 }
-// The camera input lives outside #tally. A teammate's tick re-draws the list, and if the input were redrawn while the
+// The camera input lives outside #tally. A teammate's change re-draws the list, and if the input were redrawn while the
 // camera was open, the photo would be lost without a word.
 $("#ph-in").addEventListener("change", async (e) => {
   const f = e.target.files[0]; e.target.value = "";
@@ -1207,20 +1424,30 @@ $("#ph-in").addEventListener("change", async (e) => {
   catch { toast("Couldn't read that photo"); }
   photoBusy = false; renderTally();
 });
+// A task's id is its list and its position: close-10.
+const taskKey = (id) => { const j = id.lastIndexOf("-"); return [id.slice(0, j), +id.slice(j + 1)]; };
 $("#tally").addEventListener("change", async (e) => {
-  if (e.target.id === "rq-item") { rqItem = e.target.value; return; }
-  if (e.target.id === "w-item") { wF.item = e.target.value; if (wF.item && wF.item !== OTHER) wF.unit = unitFor(wF.item); renderTally(); return; }
-  if (e.target.id === "w-unit") { wF.unit = e.target.value; return; }
-  if (e.target.id === "w-reason") { wF.reason = e.target.value; renderTally(); return; }
-  if (e.target.dataset.phNote) { track(LIVE.api.notePhoto(e.target.dataset.phNote, e.target.value.trim()), null, "Note not saved"); return; }
-  if (e.target.id !== "s-86" || !e.target.value) return;
-  const n = e.target.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
+  const t = e.target;
+  if (t.id === "rs-item") { const was = rsF.item; rsF.item = t.value; if ((was === OTHER) !== (t.value === OTHER)) renderTally(); return; }
+  if (t.id === "rs-unit") { rsF.unit = t.value; return; }
+  if (t.dataset.giveTask && t.value) {
+    const [k, i] = taskKey(t.dataset.giveTask), p = t.value === "-" ? null : LIVE.staff.find((x) => x.uid === t.value);
+    track(LIVE.api.setTask(k, i, itemText(k, i), null, { give: p && { name: p.name, uid: p.uid } }), p ? `Given to ${p.name}` : "Taken off them", "Not saved. Someone may have just changed it");
+    haptic(); return;
+  }
+  if (t.dataset.giveRs && t.value) {
+    const r = LIVE.restock.find((x) => x.id === t.dataset.giveRs), p = LIVE.staff.find((x) => x.uid === t.value);
+    if (r && p) track(LIVE.api.moveRestock(r, "given", { give: { name: p.name, uid: p.uid } }), `Given to ${p.name}`, "Not saved. Someone may have just changed it");
+    haptic(); return;
+  }
+  if (t.dataset.phNote) { track(LIVE.api.notePhoto(t.dataset.phNote, t.value.trim()), null, "Note not saved"); return; }
+  if (t.id !== "s-86" || !t.value) return;
+  const n = t.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
 });
 $("#tally").addEventListener("input", (e) => {
-  if (e.target.id === "rq-note") { rqNote = e.target.value; return; }
-  const wk = { "w-qty": "qty", "w-other": "other", "w-note": "note" }[e.target.id]; if (wk) { wF[wk] = e.target.value; return; }
-  if (e.target.dataset.tc) { tC[e.target.dataset.tc] = e.target.value; return; }
-  if (e.target.dataset.ln) { lnNote[e.target.dataset.ln] = e.target.value; return; }
+  if (e.target.id === "rs-other") { rsF.other = e.target.value; return; }
+  if (e.target.id === "rs-qty") { rsF.qty = e.target.value; return; }
+  if (e.target.id === "rs-detail") { rsF.detail = e.target.value; return; }
   if (e.target.id === "s-who") { shiftWho = e.target.value; store.set("shiftWho", shiftWho); }
   if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
   if ($("#t-text")) $("#t-text").value = tallyText();
@@ -1244,65 +1471,45 @@ $("#tally").addEventListener("click", async (e) => {
   const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
   const md = e.target.closest("[data-mode]"); if (md) { haptic(); setMode(md.dataset.mode); return; }
   const pn = e.target.closest("[data-pane]"); if (pn) { pane = pn.dataset.pane; renderTally(); $("#v-tally").scrollIntoView({ block: "start" }); window.scrollTo(0, 0); return; }
+  // Tapping an item marks it done, or takes it back. Logged in, that's a change everyone on shift sees; ⋯ has the rest.
   const ck = e.target.closest("[data-list]"); if (ck) {
-    const k = ck.dataset.list, i = +ck.dataset.i, on = !ticked(k).includes(i);
-    if (on && progress(k).n === progress(k).of - 1) { toast(`${LISTS[k].title} complete`); try { navigator.vibrate?.([12, 60, 12]); } catch {} }
-    // Logged in, ticks are shared with everyone on tonight's shift.
-    const t = tickedBy(k, i);
-    if (!on && t && t.uid !== LIVE.uid && !LIVE.admin) return toast(`Ticked by ${t.name}. Only they or a manager can untick it`);
-    if (LIVE.me) track(LIVE.api.tick(k, i, on), null, on ? "Tick not saved. Someone may have just ticked it" : "Not unticked. Try again");
-    else { ticks[k] = on ? [...ticked(k), i] : ticked(k).filter((x) => x !== i); store.set("ticks2", ticks); }
+    const k = ck.dataset.list, i = +ck.dataset.i, st = statusOf(k, i);
+    if (LIVE.me) {
+      if (isLocked(k)) return toast(`${LISTS[k].title} is finished. ${LIVE.admin ? "Reopen it to change anything" : "A manager can reopen it"}`);
+      if (st === "cancelled") return toast(`Not needed tonight. ${LIVE.admin ? "Bring it back from ⋯" : "A manager can bring it back"}`);
+      changeTask(k, i, st === "done" ? "todo" : "done"); return;
+    }
+    if (st !== "done" && progress(k).n === progress(k).of - 1) { toast(`${LISTS[k].title} complete`); try { navigator.vibrate?.([12, 60, 12]); } catch {} }
+    ticks[k] = st === "done" ? (ticks[k] || []).filter((x) => x !== i) : [...(ticks[k] || []), i]; store.set("ticks2", ticks);
     haptic(); renderTally(); return;
   }
-  if (e.target.closest("#w-go")) {
-    const item = (wF.item === OTHER ? wF.other : wF.item).trim(), qty = +wF.qty, note = wF.note.trim();
-    if (!item || !wF.reason) return toast("Say what it was and why");
-    if (!(qty > 0 && qty <= 1000)) return toast("How much? A number above 0");
-    if (wF.reason === "other" && !note) return toast("Say what happened in the note");
-    const w = { item, qty, unit: wF.unit, reason: wF.reason, note, side: mode };
-    track(LIVE.api.waste(w), `Logged: ${wasteText(w)}`, "Not logged. Try again");
-    Object.assign(wF, { item: "", other: "", qty: "1", unit: "each", reason: "", note: "" }); haptic(); renderTally(); return;
+  const mo = e.target.closest("[data-more]"); if (mo) { more = more === mo.dataset.more ? "" : mo.dataset.more; renderTally(); return; }
+  const tk = e.target.closest("[data-task]"); if (tk) { const [k, i] = taskKey(tk.dataset.task); changeTask(k, i, tk.dataset.to); return; }
+  const rn = e.target.closest("[data-run]"); if (rn) { runTo(rn.dataset.run, rn.dataset.to); return; }
+  const rs = e.target.closest("[data-rs]"); if (rs) { const r = LIVE.restock.find((x) => x.id === rs.dataset.rs); if (r) moveRs(r, rs.dataset.to); return; }
+  const rd = e.target.closest("[data-rs-dest]"); if (rd) { rsF.dest = rd.dataset.rsDest; renderTally(); return; }
+  if (e.target.closest("#rs-go")) {
+    const item = (rsF.item === OTHER ? rsF.other : rsF.item).trim(), qty = Number(rsF.qty.replace(",", "."));
+    if (!item) return toast(rsF.item === OTHER ? "Write what's needed in the box" : "Pick what's needed");
+    if (!(qty > 0 && qty <= 1000)) return toast("Enter how many, over 0 and up to 1,000");
+    track(LIVE.api.askRestock({ item, qty, unit: rsF.unit, dest: rsDest(), detail: rsF.detail.trim() }), "Asked. The team can see it now", "Not sent. Try again");
+    haptic(); Object.assign(rsF, { item: "", other: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
   }
-  const wu = e.target.closest("[data-w-undo]"); if (wu) { track(LIVE.api.unwaste(wu.dataset.wUndo), "Taken back", "Too late to undo. The owner can delete it"); return; }
-  const tp = e.target.closest("[data-temp]"); if (tp) {
-    const k = LIVE.kit.find((x) => x.id === tp.dataset.temp), c = Math.round(parseFloat(tC[k.id]) * 10) / 10;
-    if (!Number.isFinite(c) || c < -40 || c > 100) return toast("Type the temperature in °C");
-    const msg = judge(k.kind, c)[1];
-    track(LIVE.api.logCheck(k, c, ""), `${k.name}: ${c}°C logged${msg ? `. ${msg}` : ""}`, "Not logged. Try again");
-    tC[k.id] = ""; haptic(); renderTally(); return;
-  }
-  const cn = e.target.closest("[data-clean]"); if (cn) {
-    const k = LIVE.kit.find((x) => x.id === cn.dataset.clean);
-    track(LIVE.api.logCheck(k, null, (lnNote[k.id] || "").trim()), `${k.name}: clean logged`, "Not logged. Try again");
-    lnNote[k.id] = ""; haptic(); renderTally(); return;
-  }
-  const cu = e.target.closest("[data-chk-undo]"); if (cu) { track(LIVE.api.unlogCheck(cu.dataset.chkUndo), "Taken back", "Too late to undo. The owner can delete it"); return; }
-  const rq = e.target.closest("#rq-go"); if (rq) {
-    const item = rqItem, note = rqNote.trim();
-    if (!item) return toast("Pick what's needed");
-    if (item === OTHER && !note) return toast("Write what's needed in the box");
-    track(LIVE.api.request(item === OTHER ? note : item, item === OTHER ? "" : note), "Sent to management", "Request not sent. Try again");
-    haptic(); rqItem = rqNote = ""; renderTally(); return;
-  }
-  const rd = e.target.closest("[data-rq-del]"); if (rd) { if (confirm("Cancel this request?")) track(LIVE.api.cancelRequest(rd.dataset.rqDel), null, "Could not cancel. It may have been ordered"); return; }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  if (e.target.closest("#t-yes")) { MODE_LISTS[mode].forEach((k) => (ticks[k] = [])); store.set("ticks2", ticks); if (LIVE.admin) track(LIVE.api.clearTicks(MODE_LISTS[mode]), null, "Shared ticks not cleared. Try again"); shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); out = new Set(); store.set("out", []); renderList(); confirmReset = false; renderTally(); toast(LIVE.me && !LIVE.admin ? "Note cleared" : "New night started"); }
+  if (e.target.closest("#t-yes")) {
+    // Logged in, tonight's tasks are the team's record, so only this phone's note is cleared.
+    if (!LIVE.me) { MODE_LISTS[mode].forEach((k) => (ticks[k] = [])); store.set("ticks2", ticks); out = new Set(); store.set("out", []); renderList(); }
+    shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); confirmReset = false; renderTally(); toast(LIVE.me ? "Note cleared" : "New night started");
+  }
 });
 
-/* ---------- Logs: temperatures, line cleaning and waste ----------
-   Kept as the venue's due-diligence record. Anything logged by mistake can be taken back for 15 minutes; after that
-   only the owner can delete it. */
+/* ---------- Old records: temperatures, line cleans and waste ----------
+   Logged in Alert65 and Nory since 25 October 2026. What Bar Book saved before stays read-only, in the managers'
+   downloads, so these say how each old record reads in the spreadsheet. */
 // Limits: gov.uk (chilled food must be kept at 8°C or below by law; set fridges to 5°C or below), the FSA's Safer Food
-// Better Business (freezers at -18°C or colder, checked at least once a day) and Cask Marque (cellar 11 to 13°C, beer
-// lines cleaned at least every 7 days). The glass washer's rinse temperature is recorded as the machine shows it.
-const KITS = {
-  fridge: { name: "Fridge", hint: "5°C or below. 8°C is the legal limit for chilled food" },
-  freezer: { name: "Freezer", hint: "-18°C or colder" },
-  cellar: { name: "Cellar", hint: "11 to 13°C" },
-  washer: { name: "Glass washer", hint: "Rinse temperature, as the machine shows it" },
-  lines: { name: "Beer lines", hint: "Clean at least every 7 days" },
-};
+// Better Business (freezers at -18°C or colder) and Cask Marque (cellar 11 to 13°C).
+const KITS = { fridge: "Fridge", freezer: "Freezer", cellar: "Cellar", washer: "Glass washer", lines: "Beer lines" };
 // [result, what to say]. The glass washer is recorded, not judged.
 function judge(kind, c) {
   if (kind === "fridge") return c <= 5 ? ["ok", ""] : c <= 8 ? ["warn", "Above 5°C"] : ["bad", "Over 8°C, the legal limit for chilled food. Tell a manager"];
@@ -1310,40 +1517,7 @@ function judge(kind, c) {
   if (kind === "cellar") return c >= 11 && c <= 13 ? ["ok", ""] : ["warn", "Outside 11 to 13°C"];
   return ["", ""];
 }
-const PILL = { ok: "ok", warn: "wait", bad: "no" };
-const addDays = (day, n) => { const d = new Date(day + "T12:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-const tonightOf = (k) => LIVE.safety.filter((r) => r.kit === k.id && r.day === shiftDay());
-// Lines: the latest clean in the last 8 nights, and the night the next one is due (7 days on).
-function linesDue(k) {
-  const last = LIVE.safety.find((r) => r.kit === k.id);
-  return last ? { last, next: addDays(last.day, 7) } : { last: null, next: "" };
-}
-const needsDoing = (k) => (k.kind === "lines" ? !linesDue(k).last || linesDue(k).next <= shiftDay() : !tonightOf(k).length);
-const logsDue = () => (LIVE.me ? LIVE.kit.filter((k) => k.side === mode && needsDoing(k)).length : 0);
-const outOfRange = () => LIVE.safety.filter((r) => r.day === shiftDay() && ["warn", "bad"].includes(judge(r.kind, r.c)[0]));
-// Undo while the rules allow it (15 minutes; a minute less here, for a phone clock that runs a little fast).
-const undoBtn = (x, attr) => (x.uid === LIVE.uid && Date.now() - ms(x.at) < 14 * 6e4 ? ` <button class="linkbtn" data-${attr}="${x.id}">Undo</button>` : "");
-const tempLine = (r) => {
-  const [st, msg] = judge(r.kind, r.c);
-  return `${st ? `<span class="pill ${PILL[st]}">${r.c}°C</span>` : `<b>${r.c}°C</b>`} ${esc(r.name)} · ${r.pending ? "sending…" : hhmm(new Date(ms(r.at)))}${msg ? ` · ${msg}` : ""}${r.note ? ` · ${esc(r.note)}` : ""}`;
-};
-function lineState(k) {
-  const { last, next } = linesDue(k), today = shiftDay();
-  return !last ? `<span class="pill no">No clean logged in 8 nights</span>` : next < today ? `<span class="pill no">Overdue since ${dayName(next)}</span>`
-    : next === today ? `<span class="pill wait">Due tonight</span>` : `<span class="pill ok">Next due ${dayName(next)}</span>`;
-}
-const tC = {}, lnNote = {}; // half-typed readings and notes, so live updates don't wipe them
-function checksHtml() {
-  const kit = LIVE.kit.filter((k) => k.side === mode), temps = kit.filter((k) => k.kind !== "lines"), lines = kit.filter((k) => k.kind === "lines");
-  if (!kit.length) return `<div class="sec">Temperatures</div><p class="note">Nothing set up for the ${mode} yet. ${LIVE.admin ? "Add fridges, freezers, the cellar, the glass washer and beer lines in Team, Managers, Safety." : "A manager adds them in Team, Managers, Safety."}</p>`;
-  return (temps.length ? `<div class="sec">Temperatures</div><p class="note">At least once a night, from the display or a probe.</p>${temps.map((k) => `<div class="staffrow"><div class="n">${esc(k.name)}</div><div class="s">${KITS[k.kind].hint}</div>
-      ${tonightOf(k).map((r) => `<div class="s">${tempLine(r)}${undoBtn(r, "chk-undo")}</div>`).join("") || `<div class="s">No reading yet tonight</div>`}
-      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-tc="${k.id}" type="number" step="0.1" placeholder="°C" value="${esc(tC[k.id] || "")}" aria-label="${esc(k.name)} in °C"><button class="btn pri" data-temp="${k.id}">Log</button></div></div>`).join("")}` : "")
-    + (lines.length ? `<div class="sec">Beer lines</div>${lines.map((k) => { const { last } = linesDue(k); return `<div class="staffrow"><div class="n">${esc(k.name)} ${lineState(k)}</div>
-      ${last ? `<div class="s">Last cleaned ${dayName(last.day)} by ${esc(last.name)}${last.note ? ` · ${esc(last.note)}` : ""}${undoBtn(last, "chk-undo")}</div>` : ""}
-      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-ln="${k.id}" maxlength="200" placeholder="Note (optional)" value="${esc(lnNote[k.id] || "")}" aria-label="Note on the clean"><button class="btn pri" data-clean="${k.id}">Cleaned</button></div></div>`; }).join("")}` : "");
-}
-// Waste is a quantity and a reason, never a price: the managers add costs in the spreadsheet.
+// Waste was a quantity and a reason, never a price.
 const UNITS = { each: "Each", pint: "Pints", half: "Halves", single: "25 ml measures", double: "50 ml measures", bottle: "Bottles", glass: "Glasses", ml: "ml" };
 const ONE = { pint: "pint", half: "half", bottle: "bottle", glass: "glass" };
 const REASONS = { spilt: "Spilt or dropped", remade: "Made wrong, remade", returned: "Sent back by a guest", expired: "Out of date or gone off", broken: "Broken bottle or glass", lines: "Line cleaning or flushing", other: "Other (say what in the note)" };
@@ -1353,28 +1527,6 @@ function wasteText(w) {
   const amt = w.unit === "single" || w.unit === "double" ? `${q} × ${w.unit === "single" ? 25 : 50} ml` : w.unit === "ml" ? `${q} ml`
     : ONE[w.unit] ? `${q} ${q === 1 ? ONE[w.unit] : UNITS[w.unit].toLowerCase()}` : `${q} ×`;
   return `${amt} ${w.item}`;
-}
-const UNIT_FOR = { "Beer lines": "pint", "Bottled beer": "bottle", "Cider": "bottle", "Soft drinks and mixers": "bottle", "Water": "bottle", "Wine": "glass", "Juices": "ml", "Syrups, bitters and prep": "ml",
-  "Vodka": "single", "Gin": "single", "Rum and cachaça": "single", "Tequila and mezcal": "single", "Whiskey": "single", "Brandy": "single", "Liqueurs and vermouth": "single" };
-const groupOf = (item) => Object.keys(STOCK).find((g) => STOCK[g].includes(item)) || "";
-const unitFor = (item) => (/\(draught\)/.test(item) ? "pint" : UNIT_FOR[groupOf(item)] || "each");
-const wF = { item: "", other: "", qty: "1", unit: "each", reason: "", note: "" }; // kept outside the form, like requests
-function wasteHtml() {
-  const xs = LIVE.waste.filter((w) => w.day === shiftDay() && (!LIVE.admin || w.side === mode)), other = wF.item === OTHER;
-  return `<div class="sec">Waste</div>
-    <p class="note">Anything poured away, dropped, remade or past its date. Quantities only: the managers add the costs.</p>
-    <label class="fld">What<select id="w-item"><option value="">Choose…</option><option${other ? " selected" : ""}>${OTHER}</option><optgroup label="Drinks">${D.map((d) => d.name).sort().map((n) => `<option${n === wF.item ? " selected" : ""}>${esc(n)}</option>`).join("")}</optgroup>${stockOptions(() => false, wF.item)}</select></label>
-    ${other ? `<label class="fld">What it was<input id="w-other" maxlength="80" value="${esc(wF.other)}" placeholder="Highball glass, burger bun…"></label>` : ""}
-    <div class="two"><label class="fld">How much<input id="w-qty" type="number" min="0" step="0.5" value="${esc(wF.qty)}"></label><label class="fld">Measured in<select id="w-unit">${Object.entries(UNITS).map(([k, t]) => `<option value="${k}"${k === wF.unit ? " selected" : ""}>${t}</option>`).join("")}</select></label></div>
-    <label class="fld">Why<select id="w-reason"><option value="">Choose…</option>${Object.entries(REASONS).map(([k, t]) => `<option value="${k}"${k === wF.reason ? " selected" : ""}>${t}</option>`).join("")}</select></label>
-    <label class="fld">Note${wF.reason === "other" ? "" : " (optional)"}<input id="w-note" maxlength="200" value="${esc(wF.note)}" placeholder="Table 12 sent it back, too sweet"></label>
-    <button class="btn pri wide" id="w-go">Log waste</button>
-    ${xs.length ? `<div class="h3" style="margin-top:14px">${LIVE.admin ? `Logged on the ${mode} tonight` : "You've logged tonight"}</div>${xs.map((w) => `<div class="staffrow"><div class="n">${esc(wasteText(w))}</div><div class="s">${REASONS[w.reason]}${w.note ? ` · ${esc(w.note)}` : ""} · ${LIVE.admin ? `${esc(w.name)} · ` : ""}${w.pending ? "sending…" : hhmm(new Date(ms(w.at)))}${undoBtn(w, "w-undo")}</div></div>`).join("")}` : ""}`;
-}
-function logsHtml() {
-  if (!LIVE.api) return `<div class="sec">Temperatures and waste</div><p class="note">Fridge temperatures, line cleaning and waste, kept as the venue's record.</p>${SOON}`;
-  if (!LIVE.me) return `<div class="sec">Temperatures and waste</div><p class="note">Log in on the Team page (the bell) to log temperatures and waste.</p>`;
-  return checksHtml() + wasteHtml();
 }
 
 /* ---------- Feedback (Google Form, responses go to the manager) ---------- */
@@ -1474,7 +1626,7 @@ const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(is
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#act", "#mgrs", "#incs", "#mwaste", "#msafety", "#mstock", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -1514,17 +1666,17 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
-  renderDash(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderWaste(); renderSafety(); renderStock(); renderTraining(); renderStaff(); renderMe(); renderAct(); renderTeamTabs();
+  renderDash(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#compose", "#feed", "#notices"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#act", "#mgrs", "#incs", "#mwaste", "#msafety", "#mstock", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
+const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#compose", "#feed", "#notices"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
-// The Managers tab in parts, so nothing is a long scroll away. The 86 log sits under Stock.
-const MSUB = [["act", "Activity", ["#act"]], ["nights", "Nights", ["#mgrs"]], ["incidents", "Incidents", ["#incs"]], ["waste", "Waste", ["#mwaste"]], ["safety", "Safety", ["#msafety"]],
-  ["stock", "Stock", ["#mstock", "#outlog"]], ["training", "Training", ["#mtrain"]], ["team", "Team", ["#mgr"]], ["feedback", "Feedback", ["#fb"]]];
-let msub = "act";
+// The Managers tab in parts, so nothing is a long scroll away.
+const MSUB = [["live", "Live", ["#live"]], ["act", "Activity", ["#act"]], ["kpis", "KPIs", ["#kpis"]], ["nights", "Nights", ["#mgrs"]], ["incidents", "Incidents", ["#incs"]],
+  ["out", "86 log", ["#outlog"]], ["training", "Training", ["#mtrain"]], ["team", "Team", ["#mgr"]], ["feedback", "Feedback", ["#fb"]]];
+let msub = "live";
 const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 function renderTeamTabs() {
   const all = Object.values(TSLOTS).flat();
@@ -1537,12 +1689,12 @@ function renderTeamTabs() {
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
   if (tpane !== "managers") return;
   const open = LIVE.incidents.filter((x) => x.status !== "closed").length;
-  const off = outOfRange().length, small = { incidents: open ? `${open} open` : "", safety: off ? `${off} out of range` : "" };
+  const now = needsYou().length, small = { incidents: open ? `${open} open` : "", live: now ? `${now} need${now === 1 ? "s" : ""} you` : "" };
   $("#msub").innerHTML = `<div class="ptabs msub" role="tablist" aria-label="Managers">${MSUB.map(([k, t]) => `<button role="tab" data-msub="${k}" aria-selected="${k === msub}">${t}${small[k] ? `<small>${small[k]}</small>` : ""}</button>`).join("")}</div>`;
   for (const [k, , sels] of MSUB) sels.forEach((x) => ($(x).hidden = k !== msub));
-  // Stock and Training load their records the first time they're opened.
-  if (msub === "stock") LIVE.api.watchStock();
+  // Training loads its records the first time it's opened, and the KPIs read the last 7 nights.
   if (msub === "training") LIVE.api.watchTraining();
+  if (msub === "kpis" && !kpi.ev && !kpi.busy) loadKpis();
 }
 /* Tonight at a glance: counts worked out from the live data, each one a shortcut to where it's dealt with.
    "…" means that part hasn't loaded yet (it needs signal the first time). */
@@ -1550,31 +1702,37 @@ function renderDash() {
   if (!LIVE.me) { $("#dash").innerHTML = ""; return; }
   const v = (k, x) => (LIVE.loaded.has(k) ? x : "…");
   const ps = MODE_LISTS[mode].map(progress), done = ps.reduce((a, p) => a + p.n, 0), of = ps.reduce((a, p) => a + p.of, 0);
+  // Managers see blocked tasks on both sides; staff on the side their phone is set to.
+  const blocked = blockedTasks(LIVE.admin ? ALL_LISTS : MODE_LISTS[mode]).length, rsO = rsOpen(), rsL = rsO.filter(rsLate).length;
   const open = openIssues(), urgent = open.filter((x) => x.urgent).length;
   const tonight = LIVE.reports.filter((r) => bday(r.at) === shiftDay());
   const sent = (side) => (tonight.some((r) => r.side === side) ? "Sent" : "Not yet");
   const unsigned = LIVE.reports.filter((r) => !r.signedBy).length, inc = LIVE.incidents.filter((x) => x.status !== "closed").length;
   const tiles = [
-    [v("shift", `${done}/${of}`), `${mode === "bar" ? "Bar" : "Floor"} checklists ticked`, "shift"],
-    [v("safety", logsDue()), `safety checks due on the ${mode}`, "logs", logsDue() > 0],
+    [v("tasks", `${done}/${of}`), `${mode === "bar" ? "Bar" : "Floor"} checklists done`, "shift"],
+    [v("tasks", blocked), blocked === 1 ? "blocked task" : "blocked tasks", "blocked", blocked > 0],
+    [v("restock", rsO.length), `restock${rsO.length === 1 ? "" : "s"} open${rsL ? `, ${rsL} waiting` : ""}`, "stock", rsL > 0],
     [v("out", LIVE.out.size), "86'd right now", "stock", LIVE.out.size > 0],
     [v("issues", open.length), urgent ? `open issues, ${urgent} urgent` : "open issues", "issues", urgent > 0],
     [v("concerns", openConcerns().length), "open concerns", "concerns", openConcerns().some((x) => x.reason === "hazard")],
-    [v("requests", LIVE.requests.filter((r) => !r.done).length), "stock requests not ordered", LIVE.admin ? "requests" : "stock"],
     [v("reports", sent("bar")), "bar report tonight", "reports"],
     [v("reports", sent("floor")), "floor report tonight", "reports"],
     ...(LIVE.admin ? [
       [v("reports", unsigned), "reports to sign off", "reports", unsigned > 0],
       [v("asks", LIVE.asks.filter(waiting).length), "staff requests to answer", "requests"],
       [v("incidents", inc), "open incidents", "incidents", inc > 0],
-      [v("safety", outOfRange().length), "readings out of range tonight", "safety", outOfRange().length > 0],
     ] : []),
   ];
   $("#dash").innerHTML = `<div class="sec">Tonight</div><div class="dash">${tiles.map(([x, label, go, hot]) => `<button data-go="${go}"${hot ? ' class="hot"' : ""}><b>${x}</b><span>${label}</span></button>`).join("")}</div>`;
 }
 function go(where) {
-  if (where === "shift" || where === "stock" || where === "logs") { pane = where === "shift" ? defaultPane() : where; show("tally"); return; }
-  if (where === "incidents" || where === "safety") { msub = where; where = "managers"; }
+  // A list on the Shift tab, switching the phone to that side if it needs to.
+  if (where.startsWith("list:")) { const k = where.slice(5); if (listSide(k) !== mode) setMode(listSide(k)); pane = k; show("tally"); return; }
+  // Blocked tasks: managers see them in Live; staff go to the first list with one.
+  if (where === "blocked" && !LIVE.admin) { pane = MODE_LISTS[mode].find((k) => blockedTasks([k]).length) || defaultPane(); show("tally"); return; }
+  if (where === "blocked") { msub = "live"; where = "managers"; }
+  if (where === "shift" || where === "stock") { pane = where === "shift" ? defaultPane() : where; show("tally"); return; }
+  if (where === "incidents") { msub = where; where = "managers"; }
   const board = where === "issues" || where === "concerns";
   tpane = board ? "board" : where; renderTeamTabs();
   $(board ? `#${where}` : "#tpanes").scrollIntoView({ block: "start" });
@@ -1633,7 +1791,9 @@ function renderRequests() {
     (pend.map((a) => `<article class="notice${isNew(a) ? " new" : ""}"><div class="meta"><b>${esc(a.name)}</b> · ${when(a.at)}${a.status === "seen" ? ` · seen by ${esc(a.by)}` : ""}</div><p class="txt"><b>${askLine(a)}</b>${a.note ? `<br>${esc(a.note)}` : ""}</p>
       ${own(a) ? `<p class="note">Another manager or the owner decides this one.</p>` : `<div class="actions">${a.kind === "late" ? `<button class="btn pri" data-decide="${a.id}" data-to="seen">Seen</button>` : `<button class="btn pri" data-decide="${a.id}" data-to="approved">Approve</button><button class="btn danger" data-decide="${a.id}" data-to="declined">Decline</button>`}</div>`}</article>`).join("") || `<p class="note">Nothing waiting.</p>`) +
     (decided.length ? `<details class="setup"><summary>Decided (${decided.length})</summary>${decided.map((a) => `<div class="staffrow"><div class="n">${esc(a.name)} · ${askLine(a)}</div><div class="s">${statusPill(a)} by ${esc(a.by)}, ${when(a.byAt)}</div></div>`).join("")}</details>` : "") +
-    `<div class="sec">Stock requests</div>` + (open.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt"><b>${esc(r.item)}</b>${r.note ? `<br>${esc(r.note)}` : ""}</p><div class="actions"><button class="btn pri" data-ordered="${r.id}">Ordered</button><button class="btn" data-rq-drop="${r.id}">Turn down</button></div></article>`).join("") || `<p class="note">Nothing requested.</p>`);
+    // Stock requests from before restocking, until the last ones are cleared. New asks are on the Shift tab's Stock page.
+    (open.length ? `<div class="sec">Old stock requests</div><p class="note">From before restocking. Mark each one ordered or turn it down. New asks for stock are on the Shift tab's Stock page.</p>` +
+      open.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt"><b>${esc(r.item)}</b>${r.note ? `<br>${esc(r.note)}` : ""}</p><div class="actions"><button class="btn pri" data-ordered="${r.id}">Ordered</button><button class="btn" data-rq-drop="${r.id}">Turn down</button></div></article>`).join("") : "");
 }
 // Photos load only when asked for, so the feed stays quick and cheap on data.
 const shownPhotos = {};
@@ -1726,7 +1886,8 @@ const askText = (a) => (a.kind === "late" ? `Running late · ETA ${a.eta}` : a.k
 const askLine = (a) => esc(askText(a));
 const STATUS = { pending: ["Waiting", "wait"], approved: ["Approved", "ok"], declined: ["Declined", "no"], seen: ["Seen", "ok"] };
 const statusPill = (a) => `<span class="pill ${STATUS[a.status][1]}">${STATUS[a.status][0]}</span>`;
-const INCIDENTS = ["Accident or injury", "Near miss", "Guest complaint", "Refused service", "Aggressive guest", "Breakage or damage", "Lost property", "Theft or loss", "Other"];
+// Accidents, injuries and near misses are logged in Alert65.
+const INCIDENTS = ["Guest complaint", "Refused service", "Aggressive guest", "Breakage or damage", "Lost property", "Theft or loss", "Other"];
 const SCORES = ["Excellent", "Efficient", "Good", "Needs improvement"];
 const ME_KINDS = [["late", "Running late"], ["off", "Time off"], ["swap", "Shift swap"], ["incident", "Incident"]];
 // Half-filled forms live here, so live updates re-render without wiping what someone is typing.
@@ -1745,7 +1906,7 @@ function renderMe() {
     swap: () => fld("Shift date", "date1", from) + fld("Swapping with", "with", 'maxlength="40" placeholder="Their name"'),
     incident: () => `<label class="fld">What kind<select data-f="ikind"><option value="">Choose…</option>${INCIDENTS.map((k) => `<option${k === meF.ikind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
       <label class="fld">What happened<textarea data-f="itext" rows="4" maxlength="1000" placeholder="What happened, where, and what was done. Use table numbers, not guests' names or contact details.">${esc(meF.itext)}</textarea></label>
-      <p class="note">Only managers can read it. Injuries also go in the accident book.</p>`,
+      <p class="note">Only managers can read it. Accidents, injuries and near misses go in Alert65.</p>`,
   }[meKind]();
   const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
   $("#me").innerHTML = `<div class="sec">Tell the managers</div>
@@ -1801,86 +1962,8 @@ function renderOutlog() {
     ${LIVE.outlog.map((x) => `<div class="staffrow"><div class="n">${esc(x.itemName)} ${x.action === "out" ? "<span style=\"color:var(--warn)\">86'd</span>" : "back in stock"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">Nothing 86'd yet.</p>`}
     <p class="note">Last 100 changes. The log can't be edited or deleted.</p>`;
 }
-/* ---------- Managers: waste, safety checks, stock and training ---------- */
-// Business weeks run Monday to Sunday, by business night.
-const weekOf = (day) => addDays(day, -((new Date(day + "T12:00Z").getUTCDay() + 6) % 7));
-const tally = (xs, key) => { const m = new Map(); xs.forEach((x) => m.set(key(x), (m.get(key(x)) || 0) + 1)); return [...m].sort((a, b) => b[1] - a[1]); };
+/* ---------- Managers: training ---------- */
 const sideName = (s) => (s === "floor" ? "Floor" : "Bar");
-let wWeek = 0;
-function renderWaste() {
-  if (!LIVE.admin) return;
-  const start = addDays(weekOf(shiftDay()), -7 * wWeek), end = addDays(start, 6), xs = LIVE.waste.filter((w) => w.day >= start && w.day <= end);
-  const items = new Map();
-  for (const w of xs) {
-    const k = w.item + "|" + w.unit, g = items.get(k) || { item: w.item, unit: w.unit, qty: 0, why: [] };
-    g.qty += w.qty; g.why.push(w.reason); items.set(k, g);
-  }
-  const top = [...items.values()].sort((a, b) => b.why.length - a.why.length || a.item.localeCompare(b.item));
-  let night = "";
-  $("#mwaste").innerHTML = `<div class="sec">Waste</div>
-    <div class="recent">${["This week", "Last week"].map((t, i) => `<button class="chip" data-wweek="${i}" aria-pressed="${i === wWeek}">${t}</button>`).join("")}</div>
-    <p class="note">${dayName(start)} to ${dayName(end)}: ${xs.length} entr${xs.length === 1 ? "y" : "ies"}${xs.length ? ` (${tally(xs, (w) => sideName(w.side)).map(([k, n]) => `${k.toLowerCase()} ${n}`).join(", ")})` : ""}. No prices here: add a cost per item and unit in the spreadsheet.</p>
-    <div class="actions">${dlHtml("waste", "Download the full waste log as a spreadsheet", "waste")}</div>
-    ${xs.length ? `<h3 class="actday">By item</h3>${top.map((g) => `<div class="staffrow"><div class="n">${esc(wasteText(g))}</div><div class="s">${tally(g.why, (r) => r).map(([r, n]) => `${REASONS[r]}${n > 1 ? ` ×${n}` : ""}`).join(", ")}</div></div>`).join("")}
-      <h3 class="actday">Why</h3><p class="note">${tally(xs, (w) => w.reason).map(([r, n]) => `${REASONS[r]}: ${n}`).join(" · ")}</p>
-      <h3 class="actday">Who logged it</h3><p class="note">${tally(xs, (w) => w.name).map(([p, n]) => `${esc(p)}: ${n}`).join(" · ")}</p>
-      <h3 class="actday">Every entry</h3>${xs.map((w) => {
-        const head = w.day === night ? "" : `<div class="mini">${dayName(w.day, { weekday: "long", day: "numeric", month: "long" })}</div>`; night = w.day;
-        return `${head}<div class="staffrow"><div class="n">${esc(wasteText(w))}</div><div class="s">${REASONS[w.reason]}${w.note ? ` · ${esc(w.note)}` : ""} · ${sideName(w.side)} · ${esc(w.name)}, ${w.pending ? "sending…" : hhmm(new Date(ms(w.at)))}</div></div>`;
-      }).join("")}`
-    : `<p class="note">Nothing logged ${wWeek ? "last week" : "this week"} yet. Staff log waste in Shift, Logs.</p>`}`;
-}
-const kitF = { name: "", kind: "fridge", side: "bar" };
-const keepOpen = {}; // which folding sections are open, so live updates don't close them
-const fold = (k) => `data-keep="${k}"${keepOpen[k] ? " open" : ""}`;
-function renderSafety() {
-  if (!LIVE.admin) return;
-  const kit = [...LIVE.kit].sort((a, b) => a.side.localeCompare(b.side) || a.name.localeCompare(b.name));
-  const off = (r) => ["warn", "bad"].includes(judge(r.kind, r.c)[0]);
-  const nights = lastNights(7).filter((d) => LIVE.safety.some((r) => r.day === d && r.kind !== "lines"));
-  $("#msafety").innerHTML = `<div class="sec">Safety checks</div>
-    <p class="note">Temperatures and line cleaning, kept as the venue's due-diligence record. Staff log them in Shift, Logs.</p>
-    <div class="actions">${dlHtml("safety", "Download the full safety log as a spreadsheet", "safety")}</div>
-    <h3 class="actday">Tonight</h3>
-    ${kit.map((k) => `<div class="staffrow"><div class="n">${esc(k.name)} <span class="pill">${sideName(k.side)}</span> ${k.kind === "lines" ? lineState(k) : tonightOf(k).length ? "" : `<span class="pill wait">No reading yet</span>`}</div>
-      ${k.kind === "lines" ? "" : tonightOf(k).map((r) => `<div class="s">${tempLine(r)}</div>`).join("")}</div>`).join("") || `<p class="note">Nothing set up yet. Add the fridges, freezers, cellar, glass washer and beer lines below.</p>`}
-    ${nights.length ? `<h3 class="actday">Last 7 nights</h3>${nights.map((d) => {
-      const rs = LIVE.safety.filter((r) => r.day === d && r.kind !== "lines"), bad = rs.filter(off).length;
-      return `<div class="staffrow"><div class="n">${dayName(d, { weekday: "long", day: "numeric", month: "long" })} ${bad ? `<span class="pill no">${bad} out of range</span>` : `<span class="pill ok">All in range</span>`}</div><div class="s">${rs.map((r) => `${esc(r.kitName)} ${r.c}°C`).join(" · ")}</div></div>`;
-    }).join("")}` : ""}
-    <details class="setup" ${fold("kit")}><summary>Equipment (${kit.length})</summary>
-      ${kit.map((k) => `<div class="staffrow"><div class="n">${esc(k.name)}</div><div class="s">${KITS[k.kind].name} · ${sideName(k.side)}</div><div class="actions"><button class="btn danger" data-kit-del="${k.id}">Remove</button></div></div>`).join("")}
-      <h3 style="font-size:18px;margin-top:16px">Add equipment</h3>
-      <label class="fld">Name<input id="k-name" maxlength="40" value="${esc(kitF.name)}" placeholder="Back bar fridge, Cellar, Upstairs lines"></label>
-      <label class="fld">What it is<select id="k-kind">${Object.entries(KITS).map(([k, x]) => `<option value="${k}"${k === kitF.kind ? " selected" : ""}>${x.name}</option>`).join("")}</select></label>
-      <div class="mini">Who logs it</div><div class="recent">${["bar", "floor"].map((x) => `<button class="chip" data-kit-side="${x}" aria-pressed="${x === kitF.side}">${sideName(x)}</button>`).join("")}</div>
-      <button class="btn pri wide" id="k-go">Add</button>
-      <p class="note">Removing something keeps its past readings.</p></details>`;
-}
-let countNote = "";
-const countDraft = store.get("countDraft", {}); // kept on this phone until the count is saved
-function renderStock() {
-  if (!LIVE.admin) return;
-  if (!LIVE.loaded.has("pars") || !LIVE.loaded.has("counts")) { $("#mstock").innerHTML = `<div class="sec">Stock</div><p class="note">Loading par levels and counts…</p>`; return; }
-  const last = LIVE.counts[0], order = last ? last.lines.filter((l) => l.n < l.par) : [], nPar = Object.keys(LIVE.pars).length;
-  const counted = Object.entries(STOCK).map(([g, xs]) => [g, xs.filter((x) => LIVE.pars[x])]).filter(([, xs]) => xs.length);
-  const row = (x, input) => `<div class="rvrow" style="grid-template-columns:1fr 92px;align-items:center"><span>${esc(x)}</span>${input}</div>`;
-  $("#mstock").innerHTML = `<div class="sec">Order list</div>
-    ${last ? `<p class="note">From the count on ${stamp(new Date(ms(last.at)))} by ${esc(last.name)}${last.note ? ` (${esc(last.note)})` : ""}: ${order.length} item${order.length === 1 ? "" : "s"} below par.</p>
-      ${order.map((l) => `<div class="staffrow"><div class="n">${esc(l.item)} · order ${Math.ceil(l.par - l.n)}</div><div class="s">${esc(l.n)} of ${esc(l.par)} · ${esc(l.group)}</div></div>`).join("")}
-      <div class="actions">${dlHtml("order", "Download the order list", "order")}${dlHtml("counts", "Download every count", "counts")}</div>`
-    : `<p class="note">No count yet. Set par levels, then count the stock.</p>`}
-    <details class="setup" ${fold("count")}><summary>Count the stock</summary>
-      ${counted.length ? `<p class="note">Only items with a par level are counted. What you type stays on this phone until you save.</p>
-        ${counted.map(([g, xs]) => `<div class="mini">${esc(g)}</div>${xs.map((x) => row(`${x} (par ${LIVE.pars[x]})`, `<input data-cnt="${esc(x)}" type="number" min="0" step="0.1" value="${esc(countDraft[x] ?? "")}" aria-label="${esc(x)} counted">`)).join("")}`).join("")}
-        <label class="fld">Note (optional)<input id="cnt-note" maxlength="300" value="${esc(countNote)}" placeholder="Sunday close count"></label>
-        <button class="btn pri wide" id="cnt-go">Save the count</button>` : `<p class="note">Set some par levels first.</p>`}</details>
-    <details class="setup" ${fold("pars")}><summary>Par levels (${nPar} set)</summary>
-      <p class="note">How much should be on the shelf. Leave it blank for anything you don't count. Saved as you go.</p>
-      ${Object.entries(STOCK).map(([g, xs]) => `<details class="pargrp" ${fold("par-" + g)}><summary>${esc(g)} (${xs.filter((x) => LIVE.pars[x]).length} of ${xs.length})</summary>
-        ${xs.map((x) => row(x, `<input data-par="${esc(x)}" type="number" min="0" step="0.5" value="${LIVE.pars[x] ?? ""}" aria-label="Par for ${esc(x)}">`)).join("")}</details>`).join("")}
-    </details>`;
-}
 // Sign-offs, drink by drink. Practise shows each person their own.
 const TRAIN_POOLS = ["Signatures", "Classics", "Shots & bombs"];
 let trWho = "", trPool = "Signatures";
@@ -1900,38 +1983,276 @@ function renderTraining() {
       ${list.map((d) => { const t = signed(who.uid, d.name);
         return `<div class="staffrow"><div class="n">${esc(d.name)}${t ? ` <span class="pill ok">Signed off</span>` : ""}</div>${t ? `<div class="s">By ${esc(t.name)}, ${when(t.at)}</div>` : ""}<div class="actions">${t ? `<button class="btn" data-tr-undo="${t.id}">Take back</button>` : `<button class="btn pri" data-tr-sign="${esc(d.name)}">Sign off</button>`}</div></div>`; }).join("")}` : ""}`;
 }
+/* ---------- Tonight's changes, in words ----------
+   Each change to a task, a procedure or a restock is an event. These turn one into a line people can read. */
+const lower = (s) => s.charAt(0).toLowerCase() + s.slice(1);
+const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
+// "started: Ice well emptied", "brought up 2 bags of Limes for the upstairs bar".
+function evText(e) {
+  if (e.kind === "task") return e.from === e.to ? (e.who ? `gave ${e.who}: ${e.label}` : `took this off whoever it was for: ${e.label}`)
+    : { doing: `started: ${e.label}`, done: `completed: ${e.label}`, blocked: `blocked: ${e.label}`, cancelled: `marked not needed tonight: ${e.label}`,
+      todo: { done: `took back: ${e.label}`, doing: `stopped: ${e.label}`, blocked: `unblocked: ${e.label}`, cancelled: `brought back: ${e.label}` }[e.from] }[e.to];
+  if (e.kind === "run") return e.to === "finished" ? `finished the ${lower(e.label)}${e.done < e.required ? ` with ${e.required - e.done} of ${e.required} not done` : `, all ${e.required} done`}`
+    : e.from === "finished" ? `reopened the ${lower(e.label)}` : `started the ${lower(e.label)}`;
+  const to = DEST[e.dest] ? ` for the ${lower(DEST[e.dest])}` : "";
+  if (e.from === "new") return `asked for ${amtOf(e.qty, e.unit, e.label)}${to}`;
+  return { given: `gave ${e.who} the restock: ${e.label}`, doing: `started bringing up ${e.label}${to}`, delivered: `brought up ${amtOf(e.qty, e.unit, e.label)}${to}`,
+    received: `confirmed ${amtOf(e.qty, e.unit, e.label)} arrived`, unavailable: `said ${e.label} isn't in the cellar`, blocked: `blocked the restock: ${e.label}`,
+    cancelled: `cancelled the restock: ${e.label}`,
+    asked: ["given", "doing"].includes(e.from) ? `let go of the restock: ${e.label}` : e.from === "delivered" ? `said ${e.label} didn't arrive` : `reopened the restock: ${e.label}` }[e.to];
+}
+const evDetail = (e) => [e.kind === "task" && LISTS[e.list]?.title, e.kind === "task" && e.from !== e.to && e.who && `For ${e.who}`, e.note && `Reason: ${e.note}`].filter(Boolean).join(" · ");
+// A change from someone else's phone flashes for a moment where it's listed (Live and Activity).
+const evSeen = new Set();
+let evInit = false;
+function markEvents() {
+  for (const e of LIVE.events) if (!evSeen.has(e.id)) { evSeen.add(e.id); if (evInit && e.uid !== LIVE.uid) flashTill["ev-" + e.id] = Date.now() + 1500; }
+  evInit = true;
+}
+const evFlash = (e) => flashTill["ev-" + e.id] > Date.now();
+const evRow = (e) => `<div class="staffrow${evFlash(e) ? " flash" : ""}"><div class="n">${esc(e.name)} <span class="did">${esc(evText(e))}</span></div><div class="s">${at(e)}${evDetail(e) ? ` · ${esc(evDetail(e))}` : ""}</div></div>`;
+
+/* ---------- Live (managers): tonight as it happens ----------
+   Worked out on this phone from tonight's tasks, procedures, restocks and their events, which every phone sees change
+   as it happens. Overdue means in progress for more than TASK_LATE minutes; a restock is late after RS_LATE minutes
+   waiting for someone to take it on or, once it's brought up, for someone to confirm it arrived. */
+const ALL_LISTS = [...MODE_LISTS.bar, ...MODE_LISTS.floor];
+const blockedTasks = (lists) => lists.flatMap((k) => shown(k).filter(([i]) => statusOf(k, i) === "blocked").map(([i]) => [k, i]));
+const overdue = (k, i) => { const x = taskOf(k, i); return x?.status === "doing" && !x.pending && mins(lastMove(k, i, x).at) >= TASK_LATE; };
+// Something for a manager to look at: a tag (shown as a label, never as colour alone), what it is, any reason, who and
+// when, and where it's dealt with.
+const flag = (t, tag, cls, what, note, by, go) => ({ t, tag, cls, what, note, by, go });
+const flagHtml = (x) => `<div class="staffrow"><div class="n"><span class="pill ${x.cls}">${esc(x.tag)}</span> <span class="did">${esc(x.what)}</span></div><div class="s">${x.note ? `${esc(x.note)} · ` : ""}${esc(x.by)} · <button class="linkbtn" data-go="${x.go}">${x.go === "stock" ? "Restock board" : "Open the list"}</button></div></div>`;
+const flagText = (x) => `- ${x.tag}: ${x.what}${x.note ? ` (${x.note})` : ""}. ${x.by}`;
+// Now: what's blocked, overdue or waiting too long, longest waiting first.
+function needsYou() {
+  const xs = [];
+  for (const k of ALL_LISTS) for (const [i, text] of shown(k)) {
+    const x = taskOf(k, i); if (!x) continue;
+    const m = lastMove(k, i, x), what = `${text} (${LISTS[k].title})`;
+    if (x.status === "blocked") xs.push(flag(ms(m.at), "Blocked", "no", what, m.note, `${m.name}, ${at(m)}`, `list:${k}`));
+    else if (overdue(k, i)) xs.push(flag(ms(m.at), `Overdue: ${mins(m.at)} min`, "no", what, "", `Started by ${m.name}, ${at(m)}`, `list:${k}`));
+  }
+  for (const r of rsOpen()) {
+    const what = `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}`;
+    if (r.status === "blocked") xs.push(flag(ms(r.at), "Restock blocked", "no", what, r.note, `${r.name}, ${at(r)}`, "stock"));
+    else if (rsLate(r)) xs.push(flag(ms(r.askedAt), rsLateText(r), "no", what, "", r.status === "delivered" ? `Brought up by ${r.who}, ${at(r)}` : `Asked by ${r.askedBy}`, "stock"));
+  }
+  return xs.sort((a, b) => a.t - b.t);
+}
+// Tonight's exceptions, newest first: these stay listed after they're dealt with, as the night's record.
+function exceptions() {
+  const xs = [], f = (e, tag, cls) => xs.push(flag(ms(e.at), tag, cls, e.kind === "task" ? `${e.label} (${LISTS[e.list]?.title})` : e.label, e.note, `${e.name}, ${at(e)}`, e.kind === "restock" ? "stock" : `list:${e.list}`));
+  for (const e of LIVE.events) {
+    if (e.kind === "run" && e.to === "finished" && e.done < e.required) f(e, `Finished with ${e.required - e.done} of ${e.required} not done`, "wait");
+    else if (e.kind === "run" && e.from === "finished") f(e, "Reopened", "wait");
+    else if (e.kind === "task" && e.to === "cancelled") f(e, "Not needed tonight", "");
+    else if (e.kind === "task" && e.from === "done" && e.to === "todo" && e.note) f(e, "Taken back", "wait");
+    else if (e.kind === "restock" && e.to === "unavailable") f(e, "Not in the cellar", "no");
+    else if (e.kind === "restock" && e.from === "delivered" && e.to === "asked") f(e, "Didn't arrive", "no");
+  }
+  return xs;
+}
+function procRow(k) {
+  const p = progress(k), r = runOf(k), st = r?.status || "todo", S = shown(k);
+  const doing = S.filter(([i]) => statusOf(k, i) === "doing").length, b = blockedTasks([k]).length, late = S.filter(([i]) => overdue(k, i)).length;
+  const bits = [`${p.n} of ${p.of} done`, doing && `${doing} in progress`, b && `${b} blocked`, late && `${late} overdue`, p.skipped && `${p.skipped} not needed tonight`].filter(Boolean).join(" · ");
+  return `<div class="staffrow"><div class="n"><button class="linkbtn" data-go="list:${k}">${esc(LISTS[k].title)}</button> <span class="pill ${st === "finished" ? "ok" : st === "started" ? "wait" : ""}">${RUN[st]}</span> <span class="did">${listSide(k) === "bar" ? "Bar" : "Floor"}</span></div>
+    <div class="prog${p.n === p.of ? " full" : ""}" role="progressbar" aria-label="${esc(LISTS[k].title)}" aria-valuenow="${p.pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${p.pct}%"></i></div>
+    <div class="s">${bits}${r ? ` · ${esc(runText(k))}` : ""}</div></div>`;
+}
+const rsRow = (r) => `<div class="staffrow"><div class="n">${esc(amtOf(r.qty, r.unit, r.item))} <span class="did">for the ${lower(DEST[r.dest])}</span></div>
+  <div class="s"><span class="pill ${r.status === "blocked" ? "no" : "wait"}">${RS[r.status]}</span>${r.who ? ` ${esc(r.who)} ·` : ""} asked by ${esc(r.askedBy)}, ${r.pending && r.v === 1 ? "sending…" : hhmm(new Date(ms(r.askedAt)))}${rsLate(r) ? ` · <b class="late">${rsLateText(r)}</b>` : ""}</div></div>`;
+// Who's done what tonight: what they have in progress now, how many items they've done, any restock they have, and
+// when they last changed anything.
+function whoRows() {
+  const P = new Map(), get = (uid, name) => { if (!P.has(uid)) P.set(uid, { name, doing: [], done: 0, rs: [], last: 0 }); return P.get(uid); };
+  for (const e of LIVE.events) { const p = get(e.uid, e.name); p.last = Math.max(p.last, ms(e.at)); }
+  for (const k of ALL_LISTS) for (const [i, text] of shown(k)) {
+    const x = taskOf(k, i); if (!x || !["doing", "done"].includes(x.status)) continue;
+    const m = lastMove(k, i, x), p = get(m.uid, m.name);
+    if (x.status === "doing") p.doing.push(text); else p.done++;
+  }
+  for (const r of rsOpen()) if (r.whoUid && ["given", "doing"].includes(r.status)) get(r.whoUid, r.who).rs.push(`${r.item} (${lower(RS[r.status])})`);
+  return [...P.values()].sort((a, b) => b.last - a.last);
+}
+const whoRow = (p) => `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${[p.doing.length && `In progress: ${esc(p.doing.join(", "))}`, `${p.done} done`,
+  p.rs.length && `Restock: ${esc(p.rs.join(", "))}`, p.last && `Last change ${hhmm(new Date(p.last))}, ${Math.max(0, Math.floor((Date.now() - p.last) / 6e4))} min ago`].filter(Boolean).join(" · ")}</div></div>`;
+function renderLive() {
+  if (!LIVE.admin) return;
+  const head = `<div class="sec">Tonight, live</div>`;
+  if (!LIVE.loaded.has("tasks") || !LIVE.loaded.has("events")) { $("#live").innerHTML = `${head}<p class="note">Loading tonight. It needs signal the first time.</p>`; return; }
+  const open = rsOpen().sort((a, b) => ms(a.askedAt) - ms(b.askedAt)), who = whoRows(), R = LIVE.events.filter((e) => e.kind === "restock");
+  $("#live").innerHTML = `${head}<p class="note">${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}. This changes as the team taps, on every phone. Overdue means in progress for over ${TASK_LATE} minutes; a restock is late after ${RS_LATE}.</p>
+    <div class="actions">${shareBtns("live")}</div>
+    <div class="h3">Needs you now</div>${needsYou().map(flagHtml).join("") || `<p class="note">Nothing blocked, overdue or waiting too long.</p>`}
+    <div class="h3">Opening and closing</div>${ALL_LISTS.map(procRow).join("")}
+    <div class="h3">Restocking</div>${open.map(rsRow).join("") || `<p class="note">Nothing waiting to come up.</p>`}
+    <p class="note">Tonight: ${R.filter((e) => e.from === "new").length} asked for, ${R.filter((e) => e.to === "delivered").length} brought up, ${R.filter((e) => e.to === "received").length} confirmed arrived.</p>
+    <div class="h3">Who's doing what</div>${who.map(whoRow).join("") || `<p class="note">Nobody has changed anything yet tonight.</p>`}
+    <div class="h3">Exceptions tonight</div>${exceptions().map(flagHtml).join("") || `<p class="note">Nothing finished early, reopened, taken back, not needed or missing from the cellar tonight.</p>`}
+    <div class="h3">Latest</div>${LIVE.events.slice(0, 12).map(evRow).join("") || `<p class="note">No changes yet tonight.</p>`}
+    <div class="actions"><button class="btn" data-msub="act">All activity</button></div>`;
+}
+function liveText() {
+  const lines = [`Black Tap Soho, ${dayName(shiftDay())}, at ${hhmm(new Date())}`, ""];
+  for (const k of ALL_LISTS) {
+    const p = progress(k), r = runOf(k), b = blockedTasks([k]).length;
+    lines.push(`${LISTS[k].title}: ${RUN[r?.status || "todo"]}, ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${r ? `. ${runText(k)}` : ""}`);
+  }
+  const now = needsYou(), exc = exceptions(), open = rsOpen();
+  if (now.length) lines.push("", "Needs a manager:", ...now.map(flagText));
+  if (exc.length) lines.push("", "Exceptions tonight:", ...exc.map(flagText));
+  lines.push("", `Restocking open: ${open.length}`, ...open.map((r) => `- ${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}: ${RS[r.status]}${r.who ? ` (${r.who})` : ""}${rsLate(r) ? `, ${lower(rsLateText(r))}` : ""}`));
+  lines.push("", `86'd: ${LIVE.out.size ? [...LIVE.out].sort().join(", ") : "nothing"}`);
+  return lines.join("\n");
+}
+SHARE.live = () => [`Black Tap Soho tonight, ${hhmm(new Date())}`, liveText()];
+
+/* ---------- Closing KPIs (managers) ----------
+   From the last 7 nights of events: when each list was started and finished, how long it took and what was left,
+   overridden, blocked or taken back, and for each person what they did and how long it took. Read once when opened;
+   tonight keeps up to date. Every figure counts changes made in Bar Book, not work. */
+const kpi = { ev: null, busy: false, err: false };
+async function loadKpis() {
+  kpi.busy = true; kpi.err = false; renderKpis();
+  try { kpi.ev = await LIVE.api.eventsFrom(lastNights(7).at(-1)); } catch { kpi.err = true; }
+  kpi.busy = false; renderKpis();
+}
+const kpiEvents = () => [...(kpi.ev || []).filter((e) => e.day !== shiftDay()), ...LIVE.events];
+const dur = (v) => { const m = Math.round(v / 6e4); return m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${m % 60} min`; };
+// Clock times through the night, so 00:30 counts as later than 23:30.
+const nightMins = (t) => { const [h, m] = hhmm(new Date(t)).split(":").map(Number); return (h < 6 ? h + 24 : h) * 60 + m; };
+const clock = (m) => `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
+const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
+const byTime = (ev) => [...ev].sort((a, b) => ms(a.at) - ms(b.at));
+// One row per list per night. Started is the first change on the list; a reopened list counts as not finished until
+// it's finished again.
+function nightStats(ev) {
+  const G = new Map();
+  for (const e of byTime(ev)) {
+    if (e.kind === "restock") continue;
+    const k = `${e.day}|${e.list}`;
+    if (!G.has(k)) G.set(k, { day: e.day, list: e.list, start: ms(e.at), end: null, done: null, required: null, override: "", reopened: 0, blocked: 0, back: 0, skipped: 0 });
+    const g = G.get(k);
+    if (e.kind === "run") {
+      if (e.to === "finished") Object.assign(g, { end: ms(e.at), done: e.done, required: e.required, override: e.done < e.required ? e.note : "" });
+      if (e.from === "finished") { g.reopened++; Object.assign(g, { end: null, done: null, required: null, override: "" }); }
+    } else {
+      if (e.to === "blocked") g.blocked++;
+      if (e.from === "done" && e.to === "todo") g.back++;
+      if (e.to === "cancelled") g.skipped++;
+    }
+  }
+  return [...G.values()].sort((a, b) => b.day.localeCompare(a.day) || ALL_LISTS.indexOf(a.list) - ALL_LISTS.indexOf(b.list));
+}
+// One row per person. Start to done counts items the same person started and then did; taken back counts their done
+// items that someone else reopened.
+function personStats(ev) {
+  const P = new Map(), started = {}, doneBy = {}, taken = {};
+  const get = (uid, name) => { if (!P.has(uid)) P.set(uid, { name, nights: new Set(), done: 0, back: 0, blocked: 0, work: [], fetched: 0, fetch: [], confirmed: 0, gap: 0, last: {} }); return P.get(uid); };
+  for (const e of byTime(ev)) {
+    const p = get(e.uid, e.name), t = ms(e.at);
+    p.nights.add(e.day);
+    if (p.last[e.day] != null) p.gap = Math.max(p.gap, t - p.last[e.day]);
+    p.last[e.day] = t;
+    if (e.from !== e.to && e.to === "blocked") p.blocked++;
+    if (e.kind === "task" && e.from !== e.to) {
+      const k = `${e.day}|${e.list}-${e.item}`;
+      if (e.to === "doing") { started[k] = { uid: e.uid, t }; continue; }
+      if (e.to === "done") { p.done++; doneBy[k] = e.uid; if (started[k]?.uid === e.uid) p.work.push(t - started[k].t); }
+      if (e.from === "done" && doneBy[k] && doneBy[k] !== e.uid) P.get(doneBy[k]).back++;
+      delete started[k];
+    }
+    if (e.kind === "restock") {
+      if (e.to === "doing") taken[e.ref] = t;
+      if (e.to === "delivered") { p.fetched++; if (taken[e.ref] != null) p.fetch.push(t - taken[e.ref]); }
+      if (e.to === "received") p.confirmed++;
+    }
+  }
+  return [...P.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+function listSummary(N, k) {
+  const xs = N.filter((g) => g.list === k), fin = xs.filter((g) => g.end);
+  if (!xs.length) return "";
+  const ov = fin.filter((g) => g.override).length;
+  return `${LISTS[k].title}: started on ${xs.length} night${xs.length > 1 ? "s" : ""} and finished on ${fin.length}${fin.length ? `, at ${clock(Math.round(avg(fin.map((g) => nightMins(g.end)))))} on average, taking ${dur(avg(fin.map((g) => g.end - g.start)))}` : ""}${ov ? `. ${ov} finished with items not done` : ""}.`;
+}
+const nightLine = (g) => (g.end ? `${hhmm(new Date(g.start))} to ${hhmm(new Date(g.end))} (${dur(g.end - g.start)}), ${g.done} of ${g.required} done${g.override ? `. Finished with items left: ${g.override}` : ""}` : `Started ${hhmm(new Date(g.start))}, not finished`)
+  + [g.blocked && `${g.blocked} blocked`, g.back && `${g.back} taken back`, g.skipped && `${g.skipped} not needed`, g.reopened && `reopened ${g.reopened === 1 ? "once" : `${g.reopened} times`}`].filter(Boolean).map((s) => ` · ${s}`).join("");
+const nightRow = (g) => `<div class="staffrow"><div class="n">${dayName(g.day)} · ${esc(LISTS[g.list]?.title || g.list)}</div><div class="s">${esc(nightLine(g))}</div></div>`;
+const personRow = (p) => `<div class="staffrow"><div class="n">${esc(p.name)} <span class="did">· ${p.nights.size} night${p.nights.size > 1 ? "s" : ""}</span></div><div class="s">${cap([
+  `${p.done} item${p.done === 1 ? "" : "s"} done${p.back ? ` (${p.back} taken back by someone else)` : ""}`,
+  p.work.length && `start to done ${dur(avg(p.work))} on average, longest ${dur(Math.max(...p.work))} (${p.work.length} item${p.work.length > 1 ? "s" : ""})`,
+  p.fetched && `${p.fetched} restock${p.fetched > 1 ? "s" : ""} brought up${p.fetch.length ? `, ${dur(avg(p.fetch))} on average from taking it on` : ""}`,
+  p.confirmed && `${p.confirmed} confirmed arrived`, p.blocked && `${p.blocked} blocked`, p.gap >= 6e4 && `longest gap between changes ${dur(p.gap)}`].filter(Boolean).join(" · "))}</div></div>`;
+function renderKpis() {
+  if (!LIVE.admin) return;
+  const head = `<div class="sec">Closing KPIs</div>`;
+  if (!kpi.ev) { $("#kpis").innerHTML = `${head}<p class="note">${kpi.err ? "Couldn't read the last 7 nights. Check your signal." : "Reading the last 7 nights…"}</p>${kpi.err ? `<div class="actions"><button class="btn" id="kpi-go">Try again</button></div>` : ""}`; return; }
+  const ev = kpiEvents(), N = nightStats(ev), P = personStats(ev), sums = ALL_LISTS.map((k) => listSummary(N, k)).filter(Boolean);
+  $("#kpis").innerHTML = `${head}<p class="note">The last 7 nights, worked out from every change made in Bar Book. Tonight keeps up to date.</p>
+    <div class="actions">${shareBtns("kpis")}<button class="btn" id="kpi-go">${kpi.busy ? "Reading…" : "Refresh"}</button></div>
+    ${sums.map((s) => `<p class="txt">${esc(s)}</p>`).join("") || `<p class="note">No checklists started in the last 7 nights.</p>`}
+    <div class="h3">Night by night</div>${N.map(nightRow).join("") || `<p class="note">Nothing yet.</p>`}
+    <div class="h3">By person</div>${P.map(personRow).join("") || `<p class="note">Nothing yet.</p>`}
+    <div class="actions">${dlHtml("kpis", "Night by night as a spreadsheet", "kpis")}${dlHtml("people", "By person as a spreadsheet", "people")}</div>
+    <p class="note">The spreadsheets cover the last 31 nights.</p>
+    <details class="setup"><summary>How these are worked out</summary>
+      <p class="note">Started: the first change on the list that night (Start, or the first item done). Finished: when someone tapped Finish. Time taken: from started to finished. A reopened list counts as not finished until it's finished again.</p>
+      <p class="note">Done and required are counted by the phone that tapped Finish. Not needed tonight doesn't count towards required, so it can't count as done. Finishing with items left needs a manager and a reason, shown here.</p>
+      <p class="note">Start to done only counts items someone tapped Start on and then did themselves. Most items are done straight off, so they have no time. Taken back by someone else counts a person's done items that someone else reopened.</p>
+      <p class="note">Longest gap is the longest time between two of a person's changes on one night. It could be a break, a busy floor or a long job.</p>
+    </details>
+    <p class="note"><b>Use these to ask questions, not as proof on their own.</b> They count taps, not work: someone serving guests, helping a teammate or on a break isn't tapping. Tell the team their changes are logged with their name and the time, and why. The ICO has guidance on <a class="linkbtn" href="https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/monitoring-workers/" target="_blank" rel="noopener">monitoring workers</a>.</p>`;
+}
+// Shared to WhatsApp or email: the lists night by night. Figures for each person stay in Bar Book and the spreadsheet.
+function kpiText() {
+  const N = nightStats(kpiEvents());
+  return [`Black Tap Soho closing KPIs, the 7 nights to ${dayName(shiftDay())}`, "", ...ALL_LISTS.map((k) => listSummary(N, k)).filter(Boolean), "", "Night by night:",
+    ...N.map((g) => `- ${dayName(g.day)}, ${LISTS[g.list]?.title}: ${nightLine(g)}`)].join("\n");
+}
+SHARE.kpis = () => ["Black Tap Soho closing KPIs", kpiText()];
+
 /* ---------- Activity: who did what and when ----------
-   Worked out from the records themselves, since every change keeps who made it and when. Deleting something leaves
-   no record, so take-downs, unticks and cancellations don't show. Managers see every section and can download the
+   Worked out from the records themselves, since every change keeps who made it and when, and from the events behind
+   tonight's tasks, procedures and restocks, which keep every change, corrections included. Deleting a post leaves no
+   record. Managers see every section, can pick a night, a person, an area or a kind of change, and can download the
    full history; staff see the team's side of things for their own side of the venue (bar or floor). */
-const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["safety", "Safety"], ["86", "86"], ["stock", "Stock"], ["waste", "Waste"], ["asks", "Staff requests"], ["issues", "Issues"],
+const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["86", "86"], ["stock", "Restocking"], ["asks", "Staff requests"], ["issues", "Issues"],
   ["concerns", "Concerns"], ["reports", "Reports"], ["incidents", "Incidents"], ["training", "Training"], ["team", "Team"]];
-const ACT_NAME = Object.fromEntries(ACT), STAFF_ACT = ["all", "board", "checks", "safety", "86", "stock", "waste", "issues", "concerns", "reports"];
-const tickName = (t) => LISTS[t.list]?.items[t.item] || `Item ${t.item + 1}`;
+// Downloads and old records keep their own names in the spreadsheets.
+const ACT_NAME = { ...Object.fromEntries(ACT), safety: "Safety", waste: "Waste", counts: "Stock counts", requests: "Old stock requests", trail: "Audit trail", kpis: "Closing KPIs", people: "KPIs by person" };
+const STAFF_ACT = ["all", "board", "checks", "86", "stock", "issues", "concerns", "reports"];
 const DID = { setup: () => "set up the owner account", add: (a) => `added ${a.targetName} (${ROLE[a.role].toLowerCase()})`, reset: (a) => `gave ${a.targetName} a new PIN`, remove: (a) => `removed ${a.targetName}`, role: (a) => `made ${a.targetName} ${a.role === "manager" ? "a manager" : "staff"}` };
 const DECIDED = { seen: "saw", approved: "approved", declined: "declined" };
 // A PIN reset writes two audit entries (the new account and the old one); count it once.
 const auditOnce = (xs) => xs.filter((a) => a.action !== "reset" || a.id.endsWith("-in"));
+const SEC = { task: "checks", run: "checks", restock: "stock" };
+// The record a change belongs to, so everything that happened to it can be shown together.
+const evRef = (e) => (e.kind === "restock" ? `s-${e.ref}` : e.kind === "run" ? `r-${e.day}-${e.list}` : `t-${e.day}-${e.list}-${e.item}`);
 function events(x) {
   const ev = [], add = (sec, at, who, what, detail, more) => ev.push({ t: ms(at), sec, who, what, detail: detail || "", ...more });
   const whose = (id) => { const r = x.reports.find((r) => r.id === id); return r ? `${r.name}'s ${r.side} report` : "a report"; };
   x.feed.forEach((p) => add("board", p.at, p.name, "posted on the board", p.text));
   x.notices.forEach((p) => add("board", p.at, p.name, `sent a broadcast${p.side && p.side !== "all" ? ` to ${TO[p.side]}` : ""}${p.managers === false ? " (managers left out)" : ""}`, p.text));
-  x.ticks.forEach((t) => add("checks", t.at, t.name, `ticked ${tickName(t)}`, LISTS[t.list]?.title, { list: t.list }));
+  x.events.forEach((e) => add(SEC[e.kind], e.at, e.name, evText(e), evDetail(e), { ev: e, area: e.area, list: e.list }));
+  // Ticks from before tasks.
+  x.ticks.forEach((t) => add("checks", t.at, t.name, `ticked: ${itemText(t.list, t.item)}`, LISTS[t.list]?.title, { area: listSide(t.list), list: t.list }));
   x.outlog.forEach((o) => add("86", o.at, o.name, o.action === "out" ? `86'd ${o.itemName}` : `put ${o.itemName} back in stock`));
-  x.requests.forEach((r) => { add("stock", r.at, r.name, `asked for ${r.item}`, r.note); if (r.done) add("stock", r.doneAt, r.doneBy, `ordered ${r.item}`, `Asked for by ${r.name}`); });
+  x.requests.forEach((r) => { add("requests", r.at, r.name, `asked for ${r.item}`, r.note); if (r.done) add("requests", r.doneAt, r.doneBy, `ordered ${r.item}`, `Asked for by ${r.name}`); });
   x.asks.forEach((a) => { add("asks", a.at, a.name, askText(a), a.note); if (a.by) add("asks", a.byAt, a.by, `${DECIDED[a.status]} ${a.name}'s request`, askText(a)); });
   x.issues.forEach((i) => {
     add("issues", i.at, i.name, `raised${i.urgent ? " (urgent)" : ""}: ${i.title}`, i.detail);
     if (i.setBy) add("issues", i.setAt, i.setBy, i.setByUid === i.whoUid ? `took on: ${i.title}` : `gave ${i.who}: ${i.title}`);
     if (i.fixedBy) add("issues", i.fixedAt, i.fixedBy, `fixed: ${i.title}`, i.fix);
   });
-  x.reports.forEach((r) => { add("reports", r.at, r.name, `sent the ${r.side} report`, r.summary); if (r.signedBy) add("reports", r.signedAt, r.signedBy, `signed off ${r.name}'s ${r.side} report`); });
+  x.reports.forEach((r) => { add("reports", r.at, r.name, `sent the ${r.side} report`, r.summary, { area: r.side }); if (r.signedBy) add("reports", r.signedAt, r.signedBy, `signed off ${r.name}'s ${r.side} report`, "", { area: r.side }); });
   x.reviews.forEach((v) => add("reports", v.at, v.name, `${v.verdict === "up" ? "gave 👍 to" : v.verdict === "flag" ? "flagged" : "commented on"} ${whose(v.report)}`, v.text));
   x.incidents.forEach((i) => { add("incidents", i.at, i.name, `logged an incident: ${i.kind}`, i.text); if (i.closedBy) add("incidents", i.closedAt, i.closedBy, `closed an incident: ${i.kind}`, i.outcome); });
   x.safety.forEach((r) => add("safety", r.at, r.name, r.kind === "lines" ? `cleaned ${r.kitName}` : `logged ${r.kitName}: ${r.c}°C`, [judge(r.kind, r.c)[1], r.note].filter(Boolean).join(" · ")));
   x.waste.forEach((w) => add("waste", w.at, w.name, `logged waste: ${wasteText(w)}`, [REASONS[w.reason], w.note].filter(Boolean).join(" · ")));
-  x.counts.forEach((c) => add("stock", c.at, c.name, `counted the stock (${c.lines.length} items)`, c.note));
+  x.counts.forEach((c) => add("counts", c.at, c.name, `counted the stock (${c.lines.length} items)`, c.note));
   x.training.forEach((t) => add("training", t.at, t.name, `signed off ${t.traineeName} on ${t.drinkName}`));
   x.concerns.forEach((c) => {
     add("concerns", c.at, c.anon ? "Someone (anonymous)" : c.name, `reported a concern to ${CN_SENT[c.to]}: ${cnName(c)}`, c.note);
@@ -1940,50 +2261,98 @@ function events(x) {
   auditOnce(x.audit).forEach((a) => add("team", a.at, a.name, DID[a.action](a)));
   return ev.sort((a, b) => b.t - a.t);
 }
+// Managers' filters. A night other than tonight is read once, when it's picked.
+const af = { night: "", who: "", area: "", to: "", q: "" }, nightEv = {};
+const AF_TO = [
+  ["doing", "Started or in progress", (e) => e.from !== e.to && ["doing", "started"].includes(e.to) && e.from !== "finished"],
+  ["done", "Done or finished", (e) => ["done", "finished", "received"].includes(e.to)],
+  ["override", "Finished with items left", (e) => e.kind === "run" && e.to === "finished" && e.done < e.required],
+  ["blocked", "Blocked", (e) => e.to === "blocked"],
+  ["back", "Taken back or reopened", (e) => (e.from === "done" && e.to === "todo") || e.from === "finished" || (e.kind === "restock" && e.to === "asked" && ["delivered", "received", "unavailable", "cancelled"].includes(e.from))],
+  ["cancelled", "Not needed or cancelled", (e) => e.to === "cancelled"],
+  ["given", "Given to someone", (e) => e.to === "given" || (e.kind === "task" && e.from === e.to)],
+  ["asked", "Asked for", (e) => e.from === "new"],
+  ["delivered", "Brought up", (e) => e.to === "delivered"],
+  ["unavailable", "Not in the cellar", (e) => e.to === "unavailable"],
+];
+const AF_TEST = Object.fromEntries(AF_TO.map(([k, , f]) => [k, f]));
 // What this phone already has. Staff can't read the 86 log, so they see what's 86'd right now.
 function liveData() {
-  const staff = !LIVE.admin;
+  const staff = !LIVE.admin, evs = !staff && af.night && af.night !== shiftDay() ? nightEv[af.night] || [] : LIVE.events;
   return {
     feed: LIVE.feed, notices: LIVE.notices.filter(forMe), requests: LIVE.requests, issues: LIVE.issues, reviews: LIVE.reviews, incidents: LIVE.incidents, audit: LIVE.audit,
-    ticks: Object.values(LIVE.tickBy).filter((t) => !staff || MODE_LISTS[mode].includes(t.list)),
+    events: staff ? evs.filter((e) => e.area === mode) : evs, ticks: [],
     outlog: staff ? [...LIVE.outInfo.values()].map((o) => ({ ...o, action: "out" })) : LIVE.outlog,
     asks: staff ? [] : LIVE.asks,
     reports: staff ? LIVE.reports.filter((r) => r.side === mode) : LIVE.reports,
-    safety: staff ? LIVE.safety.filter((r) => r.side === mode) : LIVE.safety, waste: LIVE.waste,
-    counts: staff ? [] : LIVE.counts, training: staff ? [] : LIVE.training, concerns: LIVE.concerns.filter(cnForMe),
+    training: staff ? [] : LIVE.training, concerns: LIVE.concerns.filter(cnForMe),
+    // Old records (temperatures, line cleans, waste, stock counts) are in the downloads only.
+    safety: [], waste: [], counts: [],
   };
 }
-// In All, one line per person per checklist, at their latest tick.
-function groupTicks(ev) {
+const nightOf = (t) => ukDay(t - 6 * 36e5);
+const dayOfRow = (e) => e.ev?.day || nightOf(e.t);
+// In All with no filters, one line per person per checklist per night for their routine item changes (started, done,
+// and old ticks), at the latest one. Anything else keeps its own line.
+const routine = (e) => e.sec === "checks" && (!e.ev || (e.ev.kind === "task" && e.ev.from !== e.ev.to && ["doing", "done"].includes(e.ev.to)));
+function groupChecks(ev) {
   const by = new Map();
   return ev.filter((e) => {
-    if (e.sec !== "checks") return true;
-    const k = e.who + "|" + e.list, g = by.get(k);
-    if (g) { g.n++; g.what = `ticked ${g.n} items`; return false; }
+    if (!routine(e)) return true;
+    const k = `${e.who}|${e.list}|${dayOfRow(e)}`, g = by.get(k);
+    if (g) { g.n++; Object.assign(g, { what: `made ${g.n} checklist changes`, detail: LISTS[e.list]?.title || "", group: true }); return false; }
     by.set(k, Object.assign(e, { n: 1 })); return true;
   });
 }
-let actSec = "all", actMax = 50, actFile = null;
-const nightOf = (t) => ukDay(t - 6 * 36e5);
+function actRows() {
+  const all = events(liveData()), q = af.q.trim().toLowerCase(), A = LIVE.admin;
+  let ev = all.filter((e) => actSec === "all" || e.sec === actSec);
+  if (A) ev = ev.filter((e) => (!af.night || dayOfRow(e) === af.night) && (!af.who || e.who === af.who) && (!af.area || e.area === af.area)
+    && (!af.to || (e.ev && AF_TEST[af.to](e.ev))) && (!q || `${e.what} ${e.detail}`.toLowerCase().includes(q)));
+  return { all, ev: actSec === "all" && !(A && (af.who || af.area || af.to || q)) ? groupChecks(ev) : ev };
+}
+let actSec = "all", actMax = 50, actFile = null, actOpen = "";
 function renderAct() {
   if (!LIVE.me) return;
-  const box = LIVE.admin ? "#act" : "#sact", secs = ACT.filter(([k]) => LIVE.admin || STAFF_ACT.includes(k));
+  const box = $(LIVE.admin ? "#act" : "#sact"), secs = ACT.filter(([k]) => LIVE.admin || STAFF_ACT.includes(k));
   if (!secs.some(([k]) => k === actSec)) actSec = "all";
-  const all = events(liveData()), ev = actSec === "all" ? groupTicks(all) : all.filter((e) => e.sec === actSec);
-  let night = "";
-  const list = ev.slice(0, actMax).map((e) => {
-    const k = nightOf(e.t), head = k === night ? "" : `<h3 class="actday">${k === shiftDay() ? "Tonight" : dayName(k, { weekday: "long", day: "numeric", month: "long" })}</h3>`;
-    night = k;
-    const d = e.detail.length > 140 ? e.detail.slice(0, 140) + "…" : e.detail;
-    return `${head}<div class="staffrow"><div class="n">${actSec === "all" ? `<span class="pill">${ACT_NAME[e.sec]}</span> ` : ""}${esc(e.who)} <span class="did">${esc(e.what)}</span></div><div class="s">${hhmm(new Date(e.t))}${d ? ` · ${esc(d)}` : ""}</div></div>`;
-  }).join("");
-  const file = LIVE.admin ? dlHtml(actSec, `Download ${actSec === "all" ? "everything" : ACT_NAME[actSec].toLowerCase()} as a spreadsheet`, "act") : "";
-  $(box).innerHTML = `<div class="sec">Activity</div>
+  // While someone types in the search box, only the list under it changes.
+  if (document.activeElement?.id === "af-q" && box.contains(document.activeElement)) return renderActRows();
+  const sel = (id, label, cur, opts) => `<label class="fld">${label}<select id="${id}">${opts.map(([v, t]) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(t)}</option>`).join("")}</select></label>`;
+  const people = LIVE.admin ? [...new Set([...LIVE.staff.map((p) => p.name), ...actRows().all.map((e) => e.who)])].sort() : [];
+  const filters = LIVE.admin ? `<div class="filters">
+      ${sel("af-night", "Night", af.night, [["", "Latest"], ...lastNights(31).map((d) => [d, d === shiftDay() ? "Tonight" : dayName(d)])])}
+      ${sel("af-who", "Person", af.who, [["", "Everyone"], ...people.map((n) => [n, n])])}
+      ${sel("af-area", "Area", af.area, [["", "Bar and floor"], ["bar", "Bar"], ["floor", "Floor"]])}
+      ${sel("af-to", "Change", af.to, [["", "Any"], ...AF_TO.map(([k, t]) => [k, t])])}
+    </div><label class="fld">Search<input id="af-q" type="search" value="${esc(af.q)}" placeholder="An item, a task or a word" autocomplete="off"></label>` : "";
+  const file = LIVE.admin ? `<div class="actions">${dlHtml(actSec, `Download ${actSec === "all" ? "everything" : ACT_NAME[actSec].toLowerCase()} as a spreadsheet`, "act")}${dlHtml("trail", "Download the audit trail", "trail")}</div>` : "";
+  const old = LIVE.admin ? `<h3 class="actday">Old records</h3><p class="note">Temperatures, line cleans and waste are logged in Alert65 and Nory now, and stock is counted in Nory. What Bar Book saved before 25 October 2026 is here, read-only, with the stock requests from before restocking.</p>
+    <div class="actions">${dlHtml("safety", "Temperatures and line cleans", "old-safety")}${dlHtml("waste", "Waste", "old-waste")}${dlHtml("counts", "Stock counts", "old-counts")}${dlHtml("requests", "Stock requests", "old-requests")}</div>` : "";
+  box.innerHTML = `<div class="sec">Activity</div>
     <div class="chips" role="toolbar" aria-label="Show">${secs.map(([k, t]) => `<button class="chip" data-act="${k}" aria-pressed="${k === actSec}">${t}</button>`).join("")}</div>
-    ${file ? `<div class="actions">${file}</div>` : ""}
-    ${list || `<p class="note">Nothing here yet.</p>`}
-    ${ev.length > actMax ? `<button class="btn wide" id="act-more">Show more</button>` : ""}
-    <p class="note">Newest first. ${LIVE.admin ? "This shows the latest of each kind; the spreadsheet has the full history (checklists: the last 7 nights)." : `Checklists and reports for the ${mode === "bar" ? "bar" : "floor"}, as set in Shift.`} Deleted posts, unticked items and cancelled requests leave no record.</p>`;
+    ${filters}${file}<div id="act-rows"></div>
+    <p class="note">Newest first. ${LIVE.admin ? "Checklist and restocking changes show for tonight; pick a night to see an earlier one. Tap History to see everything that happened to that item. Area covers checklists, restocking and reports. The spreadsheets have the full history: the audit trail and checklists cover the last 31 nights." : `Checklists, restocking and reports for the ${mode === "bar" ? "bar" : "floor"}, as set in Shift.`} Every checklist and restocking change is kept, corrections included. A deleted post leaves no record.</p>${old}`;
+  renderActRows();
+}
+// Everything that happened to one record, oldest first, from the changes this phone has read.
+function refHtml(id) {
+  const pool = [...LIVE.events, ...Object.values(nightEv).flat()], e0 = pool.find((e) => e.id === id); if (!e0) return "";
+  const ref = evRef(e0), seen = new Set(), xs = byTime(pool.filter((e) => evRef(e) === ref && !seen.has(e.id) && seen.add(e.id)));
+  return `<div class="hist">${xs.map((e) => `<div class="s">${dayName(e.day)}, ${at(e)} · ${esc(e.name)}: ${esc(evText(e))}${e.note ? ` (${esc(e.note)})` : ""}</div>`).join("")}</div>`;
+}
+function renderActRows() {
+  const box = $(LIVE.admin ? "#act #act-rows" : "#sact #act-rows"); if (!box) return;
+  if (LIVE.admin && af.night && af.night !== shiftDay() && !nightEv[af.night]) { box.innerHTML = `<p class="note">Reading ${dayName(af.night)}…</p>`; return; }
+  const { ev } = actRows(), filtered = LIVE.admin && (af.night || af.who || af.area || af.to || af.q.trim());
+  let night = "";
+  box.innerHTML = (ev.slice(0, actMax).map((e) => {
+    const k = dayOfRow(e), head = k === night ? "" : `<h3 class="actday">${k === shiftDay() ? "Tonight" : dayName(k, { weekday: "long", day: "numeric", month: "long" })}</h3>`;
+    night = k;
+    const d = e.detail.length > 140 ? e.detail.slice(0, 140) + "…" : e.detail, h = e.ev && !e.group ? e.ev.id : "";
+    return `${head}<div class="staffrow${e.ev && evFlash(e.ev) ? " flash" : ""}"><div class="n">${actSec === "all" ? `<span class="pill">${ACT_NAME[e.sec]}</span> ` : ""}${esc(e.who)} <span class="did">${esc(e.what)}</span></div>
+      <div class="s">${e.ev ? at(e.ev) : hhmm(new Date(e.t))}${d ? ` · ${esc(d)}` : ""}${h ? ` · <button class="linkbtn" data-hist="${h}" aria-expanded="${actOpen === h}">History</button>` : ""}</div>${h && actOpen === h ? refHtml(h) : ""}</div>`;
+  }).join("") || `<p class="note">Nothing here${filtered ? " with these filters" : " yet"}.</p>`) + (ev.length > actMax ? `<button class="btn wide" id="act-more">Show more</button>` : "");
 }
 /* Spreadsheet downloads (managers). The full history is read once, then saved with a tap on Save, which works on
    iPhone too. Excel treats a cell starting with = + - or @ as a formula, so those get a leading apostrophe. */
@@ -1991,12 +2360,31 @@ const cell = (v) => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.tes
 const dt = (t) => (t ? [ukDay(ms(t)), hhmm(new Date(ms(t)))] : ["", ""]);
 const KIND = { late: "Running late", off: "Time off", swap: "Shift swap" };
 const ISSUE = { open: "Open", taken: "Being dealt with", fixed: "Fixed" };
+// Rows given as [time, row], newest first.
+const newest = (xs) => xs.sort((a, b) => b[0] - a[0]).map((x) => x[1]);
+const evFrom = (e) => (e.kind === "restock" ? (e.from === "new" ? "New" : RS[e.from]) : e.kind === "run" ? RUN[e.from] : TS[e.from]);
+const evTo = (e) => (e.kind === "restock" ? RS[e.to] : e.kind === "run" ? RUN[e.to] : TS[e.to]);
+const changeText = (e) => (e.kind === "task" ? cap(moveText(e)) : e.from === "new" ? "Asked for" : e.from === e.to ? `Given to ${e.who}` : `${evFrom(e)} → ${evTo(e)}${e.kind === "run" && e.to === "finished" ? ` (${e.done} of ${e.required} done)` : ""}`);
 const TABLES = {
   all: (x) => [["Date", "Time", "Section", "Who", "What", "Details"], ...events(x).map((e) => [ukDay(e.t), hhmm(new Date(e.t)), ACT_NAME[e.sec], e.who, e.what, e.detail])],
   board: (x) => [["Date", "Time", "Type", "By", "For", "Text"], ...[...x.notices.map((p) => [...dt(p.at), "Broadcast", p.name, `${SIDES[p.side || "all"]}${p.managers === false ? ", managers left out" : ""}`, p.text]), ...x.feed.map((p) => [...dt(p.at), "Post", p.name, "", p.text])].sort((a, b) => (b[0] + b[1]).localeCompare(a[0] + a[1]))],
-  checks: (x) => [["Night", "Time", "Checklist", "Item", "Ticked by"], ...x.ticks.sort((a, b) => ms(b.at) - ms(a.at)).map((t) => [t.day, dt(t.at)[1], LISTS[t.list]?.title, tickName(t), t.name])],
+  checks: (x) => [["Night", "Time", "Checklist", "Item", "Change", "For", "Reason", "By"], ...newest([
+    ...x.events.filter((e) => e.kind !== "restock").map((e) => [ms(e.at), [e.day, dt(e.at)[1], LISTS[e.list]?.title || e.list, e.kind === "run" ? "(the whole list)" : e.label, changeText(e), e.kind === "task" ? e.who : "", e.note, e.name]]),
+    ...x.ticks.map((t) => [ms(t.at), [t.day, dt(t.at)[1], LISTS[t.list]?.title, itemText(t.list, t.item), "Ticked", "", "", t.name]])])],
   86: (x) => [["Date", "Time", "Item", "Change", "By"], ...x.outlog.map((o) => [...dt(o.at), o.itemName, o.action === "out" ? "86'd" : "Back in stock", o.name])],
-  stock: (x) => [["Date", "Time", "Item", "Note", "Asked by", "Status", "Ordered by", "Ordered on", "Ordered at"], ...x.requests.map((r) => [...dt(r.at), r.item, r.note, r.name, r.done ? "Ordered" : "Waiting", r.doneBy, ...dt(r.doneAt)])],
+  stock: (x) => [["Night", "Asked at", "Item", "Asked for", "Unit", "Where", "Detail", "Asked by", "Status", "Who has it", "Brought up", "Received", "Last change by", "Last change on", "Last change at", "Reason"],
+    ...x.restock.map((r) => [r.day, dt(r.askedAt)[1], r.item, r.qty, r.unit, DEST[r.dest], r.detail, r.askedBy, RS[r.status], r.who, r.moved, r.got, r.name, ...dt(r.at), r.note])],
+  requests: (x) => [["Date", "Time", "Item", "Note", "Asked by", "Status", "Ordered by", "Ordered on", "Ordered at"], ...x.requests.map((r) => [...dt(r.at), r.item, r.note, r.name, r.done ? "Ordered" : "Waiting", r.doneBy, ...dt(r.doneAt)])],
+  // Every change to a task, a list or a restock: the record, its status before and after, who and why.
+  trail: (x) => [["Event", "Night", "Date", "Time", "Kind", "Record", "What", "Area", "From", "To", "For", "Amount", "Unit", "Done", "Required", "Reason", "By"],
+    ...newest(x.events.map((e) => [ms(e.at), [e.id, e.day, ...dt(e.at), { task: "Checklist item", run: "Checklist", restock: "Restock" }[e.kind], evRef(e), e.label, e.area === "bar" ? "Bar" : "Floor",
+      evFrom(e), evTo(e), e.who, e.qty, e.qty == null ? "" : e.unit, e.done, e.required, e.note, e.name]]))],
+  kpis: (x) => [["Night", "Side", "Checklist", "Started", "Finished", "Minutes taken", "Done", "Required", "Finished with items left", "Reason", "Reopened", "Blocked", "Taken back", "Not needed"],
+    ...nightStats(x.events).map((g) => [g.day, listSide(g.list) === "bar" ? "Bar" : "Floor", LISTS[g.list]?.title || g.list, hhmm(new Date(g.start)), g.end ? hhmm(new Date(g.end)) : "Not finished", g.end ? Math.round((g.end - g.start) / 6e4) : "",
+      g.done, g.required, g.end ? (g.override ? "Yes" : "No") : "", g.override, g.reopened, g.blocked, g.back, g.skipped])],
+  people: (x) => [["Person", "Nights", "Items done", "Taken back by someone else", "Items started then done", "Average minutes start to done", "Longest minutes start to done", "Restocks brought up", "Average minutes to bring up", "Restocks confirmed", "Blocked", "Longest gap between changes (minutes)"],
+    ...personStats(x.events).map((p) => [p.name, p.nights.size, p.done, p.back, p.work.length, p.work.length ? Math.round(avg(p.work) / 6e4) : "", p.work.length ? Math.round(Math.max(...p.work) / 6e4) : "",
+      p.fetched, p.fetch.length ? Math.round(avg(p.fetch) / 6e4) : "", p.confirmed, p.blocked, Math.round(p.gap / 6e4)])],
   asks: (x) => [["Date", "Time", "Who", "Request", "Arriving at", "From", "To", "Swap with", "Note", "Status", "Decided by", "Decided on", "Decided at"], ...x.asks.map((a) => [...dt(a.at), a.name, KIND[a.kind], a.eta, a.date1, a.date2, a.with, a.note, STATUS[a.status][0], a.by, ...dt(a.byAt)])],
   issues: (x) => [["Date", "Time", "Issue", "Where", "Urgent", "Detail", "Raised by", "Status", "On it", "Fixed by", "Fixed on", "Fixed at", "What was done"], ...x.issues.map((i) => [...dt(i.at), i.title, AREA[i.area] || "Other", i.urgent ? "Yes" : "No", i.detail, i.name, ISSUE[i.status], i.who, i.fixedBy, ...dt(i.fixedAt), i.fix])],
   reports: (x) => [["Date", "Time", "Side", "Sent by", "Summary", "Photos", "Signed off by", "Signed off on", "Signed off at", "Manager comments", "Report"], ...x.reports.map((r) => [...dt(r.at), r.side === "floor" ? "Floor" : "Bar", r.name, r.summary, r.photos, r.signedBy, ...dt(r.signedAt),
@@ -2006,30 +2394,40 @@ const TABLES = {
   waste: (x) => [["Night", "Time", "Side", "Item", "Quantity", "Unit", "Reason", "Note", "Logged by"], ...x.waste.map((w) => [w.day, dt(w.at)[1], sideName(w.side), w.item, w.qty, UNITS[w.unit], REASONS[w.reason], w.note, w.name])],
   safety: (x) => [["Night", "Time", "Side", "Equipment", "Type", "Reading (°C)", "Result", "Note", "By"], ...x.safety.map((r) => {
     const [st, msg] = judge(r.kind, r.c);
-    return [r.day, dt(r.at)[1], sideName(r.side), r.kitName, KITS[r.kind].name, r.c ?? "", r.kind === "lines" ? "Cleaned" : st === "ok" ? "In range" : msg || "Recorded", r.note, r.name];
+    return [r.day, dt(r.at)[1], sideName(r.side), r.kitName, KITS[r.kind], r.c ?? "", r.kind === "lines" ? "Cleaned" : st === "ok" ? "In range" : msg || "Recorded", r.note, r.name];
   })],
   training: (x) => [["Person", "Drink", "Section", "Signed off by", "Date"], ...x.training.map((t) => [t.traineeName, t.drinkName, D.find((d) => d.name === t.drinkName)?.section || "", t.name, dt(t.at)[0]])],
   concerns: (x) => [["Date", "Time", "Concern", "Where", "Sent to", "From", "Note", "Photos", "Status", "Dealt with by", "Dealt with on", "Dealt with at", "What was done"],
     ...x.concerns.map((c) => [...dt(c.at), CN_NAME[c.reason], AREA[c.area] || "Other", CN_TO_NAME[c.to], c.anon ? "Anonymous" : c.name, c.note, c.photos, c.status === "closed" ? "Dealt with" : "Open", c.fixedBy, ...dt(c.fixedAt), c.fix])],
   counts: (x) => [["Date", "Time", "Counted by", "Item", "Group", "Par", "Counted", "To order"], ...x.counts.flatMap((c) => c.lines.map((l) => [...dt(c.at), c.name, l.item, l.group, l.par, l.n, Math.max(0, Math.ceil(l.par - l.n))]))],
-  order: (x) => [["Item", "Group", "Par", "Counted", "To order"], ...(x.counts[0]?.lines || []).filter((l) => l.n < l.par).map((l) => [l.item, l.group, l.par, l.n, Math.ceil(l.par - l.n)])],
 };
-const NEEDS = { all: ["feed", "notices", "ticks", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit", "safety", "waste", "counts", "training", "concerns"], board: ["feed", "notices"], checks: ["ticks"],
-  86: ["outlog"], stock: ["requests"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"], incidents: ["incidents"], team: ["audit"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], order: ["counts"], concerns: ["concerns"] };
-const FILE = { all: "activity", order: "order-list", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
+const NEEDS = { all: ["feed", "notices", "ticks", "events", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit", "safety", "waste", "counts", "training", "concerns"], board: ["feed", "notices"],
+  checks: ["events", "ticks"], 86: ["outlog"], stock: ["restock"], requests: ["requests"], trail: ["events"], kpis: ["events"], people: ["events"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"],
+  incidents: ["incidents"], team: ["audit"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], concerns: ["concerns"] };
+const FILE = { all: "activity", checks: "checklists", stock: "restocking", requests: "old-stock-requests", trail: "audit-trail", kpis: "closing-kpis", people: "kpis-by-person", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
 // A download button, or once the file is ready, the Save link (a separate tap, which iPhone needs).
 const dlHtml = (sec, label, id) => (actFile && actFile.sec === sec
   ? `<a class="btn pri" id="${id}-save" href="${actFile.url}" download="${actFile.name}">Save the spreadsheet (${actFile.n} row${actFile.n === 1 ? "" : "s"})</a>`
   : `<button class="btn" id="${id}-csv" data-dl="${sec}">${label}</button>`);
 const lastNights = (n) => Array.from({ length: n }, (_, i) => ukDay(Date.now() - 6 * 36e5 - i * 864e5));
+// Tasks, lists and restocks are read for the last 31 nights (newest first, up to a limit); everything else in full.
+// 31 nights of changes can be several thousand reads, so earlier nights are read once a night for every download;
+// tonight's come from the live list, so they're always up to date.
+let past = { day: "", ev: [] };
+async function events31() {
+  const day = shiftDay();
+  if (past.day !== day) past = { day, ev: (await LIVE.api.eventsFrom(lastNights(31).at(-1))).filter((e) => e.day !== day) };
+  return [...past.ev, ...LIVE.events];
+}
+const LOAD = { ticks: () => LIVE.api.ticksFor(lastNights(31)), events: events31, restock: () => LIVE.api.restockFrom(lastNights(31).at(-1)) };
 async function prepareDownload(sec) {
-  const x = Object.fromEntries(NEEDS.all.map((k) => [k, []]));
-  await Promise.all(NEEDS[sec].map(async (k) => { x[k] = k === "ticks" ? await LIVE.api.ticksFor(lastNights(7)) : await LIVE.api.history(k); }));
+  const x = Object.fromEntries([...new Set(Object.values(NEEDS).flat()), "restock"].map((k) => [k, []]));
+  await Promise.all(NEEDS[sec].map(async (k) => { x[k] = await (LOAD[k] ? LOAD[k]() : LIVE.api.history(k)); }));
   const rows = TABLES[sec](x), text = "﻿" + rows.map((r) => r.map(cell).join(",")).join("\r\n");
   if (actFile) URL.revokeObjectURL(actFile.url);
   const name = FILE[sec] || ACT_NAME[sec].toLowerCase().replace(/ /g, "-");
   actFile = { sec, n: rows.length - 1, name: `black-tap-${name}-${ukDay(Date.now())}.csv`, url: URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })) };
-  [renderAct, renderWaste, renderSafety, renderStock, renderTraining].forEach((f) => f());
+  [renderAct, renderTraining, renderKpis].forEach((f) => f());
 }
 /* ---------- Broadcasts ----------
    A broadcast stays at the top of every page until that person taps Got it, on any of their phones. */
@@ -2045,7 +2443,7 @@ $("#bcast").addEventListener("click", (e) => {
   track(LIVE.api.gotIt(n), null, "Not saved. Try again"); haptic();
 });
 // Called by live.js whenever membership or any shared list changes. New things from other people pop up as a toast;
-// so do changes to your own things (a report signed off, a request ordered, an issue fixed).
+// so do changes to your own things (a report signed off, a request decided, an issue fixed).
 const told = new Set(), firstSnap = new Set();
 // Issues: being given one beats everything; on your own you hear when someone takes it on or fixes it; anyone else's
 // only pops up when it's urgent.
@@ -2053,11 +2451,31 @@ const issueToast = (x) => (x.status === "taken" && x.whoUid === LIVE.uid && x.se
   : x.uid !== LIVE.uid ? (x.status === "open" && x.urgent ? `Urgent: ${x.title}` : "")
   : x.status === "fixed" && x.fixedByUid !== LIVE.uid ? `${x.fixedBy} fixed: ${x.title}`
   : x.status === "taken" && x.setByUid !== LIVE.uid ? `${x.who} is on it: ${x.title}` : "");
+// Changes to tasks, lists and restocks pop up only for whoever they matter to; everything else just changes on screen.
+function eventToast(e) {
+  const side = LIVE.admin || e.area === mode;
+  if (e.kind === "restock") {
+    const r = LIVE.restock.find((x) => x.id === e.ref);
+    if (e.from === "new") return side ? `${e.name} asked for ${amtOf(e.qty, e.unit, e.label)} for the ${lower(DEST[e.dest])}` : "";
+    if (e.to === "given") return e.who === LIVE.me ? `${e.name} gave you the restock: ${e.label}` : "";
+    if (e.to === "received") return r?.whoUid === LIVE.uid ? `${e.name} confirmed ${amtOf(e.qty, e.unit, e.label)} arrived` : "";
+    if (r?.askedUid !== LIVE.uid) return "";
+    return { delivered: `${e.name} brought up ${amtOf(e.qty, e.unit, e.label)}. Tap Got it to confirm`, unavailable: `${e.label} isn't in the cellar (${e.name})`,
+      blocked: `Your restock is blocked: ${e.label}${e.note ? `: ${e.note}` : ""}` }[e.to] || "";
+  }
+  if (e.kind === "task") {
+    if (e.from === e.to) return e.who === LIVE.me ? `${e.name} gave you: ${e.label}` : "";
+    if (e.to === "blocked") return side ? `Blocked: ${e.label}${e.note ? `: ${e.note}` : ""}` : "";
+    const before = LIVE.events.find((x) => x.kind === "task" && x.list === e.list && x.item === e.item && x.v === e.v - 1);
+    return e.from === "done" && e.to === "todo" && before?.uid === LIVE.uid ? `${e.name} took back your item: ${e.label}${e.note ? `: ${e.note}` : ""}` : "";
+  }
+  if (!side) return "";
+  return e.to === "finished" ? `${e.label} finished by ${e.name}${e.done < e.required ? `, with ${e.required - e.done} not done` : ""}` : e.from === "finished" ? `${e.label} reopened by ${e.name}` : "";
+}
 const TOAST = {
   feed: (x) => `${x.name}: ${x.text.slice(0, 70)}`,
   notices: (x) => (forSide(x) ? `Broadcast: ${x.text.slice(0, 70)}` : ""),
   reports: (x) => (x.signedBy ? "" : `${x.name} sent a shift report`),
-  requests: (x) => (LIVE.admin && !x.done ? `${x.name} needs: ${x.item}` : ""),
   asks: (x) => (LIVE.admin && x.status === "pending" ? `${x.name}: ${askText(x)}` : ""),
   incidents: (x) => (x.status !== "closed" ? `Incident logged: ${x.kind}` : ""),
   reviews: (x) => `${x.name} ${x.verdict === "flag" ? "flagged" : x.verdict === "up" ? "gave a thumbs up to" : "commented on"} a report`,
@@ -2065,16 +2483,17 @@ const TOAST = {
   issues: issueToast,
   training: (x) => (x.trainee === LIVE.uid ? `${x.name} signed you off on ${x.drinkName}` : ""),
   concerns: (x) => (x.status === "open" && cnForMe(x) ? `New concern: ${cnName(x)}` : ""),
+  events: eventToast,
 };
 const MINE = {
   reports: (x) => (x.signedBy ? `${x.signedBy} signed off your shift report` : ""),
-  requests: (x) => (x.done ? `${x.doneBy} ordered ${x.item}` : ""),
   asks: (x) => (x.status !== "pending" ? `${STATUS[x.status][0]} by ${x.by}: ${askText(x)}` : ""),
   issues: issueToast,
   concerns: (x) => (x.status === "closed" && x.fixedByUid !== LIVE.uid ? `${x.fixedBy} dealt with your concern: ${cnName(x)}` : ""),
 };
 function liveChanged(what) {
   if (what === "notices" || what === "seen" || what === "me") renderBcast();
+  if (what === "events") markEvents();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
@@ -2088,24 +2507,31 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues], requests: [renderRequests, renderDash, renderAct],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues, renderLive], requests: [renderRequests, renderAct],
       asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct], ticks: [renderDash, renderAct], seen: [renderPins], photos: [], waste: [renderWaste, renderAct], safety: [renderSafety, renderDash, renderAct],
-      kit: [renderSafety, renderDash], pars: [renderStock], counts: [renderStock, renderAct], training: [renderTraining, renderAct],
+      out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis], restock: [renderDash, renderLive],
+      seen: [renderPins], photos: [], training: [renderTraining, renderAct],
       concerns: [renderConcerns, renderDash, renderAct] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderSafety, "#msafety"], [renderStock, "#mstock"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "ticks", "requests", "waste", "safety", "kit"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "tasks", "runs", "events", "restock", "staff"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();
   if ((what === "menuAl" || what === "me") && !$("#v-allergens").hidden && altab !== "cocktails" && !(document.activeElement && $("#almenu").contains(document.activeElement) && document.activeElement.id !== "mq")) {
     if (what === "me" || document.activeElement?.id !== "mq") renderMenuAl(); else renderMenuList();
   }
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
+// Overdue and waiting times move on with no change to the data, so the Shift tab and Live are redrawn each minute.
+setInterval(() => {
+  const ae = document.activeElement;
+  if (!LIVE.me || (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) return;
+  if (!$("#v-tally").hidden) renderTally();
+  if (!$("#v-notices").hidden && tpane === "managers") { renderLive(); renderTeamTabs(); }
+}, 60000);
 function markSeen() {
   const all = [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].map((x) => ms(x.at));
   if (all.length) { feedSeen = Math.max(feedSeen, ...all); store.set("feedSeen", feedSeen); }
@@ -2123,17 +2549,20 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
   if (t.id === "cn-note") cnF.note = t.value;
   if (t.dataset.cnFixt) cnText[t.dataset.cnFixt] = t.value;
-  if (t.id === "k-name") kitF.name = t.value;
-  if (t.id === "cnt-note") countNote = t.value;
-  if (t.dataset.cnt) { countDraft[t.dataset.cnt] = t.value; store.set("countDraft", countDraft); }
+  if (t.id === "af-q") { af.q = t.value; actMax = 50; renderActRows(); }
 });
 $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset.f) meF[t.dataset.f] = t.value;
-  if (t.id === "k-kind") kitF.kind = t.value;
   if (t.id === "cn-area") cnF.area = t.value;
   if (t.id === "cn-anon") cnF.anon = t.checked;
-  if (t.dataset.par) { const n = Math.round(+t.value * 100) / 100; track(LIVE.api.setPar(t.dataset.par, n > 0 && n <= 1000 ? n : 0), null, "Par not saved. Try again"); }
+  // Activity filters. An earlier night's changes are read once, the first time it's picked.
+  if (["af-night", "af-who", "af-area", "af-to"].includes(t.id)) {
+    af[t.id.slice(3)] = t.value; actMax = 50; actOpen = "";
+    const d = af.night;
+    if (t.id === "af-night" && d && d !== shiftDay() && !nightEv[d]) LIVE.api.eventsOn(d).then((xs) => { nightEv[d] = xs; renderAct(); }, () => { toast("Couldn't read that night. Check your signal"); af.night = ""; renderAct(); });
+    renderAct();
+  }
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.give && t.value) {
     const p = LIVE.staff.find((x) => x.uid === t.value);
@@ -2143,7 +2572,6 @@ $("#v-notices").addEventListener("change", (e) => {
 $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
   if (e.target.id === "cn-form") cnF.open = e.target.open;
-  if (e.target.dataset.keep) keepOpen[e.target.dataset.keep] = e.target.open;
 }, true);
 function sendMe(A) {
   const f = meF, sent = () => { haptic(); Object.keys(meF).filter((k) => !k.startsWith("fb")).forEach((k) => (meF[k] = "")); renderMe(); };
@@ -2166,9 +2594,10 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.dataset.msub) { msub = b.dataset.msub; renderTeamTabs(); return; }
   if (b.dataset.bcSide) { bcSide = b.dataset.bcSide; $$("[data-bc-side]").forEach((c) => c.setAttribute("aria-pressed", c === b)); return; }
   if (b.dataset.act) { actSec = b.dataset.act; actMax = 50; renderAct(); return; }
-  if (b.id === "act-more") { actMax += 50; renderAct(); return; }
+  if (b.id === "act-more") { actMax += 50; renderActRows(); return; }
+  if (b.dataset.hist) { actOpen = actOpen === b.dataset.hist ? "" : b.dataset.hist; renderActRows(); return; }
+  if (b.id === "kpi-go") { loadKpis(); return; }
   if (b.dataset.dl) { busy(b, "Getting the full history…", prepareDownload(b.dataset.dl).catch(() => toast("Couldn't get it. Check your signal and try again"))); return; }
-  if (b.dataset.wweek) { wWeek = +b.dataset.wweek; renderWaste(); return; }
   if (b.dataset.cnReason) { cnF.reason = b.dataset.cnReason; renderConcerns(); return; }
   if (b.dataset.cnTo) { cnF.to = b.dataset.cnTo; renderConcerns(); return; }
   if (b.dataset.cnUnphoto) { cnF.photos.splice(+b.dataset.cnUnphoto, 1); renderConcerns(); return; }
@@ -2187,21 +2616,6 @@ $("#v-notices").addEventListener("click", (e) => {
     return;
   }
   if (b.dataset.cnPhotos) { busy(b, "Loading photos…", showConcernPhotos(b.dataset.cnPhotos).catch(() => toast("Couldn't load the photos. Check your signal"))); return; }
-  if (b.dataset.kitSide) { kitF.side = b.dataset.kitSide; renderSafety(); return; }
-  if (b.id === "k-go") {
-    const name = kitF.name.trim(); if (!name) return toast("Give it a name");
-    track(A.addKit(name, kitF.kind, kitF.side), `Added ${name}`, "Not added. Try again");
-    kitF.name = ""; haptic(); renderSafety(); return;
-  }
-  if (b.dataset.kitDel) { const k = LIVE.kit.find((x) => x.id === b.dataset.kitDel); if (k && confirm(`Remove ${k.name}? Its past readings stay.`)) track(A.removeKit(k.id), null, "Could not remove"); return; }
-  if (b.id === "cnt-go") {
-    const lines = Object.entries(STOCK).flatMap(([g, xs]) => xs.filter((x) => LIVE.pars[x] && String(countDraft[x] ?? "").trim() !== "" && +countDraft[x] >= 0)
-      .map((x) => ({ item: x, group: g, par: LIVE.pars[x], n: Math.round(+countDraft[x] * 100) / 100 })));
-    if (!lines.length) return toast("Type at least one count");
-    const missed = Object.values(STOCK).flat().filter((x) => LIVE.pars[x]).length - lines.length;
-    track(A.saveCount(lines, countNote.trim()), `Count saved: ${lines.length} item${lines.length === 1 ? "" : "s"}${missed ? `. ${missed} with a par weren't counted` : ""}`, "Not saved. Try again");
-    Object.keys(countDraft).forEach((k) => delete countDraft[k]); store.set("countDraft", countDraft); countNote = ""; haptic(); renderStock(); return;
-  }
   if (b.dataset.trWho) { trWho = b.dataset.trWho === trWho ? "" : b.dataset.trWho; renderTraining(); return; }
   if (b.dataset.trPool) { trPool = b.dataset.trPool; renderTraining(); return; }
   if (b.dataset.trSign) {

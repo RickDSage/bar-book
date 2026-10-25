@@ -1,5 +1,5 @@
-// Waste, safety checks, stock counts and training sign-off end to end: what staff log, what managers see, and what the
-// downloaded spreadsheets hold.
+// Old records, training sign-off and hostile records end to end: what managers download, what staff see in Practise,
+// and that nothing written outside the app can run code.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite } from "./helpers.mjs";
@@ -13,8 +13,6 @@ const rx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const waitText = (p, sel, re) => p.waitForFunction(([s, r]) => new RegExp(r).test(document.querySelector(s)?.textContent || ""), [sel, re.source]);
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
 const managers = async (p, sub) => { await p.evaluate(() => show("notices")); await p.click("[data-tpane=managers]"); await p.click(`[data-msub=${sub}]`); };
-const logs = async (p) => { await p.click("[data-tab=tally]"); await p.click(".ptabs [data-pane=logs]"); };
-const due = (p) => p.$eval(".ptabs [data-pane=logs] small", (e) => e.textContent);
 // Prepares a download, then reads the file the Save button would give.
 async function download(p, id) {
   await p.click(`#${id}-csv`);
@@ -22,109 +20,39 @@ async function download(p, id) {
   return p.evaluate(async (i) => { const a = document.querySelector(`#${i}-save`); return { name: a.download, csv: (await (await fetch(a.href)).text()).replace(/^\ufeff/, "") }; }, id);
 }
 
-test("waste: a quantity and a reason, taken back within 15 minutes, and weekly totals for managers", async () => {
-  await resetEmulators();
-  const { O, M, S } = await team(browser, site, people);
-  await logs(S);
-  await S.selectOption("#w-item", "Guinness");
-  assert.equal(await S.$eval("#w-unit", (e) => e.value), "pint", "draught is measured in pints");
-  await S.fill("#w-qty", "2"); await S.selectOption("#w-reason", "spilt"); await S.click("#w-go");
-  await waitToast(S, /^Logged: 2 pints Guinness$/);
-  await S.selectOption("#w-item", "Tanqueray");
-  assert.equal(await S.$eval("#w-unit", (e) => e.value), "single", "spirits are measured in 25 ml");
-  await S.selectOption("#w-reason", "remade"); await S.click("#w-go");
-  await S.selectOption("#w-item", "Other (write it in)"); await S.fill("#w-other", "Highball glass"); await S.selectOption("#w-reason", "other"); await S.click("#w-go");
-  assert.equal(await toastOf(S), "Say what happened in the note");
-  await S.fill("#w-note", "Chipped in the washer"); await S.click("#w-go");
-  await S.waitForFunction(() => LIVE.waste.length === 3 && !LIVE.waste.some((w) => w.pending));
-  assert.match(await text(S, "#tally"), /You've logged tonight.*Highball glass.*1 × 25 ml Tanqueray.*2 pints Guinness/s);
-  await S.click(`[data-w-undo="${await S.evaluate(() => LIVE.waste.find((w) => w.item === "Tanqueray").id)}"]`);
-  await S.waitForFunction(() => LIVE.waste.length === 2);
-  await M.evaluate(() => LIVE.api.waste({ item: "Limes", qty: 6, unit: "each", reason: "expired", note: "", side: "floor" }));
-
-  // Managers: this week's totals by item, reason and person, and the whole log as a spreadsheet.
-  await managers(O, "waste");
-  await waitText(O, "#mwaste", /3 entries/);
-  const page = await text(O, "#mwaste");
-  for (const re of [/2 pints Guinness/, /1 × Highball glass/, /6 × Limes/, /Spilt or dropped: 1/, /Sam Staff: 2/, /Mia Manager: 1/, /bar 2, floor 1/]) assert.match(page, re);
-  const { name, csv } = await download(O, "waste");
-  assert.match(name, /^black-tap-waste-\d{4}-\d\d-\d\d\.csv$/);
-  const lines = csv.split("\r\n");
-  assert.equal(lines[0], "Night,Time,Side,Item,Quantity,Unit,Reason,Note,Logged by");
-  assert.equal(lines.length, 4);
-  assert.ok(lines.some((l) => /^\d{4}-\d\d-\d\d,\d\d:\d\d,Bar,Guinness,2,Pints,Spilt or dropped,,Sam Staff$/.test(l)), csv);
-  assert.ok(lines.some((l) => /,Bar,Highball glass,1,Each,Other \(say what in the note\),Chipped in the washer,Sam Staff$/.test(l)), csv);
-  await O.click('[data-wweek="1"]');
-  assert.match(await text(O, "#mwaste"), /Nothing logged last week/);
-  assert.equal(await S.evaluate(() => LIVE.waste.length), 2, "staff only get their own");
-  assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
-});
-
-test("safety checks: managers set up the equipment, staff log temperatures and line cleans, out of range stands out", async () => {
-  await resetEmulators();
-  const { O, M, S, T } = await team(browser, site, [...people, ["T", "Tia Staff", "tia", "staff"]]);
-  await T.evaluate(() => setMode("floor"));
-  await managers(O, "safety");
-  await O.click("#msafety details > summary");
-  for (const [name, kind, side] of [["Back bar fridge", "fridge", "bar"], ["Cellar", "cellar", "bar"], ["Upstairs lines", "lines", "bar"], ["Shake freezer", "freezer", "floor"]]) {
-    await O.fill("#k-name", name); await O.selectOption("#k-kind", kind); await O.click(`[data-kit-side="${side}"]`); await O.click("#k-go");
-    await O.waitForFunction((n) => LIVE.kit.some((k) => k.name === n && !k.pending), name);
-  }
-  assert.equal(await attempt(S, () => LIVE.api.addKit("Fake fridge", "fridge", "bar")), "permission-denied");
-
-  // Each phone shows its own side's equipment and what's still to do tonight.
-  await logs(S); await S.waitForFunction(() => LIVE.kit.length === 4);
-  assert.equal(await due(S), "3 due");
-  assert.doesNotMatch(await text(S, "#tally"), /Shake freezer/);
-  await logs(T); await T.waitForFunction(() => LIVE.kit.length === 4);
-  assert.equal(await due(T), "1 due");
-  const id = (n) => S.evaluate((x) => LIVE.kit.find((k) => k.name === x).id, n);
-  const [fridge, cellar, lines] = [await id("Back bar fridge"), await id("Cellar"), await id("Upstairs lines")];
-  await S.fill(`[data-tc="${fridge}"]`, "9"); await S.click(`[data-temp="${fridge}"]`);
-  await waitToast(S, /^Back bar fridge: 9°C logged\. Over 8°C, the legal limit for chilled food\. Tell a manager$/);
-  await S.fill(`[data-tc="${cellar}"]`, "12"); await S.click(`[data-temp="${cellar}"]`);
-  await S.fill(`[data-ln="${lines}"]`, "All six lines"); await S.click(`[data-clean="${lines}"]`);
-  await S.waitForFunction(() => LIVE.safety.length === 3 && !LIVE.safety.some((r) => r.pending));
-  assert.equal(await due(S), "", "nothing due once each one is logged");
-  const nextClean = await S.evaluate(() => dayName(addDays(shiftDay(), 7)));
-  assert.match(await text(S, "#tally"), new RegExp(`Upstairs lines Next due ${rx(nextClean)}`));
-
-  // Managers see tonight at a glance, with the out-of-range reading flagged, and the record as a spreadsheet.
-  await O.waitForFunction(() => /1 out of range/.test(document.querySelector("#msub").textContent));
-  const page = await text(O, "#msafety");
-  assert.match(page, /Back bar fridge Bar.*9°C Sam Staff · \d\d:\d\d · Over 8°C, the legal limit for chilled food/s);
-  assert.match(page, /Shake freezer Floor No reading yet/);
-  assert.match(await O.$eval("#dash", (e) => e.innerText.replace(/\n+/g, " ")), /1 readings out of range tonight/);
-  const { csv } = await download(O, "safety");
-  assert.equal(csv.split("\r\n")[0], "Night,Time,Side,Equipment,Type,Reading (°C),Result,Note,By");
-  assert.match(csv, /,Bar,Back bar fridge,Fridge,9,"Over 8°C, the legal limit for chilled food. Tell a manager",,Sam Staff/);
-  assert.match(csv, /,Bar,Cellar,Cellar,12,In range,,Sam Staff/);
-  assert.match(csv, /,Bar,Upstairs lines,Beer lines,,Cleaned,All six lines,Sam Staff/);
-  assert.deepEqual([O.errs, M.errs, S.errs, T.errs], [[], [], [], []]);
-});
-
-test("stock: par levels, a count, and the order list", async () => {
+test("temperatures, waste and stock counts are left to Alert65 and Nory; what was saved before stays in the downloads", async () => {
   await resetEmulators();
   const { O, S } = await team(browser, site, people);
-  await managers(O, "stock");
-  await O.waitForSelector('#mstock details[data-keep="pars"]');
-  assert.equal(await O.$eval("#outlog", (e) => e.hidden), false, "the 86 log sits under Stock");
-  await O.click('#mstock details[data-keep="pars"] > summary');
-  await O.click('details[data-keep="par-Gin"] > summary');
-  await O.fill('[data-par="Tanqueray"]', "6"); await O.$eval('[data-par="Tanqueray"]', (e) => e.blur());
-  await O.evaluate(() => LIVE.api.setPar("Limes", 40));
-  await O.waitForFunction(() => LIVE.pars.Tanqueray === 6 && LIVE.pars.Limes === 40 && document.querySelector('[data-cnt="Limes"]'));
-  await O.click('#mstock details[data-keep="count"] > summary');
-  await O.fill('[data-cnt="Tanqueray"]', "2"); await O.fill('[data-cnt="Limes"]', "45");
-  await O.click("#cnt-go");
-  await waitToast(O, /^Count saved: 2 items$/);
-  await waitText(O, "#mstock", /1 item below par/);
-  assert.match(await text(O, "#mstock"), /Tanqueray · order 4/);
-  const order = await download(O, "order");
-  assert.match(order.name, /^black-tap-order-list-/);
-  assert.equal(order.csv, "Item,Group,Par,Counted,To order\r\nTanqueray,Gin,6,2,4");
-  assert.equal(await attempt(S, () => LIVE.api.setPar("Tanqueray", 1)), "permission-denied");
-  assert.equal(await attempt(S, () => LIVE.api.saveCount([{ item: "Tanqueray", group: "Gin", par: 6, n: 9 }], "")), "permission-denied");
+  const str = (s) => ({ stringValue: s }), num = (n) => ({ doubleValue: n }), at = { timestampValue: new Date(Date.now() - 3 * 864e5).toISOString() };
+  await adminWrite("waste/w1", { item: str("Guinness"), qty: num(2), unit: str("pint"), reason: str("spilt"), note: str(""), side: str("bar"), day: str("2026-10-22"), uid: str("x"), name: str("Sam Staff"), at });
+  await adminWrite("safety/r1", { kit: str("k1"), kitName: str("Back bar fridge"), kind: str("fridge"), side: str("bar"), c: num(9), note: str(""), day: str("2026-10-22"), uid: str("x"), name: str("Sam Staff"), at });
+  const line = { mapValue: { fields: { item: str("Tanqueray"), group: str("Gin"), par: num(6), n: num(2) } } };
+  await adminWrite("counts/c1", { lines: { arrayValue: { values: [line] } }, note: str("Sunday close"), uid: str("x"), name: str("Mia Manager"), at });
+
+  // Shift has no Logs pane, Managers no Waste, Safety or Stock, and the app has no way left to write them.
+  await S.click("[data-tab=tally]");
+  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["open", "stock", "close", "send"]);
+  await S.click("[data-mode=floor]");
+  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["fset", "fshake", "stock", "fclose", "send"]);
+  assert.deepEqual(await S.evaluate(() => ["waste", "logCheck", "addKit", "setPar", "saveCount"].filter((k) => LIVE.api[k])), []);
+  await managers(O, "act");
+  assert.deepEqual(await O.$$eval("#msub [data-msub]", (x) => x.map((b) => b.dataset.msub)), ["live", "act", "kpis", "nights", "incidents", "out", "training", "team", "feedback"]);
+
+  // Managers download the old records from Activity.
+  const safety = await download(O, "old-safety");
+  assert.match(safety.name, /^black-tap-safety-checks-/);
+  assert.match(safety.csv, /^Night,Time,Side,Equipment,Type,Reading \(°C\),Result,Note,By\r\n2026-10-22,\d\d:\d\d,Bar,Back bar fridge,Fridge,9,"Over 8°C, the legal limit for chilled food. Tell a manager",,Sam Staff$/);
+  const waste = await download(O, "old-waste");
+  assert.match(waste.csv, /^Night,Time,Side,Item,Quantity,Unit,Reason,Note,Logged by\r\n2026-10-22,\d\d:\d\d,Bar,Guinness,2,Pints,Spilt or dropped,,Sam Staff$/);
+  const counts = await download(O, "old-counts");
+  assert.match(counts.csv, /^Date,Time,Counted by,Item,Group,Par,Counted,To order\r\n\d{4}-\d\d-\d\d,\d\d:\d\d,Mia Manager,Tanqueray,Gin,6,2,4$/);
+  assert.equal(await S.locator("#old-safety-csv").count(), 0, "staff don't get the downloads");
+
+  // Accidents and near misses go in Alert65 now.
+  await S.evaluate(() => show("notices")); await S.click("[data-tpane=me]"); await S.click("[data-mek=incident]");
+  const kinds = await S.$$eval("[data-f=ikind] option", (x) => x.map((o) => o.textContent));
+  assert.ok(!kinds.some((k) => /Accident|Near miss/.test(k)), kinds.join());
+  assert.match(await text(S, "#me"), /Accidents, injuries and near misses go in Alert65/);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
@@ -160,26 +88,34 @@ test("records written outside the app can't run code on a manager's phone", asyn
   const odd = encodeURIComponent('"><img src=x onerror="window.pwned=1">');
   const str = (s) => ({ stringValue: s }), now = { timestampValue: new Date().toISOString() };
   await adminWrite(`requests/${odd}`, { item: str("Limes"), note: str(""), done: { booleanValue: false }, uid: str("x"), name: str("Sam Staff"), at: now });
-  await adminWrite(`kit/${odd}`, { name: str("Back bar fridge"), kind: str("fridge"), side: str("bar") });
-  // Count lines aren't checked one by one by the rules, so the page has to treat every value as text.
-  const line = { mapValue: { fields: { item: str("Tanqueray"), group: str("Gin"), par: str("<z"), n: str('<img src=x onerror="window.pwned=2">') } } };
-  await adminWrite("counts/a", { lines: { arrayValue: { values: [line] } }, note: str(""), uid: str("x"), name: str("Mia Manager"), at: now });
   // A plain id with a field called id that is HTML, and a concern whose photo count is HTML.
   await adminWrite("requests/plain", { id: str('"><img src=x onerror="window.pwned=5">'), item: str("Lemons"), note: str(""), done: { booleanValue: false }, uid: str("x"), name: str("Sam Staff"), at: now });
   await adminWrite("concerns/plain", { id: str('"><img src=x onerror="window.pwned=3">'), reason: str("hazard"), area: str("bar"), note: str("Ice bucket cracked"),
     to: str("all"), photos: str('<img src=x onerror="window.pwned=4">'), anon: { booleanValue: true }, status: str("open"), at: now });
-  await S.evaluate(() => LIVE.api.request("Blue roll", ""));
+  // Stock requests from before restocking still show to managers until they're cleared.
+  await adminWrite("requests/blueroll0000000000000", { item: str("Blue roll"), note: str(""), done: { booleanValue: false }, uid: str("x"), name: str("Sam Staff"), at: now });
+  // Tasks, events and restocks with HTML where text goes (only possible past the rules, which check every field).
+  const day = str(new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London" }).format(Date.now() - 6 * 36e5)), html = (n) => str(`<img src=x onerror="window.pwned=${n}">`), int = (n) => ({ integerValue: String(n) }), nul = { nullValue: null };
+  await adminWrite(`events/${odd}`, { kind: str("task"), day, list: str("close"), item: int(0), label: html(6), area: str("bar"), from: str("todo"), to: str("blocked"), who: nul, note: html(7), v: int(1), uid: str("x"), name: html(8), at: now });
+  await adminWrite("events/plainevent", { kind: str("restock"), day, ref: str("plainrestock"), label: html(9), area: str("bar"), from: str("new"), to: str("asked"), who: nul, qty: int(1), unit: str("each"), dest: str("up"), note: html(10), v: int(1), uid: str("x"), name: html(11), at: now });
+  await adminWrite("restock/plainrestock", { item: html(12), qty: int(1), unit: str("each"), dest: str("up"), detail: html(13), day, status: str("blocked"), who: html(14), whoUid: str("x"), moved: nul, got: nul, note: html(15), v: int(2),
+    askedBy: html(16), askedUid: str("x"), askedAt: now, uid: str("x"), name: html(17), at: now });
 
-  await managers(O, "stock");
-  await waitText(O, "#mstock", /From the count on/);
-  await O.click("[data-tpane=requests]");
-  await waitText(O, "#requests", /Blue roll/);
+  await O.evaluate(() => show("notices")); await O.click("[data-tpane=requests]");
+  await waitText(O, "#requests", /Old stock requests[\s\S]*Blue roll/);
+  await O.click("[data-tpane=managers]");
+  await waitText(O, "#live", /Restock blocked/);
+  await O.click("[data-msub=act]");
+  await waitText(O, "#act", /asked for 1 <img/);
+  await O.evaluate(() => { pane = "stock"; show("tally"); });
+  await waitText(O, "#tally", /Restock blocked|Blocked/);
+  await O.evaluate(() => show("notices"));
   await O.click("[data-tpane=board]");
   await waitText(O, "#concerns", /Ice bucket cracked/);
-  await O.click("[data-tpane=managers]"); await O.click("[data-msub=safety]");
   await O.waitForTimeout(300);
   assert.equal(await O.evaluate(() => window.pwned), undefined);
-  assert.deepEqual(await O.evaluate(() => [LIVE.requests.length, LIVE.kit.length]), [2, 0], "records with odd ids are ignored");
+  assert.equal(await O.evaluate(() => LIVE.requests.length), 2, "records with odd ids are ignored");
+  assert.equal(await O.evaluate(() => LIVE.events.length), 1, "events with odd ids are ignored too");
   assert.equal(await O.evaluate(() => LIVE.requests.filter((x) => x.id === "plain").length), 1, "a field called id doesn't replace the id");
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });

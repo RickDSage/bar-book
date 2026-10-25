@@ -40,7 +40,7 @@ test("86s, ticks and the report stay on the phone without logins", async () => {
   const tally = await p.$eval("#tally", (e) => e.innerText);
   assert.doesNotMatch(tally, /Ticked by|sending/, "no names on ticks without logins");
   await p.click(".ptabs [data-pane=stock]");
-  assert.match(await p.$eval("#tally", (e) => e.innerText), /Need something\?[\s\S]*Switches on with team logins/i);
+  assert.match(await p.$eval("#tally", (e) => e.innerText), /Restock from the cellar[\s\S]*Switches on with team logins/i);
   await p.click(".ptabs [data-pane=close]");
   assert.match(await p.$eval("#tally", (e) => e.innerText), /Closing photos[\s\S]*Switches on with team logins/i);
   await p.click(".ptabs [data-pane=send]");

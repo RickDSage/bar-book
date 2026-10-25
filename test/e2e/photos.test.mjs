@@ -80,14 +80,14 @@ test("eight photos is the most for one report", async () => {
   assert.deepEqual(S.errs, []);
 });
 
-test("a photo isn't lost when a teammate ticks something while the camera is open", async () => {
+test("a photo isn't lost when a teammate changes a task while the camera is open", async () => {
   await resetEmulators();
   const { O, S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=close]");
   await S.waitForSelector('label[for="ph-in"]');
   const camera = await S.$("#ph-in");
-  await O.evaluate(() => LIVE.api.tick("close", 2, true));
-  await S.waitForFunction(() => (LIVE.ticks.close || []).includes(2));
+  await O.evaluate(() => LIVE.api.setTask("close", 2, itemText("close", 2), "done"));
+  await S.waitForFunction(() => LIVE.tasks["close-2"]?.status === "done");
   assert.equal(await camera.evaluate((e) => e.isConnected), true, "the list was redrawn but the camera input is the same one");
   await camera.setInputFiles(small);
   await S.waitForFunction(() => LIVE.myPhotos.length === 1, null, { timeout: 20000 });

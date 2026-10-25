@@ -58,7 +58,7 @@ test("an anonymous concern with a photo reaches managers only, without a name, a
   await M.fill("[data-cn-fixt]", "Unblocked the sink"); await M.click("[data-cn-fix]");
   await O.waitForFunction(() => LIVE.concerns[0]?.status === "closed");
   assert.match(await text(O), /No open concerns/);
-  await O.click("[data-tpane=managers]"); await O.click('[data-act="concerns"]');
+  await O.click("[data-tpane=managers]"); await O.click("#msub [data-msub=act]"); await O.click('[data-act="concerns"]');
   const act = await O.$eval("#act", (e) => e.textContent);
   assert.match(act, /Someone \(anonymous\) reported a concern to the managers: Needs cleaning, Toilets/);
   assert.match(act, /Mia Manager dealt with a concern: Needs cleaning, Toilets/);

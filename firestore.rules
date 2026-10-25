@@ -206,65 +206,193 @@ service cloud.firestore {
         || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
     }
 
-    // ---------- Tonight's checklists ----------
-    // One small record per ticked item, so ticks from different phones never overwrite each other.
-    // {day} is the business day (YYYY-MM-DD, rolling over at 6am UK time). Writes are only accepted within
-    // a day or two of it, which allows for a phone that was offline and syncs late.
+    // ---------- Tonight's checklists: tasks and procedures ----------
+    // {day} is the business day (YYYY-MM-DD, rolling over at 6am UK time). Writes are only accepted within a day or two
+    // of it, which allows for a phone that was offline and syncs late.
     function nearNow(day) {
       return isDay(day) && dayOf(day) > request.time - duration.value(2, 'd') && dayOf(day) < request.time + duration.value(1, 'd');
     }
+    // Each list is a procedure: the bar's opening and closing, the floor's tables, milkshake station and close.
+    function isList(l) { return l in ['open', 'close', 'fset', 'fshake', 'fclose']; }
+    function sideOf(l) { return l in ['open', 'close'] ? 'bar' : 'floor'; }
+    function taskDoc(day, id) { return /databases/$(database)/documents/shift/$(day)/tasks/$(id); }
+    function runDoc(day, list) { return /databases/$(database)/documents/shift/$(day)/runs/$(list); }
+    function eventDoc(id) { return /databases/$(database)/documents/events/$(id); }
+    // A field as it was before this write, or d for a new record.
+    function was(k, d) { return resource == null ? d : resource.data[k]; }
+    // Someone on the team, named as on their staff record, or nobody (both null).
+    function teammate(name, uid) { return (name == null && uid == null) || (uid is string && get(staffDoc(uid)).data.name == name); }
+    // A procedure is locked once it's finished, until a manager reopens it.
+    function unlocked(day, list) { let r = get(runDoc(day, list)); return r == null || r.data.status != 'finished'; }
+
+    // Ticks from before tasks (24 and 25 October 2026), kept for the record. Nothing new is written.
     match /shift/{day}/ticks/{id} {
       allow read: if isMember();
-      allow create: if isMember() && nearNow(day) && exactly(['list', 'item', 'uid', 'name', 'at'])
-        && incoming().list in ['open', 'close', 'fset', 'fshake', 'fclose']
-        && incoming().item is int && incoming().item >= 0 && incoming().item < 60
-        && id == incoming().list + '-' + string(incoming().item) && stamped();
-      // Untick your own. Managers can clear anyone's.
-      allow delete: if isMember() && (resource.data.uid == request.auth.uid || isManager());
     }
 
-    // ---------- Waste ----------
-    // What was thrown away and why, for the weekly waste report. Quantities only: costs are added in the spreadsheet.
-    // Anyone on the team logs it as themselves. Staff see only their own; managers see everyone's.
+    // One record per item per night: todo (not started), doing, done, blocked or cancelled (not needed tonight). Each
+    // change raises v by one and writes events/t-{day}-{list}-{item}-{v} in the same batch, so a change can't happen
+    // without its event, an event can't be made up, and a phone working from an old copy (two people at once, or a late
+    // sync) is refused instead of overwriting the newer change. Nobody deletes a task.
+    match /shift/{day}/tasks/{id} {
+      allow read: if isMember();
+      allow create, update: if isMember() && nearNow(day) && stamped() && validTask(day, id)
+        && existsAfter(eventDoc('t-' + day + '-' + id + '-' + string(incoming().v)));
+    }
+    function validTask(day, id) {
+      let t = incoming();
+      let from = was('status', 'todo');
+      return exactly(['list', 'item', 'status', 'who', 'whoUid', 'note', 'v', 'uid', 'name', 'at'])
+        && isList(t.list) && t.item is int && t.item >= 0 && t.item < 60 && id == t.list + '-' + string(t.item)
+        && t.v == was('v', 0) + 1 && optText(t.note, 200) && unlocked(day, t.list)
+        && ((t.status == from && givenTo(t, from))
+          || (t.status != from && t.who == was('who', null) && t.whoUid == was('whoUid', null) && taskMove(from, t.status, t.note)));
+    }
+    // Managers give a task to someone, or take it off them, without changing where it's up to.
+    function givenTo(t, from) {
+      return isManager() && from in ['todo', 'doing', 'blocked'] && t.whoUid != was('whoUid', null) && teammate(t.who, t.whoUid);
+    }
+    // Where a task can go from where it is. Blocked and Not needed need a reason, and so does reopening a done task,
+    // unless whoever did it takes it back within 5 minutes (a mis-tap). Only managers mark a task not needed.
+    function taskMove(from, to, note) {
+      let mine = was('uid', '') == request.auth.uid;
+      return (to == 'doing' && from in ['todo', 'blocked'])
+        || (to == 'done' && from in ['todo', 'doing', 'blocked'])
+        || (to == 'blocked' && from in ['todo', 'doing'] && reqText(note, 200))
+        || (to == 'cancelled' && from in ['todo', 'doing', 'blocked'] && isManager() && reqText(note, 200))
+        || (to == 'todo' && from == 'blocked')
+        || (to == 'todo' && from == 'doing' && (mine || isManager()))
+        || (to == 'todo' && from == 'done' && (mine || isManager())
+          && (reqText(note, 200) || (mine && request.time < resource.data.at + duration.value(5, 'm'))))
+        || (to == 'todo' && from == 'cancelled' && isManager());
+    }
+
+    // One record per list per night: started, then finished. Finishing with tasks left needs a manager and a reason
+    // (an override), and so does reopening. done and required are counted by the phone that finishes it: the rules
+    // can't count the tasks, so the tasks and their events stay the record of what was done.
+    match /shift/{day}/runs/{list} {
+      allow read: if isMember();
+      allow create, update: if isMember() && nearNow(day) && stamped() && validRun(list)
+        && existsAfter(eventDoc('r-' + day + '-' + list + '-' + string(incoming().v)));
+    }
+    function validRun(list) {
+      let r = incoming();
+      let from = was('status', 'todo');
+      return exactly(['list', 'status', 'done', 'required', 'note', 'v', 'uid', 'name', 'at'])
+        && r.list == list && isList(list) && r.v == was('v', 0) + 1 && optText(r.note, 300)
+        && r.done is int && r.required is int && r.done >= 0 && r.done <= r.required && r.required <= 60
+        && ((r.status == 'started' && from == 'todo')
+          || (r.status == 'finished' && from in ['todo', 'started'] && (r.done == r.required || (isManager() && reqText(r.note, 300))))
+          || (r.status == 'started' && from == 'finished' && isManager() && reqText(r.note, 300)));
+    }
+
+    // ---------- Restocking from the cellar ----------
+    // Someone asks for an item, an amount and where it's going, with any detail (which never changes). Someone takes it
+    // on (or a manager gives it to someone), brings it up saying how much they moved, and the bar or floor confirms how
+    // much arrived. Asked, moved and received are kept apart, so a request is never taken as proof that the stock
+    // arrived, and no stock level changes here. note is the reason for the latest change. Each change raises v and
+    // writes events/s-{id}-{v} in the same batch, like tasks.
+    function restockDoc(id) { return /databases/$(database)/documents/restock/$(id); }
+    function amount(n) { return n is number && n > 0 && n <= 1000; }
+    match /restock/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && stamped() && autoId(id) && newRestock() && existsAfter(eventDoc('s-' + id + '-1'));
+      allow update: if isMember() && stamped() && restockMove() && existsAfter(eventDoc('s-' + id + '-' + string(incoming().v)));
+    }
+    function newRestock() {
+      let r = incoming();
+      return exactly(['item', 'qty', 'unit', 'dest', 'detail', 'day', 'status', 'who', 'whoUid', 'moved', 'got', 'note', 'v', 'askedBy', 'askedUid', 'askedAt', 'uid', 'name', 'at'])
+        && reqText(r.item, 80) && amount(r.qty) && r.unit in ['each', 'bottle', 'case', 'box', 'pack', 'bag', 'roll', 'keg', 'tub']
+        && r.dest in ['up', 'down', 'shakes', 'floor'] && nearNow(r.day) && optText(r.detail, 200) && r.note == ''
+        && r.status == 'asked' && r.who == null && r.whoUid == null && r.moved == null && r.got == null && r.v == 1
+        && r.askedBy == profile().data.name && r.askedUid == request.auth.uid && r.askedAt == request.time;
+    }
+    function restockMove() {
+      let r = incoming();
+      let old = resource.data;
+      let to = r.status;
+      let from = old.status;
+      let mine = old.whoUid == request.auth.uid;
+      let me = r.whoUid == request.auth.uid && r.who == profile().data.name;
+      let same = r.who == old.who && r.whoUid == old.whoUid && r.moved == old.moved && r.got == old.got;
+      return r.diff(old).affectedKeys().hasOnly(['status', 'who', 'whoUid', 'moved', 'got', 'note', 'v', 'uid', 'name', 'at'])
+        && r.v == old.v + 1 && optText(r.note, 200) && (
+          // Given to someone, or to someone else, by a manager.
+          (to == 'given' && from in ['asked', 'given', 'doing', 'blocked'] && isManager() && r.whoUid != null && r.whoUid != old.whoUid
+            && teammate(r.who, r.whoUid) && r.moved == null && r.got == null)
+          // Taken on by anyone while it's waiting; once it's been given to someone, by them or a manager.
+          || (to == 'doing' && from in ['asked', 'given', 'blocked'] && me && (from != 'given' || mine || isManager()) && r.moved == null && r.got == null)
+          // Brought up by whoever has it (or a manager), saying how much was moved.
+          || (to == 'delivered' && from == 'doing' && (mine || isManager()) && r.who == old.who && r.whoUid == old.whoUid && amount(r.moved) && r.got == null)
+          // Confirmed by whoever is there, saying how much arrived.
+          || (to == 'received' && from == 'delivered' && r.who == old.who && r.whoUid == old.whoUid && r.moved == old.moved && amount(r.got))
+          || (to == 'unavailable' && from in ['asked', 'given', 'doing', 'blocked'] && same)
+          || (to == 'blocked' && from in ['asked', 'given', 'doing'] && same && reqText(r.note, 200))
+          || (to == 'cancelled' && from in ['asked', 'given', 'doing', 'blocked'] && same
+            && (old.askedUid == request.auth.uid || (isManager() && reqText(r.note, 200))))
+          // Back to waiting: let go by whoever has it (or a manager), not there after all once brought up (with a
+          // reason), or reopened by a manager (with a reason).
+          || (to == 'asked' && r.who == null && r.whoUid == null && r.moved == null && r.got == null
+            && ((from in ['given', 'doing'] && (mine || isManager()))
+              || (from == 'delivered' && reqText(r.note, 200))
+              || (from in ['received', 'unavailable', 'cancelled'] && isManager() && reqText(r.note, 200)))));
+    }
+
+    // ---------- Audit trail ----------
+    // One event per change to a task, a procedure or a restock, written in the same batch as the change and matching it
+    // (the status before and after, the version, who, the reason and the time; for a restock, the item, amount and place). Nobody edits or deletes an event, the
+    // owner included: a correction is a new change with its own event. Ids carry the record's version, so a retried
+    // or repeated write can't add a second event for the same change.
+    match /events/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && stamped() && nearNow(incoming().day) && reqText(incoming().label, 200) && optText(incoming().note, 300)
+        && (incoming().kind == 'task' ? taskEvent(id) : incoming().kind == 'run' ? runEvent(id) : incoming().kind == 'restock' && restockEvent(id));
+    }
+    function taskEvent(id) {
+      let e = incoming();
+      let path = taskDoc(e.day, e.list + '-' + string(e.item));
+      let now = getAfter(path).data;
+      let before = get(path);
+      return exactly(['kind', 'day', 'list', 'item', 'label', 'area', 'from', 'to', 'who', 'note', 'v', 'uid', 'name', 'at'])
+        && e.item is int && id == 't-' + e.day + '-' + e.list + '-' + string(e.item) + '-' + string(e.v)
+        && now.at == request.time && now.v == e.v && now.status == e.to && now.who == e.who && now.note == e.note
+        && e.from == (before == null ? 'todo' : before.data.status) && e.area == sideOf(e.list);
+    }
+    function runEvent(id) {
+      let e = incoming();
+      let path = runDoc(e.day, e.list);
+      let now = getAfter(path).data;
+      let before = get(path);
+      return exactly(['kind', 'day', 'list', 'label', 'area', 'from', 'to', 'done', 'required', 'note', 'v', 'uid', 'name', 'at'])
+        && id == 'r-' + e.day + '-' + e.list + '-' + string(e.v)
+        && now.at == request.time && now.v == e.v && now.status == e.to && now.note == e.note && now.done == e.done && now.required == e.required
+        && e.from == (before == null ? 'todo' : before.data.status) && e.area == sideOf(e.list);
+    }
+    function restockEvent(id) {
+      let e = incoming();
+      let path = restockDoc(e.ref);
+      let now = getAfter(path).data;
+      let before = get(path);
+      return exactly(['kind', 'day', 'ref', 'label', 'area', 'from', 'to', 'who', 'qty', 'unit', 'dest', 'note', 'v', 'uid', 'name', 'at'])
+        && e.ref is string && id == 's-' + e.ref + '-' + string(e.v)
+        && now.at == request.time && now.v == e.v && now.status == e.to && now.who == e.who && now.note == e.note
+        && now.item == e.label && now.unit == e.unit && now.dest == e.dest
+        && e.from == (before == null ? 'new' : before.data.status)
+        && e.qty == (e.to == 'delivered' ? now.moved : e.to == 'received' ? now.got : e.from == 'new' ? now.qty : null)
+        && e.area == (e.dest in ['up', 'down'] ? 'bar' : 'floor');
+    }
+
+    // ---------- Old records: waste and due diligence ----------
+    // Kept read-only as the venue's record since 25 Oct 2026. Temperatures and line cleans are logged in Alert65 and
+    // waste in Nory now, so nothing new is written here and nothing is edited or deleted. Managers download them.
     match /waste/{id} {
       allow read: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
-      allow create: if isMember() && exactly(['item', 'qty', 'unit', 'reason', 'note', 'side', 'day', 'uid', 'name', 'at'])
-        && reqText(incoming().item, 80) && incoming().qty is number && incoming().qty > 0 && incoming().qty <= 1000
-        && incoming().unit in ['each', 'pint', 'half', 'single', 'double', 'bottle', 'glass', 'ml']
-        && incoming().reason in ['spilt', 'remade', 'returned', 'expired', 'broken', 'lines', 'other']
-        && optText(incoming().note, 200) && (incoming().reason != 'other' || reqText(incoming().note, 200))
-        && incoming().side in ['bar', 'floor'] && nearNow(incoming().day) && stamped();
-      allow delete: if undoable();
     }
-    // Waste and due-diligence records are kept as the venue's record. One logged by mistake can be taken back by
-    // whoever logged it for 15 minutes; after that only the owner can delete it. Nobody edits them.
-    function undoable() {
-      return isOwner() || (isMember() && resource.data.uid == request.auth.uid && request.time < resource.data.at + duration.value(15, 'm'));
-    }
-
-    // ---------- Due diligence: temperatures and line cleaning ----------
-    // kit is the equipment that gets checked (fridges, freezers, the cellar, the glass washer, beer lines), set up by
-    // managers. A reading names its kit and must match it. Fridge, freezer, cellar and glass washer readings are a
-    // temperature in °C; a line clean has none.
-    function kitDoc(id) { return /databases/$(database)/documents/kit/$(id); }
     match /kit/{id} {
       allow read: if isMember();
-      allow create: if isManager() && exactly(['name', 'kind', 'side']) && reqText(incoming().name, 40)
-        && incoming().kind in ['fridge', 'freezer', 'cellar', 'washer', 'lines'] && incoming().side in ['bar', 'floor'];
-      allow delete: if isManager();
-    }
-    function validReading() {
-      let r = incoming();
-      let k = get(kitDoc(r.kit));
-      return k != null && r.kitName == k.data.name && r.kind == k.data.kind && r.side == k.data.side
-        && ((r.kind == 'lines' && r.c == null) || (r.kind != 'lines' && r.c is number && r.c >= -40 && r.c <= 100))
-        && optText(r.note, 200) && nearNow(r.day) && stamped();
     }
     match /safety/{id} {
       allow read: if isMember();
-      allow create: if isMember() && exactly(['kit', 'kitName', 'kind', 'side', 'c', 'note', 'day', 'uid', 'name', 'at'])
-        && incoming().kit is string && validReading();
-      allow delete: if undoable();
     }
 
     // ---------- 86 board ----------
@@ -291,11 +419,10 @@ service cloud.firestore {
               && getAfter(outDoc(incoming().item)) == null));
     }
 
-    // ---------- Stock requests ----------
+    // ---------- Stock requests (before restocking from the cellar, 25 October 2026) ----------
+    // Kept for the record. Nothing new is asked for here; managers can still mark old ones ordered or turn them down.
     match /requests/{id} {
       allow read: if isMember();
-      allow create: if isMember() && exactly(['item', 'note', 'done', 'uid', 'name', 'at'])
-        && reqText(incoming().item, 200) && optText(incoming().note, 200) && incoming().done == false && stamped();
       // A manager marks it ordered, once. What was asked for never changes.
       allow update: if isManager() && resource.data.done == false
         && changesOnly(['done', 'doneBy', 'doneByUid', 'doneAt']) && incoming().done == true
@@ -304,21 +431,14 @@ service cloud.firestore {
       allow delete: if isMember() && resource.data.done == false && (resource.data.uid == request.auth.uid || isManager());
     }
 
-    // ---------- Stock counts ----------
-    // Par levels (how much should be on the shelf) and counts are for managers. A par record is named after its item,
-    // like the 86 board. Each count keeps every item's par as it was then, so its order list can always be worked out
-    // again. A count can't be changed; only the owner deletes one.
+    // ---------- Old records: stock counts and par levels ----------
+    // Read-only since 25 Oct 2026: stock is counted and ordered in Nory. Each count keeps every item's par as it was
+    // then, so its order list can still be worked out from the download.
     match /pars/{id} {
       allow read: if isManager();
-      allow create, update: if isManager() && exactly(['item', 'par', 'uid', 'name', 'at']) && reqText(incoming().item, 80)
-        && slug(incoming().item) == id && incoming().par is number && incoming().par > 0 && incoming().par <= 1000 && stamped();
-      allow delete: if isManager();
     }
     match /counts/{id} {
       allow read: if isManager();
-      allow create: if isManager() && exactly(['lines', 'note', 'uid', 'name', 'at']) && incoming().lines is list
-        && incoming().lines.size() > 0 && incoming().lines.size() <= 400 && optText(incoming().note, 300) && stamped();
-      allow delete: if isOwner();
     }
 
     // ---------- Running late, time off and shift swaps ----------
