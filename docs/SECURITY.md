@@ -43,12 +43,12 @@ Hiding a button is never the protection. Every row above is enforced by `firesto
 
 ## Switching team logins on (owner setup)
 
-The live features are built but switched off: the site only includes them once `firebase-config.json` is in the repo. Do these in order. Steps 1 and 2 are safe to do straight away, before anything else.
+The site includes the live features only when `firebase-config.json` is in the repo (it has been since 25 October 2026). These are the steps, in order, for this project or a fresh one. Steps 1 and 2 are safe to do straight away, before anything else.
 
 1. **Check the current rules.** Firebase console, Firestore Database, Rules. If you see `allow read, write: if request.time < timestamp.date(...)`, the database was created in test mode and is open to anyone until that date. Replace it now with the contents of `firestore.rules` and press Publish. Nothing uses the database yet, so this can't break anything.
 2. **Make the setup code.** Firestore Database, Data: start a collection `config`, document ID `pins`, one field `setup` (string) holding a long random code, at least 16 characters. Generate it in a password manager and don't reuse it anywhere. Don't send it by message or put it in GitHub.
 3. **Add the web config.** Project settings, Your apps (add a Web app there if there isn't one yet): copy the `firebaseConfig` values into `firebase-config.json` at the repo root, for example `{"apiKey":"...","authDomain":"black-tap-foh-book.firebaseapp.com","projectId":"black-tap-foh-book","appId":"..."}`. This file is public by design. Then run `npm run build`, commit and merge. GitHub Pages publishes it within a few minutes.
-4. **Create the owner.** On the live site: Team, First-time setup. Enter your name, a username, a PIN of 8 to 12 digits and the setup code. One write creates the owner, records the claim in `config/owner` and deletes `config/pins`, so the code stops working at that moment.
+4. **Create the owner.** On the live site, tap the bell at the top right, then open First-time setup (owner only). Enter your name, a username, a PIN of 8 to 12 digits and the setup code. One write creates the owner, records the claim in `config/owner` and deletes `config/pins`, so the code stops working at that moment.
 5. **Optional tidy-up.** `config/owner` keeps the used code in its `proof` field. No app account can read it and it can't be used again, but you can delete that field in the console if you'd rather it wasn't stored.
 6. **Smoke test with throwaway accounts** (generic names, not real staff): add one manager and one staff member, log in as each on another phone, and check the list under "Before and after each release" below. Then remove them.
 
