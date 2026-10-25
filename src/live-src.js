@@ -283,6 +283,10 @@ LIVE.api = {
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),
   fixed: (id, fix) => updateDoc(doc(db, "issues", id), { status: "fixed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
   withdrawIssue: (id) => deleteDoc(doc(db, "issues", id)),
+  // Managers' spreadsheet downloads: the whole of one collection, read once (the live lists keep only the latest).
+  history: (name) => getDocs(query(collection(db, name), orderBy("at", "desc"))).then(rows),
+  // Checklist ticks for the given business days.
+  ticksFor: (days) => Promise.all(days.map((day) => getDocs(collection(db, "shift", day, "ticks")).then((s) => s.docs.map((x) => ({ day, ...x.data() }))))).then((xs) => xs.flat()),
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 

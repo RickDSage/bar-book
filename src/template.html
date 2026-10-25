@@ -260,6 +260,14 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
 .rvrow { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; margin-top: 10px; }
 .rvrow input { min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .rvrow .btn { min-height: 40px; padding: 8px 12px; }
+.ptabs.msub { position: static; grid-template-columns: repeat(3, 1fr); box-shadow: none; margin-top: 10px; }
+.ptabs.msub button { min-height: 44px; justify-content: center; font-size: 14px; }
+.actday { font-family: var(--body); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 0; }
+.staffrow .did { font-weight: 400; }
+.bcast { margin-top: 12px; padding: 14px; border: 2px solid var(--brass); border-radius: 14px; background: color-mix(in srgb, var(--brass) 14%, var(--surface)); }
+.bcast .meta { color: var(--muted); font-size: 14px; }
+.bcast .meta b { color: var(--fg); }
+.bcast p { margin: 6px 0 10px; font-size: 17px; white-space: pre-wrap; overflow-wrap: anywhere; }
 .pill { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); vertical-align: 1px; }
 .pill.ok { color: var(--ok); border-color: var(--ok); } .pill.no { color: var(--warn); border-color: var(--warn); } .pill.wait { color: var(--brass); border-color: var(--brass); }
 .staffrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -360,6 +368,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
 </header>
 
 <main class="gut">
+  <div id="bcast"></div>
   <section class="view" id="v-drinks"><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b></p></section>
 
   <section class="view" id="v-allergens" hidden>
@@ -385,7 +394,7 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="mgrs"></div><div id="outlog"></div><div id="mgr"></div><div id="me"></div>
+    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="act"></div><div id="mgrs"></div><div id="incs"></div><div id="outlog"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
     <div id="notices"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
@@ -1130,7 +1139,7 @@ const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(is
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#issues", "#requests", "#compose", "#feed", "#reports", "#mgrs", "#outlog", "#mgr", "#me"];
+const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#act", "#mgrs", "#incs", "#outlog", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -1152,9 +1161,10 @@ function renderTeamTop() {
   }
   if (!LIVE.me) { $("#team").innerHTML = `<p class="note">Checking your account… · <button class="linkbtn" id="l-out">Log out</button></p>`; return; }
   $("#team").innerHTML = `<p class="note"><b>${esc(LIVE.me)}</b>${LIVE.owner ? " · owner" : LIVE.admin ? " · manager" : ""} · <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>`;
-  if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Pin a notice</summary>
-    <label class="fld">Notice for everyone<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
-    <div class="actions"><button class="btn pri" id="p-go">Pin it</button></div></details>`;
+  if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Broadcast to everyone</summary>
+    <p class="note">It stays at the top of every page until each person taps Got it, and stays pinned here until you remove it.</p>
+    <label class="fld">Message for everyone<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
+    <div class="actions"><button class="btn pri" id="p-go">Send to everyone</button></div></details>`;
   $("#compose").innerHTML = `<div class="sec">Team board</div>
     <label class="fld">Post to the board<textarea id="c-text" rows="3" maxlength="2000" placeholder="Running low on limes, a guest comment, anything the team should know"></textarea></label>
     <div class="actions"><button class="btn pri" id="c-post">Post</button></div>`;
@@ -1165,23 +1175,30 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
-  renderDash(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderStaff(); renderMe(); renderTeamTabs();
+  renderDash(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderStaff(); renderMe(); renderAct(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#issues", "#compose", "#feed", "#notices"], reports: ["#reports"], requests: ["#requests"], managers: ["#mgrs", "#outlog", "#mgr"], me: ["#me"] };
+const TSLOTS = { board: ["#pins", "#pin-form", "#issues", "#compose", "#feed", "#notices"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#act", "#mgrs", "#incs", "#outlog", "#mgr", "#fb"], me: ["#me"] };
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
+// The Managers tab in parts, so nothing is a long scroll away.
+const MSUB = [["act", "Activity", "#act"], ["nights", "Nights", "#mgrs"], ["incidents", "Incidents", "#incs"], ["86", "86 log", "#outlog"], ["team", "Team", "#mgr"], ["feedback", "Feedback", "#fb"]];
+let msub = "act";
 const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 function renderTeamTabs() {
   const all = Object.values(TSLOTS).flat();
   if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
-  const tabs = [["board", "Board"], ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
+  const tabs = [["board", "Board"], ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
   if (!tabs.some(([k]) => k === tpane)) tpane = "board";
   const count = { board: [openIssues().length, "open"], reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"], requests: [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length, "waiting"] };
   const badge = (k) => (count[k] && count[k][0] ? `${count[k][0]} ${count[k][1]}` : "");
   $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge(k)}</small></button>`).join("")}</div>`;
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
+  if (tpane !== "managers") return;
+  const open = LIVE.incidents.filter((x) => x.status !== "closed").length;
+  $("#msub").innerHTML = `<div class="ptabs msub" role="tablist" aria-label="Managers">${MSUB.map(([k, t]) => `<button role="tab" data-msub="${k}" aria-selected="${k === msub}">${t}${k === "incidents" && open ? `<small>${open} open</small>` : ""}</button>`).join("")}</div>`;
+  for (const [k, , sel] of MSUB) $(sel).hidden = k !== msub;
 }
 /* Tonight at a glance: counts worked out from the live data, each one a shortcut to where it's dealt with.
    "…" means that part hasn't loaded yet (it needs signal the first time). */
@@ -1203,13 +1220,14 @@ function renderDash() {
     ...(LIVE.admin ? [
       [v("reports", unsigned), "reports to sign off", "reports", unsigned > 0],
       [v("asks", LIVE.asks.filter(waiting).length), "staff requests to answer", "requests"],
-      [v("incidents", inc), "open incidents", "managers", inc > 0],
+      [v("incidents", inc), "open incidents", "incidents", inc > 0],
     ] : []),
   ];
   $("#dash").innerHTML = `<div class="sec">Tonight</div><div class="dash">${tiles.map(([x, label, go, hot]) => `<button data-go="${go}"${hot ? ' class="hot"' : ""}><b>${x}</b><span>${label}</span></button>`).join("")}</div>`;
 }
 function go(where) {
   if (where === "shift" || where === "stock") { pane = where === "stock" ? "stock" : defaultPane(); show("tally"); return; }
+  if (where === "incidents") { msub = "incidents"; where = "managers"; }
   tpane = where === "issues" ? "board" : where; renderTeamTabs();
   $(where === "issues" ? "#issues" : "#tpanes").scrollIntoView({ block: "start" });
 }
@@ -1228,7 +1246,7 @@ function renderStaff() {
 const canTakeDown = (x) => x.uid === LIVE.uid || LIVE.owner || (LIVE.admin && !isOwnerUid(x.uid));
 function renderPins() {
   if (!LIVE.me) return;
-  $("#pins").innerHTML = LIVE.notices.map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Notice</b> from ${esc(x.name)} · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${LIVE.admin && canTakeDown(x) ? `<div class="actions"><button class="btn" data-unpin="${x.id}">Remove notice</button></div>` : ""}</article>`).join("");
+  $("#pins").innerHTML = LIVE.notices.map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${LIVE.admin && canTakeDown(x) ? `<div class="actions"><button class="btn" data-unpin="${x.id}">Remove broadcast</button></div>` : ""}</article>`).join("");
 }
 function renderFeed() {
   if (!LIVE.me) return;
@@ -1348,12 +1366,13 @@ function renderMgrs() {
   }).join("");
   const others = LIVE.staff.filter((p) => p.role !== "staff" && p.uid !== LIVE.uid);
   const openInc = LIVE.incidents.filter((x) => x.status !== "closed"), closedInc = LIVE.incidents.filter((x) => x.status === "closed");
-  $("#mgrs").innerHTML = `<div class="sec">Nights</div>${nights || `<p class="note">No shift reports yet.</p>`}
-    <div class="sec">Incidents</div>
+  $("#mgrs").innerHTML = `<div class="sec">Nights</div>${nights || `<p class="note">No shift reports yet.</p>`}`;
+  $("#incs").innerHTML = `<div class="sec">Incidents</div>
     ${openInc.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill wait">Open</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>
       <div class="rvrow" style="grid-template-columns:1fr auto"><input data-inct="${x.id}" maxlength="500" placeholder="What was done about it" value="${esc(incText[x.id] || "")}" aria-label="What was done about it"><button class="btn" data-inc-close="${x.id}">Close</button></div></div>`).join("") || `<p class="note">No open incidents. Anyone can log one from the Me tab.</p>`}
     ${closedInc.length ? `<details class="setup"><summary>Closed incidents (${closedInc.length})</summary>${closedInc.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill ok">Closed</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p><div class="s">What was done: ${esc(x.outcome)} · ${esc(x.closedBy)}, ${when(x.closedAt)}</div></div>`).join("")}</details>` : ""}
-    <div class="sec">Anonymous feedback</div>
+`;
+  $("#fb").innerHTML = `<div class="sec">Anonymous feedback</div>
     <p class="note">For another manager. Your name isn't saved with it, so nobody can see who sent it.</p>
     <label class="fld">About<select data-f="fbWho"><option value="">Choose a manager…</option>${others.map((p) => `<option value="${p.uid}"${p.uid === meF.fbWho ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
     <div class="recent" style="flex-wrap:wrap">${SCORES.map((x) => `<button class="chip" data-score="${x}" aria-pressed="${x === meF.fbScore}">${x}</button>`).join("")}</div>
@@ -1367,11 +1386,128 @@ function renderOutlog() {
   const counts = {};
   LIVE.outlog.filter((x) => x.action === "out").forEach((x) => (counts[x.itemName] = (counts[x.itemName] || 0) + 1));
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
-  $("#outlog").innerHTML = `<details class="setup" open><summary>86 log</summary>
+  $("#outlog").innerHTML = `<div class="sec">86 log</div>
     ${top.length ? `<h3 style="font-size:18px;margin-top:10px">Runs out most</h3>${top.map(([n, c]) => `<div class="staffrow"><div class="n">${esc(n)}</div><div class="s">86'd ${c} time${c > 1 ? "s" : ""}</div></div>`).join("")}<h3 style="font-size:18px;margin-top:16px">Latest</h3>` : ""}
     ${LIVE.outlog.map((x) => `<div class="staffrow"><div class="n">${esc(x.itemName)} ${x.action === "out" ? "<span style=\"color:var(--warn)\">86'd</span>" : "back in stock"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">Nothing 86'd yet.</p>`}
-    <p class="note">Last 100 changes. The log can't be edited or deleted.</p></details>`;
+    <p class="note">Last 100 changes. The log can't be edited or deleted.</p>`;
 }
+/* ---------- Activity: who did what and when ----------
+   Worked out from the records themselves, since every change keeps who made it and when. Deleting something leaves
+   no record, so take-downs, unticks and cancellations don't show. Managers see every section and can download the
+   full history; staff see the team's side of things for their own side of the venue (bar or floor). */
+const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["86", "86"], ["stock", "Stock"], ["asks", "Staff requests"], ["issues", "Issues"], ["reports", "Reports"], ["incidents", "Incidents"], ["team", "Team"]];
+const ACT_NAME = Object.fromEntries(ACT), STAFF_ACT = ["all", "board", "checks", "86", "stock", "issues", "reports"];
+const tickName = (t) => LISTS[t.list]?.items[t.item] || `Item ${t.item + 1}`;
+const DID = { setup: () => "set up the owner account", add: (a) => `added ${a.targetName} (${ROLE[a.role].toLowerCase()})`, reset: (a) => `gave ${a.targetName} a new PIN`, remove: (a) => `removed ${a.targetName}`, role: (a) => `made ${a.targetName} ${a.role === "manager" ? "a manager" : "staff"}` };
+const DECIDED = { seen: "saw", approved: "approved", declined: "declined" };
+// A PIN reset writes two audit entries (the new account and the old one); count it once.
+const auditOnce = (xs) => xs.filter((a) => a.action !== "reset" || a.id.endsWith("-in"));
+function events(x) {
+  const ev = [], add = (sec, at, who, what, detail, more) => ev.push({ t: ms(at), sec, who, what, detail: detail || "", ...more });
+  const whose = (id) => { const r = x.reports.find((r) => r.id === id); return r ? `${r.name}'s ${r.side} report` : "a report"; };
+  x.feed.forEach((p) => add("board", p.at, p.name, "posted on the board", p.text));
+  x.notices.forEach((p) => add("board", p.at, p.name, "sent a broadcast", p.text));
+  x.ticks.forEach((t) => add("checks", t.at, t.name, `ticked ${tickName(t)}`, LISTS[t.list]?.title, { list: t.list }));
+  x.outlog.forEach((o) => add("86", o.at, o.name, o.action === "out" ? `86'd ${o.itemName}` : `put ${o.itemName} back in stock`));
+  x.requests.forEach((r) => { add("stock", r.at, r.name, `asked for ${r.item}`, r.note); if (r.done) add("stock", r.doneAt, r.doneBy, `ordered ${r.item}`, `Asked for by ${r.name}`); });
+  x.asks.forEach((a) => { add("asks", a.at, a.name, askText(a), a.note); if (a.by) add("asks", a.byAt, a.by, `${DECIDED[a.status]} ${a.name}'s request`, askText(a)); });
+  x.issues.forEach((i) => {
+    add("issues", i.at, i.name, `raised${i.urgent ? " (urgent)" : ""}: ${i.title}`, i.detail);
+    if (i.setBy) add("issues", i.setAt, i.setBy, i.setByUid === i.whoUid ? `took on: ${i.title}` : `gave ${i.who}: ${i.title}`);
+    if (i.fixedBy) add("issues", i.fixedAt, i.fixedBy, `fixed: ${i.title}`, i.fix);
+  });
+  x.reports.forEach((r) => { add("reports", r.at, r.name, `sent the ${r.side} report`, r.summary); if (r.signedBy) add("reports", r.signedAt, r.signedBy, `signed off ${r.name}'s ${r.side} report`); });
+  x.reviews.forEach((v) => add("reports", v.at, v.name, `${v.verdict === "up" ? "gave 👍 to" : v.verdict === "flag" ? "flagged" : "commented on"} ${whose(v.report)}`, v.text));
+  x.incidents.forEach((i) => { add("incidents", i.at, i.name, `logged an incident: ${i.kind}`, i.text); if (i.closedBy) add("incidents", i.closedAt, i.closedBy, `closed an incident: ${i.kind}`, i.outcome); });
+  auditOnce(x.audit).forEach((a) => add("team", a.at, a.name, DID[a.action](a)));
+  return ev.sort((a, b) => b.t - a.t);
+}
+// What this phone already has. Staff can't read the 86 log, so they see what's 86'd right now.
+function liveData() {
+  const staff = !LIVE.admin;
+  return {
+    feed: LIVE.feed, notices: LIVE.notices, requests: LIVE.requests, issues: LIVE.issues, reviews: LIVE.reviews, incidents: LIVE.incidents, audit: LIVE.audit,
+    ticks: Object.values(LIVE.tickBy).filter((t) => !staff || MODE_LISTS[mode].includes(t.list)),
+    outlog: staff ? [...LIVE.outInfo.values()].map((o) => ({ ...o, action: "out" })) : LIVE.outlog,
+    asks: staff ? [] : LIVE.asks,
+    reports: staff ? LIVE.reports.filter((r) => r.side === mode) : LIVE.reports,
+  };
+}
+// In All, one line per person per checklist, at their latest tick.
+function groupTicks(ev) {
+  const by = new Map();
+  return ev.filter((e) => {
+    if (e.sec !== "checks") return true;
+    const k = e.who + "|" + e.list, g = by.get(k);
+    if (g) { g.n++; g.what = `ticked ${g.n} items`; return false; }
+    by.set(k, Object.assign(e, { n: 1 })); return true;
+  });
+}
+let actSec = "all", actMax = 50, actFile = null;
+const nightOf = (t) => ukDay(t - 6 * 36e5);
+function renderAct() {
+  if (!LIVE.me) return;
+  const box = LIVE.admin ? "#act" : "#sact", secs = ACT.filter(([k]) => LIVE.admin || STAFF_ACT.includes(k));
+  if (!secs.some(([k]) => k === actSec)) actSec = "all";
+  const all = events(liveData()), ev = actSec === "all" ? groupTicks(all) : all.filter((e) => e.sec === actSec);
+  let night = "";
+  const list = ev.slice(0, actMax).map((e) => {
+    const k = nightOf(e.t), head = k === night ? "" : `<h3 class="actday">${k === shiftDay() ? "Tonight" : dayName(k, { weekday: "long", day: "numeric", month: "long" })}</h3>`;
+    night = k;
+    const d = e.detail.length > 140 ? e.detail.slice(0, 140) + "…" : e.detail;
+    return `${head}<div class="staffrow"><div class="n">${actSec === "all" ? `<span class="pill">${ACT_NAME[e.sec]}</span> ` : ""}${esc(e.who)} <span class="did">${esc(e.what)}</span></div><div class="s">${hhmm(new Date(e.t))}${d ? ` · ${esc(d)}` : ""}</div></div>`;
+  }).join("");
+  const file = !LIVE.admin ? "" : actFile && actFile.sec === actSec
+    ? `<a class="btn pri" id="act-save" href="${actFile.url}" download="${actFile.name}">Save the spreadsheet (${actFile.n} row${actFile.n === 1 ? "" : "s"})</a>`
+    : `<button class="btn" id="act-csv">Download ${actSec === "all" ? "everything" : ACT_NAME[actSec].toLowerCase()} as a spreadsheet</button>`;
+  $(box).innerHTML = `<div class="sec">Activity</div>
+    <div class="chips" role="toolbar" aria-label="Show">${secs.map(([k, t]) => `<button class="chip" data-act="${k}" aria-pressed="${k === actSec}">${t}</button>`).join("")}</div>
+    ${file ? `<div class="actions">${file}</div>` : ""}
+    ${list || `<p class="note">Nothing here yet.</p>`}
+    ${ev.length > actMax ? `<button class="btn wide" id="act-more">Show more</button>` : ""}
+    <p class="note">Newest first. ${LIVE.admin ? "This shows the latest of each kind; the spreadsheet has the full history (checklists: the last 7 nights)." : `Checklists and reports for the ${mode === "bar" ? "bar" : "floor"}, as set in Shift.`} Deleted posts, unticked items and cancelled requests leave no record.</p>`;
+}
+/* Spreadsheet downloads (managers). The full history is read once, then saved with a tap on Save, which works on
+   iPhone too. Excel treats a cell starting with = + - or @ as a formula, so those get a leading apostrophe. */
+const cell = (v) => { let s = v == null ? "" : String(v); if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; return /[",\r\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+const dt = (t) => (t ? [ukDay(ms(t)), hhmm(new Date(ms(t)))] : ["", ""]);
+const KIND = { late: "Running late", off: "Time off", swap: "Shift swap" };
+const ISSUE = { open: "Open", taken: "Being dealt with", fixed: "Fixed" };
+const TABLES = {
+  all: (x) => [["Date", "Time", "Section", "Who", "What", "Details"], ...events(x).map((e) => [ukDay(e.t), hhmm(new Date(e.t)), ACT_NAME[e.sec], e.who, e.what, e.detail])],
+  board: (x) => [["Date", "Time", "Type", "By", "Text"], ...[...x.notices.map((p) => [...dt(p.at), "Broadcast", p.name, p.text]), ...x.feed.map((p) => [...dt(p.at), "Post", p.name, p.text])].sort((a, b) => (b[0] + b[1]).localeCompare(a[0] + a[1]))],
+  checks: (x) => [["Night", "Time", "Checklist", "Item", "Ticked by"], ...x.ticks.sort((a, b) => ms(b.at) - ms(a.at)).map((t) => [t.day, dt(t.at)[1], LISTS[t.list]?.title, tickName(t), t.name])],
+  86: (x) => [["Date", "Time", "Item", "Change", "By"], ...x.outlog.map((o) => [...dt(o.at), o.itemName, o.action === "out" ? "86'd" : "Back in stock", o.name])],
+  stock: (x) => [["Date", "Time", "Item", "Note", "Asked by", "Status", "Ordered by", "Ordered on", "Ordered at"], ...x.requests.map((r) => [...dt(r.at), r.item, r.note, r.name, r.done ? "Ordered" : "Waiting", r.doneBy, ...dt(r.doneAt)])],
+  asks: (x) => [["Date", "Time", "Who", "Request", "Arriving at", "From", "To", "Swap with", "Note", "Status", "Decided by", "Decided on", "Decided at"], ...x.asks.map((a) => [...dt(a.at), a.name, KIND[a.kind], a.eta, a.date1, a.date2, a.with, a.note, STATUS[a.status][0], a.by, ...dt(a.byAt)])],
+  issues: (x) => [["Date", "Time", "Issue", "Where", "Urgent", "Detail", "Raised by", "Status", "On it", "Fixed by", "Fixed on", "Fixed at", "What was done"], ...x.issues.map((i) => [...dt(i.at), i.title, AREA[i.area] || "Other", i.urgent ? "Yes" : "No", i.detail, i.name, ISSUE[i.status], i.who, i.fixedBy, ...dt(i.fixedAt), i.fix])],
+  reports: (x) => [["Date", "Time", "Side", "Sent by", "Summary", "Photos", "Signed off by", "Signed off on", "Signed off at", "Manager comments", "Report"], ...x.reports.map((r) => [...dt(r.at), r.side === "floor" ? "Floor" : "Bar", r.name, r.summary, r.photos, r.signedBy, ...dt(r.signedAt),
+    x.reviews.filter((v) => v.report === r.id).map((v) => `${v.name}: ${v.verdict === "up" ? "👍" : v.verdict === "flag" ? "Flagged" : "Note"}${v.text ? " " + v.text : ""}`).join("\n"), r.text])],
+  incidents: (x) => [["Date", "Time", "Kind", "What happened", "Logged by", "Status", "Closed by", "Closed on", "Closed at", "What was done"], ...x.incidents.map((i) => [...dt(i.at), i.kind, i.text, i.name, i.status === "closed" ? "Closed" : "Open", i.closedBy, ...dt(i.closedAt), i.outcome])],
+  team: (x) => [["Date", "Time", "Person", "Username", "Change", "Role", "By"], ...auditOnce(x.audit).map((a) => [...dt(a.at), a.targetName, a.username, AUDIT[a.action], ROLE[a.role], a.name])],
+};
+const NEEDS = { all: ["feed", "notices", "ticks", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit"], board: ["feed", "notices"], checks: ["ticks"], 86: ["outlog"], stock: ["requests"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"], incidents: ["incidents"], team: ["audit"] };
+const lastNights = (n) => Array.from({ length: n }, (_, i) => ukDay(Date.now() - 6 * 36e5 - i * 864e5));
+async function prepareDownload(sec) {
+  const x = Object.fromEntries(NEEDS.all.map((k) => [k, []]));
+  await Promise.all(NEEDS[sec].map(async (k) => { x[k] = k === "ticks" ? await LIVE.api.ticksFor(lastNights(7)) : await LIVE.api.history(k); }));
+  const rows = TABLES[sec](x), text = "﻿" + rows.map((r) => r.map(cell).join(",")).join("\r\n");
+  if (actFile) URL.revokeObjectURL(actFile.url);
+  const name = sec === "all" ? "activity" : ACT_NAME[sec].toLowerCase().replace(/ /g, "-");
+  actFile = { sec, n: rows.length - 1, name: `black-tap-${name}-${ukDay(Date.now())}.csv`, url: URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })) };
+  renderAct();
+}
+/* ---------- Broadcasts ----------
+   A manager's broadcast stays at the top of every page on each phone until that person taps Got it. */
+const bcOk = new Set(store.get("bcOk", []));
+function renderBcast() {
+  const xs = LIVE.notices.filter((x) => x.uid !== LIVE.uid && !x.pending && !bcOk.has(x.id));
+  $("#bcast").innerHTML = xs.map((x) => `<article class="bcast"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div><p>${esc(x.text)}</p><button class="btn pri" data-bc-ok="${x.id}">Got it</button></article>`).join("");
+}
+$("#bcast").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-bc-ok]"); if (!b) return;
+  bcOk.add(b.dataset.bcOk); store.set("bcOk", [...bcOk].slice(-200)); haptic(); renderBcast();
+});
 // Called by live.js whenever membership or any shared list changes. New things from other people pop up as a toast;
 // so do changes to your own things (a report signed off, a request ordered, an issue fixed).
 const told = new Set(), firstSnap = new Set();
@@ -1383,7 +1519,7 @@ const issueToast = (x) => (x.status === "taken" && x.whoUid === LIVE.uid && x.se
   : x.status === "taken" && x.setByUid !== LIVE.uid ? `${x.who} is on it: ${x.title}` : "");
 const TOAST = {
   feed: (x) => `${x.name}: ${x.text.slice(0, 70)}`,
-  notices: (x) => `Notice: ${x.text.slice(0, 70)}`,
+  notices: (x) => `Broadcast: ${x.text.slice(0, 70)}`,
   reports: (x) => (x.signedBy ? "" : `${x.name} sent a shift report`),
   requests: (x) => (LIVE.admin && !x.done ? `${x.name} needs: ${x.item}` : ""),
   asks: (x) => (LIVE.admin && x.status === "pending" ? `${x.name}: ${askText(x)}` : ""),
@@ -1399,6 +1535,7 @@ const MINE = {
   issues: issueToast,
 };
 function liveChanged(what) {
+  if (what === "notices" || what === "me") renderBcast();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
@@ -1412,9 +1549,9 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed], notices: [renderPins, renderDash], reports: [renderReports, renderMgrs, renderDash], outlog: [renderOutlog], staff: [renderStaff, renderMgrs, renderIssues], requests: [renderRequests, renderDash],
-      asks: [renderRequests, renderMe, renderMgrs, renderDash], incidents: [renderMgrs, renderDash], reviews: [renderReports, renderMgrs], ratings: [renderMgrs], issues: [renderIssues, renderDash], audit: [renderStaff],
-      out: [renderDash], ticks: [renderDash], photos: [] }[what];
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues], requests: [renderRequests, renderDash, renderAct],
+      asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
+      out: [renderDash, renderAct], ticks: [renderDash, renderAct], photos: [] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     if (R) { R.filter((f) => !(f === renderIssues && typing($("#issues")))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
@@ -1466,6 +1603,10 @@ $("#v-notices").addEventListener("click", (e) => {
   const A = LIVE.api, b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.go) return go(b.dataset.go);
+  if (b.dataset.msub) { msub = b.dataset.msub; renderTeamTabs(); return; }
+  if (b.dataset.act) { actSec = b.dataset.act; actMax = 50; renderAct(); return; }
+  if (b.id === "act-more") { actMax += 50; renderAct(); return; }
+  if (b.id === "act-csv") { busy(b, "Getting the full history…", prepareDownload(actSec).catch(() => toast("Couldn't get it. Check your signal and try again"))); return; }
   if (b.dataset.mek) { meKind = b.dataset.mek; renderMe(); return; }
   if (b.dataset.eta) { meF.eta = etaIn(+b.dataset.eta); renderMe(); return; }
   if (b.id === "me-go") return sendMe(A);
@@ -1551,9 +1692,9 @@ $("#v-notices").addEventListener("click", (e) => {
     w.then(() => { staffMsg = `${esc(p.name)} is now ${up ? "a manager" : "staff"}.`; renderStaff(); }, () => {});
   } else if (b.id === "p-go") {
     const t = val("#p-text"); if (!t) return;
-    track(A.pin(t), "Notice pinned for everyone", "Notice not pinned. Try again"); $("#p-text").value = ""; haptic();
+    track(A.pin(t), "Broadcast sent to everyone", "Not sent. Try again"); $("#p-text").value = ""; haptic();
   } else if (b.dataset.unpin) {
-    if (confirm("Remove this notice for everyone?")) track(A.unpin(b.dataset.unpin), null, "Could not remove");
+    if (confirm("Remove this broadcast for everyone?")) track(A.unpin(b.dataset.unpin), null, "Could not remove");
   } else if (b.dataset.ordered) {
     track(A.markOrdered(b.dataset.ordered), null, "Could not update. It may be marked ordered already"); haptic();
   } else if (b.dataset.rqDrop) {

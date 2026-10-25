@@ -28,7 +28,7 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
 
   await O.click('[data-go="stock"]');
   assert.deepEqual(await O.evaluate(() => [$("#v-tally").hidden, document.querySelector(".ptabs [aria-selected=true]").dataset.pane]), [false, "stock"]);
-  for (const [go, tab] of [["requests", "requests"], ["managers", "managers"], ["reports", "reports"], ["issues", "board"]]) {
+  for (const [go, tab] of [["requests", "requests"], ["incidents", "managers"], ["reports", "reports"], ["issues", "board"]]) {
     await O.evaluate(() => show("notices"));
     await O.click(`[data-go="${go}"]`);
     assert.equal(await O.$eval("[data-tpane][aria-selected=true]", (e) => e.dataset.tpane), tab, `${go} tile opens the ${tab} tab`);

@@ -99,7 +99,7 @@ test("notices and the team board: who can post and who can take things down", as
   const { O, M, S } = await team(browser, site, people);
   await O.evaluate(() => show("notices"));
   await O.click("#pin-form summary"); await O.fill("#p-text", "Guinness line down tonight"); await O.click("#p-go");
-  await waitToast(S, /^Notice: Guinness line down tonight$/);
+  await waitToast(S, /^Broadcast: Guinness line down tonight$/);
   assert.equal(await S.$eval("#bell-n", (e) => (e.hidden ? "0" : e.textContent)), "1");
   assert.equal(await attempt(S, () => LIVE.api.pin("Free drinks")), "permission-denied");
 

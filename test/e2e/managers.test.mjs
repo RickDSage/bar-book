@@ -15,7 +15,7 @@ test("staff ask for time off, swaps and lateness; managers decide", async () => 
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   for (const p of [O, M, S]) await p.evaluate(() => show("notices"));
-  assert.equal(await S.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,reports,me");
+  assert.equal(await S.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,activity,reports,me");
   assert.equal(await O.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,reports,requests,managers,me");
 
   await O.evaluate(() => show("drinks"));
@@ -75,12 +75,12 @@ test("incidents are for managers' eyes and close with what was done", async () =
   assert.equal(await S.evaluate(() => LIVE.incidents.length), 0, "staff can't read incidents, their own included");
   const id = await M.evaluate(() => LIVE.incidents[0].id);
   assert.equal(await attempt(S, (id) => LIVE.api.closeIncident(id, "Fixed"), id), "permission-denied");
-  await M.evaluate(() => show("notices")); await M.click("[data-tpane=managers]");
+  await M.evaluate(() => show("notices")); await M.click("[data-tpane=managers]"); await M.click("[data-msub=incidents]");
   await M.click("[data-inc-close]");
   assert.equal(await toastOf(M), "Say what was done about it first");
   await M.fill("[data-inct]", "Engineer booked for Tuesday"); await M.click("[data-inc-close]");
   await M.waitForFunction(() => LIVE.incidents[0].status === "closed" && !LIVE.incidents[0].pending);
-  assert.match(await M.$eval("#mgrs", (e) => e.textContent), /What was done: Engineer booked for Tuesday · Mia Manager/);
+  assert.match(await M.$eval("#incs", (e) => e.textContent), /What was done: Engineer booked for Tuesday · Mia Manager/);
   assert.equal(await attempt(M, (id) => LIVE.api.closeIncident(id, "Again"), id), "permission-denied", "a closed incident stays closed");
   assert.deepEqual([M.errs, S.errs], [[], []]);
 });
@@ -101,11 +101,11 @@ test("managers review reports and leave each other anonymous feedback", async ()
   assert.equal(await attempt(S, () => LIVE.api.review(LIVE.reports[0].id, "up", "")), "permission-denied");
   assert.equal(await attempt(O, () => LIVE.api.review("abcdefghijklmnopqrst", "up", "")), "permission-denied", "a review needs a real report");
 
-  await M.evaluate(() => show("notices")); await M.click("[data-tpane=managers]");
+  await M.evaluate(() => show("notices")); await M.click("[data-tpane=managers]"); await M.click("[data-msub=feedback]");
   await M.selectOption("[data-f=fbWho]", { label: "Olly Owner" }); await M.click('[data-score="Needs improvement"]'); await M.click("#fb-go");
   assert.equal(await toastOf(M), "Say what needs to improve");
   await M.fill("[data-f=fbText]", "Sign off faster please"); await M.click("#fb-go");
-  await O.click("[data-tpane=managers]");
+  await O.click("[data-tpane=managers]"); await O.click("[data-msub=feedback]");
   await O.selectOption("[data-f=fbWho]", { label: "Mia Manager" }); await O.click("[data-score=Excellent]"); await O.click("#fb-go");
   await O.waitForFunction(() => LIVE.ratings.length === 2);
   await M.waitForFunction(() => LIVE.ratings.length === 1);
