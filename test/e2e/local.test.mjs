@@ -104,6 +104,7 @@ test("light, dark or the phone's own setting, remembered on this phone", async (
 test("allergen tiles include sulphites, and oat milk shows under gluten", async () => {
   const p = await open();
   await p.click("[data-tab=allergens]");
+  await p.click("[data-altab=cocktails]");
   await p.click("[data-al=Sulphites]");
   const sul = await p.$eval("#allist", (e) => e.innerText);
   assert.match(sul, /Negroni/); assert.match(sul, /Aperol Spritz/);

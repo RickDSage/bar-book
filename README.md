@@ -18,8 +18,9 @@ Open it at https://rickdsage.github.io/bar-book/ and add it to your home screen 
 | `src/live-src.js` | Team logins and live data. Bundled into `live.js` only when `firebase-config.json` exists. |
 | `src/build.js`, `src/site.js` | Bundle the drinks data into the page, then write the site files. |
 | `src/extras.js`, `src/builds.js`, `src/art.js` | Extra drinks, guide corrections and artwork. |
-| `test/rules.test.mjs` | 171 allowed and refused cases for every collection and role. |
-| `test/e2e/` | 36 browser tests: the real app on phone-sized screens, as owner, manager and staff at once, including offline and two phones changing the same item. |
+| `src/menu.js` | The Soho food, shakes and drinks for the Allergens tab, from blacktap.com and Toast. No allergens are set here: managers confirm them in the app. |
+| `test/rules.test.mjs` | 176 allowed and refused cases for every collection and role. |
+| `test/e2e/` | 39 browser tests: the real app on phone-sized screens, as owner, manager and staff at once, including offline and two phones changing the same item. |
 | `docs/SECURITY.md` | Permissions, owner setup, risks, costs, safety check limits, release checklist, rollback and keeping the code private. |
 | `LICENSE` | All rights reserved. No licence is granted. |
 
@@ -52,6 +53,8 @@ Both test suites run against the local Firebase emulators, never the live projec
 - **Restocking keeps asked, brought up and received apart**, so asking is never taken as proof something arrived. No stock level changes in Bar Book; stock is counted in Nory.
 - **Overdue:** in progress for over 30 minutes, or a restock waiting over 15 minutes for someone to take it on or to confirm it arrived. Each is shown with words, never colour alone.
 - **History is locked:** sent reports, the 86 log, decisions, closed incidents, fixed issues and account changes can't be edited. The old waste, temperature and stock count records can't be added to, edited or deleted.
+
+- **Menu allergens:** Black Tap's website, Toast and Deliveroo list no allergens per item, so the app assumes none. An item shows its allergens only once a manager has confirmed them from the kitchen's allergen sheet, with their name and the time on it, and every change is kept. Logged out, the list shows the menu only. The Cocktails part still comes from our specs.
 
 ## Known limitations
 

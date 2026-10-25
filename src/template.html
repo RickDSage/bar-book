@@ -134,6 +134,23 @@ nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
 .tile b { display: block; font-size: 17px; }
 .tile span { color: var(--muted); font-size: 13px; }
 .tile[aria-pressed="true"] { border-color: var(--warn); }
+/* Menu allergens: food, shakes and drinks, confirmed by a manager */
+#alseg { grid-template-columns: repeat(4, 1fr); }
+#alseg button { padding: 8px 2px; }
+.row.mrow { grid-template-columns: minmax(0, 1fr) auto; }
+.mtiles { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; }
+.mtiles .tile { padding: 8px 10px; }
+.mtiles .tile b { font-size: 15px; }
+.mrow .s { -webkit-line-clamp: 2; }
+.mrow .s.c { color: var(--warn); }
+.mdet { padding: 4px 0 14px; border-bottom: 1px solid var(--line); }
+.mdet .kv dd.c { color: var(--warn); font-weight: 700; }
+.alrow { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 8px; align-items: center; margin-top: 6px; }
+.seg.al3 { grid-template-columns: repeat(3, 1fr); margin-top: 0; padding: 3px; gap: 3px; }
+.seg.al3 button { min-height: 38px; padding: 4px 2px; font-size: 13px; }
+.seg.al3 button[data-v="yes"][aria-pressed="true"] { background: var(--warn); color: var(--bg); }
+.mhist { margin: 8px 0 0; padding: 0; list-style: none; font-size: 14px; }
+.mhist li { padding: 6px 0; border-top: 1px dashed var(--line); }
 .tally-row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line); }
 .tally-row > div { min-width: 0; }
 .tally-row .n { font-weight: 700; }
@@ -428,9 +445,13 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
   <section class="view" id="v-allergens" hidden>
     <h2 style="font-size:28px;margin-top:12px">Allergens</h2>
-    <p class="lead">Tap an allergen to see which drinks carry it. This only covers what is in our specs. The venue's allergen matrix and the bottle labels are the final word.</p>
-    <div class="grid2" id="algrid"></div>
-    <div id="allist"></div>
+    <div class="seg" id="alseg" role="group" aria-label="Allergens for"></div>
+    <div id="almenu"><div id="mhead"></div><div id="mlist"></div></div>
+    <div id="alspec">
+      <p class="lead">Tap an allergen to see which drinks carry it. This only covers what is in our specs. The venue's allergen matrix and the bottle labels are the final word.</p>
+      <div class="grid2" id="algrid"></div>
+      <div id="allist"></div>
+    </div>
   </section>
 
   <section class="view" id="v-practice" hidden>
@@ -783,7 +804,20 @@ $("#sheet").addEventListener("touchend", () => {
 const ALLERGENS = [["Milk", /milk/i], ["Gluten", /gluten/i], ["Peanut", /peanut/i], ["Almond", /almond/i], ["Hazelnut", /hazelnut/i], ["Oats", /oat/i], ["Soya", /soya/i], ["Celery", /celery/i], ["Fish", /fish/i], ["Sulphites", /sulphite/i]];
 const alHit = (d, re) => re.test(d.allergens || "");
 let alSel = null;
+// Allergens has four parts: Food, Shakes and Drinks (the menu, confirmed by managers) and Cocktails (from our specs).
+const ALTABS = [["food", "Food"], ["shakes", "Shakes"], ["drinks", "Drinks"], ["cocktails", "Cocktails"]];
+let altab = store.get("altab", "food");
+if (!ALTABS.some(([k]) => k === altab)) altab = "food";
 function renderAllergens() {
+  $("#alseg").innerHTML = ALTABS.map(([k, t]) => `<button data-altab="${k}" aria-pressed="${k === altab}">${t}</button>`).join("");
+  $("#alspec").hidden = altab !== "cocktails"; $("#almenu").hidden = altab === "cocktails";
+  if (altab === "cocktails") renderSpecAllergens(); else renderMenuAl();
+}
+$("#alseg").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-altab]"); if (!b) return;
+  altab = b.dataset.altab; store.set("altab", altab); mSel = null; mq = ""; mOpen = null; mEdit = null; renderAllergens();
+});
+function renderSpecAllergens() {
   $("#algrid").innerHTML = ALLERGENS.map(([n, re]) => {
     const c = D.filter((d) => alHit(d, re)).length;
     return `<button class="tile" aria-pressed="${alSel === n}" data-al="${n}"><b>${n}</b><span>${c} ${c === 1 ? "drink" : "drinks"}</span></button>`;
@@ -794,6 +828,141 @@ function renderAllergens() {
   $("#allist").innerHTML = `<div class="sec">${esc(alSel)}: ${rows.length}</div>` + rows.map(rowHtml).join("");
 }
 $("#algrid").addEventListener("click", (e) => { const b = e.target.closest("[data-al]"); if (!b) return; alSel = alSel === b.dataset.al ? null : b.dataset.al; renderAllergens(); });
+
+/* ---------- Menu allergens ----------
+   The food, shakes and drinks on the Soho menu (src/menu.js). The website lists no allergens, so nothing is assumed: an
+   item shows what it contains only once a manager has confirmed it from the kitchen's allergen sheet, and everyone
+   sees who confirmed it and when. Managers can also add an item the list is missing. */
+const MENU = DATA.menu.items, MSECS = DATA.menu.sections, MENU_IDS = new Set(MENU.map((x) => x.id));
+const AL14 = [["celery", "Celery"], ["gluten", "Gluten"], ["crustaceans", "Crustaceans"], ["eggs", "Eggs"], ["fish", "Fish"], ["lupin", "Lupin"], ["milk", "Milk"],
+  ["molluscs", "Molluscs"], ["mustard", "Mustard"], ["nuts", "Tree nuts"], ["peanuts", "Peanuts"], ["sesame", "Sesame"], ["soya", "Soya"], ["sulphites", "Sulphites"]];
+const AL_NAME = Object.fromEntries(AL14);
+const alNames = (ks) => ks.filter((k) => AL_NAME[k]).map((k) => AL_NAME[k]).join(", ");
+const plainText = (t) => t.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const menuSlug = (t) => plainText(t).replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const menuAl = () => LIVE.menuAl || new Map();
+let mSel = null, mq = "", mOpen = null, mEdit = null, mHist = null;
+// The menu's items for one part, plus any a manager has added there.
+function menuItems(tab) {
+  const added = [...menuAl().values()].filter((r) => r.id.startsWith("added-") && !MENU_IDS.has(r.id)).map((r) => {
+    const sc = MSECS.find((x) => x.key === r.section);
+    return sc && { id: r.id, tab: sc.tab, key: sc.key, section: sc.section, name: r.itemName, desc: "", added: true };
+  }).filter(Boolean);
+  return [...MENU, ...added].filter((x) => x.tab === tab);
+}
+const carries = (r, k) => r && (r.contains.includes(k) || r.may.includes(k));
+function renderMenuAl() {
+  const live = !!LIVE.me, conf = menuAl(), all = menuItems(altab);
+  if (live) LIVE.api.watchMenu();
+  const done = all.filter((x) => conf.has(x.id)).length;
+  $("#mhead").innerHTML = `<p class="lead">${live ? `<b>${done} of ${all.length}</b> confirmed by a manager from the kitchen's allergen sheet. Not confirmed means nobody has checked it here yet, so ask the kitchen.`
+    : "Log in on the Team page (the bell) to see the allergens a manager has confirmed. Until then, ask the kitchen about every allergy."}</p>
+    ${altab === "shakes" ? `<div class="allergy"><b>Peanuts:</b> the shake bar uses peanuts. We can't guarantee any shake is safe for someone with a peanut allergy.</div>` : ""}
+    <p class="note">Shared cooking areas mean any item may carry traces of allergens, so nothing is guaranteed allergen-free. For a guest with an allergy, always check with the kitchen.</p>
+    ${live ? `<div class="grid2 mtiles">${AL14.map(([k, n]) => { const c = all.filter((x) => carries(conf.get(x.id), k)).length;
+      return `<button class="tile" aria-pressed="${mSel === k}" data-mal="${k}"><b>${n}</b><span>${c} confirmed</span></button>`; }).join("")}</div>` : ""}
+    <div class="search" style="margin-top:12px"><input id="mq" type="search" placeholder="Search this list" autocomplete="off" enterkeyhint="search" aria-label="Search this list" value="${esc(mq)}"></div>`;
+  renderMenuList();
+}
+function renderMenuList() {
+  const live = !!LIVE.me, conf = menuAl(), q = plainText(mq.trim());
+  let list = menuItems(altab).filter((x) => !q || plainText(x.name + " " + x.desc).includes(q));
+  if (mSel) list = list.filter((x) => carries(conf.get(x.id), mSel));
+  const secs = MSECS.filter((sc) => sc.tab === altab).map((sc) => [sc, list.filter((x) => x.key === sc.key)]).filter(([, xs]) => xs.length);
+  $("#mlist").innerHTML = (mSel ? `<div class="sec">Confirmed with ${esc(AL_NAME[mSel])}: ${list.length}</div><p class="note">Contains or may contain. Items nobody has confirmed yet aren't in this list.</p>` : "")
+    + (secs.length ? secs.map(([sc, xs]) => `<div class="sec">${esc(sc.section)}<span class="cnt">${xs.length}</span></div>` + xs.map((x) => menuRow(x, conf.get(x.id), live)).join("")).join("")
+      : `<p class="empty">Nothing here${q ? ` matches \u201c${esc(mq.trim())}\u201d` : ""}.</p>`)
+    + (LIVE.admin ? (mEdit && mEdit.isNew ? `<div class="mdet"><div class="sec">Add an item</div>${menuEditor(mEdit)}</div>` : `<button class="btn wide" data-madd>Add an item that isn't listed</button>`) : "");
+}
+function menuRow(x, r, live) {
+  const open = mOpen === x.id;
+  const pill = !live ? "" : !r ? `<span class="pill no">Not confirmed</span>` : r.pending ? `<span class="pill wait">Saving</span>` : `<span class="pill ok">Confirmed</span>`;
+  const sub = live && r ? `<div class="s${r.contains.length ? " c" : ""}">${r.contains.length ? "Contains " + esc(alNames(r.contains)) : "None of the 14 allergens"}${r.may.length ? ". May contain " + esc(alNames(r.may)) : ""}</div>`
+    : x.desc ? `<div class="s">${esc(x.desc)}</div>` : "";
+  return `<button class="row mrow" data-mi="${x.id}" aria-expanded="${open}"><div><div class="n">${esc(x.name)}</div>${sub}</div>${pill}</button>` + (open ? menuDetail(x, r, live) : "");
+}
+function menuDetail(x, r, live) {
+  // The row shows the description until the item is confirmed; after that it moves down here.
+  let h = live && r && x.desc ? `<p class="note" style="margin-top:0">${esc(x.desc)}</p>` : "";
+  if (!live) return `<div class="mdet">${h}<p class="note">Log in to see what a manager has confirmed. Until then, ask the kitchen.</p></div>`;
+  if (r) h += `<dl class="kv"><dt>Contains</dt><dd class="${r.contains.length ? "c" : ""}">${r.contains.length ? esc(alNames(r.contains)) : "None of the 14 allergens"}</dd>
+    <dt>May contain</dt><dd class="${r.may.length ? "c" : ""}">${r.may.length ? esc(alNames(r.may)) : "Nothing noted"}</dd>${r.note ? `<dt>Note</dt><dd>${esc(r.note)}</dd>` : ""}</dl>
+    <p class="note">Confirmed by <b>${esc(r.name)}</b>${r.at ? `, ${esc(stamp(r.at.toDate()))}` : ""}</p>`;
+  else h += `<div class="allergy"><b>Not confirmed.</b> Check the kitchen's allergen sheet or ask the kitchen before you tell a guest anything.</div>`;
+  if (LIVE.admin) {
+    if (mEdit && mEdit.id === x.id) h += menuEditor(mEdit);
+    else h += `<div class="actions"><button class="btn pri" data-medit="${x.id}">${r ? "Change" : "Confirm allergens"}</button>${r ? `<button class="btn danger" data-mclear="${x.id}">${x.added ? "Remove item" : "Clear"}</button>` : ""}<button class="btn" data-mhist="${x.id}">Changes</button></div>`;
+    if (mHist && mHist.id === x.id) h += !mHist.rows ? `<p class="note">Loading changes…</p>` : !mHist.rows.length ? `<p class="note">No changes yet.</p>`
+      : `<ul class="mhist">${mHist.rows.map((c) => `<li><b>${esc(c.name)}</b>, ${c.at ? esc(stamp(c.at.toDate())) : "just now"}: ${c.action === "clear" ? "cleared"
+        : `contains ${esc(alNames(c.contains) || "none of the 14")}${c.may.length ? `; may contain ${esc(alNames(c.may))}` : ""}${c.note ? `; note: ${esc(c.note)}` : ""}`}</li>`).join("")}</ul>`;
+  }
+  return `<div class="mdet">${h}</div>`;
+}
+function menuEditor(ed) {
+  const state = (k) => (ed.contains.includes(k) ? "yes" : ed.may.includes(k) ? "may" : ed.no.includes(k) ? "no" : "");
+  return `<div class="medit">${ed.isNew ? `<label class="fld">Item name<input id="m-name" maxlength="80" value="${esc(ed.name)}" autocomplete="off"></label>
+      <label class="fld">Section<select id="m-sec">${MSECS.filter((sc) => sc.tab === altab).map((sc) => `<option value="${sc.key}"${sc.key === ed.key ? " selected" : ""}>${esc(sc.section)}</option>`).join("")}</select></label>` : ""}
+    <p class="note">Answer all 14 from the kitchen's allergen sheet. Your name goes on it.</p>
+    ${AL14.map(([k, n]) => `<div class="alrow"><span>${n}</span><div class="seg al3" role="group" aria-label="${n}">${[["no", "No"], ["may", "May contain"], ["yes", "Contains"]].map(([v, t]) => `<button data-alset="${k}" data-v="${v}" aria-pressed="${state(k) === v}">${t}</button>`).join("")}</div></div>`).join("")}
+    <label class="fld">Note (optional)<textarea id="m-note" rows="2" maxlength="300" placeholder="For example, which fryer it shares">${esc(ed.note)}</textarea></label>
+    <div class="actions"><button class="btn pri" data-msave>Save as confirmed</button><button class="btn" data-mcancel>Cancel</button></div></div>`;
+}
+$("#almenu").addEventListener("input", (e) => {
+  const t = e.target;
+  if (t.id === "mq") { mq = t.value; renderMenuList(); }
+  if (t.id === "m-note" && mEdit) mEdit.note = t.value;
+  if (t.id === "m-name" && mEdit) mEdit.name = t.value;
+  if (t.id === "m-sec" && mEdit) mEdit.key = t.value;
+});
+$("#almenu").addEventListener("change", (e) => { if (e.target.id === "m-sec" && mEdit) mEdit.key = e.target.value; });
+$("#almenu").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  const A = LIVE.api, conf = menuAl(), item = (id) => menuItems(altab).find((x) => x.id === id);
+  if (b.dataset.mal) { mSel = mSel === b.dataset.mal ? null : b.dataset.mal; renderMenuAl(); return; }
+  if (b.dataset.mi) { mOpen = mOpen === b.dataset.mi ? null : b.dataset.mi; if (mEdit && !mEdit.isNew) mEdit = null; renderMenuList(); return; }
+  if (b.dataset.alset && mEdit) {
+    const k = b.dataset.alset, v = b.dataset.v;
+    for (const f of ["contains", "may", "no"]) mEdit[f] = mEdit[f].filter((x) => x !== k);
+    mEdit[{ yes: "contains", may: "may", no: "no" }[v]].push(k);
+    $$(`[data-alset="${k}"]`, $("#almenu")).forEach((c) => c.setAttribute("aria-pressed", c.dataset.v === v));
+    return;
+  }
+  if (b.dataset.medit) { const r = conf.get(b.dataset.medit); mEdit = { id: b.dataset.medit, contains: r ? [...r.contains] : [], may: r ? [...r.may] : [], note: r ? r.note : "" };
+    mEdit.no = r ? AL14.map(([k]) => k).filter((k) => !r.contains.includes(k) && !r.may.includes(k)) : []; renderMenuList(); return; }
+  if (b.hasAttribute("data-madd")) { mEdit = { isNew: true, id: null, name: "", key: MSECS.find((sc) => sc.tab === altab).key, contains: [], may: [], no: [], note: "" }; mOpen = null; renderMenuList(); $("#m-name")?.focus(); return; }
+  if (b.hasAttribute("data-mcancel")) { mEdit = null; renderMenuList(); return; }
+  if (b.hasAttribute("data-msave") && mEdit) {
+    const ed = mEdit, order = (ks) => AL14.map(([k]) => k).filter((k) => ks.includes(k));
+    const left = AL14.length - ed.contains.length - ed.may.length - ed.no.length;
+    if (left) return toast(`Answer all 14 from the sheet. ${left} to go`);
+    let it;
+    if (ed.isNew) {
+      const name = ed.name.trim().replace(/\s+/g, " ");
+      if (!name) return toast("Give the item a name");
+      const id = `added-${ed.key}-${menuSlug(name)}`.slice(0, 100);
+      if (menuItems(altab).some((x) => x.id === id || plainText(x.name) === plainText(name))) return toast("That item is already on the list");
+      it = { id, name, key: ed.key };
+    } else {
+      const x = item(ed.id); if (!x) return;
+      it = { id: x.id, name: x.name, key: x.key };
+    }
+    haptic(); mEdit = null; mOpen = it.id;
+    track(A.confirmAllergens(it, { contains: order(ed.contains), may: order(ed.may), note: ed.note.trim() }), "Saved as confirmed", "Not saved. Only managers can confirm allergens");
+    renderMenuList(); return;
+  }
+  if (b.dataset.mclear) {
+    const x = item(b.dataset.mclear); if (!x) return;
+    if (!confirm(x.added ? `Remove ${x.name} from the list?` : `Clear the allergens confirmed for ${x.name}? It will show as not confirmed.`)) return;
+    if (x.added) mOpen = null;
+    track(A.clearAllergens(x.id), x.added ? "Removed" : "Cleared"); return;
+  }
+  if (b.dataset.mhist) {
+    const id = b.dataset.mhist;
+    if (mHist && mHist.id === id) { mHist = null; renderMenuList(); return; }
+    mHist = { id, rows: null }; renderMenuList();
+    A.allergenHistory(id).then((rows) => { if (mHist && mHist.id === id) { mHist.rows = rows; renderMenuList(); } }, () => { mHist = null; toast("Couldn't load the changes. Check your signal"); renderMenuList(); });
+  }
+});
 
 /* ---------- Practise ---------- */
 const POOLS = {
@@ -2351,6 +2520,9 @@ function liveChanged(what) {
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
   if (["me", "out", "photos", "tasks", "runs", "events", "restock", "staff"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();
+  if ((what === "menuAl" || what === "me") && !$("#v-allergens").hidden && altab !== "cocktails" && !(document.activeElement && $("#almenu").contains(document.activeElement) && document.activeElement.id !== "mq")) {
+    if (what === "me" || document.activeElement?.id !== "mq") renderMenuAl(); else renderMenuList();
+  }
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // Overdue and waiting times move on with no change to the data, so the Shift tab and Live are redrawn each minute.
