@@ -41,15 +41,17 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `waste` (waste log) | O, M: all. S: their own | O, M, S, as themselves, dated tonight: an item, an amount up to 1,000, a unit and a reason (a note too when the reason is Other) | nobody | whoever logged it, within 15 minutes; O any time |
 | `kit` (equipment that gets checked) | O, M, S | O, M: a fridge, freezer, cellar, glass washer or beer lines, for the bar or the floor | nobody | O, M |
 | `safety` (temperatures and line cleans) | O, M, S | O, M, S, as themselves, dated tonight: a reading that matches its equipment, -40 to 100°C, or no temperature for a line clean | nobody | whoever logged it, within 15 minutes; O any time |
+| `cleanJobs` (cleaning schedule) | O, M, S | O, M: a job, every 1, 2 or 4 weeks, for the bar or the floor, with an optional how-to | nobody | O, M |
+| `cleans` (cleaning ticks) | O, M, S | O, M, S, as themselves, dated tonight, matching its job | nobody | whoever ticked it, within 15 minutes; O any time |
 | `pars/{item}` (par levels) | O, M | O, M: 1 to 1,000 | O, M | O, M |
 | `counts` (stock counts) | O, M | O, M: 1 to 400 lines | nobody | O |
-| `training/{uid}-{drink}` (sign-offs) | O, M: all. S: their own | O, M: someone else on the team, once per drink | nobody | O, M (taking it back) |
+| `training/{uid}-{drink}` (sign-offs) | O, M: all. S: their own | O, M: someone else on the team, once per drink or venue training topic | nobody | O, M (taking it back) |
 | `concerns` (Report a concern) | O, M: all. S: those sent to everyone, the bar or the floor, and their own named ones | O, M, S: a reason, where, an optional note (required for Something else), who it's for and up to 3 photos. Named as themselves, or anonymous with no uid or name saved | anyone it was sent to: mark it dealt with, once (managers only ones need O or M) | O, M any; the sender of a named one while it's open |
 | `concernPhotos/{concern}-{n}` | O, M: all. S: those on concerns sent to the team | only in the write that creates their concern: a JPEG up to 700,000 characters, carrying the concern's audience, no uid | nobody | with their concern; O, M once over 30 days old |
 
 Concerns sent to the bar or the floor reach every staff phone, and each shows the ones for the side it's set to, like broadcasts. Managers only is enforced: a staff login can't read that concern or its photos, and the anonymous sender can't see it again either. Photos are re-saved by the app before upload, which drops the location and camera details a phone puts in its photos.
 
-Waste and safety records are the venue's record, so nobody edits them. One logged by mistake can be taken back by whoever logged it for 15 minutes (the app offers Undo for 14, to allow for a phone's clock being a little out); after that only the owner can delete it. "Dated tonight" allows a day either side, like the checklists. The rules can't check a stock count line by line (they have no loops), so only managers can write counts and the app shows every value in them as text.
+Waste, safety and cleaning records are the venue's record, so nobody edits them. One logged by mistake can be taken back by whoever logged it for 15 minutes (the app offers Undo for 14, to allow for a phone's clock being a little out); after that only the owner can delete it. "Dated tonight" allows a day either side, like the checklists. The rules can't check a stock count line by line (they have no loops), so only managers can write counts and the app shows every value in them as text.
 
 A broadcast for the bar or the floor reaches every staff phone, and each shows the ones for the side it's set to in Shift. That's about relevance, not privacy. Leaving managers out is enforced: a manager's login can't read that broadcast or who has read it.
 
@@ -111,7 +113,7 @@ Nothing, on the Spark plan as set up today. Spark can't bill you: when a free qu
 | | Free on Spark | My estimate for this team |
 |---|---|---|
 | Stored data | 1 GiB | photos at most around 290 MB with the 30-day clear-out (16 a night at the 600 KB worst case; usually far less), text a few MB |
-| Document reads | 50,000 a day | roughly 15,000 to 40,000 on a busy day (each phone loads up to about 600 records as staff or 1,300 as a manager when it opens, plus the Got it records for the broadcasts on show, a few hundred more when a manager opens Stock or Training, then only changes). This is an estimate from the list sizes, not a measurement |
+| Document reads | 50,000 a day | roughly 15,000 to 40,000 on a busy day (each phone loads up to about 600 records as staff or 1,300 as a manager when it opens, plus about 70 for the cleaning schedule (the jobs and 5 weeks of ticks), the Got it records for the broadcasts on show, a few hundred more when a manager opens Stock or Training, then only changes). This is an estimate from the list sizes, not a measurement |
 | Writes / deletes | 20,000 a day each | a few hundred |
 | Outbound data | 10 GiB a month | photos load only when someone taps "Show photos" |
 | GitHub Pages | 1 GB site, soft 100 GB a month | about 2 MB per launch with signal, before compression |

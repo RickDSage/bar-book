@@ -479,7 +479,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], waste: [], kit: [], safety: [], pars: {}, counts: [], training: [], concerns: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], waste: [], kit: [], safety: [], jobs: [], cleans: [], pars: {}, counts: [], training: [], concerns: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -742,6 +742,11 @@ const POOLS = {
   "Shots & bombs": (d) => /Shots|Bombs/.test(d.section),
   "Everything": () => true,
 };
+// Venue training: what a manager signs someone off on besides drinks, in Team, Managers, Training.
+const TOPICS = ["Allergens and the allergen folder", "ID checks and refusing a sale", "Fire alarms, exits and the meeting point", "Glass washer and cleaning chemicals",
+  "Changing a keg and lifting safely", "First aid kit and the accident book"];
+const TOPIC_POOL = "Venue training";
+let pTopicsOpen = false;
 let pool = store.get("pool", "Signatures"); if (!POOLS[pool]) pool = "Signatures";
 let pDrink = null, pShown = false, pScore = { got: 0, miss: 0 };
 function nextCard() {
@@ -754,7 +759,8 @@ function renderPractice() {
   const mine = new Set(LIVE.me ? LIVE.training.filter((t) => t.trainee === LIVE.uid).map((t) => t.drinkName) : []), inPool = D.filter(POOLS[pool]);
   $("#ppool").innerHTML = Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}</button>`).join("");
   const d = pDrink;
-  $("#pcard").innerHTML = `${LIVE.me ? `<p class="note" id="p-signed">Signed off by a manager: ${inPool.filter((x) => mine.has(x.name)).length} of ${inPool.length}${pool === "Everything" ? " drinks" : ` ${pool}`}</p>` : ""}<div class="card"><span class="g" aria-hidden="true">${glass(d)}</span><h2>${esc(d.name)}</h2>${mine.has(d.name) ? `<span class="pill ok">Signed off</span>` : ""}<p class="lead" style="margin:6px auto 0">What goes in, which glass, which ice, what garnish?</p>
+  $("#pcard").innerHTML = `${LIVE.me ? `<p class="note" id="p-signed">Signed off by a manager: ${inPool.filter((x) => mine.has(x.name)).length} of ${inPool.length}${pool === "Everything" ? " drinks" : ` ${pool}`}</p>
+    <details class="setup" id="p-topics"${pTopicsOpen ? " open" : ""}><summary>${TOPIC_POOL}: ${TOPICS.filter((t) => mine.has(t)).length} of ${TOPICS.length} signed off</summary>${TOPICS.map((t) => `<div class="s">${mine.has(t) ? "✓" : "○"} ${t}</div>`).join("")}</details>` : ""}<div class="card"><span class="g" aria-hidden="true">${glass(d)}</span><h2>${esc(d.name)}</h2>${mine.has(d.name) ? `<span class="pill ok">Signed off</span>` : ""}<p class="lead" style="margin:6px auto 0">What goes in, which glass, which ice, what garnish?</p>
     ${pShown ? `<div style="text-align:left;margin-top:14px"><dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl><ul class="spec" style="margin-top:10px">${d.spec.map(specRow).join("")}</ul><p style="margin:10px 0 0">${esc(d.method)}</p></div>
       <div class="actions" style="justify-content:center"><button class="btn danger" data-p="miss">Missed it</button><button class="btn pri" data-p="got">Got it</button></div>`
       : `<button class="btn pri wide" data-p="show">Show the spec</button>`}
@@ -765,6 +771,7 @@ $("#v-practice").addEventListener("click", (e) => {
   const b = e.target.closest("[data-p]"); if (!b) return;
   if (b.dataset.p === "show") { pShown = true; renderPractice(); } else { pScore[b.dataset.p]++; nextCard(); }
 });
+$("#v-practice").addEventListener("toggle", (e) => { if (e.target.id === "p-topics") pTopicsOpen = e.target.open; }, true);
 
 /* ---------- Shift ---------- */
 let confirmReset = false;
@@ -960,7 +967,7 @@ async function shrink(file) {
 function paneBadge(k) {
   if (LISTS[k]) { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
   if (k === "stock") return outNow().size ? `${outNow().size} out` : "";
-  if (k === "logs") return logsDue() ? `${logsDue()} due` : "";
+  if (k === "logs") { const n = logsDue() + jobsDue(); return n ? `${n} due` : ""; }
   return "";
 }
 function renderTally() {
@@ -1021,6 +1028,7 @@ $("#tally").addEventListener("input", (e) => {
   const wk = { "w-qty": "qty", "w-other": "other", "w-note": "note" }[e.target.id]; if (wk) { wF[wk] = e.target.value; return; }
   if (e.target.dataset.tc) { tC[e.target.dataset.tc] = e.target.value; return; }
   if (e.target.dataset.ln) { lnNote[e.target.dataset.ln] = e.target.value; return; }
+  if (e.target.dataset.jn) { jbNote[e.target.dataset.jn] = e.target.value; return; }
   if (e.target.id === "s-who") { shiftWho = e.target.value; store.set("shiftWho", shiftWho); }
   if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
   if ($("#t-text")) $("#t-text").value = tallyText();
@@ -1077,6 +1085,12 @@ $("#tally").addEventListener("click", async (e) => {
     lnNote[k.id] = ""; haptic(); renderTally(); return;
   }
   const cu = e.target.closest("[data-chk-undo]"); if (cu) { track(LIVE.api.unlogCheck(cu.dataset.chkUndo), "Taken back", "Too late to undo. The owner can delete it"); return; }
+  const jb = e.target.closest("[data-job]"); if (jb) {
+    const j = LIVE.jobs.find((x) => x.id === jb.dataset.job);
+    track(LIVE.api.logClean(j, (jbNote[j.id] || "").trim()), `Done: ${j.name}`, "Not logged. Try again");
+    jbNote[j.id] = ""; haptic(); renderTally(); return;
+  }
+  const ju = e.target.closest("[data-jb-undo]"); if (ju) { track(LIVE.api.unlogClean(ju.dataset.jbUndo), "Taken back", "Too late to undo. The owner can delete it"); return; }
   const rq = e.target.closest("#rq-go"); if (rq) {
     const item = rqItem, note = rqNote.trim();
     if (!item) return toast("Pick what's needed");
@@ -1127,11 +1141,13 @@ const tempLine = (r) => {
   const [st, msg] = judge(r.kind, r.c);
   return `${st ? `<span class="pill ${PILL[st]}">${r.c}°C</span>` : `<b>${r.c}°C</b>`} ${esc(r.name)} · ${r.pending ? "sending…" : hhmm(new Date(ms(r.at)))}${msg ? ` · ${msg}` : ""}${r.note ? ` · ${esc(r.note)}` : ""}`;
 };
-function lineState(k) {
-  const { last, next } = linesDue(k), today = shiftDay();
-  return !last ? `<span class="pill no">No clean logged in 8 nights</span>` : next < today ? `<span class="pill no">Overdue since ${dayName(next)}</span>`
+// Whether something done every few days is due, from { last, next } (see linesDue and jobDue), and what to say with no record.
+function dueState({ last, next }, none) {
+  const today = shiftDay();
+  return !last ? `<span class="pill no">${none}</span>` : next < today ? `<span class="pill no">Overdue since ${dayName(next)}</span>`
     : next === today ? `<span class="pill wait">Due tonight</span>` : `<span class="pill ok">Next due ${dayName(next)}</span>`;
 }
+const lineState = (k) => dueState(linesDue(k), "No clean logged in 8 nights");
 const tC = {}, lnNote = {}; // half-typed readings and notes, so live updates don't wipe them
 function checksHtml() {
   const kit = LIVE.kit.filter((k) => k.side === mode), temps = kit.filter((k) => k.kind !== "lines"), lines = kit.filter((k) => k.kind === "lines");
@@ -1142,6 +1158,27 @@ function checksHtml() {
     + (lines.length ? `<div class="sec">Beer lines</div>${lines.map((k) => { const { last } = linesDue(k); return `<div class="staffrow"><div class="n">${esc(k.name)} ${lineState(k)}</div>
       ${last ? `<div class="s">Last cleaned ${dayName(last.day)} by ${esc(last.name)}${last.note ? ` · ${esc(last.note)}` : ""}${undoBtn(last, "chk-undo")}</div>` : ""}
       <div class="rvrow" style="grid-template-columns:1fr auto"><input data-ln="${k.id}" maxlength="200" placeholder="Note (optional)" value="${esc(lnNote[k.id] || "")}" aria-label="Note on the clean"><button class="btn pri" data-clean="${k.id}">Cleaned</button></div></div>`; }).join("")}` : "");
+}
+/* ---------- Cleaning schedule ----------
+   The cleaning jobs that aren't done every night (those are on the closing checklist), set up by managers in Team,
+   Managers, Safety with how often and how, like the cleaning schedule in the FSA's Safer Food, Better Business pack.
+   Whoever does one ticks it off, and it's due again that many days later. Ticks are kept like the safety records. */
+const EVERY = { 7: "Every week", 14: "Every 2 weeks", 28: "Every 4 weeks" };
+// The latest tick in the last 5 weeks (enough for the longest gap), and the night the job is next due.
+function jobDue(j) {
+  const last = LIVE.cleans.find((r) => r.job === j.id);
+  return last ? { last, next: addDays(last.day, j.every) } : { last: null, next: "" };
+}
+const jobState = (j) => dueState(jobDue(j), "Not logged in 5 weeks");
+const jobsDue = () => (LIVE.me ? LIVE.jobs.filter((j) => j.side === mode && (!jobDue(j).last || jobDue(j).next <= shiftDay())).length : 0);
+const jbNote = {}; // half-typed notes, so live updates don't wipe them
+function cleaningHtml() {
+  const jobs = LIVE.jobs.filter((j) => j.side === mode);
+  if (!jobs.length) return `<div class="sec">Cleaning</div><p class="note">No cleaning jobs set up for the ${mode} yet. ${LIVE.admin ? "Add them in Team, Managers, Safety." : "A manager adds them in Team, Managers, Safety."}</p>`;
+  return `<div class="sec">Cleaning</div><p class="note">The jobs that aren't done every night. Tick one off once it's done.</p>${jobs.map((j) => { const { last } = jobDue(j);
+    return `<div class="staffrow"><div class="n">${esc(j.name)} ${jobState(j)}</div><div class="s">${EVERY[j.every] || ""}${j.how ? ` · ${esc(j.how)}` : ""}</div>
+      ${last ? `<div class="s">Last done ${dayName(last.day)} by ${esc(last.name)}${last.note ? ` · ${esc(last.note)}` : ""}${undoBtn(last, "jb-undo")}</div>` : ""}
+      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-jn="${j.id}" maxlength="200" placeholder="Note (optional)" value="${esc(jbNote[j.id] || "")}" aria-label="Note on the job"><button class="btn pri" data-job="${j.id}">Done</button></div></div>`; }).join("")}`;
 }
 // Waste is a quantity and a reason, never a price: the managers add costs in the spreadsheet.
 const UNITS = { each: "Each", pint: "Pints", half: "Halves", single: "25 ml measures", double: "50 ml measures", bottle: "Bottles", glass: "Glasses", ml: "ml" };
@@ -1172,9 +1209,9 @@ function wasteHtml() {
     ${xs.length ? `<div class="h3" style="margin-top:14px">${LIVE.admin ? `Logged on the ${mode} tonight` : "You've logged tonight"}</div>${xs.map((w) => `<div class="staffrow"><div class="n">${esc(wasteText(w))}</div><div class="s">${REASONS[w.reason]}${w.note ? ` · ${esc(w.note)}` : ""} · ${LIVE.admin ? `${esc(w.name)} · ` : ""}${w.pending ? "sending…" : hhmm(new Date(ms(w.at)))}${undoBtn(w, "w-undo")}</div></div>`).join("")}` : ""}`;
 }
 function logsHtml() {
-  if (!LIVE.api) return `<div class="sec">Temperatures and waste</div><p class="note">Fridge temperatures, line cleaning and waste, kept as the venue's record.</p>${SOON}`;
-  if (!LIVE.me) return `<div class="sec">Temperatures and waste</div><p class="note">Log in on the Team page (the bell) to log temperatures and waste.</p>`;
-  return checksHtml() + wasteHtml();
+  if (!LIVE.api) return `<div class="sec">Temperatures, cleaning and waste</div><p class="note">Fridge temperatures, line cleaning, the cleaning schedule and waste, kept as the venue's record.</p>${SOON}`;
+  if (!LIVE.me) return `<div class="sec">Temperatures, cleaning and waste</div><p class="note">Log in on the Team page (the bell) to log temperatures, cleaning and waste.</p>`;
+  return checksHtml() + cleaningHtml() + wasteHtml();
 }
 
 /* ---------- Feedback (Google Form, responses go to the manager) ---------- */
@@ -1349,6 +1386,7 @@ function renderDash() {
   const tiles = [
     [v("shift", `${done}/${of}`), `${mode === "bar" ? "Bar" : "Floor"} checklists ticked`, "shift"],
     [v("safety", logsDue()), `safety checks due on the ${mode}`, "logs", logsDue() > 0],
+    [v("cleans", jobsDue()), `cleaning jobs due on the ${mode}`, "logs", jobsDue() > 0],
     [v("out", LIVE.out.size), "86'd right now", "stock", LIVE.out.size > 0],
     [v("issues", open.length), urgent ? `open issues, ${urgent} urgent` : "open issues", "issues", urgent > 0],
     [v("concerns", openConcerns().length), "open concerns", "concerns", openConcerns().some((x) => x.reason === "hazard")],
@@ -1622,16 +1660,16 @@ function renderWaste() {
       }).join("")}`
     : `<p class="note">Nothing logged ${wWeek ? "last week" : "this week"} yet. Staff log waste in Shift, Logs.</p>`}`;
 }
-const kitF = { name: "", kind: "fridge", side: "bar" };
+const kitF = { name: "", kind: "fridge", side: "bar" }, jobF = { name: "", every: 7, side: "bar", how: "" };
 const keepOpen = {}; // which folding sections are open, so live updates don't close them
 const fold = (k) => `data-keep="${k}"${keepOpen[k] ? " open" : ""}`;
 function renderSafety() {
   if (!LIVE.admin) return;
-  const kit = [...LIVE.kit].sort((a, b) => a.side.localeCompare(b.side) || a.name.localeCompare(b.name));
+  const bySide = (a, b) => a.side.localeCompare(b.side) || a.name.localeCompare(b.name), kit = [...LIVE.kit].sort(bySide), jobs = [...LIVE.jobs].sort(bySide);
   const off = (r) => ["warn", "bad"].includes(judge(r.kind, r.c)[0]);
   const nights = lastNights(7).filter((d) => LIVE.safety.some((r) => r.day === d && r.kind !== "lines"));
   $("#msafety").innerHTML = `<div class="sec">Safety checks</div>
-    <p class="note">Temperatures and line cleaning, kept as the venue's due-diligence record. Staff log them in Shift, Logs.</p>
+    <p class="note">Temperatures, line cleaning and the cleaning schedule, kept as the venue's due-diligence record. Staff log them in Shift, Logs.</p>
     <div class="actions">${dlHtml("safety", "Download the full safety log as a spreadsheet", "safety")}</div>
     <h3 class="actday">Tonight</h3>
     ${kit.map((k) => `<div class="staffrow"><div class="n">${esc(k.name)} <span class="pill">${sideName(k.side)}</span> ${k.kind === "lines" ? lineState(k) : tonightOf(k).length ? "" : `<span class="pill wait">No reading yet</span>`}</div>
@@ -1647,7 +1685,20 @@ function renderSafety() {
       <label class="fld">What it is<select id="k-kind">${Object.entries(KITS).map(([k, x]) => `<option value="${k}"${k === kitF.kind ? " selected" : ""}>${x.name}</option>`).join("")}</select></label>
       <div class="mini">Who logs it</div><div class="recent">${["bar", "floor"].map((x) => `<button class="chip" data-kit-side="${x}" aria-pressed="${x === kitF.side}">${sideName(x)}</button>`).join("")}</div>
       <button class="btn pri wide" id="k-go">Add</button>
-      <p class="note">Removing something keeps its past readings.</p></details>`;
+      <p class="note">Removing something keeps its past readings.</p></details>
+    <div class="sec">Cleaning schedule</div>
+    <p class="note">The jobs that aren't done every night, with how often and how.</p>
+    <div class="actions">${dlHtml("cleaning", "Download the cleaning log as a spreadsheet", "cleaning")}</div>
+    ${jobs.map((j) => { const { last } = jobDue(j); return `<div class="staffrow"><div class="n">${esc(j.name)} <span class="pill">${sideName(j.side)}</span> ${jobState(j)}</div><div class="s">${EVERY[j.every] || ""}${last ? ` · last done ${dayName(last.day)} by ${esc(last.name)}` : ""}</div></div>`; }).join("") || `<p class="note">No jobs yet. Add them below.</p>`}
+    <details class="setup" ${fold("jobs")}><summary>Cleaning jobs (${jobs.length})</summary>
+      ${jobs.map((j) => `<div class="staffrow"><div class="n">${esc(j.name)}</div><div class="s">${EVERY[j.every] || ""} · ${sideName(j.side)}${j.how ? ` · ${esc(j.how)}` : ""}</div><div class="actions"><button class="btn danger" data-job-del="${j.id}">Remove</button></div></div>`).join("")}
+      <h3 style="font-size:18px;margin-top:16px">Add a cleaning job</h3>
+      <label class="fld">Job<input id="j-name" maxlength="60" value="${esc(jobF.name)}" placeholder="Descale the glass washer"></label>
+      <div class="mini">How often</div><div class="recent">${Object.entries(EVERY).map(([n, t]) => `<button class="chip" data-job-every="${n}" aria-pressed="${+n === jobF.every}">${t}</button>`).join("")}</div>
+      <div class="mini">Who does it</div><div class="recent">${["bar", "floor"].map((x) => `<button class="chip" data-job-side="${x}" aria-pressed="${x === jobF.side}">${sideName(x)}</button>`).join("")}</div>
+      <label class="fld">How (optional)<textarea id="j-how" rows="3" maxlength="300" placeholder="What to use, gloves or goggles, and the steps">${esc(jobF.how)}</textarea></label>
+      <button class="btn pri wide" id="j-go">Add</button>
+      <p class="note">Jobs done every night belong on the closing checklist. Removing a job keeps its past ticks.</p></details>`;
 }
 let countNote = "";
 const countDraft = store.get("countDraft", {}); // kept on this phone until the count is saved
@@ -1673,21 +1724,22 @@ function renderStock() {
         ${xs.map((x) => row(x, `<input data-par="${esc(x)}" type="number" min="0" step="0.5" value="${LIVE.pars[x] ?? ""}" aria-label="Par for ${esc(x)}">`)).join("")}</details>`).join("")}
     </details>`;
 }
-// Sign-offs, drink by drink. Practise shows each person their own.
+// Sign-offs, drink by drink, plus venue training (kept the same way, by name). Practise shows each person their own.
 const TRAIN_POOLS = ["Signatures", "Classics", "Shots & bombs"];
 let trWho = "", trPool = "Signatures";
+const trList = (k) => (k === TOPIC_POOL ? TOPICS.map((name) => ({ name })) : D.filter(POOLS[k]).sort((a, b) => a.name.localeCompare(b.name)));
 function renderTraining() {
   if (!LIVE.admin) return;
   if (!LIVE.loaded.has("training")) { $("#mtrain").innerHTML = `<div class="sec">Training</div><p class="note">Loading sign-offs…</p>`; return; }
   const people = LIVE.staff.filter((p) => p.uid !== LIVE.uid), signed = (uid, name) => LIVE.training.find((t) => t.trainee === uid && t.drinkName === name);
-  const who = people.find((p) => p.uid === trWho), list = D.filter(POOLS[trPool]).sort((a, b) => a.name.localeCompare(b.name));
+  const who = people.find((p) => p.uid === trWho), list = trList(trPool);
   $("#mtrain").innerHTML = `<div class="sec">Training</div>
-    <p class="note">Sign someone off once they've made the drink to spec in front of you. They see their progress in Practise.</p>
+    <p class="note">Sign someone off once they've made the drink to spec in front of you, or once you've taken them through a venue training topic. They see their progress in Practise.</p>
     <div class="actions">${dlHtml("training", "Download sign-offs as a spreadsheet", "training")}</div>
-    ${people.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${TRAIN_POOLS.map((k) => { const xs = D.filter(POOLS[k]); return `${k} ${xs.filter((d) => signed(p.uid, d.name)).length}/${xs.length}`; }).join(" · ")}</div></div>`).join("") || `<p class="note">Add people in Team first.</p>`}
+    ${people.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${[...TRAIN_POOLS, TOPIC_POOL].map((k) => { const xs = trList(k); return `${k} ${xs.filter((d) => signed(p.uid, d.name)).length}/${xs.length}`; }).join(" · ")}</div></div>`).join("") || `<p class="note">Add people in Team first.</p>`}
     <div class="mini">Sign off</div>
     <div class="recent">${people.map((p) => `<button class="chip" data-tr-who="${p.uid}" aria-pressed="${p.uid === trWho}">${esc(p.name)}</button>`).join("")}</div>
-    ${who ? `<div class="recent" style="margin-top:8px">${Object.keys(POOLS).map((k) => `<button class="chip" data-tr-pool="${esc(k)}" aria-pressed="${k === trPool}">${esc(k)}</button>`).join("")}</div>
+    ${who ? `<div class="recent" style="margin-top:8px">${[...Object.keys(POOLS), TOPIC_POOL].map((k) => `<button class="chip" data-tr-pool="${esc(k)}" aria-pressed="${k === trPool}">${esc(k)}</button>`).join("")}</div>
       <p class="note">${esc(who.name)}: ${list.filter((d) => signed(who.uid, d.name)).length} of ${list.length} signed off.</p>
       ${list.map((d) => { const t = signed(who.uid, d.name);
         return `<div class="staffrow"><div class="n">${esc(d.name)}${t ? ` <span class="pill ok">Signed off</span>` : ""}</div>${t ? `<div class="s">By ${esc(t.name)}, ${when(t.at)}</div>` : ""}<div class="actions">${t ? `<button class="btn" data-tr-undo="${t.id}">Take back</button>` : `<button class="btn pri" data-tr-sign="${esc(d.name)}">Sign off</button>`}</div></div>`; }).join("")}` : ""}`;
@@ -1696,9 +1748,9 @@ function renderTraining() {
    Worked out from the records themselves, since every change keeps who made it and when. Deleting something leaves
    no record, so take-downs, unticks and cancellations don't show. Managers see every section and can download the
    full history; staff see the team's side of things for their own side of the venue (bar or floor). */
-const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["safety", "Safety"], ["86", "86"], ["stock", "Stock"], ["waste", "Waste"], ["asks", "Staff requests"], ["issues", "Issues"],
+const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["safety", "Safety"], ["cleaning", "Cleaning"], ["86", "86"], ["stock", "Stock"], ["waste", "Waste"], ["asks", "Staff requests"], ["issues", "Issues"],
   ["concerns", "Concerns"], ["reports", "Reports"], ["incidents", "Incidents"], ["training", "Training"], ["team", "Team"]];
-const ACT_NAME = Object.fromEntries(ACT), STAFF_ACT = ["all", "board", "checks", "safety", "86", "stock", "waste", "issues", "concerns", "reports"];
+const ACT_NAME = Object.fromEntries(ACT), STAFF_ACT = ["all", "board", "checks", "safety", "cleaning", "86", "stock", "waste", "issues", "concerns", "reports"];
 const tickName = (t) => LISTS[t.list]?.items[t.item] || `Item ${t.item + 1}`;
 const DID = { setup: () => "set up the owner account", add: (a) => `added ${a.targetName} (${ROLE[a.role].toLowerCase()})`, reset: (a) => `gave ${a.targetName} a new PIN`, remove: (a) => `removed ${a.targetName}`, role: (a) => `made ${a.targetName} ${a.role === "manager" ? "a manager" : "staff"}` };
 const DECIDED = { seen: "saw", approved: "approved", declined: "declined" };
@@ -1722,6 +1774,7 @@ function events(x) {
   x.reviews.forEach((v) => add("reports", v.at, v.name, `${v.verdict === "up" ? "gave 👍 to" : v.verdict === "flag" ? "flagged" : "commented on"} ${whose(v.report)}`, v.text));
   x.incidents.forEach((i) => { add("incidents", i.at, i.name, `logged an incident: ${i.kind}`, i.text); if (i.closedBy) add("incidents", i.closedAt, i.closedBy, `closed an incident: ${i.kind}`, i.outcome); });
   x.safety.forEach((r) => add("safety", r.at, r.name, r.kind === "lines" ? `cleaned ${r.kitName}` : `logged ${r.kitName}: ${r.c}°C`, [judge(r.kind, r.c)[1], r.note].filter(Boolean).join(" · ")));
+  x.cleans.forEach((r) => add("cleaning", r.at, r.name, `did a cleaning job: ${r.jobName}`, r.note));
   x.waste.forEach((w) => add("waste", w.at, w.name, `logged waste: ${wasteText(w)}`, [REASONS[w.reason], w.note].filter(Boolean).join(" · ")));
   x.counts.forEach((c) => add("stock", c.at, c.name, `counted the stock (${c.lines.length} items)`, c.note));
   x.training.forEach((t) => add("training", t.at, t.name, `signed off ${t.traineeName} on ${t.drinkName}`));
@@ -1741,7 +1794,7 @@ function liveData() {
     outlog: staff ? [...LIVE.outInfo.values()].map((o) => ({ ...o, action: "out" })) : LIVE.outlog,
     asks: staff ? [] : LIVE.asks,
     reports: staff ? LIVE.reports.filter((r) => r.side === mode) : LIVE.reports,
-    safety: staff ? LIVE.safety.filter((r) => r.side === mode) : LIVE.safety, waste: LIVE.waste,
+    safety: staff ? LIVE.safety.filter((r) => r.side === mode) : LIVE.safety, cleans: staff ? LIVE.cleans.filter((r) => r.side === mode) : LIVE.cleans, waste: LIVE.waste,
     counts: staff ? [] : LIVE.counts, training: staff ? [] : LIVE.training, concerns: LIVE.concerns.filter(cnForMe),
   };
 }
@@ -1800,15 +1853,16 @@ const TABLES = {
     const [st, msg] = judge(r.kind, r.c);
     return [r.day, dt(r.at)[1], sideName(r.side), r.kitName, KITS[r.kind].name, r.c ?? "", r.kind === "lines" ? "Cleaned" : st === "ok" ? "In range" : msg || "Recorded", r.note, r.name];
   })],
-  training: (x) => [["Person", "Drink", "Section", "Signed off by", "Date"], ...x.training.map((t) => [t.traineeName, t.drinkName, D.find((d) => d.name === t.drinkName)?.section || "", t.name, dt(t.at)[0]])],
+  cleaning: (x) => [["Night", "Time", "Side", "Job", "Note", "By"], ...x.cleans.map((r) => [r.day, dt(r.at)[1], sideName(r.side), r.jobName, r.note, r.name])],
+  training: (x) => [["Person", "Drink or topic", "Section", "Signed off by", "Date"], ...x.training.map((t) => [t.traineeName, t.drinkName, TOPICS.includes(t.drinkName) ? TOPIC_POOL : D.find((d) => d.name === t.drinkName)?.section || "", t.name, dt(t.at)[0]])],
   concerns: (x) => [["Date", "Time", "Concern", "Where", "Sent to", "From", "Note", "Photos", "Status", "Dealt with by", "Dealt with on", "Dealt with at", "What was done"],
     ...x.concerns.map((c) => [...dt(c.at), CN_NAME[c.reason], AREA[c.area] || "Other", CN_TO_NAME[c.to], c.anon ? "Anonymous" : c.name, c.note, c.photos, c.status === "closed" ? "Dealt with" : "Open", c.fixedBy, ...dt(c.fixedAt), c.fix])],
   counts: (x) => [["Date", "Time", "Counted by", "Item", "Group", "Par", "Counted", "To order"], ...x.counts.flatMap((c) => c.lines.map((l) => [...dt(c.at), c.name, l.item, l.group, l.par, l.n, Math.max(0, Math.ceil(l.par - l.n))]))],
   order: (x) => [["Item", "Group", "Par", "Counted", "To order"], ...(x.counts[0]?.lines || []).filter((l) => l.n < l.par).map((l) => [l.item, l.group, l.par, l.n, Math.ceil(l.par - l.n)])],
 };
-const NEEDS = { all: ["feed", "notices", "ticks", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit", "safety", "waste", "counts", "training", "concerns"], board: ["feed", "notices"], checks: ["ticks"],
-  86: ["outlog"], stock: ["requests"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"], incidents: ["incidents"], team: ["audit"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], order: ["counts"], concerns: ["concerns"] };
-const FILE = { all: "activity", order: "order-list", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
+const NEEDS = { all: ["feed", "notices", "ticks", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit", "safety", "cleans", "waste", "counts", "training", "concerns"], board: ["feed", "notices"], checks: ["ticks"],
+  86: ["outlog"], stock: ["requests"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"], incidents: ["incidents"], team: ["audit"], safety: ["safety"], cleaning: ["cleans"], waste: ["waste"], training: ["training"], counts: ["counts"], order: ["counts"], concerns: ["concerns"] };
+const FILE = { all: "activity", order: "order-list", counts: "stock-counts", safety: "safety-checks", cleaning: "cleaning-log", training: "training-sign-offs" };
 // A download button, or once the file is ready, the Save link (a separate tap, which iPhone needs).
 const dlHtml = (sec, label, id) => (actFile && actFile.sec === sec
   ? `<a class="btn pri" id="${id}-save" href="${actFile.url}" download="${actFile.name}">Save the spreadsheet (${actFile.n} row${actFile.n === 1 ? "" : "s"})</a>`
@@ -1883,7 +1937,7 @@ function liveChanged(what) {
     const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues], requests: [renderRequests, renderDash, renderAct],
       asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct], ticks: [renderDash, renderAct], seen: [renderPins], photos: [], waste: [renderWaste, renderAct], safety: [renderSafety, renderDash, renderAct],
-      kit: [renderSafety, renderDash], pars: [renderStock], counts: [renderStock, renderAct], training: [renderTraining, renderAct],
+      kit: [renderSafety, renderDash], jobs: [renderSafety, renderDash], cleans: [renderSafety, renderDash, renderAct], pars: [renderStock], counts: [renderStock, renderAct], training: [renderTraining, renderAct],
       concerns: [renderConcerns, renderDash, renderAct] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
@@ -1891,7 +1945,7 @@ function liveChanged(what) {
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "ticks", "requests", "waste", "safety", "kit"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "ticks", "requests", "waste", "safety", "kit", "jobs", "cleans"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
@@ -1913,6 +1967,8 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.id === "cn-note") cnF.note = t.value;
   if (t.dataset.cnFixt) cnText[t.dataset.cnFixt] = t.value;
   if (t.id === "k-name") kitF.name = t.value;
+  if (t.id === "j-name") jobF.name = t.value;
+  if (t.id === "j-how") jobF.how = t.value;
   if (t.id === "cnt-note") countNote = t.value;
   if (t.dataset.cnt) { countDraft[t.dataset.cnt] = t.value; store.set("countDraft", countDraft); }
 });
@@ -1983,6 +2039,14 @@ $("#v-notices").addEventListener("click", (e) => {
     kitF.name = ""; haptic(); renderSafety(); return;
   }
   if (b.dataset.kitDel) { const k = LIVE.kit.find((x) => x.id === b.dataset.kitDel); if (k && confirm(`Remove ${k.name}? Its past readings stay.`)) track(A.removeKit(k.id), null, "Could not remove"); return; }
+  if (b.dataset.jobEvery) { jobF.every = +b.dataset.jobEvery; renderSafety(); return; }
+  if (b.dataset.jobSide) { jobF.side = b.dataset.jobSide; renderSafety(); return; }
+  if (b.id === "j-go") {
+    const name = jobF.name.trim(); if (!name) return toast("Say what the job is");
+    track(A.addJob(name, jobF.every, jobF.side, jobF.how.trim()), `Added ${name}`, "Not added. Try again");
+    Object.assign(jobF, { name: "", how: "" }); haptic(); renderSafety(); return;
+  }
+  if (b.dataset.jobDel) { const j = LIVE.jobs.find((x) => x.id === b.dataset.jobDel); if (j && confirm(`Remove ${j.name}? Its past ticks stay.`)) track(A.removeJob(j.id), null, "Could not remove"); return; }
   if (b.id === "cnt-go") {
     const lines = Object.entries(STOCK).flatMap(([g, xs]) => xs.filter((x) => LIVE.pars[x] && String(countDraft[x] ?? "").trim() !== "" && +countDraft[x] >= 0)
       .map((x) => ({ item: x, group: g, par: LIVE.pars[x], n: Math.round(+countDraft[x] * 100) / 100 })));

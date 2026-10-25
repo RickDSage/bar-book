@@ -267,6 +267,29 @@ service cloud.firestore {
       allow delete: if undoable();
     }
 
+    // ---------- Cleaning schedule ----------
+    // The cleaning jobs that aren't done every night, set up by managers: what, how often (every 1, 2 or 4 weeks),
+    // which side does it and how. Anyone on the team ticks a job off as themselves; a tick names its job and must
+    // match it. Ticks are kept like the safety records: nobody edits them, and a mistake goes within 15 minutes.
+    function jobDoc(id) { return /databases/$(database)/documents/cleanJobs/$(id); }
+    match /cleanJobs/{id} {
+      allow read: if isMember();
+      allow create: if isManager() && exactly(['name', 'every', 'side', 'how']) && reqText(incoming().name, 60)
+        && incoming().every in [7, 14, 28] && incoming().side in ['bar', 'floor'] && optText(incoming().how, 300);
+      allow delete: if isManager();
+    }
+    function validClean() {
+      let c = incoming();
+      let j = get(jobDoc(c.job));
+      return j != null && c.jobName == j.data.name && c.side == j.data.side && optText(c.note, 200) && nearNow(c.day) && stamped();
+    }
+    match /cleans/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && exactly(['job', 'jobName', 'side', 'note', 'day', 'uid', 'name', 'at'])
+        && incoming().job is string && validClean();
+      allow delete: if undoable();
+    }
+
     // ---------- 86 board ----------
     // out/{item} is what's off tonight and outlog is its history. Each change writes both in one batch and the
     // rules check they match: an 86 creates out/{item} pointing at its new log entry; back in stock deletes it
@@ -388,8 +411,9 @@ service cloud.firestore {
     }
 
     // ---------- Training ----------
-    // A manager signs someone off on a drink once they've made it to spec in front of them. One record per person per
-    // drink, named after both (drinks are named by their slug, like the 86 board, since the list order changes).
+    // A manager signs someone off on a drink once they've made it to spec in front of them, or on a venue training topic
+    // (allergens, ID checks and so on, from the app's list) once they've taken them through it. One record per person
+    // per drink or topic, named after both (by its slug, like the 86 board, since the list order changes).
     // Nobody signs themselves off. Staff see their own; managers see everyone's. Taking a sign-off back deletes it.
     match /training/{id} {
       allow read: if isManager() || (isMember() && resource.data.trainee == request.auth.uid);

@@ -128,7 +128,7 @@ test("stock: par levels, a count, and the order list", async () => {
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
-test("training: managers sign people off drink by drink, and staff see it in Practise", async () => {
+test("training: managers sign people off drink by drink and on venue training, and staff see it in Practise", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await managers(M, "training");
@@ -141,13 +141,26 @@ test("training: managers sign people off drink by drink, and staff see it in Pra
   await S.click("[data-tab=practice]");
   await S.waitForFunction(() => /^Signed off by a manager: 1 of \d+ Signatures$/.test(document.querySelector("#p-signed")?.textContent || ""));
 
+  // Venue training topics are signed off the same way, and listed in Practise.
+  await M.click('[data-tr-pool="Venue training"]');
+  await M.click('[data-tr-sign="ID checks and refusing a sale"]');
+  await waitToast(M, /^Sam Staff signed off on ID checks and refusing a sale$/);
+  await waitText(M, "#mtrain", /Venue training 1\/6/);
+  await S.waitForFunction(() => /^Venue training: 1 of 6 signed off$/.test(document.querySelector("#p-topics summary")?.textContent || ""));
+  await S.click("#p-topics summary"); await S.click("[data-p=show]");
+  assert.ok(await S.$eval("#p-topics", (d) => d.open), "the list stays open while practising");
+  assert.match(await text(S, "#p-topics"), /✓ ID checks and refusing a sale.*○ Fire alarms/s);
+
   // Nobody signs themselves off, and staff can't sign anyone off.
   const mia = await M.evaluate(() => ({ uid: LIVE.uid, name: LIVE.me }));
   assert.equal(await attempt(M, (p) => LIVE.api.passDrink(p, "Negroni"), mia), "permission-denied");
   assert.equal(await attempt(S, (p) => LIVE.api.passDrink(p, "Negroni"), mia), "permission-denied");
   const cell = /[",]/.test(first) ? `"${first.replace(/"/g, '""')}"` : first;
   const { csv } = await download(M, "training");
-  assert.match(csv, new RegExp(`^Person,Drink,Section,Signed off by,Date\\r\\nSam Staff,${rx(cell)},Black Tap Signatures,Mia Manager,\\d{4}-\\d\\d-\\d\\d$`));
+  assert.equal(csv.split("\r\n")[0], "Person,Drink or topic,Section,Signed off by,Date");
+  assert.match(csv, new RegExp(`\\r\\nSam Staff,${rx(cell)},Black Tap Signatures,Mia Manager,\\d{4}-\\d\\d-\\d\\d(\\r\\n|$)`));
+  assert.match(csv, /\r\nSam Staff,ID checks and refusing a sale,Venue training,Mia Manager,\d{4}-\d\d-\d\d(\r\n|$)/);
+  await M.click('[data-tr-pool="Signatures"]');
   await M.click("[data-tr-undo]");
   await S.waitForFunction(() => /^Signed off by a manager: 0 of/.test(document.querySelector("#p-signed").textContent));
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
@@ -161,6 +174,7 @@ test("records written outside the app can't run code on a manager's phone", asyn
   const str = (s) => ({ stringValue: s }), now = { timestampValue: new Date().toISOString() };
   await adminWrite(`requests/${odd}`, { item: str("Limes"), note: str(""), done: { booleanValue: false }, uid: str("x"), name: str("Sam Staff"), at: now });
   await adminWrite(`kit/${odd}`, { name: str("Back bar fridge"), kind: str("fridge"), side: str("bar") });
+  await adminWrite(`cleanJobs/${odd}`, { name: str("Descale the glass washer"), every: { integerValue: "7" }, side: str("bar"), how: str("") });
   // Count lines aren't checked one by one by the rules, so the page has to treat every value as text.
   const line = { mapValue: { fields: { item: str("Tanqueray"), group: str("Gin"), par: str("<z"), n: str('<img src=x onerror="window.pwned=2">') } } };
   await adminWrite("counts/a", { lines: { arrayValue: { values: [line] } }, note: str(""), uid: str("x"), name: str("Mia Manager"), at: now });
@@ -179,7 +193,7 @@ test("records written outside the app can't run code on a manager's phone", asyn
   await O.click("[data-tpane=managers]"); await O.click("[data-msub=safety]");
   await O.waitForTimeout(300);
   assert.equal(await O.evaluate(() => window.pwned), undefined);
-  assert.deepEqual(await O.evaluate(() => [LIVE.requests.length, LIVE.kit.length]), [2, 0], "records with odd ids are ignored");
+  assert.deepEqual(await O.evaluate(() => [LIVE.requests.length, LIVE.kit.length, LIVE.jobs.length]), [2, 0, 0], "records with odd ids are ignored");
   assert.equal(await O.evaluate(() => LIVE.requests.filter((x) => x.id === "plain").length), 1, "a field called id doesn't replace the id");
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });

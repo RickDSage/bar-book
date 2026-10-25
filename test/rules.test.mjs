@@ -134,9 +134,9 @@ describe("visitors who aren't logged in", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const PRIVATE = ["staff/staff1", "config/owner", "config/pins", "feed/a", "notices/a", "reports/a", "photos/a", "shift/2026-10-25/ticks/open-1",
     "requests/a", "out/gin", "outlog/a", "asks/a", "incidents/a", "reviews/a", "ratings/a", "audit/a", "issues/a", "seen/a-staff1",
-    "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0"];
+    "waste/a", "kit/a", "safety/a", "cleanJobs/a", "cleans/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0"];
   for (const p of PRIVATE) test(`can't read ${p}`, () => assertFails(getDoc(doc(db(), p))));
-  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos"]) {
+  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "cleanJobs", "cleans", "pars", "counts", "training", "concerns", "concernPhotos"]) {
     test(`can't list ${c}`, () => assertFails(getDocs(collection(db(), c))));
   }
   test("can look up one username, and it holds only the sign-in address and uid", async () => {
@@ -888,6 +888,47 @@ describe("due diligence: temperatures and line cleaning", () => {
 });
 
 // =====================================================================================
+describe("cleaning schedule", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const job = (uid, extra = {}) => addDoc(collection(db(uid), "cleanJobs"), { name: "Descale the glass washer", every: 7, side: "bar", how: "", ...extra });
+  const done = (uid, j, extra = {}) => addDoc(collection(db(uid), "cleans"), { job: j.id, jobName: j.name, side: j.side, note: "", day: today(), ...by(uid), ...extra });
+  test("managers set up the jobs, how often and how; staff can't", async () => {
+    const j = await assertSucceeds(job("mgr1", { how: "Machine empty, gloves on, run the descale cycle" }));
+    await assertSucceeds(job("owner1", { name: "Deep clean the fridges and door seals", every: 28, side: "floor" }));
+    await assertSucceeds(job("mgr2", { every: 14 }));
+    await assertFails(job("staff1"));
+    for (const bad of [{ every: 1 }, { every: "7" }, { every: 30 }, { side: "kitchen" }, { name: " " }, { name: "x".repeat(61) }, { how: "x".repeat(301) }, { how: null }, { last: null }]) {
+      await assertFails(job("mgr1", bad), JSON.stringify(bad));
+    }
+    await assertSucceeds(getDocs(collection(db("staff1"), "cleanJobs")));
+    await assertFails(updateDoc(doc(db("mgr1"), "cleanJobs", j.id), { every: 14 }));
+    await assertFails(deleteDoc(doc(db("staff1"), "cleanJobs", j.id)));
+    await assertSucceeds(deleteDoc(doc(db("mgr2"), "cleanJobs", j.id)));
+  });
+  test("anyone on the team ticks a job off as themselves, and the tick must match the job", async () => {
+    const j = { id: (await job("mgr1")).id, name: "Descale the glass washer", side: "bar" };
+    await assertSucceeds(done("staff1", j));
+    await assertSucceeds(done("staff2", j, { note: "Used the last of the descaler" }));
+    for (const bad of [{ jobName: "Something else" }, { side: "floor" }, { job: "nope" }, { note: "x".repeat(201) }, { day: dayFromNow(-5) }, { name: "Olly Owner" }, { c: null }]) {
+      await assertFails(done("staff1", j, bad), JSON.stringify(bad));
+    }
+    await assertFails(addDoc(collection(db("stranger"), "cleans"), { job: j.id, jobName: j.name, side: "bar", note: "", day: today(), uid: "stranger", name: "Stray", at: now() }));
+  });
+  test("ticks are the record: everyone reads them, nobody edits, mistakes go within 15 minutes", async () => {
+    const j = { id: (await job("mgr1")).id, name: "Descale the glass washer", side: "bar" };
+    const a = await done("staff1", j), b = await done("staff2", j);
+    assert.equal((await getDocs(query(collection(db("staff2"), "cleans"), where("day", ">=", dayFromNow(-35))))).size, 2);
+    await assertFails(updateDoc(doc(db("staff1"), "cleans", a.id), { note: "edited" }));
+    await assertFails(deleteDoc(doc(db("staff1"), "cleans", b.id)));
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "cleans", a.id)));
+    await seed((s) => setDoc(doc(s, "cleans/old"), { job: j.id, jobName: j.name, side: "bar", note: "", day: today(), uid: "staff1", name: "Sam Staff", at: Timestamp.fromMillis(Date.now() - 20 * 6e4) }));
+    await assertFails(deleteDoc(doc(db("staff1"), "cleans/old")));
+    await assertFails(deleteDoc(doc(db("mgr1"), "cleans/old")));
+    await assertSucceeds(deleteDoc(doc(db("owner1"), "cleans/old")));
+  });
+});
+
+// =====================================================================================
 describe("stock counts and par levels", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const par = (uid, item, n, extra = {}) => setDoc(doc(db(uid), "pars", slug(item)), { item, par: n, ...by(uid), ...extra });
@@ -926,6 +967,7 @@ describe("training sign-off", () => {
   test("a manager signs someone else off on a drink, once", async () => {
     await assertSucceeds(sign("mgr1", "staff1", "London Cosmo"));
     await assertSucceeds(sign("owner1", "mgr2", "Negroni"));
+    await assertSucceeds(sign("mgr1", "staff1", "ID checks and refusing a sale"), "venue training topics are kept the same way as drinks");
     await assertFails(sign("mgr2", "staff1", "London Cosmo"), "already signed off: no second record");
     await assertFails(sign("mgr1", "staff1", "Negroni", {}, "staff1-something-else"), "the record is named after the person and the drink");
     await assertFails(sign("mgr1", "staff1", "Negroni", { traineeName: "Tia Staff" }));
@@ -1050,6 +1092,8 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "issues"), orderBy("at", "desc"), limit(30)),
     collection(d, "kit"),
     query(collection(d, "safety"), where("day", "in", [today(), dayFromNow(-1)])),
+    collection(d, "cleanJobs"),
+    query(collection(d, "cleans"), where("day", ">=", dayFromNow(-35))),
     query(collection(d, "concerns"), where("uid", "==", uid)),
   ];
   const managers = (d) => [

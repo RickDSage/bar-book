@@ -87,6 +87,11 @@ function listen(uid) {
       LIVE.kit = snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id })).sort((a, b) => a.name.localeCompare(b.name));
       liveChanged("kit");
     });
+    // The cleaning jobs that aren't done every night. Another short list set up by managers.
+    sub("jobs", collection(db, "cleanJobs"), (snap) => {
+      LIVE.jobs = snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id })).sort((a, b) => a.name.localeCompare(b.name));
+      liveChanged("jobs");
+    });
     // Closing photos this person has taken that aren't on a sent report yet.
     sub("photos", query(collection(db, "photos"), where("uid", "==", uid), where("report", "==", null)), (snap) => {
       LIVE.myPhotos = rows(snap).reverse(); liveChanged("photos");
@@ -191,6 +196,8 @@ function watchDays() {
   watchShift();
   // Safety checks from the last 8 nights: tonight's readings, and when the lines were last cleaned (due every 7 days).
   subDay("safety", () => query(collection(db, "safety"), where("day", "in", lastNights(8))), (snap) => { LIVE.safety = rows(snap); liveChanged("safety"); });
+  // Cleaning ticks from the last 5 weeks: enough to say when each job was last done, the longest gap being 4 weeks.
+  subDay("cleans", () => query(collection(db, "cleans"), where("day", ">=", lastNights(35)[34])), (snap) => { LIVE.cleans = rows(snap); liveChanged("cleans"); });
   // Waste: staff get what they logged tonight; managers the last 14 nights, for this week's and last week's totals.
   subDay("waste", () => (LIVE.admin ? query(waste, where("day", "in", lastNights(14))) : query(waste, where("uid", "==", uid), where("day", "==", shiftDay()))),
     (snap) => { LIVE.waste = rows(snap); liveChanged("waste"); });
@@ -360,6 +367,11 @@ LIVE.api = {
   // A temperature in °C, or null for a line clean. It carries its equipment's details, as the rules require.
   logCheck: (k, c, note) => addDoc(collection(db, "safety"), { kit: k.id, kitName: k.name, kind: k.kind, side: k.side, c, note, day: shiftDay(), ...me() }),
   unlogCheck: (id) => deleteDoc(doc(db, "safety", id)),
+  // Cleaning jobs (managers) and their ticks. A tick carries its job's name and side, as the rules require.
+  addJob: (name, every, side, how) => addDoc(collection(db, "cleanJobs"), { name, every, side, how }),
+  removeJob: (id) => deleteDoc(doc(db, "cleanJobs", id)),
+  logClean: (j, note) => addDoc(collection(db, "cleans"), { job: j.id, jobName: j.name, side: j.side, note, day: shiftDay(), ...me() }),
+  unlogClean: (id) => deleteDoc(doc(db, "cleans", id)),
   // Par levels and counts load the first time a manager opens Stock, not on every launch.
   watchStock() {
     sub("pars", collection(db, "pars"), (snap) => { LIVE.pars = Object.fromEntries(snap.docs.map((x) => [x.data().item, x.data().par])); liveChanged("pars"); });
@@ -384,7 +396,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  waste: [], kit: [], safety: [], pars: {}, counts: [], training: [], concerns: [] });
+  waste: [], kit: [], safety: [], jobs: [], cleans: [], pars: {}, counts: [], training: [], concerns: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }
