@@ -1,0 +1,148 @@
+# Security, setup and operations
+
+How team logins are protected, how to switch them on, what it costs, and how to undo a release.
+Written for rules version 2 (`firestore.rules`). Official limits were checked on 24 and 25 October 2026; links are at the end.
+
+## The short version
+
+- Everyone logs in with a username and a PIN. Underneath, that is a Firebase email and password login with a made-up address (`sam-1a2b3c4d@users.example.com`). Nobody's real email or phone number is stored.
+- What a login can do depends only on its record in `staff/{uid}`: **owner**, **manager** or **staff**. No record means no access to anything. Names saved on posts are labels for the screen; the rules check the login's uid.
+- There is exactly one owner, created once with a setup code. The owner can't be removed, demoted, reset or copied by anyone through the app.
+- Every account change (added, new PIN, role changed, removed) writes an audit entry in the same write. The rules refuse the change without it, and nobody can edit or delete the entries.
+- History can't be rewritten: sent reports, signed-off reports, the 86 log, decisions on requests, closed incidents, fixed issues and the audit trail are all locked once written.
+- The Firebase web config in the site is public by design. It names the project; it doesn't grant access. The rules do.
+
+## Who can do what
+
+O = owner, M = manager, S = staff, X = logged in but not on the team (for example someone removed), V = visitor not logged in. Anything not listed is refused, including every collection not named here.
+
+| Collection | Read | Create | Change | Delete |
+|---|---|---|---|---|
+| `config/pins` (setup code) | nobody | console only | nobody | only by the owner setup write |
+| `config/owner` (the one-time claim) | nobody | the owner setup write, once | nobody | nobody |
+| `staff/{uid}` (who's on the team) | O, M: everyone. S, X: only their own | O: staff or managers. M: staff. Each needs its username and audit entry in the same write | O only: someone else's role, staff and manager only | O: anyone but the owner. M: staff. Needs the username freed and an audit entry |
+| `usernames/{name}` (login lookup) | anyone can look up one name; nobody can list them | with the matching staff record | only during a PIN reset | only with the staff record's removal |
+| `audit/{id}` (account changes) | O, M | only inside an account change, describing it exactly | nobody | nobody |
+| `feed` (team board) | O, M, S | O, M, S, as themselves | nobody | the author; O any; M any except the owner's |
+| `notices` (pinned) | O, M, S | O, M | nobody | O any; M any except the owner's |
+| `reports` (shift reports) | O, M, S | O, M, S, as themselves | O, M: sign off once | nobody |
+| `photos` (closing photos) | O, M: all. S: their own, and any on a sent report | O, M, S: JPEG up to 700,000 characters | the uploader, before it's sent: a note, or attaching it to their own report in that report's write | the uploader before it's sent; O, M once it's over 30 days old |
+| `shift/{day}/ticks/{list}-{item}` (checklists) | O, M, S | O, M, S: tonight's lists (a day either side, for phones that sync late), as themselves | nobody | whoever ticked it; O, M any |
+| `out` (86 board) | O, M, S | O, M, S, only with its log entry | nobody | O, M, S, only with its back-in-stock log entry |
+| `outlog` (86 history) | O, M | only paired with a board change | nobody | nobody |
+| `requests` (stock) | O, M, S | O, M, S | O, M: mark ordered once | before it's ordered: the asker; O, M |
+| `asks` (late, time off, swaps) | O, M: all. S: their own | O, M, S, with the details that kind needs | O, M: seen, approved or declined (seen can still be approved); never their own unless owner | O any; the asker until it's decided |
+| `incidents` | O, M | O, M, S | O, M: close once, saying what was done | O |
+| `reviews` (of reports) | O, M | O, M, on a report that exists | nobody | O any; M their own |
+| `ratings` (anonymous feedback) | O: all. M: only about themselves | O, M: about another manager or the owner, never themselves. No author is saved | nobody | O |
+| `issues` (handover) | O, M, S | O, M, S | O, M, S: take it on yourself (O, M can give it to anyone), or mark it fixed with a note. Fixed is final | O any; the raiser while nobody's on it |
+
+Visitors (V) can do one thing: look up a single username, which returns the made-up sign-in address and the uid. X can do the same, plus read their own (missing) staff record. Both are tested.
+
+Hiding a button is never the protection. Every row above is enforced by `firestore.rules` and covered by an allowed and a refused case in `test/rules.test.mjs`.
+
+## Switching team logins on (owner setup)
+
+The live features are built but switched off: the site only includes them once `firebase-config.json` is in the repo. Do these in order. Steps 1 and 2 are safe to do straight away, before anything else.
+
+1. **Check the current rules.** Firebase console, Firestore Database, Rules. If you see `allow read, write: if request.time < timestamp.date(...)`, the database was created in test mode and is open to anyone until that date. Replace it now with the contents of `firestore.rules` and press Publish. Nothing uses the database yet, so this can't break anything.
+2. **Make the setup code.** Firestore Database, Data: start a collection `config`, document ID `pins`, one field `setup` (string) holding a long random code, at least 16 characters. Generate it in a password manager and don't reuse it anywhere. Don't send it by message or put it in GitHub.
+3. **Add the web config.** Project settings, Your apps (add a Web app there if there isn't one yet): copy the `firebaseConfig` values into `firebase-config.json` at the repo root, for example `{"apiKey":"...","authDomain":"black-tap-foh-book.firebaseapp.com","projectId":"black-tap-foh-book","appId":"..."}`. This file is public by design. Then run `npm run build`, commit and merge. GitHub Pages publishes it within a few minutes.
+4. **Create the owner.** On the live site: Team, First-time setup. Enter your name, a username, a PIN of 8 to 12 digits and the setup code. One write creates the owner, records the claim in `config/owner` and deletes `config/pins`, so the code stops working at that moment.
+5. **Optional tidy-up.** `config/owner` keeps the used code in its `proof` field. No app account can read it and it can't be used again, but you can delete that field in the console if you'd rather it wasn't stored.
+6. **Smoke test with throwaway accounts** (generic names, not real staff): add one manager and one staff member, log in as each on another phone, and check the list under "Before and after each release" below. Then remove them.
+
+If the owner's PIN is ever lost: the app can't reset the owner (by design). In the console, add a new user under Authentication (any made-up address, a PIN of 8 or more digits as the password), then in Firestore create `staff/{new uid}` with your name, username and `role: owner`, change `usernames/{your username}` to the new address and uid, and delete the old `staff/{old uid}`. Console edits aren't bound by the rules, which is why only project owners should have console access.
+
+## Accounts over time
+
+- **Adding someone** makes their login, staff record, username and an audit entry in one go. If the write is refused, the login it made is deleted again, so refused adds leave nothing behind.
+- **PIN reset** moves the person to a new login (the app can't change someone else's password). Their old login keeps existing in Firebase Authentication but opens nothing, and their phone is logged out within seconds if it has signal.
+- **Removing someone** deletes their staff record and username. Their phone logs out and wipes its saved copy of team data the next time it has signal. What they wrote keeps their name.
+- **Logging out** wipes the phone's saved team data immediately, so a shared phone keeps nothing for the next person.
+- **Old logins** from resets and removals pile up in Authentication, Users. They open nothing; delete them there if you want a tidy list.
+
+## Risks that remain, and why
+
+These are the trade-offs of running with no server and no billing. None of them needs fixing before launch, but you should know them.
+
+1. **PIN guessing.** A staff PIN has a million combinations; a manager's (8 digits) a hundred million. After many wrong PINs Firebase locks that login for a while (the app then says so instead of "wrong PIN"), but Firebase doesn't publish the thresholds, so treat it as a speed bump. Anyone who knows a username can try PINs. The app makes managers and the owner use at least 8 digits (Firebase itself only insists on 6, so this is checked in the app, not by the rules). Promoting someone keeps their old PIN, and the app reminds you to reset it. Use usernames that aren't obvious and reset PINs when people leave.
+2. **The username lookup is public.** For a username you already know, it returns the made-up sign-in address and the uid. It can't list usernames. The app needs it to log in without a server, and the rules need the uid in it to keep usernames and accounts matched. A uid isn't a password: team members already see each other's on every post, and on its own it opens nothing.
+3. **Anyone can make a Firebase login.** Turning off email and password sign-up would break "Add person", because the app makes new logins from the manager's phone. A stray login has no staff record, so it can't read or write anything. Firebase limits new accounts to 100 an hour from one address.
+4. **Offline phones.** A removed person's phone that never gets signal again keeps what it last saw. Logging out wipes it at once; use that on shared phones.
+5. **Anonymous feedback** saves no author, and no app account can see who sent it. Someone could still guess from timing ("only one other manager was on that night"). It's anonymous to the app, not to deduction.
+6. **Photos live in the database**, because Firebase Storage needs the paid plan. Each is shrunk until it's under 600,000 characters as stored (about 450 KB of JPEG), 8 at most per report, and the rules refuse anything over 700,000. They're cleared after 30 days by the first manager's phone to open the app after that (there's no server to do it on a timer).
+7. **No App Check yet.** Scripts using the public config are still bound by the rules; App Check would only make abuse harder. See "App Check, later".
+
+## What it costs
+
+Nothing, on the Spark plan as set up today. Spark can't bill you: when a free quota runs out, that Firebase product stops until the quota resets, so the worst case is the team board pausing, not a charge.
+
+| | Free on Spark | My estimate for this team |
+|---|---|---|
+| Stored data | 1 GiB | photos at most around 290 MB with the 30-day clear-out (16 a night at the 600 KB worst case; usually far less), text a few MB |
+| Document reads | 50,000 a day | roughly 10,000 to 25,000 on a busy day (each phone loads up to about 250 records as staff or 800 as a manager when it opens, then only changes) |
+| Writes / deletes | 20,000 a day each | a few hundred |
+| Outbound data | 10 GiB a month | photos load only when someone taps "Show photos" |
+| GitHub Pages | 1 GB site, soft 100 GB a month | about 2 MB per launch with signal, before compression |
+
+Firestore's daily quotas reset around midnight Pacific time (about 8am UK time). If the reads ever get close, the cheapest fix is smaller list limits in `src/live-src.js`, not a paid plan.
+
+Not used, because they need the Blaze (pay as you go) plan: Cloud Storage for Firebase and Cloud Functions, which is why there are no push notifications to phones that are closed. Blaze has no spending cap; budget alerts only send emails. Don't upgrade without deciding that on purpose.
+
+## Before and after each release
+
+1. `npm test` on the laptop: rules tests and browser tests, all green. Both run on the local emulators, never the live project.
+2. Read the rules diff (`git diff main -- firestore.rules`). A rules change and the app change it needs ship together.
+3. If there is live data by then: no automatic backups exist on Spark. Export what matters first (for example, copy key documents from the console) before any rules change that renames or reshapes data.
+4. Publish the rules: Firebase console, Firestore Database, Rules, paste `firestore.rules` (also served at `/bar-book/firestore.rules.txt` so it can be copied on a phone), Publish. Or from the laptop: `npx firebase deploy --only firestore:rules --project black-tap-foh-book`.
+5. Merge the pull request. GitHub Pages publishes `main` in a few minutes. Phones pick up the new version on their next launch with signal.
+6. Check as each role, on a phone: owner, manager and staff can log in; Tonight shows real counts; tick, untick, 86 and back, a stock request, a report with a photo, sign-off, an issue raised, taken and fixed.
+7. Check refusals as staff: no Requests or Managers tab; can't untick someone else's tick (the app says who ticked it).
+8. Watch Firebase console, Usage, for the first week.
+
+## Rolling back
+
+The app and the rules go back together; version 2 of the app doesn't work with the old rules, and the old app doesn't work with the new ones.
+
+1. **App:** on GitHub, open the merged pull request and press Revert, then merge the revert. Pages republishes the old version in a few minutes.
+2. **Rules:** paste the old rules back. They're in the old `firestore.rules.txt` on `main` (before the merge), and the console's Rules page also keeps a history of published versions.
+3. **Data:** a rollback deletes nothing. What was written under version 2 stays where it is; the old app ignores most of it and may show the 86 board oddly until items are marked back in stock.
+
+## Moving from the old rules (migration)
+
+There is no live data to move: team logins were never switched on in the published site, so no accounts or records exist under the old rules. If you created anything in the console while setting up, delete it before step 1 above.
+
+What changed, for anyone reading old notes:
+
+- Checklists moved from one document per night (`shift/{day}` with arrays) to one small record per tick (`shift/{day}/ticks/{list}-{item}`), so two people ticking at once can't wipe each other.
+- The 86 board (`out/{item}`) is keyed by a slug of the item name, holds the name, and links to its log entry; the log (`outlog`) stores `item`, `itemName`, `action`, `uid`, `name`, `at`.
+- Owner setup now writes `config/owner` and deletes `config/pins` in one write. The setup code must be at least 16 characters and the owner PIN at least 8 digits.
+- New: `audit` (account changes) and `issues` (handover). Reports have a `side` (bar or floor). Sign-offs, orders and decisions record the uid as well as the name. Asks save only the fields their kind needs. Incidents have `status`, and closing one records the outcome.
+
+## App Check, later
+
+App Check makes it harder for anything other than this site to use the project. It's worth adding once the team is using the app, in monitor mode first:
+
+1. Register the site with reCAPTCHA Enterprise in App Check (Firebase lists up to 10,000 assessments a month at no cost; with the default one-day token, 20 phones use about 1,200). It doesn't say what happens past that, or whether Google Cloud asks for a billing account on the way; if it asks for a card, stop.
+2. Add the App Check snippet to `src/live-src.js` and release.
+3. Watch the App Check metrics for a week or two. Enforce only when nearly all requests are verified, since enforcing too early locks the team out.
+
+## Optional extras
+
+- Restricting the browser API key to `rickdsage.github.io` in Google Cloud (APIs and Services, Credentials) stops other websites using it in browsers. It isn't a security boundary.
+- If you ever add Google sign-in or email links, add `rickdsage.github.io` under Authentication, Settings, Authorised domains. Username and PIN logins don't need it.
+
+## Sources (checked 24 and 25 October 2026)
+
+- Firebase pricing plans (Spark shut-off, budget alerts): https://firebase.google.com/docs/projects/billing/firebase-pricing-plans
+- Firestore pricing and free quota: https://firebase.google.com/docs/firestore/pricing
+- Firestore quotas and the 1 MiB document limit: https://firebase.google.com/docs/firestore/quotas
+- Rules conditions and access-call limits (10 per request, 20 per batch): https://firebase.google.com/docs/firestore/security/rules-conditions
+- Field validation with `diff().affectedKeys()`: https://firebase.google.com/docs/firestore/security/rules-fields
+- Offline persistence: https://firebase.google.com/docs/firestore/manage-data/enable-offline
+- App Check with reCAPTCHA Enterprise: https://firebase.google.com/docs/app-check/web/recaptcha-provider
+- Cloud Storage needs Blaze: https://firebase.google.com/docs/storage/faqs-storage-changes-announced-sept-2024
+- Cloud Functions need Blaze: https://firebase.google.com/docs/functions/faq-and-troubleshooting
+- Rules unit tests: https://firebase.google.com/docs/rules/unit-tests
+- GitHub Pages limits: https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits
