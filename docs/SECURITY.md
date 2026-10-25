@@ -11,7 +11,7 @@ Written for rules version 2 (`firestore.rules`). Official limits were checked on
 - Every account change (added, new PIN, role changed, removed) writes an audit entry in the same write. The rules refuse the change without it, and nobody can edit or delete the entries.
 - History can't be rewritten: sent reports, signed-off reports, the 86 log, decisions on requests, closed incidents, fixed issues and the audit trail are all locked once written.
 - The Firebase web config in the site is public by design. It names the project; it doesn't grant access. The rules do.
-- What people type is always shown as text, never run. Record ids aren't checked by the rules, so the app skips any record whose id isn't plain letters, digits and dashes. Until 25 October 2026 a team login used from a script could have planted code in a manager's screen through an id; a browser test now covers it.
+- What people type is always shown as text, never run. Record ids aren't checked by the rules, so the app skips any record whose id isn't plain letters, digits and dashes, and a field called id inside a record can't take the real id's place (the rules refuse such a field, so only a write from the Firebase console could add one). Until 25 October 2026 a team login used from a script could have planted code in a manager's screen through an id; a browser test now covers it.
 
 ## Who can do what
 
@@ -44,6 +44,10 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `pars/{item}` (par levels) | O, M | O, M: 1 to 1,000 | O, M | O, M |
 | `counts` (stock counts) | O, M | O, M: 1 to 400 lines | nobody | O |
 | `training/{uid}-{drink}` (sign-offs) | O, M: all. S: their own | O, M: someone else on the team, once per drink | nobody | O, M (taking it back) |
+| `concerns` (Report a concern) | O, M: all. S: those sent to everyone, the bar or the floor, and their own named ones | O, M, S: a reason, where, an optional note (required for Something else), who it's for and up to 3 photos. Named as themselves, or anonymous with no uid or name saved | anyone it was sent to: mark it dealt with, once (managers only ones need O or M) | O, M any; the sender of a named one while it's open |
+| `concernPhotos/{concern}-{n}` | O, M: all. S: those on concerns sent to the team | only in the write that creates their concern: a JPEG up to 700,000 characters, carrying the concern's audience, no uid | nobody | with their concern; O, M once over 30 days old |
+
+Concerns sent to the bar or the floor reach every staff phone, and each shows the ones for the side it's set to, like broadcasts. Managers only is enforced: a staff login can't read that concern or its photos, and the anonymous sender can't see it again either. Photos are re-saved by the app before upload, which drops the location and camera details a phone puts in its photos.
 
 Waste and safety records are the venue's record, so nobody edits them. One logged by mistake can be taken back by whoever logged it for 15 minutes (the app offers Undo for 14, to allow for a phone's clock being a little out); after that only the owner can delete it. "Dated tonight" allows a day either side, like the checklists. The rules can't check a stock count line by line (they have no loops), so only managers can write counts and the app shows every value in them as text.
 
@@ -96,8 +100,8 @@ These are the trade-offs of running with no server and no billing. None of them 
 2. **The username lookup is public.** For a username you already know, it returns the made-up sign-in address and the uid. It can't list usernames. The app needs it to log in without a server, and the rules need the uid in it to keep usernames and accounts matched. A uid isn't a password: team members already see each other's on every post, and on its own it opens nothing.
 3. **Anyone can make a Firebase login.** Turning off email and password sign-up would break "Add person", because the app makes new logins from the manager's phone. A stray login has no staff record, so it can't read or write anything. Firebase limits new accounts to 100 an hour from one address.
 4. **Offline phones.** A removed person's phone that never gets signal again keeps what it last saw. Logging out wipes it at once; use that on shared phones.
-5. **Anonymous feedback** saves no author, and no app account can see who sent it. Someone could still guess from timing ("only one other manager was on that night"). It's anonymous to the app, not to deduction.
-6. **Photos live in the database**, because Firebase Storage needs the paid plan. Each is shrunk until it's under 600,000 characters as stored (about 450 KB of JPEG), 8 at most per report, and the rules refuse anything over 700,000. They're cleared after 30 days by the first manager's phone to open the app after that (there's no server to do it on a timer).
+5. **Anonymous feedback and anonymous concerns** save no author, and no app account can see who sent them. Someone could still guess from timing ("only one other manager was on that night") or from what's in a photo. They're anonymous to the app, not to deduction. An anonymous concern sent to the whole team could also be used to have a dig at someone; managers can take any concern down.
+6. **Photos live in the database**, because Firebase Storage needs the paid plan. Each is shrunk until it's under 600,000 characters as stored (about 450 KB of JPEG), 8 at most per report and 3 per concern, and the rules refuse anything over 700,000. They're cleared after 30 days by the first manager's phone to open the app after that (there's no server to do it on a timer).
 7. **No App Check yet.** Scripts using the public config are still bound by the rules; App Check would only make abuse harder. See "App Check, later".
 
 ## What it costs

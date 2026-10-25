@@ -291,7 +291,7 @@ details.pargrp summary { min-height: 40px; display: flex; align-items: center; f
 .dash span { display: block; font-size: 12.5px; color: var(--muted); line-height: 1.25; }
 .dash button.hot b { color: var(--warn); }
 .prep .who { display: block; font-size: 12.5px; color: var(--muted); text-decoration: none; }
-.issue .tags { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
+.issue .tags, .notice .tags { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
 .issue select { font: inherit; font-size: 15px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-height: 40px; }
 .check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 16px; }
 .check input { width: 22px; height: 22px; accent-color: var(--brass); }
@@ -394,12 +394,13 @@ details.pargrp summary { min-height: 40px; display: flex; align-items: center; f
     <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
     <div id="tally"></div>
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
+    <input id="cn-in" type="file" accept="image/*" hidden>
   </section>
 
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="act"></div><div id="mgrs"></div><div id="incs"></div><div id="mwaste"></div><div id="msafety"></div><div id="mstock"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="act"></div><div id="mgrs"></div><div id="incs"></div><div id="mwaste"></div><div id="msafety"></div><div id="mstock"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
     <div id="notices"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
@@ -552,7 +553,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], waste: [], kit: [], safety: [], pars: {}, counts: [], training: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], waste: [], kit: [], safety: [], pars: {}, counts: [], training: [], concerns: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -1339,7 +1340,7 @@ const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(is
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#act", "#mgrs", "#incs", "#mwaste", "#msafety", "#mstock", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#act", "#mgrs", "#incs", "#mwaste", "#msafety", "#mstock", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -1379,11 +1380,11 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
-  renderDash(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderWaste(); renderSafety(); renderStock(); renderTraining(); renderStaff(); renderMe(); renderAct(); renderTeamTabs();
+  renderDash(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderWaste(); renderSafety(); renderStock(); renderTraining(); renderStaff(); renderMe(); renderAct(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#issues", "#compose", "#feed", "#notices"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#act", "#mgrs", "#incs", "#mwaste", "#msafety", "#mstock", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
+const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#compose", "#feed", "#notices"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#act", "#mgrs", "#incs", "#mwaste", "#msafety", "#mstock", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
 // The Managers tab in parts, so nothing is a long scroll away. The 86 log sits under Stock.
@@ -1396,7 +1397,7 @@ function renderTeamTabs() {
   if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
   const tabs = [["board", "Board"], ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
   if (!tabs.some(([k]) => k === tpane)) tpane = "board";
-  const count = { board: [openIssues().length, "open"], reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"], requests: [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length, "waiting"] };
+  const count = { board: [openIssues().length + openConcerns().length, "open"], reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"], requests: [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length, "waiting"] };
   const badge = (k) => (count[k] && count[k][0] ? `${count[k][0]} ${count[k][1]}` : "");
   $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge(k)}</small></button>`).join("")}</div>`;
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
@@ -1424,6 +1425,7 @@ function renderDash() {
     [v("safety", logsDue()), `safety checks due on the ${mode}`, "logs", logsDue() > 0],
     [v("out", LIVE.out.size), "86'd right now", "stock", LIVE.out.size > 0],
     [v("issues", open.length), urgent ? `open issues, ${urgent} urgent` : "open issues", "issues", urgent > 0],
+    [v("concerns", openConcerns().length), "open concerns", "concerns", openConcerns().some((x) => x.reason === "hazard")],
     [v("requests", LIVE.requests.filter((r) => !r.done).length), "stock requests not ordered", LIVE.admin ? "requests" : "stock"],
     [v("reports", sent("bar")), "bar report tonight", "reports"],
     [v("reports", sent("floor")), "floor report tonight", "reports"],
@@ -1439,8 +1441,9 @@ function renderDash() {
 function go(where) {
   if (where === "shift" || where === "stock" || where === "logs") { pane = where === "shift" ? defaultPane() : where; show("tally"); return; }
   if (where === "incidents" || where === "safety") { msub = where; where = "managers"; }
-  tpane = where === "issues" ? "board" : where; renderTeamTabs();
-  $(where === "issues" ? "#issues" : "#tpanes").scrollIntoView({ block: "start" });
+  const board = where === "issues" || where === "concerns";
+  tpane = board ? "board" : where; renderTeamTabs();
+  $(board ? `#${where}` : "#tpanes").scrollIntoView({ block: "start" });
 }
 const ROLE = { owner: "Owner", manager: "Manager", staff: "Staff" };
 const AUDIT = { setup: "owner account set up", add: "added", reset: "new PIN", remove: "removed", role: "role changed" };
@@ -1505,6 +1508,56 @@ async function showPhotos(id) {
   shownPhotos[id] = ps.length ? ps.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><p class="txt">${p.note ? esc(p.note) : "<span class=\"note\">No note</span>"}</p></div>`).join("") : `<p class="note">These photos were cleared (photos are kept for ${LIVE.api.KEEP_DAYS} days).</p>`;
   const box = document.querySelector(`[data-photos-of="${id}"]`); if (box) box.innerHTML = shownPhotos[id];
 }
+/* ---------- Concerns ----------
+   Anyone can report something that isn't right, with up to 3 photos, to the team or to managers only, and anonymously
+   if they like: an anonymous one saves no name, so no one can see it was them. Anyone it went to can mark it dealt with. */
+const CN = [["cleaning", "Needs cleaning"], ["unkempt", "Unkempt area"], ["broken", "Broken or not working"], ["hazard", "Safety hazard"], ["other", "Something else"]];
+const CN_NAME = Object.fromEntries(CN);
+const CN_TO = [["managers", "Managers only"], ["all", "Everyone"], ["bar", "Bar team"], ["floor", "Floor team"]];
+const CN_TO_NAME = Object.fromEntries(CN_TO), CN_SENT = { managers: "the managers", all: "everyone", bar: "the bar team", floor: "the floor team" };
+const cnF = { reason: "", area: "", note: "", to: "managers", anon: false, photos: [], open: false };
+const cnText = {}, cnShown = {};
+let cnBusy = false;
+const cnName = (x) => `${CN_NAME[x.reason]}, ${AREA[x.area] || "Other"}`;
+// Staff see the ones for everyone, for their side (like broadcasts) and their own; managers see them all.
+const cnForMe = (x) => LIVE.admin || x.to === "all" || x.to === mode || (!!x.uid && x.uid === LIVE.uid);
+const openConcerns = () => LIVE.concerns.filter((x) => x.status === "open" && cnForMe(x));
+function renderConcerns() {
+  if (!LIVE.me) return;
+  const row = (x) => `<article class="notice${x.reason === "hazard" ? " new" : ""}"><div class="meta"><b>${CN_NAME[x.reason]}</b> · ${AREA[x.area] || "Other"}${x.pending ? " · sending…" : ""}</div>
+    <div class="tags"><span class="pill${x.to === "managers" ? " wait" : ""}">${CN_TO_NAME[x.to]}</span>${x.anon ? `<span class="pill">Anonymous</span>` : ""}</div>
+    ${x.note ? `<p class="txt">${esc(x.note)}</p>` : ""}
+    ${x.photos ? `<div data-cn-photos-of="${x.id}">${cnShown[x.id] || `<button class="btn" data-cn-photos="${x.id}">Show ${esc(x.photos)} photo${x.photos > 1 ? "s" : ""}</button>`}</div>` : ""}
+    <p class="note" style="margin-top:6px">${x.anon ? "Sent anonymously" : `From ${esc(x.name)}`} · ${when(x.at)}</p>
+    ${LIVE.admin || x.to !== "managers" ? `<div class="rvrow" style="grid-template-columns:1fr auto"><input data-cn-fixt="${x.id}" maxlength="300" placeholder="What was done (optional)" value="${esc(cnText[x.id] || "")}" aria-label="What was done"><button class="btn pri" data-cn-fix="${x.id}">Dealt with</button></div>` : ""}
+    ${LIVE.admin || (x.uid && x.uid === LIVE.uid) ? `<div class="actions"><button class="btn danger" data-cn-del="${x.id}">${LIVE.admin ? "Take down" : "Withdraw"}</button></div>` : ""}</article>`;
+  $("#concerns").innerHTML = `<div class="sec">Concerns</div>
+    <details class="setup" id="cn-form"${cnF.open ? " open" : ""}><summary>Report a concern</summary>
+      <div class="mini">What's wrong</div><div class="recent">${CN.map(([k, t]) => `<button class="chip" data-cn-reason="${k}" aria-pressed="${k === cnF.reason}">${t}</button>`).join("")}</div>
+      <label class="fld">Where<select id="cn-area"><option value="">Choose…</option>${AREAS.map(([k, t]) => `<option value="${k}"${k === cnF.area ? " selected" : ""}>${t}</option>`).join("")}</select></label>
+      <label class="fld">${cnF.reason === "other" ? "Say what it is" : "More detail (optional)"}<textarea id="cn-note" rows="2" maxlength="300">${esc(cnF.note)}</textarea></label>
+      ${cnF.photos.map((d, i) => `<div class="photo"><img src="${esc(d)}" alt="Photo ${i + 1}"><button class="btn" data-cn-unphoto="${i}">Remove photo</button></div>`).join("")}
+      ${cnF.photos.length < 3 ? `<label class="btn wide" for="cn-in" style="cursor:pointer">${cnBusy ? "Adding photo…" : `Add a photo (${cnF.photos.length} of 3)`}</label>` : `<p class="note">3 photos is the most.</p>`}
+      <div class="mini">Send to</div><div class="recent">${CN_TO.map(([k, t]) => `<button class="chip" data-cn-to="${k}" aria-pressed="${k === cnF.to}">${t}</button>`).join("")}</div>
+      <label class="check"><input type="checkbox" id="cn-anon"${cnF.anon ? " checked" : ""}> Send anonymously: your name isn't saved, so nobody can see it was you</label>
+      <div class="actions"><button class="btn pri" id="cn-go">Send</button></div></details>
+    ${openConcerns().map(row).join("") || `<p class="note">No open concerns.</p>`}`;
+}
+async function showConcernPhotos(id) {
+  const x = LIVE.concerns.find((c) => c.id === id); if (!x) return;
+  const ps = (await LIVE.api.concernPhotos(x)).filter(Boolean);
+  cnShown[id] = ps.length ? ps.map((d, i) => `<div class="photo"><img src="${esc(d)}" alt="Photo ${i + 1}"></div>`).join("") : `<p class="note">These photos were cleared (photos are kept for ${LIVE.api.KEEP_DAYS} days).</p>`;
+  const box = document.querySelector(`[data-cn-photos-of="${id}"]`); if (box) box.innerHTML = cnShown[id];
+}
+// Like the closing photos, the picker lives outside the page that's redrawn, so a live update can't lose a photo.
+$("#cn-in").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  if (!f || cnF.photos.length >= 3) return;
+  cnBusy = true; renderConcerns();
+  try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try another"); else cnF.photos.push(data); }
+  catch { toast("Couldn't read that photo"); }
+  cnBusy = false; cnF.open = true; renderConcerns();
+});
 /* ---------- Issues and handover ---------- */
 // Faults, jobs and anything the next shift should know. Open ones stay on the board, however old, until someone
 // fixes them. Fixed ones can't be reopened; "Still broken" raises a new one linked to the old.
@@ -1718,8 +1771,8 @@ function renderTraining() {
    no record, so take-downs, unticks and cancellations don't show. Managers see every section and can download the
    full history; staff see the team's side of things for their own side of the venue (bar or floor). */
 const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["safety", "Safety"], ["86", "86"], ["stock", "Stock"], ["waste", "Waste"], ["asks", "Staff requests"], ["issues", "Issues"],
-  ["reports", "Reports"], ["incidents", "Incidents"], ["training", "Training"], ["team", "Team"]];
-const ACT_NAME = Object.fromEntries(ACT), STAFF_ACT = ["all", "board", "checks", "safety", "86", "stock", "waste", "issues", "reports"];
+  ["concerns", "Concerns"], ["reports", "Reports"], ["incidents", "Incidents"], ["training", "Training"], ["team", "Team"]];
+const ACT_NAME = Object.fromEntries(ACT), STAFF_ACT = ["all", "board", "checks", "safety", "86", "stock", "waste", "issues", "concerns", "reports"];
 const tickName = (t) => LISTS[t.list]?.items[t.item] || `Item ${t.item + 1}`;
 const DID = { setup: () => "set up the owner account", add: (a) => `added ${a.targetName} (${ROLE[a.role].toLowerCase()})`, reset: (a) => `gave ${a.targetName} a new PIN`, remove: (a) => `removed ${a.targetName}`, role: (a) => `made ${a.targetName} ${a.role === "manager" ? "a manager" : "staff"}` };
 const DECIDED = { seen: "saw", approved: "approved", declined: "declined" };
@@ -1746,6 +1799,10 @@ function events(x) {
   x.waste.forEach((w) => add("waste", w.at, w.name, `logged waste: ${wasteText(w)}`, [REASONS[w.reason], w.note].filter(Boolean).join(" · ")));
   x.counts.forEach((c) => add("stock", c.at, c.name, `counted the stock (${c.lines.length} items)`, c.note));
   x.training.forEach((t) => add("training", t.at, t.name, `signed off ${t.traineeName} on ${t.drinkName}`));
+  x.concerns.forEach((c) => {
+    add("concerns", c.at, c.anon ? "Someone (anonymous)" : c.name, `reported a concern to ${CN_SENT[c.to]}: ${cnName(c)}`, c.note);
+    if (c.fixedBy) add("concerns", c.fixedAt, c.fixedBy, `dealt with a concern: ${cnName(c)}`, c.fix);
+  });
   auditOnce(x.audit).forEach((a) => add("team", a.at, a.name, DID[a.action](a)));
   return ev.sort((a, b) => b.t - a.t);
 }
@@ -1759,7 +1816,7 @@ function liveData() {
     asks: staff ? [] : LIVE.asks,
     reports: staff ? LIVE.reports.filter((r) => r.side === mode) : LIVE.reports,
     safety: staff ? LIVE.safety.filter((r) => r.side === mode) : LIVE.safety, waste: LIVE.waste,
-    counts: staff ? [] : LIVE.counts, training: staff ? [] : LIVE.training,
+    counts: staff ? [] : LIVE.counts, training: staff ? [] : LIVE.training, concerns: LIVE.concerns.filter(cnForMe),
   };
 }
 // In All, one line per person per checklist, at their latest tick.
@@ -1818,11 +1875,13 @@ const TABLES = {
     return [r.day, dt(r.at)[1], sideName(r.side), r.kitName, KITS[r.kind].name, r.c ?? "", r.kind === "lines" ? "Cleaned" : st === "ok" ? "In range" : msg || "Recorded", r.note, r.name];
   })],
   training: (x) => [["Person", "Drink", "Section", "Signed off by", "Date"], ...x.training.map((t) => [t.traineeName, t.drinkName, D.find((d) => d.name === t.drinkName)?.section || "", t.name, dt(t.at)[0]])],
+  concerns: (x) => [["Date", "Time", "Concern", "Where", "Sent to", "From", "Note", "Photos", "Status", "Dealt with by", "Dealt with on", "Dealt with at", "What was done"],
+    ...x.concerns.map((c) => [...dt(c.at), CN_NAME[c.reason], AREA[c.area] || "Other", CN_TO_NAME[c.to], c.anon ? "Anonymous" : c.name, c.note, c.photos, c.status === "closed" ? "Dealt with" : "Open", c.fixedBy, ...dt(c.fixedAt), c.fix])],
   counts: (x) => [["Date", "Time", "Counted by", "Item", "Group", "Par", "Counted", "To order"], ...x.counts.flatMap((c) => c.lines.map((l) => [...dt(c.at), c.name, l.item, l.group, l.par, l.n, Math.max(0, Math.ceil(l.par - l.n))]))],
   order: (x) => [["Item", "Group", "Par", "Counted", "To order"], ...(x.counts[0]?.lines || []).filter((l) => l.n < l.par).map((l) => [l.item, l.group, l.par, l.n, Math.ceil(l.par - l.n)])],
 };
-const NEEDS = { all: ["feed", "notices", "ticks", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit", "safety", "waste", "counts", "training"], board: ["feed", "notices"], checks: ["ticks"],
-  86: ["outlog"], stock: ["requests"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"], incidents: ["incidents"], team: ["audit"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], order: ["counts"] };
+const NEEDS = { all: ["feed", "notices", "ticks", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit", "safety", "waste", "counts", "training", "concerns"], board: ["feed", "notices"], checks: ["ticks"],
+  86: ["outlog"], stock: ["requests"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"], incidents: ["incidents"], team: ["audit"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], order: ["counts"], concerns: ["concerns"] };
 const FILE = { all: "activity", order: "order-list", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
 // A download button, or once the file is ready, the Save link (a separate tap, which iPhone needs).
 const dlHtml = (sec, label, id) => (actFile && actFile.sec === sec
@@ -1871,12 +1930,14 @@ const TOAST = {
   ratings: (x) => (x.about === LIVE.uid ? "You have new anonymous feedback" : ""),
   issues: issueToast,
   training: (x) => (x.trainee === LIVE.uid ? `${x.name} signed you off on ${x.drinkName}` : ""),
+  concerns: (x) => (x.status === "open" && cnForMe(x) ? `New concern: ${cnName(x)}` : ""),
 };
 const MINE = {
   reports: (x) => (x.signedBy ? `${x.signedBy} signed off your shift report` : ""),
   requests: (x) => (x.done ? `${x.doneBy} ordered ${x.item}` : ""),
   asks: (x) => (x.status !== "pending" ? `${STATUS[x.status][0]} by ${x.by}: ${askText(x)}` : ""),
   issues: issueToast,
+  concerns: (x) => (x.status === "closed" && x.fixedByUid !== LIVE.uid ? `${x.fixedBy} dealt with your concern: ${cnName(x)}` : ""),
 };
 function liveChanged(what) {
   if (what === "notices" || what === "seen" || what === "me") renderBcast();
@@ -1896,10 +1957,11 @@ function liveChanged(what) {
     const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues], requests: [renderRequests, renderDash, renderAct],
       asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct], ticks: [renderDash, renderAct], seen: [renderPins], photos: [], waste: [renderWaste, renderAct], safety: [renderSafety, renderDash, renderAct],
-      kit: [renderSafety, renderDash], pars: [renderStock], counts: [renderStock, renderAct], training: [renderTraining, renderAct] }[what];
+      kit: [renderSafety, renderDash], pars: [renderStock], counts: [renderStock, renderAct], training: [renderTraining, renderAct],
+      concerns: [renderConcerns, renderDash, renderAct] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderIssues, "#issues"], [renderSafety, "#msafety"], [renderStock, "#mstock"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderSafety, "#msafety"], [renderStock, "#mstock"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
@@ -1922,6 +1984,8 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.fixt) fixText[t.dataset.fixt] = t.value;
   if (t.dataset.inct) incText[t.dataset.inct] = t.value;
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
+  if (t.id === "cn-note") cnF.note = t.value;
+  if (t.dataset.cnFixt) cnText[t.dataset.cnFixt] = t.value;
   if (t.id === "k-name") kitF.name = t.value;
   if (t.id === "cnt-note") countNote = t.value;
   if (t.dataset.cnt) { countDraft[t.dataset.cnt] = t.value; store.set("countDraft", countDraft); }
@@ -1930,6 +1994,8 @@ $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset.f) meF[t.dataset.f] = t.value;
   if (t.id === "k-kind") kitF.kind = t.value;
+  if (t.id === "cn-area") cnF.area = t.value;
+  if (t.id === "cn-anon") cnF.anon = t.checked;
   if (t.dataset.par) { const n = Math.round(+t.value * 100) / 100; track(LIVE.api.setPar(t.dataset.par, n > 0 && n <= 1000 ? n : 0), null, "Par not saved. Try again"); }
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.give && t.value) {
@@ -1939,6 +2005,7 @@ $("#v-notices").addEventListener("change", (e) => {
 });
 $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
+  if (e.target.id === "cn-form") cnF.open = e.target.open;
   if (e.target.dataset.keep) keepOpen[e.target.dataset.keep] = e.target.open;
 }, true);
 function sendMe(A) {
@@ -1965,6 +2032,24 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.id === "act-more") { actMax += 50; renderAct(); return; }
   if (b.dataset.dl) { busy(b, "Getting the full history…", prepareDownload(b.dataset.dl).catch(() => toast("Couldn't get it. Check your signal and try again"))); return; }
   if (b.dataset.wweek) { wWeek = +b.dataset.wweek; renderWaste(); return; }
+  if (b.dataset.cnReason) { cnF.reason = b.dataset.cnReason; renderConcerns(); return; }
+  if (b.dataset.cnTo) { cnF.to = b.dataset.cnTo; renderConcerns(); return; }
+  if (b.dataset.cnUnphoto) { cnF.photos.splice(+b.dataset.cnUnphoto, 1); renderConcerns(); return; }
+  if (b.id === "cn-go") {
+    const note = cnF.note.trim();
+    if (!cnF.reason) return toast("Pick what's wrong");
+    if (!cnF.area) return toast("Pick where");
+    if (cnF.reason === "other" && !note) return toast("Say what it is in the box");
+    track(A.reportConcern({ reason: cnF.reason, area: cnF.area, note, to: cnF.to, anon: cnF.anon }, cnF.photos), `Sent${cnF.anon ? " anonymously" : ""} to ${CN_SENT[cnF.to]}`, "Not sent. Try again");
+    Object.assign(cnF, { reason: "", area: "", note: "", to: "managers", anon: false, photos: [], open: false }); haptic(); renderConcerns(); return;
+  }
+  if (b.dataset.cnFix) { const id = b.dataset.cnFix; track(A.closeConcern(id, (cnText[id] || "").trim()), "Marked as dealt with", "Not updated. Someone may have just dealt with it"); delete cnText[id]; haptic(); return; }
+  if (b.dataset.cnDel) {
+    const x = LIVE.concerns.find((c) => c.id === b.dataset.cnDel);
+    if (x && confirm(LIVE.admin ? "Take this concern down? It's deleted for everyone." : "Withdraw your concern?")) track(A.removeConcern(x), null, "Could not remove");
+    return;
+  }
+  if (b.dataset.cnPhotos) { busy(b, "Loading photos…", showConcernPhotos(b.dataset.cnPhotos).catch(() => toast("Couldn't load the photos. Check your signal"))); return; }
   if (b.dataset.kitSide) { kitF.side = b.dataset.kitSide; renderSafety(); return; }
   if (b.id === "k-go") {
     const name = kitF.name.trim(); if (!name) return toast("Give it a name");
