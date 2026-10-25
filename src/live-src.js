@@ -26,7 +26,7 @@ if (__EMU__) {
 }
 
 // PINs are 6 to 12 digits. Managers and the owner can see far more, so theirs must be at least 8.
-const USER = /^[a-z0-9.]{2,20}$/, PIN = /^\d{6,12}$/, BOSS_PIN = 8, MAX_PHOTOS = 8, CODE_MIN = 16;
+const USER = /^[a-z0-9.]{2,20}$/, PIN = /^\d{6,12}$/, MAX_PHOTOS = 8, CODE_MIN = 16;
 const emailFor = (u) => `${u}-${crypto.randomUUID().slice(0, 8)}@users.example.com`;
 // The 86 board keys each item by this, and the rules check it the same way.
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -278,7 +278,7 @@ LIVE.api = {
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),
   fixed: (id, fix) => updateDoc(doc(db, "issues", id), { status: "fixed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
   withdrawIssue: (id) => deleteDoc(doc(db, "issues", id)),
-  USER, PIN, BOSS_PIN, MAX_PHOTOS, CODE_MIN,
+  USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [] });

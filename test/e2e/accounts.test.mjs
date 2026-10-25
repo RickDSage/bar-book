@@ -7,7 +7,7 @@ let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
 after(async () => { await browser.close(); site.close(); });
 
-test("first-time setup works once, with the right code and a long enough PIN", async () => {
+test("first-time setup works once, with the right code and a PIN of at least 6 digits", async () => {
   await resetEmulators();
   const O = await phone(browser, site), X = await phone(browser, site);
   await O.evaluate(() => show("notices"));
@@ -17,8 +17,8 @@ test("first-time setup works once, with the right code and a long enough PIN", a
     await O.fill("#s-name", "Olly Owner"); await O.fill("#s-user", "olly"); await O.fill("#s-pin", pin); await O.fill("#s-code", code);
     await O.click("#s-go");
   };
-  await fillSetup("111111", SETUP_CODE);
-  assert.match(await toastOf(O), /PIN: 8 to 12 digits/);
+  await fillSetup("11111", SETUP_CODE);
+  assert.match(await toastOf(O), /PIN: 6 to 12 digits/);
   await fillSetup(OWNER_PIN, "short-code");
   assert.equal(await toastOf(O), "The setup code is at least 16 characters");
   await fillSetup(OWNER_PIN, "this-is-the-wrong-code");
@@ -49,9 +49,8 @@ test("adding someone, logging in, promoting, resetting a PIN and removing them",
   const pin1 = await O.inputValue("#a-pin");
   assert.match(pin1, /^\d{6}$/, "a staff PIN is made up for you, 6 digits");
   await O.selectOption("#a-role", "manager");
-  assert.match(await O.inputValue("#a-pin"), /^\d{8}$/, "choosing manager makes it 8 digits");
+  assert.equal(await O.inputValue("#a-pin"), pin1, "managers get 6 digits too, so choosing manager keeps the PIN");
   await O.selectOption("#a-role", "staff");
-  await O.fill("#a-pin", pin1);
   await O.click("#a-go");
   await O.waitForFunction((pin) => document.querySelector("#staff-list .confirm")?.textContent.includes(`username sam, PIN ${pin}`), pin1);
 
@@ -78,7 +77,7 @@ test("adding someone, logging in, promoting, resetting a PIN and removing them",
 
   await O.click("[data-role]");
   await S.waitForFunction(() => LIVE.admin);
-  await O.waitForFunction(() => document.querySelector("#staff-list .confirm")?.textContent.includes("tap Reset PIN"));
+  await O.waitForFunction(() => document.querySelector("#staff-list .confirm")?.textContent === "Sam Staff is now a manager.");
   await O.waitForFunction(() => LIVE.staff.find((x) => x.username === "sam").role === "manager");
   await O.click("[data-role]");
   await S.waitForFunction(() => !LIVE.admin);

@@ -2,7 +2,7 @@
 
 Phone web app for the Black Tap Soho bar and floor team: every drink spec with step-by-step picture guides, allergens, spec practice, opening and closing checklists, the 86 list and the shift report.
 
-Team logins add a live shift board shared by everyone on shift: Tonight at a glance, shared checklists, the 86 board, stock requests, issues and handover, shift reports with photos and sign-off, notices, time off and swaps, incidents, and a Managers tab. They are built and tested but stay switched off until the owner adds the Firebase config (see [docs/SECURITY.md](docs/SECURITY.md)).
+Team logins add a live shift board shared by everyone on shift: Tonight at a glance, shared checklists, the 86 board, stock requests, issues and handover, shift reports with photos and sign-off, notices, time off and swaps, incidents, and a Managers tab. They are switched on. How they were set up, what keeps them secure and how to recover are in [docs/SECURITY.md](docs/SECURITY.md).
 
 Open it at https://rickdsage.github.io/bar-book/ and add it to your home screen (Safari: Share, then Add to Home Screen). Always use the venue's allergen matrix as the final word.
 
@@ -50,6 +50,6 @@ Both test suites run against the local Firebase emulators, never the live projec
 
 - No notifications on phones where the app is closed: that needs Cloud Functions, which need the paid Blaze plan. Updates arrive while the app is open, with pop-ups and badges.
 - Photos are stored in the database and cleared after 30 days, because Firebase Storage also needs Blaze.
-- The 8-digit PIN for managers and the owner is checked by the app; Firebase itself only insists on 6.
+- PINs are 6 to 12 digits for everyone. Firebase won't accept a password shorter than 6, so 4-digit PINs aren't possible.
 - Building needs the drinks data folder.
 - The closing managers offered on the Send page are a fixed list in `src/template.html`.
