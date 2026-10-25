@@ -1,6 +1,6 @@
-// Bar Book offline support. Version 2026-10-25T02:37
-const CACHE = "bar-book-2026-10-25T02:37";
-const CORE = ["./", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
+// Bar Book offline support. Version 2026-10-25T04:46
+const CACHE = "bar-book-2026-10-25T04:46";
+const CORE = ["./", "live.js", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 // Safari refuses to show a page from a response that was redirected, so store a clean copy.
 const clean = (res) => (res.redirected ? res.blob().then((b) => new Response(b, { status: 200, headers: res.headers })) : Promise.resolve(res));
 self.addEventListener("install", (e) => {
