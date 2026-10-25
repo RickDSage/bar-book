@@ -1201,9 +1201,8 @@ const when = (t) => `<b class="dt">${stamp(new Date(ms(t)))}</b>`;
 let feedSeen = store.get("feedSeen", 0);
 const isNew = (x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen;
 const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(isNew);
-// Random PINs for new people: 6 digits for staff, 8 for managers.
-const newPin = (n = 6) => [...crypto.getRandomValues(new Uint32Array(n))].map((x) => x % 10).join("");
-const pinLen = (role) => (role === "staff" ? 6 : LIVE.api.BOSS_PIN);
+// Random 6-digit PINs for new people and resets.
+const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
 const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#issues", "#requests", "#compose", "#feed", "#reports", "#mgrs", "#outlog", "#mgr", "#me"];
 function renderTeamTop() {
@@ -1220,7 +1219,7 @@ function renderTeamTop() {
         <p class="note">Creates the owner account, once. You need the setup code you saved in Firebase (at least ${LIVE.api.CODE_MIN} characters). It stops working the moment setup is done.</p>
         <label class="fld">Your name<input id="s-name" maxlength="40" autocomplete="name"></label>
         <label class="fld">Username (lower case letters and numbers)<input id="s-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
-        <label class="fld">Choose a PIN of ${LIVE.api.BOSS_PIN} to 12 digits<input id="s-pin" type="password" inputmode="numeric" maxlength="12"></label>
+        <label class="fld">Choose a PIN of 6 to 12 digits<input id="s-pin" type="password" inputmode="numeric" maxlength="12"></label>
         <label class="fld">Setup code<input id="s-code" type="password" autocomplete="off"></label>
         <button class="btn wide" id="s-go">Create owner account</button></details>`;
     return;
@@ -1237,7 +1236,7 @@ function renderTeamTop() {
       <h3 style="font-size:18px;margin-top:16px">Add a person</h3>
       <label class="fld">Name<input id="a-name" maxlength="40"></label>
       <label class="fld">Username (lower case letters and numbers)<input id="a-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
-      <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin(6)}"></label>
+      <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
   renderDash(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderStaff(); renderMe(); renderTeamTabs();
@@ -1517,7 +1516,6 @@ $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
   if (t.dataset.f) meF[t.dataset.f] = t.value;
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
-  if (t.id === "a-role") $("#a-pin").value = newPin(pinLen(t.value));
   if (t.dataset.give && t.value) {
     const p = LIVE.staff.find((x) => x.uid === t.value);
     track(LIVE.api.take(t.dataset.give, p), `Given to ${p.name}`, "Not updated. It may have just been fixed");
@@ -1594,14 +1592,14 @@ $("#v-notices").addEventListener("click", (e) => {
     busy(b, "Logging in…", A.login(u, pin).then(() => { toast("Logged in"); }).catch((x) => toast(/^(Wrong|Too many)/.test(x.message) ? x.message : "Could not log in. Check your signal")));
   } else if (b.id === "s-go") {
     const name = val("#s-name"), u = val("#s-user").toLowerCase(), pin = val("#s-pin"), code = val("#s-code");
-    if (!name || !A.USER.test(u) || !A.PIN.test(pin) || pin.length < A.BOSS_PIN) return toast(`Fill in every box. Username: lower case letters and numbers. PIN: ${A.BOSS_PIN} to 12 digits`);
+    if (!name || !A.USER.test(u) || !A.PIN.test(pin)) return toast("Fill in every box. Username: lower case letters and numbers. PIN: 6 to 12 digits");
     if (code.length < A.CODE_MIN) return toast(`The setup code is at least ${A.CODE_MIN} characters`);
     busy(b, "Creating…", A.setup(name, u, pin, code).then(() => toast("Owner account created")).catch((x) => toast(x.message)));
   } else if (b.id === "l-out") {
     if (confirm("Log out on this phone? This also clears the team's data saved on it.")) A.logout();
   } else if (b.id === "l-chg") {
-    const min = LIVE.admin ? A.BOSS_PIN : 6, pin = (prompt(`New PIN (${min} to 12 digits)`) || "").trim(); if (!pin) return;
-    if (!A.PIN.test(pin) || pin.length < min) return toast(`The PIN must be ${min} to 12 digits`);
+    const pin = (prompt("New PIN (6 to 12 digits)") || "").trim(); if (!pin) return;
+    if (!A.PIN.test(pin)) return toast("The PIN must be 6 to 12 digits");
     A.changePin(pin).then(() => toast("PIN changed")).catch(() => toast("Log out and back in, then try again"));
   } else if (b.id === "c-post") {
     const t = val("#c-text"); if (!t) return;
@@ -1609,13 +1607,12 @@ $("#v-notices").addEventListener("click", (e) => {
   } else if (b.id === "a-go") {
     const name = val("#a-name"), u = val("#a-user").toLowerCase(), pin = val("#a-pin"), role = LIVE.owner ? $("#a-role").value : "staff";
     if (!name || !A.USER.test(u) || !A.PIN.test(pin)) return toast("Fill in every box. Username: lower case letters and numbers. PIN: 6 to 12 digits");
-    if (pin.length < pinLen(role)) return toast(`A manager's PIN needs at least ${A.BOSS_PIN} digits`);
     busy(b, "Adding…", A.addPerson(name, u, pin, role).then(() => {
       staffMsg = `Added ${esc(name)}. Tell them: username <b>${esc(u)}</b>, PIN <b>${pin}</b>. The PIN isn't shown again.`;
       renderTeamTop();
     }).catch((x) => toast(x.message === "That username is taken" ? x.message : "Could not add them. Check your signal")));
   } else if (b.dataset.reset) {
-    const p = person(b.dataset.reset), pin = newPin(pinLen(p.role));
+    const p = person(b.dataset.reset), pin = newPin();
     if (!confirm(`Give ${p.name} a new PIN? Their old one stops working.`)) return;
     busy(b, "…", A.resetPin(p, pin).then(() => { staffMsg = `New PIN for ${esc(p.name)} (${esc(p.username)}): <b>${pin}</b>. It isn't shown again.`; renderStaff(); }).catch(() => toast("Could not reset. Check your signal")));
   } else if (b.dataset.remove) {
@@ -1625,7 +1622,7 @@ $("#v-notices").addEventListener("click", (e) => {
   } else if (b.dataset.role) {
     const p = person(b.dataset.role), up = p.role === "staff", w = A.setRole(p, up ? "manager" : "staff");
     track(w, null, "Could not change the role");
-    w.then(() => { staffMsg = up ? `${esc(p.name)} is now a manager. Managers need a PIN of at least ${A.BOSS_PIN} digits, so tap Reset PIN to give them one.` : `${esc(p.name)} is now staff.`; renderStaff(); }, () => {});
+    w.then(() => { staffMsg = `${esc(p.name)} is now ${up ? "a manager" : "staff"}.`; renderStaff(); }, () => {});
   } else if (b.id === "p-go") {
     const t = val("#p-text"); if (!t) return;
     track(A.pin(t), "Notice pinned for everyone", "Notice not pinned. Try again"); $("#p-text").value = ""; haptic();

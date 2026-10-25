@@ -12,7 +12,7 @@ const FS = `http://127.0.0.1:8080`;
 const DOCS = `${FS}/v1/projects/${PROJECT}/databases/(default)/documents`;
 // Test-only setup code. The real one lives only in the owner's Firebase console.
 export const SETUP_CODE = "test-setup-code-0123456789";
-export const OWNER_PIN = "11112222", MANAGER_PIN = "22223333", STAFF_PIN = "333444";
+export const OWNER_PIN = "111222", MANAGER_PIN = "222333", STAFF_PIN = "333444";
 
 // Serves a built site folder on a free port.
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".webmanifest": "application/manifest+json", ".txt": "text/plain" };

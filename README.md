@@ -50,6 +50,6 @@ Both test suites run against the local Firebase emulators, never the live projec
 
 - No notifications on phones where the app is closed: that needs Cloud Functions, which need the paid Blaze plan. Updates arrive while the app is open, with pop-ups and badges.
 - Photos are stored in the database and cleared after 30 days, because Firebase Storage also needs Blaze.
-- The 8-digit PIN for managers and the owner is checked by the app; Firebase itself only insists on 6.
+- PINs are 6 to 12 digits for everyone. Firebase won't accept a password shorter than 6, so 4-digit PINs aren't possible.
 - Building needs the drinks data folder.
 - The closing managers offered on the Send page are a fixed list in `src/template.html`.
