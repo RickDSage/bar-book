@@ -1,0 +1,24 @@
+# Runs the Firestore rules tests on every pull request, against the emulator only.
+# The browser tests need the drinks data folder, so they run on a laptop (npm run test:e2e).
+name: Rules tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run test:rules
