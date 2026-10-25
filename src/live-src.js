@@ -42,7 +42,10 @@ function sub(k, ref, fn) {
 }
 // Something just written on this phone has no server time yet, so its "at" is null and it sorts as newest. (Firestore's
 // own estimate is rounded down to the second, which can put it below something written a moment earlier.)
-const rows = (snap) => snap.docs.map((x) => ({ id: x.id, pending: x.metadata.hasPendingWrites, ...x.data() })).sort((a, b) => ms(b.at) - ms(a.at));
+// Ids go into the page's HTML. The app only ever makes plain ones (letters, digits, dashes), so a record with any other
+// id was written some other way, for example by a script using someone's login, and is skipped.
+const plain = (x) => /^[A-Za-z0-9-]+$/.test(x.id);
+const rows = (snap) => snap.docs.filter(plain).map((x) => ({ id: x.id, pending: x.metadata.hasPendingWrites, ...x.data() })).sort((a, b) => ms(b.at) - ms(a.at));
 const me = () => ({ uid: auth.currentUser.uid, name: LIVE.me, at: serverTimestamp() });
 
 function listen(uid) {
@@ -77,7 +80,12 @@ function listen(uid) {
     });
     sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
     sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
-    watchShift();
+    watchDays();
+    // The equipment that gets temperature checks and line cleans. A short list, set up by managers.
+    sub("kit", collection(db, "kit"), (snap) => {
+      LIVE.kit = snap.docs.filter(plain).map((x) => ({ id: x.id, ...x.data() })).sort((a, b) => a.name.localeCompare(b.name));
+      liveChanged("kit");
+    });
     // Closing photos this person has taken that aren't on a sent report yet.
     sub("photos", query(collection(db, "photos"), where("uid", "==", uid), where("report", "==", null)), (snap) => {
       LIVE.myPhotos = rows(snap).reverse(); liveChanged("photos");
@@ -91,7 +99,7 @@ function listen(uid) {
     sub("asks", LIVE.admin ? query(collection(db, "asks"), orderBy("at", "desc"), limit(100)) : query(collection(db, "asks"), where("uid", "==", uid)), (snap) => {
       LIVE.asks = rows(snap); liveChanged("asks");
     });
-    if (!LIVE.admin) { Object.assign(LIVE, { staff: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [] }); return; }
+    if (!LIVE.admin) { Object.assign(LIVE, { staff: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], pars: {}, counts: [], training: [] }); return; }
     sub("incidents", query(collection(db, "incidents"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.incidents = rows(snap); liveChanged("incidents"); });
     sub("reviews", query(collection(db, "reviews"), orderBy("at", "desc"), limit(200)), (snap) => { LIVE.reviews = rows(snap); liveChanged("reviews"); });
     // Anonymous feedback: the owner reads all of it, a manager only what's about them.
@@ -100,7 +108,7 @@ function listen(uid) {
     });
     sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); });
     sub("staff", collection(db, "staff"), (snap) => {
-      LIVE.staff = snap.docs.map((x) => ({ uid: x.id, ...x.data() })).sort((a, b) => a.name.localeCompare(b.name));
+      LIVE.staff = snap.docs.filter(plain).map((x) => ({ uid: x.id, ...x.data() })).sort((a, b) => a.name.localeCompare(b.name));
       liveChanged("staff");
     });
     sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
@@ -162,7 +170,23 @@ function watchShift() {
     liveChanged("ticks");
   });
 }
-setInterval(() => { if (LIVE.me) watchShift(); }, 60000);
+// Listeners tied to the business day start again with that day's query when it rolls over at 6am.
+const dayKeys = {};
+function subDay(k, ref, fn) {
+  if (dayKeys[k] === shiftDay() && subs[k]) return;
+  unsub(k); dayKeys[k] = shiftDay();
+  sub(k, ref(), fn);
+}
+function watchDays() {
+  const uid = auth.currentUser.uid, waste = collection(db, "waste");
+  watchShift();
+  // Safety checks from the last 8 nights: tonight's readings, and when the lines were last cleaned (due every 7 days).
+  subDay("safety", () => query(collection(db, "safety"), where("day", "in", lastNights(8))), (snap) => { LIVE.safety = rows(snap); liveChanged("safety"); });
+  // Waste: staff get what they logged tonight; managers the last 14 nights, for this week's and last week's totals.
+  subDay("waste", () => (LIVE.admin ? query(waste, where("day", "in", lastNights(14))) : query(waste, where("uid", "==", uid), where("day", "==", shiftDay()))),
+    (snap) => { LIVE.waste = rows(snap); liveChanged("waste"); });
+}
+setInterval(() => { if (LIVE.me) watchDays(); }, 60000);
 const tickRef = (list, i) => doc(db, "shift", shiftDay(), "ticks", `${list}-${i}`);
 
 // Makes a login for someone else, runs the database write, and deletes the login again if the write is refused.
@@ -267,7 +291,7 @@ LIVE.api = {
   addPhoto: (data) => addDoc(collection(db, "photos"), { data, note: "", report: null, ...me() }),
   notePhoto: (id, note) => updateDoc(doc(db, "photos", id), { note }),
   deletePhoto: (id) => deleteDoc(doc(db, "photos", id)),
-  loadPhotos: (reportId) => getDocs(query(collection(db, "photos"), where("report", "==", reportId))).then((s) => s.docs.map((x) => ({ id: x.id, ...x.data() })).sort((a, b) => ms(a.at) - ms(b.at))),
+  loadPhotos: (reportId) => getDocs(query(collection(db, "photos"), where("report", "==", reportId))).then((s) => s.docs.filter(plain).map((x) => ({ id: x.id, ...x.data() })).sort((a, b) => ms(a.at) - ms(b.at))),
   KEEP_DAYS,
   signOff: (id) => updateDoc(doc(db, "reports", id), { signedBy: LIVE.me, signedByUid: auth.currentUser.uid, signedAt: serverTimestamp() }),
   // The board and its log change in one write. Back in stock writes "{the 86's log id}-back", so the two always match.
@@ -303,6 +327,30 @@ LIVE.api = {
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),
   fixed: (id, fix) => updateDoc(doc(db, "issues", id), { status: "fixed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
   withdrawIssue: (id) => deleteDoc(doc(db, "issues", id)),
+  // Waste: quantities only. The business night goes with it, so the weekly totals add up by night.
+  waste: (x) => addDoc(collection(db, "waste"), { item: x.item, qty: x.qty, unit: x.unit, reason: x.reason, note: x.note, side: x.side, day: shiftDay(), ...me() }),
+  unwaste: (id) => deleteDoc(doc(db, "waste", id)),
+  addKit: (name, kind, side) => addDoc(collection(db, "kit"), { name, kind, side }),
+  removeKit: (id) => deleteDoc(doc(db, "kit", id)),
+  // A temperature in °C, or null for a line clean. It carries its equipment's details, as the rules require.
+  logCheck: (k, c, note) => addDoc(collection(db, "safety"), { kit: k.id, kitName: k.name, kind: k.kind, side: k.side, c, note, day: shiftDay(), ...me() }),
+  unlogCheck: (id) => deleteDoc(doc(db, "safety", id)),
+  // Par levels and counts load the first time a manager opens Stock, not on every launch.
+  watchStock() {
+    sub("pars", collection(db, "pars"), (snap) => { LIVE.pars = Object.fromEntries(snap.docs.map((x) => [x.data().item, x.data().par])); liveChanged("pars"); });
+    sub("counts", query(collection(db, "counts"), orderBy("at", "desc"), limit(10)), (snap) => { LIVE.counts = rows(snap); liveChanged("counts"); });
+  },
+  // No par means the item isn't counted.
+  setPar: (item, par) => (par ? setDoc(doc(db, "pars", slug(item)), { item, par, ...me() }) : deleteDoc(doc(db, "pars", slug(item)))),
+  saveCount: (lines, note) => addDoc(collection(db, "counts"), { lines, note, ...me() }),
+  // Training sign-offs load the first time someone opens Practise or Training: staff their own, managers everyone's.
+  watchTraining() {
+    const t = collection(db, "training");
+    sub("training", LIVE.admin ? t : query(t, where("trainee", "==", auth.currentUser.uid)), (snap) => { LIVE.training = rows(snap); liveChanged("training"); });
+  },
+  // One record per person per drink, named after both, so the same drink can't be signed off twice.
+  passDrink: (person, drinkName) => setDoc(doc(db, "training", `${person.uid}-${slug(drinkName)}`), { trainee: person.uid, traineeName: person.name, drinkName, ...me() }),
+  unpass: (id) => deleteDoc(doc(db, "training", id)),
   // Managers' spreadsheet downloads: the whole of one collection, read once (the live lists keep only the latest).
   history: (name) => getDocs(query(collection(db, name), orderBy("at", "desc"))).then(rows),
   // Checklist ticks for the given business days.
@@ -310,7 +358,8 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [] });
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], ticks: {}, tickBy: {}, asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
+  waste: [], kit: [], safety: [], pars: {}, counts: [], training: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }

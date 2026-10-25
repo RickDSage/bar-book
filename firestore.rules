@@ -223,6 +223,50 @@ service cloud.firestore {
       allow delete: if isMember() && (resource.data.uid == request.auth.uid || isManager());
     }
 
+    // ---------- Waste ----------
+    // What was thrown away and why, for the weekly waste report. Quantities only: costs are added in the spreadsheet.
+    // Anyone on the team logs it as themselves. Staff see only their own; managers see everyone's.
+    match /waste/{id} {
+      allow read: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
+      allow create: if isMember() && exactly(['item', 'qty', 'unit', 'reason', 'note', 'side', 'day', 'uid', 'name', 'at'])
+        && reqText(incoming().item, 80) && incoming().qty is number && incoming().qty > 0 && incoming().qty <= 1000
+        && incoming().unit in ['each', 'pint', 'half', 'single', 'double', 'bottle', 'glass', 'ml']
+        && incoming().reason in ['spilt', 'remade', 'returned', 'expired', 'broken', 'lines', 'other']
+        && optText(incoming().note, 200) && (incoming().reason != 'other' || reqText(incoming().note, 200))
+        && incoming().side in ['bar', 'floor'] && nearNow(incoming().day) && stamped();
+      allow delete: if undoable();
+    }
+    // Waste and due-diligence records are kept as the venue's record. One logged by mistake can be taken back by
+    // whoever logged it for 15 minutes; after that only the owner can delete it. Nobody edits them.
+    function undoable() {
+      return isOwner() || (isMember() && resource.data.uid == request.auth.uid && request.time < resource.data.at + duration.value(15, 'm'));
+    }
+
+    // ---------- Due diligence: temperatures and line cleaning ----------
+    // kit is the equipment that gets checked (fridges, freezers, the cellar, the glass washer, beer lines), set up by
+    // managers. A reading names its kit and must match it. Fridge, freezer, cellar and glass washer readings are a
+    // temperature in °C; a line clean has none.
+    function kitDoc(id) { return /databases/$(database)/documents/kit/$(id); }
+    match /kit/{id} {
+      allow read: if isMember();
+      allow create: if isManager() && exactly(['name', 'kind', 'side']) && reqText(incoming().name, 40)
+        && incoming().kind in ['fridge', 'freezer', 'cellar', 'washer', 'lines'] && incoming().side in ['bar', 'floor'];
+      allow delete: if isManager();
+    }
+    function validReading() {
+      let r = incoming();
+      let k = get(kitDoc(r.kit));
+      return k != null && r.kitName == k.data.name && r.kind == k.data.kind && r.side == k.data.side
+        && ((r.kind == 'lines' && r.c == null) || (r.kind != 'lines' && r.c is number && r.c >= -40 && r.c <= 100))
+        && optText(r.note, 200) && nearNow(r.day) && stamped();
+    }
+    match /safety/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && exactly(['kit', 'kitName', 'kind', 'side', 'c', 'note', 'day', 'uid', 'name', 'at'])
+        && incoming().kit is string && validReading();
+      allow delete: if undoable();
+    }
+
     // ---------- 86 board ----------
     // out/{item} is what's off tonight and outlog is its history. Each change writes both in one batch and the
     // rules check they match: an 86 creates out/{item} pointing at its new log entry; back in stock deletes it
@@ -258,6 +302,23 @@ service cloud.firestore {
         && signedAs('doneBy', 'doneByUid', 'doneAt');
       // Until it's ordered, the person who asked can cancel it and a manager can turn it down.
       allow delete: if isMember() && resource.data.done == false && (resource.data.uid == request.auth.uid || isManager());
+    }
+
+    // ---------- Stock counts ----------
+    // Par levels (how much should be on the shelf) and counts are for managers. A par record is named after its item,
+    // like the 86 board. Each count keeps every item's par as it was then, so its order list can always be worked out
+    // again. A count can't be changed; only the owner deletes one.
+    match /pars/{id} {
+      allow read: if isManager();
+      allow create, update: if isManager() && exactly(['item', 'par', 'uid', 'name', 'at']) && reqText(incoming().item, 80)
+        && slug(incoming().item) == id && incoming().par is number && incoming().par > 0 && incoming().par <= 1000 && stamped();
+      allow delete: if isManager();
+    }
+    match /counts/{id} {
+      allow read: if isManager();
+      allow create: if isManager() && exactly(['lines', 'note', 'uid', 'name', 'at']) && incoming().lines is list
+        && incoming().lines.size() > 0 && incoming().lines.size() <= 400 && optText(incoming().note, 300) && stamped();
+      allow delete: if isOwner();
     }
 
     // ---------- Running late, time off and shift swaps ----------
@@ -324,6 +385,19 @@ service cloud.firestore {
           || (incoming().score == 'Needs improvement' && reqText(incoming().text, 500)))
         && incoming().at == request.time;
       allow delete: if isOwner();
+    }
+
+    // ---------- Training ----------
+    // A manager signs someone off on a drink once they've made it to spec in front of them. One record per person per
+    // drink, named after both (drinks are named by their slug, like the 86 board, since the list order changes).
+    // Nobody signs themselves off. Staff see their own; managers see everyone's. Taking a sign-off back deletes it.
+    match /training/{id} {
+      allow read: if isManager() || (isMember() && resource.data.trainee == request.auth.uid);
+      allow create: if isManager() && exactly(['trainee', 'traineeName', 'drinkName', 'uid', 'name', 'at'])
+        && incoming().trainee is string && incoming().trainee != request.auth.uid && reqText(incoming().drinkName, 80)
+        && id == incoming().trainee + '-' + slug(incoming().drinkName)
+        && get(staffDoc(incoming().trainee)).data.name == incoming().traineeName && stamped();
+      allow delete: if isManager();
     }
 
     // ---------- Issues and handover ----------

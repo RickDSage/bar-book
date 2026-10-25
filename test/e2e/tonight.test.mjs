@@ -14,7 +14,8 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await O.evaluate(() => show("notices"));
-  assert.deepEqual(await tiles(O), ["0/36 Bar checklists ticked", "0 86'd right now", "0 open issues", "0 stock requests not ordered", "Not yet bar report tonight", "Not yet floor report tonight", "0 reports to sign off", "0 staff requests to answer", "0 open incidents"]);
+  assert.deepEqual(await tiles(O), ["0/36 Bar checklists ticked", "0 safety checks due on the bar", "0 86'd right now", "0 open issues", "0 stock requests not ordered", "Not yet bar report tonight", "Not yet floor report tonight",
+    "0 reports to sign off", "0 staff requests to answer", "0 open incidents", "0 readings out of range tonight"]);
 
   await S.evaluate(async () => {
     const A = LIVE.api;
@@ -22,9 +23,10 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
       A.incident("Near miss", "Wet floor by the bar"), A.raise({ title: "Glass washer leaking", detail: "", area: "bar", urgent: true, again: null }), A.sendReport("bar", "Bar report", "Bar · test")]);
   });
   await O.waitForFunction(() => [...document.querySelectorAll("#dash b")].filter((b) => b.textContent === "1").length === 6);
-  assert.deepEqual(await tiles(O), ["1/36 Bar checklists ticked", "1 86'd right now (hot)", "1 open issues, 1 urgent (hot)", "1 stock requests not ordered", "Sent bar report tonight", "Not yet floor report tonight", "1 reports to sign off (hot)", "1 staff requests to answer", "1 open incidents (hot)"]);
+  assert.deepEqual(await tiles(O), ["1/36 Bar checklists ticked", "0 safety checks due on the bar", "1 86'd right now (hot)", "1 open issues, 1 urgent (hot)", "1 stock requests not ordered", "Sent bar report tonight", "Not yet floor report tonight",
+    "1 reports to sign off (hot)", "1 staff requests to answer", "1 open incidents (hot)", "0 readings out of range tonight"]);
   await S.evaluate(() => show("notices"));
-  assert.equal((await tiles(S)).length, 6, "staff see the shift tiles, not the managers' ones");
+  assert.equal((await tiles(S)).length, 7, "staff see the shift tiles, not the managers' ones");
 
   await O.click('[data-go="stock"]');
   assert.deepEqual(await O.evaluate(() => [$("#v-tally").hidden, document.querySelector(".ptabs [aria-selected=true]").dataset.pane]), [false, "stock"]);

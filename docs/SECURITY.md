@@ -11,6 +11,7 @@ Written for rules version 2 (`firestore.rules`). Official limits were checked on
 - Every account change (added, new PIN, role changed, removed) writes an audit entry in the same write. The rules refuse the change without it, and nobody can edit or delete the entries.
 - History can't be rewritten: sent reports, signed-off reports, the 86 log, decisions on requests, closed incidents, fixed issues and the audit trail are all locked once written.
 - The Firebase web config in the site is public by design. It names the project; it doesn't grant access. The rules do.
+- What people type is always shown as text, never run. Record ids aren't checked by the rules, so the app skips any record whose id isn't plain letters, digits and dashes. Until 25 October 2026 a team login used from a script could have planted code in a manager's screen through an id; a browser test now covers it.
 
 ## Who can do what
 
@@ -37,12 +38,34 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `reviews` (of reports) | O, M | O, M, on a report that exists | nobody | O any; M their own |
 | `ratings` (anonymous feedback) | O: all. M: only about themselves | O, M: about another manager or the owner, never themselves. No author is saved | nobody | O |
 | `issues` (handover) | O, M, S | O, M, S | O, M, S: take it on yourself (O, M can give it to anyone), or mark it fixed with a note. Fixed is final | O any; the raiser while nobody's on it |
+| `waste` (waste log) | O, M: all. S: their own | O, M, S, as themselves, dated tonight: an item, an amount up to 1,000, a unit and a reason (a note too when the reason is Other) | nobody | whoever logged it, within 15 minutes; O any time |
+| `kit` (equipment that gets checked) | O, M, S | O, M: a fridge, freezer, cellar, glass washer or beer lines, for the bar or the floor | nobody | O, M |
+| `safety` (temperatures and line cleans) | O, M, S | O, M, S, as themselves, dated tonight: a reading that matches its equipment, -40 to 100°C, or no temperature for a line clean | nobody | whoever logged it, within 15 minutes; O any time |
+| `pars/{item}` (par levels) | O, M | O, M: 1 to 1,000 | O, M | O, M |
+| `counts` (stock counts) | O, M | O, M: 1 to 400 lines | nobody | O |
+| `training/{uid}-{drink}` (sign-offs) | O, M: all. S: their own | O, M: someone else on the team, once per drink | nobody | O, M (taking it back) |
+
+Waste and safety records are the venue's record, so nobody edits them. One logged by mistake can be taken back by whoever logged it for 15 minutes (the app offers Undo for 14, to allow for a phone's clock being a little out); after that only the owner can delete it. "Dated tonight" allows a day either side, like the checklists. The rules can't check a stock count line by line (they have no loops), so only managers can write counts and the app shows every value in them as text.
 
 A broadcast for the bar or the floor reaches every staff phone, and each shows the ones for the side it's set to in Shift. That's about relevance, not privacy. Leaving managers out is enforced: a manager's login can't read that broadcast or who has read it.
 
 Visitors (V) can do one thing: look up a single username, which returns the made-up sign-in address and the uid. X can do the same, plus read their own (missing) staff record. Both are tested.
 
 Hiding a button is never the protection. Every row above is enforced by `firestore.rules` and covered by an allowed and a refused case in `test/rules.test.mjs`.
+
+## Safety check limits
+
+The app colours each reading against these. They're guidance for the record, not a substitute for the venue's own food safety procedures.
+
+| Equipment | In range | What the app says otherwise | Source |
+|---|---|---|---|
+| Fridge | 5°C or below | Above 5°C (amber); over 8°C (red): "the legal limit for chilled food. Tell a manager" | GOV.UK: chilled food must be kept at 8°C or below, a legal requirement in England; set fridges to 5°C or below |
+| Freezer | -18°C or colder | Warmer than -18°C (amber) | FSA Safer Food, Better Business: good practice is -18°C or colder, checked at least once a day |
+| Cellar | 11 to 13°C | Outside 11 to 13°C (amber) | Cask Marque cellar card |
+| Beer lines | cleaned in the last 7 days | Due tonight, then overdue | Cask Marque: clean lines at least every 7 days |
+| Glass washer | recorded, not judged | | Machines differ; follow the maker's figures |
+
+Equipment is set up by a manager in Managers, Safety. Staff log readings in Shift, Logs, and Tonight shows how many are still due.
 
 ## Switching team logins on (owner setup)
 
@@ -84,12 +107,12 @@ Nothing, on the Spark plan as set up today. Spark can't bill you: when a free qu
 | | Free on Spark | My estimate for this team |
 |---|---|---|
 | Stored data | 1 GiB | photos at most around 290 MB with the 30-day clear-out (16 a night at the 600 KB worst case; usually far less), text a few MB |
-| Document reads | 50,000 a day | roughly 10,000 to 25,000 on a busy day (each phone loads up to about 250 records as staff or 800 as a manager when it opens, plus the Got it records for the broadcasts on show, then only changes) |
+| Document reads | 50,000 a day | roughly 15,000 to 40,000 on a busy day (each phone loads up to about 600 records as staff or 1,300 as a manager when it opens, plus the Got it records for the broadcasts on show, a few hundred more when a manager opens Stock or Training, then only changes). This is an estimate from the list sizes, not a measurement |
 | Writes / deletes | 20,000 a day each | a few hundred |
 | Outbound data | 10 GiB a month | photos load only when someone taps "Show photos" |
 | GitHub Pages | 1 GB site, soft 100 GB a month | about 2 MB per launch with signal, before compression |
 
-Firestore's daily quotas reset around midnight Pacific time (about 8am UK time). If the reads ever get close, the cheapest fix is smaller list limits in `src/live-src.js`, not a paid plan.
+Firestore's daily quotas reset around midnight Pacific time (about 8am UK time). If the reads ever get close, the cheapest fix is smaller list limits in `src/live-src.js`, not a paid plan. The safety log (8 nights for everyone) and the managers' waste log (14 nights) are the first to shrink. Check Usage after the first busy night with the new logs: running out at 11pm would pause the live features until 8am.
 
 Not used, because they need the Blaze (pay as you go) plan: Cloud Storage for Firebase and Cloud Functions, which is why there are no push notifications to phones that are closed. Blaze has no spending cap; budget alerts only send emails. Don't upgrade without deciding that on purpose.
 
@@ -100,7 +123,7 @@ Not used, because they need the Blaze (pay as you go) plan: Cloud Storage for Fi
 3. If there is live data by then: no automatic backups exist on Spark. Export what matters first (for example, copy key documents from the console) before any rules change that renames or reshapes data.
 4. Publish the rules: Firebase console, Firestore Database, Rules, paste `firestore.rules` (also served at `/bar-book/firestore.rules.txt` so it can be copied on a phone), Publish. Or from the laptop: `npx firebase deploy --only firestore:rules --project black-tap-foh-book`.
 5. Merge the pull request. GitHub Pages publishes `main` in a few minutes. Phones pick up the new version on their next launch with signal.
-6. Check as each role, on a phone: owner, manager and staff can log in; Tonight shows real counts; tick, untick, 86 and back, a stock request, a report with a photo, sign-off, an issue raised, taken and fixed.
+6. Check as each role, on a phone: owner, manager and staff can log in; Tonight shows real counts; tick, untick, 86 and back, a stock request, a report with a photo, sign-off, an issue raised, taken and fixed, a temperature and a waste entry logged and undone.
 7. Check refusals as staff: no Requests or Managers tab; can't untick someone else's tick (the app says who ticked it).
 8. Watch Firebase console, Usage, for the first week.
 
@@ -136,6 +159,35 @@ App Check makes it harder for anything other than this site to use the project. 
 - Restricting the browser API key to `rickdsage.github.io` in Google Cloud (APIs and Services, Credentials) stops other websites using it in browsers. It isn't a security boundary.
 - If you ever add Google sign-in or email links, add `rickdsage.github.io` under Authentication, Settings, Authorised domains. Username and PIN logins don't need it.
 
+## Keeping the code private
+
+It's optional, and it hides less than it sounds:
+
+- The app's code runs on every phone that opens it, so anyone with the link can read the built site (`index.html`, `live.js`) whatever this repo's setting. Going private hides the source files, the tests, these docs and the history.
+- Nothing in the repo is secret: the Firebase config is public by design, and the rules protect the data. Keep it that way whichever you choose.
+- Copies made while the repo was public, such as forks and clones, stay where they are.
+- `LICENSE` and the "All rights reserved" line in the app already mean nobody may reuse the code without your permission.
+
+If you still want it, there are two ways. Both are for you to do: they change GitHub settings, billing or hosting.
+
+**Option 1: GitHub Pro (paid; nothing changes for the team).** On GitHub Free, Pages only publishes public repositories. Pro publishes from private ones too, and the site stays public at the same address, so home-screen icons and logins carry on. Check the current price on GitHub's billing page before upgrading.
+
+1. github.com, your picture, Settings, Billing and plans: upgrade to Pro.
+2. This repo, Settings, General, Danger Zone, Change visibility: Make private.
+3. Check that Settings, Pages still shows the site as published, and open it on a phone.
+
+**Option 2: Firebase Hosting (free on Spark; new address).** Hosting is free up to 10 GB stored and 360 MB sent a day. A launch downloads about 310 KB (compressed) when the app has changed and less when it hasn't, so that covers over 1,000 launches a day; if it ever ran out, the site would stop until the next day rather than charge. The costs: a new address (`https://black-tap-foh-book.web.app`), everyone adds the app to their home screen again and logs in again (favourites and drafts don't move across), and each release becomes a deploy from the laptop instead of just a merge.
+
+1. Ask Claude to prepare the repo for Firebase Hosting: a `hosting` section in `firebase.json` that publishes only the site files. Merge it.
+2. On the laptop, in the repo folder: `npx firebase login`, then `npx firebase deploy --only hosting --project black-tap-foh-book`. It prints the new address.
+3. Open the new address on a phone, log in, and check Tonight, a tick and the drinks list.
+4. Send the team the new address. Each person opens it in Safari, uses Add to Home Screen, logs in, and deletes the old icon.
+5. Only then make the repo private (Settings, General, Danger Zone, Change visibility). That takes the old GitHub Pages address down.
+6. If you restricted the browser API key to `rickdsage.github.io` (see Optional extras), add `black-tap-foh-book.web.app` to it.
+7. From then on, every release is: merge, then the deploy command from step 2.
+
+Either way, the rules tests keep running on GitHub. In a private repo they use the plan's monthly Actions minutes (2,000 on Free, 3,000 on Pro).
+
 ## Sources (checked 24 and 25 October 2026)
 
 - Firebase pricing plans (Spark shut-off, budget alerts): https://firebase.google.com/docs/projects/billing/firebase-pricing-plans
@@ -149,3 +201,8 @@ App Check makes it harder for anything other than this site to use the project. 
 - Cloud Functions need Blaze: https://firebase.google.com/docs/functions/faq-and-troubleshooting
 - Rules unit tests: https://firebase.google.com/docs/rules/unit-tests
 - GitHub Pages limits: https://docs.github.com/en/pages/getting-started-with-github-pages/github-pages-limits
+- GitHub plans (Pages from private repositories needs Pro or above; Actions minutes): https://docs.github.com/en/get-started/learning-about-github/githubs-plans
+- Firebase Hosting on Spark (10 GB stored, 360 MB a day): https://firebase.google.com/pricing
+- Chilled food at 8°C or below, fridges at 5°C or below: https://www.gov.uk/food-hygiene-businesses/chilling-and-freezing
+- Freezers at -18°C or colder, checked daily (FSA, Safer Food, Better Business): https://food.gov.uk/sites/default/files/media/document/sfbb-retailers-chilling-02-frozen-storage.pdf
+- Cellar 11 to 13°C, lines cleaned at least every 7 days (Cask Marque cellar card): https://cask-marque.co.uk/wp-content/uploads/2017/10/a4-cask-cellar-card.pdf

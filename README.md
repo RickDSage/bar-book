@@ -2,7 +2,7 @@
 
 Phone web app for the Black Tap Soho bar and floor team: every drink spec with step-by-step picture guides, allergens, spec practice, opening and closing checklists, the 86 list and the shift report.
 
-Team logins add a live shift board shared by everyone on shift: Tonight at a glance, shared checklists, the 86 board, stock requests, issues and handover, shift reports with photos and sign-off, broadcasts to everyone, the bar or the floor (with who has read them), time off and swaps, incidents, an Activity timeline of who did what (staff see their own side, bar or floor), and a Managers tab with spreadsheet downloads of each section's full history. They are switched on. How they were set up, what keeps them secure and how to recover are in [docs/SECURITY.md](docs/SECURITY.md).
+Team logins add a live shift board shared by everyone on shift: Tonight at a glance, shared checklists, the 86 board, stock requests, issues and handover, shift reports with photos and sign-off, broadcasts to everyone, the bar or the floor (with who has read them), time off and swaps, incidents, a waste log, temperature and beer line cleaning checks, stock counts against par levels with an order list, training sign-off drink by drink, an Activity timeline of who did what (staff see their own side, bar or floor), and a Managers tab with spreadsheet downloads of each section's full history. They are switched on. How they were set up, what keeps them secure and how to recover are in [docs/SECURITY.md](docs/SECURITY.md).
 
 Open it at https://rickdsage.github.io/bar-book/ and add it to your home screen (Safari: Share, then Add to Home Screen). Always use the venue's allergen matrix as the final word.
 
@@ -16,9 +16,10 @@ Open it at https://rickdsage.github.io/bar-book/ and add it to your home screen 
 | `src/live-src.js` | Team logins and live data. Bundled into `live.js` only when `firebase-config.json` exists. |
 | `src/build.js`, `src/site.js` | Bundle the drinks data into the page, then write the site files. |
 | `src/extras.js`, `src/builds.js`, `src/art.js` | Extra drinks, guide corrections and artwork. |
-| `test/rules.test.mjs` | 121 allowed and refused cases for every collection and role. |
-| `test/e2e/` | 21 browser tests: the real app on phone-sized screens, as owner, manager and staff at once. |
-| `docs/SECURITY.md` | Permissions, owner setup, risks, costs, release checklist and rollback. |
+| `test/rules.test.mjs` | 147 allowed and refused cases for every collection and role. |
+| `test/e2e/` | 29 browser tests: the real app on phone-sized screens, as owner, manager and staff at once. |
+| `docs/SECURITY.md` | Permissions, owner setup, risks, costs, safety check limits, release checklist, rollback and keeping the code private. |
+| `LICENSE` | All rights reserved. No licence is granted. |
 
 Both test suites run against the local Firebase emulators, never the live project.
 
@@ -44,7 +45,8 @@ Both test suites run against the local Firebase emulators, never the live projec
 - **Business day:** 6am to 6am UK time, so a close that ends at 2am belongs to the night before. Checklists, the Tonight counts and report grouping all use it, and times always show in UK time whatever a phone is set to.
 - **Saving:** with no signal, changes wait on the phone and a banner says how many. Nothing is called sent until the server has it, and refused changes say so.
 - **One record per tick:** two people ticking at once can't wipe each other's work, and only whoever ticked an item (or a manager) can untick it.
-- **History is locked:** sent reports, the 86 log, decisions, closed incidents, fixed issues and account changes can't be edited or deleted.
+- **History is locked:** sent reports, the 86 log, decisions, closed incidents, fixed issues, account changes and stock counts can't be edited, and only the owner can delete a count. Waste and safety records can't be edited either: whoever logged one can take it back for 15 minutes, and after that only the owner can delete it.
+- **Safety check limits** follow UK guidance (fridges 5°C or below and never over the legal 8°C, freezers -18°C or colder, cellar 11 to 13°C, beer lines cleaned at least every 7 days). Sources are in [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Known limitations
 
@@ -53,3 +55,8 @@ Both test suites run against the local Firebase emulators, never the live projec
 - PINs are 6 to 12 digits for everyone. Firebase won't accept a password shorter than 6, so 4-digit PINs aren't possible.
 - Building needs the drinks data folder.
 - The closing managers offered on the Send page are a fixed list in `src/template.html`.
+- Stock counts and par levels cover the items in the stock list in `src/template.html` (the same list as stock requests and the 86 board). Anything else needs adding there.
+
+## Copyright
+
+© 2026 Charles Agyei II. All rights reserved. The code is public only so GitHub Pages can serve the app, which isn't permission to copy or reuse it. See [LICENSE](LICENSE).
