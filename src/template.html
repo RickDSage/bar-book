@@ -1468,7 +1468,7 @@ function payOutHtml() {
   const at = (k, label) => { if (!num(pay[k])) return ""; const x = payCalc({ ...pay, tronc: pay[k] }); return row(`${label} (£${num(pay[k]).toFixed(2)}/h)`, x.net == null ? "?" : money(x.net)); };
   const range = at("low", "Quiet month") + at("high", "Busy month");
   const slip = num(pay.slipTronc) > 0 && num(pay.slipHours) > 0 ? Math.round((num(pay.slipTronc) / num(pay.slipHours)) * 10000) / 10000 : 0;
-  return `<div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:14px" role="group" aria-label="Show pay for">${Object.entries(PER).map(([k, [t]]) => `<button data-pay-per="${k}" aria-pressed="${k === (PER[pay.per] ? pay.per : "month")}">${t.slice(2)}</button>`).join("")}</div>
+  return `<div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:14px" role="group" aria-label="Show pay for">${Object.entries(PER).map(([k, [t]]) => `<button data-pay-per="${k}" aria-pressed="${k === (PER[pay.per] ? pay.per : "month")}">${k[0].toUpperCase() + k.slice(1)}</button>`).join("")}</div>
     <dl class="kv paykv">
       ${row(`Hours pay (${fmtN(r.hours * f)} h)`, money(r.basic))}${row("Tronc", money(r.tronc))}${row("Gross", money(r.gross))}
       ${row("Income tax", r.tax == null ? "Check the tax code" : "−" + money(r.tax))}${row("National Insurance", "−" + money(r.ni))}
