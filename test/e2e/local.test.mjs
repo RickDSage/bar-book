@@ -112,3 +112,24 @@ test("allergen tiles include sulphites, and oat milk shows under gluten", async 
   assert.match(glu, /The Paddington/); assert.match(glu, /The Boilermaker/);
   assert.deepEqual(p.errs, []);
 });
+
+test("my pay: September's payslip comes out to the penny, tronc from August's hours", async () => {
+  const p = await open({ at: "2026-09-20T12:00:00Z" });
+  await p.click("[data-tab=info]");
+  assert.match(await p.$eval("#v-info", (e) => e.innerText), /Pay day is usually the last Friday: Friday 25 September/);
+  const put = async (k, v) => { await p.fill(`[data-pay="${k}"]`, v); };
+  await put("code", "992L"); await put("worked", "200"); await put("rota", "46.39"); await put("lastHours", "82");
+  // The payslip helper: £592.95 of tronc for August's 82 hours.
+  await p.click("details.setup:has([data-pay=slipTronc]) summary");
+  await put("slipTronc", "592.95"); await put("slipHours", "82");
+  await p.click("[data-pay-slip]");
+  const out = await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " "));
+  assert.match(out, /Hours pay \(246\.4 h\) £3,131\.62 Tronc \(82 h last month\) £592\.95 Gross £3,724\.57 Income tax −£579\.40 National Insurance −£166\.69 Take-home £2,978\.48/);
+  await p.click('[data-pay-tronc="1.00"]');
+  assert.match(await p.$eval("#pay-out", (e) => e.innerText), /£82\.00/);
+  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]");
+  assert.equal(await p.$eval('[data-pay="code"]', (e) => e.value), "992L", "kept on this phone");
+  await put("code", "S1257L");
+  assert.match(await p.$eval("#pay-out", (e) => e.innerText), /Check the tax code/);
+  assert.deepEqual(p.errs, []);
+});
