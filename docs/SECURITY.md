@@ -24,7 +24,7 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `staff/{uid}` (who's on the team) | O, M: everyone. S, X: only their own | O: staff or managers. M: staff. Each needs its username and audit entry in the same write | O only: someone else's role, staff and manager only | O: anyone but the owner. M: staff. Needs the username freed and an audit entry |
 | `usernames/{name}` (login lookup) | anyone can look up one name; nobody can list them | with the matching staff record | only during a PIN reset | only with the staff record's removal |
 | `audit/{id}` (account changes) | O, M | only inside an account change, describing it exactly | nobody | nobody |
-| `feed` (team board) | O, M, S | O, M, S, as themselves | nobody | the author; O any; M any except the owner's |
+| `feed` (team board, read-only since 26 Oct 2026; use chat) | O, M, S | nobody | nobody | the author; O any; M any except the owner's |
 | `notices` (broadcasts) | O, S: all. M: those that include managers | O: to everyone, the bar or the floor, and may leave managers out. M: the same, always including managers | nobody | O any; M any except the owner's |
 | `seen/{broadcast}-{uid}` (Got it) | O: all. M: for broadcasts that include managers. S: their own | O, M, S: their own, once, for a broadcast that exists | nobody | nobody |
 | `reports` (shift reports) | O, M, S | O, M, S, as themselves | O, M: sign off once | nobody |

@@ -320,7 +320,6 @@ LIVE.api = {
     audit(b, doc(collection(db, "audit")).id, "role", { ...person, role });
     return b.commit();
   },
-  post: (text) => addDoc(collection(db, "feed"), { kind: "comment", text, ...me() }),
   removePost: (id) => deleteDoc(doc(db, "feed", id)),
   // side: "all", "bar" or "floor". managers: false leaves managers out (the owner only).
   pin: (text, side, managers) => addDoc(collection(db, "notices"), { text, side, managers, ...me() }),

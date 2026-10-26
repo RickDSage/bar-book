@@ -2,7 +2,7 @@
 // downloaded files contain.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, attempt } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, attempt, oldPost } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -23,13 +23,13 @@ test("activity, downloads and broadcasts", async () => {
   const { O, M, S } = await team(browser, site, people);
   const drink = await S.evaluate(() => D[0].name);
   await S.evaluate(async (d) => {
-    await LIVE.api.post("=1+1 limes, please");
     await LIVE.api.set86(d, true);
     await LIVE.api.setTask("open", 0, itemText("open", 0), "done");
     await LIVE.api.setRun("open", LISTS.open.title, "started", 0, shown("open").length);
     await LIVE.api.askRestock({ item: "Limes", qty: 2, unit: "bag", dest: "up", detail: "" });
     await LIVE.api.raise({ title: "Glass washer leaking", detail: "", area: "bar", urgent: true });
   }, drink);
+  await oldPost(await S.evaluate(() => LIVE.uid), "Sam Staff", "=1+1 limes, please");
 
   // A broadcast sits at the top of every page for everyone else until they tap Got it.
   await M.evaluate(() => show("notices"));

@@ -144,10 +144,9 @@ service cloud.firestore {
     }
 
     // ---------- Team board and broadcasts ----------
+    // The board is read-only since team chat (26 October 2026): nothing new is posted, and old posts stay until taken down.
     match /feed/{id} {
       allow read: if isMember();
-      allow create: if isMember() && exactly(['kind', 'text', 'uid', 'name', 'at'])
-        && incoming().kind == 'comment' && reqText(incoming().text, 2000) && stamped();
       // The author or a manager can take a post down. Only the owner takes down the owner's posts.
       allow delete: if isMember() && (resource.data.uid == request.auth.uid || isOwner()
         || (isManager() && notOwner(resource.data.uid)));
