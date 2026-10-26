@@ -1,8 +1,8 @@
-// Tonight's shift end to end: the 86 board, the handover note, old stock requests, notices, the board and reports.
+// Tonight's shift end to end: the 86 board, the handover, what's left before sign-off, old stock requests, notices, the board and reports.
 // Tasks and restocking have their own file, tasks.test.mjs.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, oldPost } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -36,22 +36,41 @@ test("the 86 board is shared, says who did it, and keeps a log managers can read
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
-test("logged in, clearing the handover note leaves tonight's tasks alone for everyone, managers included", async () => {
+test("the next shift sees the last handover, the send page lists what's left, and the note starts empty each night", async () => {
   await resetEmulators();
   const { O, S } = await team(browser, site, people);
-  for (const p of [O, S]) { await p.click("[data-tab=tally]"); await p.click(".ptabs [data-pane=close]"); }
+  const sam = await S.evaluate(() => LIVE.uid);
+  const text = "Black Tap Soho bar shift, Sat 24 Oct 2026, 02:10\nRun by: Sam Staff\nClosing manager: (not picked)\n\nClosing checklist: 19 of 21 done\nNot done:\n- Ice well emptied, cleaned and dried\nBlocked:\n- Glass washer drained and cleaned (Part on order)\n\n86'd: nothing\n\nNote for handover:\nIce machine slow, engineer booked\n\nSigned off by: ____________";
+  // Sent 30 hours ago, so always from an earlier shift.
+  await adminWrite("reports/old", { side: { stringValue: "bar" }, text: { stringValue: text }, summary: { stringValue: "Bar · test" }, photos: { integerValue: "0" },
+    uid: { stringValue: sam }, name: { stringValue: "Sam Staff" }, at: { timestampValue: new Date(Date.now() - 30 * 36e5).toISOString() } });
+  await O.click("[data-tab=tally]"); await O.click(".ptabs [data-pane=open]");
+  await O.waitForSelector("#handover");
+  assert.match(await O.$eval("#handover", (e) => e.innerText), /Last handover · Sam Staff[\s\S]*Ice machine slow, engineer booked[\s\S]*Ice well emptied, cleaned and dried[\s\S]*Blocked: Glass washer drained and cleaned \(Part on order\)/);
+  await O.evaluate(() => setMode("floor")); await O.click(".ptabs [data-pane=fset]");
+  assert.equal(await O.locator("#handover").count(), 0, "the floor only sees floor reports");
+  await O.evaluate(() => setMode("bar"));
+
+  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=close]");
   await S.click('[data-list=close][data-i="0"]');
-  await O.waitForFunction(() => LIVE.tasks["close-0"]?.status === "done" && !LIVE.tasks["close-0"].pending);
-  for (const p of [S, O]) {
-    await p.click(".ptabs [data-pane=send]"); await p.fill("#s-note", "Ice machine slow");
-    await p.click("#t-reset");
-    assert.match(await p.$eval(".confirm", (e) => e.innerText), /Tonight's tasks stay on record for everyone/);
-    await p.click("#t-yes");
-    assert.equal(await toastOf(p), "Note cleared");
-    assert.equal(await p.$eval("#s-note", (e) => e.value), "");
-  }
-  await O.waitForTimeout(500);
-  assert.deepEqual(await S.evaluate(() => [LIVE.tasks["close-0"].status, LIVE.events.length]), ["done", 2], "the done task and its run start stay");
+  await O.waitForFunction(() => LIVE.tasks["close-0"]?.status === "done");
+  await O.click(".ptabs [data-pane=send]");
+  assert.equal(await O.$eval("#todo", (e) => e.open), false, "a long list starts folded");
+  await O.click("#todo summary");
+  const left = await O.$eval("#todo", (e) => e.innerText);
+  assert.match(left, /Still to do \(35\)\s*Upstairs restaurant floor[\s\S]*Fridges at 5°C/i, "20 closing items, then 15 opening ones");
+  assert.doesNotMatch(left, /Last orders called/);
+  assert.match(await O.$eval("#t-copy", (e) => e.textContent), /Send with 35 not done/);
+  await O.click('[data-jump="close"][data-jump-i="1"]');
+  assert.equal(await O.evaluate(() => pane), "close");
+
+  await S.click(".ptabs [data-pane=send]"); await S.fill("#s-note", "Ice machine slow"); await S.click('[data-closer="Olaya"]');
+  await S.evaluate(() => renderTally());
+  assert.equal(await S.$eval("#s-note", (e) => e.value), "Ice machine slow", "kept through the night");
+  await S.evaluate(() => { store.set("noteDay", "2000-01-01"); renderTally(); });
+  assert.equal(await S.$eval("#s-note", (e) => e.value), "", "a new shift starts with an empty note");
+  assert.equal(await S.locator('[data-closer][aria-pressed="true"]').count(), 0);
+  assert.deepEqual(await S.evaluate(() => LIVE.tasks["close-0"].status), "done", "tonight's tasks stay");
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
@@ -102,14 +121,16 @@ test("notices and the team board: who can post and who can take things down", as
   await O.waitForFunction(() => LIVE.notices.length === 2);
   assert.equal(await attempt(O, (id) => LIVE.api.unpin(id), await O.evaluate(() => LIVE.notices.find((x) => x.name === "Mia Manager").id)), "allowed");
 
-  await S.evaluate(() => LIVE.api.post("Limes low"));
-  await O.evaluate(() => LIVE.api.post("Team meeting Monday"));
-  await M.waitForFunction(() => LIVE.feed.length === 2 && !LIVE.feed.some((x) => x.pending));
+  // The board is closed: old posts show folded away, and can still be taken down.
+  await oldPost(await S.evaluate(() => LIVE.uid), "Sam Staff", "Limes low");
+  await oldPost(await O.evaluate(() => LIVE.uid), "Olly Owner", "Team meeting Monday");
+  await M.waitForFunction(() => LIVE.feed.length === 2);
+  assert.equal(await M.locator("#c-text").count(), 0, "no Post box");
+  assert.match(await M.$eval("#feed summary", (e) => e.textContent), /Old board posts \(2\)/);
   const post = (p, name) => p.evaluate((n) => LIVE.feed.find((x) => x.name === n).id, name);
   assert.equal(await attempt(M, (id) => LIVE.api.removePost(id), await post(M, "Olly Owner")), "permission-denied");
   assert.equal(await attempt(S, (id) => LIVE.api.removePost(id), await post(S, "Olly Owner")), "permission-denied");
   assert.equal(await attempt(M, (id) => LIVE.api.removePost(id), await post(M, "Sam Staff")), "allowed");
-  assert.equal(await attempt(S, () => LIVE.api.post("   ")), "permission-denied", "blank posts are refused");
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
@@ -117,7 +138,8 @@ test("shift reports are sent once, signed off once, and show on Tonight", async 
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=send]");
-  await S.fill("#s-who", "Sam Staff"); await S.click("#t-copy");
+  assert.equal(await S.locator("#s-who").count(), 0, "no name box: the login says who");
+  await S.click("#t-copy");
   await waitToast(S, /^Sent to the managers for sign-off$/);
   await O.waitForFunction(() => LIVE.reports.length === 1);
   const r = await O.evaluate(() => LIVE.reports[0]);

@@ -15,8 +15,8 @@ test("staff ask for time off, swaps and lateness; managers decide", async () => 
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   for (const p of [O, M, S]) await p.evaluate(() => show("notices"));
-  assert.equal(await S.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,activity,reports,me");
-  assert.equal(await O.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,reports,requests,managers,me");
+  assert.equal(await S.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,chat,activity,reports,me");
+  assert.equal(await O.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,chat,reports,requests,managers,me");
 
   await O.evaluate(() => show("drinks"));
   await S.click("[data-tpane=me]"); await S.click('[data-eta="15"]'); await S.fill("[data-f=note]", "Train delayed"); await S.click("#me-go");

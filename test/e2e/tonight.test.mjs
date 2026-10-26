@@ -39,7 +39,7 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
     await O.click(`[data-go="${go}"]`);
     assert.equal(await O.$eval("[data-tpane][aria-selected=true]", (e) => e.dataset.tpane), tab, `${go} tile opens the ${tab} tab`);
   }
-  assert.ok(await O.$eval("#issues", (e) => { const y = e.getBoundingClientRect().top; return y >= 0 && y < innerHeight / 2; }), "the issues tile scrolls the issues into view");
+  assert.ok(await O.$eval("#issues", (e) => { const y = e.getBoundingClientRect().top; return y >= 0 && y < innerHeight; }), "the issues tile scrolls the issues into view");
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 

@@ -244,6 +244,8 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .sumcard div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
 .sumcard span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .sumcard b { font-family: var(--display); font-size: 26px; }
+.todo { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--fg); font: inherit; padding: 10px 0; min-height: 44px; cursor: pointer; }
+.todo .s { color: var(--muted); }
 .soon { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 99px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .prep.done .box { background: var(--ok); border-color: var(--ok); }
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
@@ -275,6 +277,23 @@ b.dt { color: var(--fg); font-weight: 700; }
 .photo img { display: block; width: 100%; border-radius: 8px; }
 .photo .btn { margin-top: 8px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+/* Team chat */
+.chrow { display: block; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
+.chrow.new { border-color: var(--brass); }
+.chrow .n { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; }
+.chrow .s { margin-top: 2px; color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.udot { width: 10px; height: 10px; border-radius: 50%; background: var(--brass); flex: none; }
+.chhead { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.chhead b { font-size: 19px; overflow-wrap: anywhere; }
+.chmsgs { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; margin-top: 10px; padding: 4px 0; overscroll-behavior: contain; }
+.msg { align-self: flex-start; max-width: 85%; background: var(--surface); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; padding: 8px 12px; }
+.msg.me { align-self: flex-end; border-radius: 14px 14px 4px 14px; background: color-mix(in srgb, var(--brass) 14%, var(--surface)); }
+.msg.at { border: 2px solid var(--brass); }
+.msg .meta { color: var(--muted); font-size: 12.5px; }
+.msg .txt { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg img { display: block; max-width: 100%; margin-top: 6px; border-radius: 8px; }
+.msg .tags { margin-top: 4px; }
+.msg .linkbtn { min-height: 28px; font-size: 13px; }
 details.setup { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 8px; }
 details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px; display: flex; align-items: center; }
 .rvrow { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; margin-top: 10px; }
@@ -449,13 +468,13 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <div id="tally"></div>
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
     <input id="cn-in" type="file" accept="image/*" hidden>
+    <input id="ch-in" type="file" accept="image/*" hidden>
   </section>
 
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="mgrs"></div><div id="incs"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
-    <div id="notices"></div>
+    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="mgrs"></div><div id="incs"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
 </main>
@@ -614,15 +633,14 @@ $("#secs").addEventListener("click", (e) => {
 });
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
-let out = new Set(store.get("out", []));
-let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [] };
-const outNow = () => (LIVE.me ? LIVE.out : out);
-const isOut = (n) => outNow().has(n) || teamOut.has(n);
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] };
+// The 86 board is shared by everyone logged in. Logged out, nothing shows as 86'd.
+const outNow = () => LIVE.out;
+const isOut = (n) => LIVE.out.has(n);
 function setOut(name, on) {
-  if (LIVE.me) { track(LIVE.api.set86(name, on), null, "86 list not updated. Someone may have just changed it"); return; }
-  on ? out.add(name) : out.delete(name); store.set("out", [...out]);
+  if (!LIVE.me) return toast("Log in on the Team page to 86 a drink");
+  track(LIVE.api.set86(name, on), null, "86 list not updated. Someone may have just changed it");
 }
 function rowHtml(d) {
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
@@ -764,7 +782,7 @@ function openSheet(id, keepScroll) {
     <div class="badges">
       ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
     </div>
-    ${teamOut.has(d.name) && !outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight</b> (team notice). Offer something else.</span></div>` : outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${LIVE.me && outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
+    ${outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
     ${al ? `<div class="allergy"><b>Allergens:</b> ${esc(al)}</div>` : ""}
     ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
@@ -778,7 +796,7 @@ function openSheet(id, keepScroll) {
     ${tryInstead(d)}
     ${d.pairsWith ? `<div class="pair"><b>Sell it with:</b> ${esc(d.pairsWith)}</div>` : ""}
     ${navHtml(id)}
-    ${isOut(d.name) ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
+    ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
@@ -905,7 +923,6 @@ $("#v-practice").addEventListener("click", (e) => {
 });
 
 /* ---------- Shift ---------- */
-let confirmReset = false;
 // Opening and closing checklists. Ticks, comments and the name stay on this phone until "Start a new night".
 const LISTS = {
   open: { title: "Opening checklist", items: [
@@ -923,7 +940,7 @@ const LISTS = {
     "Bar mats down, bins lined, surfaces sanitised",
     "Stock deliveries received and put away",
     "Table menus and easy-read menus out, allergen folder at the bar",
-    "Read the notices, last night's handover note and the 86'd list",
+    "Read the broadcasts, last night's handover note and the 86'd list",
   ] },
   close: { title: "Closing checklist", items: [
     "Last orders called on time, then stop serving",
@@ -1030,19 +1047,23 @@ const shown = (k) => {
   return LISTS[k].items.map((t, i) => (typeof t === "string" ? [i, t] : t.days.includes(day) ? [i, t.t] : null)).filter(Boolean);
 };
 let closer = store.get("closer", "");
-let ticks = store.get("ticks2", { open: [], close: [] });
-let shiftNote = store.get("shiftNote", ""), shiftWho = store.get("shiftWho", "");
+let shiftNote = store.get("shiftNote", "");
+// The handover note and closing manager are for one night: at 6am they start empty again.
+function freshNight() {
+  if (store.get("noteDay", "") === shiftDay()) return;
+  shiftNote = ""; closer = ""; store.set("shiftNote", ""); store.set("closer", ""); store.set("noteDay", shiftDay());
+}
 function tallyText() {
   const day = stamp(new Date());
   const list = (k) => {
     const p = progress(k), r = runOf(k);
     const items = (title, sts) => {
-      const xs = shown(k).filter(([i]) => sts.includes(statusOf(k, i))).map(([i, t]) => { const x = LIVE.me && taskOf(k, i); return `- ${t}${x?.status === "doing" ? " (in progress)" : x?.note ? ` (${x.note})` : ""}`; });
+      const xs = shown(k).filter(([i]) => sts.includes(statusOf(k, i))).map(([i, t]) => { const x = taskOf(k, i); return `- ${t}${x?.status === "doing" ? " (in progress)" : x?.note ? ` (${x.note})` : ""}`; });
       return xs.length ? `\n${title}:\n${xs.join("\n")}` : "";
     };
     return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
-  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${shiftWho.trim() || "(no name)"}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
 SHARE.shift = () => [`Black Tap Soho ${mode} shift, ${stamp(new Date())}`, tallyText()];
 const PANES = {
@@ -1056,15 +1077,15 @@ let pane = defaultPane();
    Blocked (with a reason) or Not needed tonight (managers only, with a reason), each with who and when. Every change is
    saved together with an event, which is its history. Each list is a procedure that's started and then finished:
    finishing with items left needs a manager and a reason, and a finished list is locked until a manager reopens it.
-   Logged out, ticks stay on this phone. */
+   The Shift tab needs a login. */
 const TS = { todo: "Not started", doing: "In progress", done: "Done", blocked: "Blocked", cancelled: "Not needed tonight" };
 const BOX = { todo: "", doing: "…", done: "✓", blocked: "!", cancelled: "–" };
 const RUN = { todo: "Not started", started: "In progress", finished: "Finished" };
 const listSide = (k) => (MODE_LISTS.bar.includes(k) ? "bar" : "floor");
 const itemText = (k, i) => { const t = LISTS[k]?.items[i]; return t == null ? `Item ${i + 1}` : typeof t === "string" ? t : t.t; };
 const taskOf = (k, i) => LIVE.tasks[`${k}-${i}`];
-const statusOf = (k, i) => (LIVE.me ? taskOf(k, i)?.status || "todo" : (ticks[k] || []).includes(i) ? "done" : "todo");
-const runOf = (k) => (LIVE.me ? LIVE.runs[k] : null);
+const statusOf = (k, i) => taskOf(k, i)?.status || "todo";
+const runOf = (k) => LIVE.runs[k];
 const isLocked = (k) => runOf(k)?.status === "finished";
 // Not needed tonight doesn't count towards what's required, so it can't count as done either.
 const progress = (k) => {
@@ -1116,7 +1137,6 @@ function flashed(id, x) {
 }
 function taskRow(k, i, t) {
   const st = statusOf(k, i);
-  if (!LIVE.me) return `<button class="prep${st === "done" ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${st === "done"}"><span class="box">${BOX[st]}</span><span>${esc(t)}</span></button>`;
   const id = `${k}-${i}`, x = taskOf(k, i), pill = { doing: "wait", done: "ok", blocked: "no" }[st] || "";
   return `<div class="task${flashed(id, x) ? " flash" : ""}"><button class="prep st-${st}${st === "done" ? " done" : ""}" data-list="${k}" data-i="${i}" aria-pressed="${st === "done"}"><span class="box" aria-hidden="true">${BOX[st]}</span><span>${esc(t)} <small class="who">${st === "todo" ? "" : `<span class="pill ${pill}">${TS[st]}</span> `}${taskLine(k, i, x)}</small></span></button>
     <button class="more" data-more="${id}" aria-expanded="${more === id}" aria-label="Options and history: ${esc(t)}">⋯</button></div>${more === id ? taskMore(k, i, x) : ""}`;
@@ -1141,7 +1161,7 @@ function runHtml(k) {
 }
 function checklistHtml(k) {
   const p = progress(k);
-  return `${LIVE.me ? runHtml(k) : ""}<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}${p.skipped ? ` · ${p.skipped} not needed tonight` : ""}</span><b>${p.pct}%</b></div>
+  return `${runHtml(k)}<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}${p.skipped ? ` · ${p.skipped} not needed tonight` : ""}</span><b>${p.pct}%</b></div>
     <div class="prog${p.n === p.of ? " full" : ""}" role="progressbar" aria-label="${esc(LISTS[k].title)}" aria-valuenow="${p.pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${p.pct}%"></i></div>
     ${shown(k).map(([i, t]) => taskRow(k, i, t)).join("")}`;
 }
@@ -1173,6 +1193,30 @@ function runTo(k, to) {
   const ok = { started: `${t} started`, finished: `${t} finished`, override: `${t} finished, with your reason on record`, reopen: `${t} reopened` }[to];
   track(LIVE.api.setRun(k, t, to === "override" ? "finished" : to === "reopen" ? "started" : to, p.n, p.of, note), ok, "Not saved. Someone may have just changed it");
   haptic();
+}
+// The last report this side sent before tonight, for whoever opens: its handover note and what it left undone.
+const lastReport = () => LIVE.reports.find((r) => r.side === mode && !r.pending && ukDay(ms(r.at) - 6 * 36e5) !== shiftDay());
+function handoverHtml() {
+  const r = lastReport(); if (!r) return "";
+  const note = r.text.match(/\nNote for handover:\n([\s\S]*?)\n\nSigned off by/)?.[1].trim();
+  const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
+  return `<article class="notice" id="handover"><div class="meta">Last handover · <b>${esc(r.name)}</b> · ${when(r.at)}</div>
+    <p class="txt">${note && note !== "None" ? esc(note) : "No note left."}</p>
+    ${left.length ? `<p class="note">Left from that shift:<br>${left.map(esc).join("<br>")}</p>` : ""}
+    <details><summary>Full report</summary><pre>${esc(r.text)}</pre></details></article>`;
+}
+// Before sign-off: every item still open tonight, and any list that's all done but not finished. Each one jumps to it.
+function stillToDoHtml() {
+  // The closing lists first: they're what's left at the end of the night.
+  const open = [...MODE_LISTS[mode]].reverse().flatMap((k) => shown(k).filter(([i]) => ["todo", "doing", "blocked"].includes(statusOf(k, i))).map(([i, t]) => [k, i, t]));
+  const unfinished = MODE_LISTS[mode].filter((k) => { const p = progress(k); return p.n === p.of && !isLocked(k); });
+  if (!open.length && !unfinished.length) return `<p class="note">Everything's done and finished.</p>`;
+  const st = (k, i) => statusOf(k, i) === "blocked" ? `<span class="pill no">Blocked</span> ` : statusOf(k, i) === "doing" ? `<span class="pill wait">In progress</span> ` : "";
+  const n = open.length + unfinished.length;
+  // A long list folds away so the note and Send stay near the top. Tapping an item goes to it.
+  return `<details class="setup" id="todo"${n <= 6 ? " open" : ""}><summary>Still to do (${n})</summary>
+    ${unfinished.map((k) => `<button class="todo" data-jump="${k}"><b>${esc(LISTS[k].title)}</b> is all done: open it and tap Finish</button>`).join("")}
+    ${open.map(([k, i, t]) => `<button class="todo" data-jump="${k}" data-jump-i="${i}">${st(k, i)}${esc(t)} <span class="s">· ${esc(LISTS[k].short)}</span></button>`).join("")}</details>`;
 }
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
 const OTHER = "Other (write it in)";
@@ -1222,8 +1266,6 @@ function rsCard(r) {
 }
 function restockHtml() {
   const head = `<div class="sec">Restock from the cellar</div>`;
-  if (!LIVE.api) return `${head}<p class="note">Ask for stock from the cellar and see it brought up.</p>${SOON}`;
-  if (!LIVE.me) return `${head}<p class="note">Log in on the Team page (the bell) to ask for stock from the cellar.</p>`;
   const open = rsOpen().sort((a, b) => ms(a.askedAt) - ms(b.askedAt)), done = LIVE.restock.filter((r) => !RS_OPEN.includes(r.status) && bday(r.at) === shiftDay());
   return `${head}
     <label class="fld">What's needed<select id="rs-item"><option value="">Choose…</option><option${rsF.item === OTHER ? " selected" : ""}>${OTHER}</option>${stockOptions(() => false, rsF.item)}</select></label>
@@ -1258,8 +1300,6 @@ function moveRs(r, to) {
 }
 /* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
 function photosHtml() {
-  if (!LIVE.api) return `<div class="sec">Closing photos</div><p class="note">Photos of the close, with a note on each, sent with your report.</p>${SOON}`;
-  if (!LIVE.me) return `<div class="sec">Closing photos</div><p class="note">Log in on the Team page (the bell) to add photos of the close.</p>`;
   return `<div class="sec">Closing photos</div>
     <p class="note">The close, or anything you worked on. Sent with your report, not saved on your phone.</p>
     ${LIVE.myPhotos.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
@@ -1283,39 +1323,44 @@ async function shrink(file) {
 }
 function paneBadge(k) {
   if (LISTS[k]) { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
-  if (k === "stock") return [outNow().size && `${outNow().size} out`, LIVE.me && rsOpen().length && `${rsOpen().length} up`].filter(Boolean).join(" \u00b7 ");
+  if (k === "stock") return [outNow().size && `${outNow().size} out`, rsOpen().length && `${rsOpen().length} up`].filter(Boolean).join(" \u00b7 ");
   return "";
 }
 let lastPane = "";
 function renderTally() {
+  if (!LIVE.me) {
+    $("#shift-title").textContent = mode === "bar" ? "Bar shift" : "Floor shift"; $("#shift-day").textContent = "";
+    $("#tally").innerHTML = `<p class="note">${!LIVE.api ? "The shift checklists need team logins." : LIVE.uid ? "Checking your account…" : "Log in to use the checklists, the 86 board, restocking and shift reports. Everyone on shift sees the same lists."}</p>${LIVE.api && !LIVE.uid ? `<div class="actions"><button class="btn pri" data-login>Log in</button></div>` : ""}`;
+    return;
+  }
+  freshNight();
   $("#shift-day").textContent = new Date(Date.now() - 6 * 36e5).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: UK });
   const outList = [...outNow()].sort();
   $("#shift-title").textContent = mode === "bar" ? "Bar shift" : "Floor shift";
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
   const tabs = `<div class="modesw">${["bar", "floor"].map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${m === "bar" ? "Bar" : "Floor"}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
   const body = {
-    open: () => `${checklistHtml("open")}${nextBtn("stock", "Next: stock and 86s")}`,
-    fset: () => `${checklistHtml("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
+    open: () => `${handoverHtml()}${checklistHtml("open")}${nextBtn("stock", "Next: stock and 86s")}`,
+    fset: () => `${handoverHtml()}${checklistHtml("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
     fshake: () => `${labelsHtml()}<div class="sec">Station checklist</div>${checklistHtml("fshake")}${nextBtn("stock", "Next: stock and 86s")}`,
     fclose: () => `${checklistHtml("fclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     stock: () => `<div class="sec">86'd tonight</div>
       <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
-      ${[...teamOut].filter((n) => !outNow().has(n)).sort().map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}</div><span class="note" style="margin:0">From a notice</span></div>`).join("")}
-      ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${LIVE.me && outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : teamOut.size ? "" : `<p class="note">Nothing 86'd.</p>`}
+      ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
       ${restockHtml()}${nextBtn(mode === "bar" ? "close" : "fclose", "Next: closing checklist")}`,
     close: () => `${checklistHtml("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     send: () => {
+      const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
-        ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div>${LIVE.me ? `<div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>` : ""}
+        ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div><div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>
       </div>
+      ${stillToDoHtml()}
       <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
-      <label class="fld">Your name<input id="s-who" autocomplete="name" value="${esc(shiftWho)}" placeholder="Who ran the ${mode} tonight"></label>
       <label class="fld">Note for handover<textarea id="s-note" rows="3" maxlength="1000" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
-      <button class="btn pri wide" id="t-copy">${LIVE.me ? "Send to managers for sign-off" : "Send for sign-off"}</button>
+      <button class="btn pri wide" id="t-copy">${left ? `Send with ${left} not done` : "Send to managers for sign-off"}</button>
       <div class="actions">${shareBtns("shift")}</div>
       <details class="setup"><summary>Preview the report</summary><textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea></details>
-      <button class="btn danger wide" id="t-reset">${LIVE.me ? "Clear my handover note" : "Start a new night"}</button>
-      ${confirmReset ? `<div class="confirm">${LIVE.me ? "Clear the handover note and closing manager on this phone? Tonight's tasks stay on record for everyone and start fresh at 6am." : "Clear the checklists, handover note and the 86'd list on this phone?"} <div class="actions"><button class="btn danger" id="t-yes">${LIVE.me ? "Clear my note" : "Clear it all"}</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}`;
+      <p class="note">The note and closing manager start empty again at 6am.</p>`;
     },
   }[pane]();
   // The pane slides in when it's switched to, not each time a teammate's change redraws it.
@@ -1357,40 +1402,32 @@ $("#tally").addEventListener("input", (e) => {
   if (e.target.id === "rs-other") { rsF.other = e.target.value; return; }
   if (e.target.id === "rs-qty") { rsF.qty = e.target.value; return; }
   if (e.target.id === "rs-detail") { rsF.detail = e.target.value; return; }
-  if (e.target.id === "s-who") { shiftWho = e.target.value; store.set("shiftWho", shiftWho); }
   if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
   if ($("#t-text")) $("#t-text").value = tallyText();
 });
 $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-copy")) {
-    const txt = tallyText();
     // Firestore queues the write with no signal and sends it when the phone reconnects.
-    if (LIVE.me) {
-      const done = (k) => `${progress(k).n}/${progress(k).of}`;
-      const n = Math.min(LIVE.myPhotos.length, LIVE.api.MAX_PHOTOS);
-      const summary = `${mode === "bar" ? "Bar" : "Floor"} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closing manager ${closer}` : ""}`;
-      track(LIVE.api.sendReport(mode, txt, summary), "Sent to the managers for sign-off", "Report not sent. Try again"); haptic(); return;
-    }
-    if (navigator.share) { try { await navigator.share({ text: txt }); return; } catch (err) { if (err.name === "AbortError") return; } }
-    try { await navigator.clipboard.writeText(txt); toast("Copied. Paste it to the manager"); }
-    catch { const ta = $("#t-text"); ta.focus(); ta.select(); toast("Text selected. Tap Copy"); }
+    const done = (k) => `${progress(k).n}/${progress(k).of}`;
+    const n = Math.min(LIVE.myPhotos.length, LIVE.api.MAX_PHOTOS);
+    const summary = `${mode === "bar" ? "Bar" : "Floor"} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closing manager ${closer}` : ""}`;
+    track(LIVE.api.sendReport(mode, tallyText(), summary), "Sent to the managers for sign-off", "Report not sent. Try again"); haptic(); return;
   }
-  if (e.target.closest("#t-reset")) { confirmReset = true; renderTally(); }
-  if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
+  if (e.target.closest("[data-login]")) { show("notices"); return; }
+  const jp = e.target.closest("[data-jump]"); if (jp) {
+    pane = jp.dataset.jump; renderTally();
+    const at = jp.dataset.jumpI == null ? $(".run") : document.querySelector(`[data-list="${pane}"][data-i="${jp.dataset.jumpI}"]`);
+    at?.scrollIntoView({ block: "center" }); return;
+  }
   const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
   const md = e.target.closest("[data-mode]"); if (md) { haptic(); setMode(md.dataset.mode); return; }
   const pn = e.target.closest("[data-pane]"); if (pn) { pane = pn.dataset.pane; renderTally(); $("#v-tally").scrollIntoView({ block: "start" }); window.scrollTo(0, 0); return; }
-  // Tapping an item marks it done, or takes it back. Logged in, that's a change everyone on shift sees; ⋯ has the rest.
+  // Tapping an item marks it done, or takes it back: a change everyone on shift sees. ⋯ has the rest.
   const ck = e.target.closest("[data-list]"); if (ck) {
     const k = ck.dataset.list, i = +ck.dataset.i, st = statusOf(k, i);
-    if (LIVE.me) {
-      if (isLocked(k)) return toast(`${LISTS[k].title} is finished. ${LIVE.admin ? "Reopen it to change anything" : "A manager can reopen it"}`);
-      if (st === "cancelled") return toast(`Not needed tonight. ${LIVE.admin ? "Bring it back from ⋯" : "A manager can bring it back"}`);
-      changeTask(k, i, st === "done" ? "todo" : "done"); return;
-    }
-    if (st !== "done" && progress(k).n === progress(k).of - 1) { toast(`${LISTS[k].title} complete`); try { navigator.vibrate?.([12, 60, 12]); } catch {} }
-    ticks[k] = st === "done" ? (ticks[k] || []).filter((x) => x !== i) : [...(ticks[k] || []), i]; store.set("ticks2", ticks);
-    haptic(); renderTally(); return;
+    if (isLocked(k)) return toast(`${LISTS[k].title} is finished. ${LIVE.admin ? "Reopen it to change anything" : "A manager can reopen it"}`);
+    if (st === "cancelled") return toast(`Not needed tonight. ${LIVE.admin ? "Bring it back from ⋯" : "A manager can bring it back"}`);
+    changeTask(k, i, st === "done" ? "todo" : "done"); return;
   }
   const mo = e.target.closest("[data-more]"); if (mo) { more = more === mo.dataset.more ? "" : mo.dataset.more; renderTally(); return; }
   const tk = e.target.closest("[data-task]"); if (tk) { const [k, i] = taskKey(tk.dataset.task); changeTask(k, i, tk.dataset.to); return; }
@@ -1406,11 +1443,6 @@ $("#tally").addEventListener("click", async (e) => {
   }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  if (e.target.closest("#t-yes")) {
-    // Logged in, tonight's tasks are the team's record, so only this phone's note is cleared.
-    if (!LIVE.me) { MODE_LISTS[mode].forEach((k) => (ticks[k] = [])); store.set("ticks2", ticks); out = new Set(); store.set("out", []); renderList(); }
-    shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); confirmReset = false; renderTally(); toast(LIVE.me ? "Note cleared" : "New night started");
-  }
 });
 
 /* ---------- Old records: temperatures, line cleans and waste ----------
@@ -1462,7 +1494,7 @@ document.addEventListener("click", (e) => {
    Tax is worked out month by month (the Month 1 basis on the payslips), using HMRC's 2026 to 2027 rates for England,
    Wales and Northern Ireland: gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027. Employee National
    Insurance (category A) is on the hours pay only: tronc shared out by a troncmaster carries no National Insurance. */
-const PAY_DEFAULT = { rate: "12.71", worked: "", rota: "", lastHours: "", tronc: "", code: "1257L", slipTronc: "", slipHours: "" };
+const PAY_DEFAULT = { rate: "12.71", worked: "", rota: "", lastHours: "", tronc: "", low: "", high: "", per: "month", code: "1257L", slipTronc: "", slipHours: "" };
 let pay = { ...PAY_DEFAULT, ...store.get("pay", {}) };
 const num = (v) => { const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) && n >= 0 ? n : 0; };
 const gbp = (n) => "£" + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1501,27 +1533,35 @@ function lastFriday(now = new Date()) {
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 }
 const TRONC_STEPS = ["0.75", "1.00", "1.25", "1.50"];
+// The month is worked out first; a day, a week and a year are that month spread over the year (365 days, 52 weeks).
+const PER = { day: ["A day", 12 / 365], week: ["A week", 12 / 52], month: ["A month", 1], year: ["A year", 12] };
 function payOutHtml() {
+  const f = PER[pay.per]?.[1] ?? 1, money = (n) => gbp(pence(n * f));
   const r = payCalc(pay), row = (k, v, cls = "") => `<dt${cls}>${k}</dt><dd${cls}>${v}</dd>`;
+  // Tronc depends on how busy the month was, so take-home is also shown at a quiet and a busy month's rate.
+  const at = (k, label) => { if (!num(pay[k])) return ""; const x = payCalc({ ...pay, tronc: pay[k] }); return row(`${label} (£${num(pay[k]).toFixed(2)}/h)`, x.net == null ? "?" : money(x.net)); };
+  const range = at("low", "Quiet month") + at("high", "Busy month");
   const slip = num(pay.slipTronc) > 0 && num(pay.slipHours) > 0 ? Math.round((num(pay.slipTronc) / num(pay.slipHours)) * 10000) / 10000 : 0;
-  return `<dl class="kv paykv">
-      ${row(`Hours pay (${fmtN(r.hours)} h)`, gbp(r.basic))}${row(`Tronc (${fmtN(num(pay.lastHours))} h last month)`, gbp(r.tronc))}${row("Gross", gbp(r.gross))}
-      ${row("Income tax", r.tax == null ? "Check the tax code" : "−" + gbp(r.tax))}${row("National Insurance", "−" + gbp(r.ni))}
-      ${row("Take-home", r.net == null ? "?" : gbp(r.net), ' class="take"')}
+  return `<div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:14px" role="group" aria-label="Show pay for">${Object.entries(PER).map(([k, [t]]) => `<button data-pay-per="${k}" aria-pressed="${k === (PER[pay.per] ? pay.per : "month")}">${t.slice(2)}</button>`).join("")}</div>
+    <dl class="kv paykv">
+      ${row(`Hours pay (${fmtN(r.hours * f)} h)`, money(r.basic))}${row("Tronc", money(r.tronc))}${row("Gross", money(r.gross))}
+      ${row("Income tax", r.tax == null ? "Check the tax code" : "−" + money(r.tax))}${row("National Insurance", "−" + money(r.ni))}
+      ${row(`Take-home, ${PER[pay.per]?.[0].toLowerCase() ?? "a month"}`, r.net == null ? "?" : money(r.net), ' class="take"')}
     </dl>
+    ${range ? `<div class="sec">Take-home if tronc is different</div><dl class="kv paykv">${range}</dl>` : ""}
     ${slip ? `<button class="btn" data-pay-slip="${slip}">Use £${slip.toFixed(2)} an hour from your payslip</button>` : ""}`;
 }
 function payHtml() {
   const f = (k, label, hint = "") => `<label class="fld">${label}<input data-pay="${k}" inputmode="decimal" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
   return `<h2 style="margin-top:18px">My pay</h2>
     <p class="note">An estimate for this month, on this phone only. Pay day is usually the last Friday: ${lastFriday()}.</p>
-    <div class="paygrid">${f("rate", "Hourly rate (£)")}${f("code", "Tax code")}${f("worked", "Hours worked so far", "0")}${f("rota", "Hours still on the rota", "0")}${f("lastHours", "Last month's hours", "0")}${f("tronc", "Tronc per hour (£)", "0.00")}</div>
+    <div class="paygrid">${f("rate", "Hourly rate (£)")}${f("code", "Tax code")}${f("worked", "Hours worked so far", "0")}${f("rota", "Hours still on the rota", "0")}${f("lastHours", "Last month's hours", "0")}${f("tronc", "Tronc per hour (£)", "0.00")}${f("low", "Tronc, quiet month (£/h)", "0.00")}${f("high", "Tronc, busy month (£/h)", "0.00")}</div>
     <div class="recent" style="margin-top:8px">${TRONC_STEPS.map((t) => `<button class="chip" data-pay-tronc="${t}" aria-pressed="${num(pay.tronc) === num(t)}">£${t}</button>`).join("")}</div>
     <details class="setup"><summary>Work out tronc per hour from a payslip</summary>
       <p class="note">Tronc is paid on the month before's hours. Enter the tronc on a payslip and the hours from the payslip before it.</p>
       <div class="paygrid">${f("slipTronc", "Tronc on the payslip (£)")}${f("slipHours", "Hours the month before")}</div></details>
     <div id="pay-out">${payOutHtml()}</div>
-    <p class="note">No pension or student loan taken off. Tax is worked out month by month, as on a Month 1 code; a normal code can come out a little different across the year. Scottish tax codes aren't covered.</p>`;
+    <p class="note">A day, a week and a year are this month spread over the year, so a year assumes every month is like this one. No pension or student loan taken off. Tax is worked out month by month, as on a Month 1 code; a normal code can come out a little different across the year. Scottish tax codes aren't covered.</p>`;
 }
 $("#v-info").addEventListener("input", (e) => {
   const k = e.target.dataset.pay; if (!k) return;
@@ -1530,6 +1570,8 @@ $("#v-info").addEventListener("input", (e) => {
   if (k === "tronc") $$("[data-pay-tronc]").forEach((b) => b.setAttribute("aria-pressed", num(b.dataset.payTronc) === num(pay.tronc)));
 });
 $("#v-info").addEventListener("click", (e) => {
+  const pp = e.target.closest("[data-pay-per]");
+  if (pp) { pay.per = pp.dataset.payPer; store.set("pay", pay); haptic(); $("#pay-out").innerHTML = payOutHtml(); return; }
   const b = e.target.closest("[data-pay-tronc], [data-pay-slip]"); if (!b) return;
   pay.tronc = b.dataset.payTronc || b.dataset.paySlip; store.set("pay", pay); haptic();
   $('[data-pay="tronc"]').value = pay.tronc; $("#pay-out").innerHTML = payOutHtml();
@@ -1544,7 +1586,7 @@ function renderInfo() {
     <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. This phone only.</p>
     ${payHtml()}
-    <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and posts the good ones as notices.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
+    <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and sends the good ones out as broadcasts.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
     <h2>Measures and the law</h2>
     <ul>
       <li>Gin, rum, vodka and whisky on their own or with one mixer go in 25 ml or 35 ml measures (or multiples). We use 25 ml and 50 ml.</li>
@@ -1584,25 +1626,8 @@ function renderInfo() {
 }
 
 /* ---------- Tabs ---------- */
-/* ---------- Notices ---------- */
-let notices = [];
-const nkey = (t) => { let h = 0; for (const c of t) h = (h * 31 + c.charCodeAt(0)) | 0; return String(h); };
-let seen = new Set(store.get("seen", []));
-function parseNotices(txt) {
-  const names = D.map((d) => [d.name.toLowerCase(), d.name]);
-  teamOut = new Set();
-  return txt.replace(/\r/g, "").split("\n").filter((l) => !l.startsWith("#")).join("\n").split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean).map((p) => {
-    const lines = p.split("\n");
-    for (const l of lines.filter((l) => /^86\s*:/i.test(l))) for (const part of l.replace(/^86\s*:/i, "").split(",")) {
-      const w = part.trim().toLowerCase(); if (!w) continue;
-      const hit = names.find(([lc]) => lc === w) || names.find(([lc]) => lc.includes(w));
-      if (hit) teamOut.add(hit[1]);
-    }
-    return { key: nkey(p), lines };
-  });
-}
 function renderBell() {
-  const n = notices.filter((x) => !seen.has(x.key)).length + feedNew().length;
+  const n = feedNew().length + unreadChats().length;
   $("#bell").hidden = false; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
   $("#bell").setAttribute("aria-label", n ? `Team, ${n} new` : "Team");
 }
@@ -1612,11 +1637,11 @@ const ms = (t) => (t ? t.toMillis() : Date.now());
 const when = (t) => `<b class="dt">${stamp(new Date(ms(t)))}</b>`;
 let feedSeen = store.get("feedSeen", 0);
 const isNew = (x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen;
-const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(isNew);
+const feedNew = () => [...LIVE.notices, ...LIVE.reports].filter(isNew);
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#dash", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#feed", "#reports", "#sact", "#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -1646,9 +1671,6 @@ function renderTeamTop() {
     <p class="note">Bar and floor follow the side each phone is set to in Shift.</p>
     ${LIVE.owner ? `<label class="check"><input type="checkbox" id="p-mgrs" checked> Managers can see it</label>` : ""}
     <div class="actions"><button class="btn pri" id="p-go">Send</button></div></details>`;
-  $("#compose").innerHTML = `<div class="sec">Team board</div>
-    <label class="fld">Post to the board<textarea id="c-text" rows="3" maxlength="2000" placeholder="Running low on limes, a guest comment, anything the team should know"></textarea></label>
-    <div class="actions"><button class="btn pri" id="c-post">Post</button></div>`;
   if (LIVE.admin) $("#mgr").innerHTML = `<details class="setup" id="staff-box" open><summary>Team members</summary><div id="staff-list"></div>
       <h3 style="font-size:18px;margin-top:16px">Add a person</h3>
       <label class="fld">Name<input id="a-name" maxlength="40"></label>
@@ -1656,11 +1678,11 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
-  renderDash(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#compose", "#feed", "#notices"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
+const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#feed"], chat: ["#chat"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
 // The Managers tab in parts, so nothing is a long scroll away.
@@ -1671,9 +1693,9 @@ const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 function renderTeamTabs() {
   const all = Object.values(TSLOTS).flat();
   if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
-  const tabs = [["board", "Board"], ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
+  const tabs = [["board", "Board"], ["chat", "Chat"], ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
   if (!tabs.some(([k]) => k === tpane)) tpane = "board";
-  const count = { board: [openIssues().length + openConcerns().length, "open"], reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"], requests: [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length, "waiting"] };
+  const count = { board: [openIssues().length + openConcerns().length, "open"], chat: [unreadChats().length, "new"], reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"], requests: [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length, "waiting"] };
   const badge = (k) => (count[k] && count[k][0] ? `${count[k][0]} ${count[k][1]}` : "");
   $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge(k)}</small></button>`).join("")}</div>`;
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
@@ -1759,7 +1781,8 @@ function renderPins() {
 function renderFeed() {
   if (!LIVE.me) return;
   const del = (x) => (canTakeDown(x) ? `<div class="actions"><button class="btn" data-del="${x.id}">Delete</button></div>` : "");
-  $("#feed").innerHTML = LIVE.feed.length ? LIVE.feed.map((x) => `<article class="notice${isNew(x) ? " new" : ""}"><div class="meta"><b>${esc(x.name)}</b> · ${when(x.at)}${x.pending ? " · sending…" : ""}</div><p class="txt">${esc(x.text)}</p>${del(x)}</article>`).join("") : `<p class="note">Nothing posted yet.</p>`;
+  // The board is read-only since team chat (26 October 2026): old posts stay until someone takes them down.
+  $("#feed").innerHTML = LIVE.feed.length ? `<details class="setup"><summary>Old board posts (${LIVE.feed.length})</summary><p class="note">The board is closed. Post in Chat instead.</p>${LIVE.feed.map((x) => `<article class="notice"><div class="meta"><b>${esc(x.name)}</b> · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${del(x)}</article>`).join("")}</details>` : "";
 }
 // Waiting reports sit open at the top; signed ones go into the history list. Neither can be edited or deleted.
 function renderReports() {
@@ -2419,6 +2442,165 @@ async function prepareDownload(sec) {
   actFile = { sec, n: rows.length - 1, name: `black-tap-${name}-${ukDay(Date.now())}.csv`, url: URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })) };
   [renderAct, renderTraining, renderKpis].forEach((f) => f());
 }
+/* ---------- Team chat ----------
+   The team chat (everyone), private chats between two people and groups. Pinging someone (@) marks the chat for them and
+   pops up while their app is open. Phones with the app closed aren't told: that needs a paid Firebase plan. */
+let chatId = "", chatView = "list", chBusy = false, chMarked = "";
+const chF = { text: "", photo: "", mentions: [], title: "", members: [] };
+const chPhotos = {};
+const JPEG_URL = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
+const dirName = (uid) => LIVE.directory.find((p) => p.uid === uid)?.name || "Someone who has left";
+const chatName = (c) => (c.kind === "team" ? "Team chat" : c.kind === "group" ? c.title : dirName(c.members.find((m) => m !== LIVE.uid)));
+// When this person last read it: never (0), or a moment ago if their phone is still saving it.
+const readAt = (c) => { const r = c.read?.[LIVE.uid]; return r === undefined ? 0 : ms(r); };
+const unread = (c) => !!c.lastUid && c.lastUid !== LIVE.uid && ms(c.lastAt) > readAt(c);
+const unreadChats = () => LIVE.chats.filter(unread);
+const pinged = (c) => LIVE.pings.some((p) => p.chat === c.id);
+const chWhen = (t) => { const d = new Date(ms(t)); return ukDay(d) === ukDay(Date.now()) ? hhmm(d) : `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: UK })}, ${hhmm(d)}`; };
+const openRoom = () => LIVE.chats.find((c) => c.id === chatId && (chatView === "room" || chatView === "edit"));
+const viewing = (id) => !document.hidden && !$("#v-notices").hidden && tpane === "chat" && openRoom()?.id === id;
+// Who can be pinged: everyone else on the team in the team chat, everyone else in a group.
+const pingable = (c) => (c.kind === "team" ? LIVE.directory.map((p) => p.uid) : c.kind === "group" ? c.members : []).filter((u) => u !== LIVE.uid);
+const canEdit = (c) => c.kind === "group" && (c.by === LIVE.uid || LIVE.admin);
+function goChat(id) {
+  chatId = id; chatView = "room"; Object.assign(chF, { text: "", photo: "", mentions: [] });
+  renderChat(); $("#tpanes").scrollIntoView({ block: "start" });
+}
+function renderChat() {
+  const box = $("#chat"); if (!LIVE.me) { box.innerHTML = ""; return; }
+  // The team chat is made the first time anyone opens Chat.
+  if (LIVE.loaded.has("team-chat") && !LIVE.chats.some((c) => c.id === "team") && !renderChat.made) {
+    renderChat.made = true; LIVE.api.newChat("team").catch(() => (renderChat.made = false));
+  }
+  if (chatView === "room" || chatView === "edit") return renderRoom(box, LIVE.chats.find((c) => c.id === chatId));
+  const others = LIVE.directory.filter((p) => p.uid !== LIVE.uid);
+  const who = (pick, attr) => (others.length ? `<div class="recent">${others.map((p) => `<button class="chip" ${attr}="${p.uid}" aria-pressed="${pick(p.uid)}">${esc(p.name)}</button>`).join("")}</div>`
+    : `<p class="note">Nobody else has opened the app since chat was added. They appear here once they do, or once a manager opens the Team page.</p>`);
+  const form = chatView === "people" ? `<div class="mini">Who to message</div>${who(() => false, "data-ch-dm")}`
+    : chatView === "group" ? groupForm(who) : "";
+  const row = (c) => `<button class="chrow${unread(c) ? " new" : ""}" data-ch-open="${c.id}"><div class="n">${esc(chatName(c))}${pinged(c) ? `<span class="pill wait">@ you</span>` : ""}${unread(c) ? `<span class="udot" aria-label="New"></span>` : ""}</div>
+    <div class="s">${c.lastText ? `${c.lastUid === LIVE.uid ? "You" : esc(c.lastName)}: ${esc(c.lastText)}` : c.lastUid ? "Message unsent" : "No messages yet"} · ${chWhen(c.lastAt)}</div></button>`;
+  box.innerHTML = `<div class="sec">Chat</div>
+    <p class="note">Message the whole team, one person or a group. Ping someone with @ and it's marked for them, with a pop-up if their app is open. Phones with the app closed aren't notified.</p>
+    <div class="actions"><button class="btn${chatView === "people" ? " pri" : ""}" data-ch-view="people">Message someone</button><button class="btn${chatView === "group" ? " pri" : ""}" data-ch-view="group">New group</button></div>
+    ${form}${LIVE.loaded.has("chats") ? LIVE.chats.map(row).join("") : `<p class="note">Loading chats…</p>`}`;
+}
+function groupForm(who) {
+  return `<label class="fld">Group name<input id="ch-title" maxlength="40" value="${esc(chF.title)}" placeholder="Floor team, Friday close…"></label>
+    <div class="mini">Who's in it (you are too)</div>${who((u) => chF.members.includes(u), "data-ch-mem")}
+    <div class="actions"><button class="btn pri" id="ch-make">${chatView === "edit" ? "Save" : "Start the group"}</button>${chatView === "edit" ? `<button class="btn" data-ch-view="room">Cancel</button>` : ""}</div>`;
+}
+function renderRoom(box, c) {
+  const back = `<div class="chhead"><button class="back" data-ch-view="list">‹ Chats</button><b>${c ? esc(chatName(c)) : ""}</b></div>`;
+  if (!c) { box.innerHTML = `${back}<p class="note">This chat isn't here. It may still be opening, or you're no longer in it.</p>`; return; }
+  // A chat still being made can't be listened to yet; the next update tries again.
+  if (!c.pending) LIVE.api.watchMessages(c.id);
+  const others = LIVE.directory.filter((p) => p.uid !== LIVE.uid);
+  const who = (pick, attr) => `<div class="recent">${others.map((p) => `<button class="chip" ${attr}="${p.uid}" aria-pressed="${pick(p.uid)}">${esc(p.name)}</button>`).join("")}</div>`;
+  const group = c.kind !== "group" ? "" : chatView === "edit" ? groupForm(who)
+    : `<p class="note">${c.members.map((u) => esc(u === LIVE.uid ? "You" : dirName(u))).join(", ")}</p><div class="actions">${canEdit(c) ? `<button class="btn" data-ch-edit>Change group</button>` : ""}<button class="btn" data-ch-leave>Leave group</button></div>`;
+  box.innerHTML = `${back}${group}<div class="chmsgs" id="ch-msgs" aria-live="polite"></div><div id="ch-compose"></div>`;
+  renderMsgs(); renderCompose(c);
+}
+function photoOf(c, m) {
+  const d = chPhotos[m.id];
+  if (d === undefined) {
+    chPhotos[m.id] = "loading";
+    LIVE.api.chatPhoto(c, m).then((x) => (chPhotos[m.id] = x && JPEG_URL.test(x) ? x : null), () => delete chPhotos[m.id]).then(renderMsgs);
+  }
+  return d === null ? `<p class="note">Photo cleared after 30 days</p>` : d && d !== "loading" ? `<img src="${d}" alt="Photo from ${esc(m.name)}">` : `<p class="note">Loading photo…</p>`;
+}
+function renderMsgs() {
+  const el = $("#ch-msgs"), c = openRoom(); if (!el || !c) return;
+  chatSeen(c);
+  if (!LIVE.loaded.has("msgs")) { el.innerHTML = `<p class="note">Loading messages…</p>`; return; }
+  el.innerHTML = LIVE.msgs.map((m) => { const mine = m.uid === LIVE.uid, at = m.mentions?.includes(LIVE.uid) && c.kind !== "dm";
+    return `<div class="msg${mine ? " me" : ""}${at ? " at" : ""}"><div class="meta">${mine ? "You" : `<b>${esc(m.name)}</b>`} · ${chWhen(m.at)}${m.pending ? " · sending…" : ""}</div>
+      ${m.mentions?.length && c.kind !== "dm" ? `<div class="tags">${m.mentions.map((u) => `<span class="pill${u === LIVE.uid ? " wait" : ""}">@${esc(u === LIVE.uid ? "you" : dirName(u))}</span>`).join(" ")}</div>` : ""}
+      ${m.text ? `<p class="txt">${esc(m.text)}</p>` : ""}${m.photo ? photoOf(c, m) : ""}${mine && !m.pending ? `<button class="linkbtn" data-ch-unsend="${m.id}">Unsend</button>` : ""}</div>`; }).join("")
+    || `<p class="note">No messages yet.</p>`;
+  el.scrollTop = el.scrollHeight;
+}
+function renderCompose(c) {
+  const ps = pingable(c), n = chF.mentions.length;
+  $("#ch-compose").innerHTML = `${ps.length ? `<details class="setup"${n ? " open" : ""}><summary>Ping someone${n ? ` (${n})` : ""}</summary><div class="recent">${ps.map((u) => `<button class="chip" data-ch-ping="${u}" aria-pressed="${chF.mentions.includes(u)}">@${esc(dirName(u))}</button>`).join("")}</div><p class="note">Up to 5 people per message.</p></details>` : ""}
+    ${chF.photo ? `<div class="photo"><img src="${chF.photo}" alt="Photo to send"><button class="btn danger" data-ch-unphoto>Remove photo</button></div>` : ""}
+    <label class="fld">Message<textarea id="ch-text" rows="2" maxlength="1000" placeholder="${c.kind === "dm" ? `Message ${esc(chatName(c))}` : c.kind === "team" ? "Message the team" : "Message the group"}">${esc(chF.text)}</textarea></label>
+    <div class="actions"><label class="btn" for="ch-in" style="cursor:pointer">${chBusy ? "Adding photo…" : chF.photo ? "Change photo" : "Add a photo"}</label><button class="btn pri" id="ch-send">Send</button></div>`;
+}
+// Opening a chat marks it read and clears its ping, once per new message.
+function chatSeen(c) {
+  const k = c.id + c.lastId + pinged(c);
+  if (!viewing(c.id) || (!unread(c) && !pinged(c)) || chMarked === k) return;
+  chMarked = k; LIVE.api.markRead(c).catch(() => (chMarked = ""));
+}
+document.addEventListener("visibilitychange", () => { const c = openRoom(); if (c && !document.hidden) chatSeen(c); });
+// A new message in a chat that isn't open pops up, saying if it pinged you. The team chat stays quiet while the Team page
+// is open, unless it pings you.
+function chatToasts() {
+  // The first time both chat lists have loaded, what's there already is old news.
+  if (!LIVE.loaded.has("chats") || !LIVE.loaded.has("team-chat")) return;
+  const first = !firstSnap.has("chats"); firstSnap.add("chats");
+  for (const c of LIVE.chats.filter(unread)) {
+    const k = "msg" + c.lastId, me = c.kind !== "dm" && c.lastPings?.includes(LIVE.uid);
+    if (told.has(k)) continue; told.add(k);
+    if (first || viewing(c.id) || (c.kind === "team" && !me && !$("#v-notices").hidden)) continue;
+    toast(`${c.lastName}${me ? " pinged you" : c.kind === "dm" ? "" : ` in ${chatName(c)}`}: ${c.lastText}`); haptic();
+  }
+}
+$("#chat").addEventListener("input", (e) => { if (e.target.id === "ch-text") chF.text = e.target.value; if (e.target.id === "ch-title") chF.title = e.target.value; });
+$("#chat").addEventListener("click", (e) => {
+  const b = e.target.closest("button"), A = LIVE.api; if (!b) return;
+  const c = openRoom(), d = b.dataset;
+  if (d.chView) { chatView = d.chView === chatView && !c ? "list" : d.chView; if (chatView === "group") Object.assign(chF, { title: "", members: [] }); renderChat(); return; }
+  if (d.chOpen) return goChat(d.chOpen);
+  if (d.chDm) {
+    const id = A.dmId(d.chDm);
+    if (!LIVE.chats.some((x) => x.id === id)) track(A.newChat("dm", { other: d.chDm }), null, "Couldn't start the chat. Try again");
+    return goChat(id);
+  }
+  if (d.chMem) { const u = d.chMem; chF.members = chF.members.includes(u) ? chF.members.filter((x) => x !== u) : [...chF.members, u]; b.setAttribute("aria-pressed", chF.members.includes(u)); return; }
+  if (b.id === "ch-make") {
+    const title = chF.title.trim();
+    if (!title) return toast("Give the group a name");
+    if (!chF.members.length) return toast("Pick who's in it");
+    if (chF.members.length > 39) return toast("40 people is the most for a group");
+    if (chatView === "edit") { track(A.editGroup(c, title, [LIVE.uid, ...chF.members.filter((u) => u !== LIVE.uid)]), "Group changed", "Not saved. Try again"); chatView = "room"; renderChat(); return; }
+    A.newChat("group", { title, members: chF.members }).then(goChat, () => toast("Couldn't start the group. Try again")); chatView = "list"; renderChat(); return;
+  }
+  if (!c) return;
+  if ("chEdit" in d) { Object.assign(chF, { title: c.title, members: c.members.filter((u) => u !== LIVE.uid) }); chatView = "edit"; renderChat(); return; }
+  if ("chLeave" in d) {
+    if (!confirm(`Leave ${c.title}? You won't see its messages any more.`)) return;
+    track(A.leaveGroup(c), "You left the group", "Couldn't leave. Try again"); chatView = "list"; A.watchMessages(""); renderChat(); return;
+  }
+  if (d.chPing) {
+    const u = d.chPing;
+    if (!chF.mentions.includes(u) && chF.mentions.length >= 5) return toast("Up to 5 people per message");
+    chF.mentions = chF.mentions.includes(u) ? chF.mentions.filter((x) => x !== u) : [...chF.mentions, u]; renderCompose(c); return;
+  }
+  if ("chUnphoto" in d) { chF.photo = ""; renderCompose(c); return; }
+  if (d.chUnsend) {
+    const m = LIVE.msgs.find((x) => x.id === d.chUnsend);
+    if (m && confirm("Unsend this message? It's deleted for everyone.")) track(A.unsend(c, m), null, "Couldn't unsend. Try again");
+    return;
+  }
+  if (b.id === "ch-send") {
+    const text = chF.text.trim();
+    if (!text && !chF.photo) return toast("Write a message or add a photo");
+    track(A.sendChat(c, text, chF.photo, chF.mentions.filter((u) => pingable(c).includes(u))), null, "Not sent. Try again");
+    Object.assign(chF, { text: "", photo: "", mentions: [] }); haptic(); renderCompose(c);
+  }
+});
+// Like the other photo pickers, it lives outside the part that's redrawn, so a new message can't lose the photo.
+$("#ch-in").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  const c = openRoom(); if (!f || !c) return;
+  chBusy = true; renderCompose(c);
+  try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try another"); else chF.photo = data; }
+  catch { toast("Couldn't read that photo"); }
+  chBusy = false; if (openRoom()) renderCompose(openRoom());
+});
 /* ---------- Broadcasts ----------
    A broadcast stays at the top of every page until that person taps Got it, on any of their phones. */
 function renderBcast() {
@@ -2463,7 +2645,6 @@ function eventToast(e) {
   return e.to === "finished" ? `${e.label} finished by ${e.name}${e.done < e.required ? `, with ${e.required - e.done} not done` : ""}` : e.from === "finished" ? `${e.label} reopened by ${e.name}` : "";
 }
 const TOAST = {
-  feed: (x) => `${x.name}: ${x.text.slice(0, 70)}`,
   notices: (x) => (forSide(x) ? `Broadcast: ${x.text.slice(0, 70)}` : ""),
   reports: (x) => (x.signedBy ? "" : `${x.name} sent a shift report`),
   asks: (x) => (LIVE.admin && x.status === "pending" ? `${x.name}: ${askText(x)}` : ""),
@@ -2484,6 +2665,7 @@ const MINE = {
 function liveChanged(what) {
   if (what === "notices" || what === "seen" || what === "me") renderBcast();
   if (what === "events") markEvents();
+  if (what === "chats") chatToasts();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
@@ -2501,14 +2683,14 @@ function liveChanged(what) {
       asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis], restock: [renderDash, renderLive],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
-      concerns: [renderConcerns, renderDash, renderAct] }[what];
+      concerns: [renderConcerns, renderDash, renderAct], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "tasks", "runs", "events", "restock", "staff"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "tasks", "runs", "events", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
@@ -2671,9 +2853,6 @@ $("#v-notices").addEventListener("click", (e) => {
     const pin = (prompt("New PIN (6 to 12 digits)") || "").trim(); if (!pin) return;
     if (!A.PIN.test(pin)) return toast("The PIN must be 6 to 12 digits");
     A.changePin(pin).then(() => toast("PIN changed")).catch(() => toast("Log out and back in, then try again"));
-  } else if (b.id === "c-post") {
-    const t = val("#c-text"); if (!t) return;
-    track(A.post(t), null, "Post not sent. Try again"); $("#c-text").value = ""; haptic();
   } else if (b.id === "a-go") {
     const name = val("#a-name"), u = val("#a-user").toLowerCase(), pin = val("#a-pin"), role = LIVE.owner ? $("#a-role").value : "staff";
     if (!name || !A.USER.test(u) || !A.PIN.test(pin)) return toast("Fill in every box. Username: lower case letters and numbers. PIN: 6 to 12 digits");
@@ -2711,27 +2890,8 @@ $("#v-notices").addEventListener("click", (e) => {
     track(A.signOff(b.dataset.sign), null, "Could not sign off. Someone may have just signed it"); haptic();
   }
 });
-function renderNotices() {
-  renderTeamTop(); markSeen();
-  $("#notices").innerHTML = (LIVE.me && notices.length ? `<div class="sec">Notices</div>` : "") + (notices.length ? notices.map((x) => `<article class="notice${seen.has(x.key) ? "" : " new"}">${x.lines.map((l, i) => /^86\s*:/i.test(l) ? `<p class="n86">86'd: ${esc(l.replace(/^86\s*:/i, "").trim())}</p>` : i === 0 ? `<h3>${esc(l)}</h3>` : `<p>${esc(l)}</p>`).join("")}</article>`).join("") : LIVE.me ? "" : `<p class="note">No notices right now.</p>`);
-  notices.forEach((x) => seen.add(x.key)); store.set("seen", [...seen].slice(-200)); renderBell();
-}
-async function loadNotices() {
-  try {
-    const r = await fetch("notices.txt", { cache: "no-store" });
-    if (!r.ok) return;
-    const before = notices.filter((x) => !seen.has(x.key)).length;
-    notices = parseNotices(await r.text());
-    renderBell(); renderList();
-    const now = notices.filter((x) => !seen.has(x.key)).length;
-    if (now > before && before >= 0 && loadNotices.done) toast(`${now} new notice${now > 1 ? "s" : ""}`);
-    loadNotices.done = true;
-    if (!$("#v-notices").hidden) renderNotices();
-  } catch {}
-}
+function renderNotices() { renderTeamTop(); markSeen(); }
 $("#bell").addEventListener("click", () => show("notices"));
-document.addEventListener("visibilitychange", () => { if (!document.hidden) loadNotices(); });
-setInterval(loadNotices, 5 * 60 * 1000);
 
 const TABS = ["drinks", "allergens", "practice", "tally", "info", "notices"];
 function show(tab) {
@@ -2752,7 +2912,6 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { if (hit) $("#offl").textContent = "Offline ready ✓"; }).catch(() => {});
 }
-loadNotices();
 const tick = () => { const d = new Date(); $("#clock").textContent = hhmm(d); $("#today").textContent = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); };
 tick(); setInterval(tick, 10000);
 renderChips(); renderList();
