@@ -158,6 +158,10 @@ nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
 .kv { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 4px 12px; margin-top: 8px; }
 .kv dt { font-weight: 700; }
 .kv dd { margin: 0; color: var(--muted); }
+.paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.paykv { margin: 14px 0 10px; grid-template-columns: 1fr auto; }
+.paykv dd { text-align: right; font-variant-numeric: tabular-nums; }
+.paykv .take { font-size: 19px; font-weight: 700; color: var(--fg); border-top: 1px solid var(--line); padding-top: 6px; }
 .fld { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); }
 .fld input, .fld textarea, .fld select { display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; -webkit-appearance: none; appearance: none; }
 textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 14px/1.4 var(--body); }
@@ -1484,6 +1488,96 @@ document.addEventListener("click", (e) => {
   $$("[data-theme-pick]").forEach((b) => b.setAttribute("aria-pressed", b === t));
 });
 
+/* ---------- My pay ----------
+   An estimate of this month's pay, kept on this phone only: nobody else sees it, not even managers. Hours are paid at
+   the hourly rate. Tronc (service charge) is paid on last month's hours at a rate per hour, which changes each month.
+   Tax is worked out month by month (the Month 1 basis on the payslips), using HMRC's 2026 to 2027 rates for England,
+   Wales and Northern Ireland: gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027. Employee National
+   Insurance (category A) is on the hours pay only: tronc shared out by a troncmaster carries no National Insurance. */
+const PAY_DEFAULT = { rate: "12.71", worked: "", rota: "", lastHours: "", tronc: "", low: "", high: "", per: "month", code: "1257L", slipTronc: "", slipHours: "" };
+let pay = { ...PAY_DEFAULT, ...store.get("pay", {}) };
+const num = (v) => { const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) && n >= 0 ? n : 0; };
+const gbp = (n) => "£" + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const pence = (n) => Math.round(n * 100) / 100;
+// Monthly tax-free pay and the rate for codes that don't have one. null means a code this can't work out.
+function taxCode(code) {
+  const c = code.toUpperCase().replace(/\s|W1|M1|X$/g, "").replace(/^C/, "");
+  if (c === "BR") return { flat: 0.2 };
+  if (c === "D0") return { flat: 0.4 };
+  if (c === "D1") return { flat: 0.45 };
+  if (c === "NT") return { flat: 0 };
+  if (c === "0T") return { free: 0 };
+  const m = c.match(/^(\d{1,4})[LMNT]$/);
+  return m ? { free: (Number(m[1]) * 10 + 9) / 12 } : null;
+}
+function payCalc(p) {
+  const hours = num(p.worked) + num(p.rota), basic = pence(hours * num(p.rate)), tronc = pence(num(p.lastHours) * num(p.tronc));
+  const gross = pence(basic + tronc), code = taxCode(p.code);
+  let tax = null;
+  if (code) {
+    if (code.flat != null) tax = Math.floor(gross) * code.flat;
+    else {
+      // Monthly bands: basic rate on the first £37,700 a year of taxable pay, higher to £125,140 less the allowance.
+      const t = Math.max(0, Math.floor(gross - code.free)), b1 = 37700 / 12, b2 = (125140 - 12570) / 12;
+      tax = Math.min(t, b1) * 0.2 + Math.max(0, Math.min(t, b2) - b1) * 0.4 + Math.max(0, t - b2) * 0.45;
+    }
+    tax = pence(tax);
+  }
+  const ni = pence(Math.max(0, Math.min(basic, 4189) - 1048) * 0.08 + Math.max(0, basic - 4189) * 0.02);
+  return { hours, basic, tronc, gross, tax, ni, net: tax == null ? null : pence(gross - tax - ni) };
+}
+// The last Friday of this month, in UK time.
+function lastFriday(now = new Date()) {
+  const [y, m] = ukDay(now).split("-").map(Number), d = new Date(Date.UTC(y, m, 0));
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 2) % 7));
+  return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+}
+const TRONC_STEPS = ["0.75", "1.00", "1.25", "1.50"];
+// The month is worked out first; a day, a week and a year are that month spread over the year (365 days, 52 weeks).
+const PER = { day: ["A day", 12 / 365], week: ["A week", 12 / 52], month: ["A month", 1], year: ["A year", 12] };
+function payOutHtml() {
+  const f = PER[pay.per]?.[1] ?? 1, money = (n) => gbp(pence(n * f));
+  const r = payCalc(pay), row = (k, v, cls = "") => `<dt${cls}>${k}</dt><dd${cls}>${v}</dd>`;
+  // Tronc depends on how busy the month was, so take-home is also shown at a quiet and a busy month's rate.
+  const at = (k, label) => { if (!num(pay[k])) return ""; const x = payCalc({ ...pay, tronc: pay[k] }); return row(`${label} (£${num(pay[k]).toFixed(2)}/h)`, x.net == null ? "?" : money(x.net)); };
+  const range = at("low", "Quiet month") + at("high", "Busy month");
+  const slip = num(pay.slipTronc) > 0 && num(pay.slipHours) > 0 ? Math.round((num(pay.slipTronc) / num(pay.slipHours)) * 10000) / 10000 : 0;
+  return `<div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:14px" role="group" aria-label="Show pay for">${Object.entries(PER).map(([k, [t]]) => `<button data-pay-per="${k}" aria-pressed="${k === (PER[pay.per] ? pay.per : "month")}">${k[0].toUpperCase() + k.slice(1)}</button>`).join("")}</div>
+    <dl class="kv paykv">
+      ${row(`Hours pay (${fmtN(r.hours * f)} h)`, money(r.basic))}${row("Tronc", money(r.tronc))}${row("Gross", money(r.gross))}
+      ${row("Income tax", r.tax == null ? "Check the tax code" : "−" + money(r.tax))}${row("National Insurance", "−" + money(r.ni))}
+      ${row(`Take-home, ${PER[pay.per]?.[0].toLowerCase() ?? "a month"}`, r.net == null ? "?" : money(r.net), ' class="take"')}
+    </dl>
+    ${range ? `<div class="sec">Take-home if tronc is different</div><dl class="kv paykv">${range}</dl>` : ""}
+    ${slip ? `<button class="btn" data-pay-slip="${slip}">Use £${slip.toFixed(2)} an hour from your payslip</button>` : ""}`;
+}
+function payHtml() {
+  const f = (k, label, hint = "") => `<label class="fld">${label}<input data-pay="${k}" inputmode="decimal" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
+  return `<h2 style="margin-top:18px">My pay</h2>
+    <p class="note">An estimate for this month, on this phone only. Pay day is usually the last Friday: ${lastFriday()}.</p>
+    <div class="paygrid">${f("rate", "Hourly rate (£)")}${f("code", "Tax code")}${f("worked", "Hours worked so far", "0")}${f("rota", "Hours still on the rota", "0")}${f("lastHours", "Last month's hours", "0")}${f("tronc", "Tronc per hour (£)", "0.00")}${f("low", "Tronc, quiet month (£/h)", "0.00")}${f("high", "Tronc, busy month (£/h)", "0.00")}</div>
+    <div class="recent" style="margin-top:8px">${TRONC_STEPS.map((t) => `<button class="chip" data-pay-tronc="${t}" aria-pressed="${num(pay.tronc) === num(t)}">£${t}</button>`).join("")}</div>
+    <details class="setup"><summary>Work out tronc per hour from a payslip</summary>
+      <p class="note">Tronc is paid on the month before's hours. Enter the tronc on a payslip and the hours from the payslip before it.</p>
+      <div class="paygrid">${f("slipTronc", "Tronc on the payslip (£)")}${f("slipHours", "Hours the month before")}</div></details>
+    <div id="pay-out">${payOutHtml()}</div>
+    <p class="note">A day, a week and a year are this month spread over the year, so a year assumes every month is like this one. No pension or student loan taken off. Tax is worked out month by month, as on a Month 1 code; a normal code can come out a little different across the year. Scottish tax codes aren't covered.</p>`;
+}
+$("#v-info").addEventListener("input", (e) => {
+  const k = e.target.dataset.pay; if (!k) return;
+  pay[k] = e.target.value.trim().slice(0, 12); store.set("pay", pay);
+  $("#pay-out").innerHTML = payOutHtml();
+  if (k === "tronc") $$("[data-pay-tronc]").forEach((b) => b.setAttribute("aria-pressed", num(b.dataset.payTronc) === num(pay.tronc)));
+});
+$("#v-info").addEventListener("click", (e) => {
+  const pp = e.target.closest("[data-pay-per]");
+  if (pp) { pay.per = pp.dataset.payPer; store.set("pay", pay); haptic(); $("#pay-out").innerHTML = payOutHtml(); return; }
+  const b = e.target.closest("[data-pay-tronc], [data-pay-slip]"); if (!b) return;
+  pay.tronc = b.dataset.payTronc || b.dataset.paySlip; store.set("pay", pay); haptic();
+  $('[data-pay="tronc"]').value = pay.tronc; $("#pay-out").innerHTML = payOutHtml();
+  $$("[data-pay-tronc]").forEach((x) => x.setAttribute("aria-pressed", num(x.dataset.payTronc) === num(pay.tronc)));
+});
+
 /* ---------- Bar info ---------- */
 function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
@@ -1491,6 +1585,7 @@ function renderInfo() {
     <h2 style="margin-top:12px">Light or dark</h2>
     <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. This phone only.</p>
+    ${payHtml()}
     <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and sends the good ones out as broadcasts.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
     <h2>Measures and the law</h2>
     <ul>
