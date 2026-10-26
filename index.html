@@ -240,6 +240,8 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .sumcard div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
 .sumcard span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .sumcard b { font-family: var(--display); font-size: 26px; }
+.todo { display: block; width: 100%; text-align: left; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--fg); font: inherit; padding: 10px 0; min-height: 44px; cursor: pointer; }
+.todo .s { color: var(--muted); }
 .soon { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 99px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .prep.done .box { background: var(--ok); border-color: var(--ok); }
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
@@ -917,7 +919,6 @@ $("#v-practice").addEventListener("click", (e) => {
 });
 
 /* ---------- Shift ---------- */
-let confirmReset = false;
 // Opening and closing checklists. Ticks, comments and the name stay on this phone until "Start a new night".
 const LISTS = {
   open: { title: "Opening checklist", items: [
@@ -1043,6 +1044,11 @@ const shown = (k) => {
 };
 let closer = store.get("closer", "");
 let shiftNote = store.get("shiftNote", "");
+// The handover note and closing manager are for one night: at 6am they start empty again.
+function freshNight() {
+  if (store.get("noteDay", "") === shiftDay()) return;
+  shiftNote = ""; closer = ""; store.set("shiftNote", ""); store.set("closer", ""); store.set("noteDay", shiftDay());
+}
 function tallyText() {
   const day = stamp(new Date());
   const list = (k) => {
@@ -1184,6 +1190,30 @@ function runTo(k, to) {
   track(LIVE.api.setRun(k, t, to === "override" ? "finished" : to === "reopen" ? "started" : to, p.n, p.of, note), ok, "Not saved. Someone may have just changed it");
   haptic();
 }
+// The last report this side sent before tonight, for whoever opens: its handover note and what it left undone.
+const lastReport = () => LIVE.reports.find((r) => r.side === mode && !r.pending && ukDay(ms(r.at) - 6 * 36e5) !== shiftDay());
+function handoverHtml() {
+  const r = lastReport(); if (!r) return "";
+  const note = r.text.match(/\nNote for handover:\n([\s\S]*?)\n\nSigned off by/)?.[1].trim();
+  const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
+  return `<article class="notice" id="handover"><div class="meta">Last handover · <b>${esc(r.name)}</b> · ${when(r.at)}</div>
+    <p class="txt">${note && note !== "None" ? esc(note) : "No note left."}</p>
+    ${left.length ? `<p class="note">Left from that shift:<br>${left.map(esc).join("<br>")}</p>` : ""}
+    <details><summary>Full report</summary><pre>${esc(r.text)}</pre></details></article>`;
+}
+// Before sign-off: every item still open tonight, and any list that's all done but not finished. Each one jumps to it.
+function stillToDoHtml() {
+  // The closing lists first: they're what's left at the end of the night.
+  const open = [...MODE_LISTS[mode]].reverse().flatMap((k) => shown(k).filter(([i]) => ["todo", "doing", "blocked"].includes(statusOf(k, i))).map(([i, t]) => [k, i, t]));
+  const unfinished = MODE_LISTS[mode].filter((k) => { const p = progress(k); return p.n === p.of && !isLocked(k); });
+  if (!open.length && !unfinished.length) return `<p class="note">Everything's done and finished.</p>`;
+  const st = (k, i) => statusOf(k, i) === "blocked" ? `<span class="pill no">Blocked</span> ` : statusOf(k, i) === "doing" ? `<span class="pill wait">In progress</span> ` : "";
+  const n = open.length + unfinished.length;
+  // A long list folds away so the note and Send stay near the top. Tapping an item goes to it.
+  return `<details class="setup" id="todo"${n <= 6 ? " open" : ""}><summary>Still to do (${n})</summary>
+    ${unfinished.map((k) => `<button class="todo" data-jump="${k}"><b>${esc(LISTS[k].title)}</b> is all done: open it and tap Finish</button>`).join("")}
+    ${open.map(([k, i, t]) => `<button class="todo" data-jump="${k}" data-jump-i="${i}">${st(k, i)}${esc(t)} <span class="s">· ${esc(LISTS[k].short)}</span></button>`).join("")}</details>`;
+}
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
 const OTHER = "Other (write it in)";
 const stockOptions = (skip, pick = "") => Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
@@ -1299,14 +1329,15 @@ function renderTally() {
     $("#tally").innerHTML = `<p class="note">${!LIVE.api ? "The shift checklists need team logins." : LIVE.uid ? "Checking your account…" : "Log in to use the checklists, the 86 board, restocking and shift reports. Everyone on shift sees the same lists."}</p>${LIVE.api && !LIVE.uid ? `<div class="actions"><button class="btn pri" data-login>Log in</button></div>` : ""}`;
     return;
   }
+  freshNight();
   $("#shift-day").textContent = new Date(Date.now() - 6 * 36e5).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: UK });
   const outList = [...outNow()].sort();
   $("#shift-title").textContent = mode === "bar" ? "Bar shift" : "Floor shift";
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
   const tabs = `<div class="modesw">${["bar", "floor"].map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${m === "bar" ? "Bar" : "Floor"}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
   const body = {
-    open: () => `${checklistHtml("open")}${nextBtn("stock", "Next: stock and 86s")}`,
-    fset: () => `${checklistHtml("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
+    open: () => `${handoverHtml()}${checklistHtml("open")}${nextBtn("stock", "Next: stock and 86s")}`,
+    fset: () => `${handoverHtml()}${checklistHtml("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
     fshake: () => `${labelsHtml()}<div class="sec">Station checklist</div>${checklistHtml("fshake")}${nextBtn("stock", "Next: stock and 86s")}`,
     fclose: () => `${checklistHtml("fclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     stock: () => `<div class="sec">86'd tonight</div>
@@ -1315,16 +1346,17 @@ function renderTally() {
       ${restockHtml()}${nextBtn(mode === "bar" ? "close" : "fclose", "Next: closing checklist")}`,
     close: () => `${checklistHtml("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     send: () => {
+      const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
         ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div><div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>
       </div>
+      ${stillToDoHtml()}
       <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${MANAGERS.map((m) => `<button class="chip" data-closer="${m}" aria-pressed="${m === closer}">${m}</button>`).join("")}</div></div>
       <label class="fld">Note for handover<textarea id="s-note" rows="3" maxlength="1000" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
-      <button class="btn pri wide" id="t-copy">Send to managers for sign-off</button>
+      <button class="btn pri wide" id="t-copy">${left ? `Send with ${left} not done` : "Send to managers for sign-off"}</button>
       <div class="actions">${shareBtns("shift")}</div>
       <details class="setup"><summary>Preview the report</summary><textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea></details>
-      <button class="btn danger wide" id="t-reset">Clear my handover note</button>
-      ${confirmReset ? `<div class="confirm">Clear the handover note and closing manager on this phone? Tonight's tasks stay on record for everyone and start fresh at 6am. <div class="actions"><button class="btn danger" id="t-yes">Clear my note</button><button class="btn" id="t-no">Keep them</button></div></div>` : ""}`;
+      <p class="note">The note and closing manager start empty again at 6am.</p>`;
     },
   }[pane]();
   // The pane slides in when it's switched to, not each time a teammate's change redraws it.
@@ -1378,8 +1410,11 @@ $("#tally").addEventListener("click", async (e) => {
     track(LIVE.api.sendReport(mode, tallyText(), summary), "Sent to the managers for sign-off", "Report not sent. Try again"); haptic(); return;
   }
   if (e.target.closest("[data-login]")) { show("notices"); return; }
-  if (e.target.closest("#t-reset")) { confirmReset = true; renderTally(); }
-  if (e.target.closest("#t-no")) { confirmReset = false; renderTally(); }
+  const jp = e.target.closest("[data-jump]"); if (jp) {
+    pane = jp.dataset.jump; renderTally();
+    const at = jp.dataset.jumpI == null ? $(".run") : document.querySelector(`[data-list="${pane}"][data-i="${jp.dataset.jumpI}"]`);
+    at?.scrollIntoView({ block: "center" }); return;
+  }
   const cl = e.target.closest("[data-closer]"); if (cl) { closer = cl.dataset.closer === closer ? "" : cl.dataset.closer; store.set("closer", closer); haptic(); renderTally(); return; }
   const md = e.target.closest("[data-mode]"); if (md) { haptic(); setMode(md.dataset.mode); return; }
   const pn = e.target.closest("[data-pane]"); if (pn) { pane = pn.dataset.pane; renderTally(); $("#v-tally").scrollIntoView({ block: "start" }); window.scrollTo(0, 0); return; }
@@ -1404,10 +1439,6 @@ $("#tally").addEventListener("click", async (e) => {
   }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  if (e.target.closest("#t-yes")) {
-    // Tonight's tasks are the team's record, so only this phone's note is cleared.
-    shiftNote = ""; store.set("shiftNote", ""); closer = ""; store.set("closer", ""); confirmReset = false; renderTally(); toast("Note cleared");
-  }
 });
 
 /* ---------- Old records: temperatures, line cleans and waste ----------
@@ -2564,7 +2595,7 @@ function liveChanged(what) {
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "tasks", "runs", "events", "restock", "staff"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "tasks", "runs", "events", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
