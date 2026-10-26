@@ -158,7 +158,7 @@ nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
 .kv { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr); gap: 4px 12px; margin-top: 8px; }
 .kv dt { font-weight: 700; }
 .kv dd { margin: 0; color: var(--muted); }
-.paygrid { display: grid; grid-template-columns: 1fr 1fr; gap: 0 10px; }
+.paygrid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0 10px; }
 .paykv { margin: 14px 0 10px; grid-template-columns: 1fr auto; }
 .paykv dd { text-align: right; font-variant-numeric: tabular-nums; }
 .paykv .take { font-size: 19px; font-weight: 700; color: var(--fg); border-top: 1px solid var(--line); padding-top: 6px; }
@@ -240,6 +240,8 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .prog i { display: block; height: 100%; background: var(--brass); border-radius: 99px; transition: width .3s ease-out; }
 .prog.full i { background: var(--ok); }
 .btn.next { margin-top: 20px; border-color: var(--brass); color: var(--brass); }
+.football { margin: 0 0 12px; }
+.football .fx { padding: 8px 0; }
 .sumcard { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; margin-top: 14px; }
 .sumcard div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
 .sumcard span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
@@ -465,6 +467,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
   <section class="view" id="v-tally" hidden>
     <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
+    <div id="football"></div>
     <div id="tally"></div>
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
     <input id="cn-in" type="file" accept="image/*" hidden>
@@ -560,7 +563,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] };
 // The 86 board is shared by everyone logged in. Logged out, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -1255,11 +1258,13 @@ function paneBadge(k) {
 let lastPane = "";
 function renderTally() {
   if (!LIVE.me) {
+    renderFootball();
     $("#shift-title").textContent = mode === "bar" ? "Bar shift" : "Floor shift"; $("#shift-day").textContent = "";
     $("#tally").innerHTML = `<p class="note">${!LIVE.api ? "The shift checklists need team logins." : LIVE.uid ? "Checking your account…" : "Log in to use the checklists, the 86 board, restocking and shift reports. Everyone on shift sees the same lists."}</p>${LIVE.api && !LIVE.uid ? `<div class="actions"><button class="btn pri" data-login>Log in</button></div>` : ""}`;
     return;
   }
   freshNight();
+  if (!$("#football").contains(document.activeElement)) renderFootball();
   $("#shift-day").textContent = new Date(Date.now() - 6 * 36e5).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: UK });
   const outList = [...outNow()].sort();
   $("#shift-title").textContent = mode === "bar" ? "Bar shift" : "Floor shift";
@@ -1369,6 +1374,46 @@ $("#tally").addEventListener("click", async (e) => {
   }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
+});
+
+/* ---------- Football on the screens ----------
+   Managers add the games the bar is showing; everyone sees today's at the top of the Shift tab, and what's coming up.
+   No free listing says which games are on TNT, so the manager picks the channel. */
+const COMPS = ["Premier League", "Champions League", "Europa League", "Conference League", "FA Cup", "Serie A"];
+const CHANNELS = ["TNT Sports 1", "TNT Sports 2", "TNT Sports 3", "TNT Sports 4", "Sky Sports", "BBC", "ITV"];
+let fxForm = { day: "", ko: "20:00", home: "", away: "", comp: "", channel: "", screen: "" };
+const fxRow = (x) => `<div class="staffrow fx"><div class="n"><b class="dt">${esc(x.ko)}</b> ${esc(x.home)} v ${esc(x.away)}</div>
+  <div class="s">${[x.comp, x.channel, x.screen && `Screen: ${x.screen}`].filter(Boolean).map(esc).join(" · ")}${LIVE.admin ? ` · <button class="linkbtn" data-fx-drop="${x.id}">Take down</button>` : ""}</div></div>`;
+function renderFootball() {
+  const box = $("#football"); if (!box) return;
+  if (!LIVE.me) { box.innerHTML = ""; return; }
+  const today = ukDay(Date.now()), games = LIVE.fixtures.filter((x) => !x.pending || x.uid === LIVE.uid).sort((a, b) => (a.day + a.ko).localeCompare(b.day + b.ko));
+  const now = games.filter((x) => x.day === today), soon = games.filter((x) => x.day > today);
+  if (!now.length && !soon.length && !LIVE.admin) { box.innerHTML = ""; return; }
+  const v = (k) => esc(fxForm[k]), list = (id, xs) => `<datalist id="${id}">${xs.map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`;
+  const form = LIVE.admin ? `<details class="setup" id="fx-add"${fxForm.open ? " open" : ""}><summary>Add a game</summary>
+      <div class="paygrid"><label class="fld">Day<input type="date" data-fx="day" value="${v("day") || today}"></label><label class="fld">Kick-off<input type="time" data-fx="ko" value="${v("ko")}"></label>
+      <label class="fld">Home<input data-fx="home" maxlength="40" value="${v("home")}"></label><label class="fld">Away<input data-fx="away" maxlength="40" value="${v("away")}"></label>
+      <label class="fld">Competition<input data-fx="comp" list="fx-comps" maxlength="40" value="${v("comp")}"></label><label class="fld">Channel<input data-fx="channel" list="fx-chans" maxlength="30" value="${v("channel")}"></label></div>
+      <label class="fld">Which screen<input data-fx="screen" maxlength="30" placeholder="All screens, upstairs bar…" value="${v("screen")}"></label>
+      ${list("fx-comps", COMPS)}${list("fx-chans", CHANNELS)}<button class="btn pri wide" id="fx-go">Add the game</button></details>` : "";
+  box.innerHTML = `<div class="notice football"><div class="meta"><b>Football tonight</b></div>
+    ${now.length ? now.map(fxRow).join("") : `<p class="note">No games on our screens today.</p>`}
+    ${soon.length ? `<details><summary>Coming up (${soon.length})</summary>${soon.map((x) => `<div class="s" style="margin-top:8px"><b>${esc(dayName(x.day))}</b></div>${fxRow(x)}`).join("")}</details>` : ""}
+    ${form}</div>`;
+}
+$("#football").addEventListener("input", (e) => { const k = e.target.dataset.fx; if (k) fxForm[k] = e.target.value; });
+$("#football").addEventListener("toggle", (e) => { if (e.target.id === "fx-add") fxForm.open = e.target.open; }, true);
+$("#football").addEventListener("click", (e) => {
+  const d = e.target.closest("[data-fx-drop]");
+  if (d) { if (confirm("Take this game down?")) track(LIVE.api.dropFixture(d.dataset.fxDrop), "Taken down", "Not taken down. Try again"); return; }
+  if (!e.target.closest("#fx-go")) return;
+  const x = { ...fxForm, day: fxForm.day || ukDay(Date.now()) };
+  for (const k of ["home", "away", "comp", "channel", "screen"]) x[k] = (x[k] || "").trim();
+  if (!x.home || !x.away) return toast("Add both teams");
+  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(x.ko)) return toast("Add the kick-off time");
+  track(LIVE.api.addFixture(x), `${x.home} v ${x.away} added`, "Not added. Try again"); haptic();
+  fxForm = { ...fxForm, home: "", away: "", open: true }; renderFootball();
 });
 
 /* ---------- Old records: temperatures, line cleans and waste ----------
@@ -2609,12 +2654,13 @@ function liveChanged(what) {
       asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis], restock: [renderDash, renderLive],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
-      concerns: [renderConcerns, renderDash, renderAct], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
+      concerns: [renderConcerns, renderDash, renderAct], fixtures: [], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
     const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
+  if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
   if (["me", "out", "photos", "tasks", "runs", "events", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();

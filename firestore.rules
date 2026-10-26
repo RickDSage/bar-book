@@ -585,6 +585,19 @@ service cloud.firestore {
         || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
     }
 
+    // ---------- Football on the screens ----------
+    // Managers list the games the bar is showing: the day, kick-off, the teams, the competition, the channel and the
+    // screen. Everyone on the team reads them. A wrong one is taken down and added again.
+    match /fixtures/{id} {
+      allow read: if isMember();
+      allow create: if isManager() && exactly(['day', 'ko', 'home', 'away', 'comp', 'channel', 'screen', 'uid', 'name', 'at'])
+        && isDay(incoming().day) && dayOf(incoming().day) > request.time - duration.value(2, 'd')
+        && dayOf(incoming().day) < request.time + duration.value(90, 'd') && isTime(incoming().ko)
+        && reqText(incoming().home, 40) && reqText(incoming().away, 40) && optText(incoming().comp, 40)
+        && optText(incoming().channel, 30) && optText(incoming().screen, 30) && stamped();
+      allow delete: if isManager();
+    }
+
     // ---------- Team chat ----------
     // Who's on the team, for picking someone to message: name and role only. Staff can't list staff records (they hold
     // usernames), so each phone keeps its own entry up to date and managers' phones keep everyone's. An entry always
