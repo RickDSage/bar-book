@@ -11,7 +11,7 @@ import {
 import {
   initializeFirestore, persistentLocalCache, connectFirestoreEmulator, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc,
   collection, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
-  terminate, clearIndexedDbPersistence,
+  terminate, clearIndexedDbPersistence, arrayRemove,
 } from "firebase/firestore";
 
 const app = initializeApp(__CONFIG__);
@@ -110,6 +110,7 @@ function listen(uid) {
     sub("asks", LIVE.admin ? query(collection(db, "asks"), orderBy("at", "desc"), limit(100)) : query(collection(db, "asks"), where("uid", "==", uid)), (snap) => {
       LIVE.asks = rows(snap); liveChanged("asks");
     });
+    watchChats(uid);
     if (!LIVE.admin) { Object.assign(LIVE, { staff: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], training: [], requests: [] }); return; }
     // Stock requests from before restocking, kept so managers can still clear the last ones.
     sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
@@ -122,7 +123,7 @@ function listen(uid) {
     sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); });
     sub("staff", collection(db, "staff"), (snap) => {
       LIVE.staff = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
-      liveChanged("staff");
+      liveChanged("staff"); if (!snap.metadata.hasPendingWrites) syncDirectory();
     });
     sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
     clearOldPhotos();
@@ -141,6 +142,55 @@ function watchSeen(uid) {
   sub("seen", !LIVE.admin ? query(seen, where("uid", "==", uid)) : LIVE.owner ? query(seen, where("notice", "in", ids))
     : query(seen, where("managers", "==", true), where("notice", "in", ids)), (snap) => { LIVE.seen = rows(snap); liveChanged("seen"); });
 }
+
+// Team chat: who's on the team (the directory), the chats this person is in, the team chat, and their pings. Messages
+// load only for the chat that's open.
+const byName = (a, b) => a.name.localeCompare(b.name);
+function watchChats(uid) {
+  sub("directory", collection(db, "directory"), (snap) => {
+    LIVE.directory = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort(byName); liveChanged("directory");
+    if (!snap.metadata.hasPendingWrites) syncDirectory();
+  });
+  const ch = { mine: [], team: [] };
+  const merge = () => { LIVE.chats = [...ch.team, ...ch.mine].sort((a, b) => ms(b.lastAt) - ms(a.lastAt)); liveChanged("chats"); };
+  sub("chats", query(collection(db, "chats"), where("members", "array-contains", uid)), (snap) => { ch.mine = rows(snap); merge(); });
+  sub("team-chat", doc(db, "chats", "team"), (d) => { ch.team = d.exists() ? [{ ...d.data(), id: d.id, pending: d.metadata.hasPendingWrites }] : []; merge(); });
+  sub("pings", query(collection(db, "pings"), where("to", "==", uid)), (snap) => { LIVE.pings = rows(snap); liveChanged("pings"); });
+  clearOldChatPhotos(uid).catch(() => {});
+}
+// Each phone keeps its own directory entry matching its staff record; managers' phones keep everyone's and remove
+// people who have left. Only from what the server has confirmed: a change still saving (a role change, say) may yet be
+// refused. A write the rules refuse isn't tried again until something changes.
+const triedDir = new Set();
+function syncDirectory() {
+  if (!LIVE.loaded.has("directory") || (LIVE.admin && !LIVE.loaded.has("staff"))) return;
+  const want = LIVE.admin ? LIVE.staff : [{ uid: auth.currentUser.uid, name: LIVE.me, role: LIVE.role }];
+  const have = new Map(LIVE.directory.map((p) => [p.uid, p]));
+  // (After logging out the database is closed, and a write throws straight away.)
+  const once = (k, write) => { if (!triedDir.has(k)) { triedDir.add(k); Promise.resolve().then(write).catch(() => {}); } };
+  for (const p of want) {
+    const h = have.get(p.uid);
+    if (!h || h.name !== p.name || h.role !== p.role) once(`${p.uid}:${p.name}:${p.role}`, () => setDoc(doc(db, "directory", p.uid), { name: p.name, role: p.role }));
+  }
+  if (LIVE.admin) for (const h of LIVE.directory) if (!want.some((p) => p.uid === h.uid)) once(`${h.uid}:gone`, () => deleteDoc(doc(db, "directory", h.uid)));
+}
+// Chat photos are cleared by whoever sent them, 30 days on (Firebase Storage needs a paid plan). Each launch checks the
+// week of business days just past that, one query per day (two equality filters need no index made in the console).
+async function clearOldChatPhotos(uid) {
+  for (let n = KEEP_DAYS + 1; n <= KEEP_DAYS + 7; n++) {
+    const day = ukDay(Date.now() - 6 * 36e5 - n * 864e5);
+    const old = await getDocs(query(collection(db, "chatPhotos"), where("uid", "==", uid), where("day", "==", day))).catch(() => null);
+    if (old && !old.empty) { const b = writeBatch(db); old.docs.slice(0, 400).forEach((d) => b.delete(d.ref)); await b.commit().catch(() => {}); }
+  }
+}
+// The chat that's open: its latest 60 messages.
+let openChat = "";
+function watchMessages(id) {
+  if (id === openChat && subs.msgs) return;
+  unsub("msgs"); openChat = id; LIVE.msgs = []; LIVE.loaded.delete("msgs");
+  if (id) sub("msgs", query(collection(db, "chats", id, "msgs"), orderBy("at", "desc"), limit(60)), (snap) => { LIVE.msgs = rows(snap).reverse(); liveChanged("msgs"); });
+}
+const preview = (text) => [...(text || "Photo")].slice(0, 80).join("");
 
 // Logging out, or being removed, wipes this phone's copy of the team's data, then starts the app afresh.
 let leaving = false;
@@ -397,15 +447,53 @@ LIVE.api = {
   history: (name) => getDocs(query(collection(db, name), orderBy("at", "desc"))).then(rows),
   // Checklist ticks from before tasks (24 and 25 October 2026), for the given business days.
   ticksFor: (days) => Promise.all(days.map((day) => getDocs(collection(db, "shift", day, "ticks")).then((s) => s.docs.map((x) => ({ day, ...x.data() }))))).then((xs) => xs.flat()),
+  // Team chat. A private chat's id is both uids in order, so a pair only ever has one.
+  dmId: (other) => [auth.currentUser.uid, other].sort().join("-"),
+  newChat(kind, { other, title = "", members = [] } = {}) {
+    const uid = auth.currentUser.uid, ref = kind === "team" ? doc(db, "chats", "team") : kind === "dm" ? doc(db, "chats", LIVE.api.dmId(other)) : doc(collection(db, "chats"));
+    const ids = kind === "dm" ? [uid, other].sort() : kind === "group" ? [uid, ...members.filter((m) => m !== uid)] : [];
+    return setDoc(ref, { kind, title, members: ids, by: uid, at: serverTimestamp(), lastId: "", lastText: "", lastName: "", lastUid: "", lastAt: serverTimestamp(), lastPings: [], read: {} }).then(() => ref.id);
+  },
+  watchMessages,
+  // A message, the chat's preview, its photo and a ping for each person mentioned go in one write. In a private chat the
+  // other person is always pinged.
+  sendChat(c, text, photo, mentions = []) {
+    const uid = auth.currentUser.uid, b = writeBatch(db), m = doc(collection(db, "chats", c.id, "msgs"));
+    if (c.kind === "dm") mentions = c.members.filter((x) => x !== uid);
+    b.set(m, { text, photo: !!photo, mentions, ...me() });
+    b.update(doc(db, "chats", c.id), { lastId: m.id, lastText: preview(text), lastName: LIVE.me, lastUid: uid, lastAt: serverTimestamp(), lastPings: mentions, [`read.${uid}`]: serverTimestamp() });
+    if (photo) b.set(doc(db, "chatPhotos", `${c.id}-${m.id}`), { chat: c.id, msg: m.id, day: shiftDay(), data: photo, ...me() });
+    mentions.forEach((to) => b.set(doc(db, "pings", `${to}-${c.id}`), { to, chat: c.id, msg: m.id, text: preview(text), ...me() }));
+    return b.commit();
+  },
+  // Takes back your own message and its photo. If it was the latest, the chat's preview clears.
+  unsend(c, m) {
+    const b = writeBatch(db);
+    b.delete(doc(db, "chats", c.id, "msgs", m.id));
+    if (m.photo) b.delete(doc(db, "chatPhotos", `${c.id}-${m.id}`));
+    if (c.lastId === m.id) b.update(doc(db, "chats", c.id), { lastText: "" });
+    return b.commit();
+  },
+  // Read up to now, and any ping for this chat cleared.
+  markRead(c) {
+    const uid = auth.currentUser.uid, b = writeBatch(db);
+    b.update(doc(db, "chats", c.id), { [`read.${uid}`]: serverTimestamp() });
+    if (LIVE.pings.some((p) => p.chat === c.id)) b.delete(doc(db, "pings", `${uid}-${c.id}`));
+    return b.commit();
+  },
+  editGroup: (c, title, members) => updateDoc(doc(db, "chats", c.id), { title, members }),
+  leaveGroup: (c) => updateDoc(doc(db, "chats", c.id), { members: arrayRemove(auth.currentUser.uid) }),
+  // A photo's data, or null once it has been cleared after 30 days.
+  chatPhoto: (c, m) => getDoc(doc(db, "chatPhotos", `${c.id}-${m.id}`)).then((x) => (x.exists() ? x.data().data : null)),
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  training: [], concerns: [] });
+  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }
-  unsubAll(); LIVE.loaded.clear();
+  unsubAll(); LIVE.loaded.clear(); openChat = "";
   Object.assign(LIVE, EMPTY());
   liveChanged("me");
 });

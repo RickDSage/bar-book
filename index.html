@@ -271,6 +271,23 @@ b.dt { color: var(--fg); font-weight: 700; }
 .photo img { display: block; width: 100%; border-radius: 8px; }
 .photo .btn { margin-top: 8px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+/* Team chat */
+.chrow { display: block; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
+.chrow.new { border-color: var(--brass); }
+.chrow .n { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; }
+.chrow .s { margin-top: 2px; color: var(--muted); font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.udot { width: 10px; height: 10px; border-radius: 50%; background: var(--brass); flex: none; }
+.chhead { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.chhead b { font-size: 19px; overflow-wrap: anywhere; }
+.chmsgs { display: flex; flex-direction: column; gap: 8px; max-height: 55vh; overflow-y: auto; margin-top: 10px; padding: 4px 0; overscroll-behavior: contain; }
+.msg { align-self: flex-start; max-width: 85%; background: var(--surface); border: 1px solid var(--line); border-radius: 14px 14px 14px 4px; padding: 8px 12px; }
+.msg.me { align-self: flex-end; border-radius: 14px 14px 4px 14px; background: color-mix(in srgb, var(--brass) 14%, var(--surface)); }
+.msg.at { border: 2px solid var(--brass); }
+.msg .meta { color: var(--muted); font-size: 12.5px; }
+.msg .txt { margin: 4px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg img { display: block; max-width: 100%; margin-top: 6px; border-radius: 8px; }
+.msg .tags { margin-top: 4px; }
+.msg .linkbtn { min-height: 28px; font-size: 13px; }
 details.setup { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 8px; }
 details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px; display: flex; align-items: center; }
 .rvrow { display: grid; grid-template-columns: 1fr auto auto auto; gap: 6px; margin-top: 10px; }
@@ -445,12 +462,13 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <div id="tally"></div>
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
     <input id="cn-in" type="file" accept="image/*" hidden>
+    <input id="ch-in" type="file" accept="image/*" hidden>
   </section>
 
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="mgrs"></div><div id="incs"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="compose"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="mgrs"></div><div id="incs"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
     <div id="notices"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
@@ -613,7 +631,7 @@ D.forEach((d) => (d._h = hay(d)));
 let out = new Set(store.get("out", []));
 let teamOut = new Set();
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] };
 const outNow = () => (LIVE.me ? LIVE.out : out);
 const isOut = (n) => outNow().has(n) || teamOut.has(n);
 function setOut(name, on) {
@@ -1517,7 +1535,7 @@ function parseNotices(txt) {
   });
 }
 function renderBell() {
-  const n = notices.filter((x) => !seen.has(x.key)).length + feedNew().length;
+  const n = notices.filter((x) => !seen.has(x.key)).length + feedNew().length + unreadChats().length;
   $("#bell").hidden = false; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
   $("#bell").setAttribute("aria-label", n ? `Team, ${n} new` : "Team");
 }
@@ -1531,7 +1549,7 @@ const feedNew = () => [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].filter(is
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#dash", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#dash", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#compose", "#feed", "#reports", "#sact", "#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -1571,11 +1589,11 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
-  renderDash(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#compose", "#feed", "#notices"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
+const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#compose", "#feed", "#notices"], chat: ["#chat"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
 // The Managers tab in parts, so nothing is a long scroll away.
@@ -1586,9 +1604,9 @@ const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 function renderTeamTabs() {
   const all = Object.values(TSLOTS).flat();
   if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
-  const tabs = [["board", "Board"], ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
+  const tabs = [["board", "Board"], ["chat", "Chat"], ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
   if (!tabs.some(([k]) => k === tpane)) tpane = "board";
-  const count = { board: [openIssues().length + openConcerns().length, "open"], reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"], requests: [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length, "waiting"] };
+  const count = { board: [openIssues().length + openConcerns().length, "open"], chat: [unreadChats().length, "new"], reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"], requests: [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length, "waiting"] };
   const badge = (k) => (count[k] && count[k][0] ? `${count[k][0]} ${count[k][1]}` : "");
   $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge(k)}</small></button>`).join("")}</div>`;
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
@@ -2334,6 +2352,165 @@ async function prepareDownload(sec) {
   actFile = { sec, n: rows.length - 1, name: `black-tap-${name}-${ukDay(Date.now())}.csv`, url: URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })) };
   [renderAct, renderTraining, renderKpis].forEach((f) => f());
 }
+/* ---------- Team chat ----------
+   The team chat (everyone), private chats between two people and groups. Pinging someone (@) marks the chat for them and
+   pops up while their app is open. Phones with the app closed aren't told: that needs a paid Firebase plan. */
+let chatId = "", chatView = "list", chBusy = false, chMarked = "";
+const chF = { text: "", photo: "", mentions: [], title: "", members: [] };
+const chPhotos = {};
+const JPEG_URL = /^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/;
+const dirName = (uid) => LIVE.directory.find((p) => p.uid === uid)?.name || "Someone who has left";
+const chatName = (c) => (c.kind === "team" ? "Team chat" : c.kind === "group" ? c.title : dirName(c.members.find((m) => m !== LIVE.uid)));
+// When this person last read it: never (0), or a moment ago if their phone is still saving it.
+const readAt = (c) => { const r = c.read?.[LIVE.uid]; return r === undefined ? 0 : ms(r); };
+const unread = (c) => !!c.lastUid && c.lastUid !== LIVE.uid && ms(c.lastAt) > readAt(c);
+const unreadChats = () => LIVE.chats.filter(unread);
+const pinged = (c) => LIVE.pings.some((p) => p.chat === c.id);
+const chWhen = (t) => { const d = new Date(ms(t)); return ukDay(d) === ukDay(Date.now()) ? hhmm(d) : `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: UK })}, ${hhmm(d)}`; };
+const openRoom = () => LIVE.chats.find((c) => c.id === chatId && (chatView === "room" || chatView === "edit"));
+const viewing = (id) => !document.hidden && !$("#v-notices").hidden && tpane === "chat" && openRoom()?.id === id;
+// Who can be pinged: everyone else on the team in the team chat, everyone else in a group.
+const pingable = (c) => (c.kind === "team" ? LIVE.directory.map((p) => p.uid) : c.kind === "group" ? c.members : []).filter((u) => u !== LIVE.uid);
+const canEdit = (c) => c.kind === "group" && (c.by === LIVE.uid || LIVE.admin);
+function goChat(id) {
+  chatId = id; chatView = "room"; Object.assign(chF, { text: "", photo: "", mentions: [] });
+  renderChat(); $("#tpanes").scrollIntoView({ block: "start" });
+}
+function renderChat() {
+  const box = $("#chat"); if (!LIVE.me) { box.innerHTML = ""; return; }
+  // The team chat is made the first time anyone opens Chat.
+  if (LIVE.loaded.has("team-chat") && !LIVE.chats.some((c) => c.id === "team") && !renderChat.made) {
+    renderChat.made = true; LIVE.api.newChat("team").catch(() => (renderChat.made = false));
+  }
+  if (chatView === "room" || chatView === "edit") return renderRoom(box, LIVE.chats.find((c) => c.id === chatId));
+  const others = LIVE.directory.filter((p) => p.uid !== LIVE.uid);
+  const who = (pick, attr) => (others.length ? `<div class="recent">${others.map((p) => `<button class="chip" ${attr}="${p.uid}" aria-pressed="${pick(p.uid)}">${esc(p.name)}</button>`).join("")}</div>`
+    : `<p class="note">Nobody else has opened the app since chat was added. They appear here once they do, or once a manager opens the Team page.</p>`);
+  const form = chatView === "people" ? `<div class="mini">Who to message</div>${who(() => false, "data-ch-dm")}`
+    : chatView === "group" ? groupForm(who) : "";
+  const row = (c) => `<button class="chrow${unread(c) ? " new" : ""}" data-ch-open="${c.id}"><div class="n">${esc(chatName(c))}${pinged(c) ? `<span class="pill wait">@ you</span>` : ""}${unread(c) ? `<span class="udot" aria-label="New"></span>` : ""}</div>
+    <div class="s">${c.lastText ? `${c.lastUid === LIVE.uid ? "You" : esc(c.lastName)}: ${esc(c.lastText)}` : c.lastUid ? "Message unsent" : "No messages yet"} · ${chWhen(c.lastAt)}</div></button>`;
+  box.innerHTML = `<div class="sec">Chat</div>
+    <p class="note">Message the whole team, one person or a group. Ping someone with @ and it's marked for them, with a pop-up if their app is open. Phones with the app closed aren't notified.</p>
+    <div class="actions"><button class="btn${chatView === "people" ? " pri" : ""}" data-ch-view="people">Message someone</button><button class="btn${chatView === "group" ? " pri" : ""}" data-ch-view="group">New group</button></div>
+    ${form}${LIVE.loaded.has("chats") ? LIVE.chats.map(row).join("") : `<p class="note">Loading chats…</p>`}`;
+}
+function groupForm(who) {
+  return `<label class="fld">Group name<input id="ch-title" maxlength="40" value="${esc(chF.title)}" placeholder="Floor team, Friday close…"></label>
+    <div class="mini">Who's in it (you are too)</div>${who((u) => chF.members.includes(u), "data-ch-mem")}
+    <div class="actions"><button class="btn pri" id="ch-make">${chatView === "edit" ? "Save" : "Start the group"}</button>${chatView === "edit" ? `<button class="btn" data-ch-view="room">Cancel</button>` : ""}</div>`;
+}
+function renderRoom(box, c) {
+  const back = `<div class="chhead"><button class="back" data-ch-view="list">‹ Chats</button><b>${c ? esc(chatName(c)) : ""}</b></div>`;
+  if (!c) { box.innerHTML = `${back}<p class="note">This chat isn't here. It may still be opening, or you're no longer in it.</p>`; return; }
+  // A chat still being made can't be listened to yet; the next update tries again.
+  if (!c.pending) LIVE.api.watchMessages(c.id);
+  const others = LIVE.directory.filter((p) => p.uid !== LIVE.uid);
+  const who = (pick, attr) => `<div class="recent">${others.map((p) => `<button class="chip" ${attr}="${p.uid}" aria-pressed="${pick(p.uid)}">${esc(p.name)}</button>`).join("")}</div>`;
+  const group = c.kind !== "group" ? "" : chatView === "edit" ? groupForm(who)
+    : `<p class="note">${c.members.map((u) => esc(u === LIVE.uid ? "You" : dirName(u))).join(", ")}</p><div class="actions">${canEdit(c) ? `<button class="btn" data-ch-edit>Change group</button>` : ""}<button class="btn" data-ch-leave>Leave group</button></div>`;
+  box.innerHTML = `${back}${group}<div class="chmsgs" id="ch-msgs" aria-live="polite"></div><div id="ch-compose"></div>`;
+  renderMsgs(); renderCompose(c);
+}
+function photoOf(c, m) {
+  const d = chPhotos[m.id];
+  if (d === undefined) {
+    chPhotos[m.id] = "loading";
+    LIVE.api.chatPhoto(c, m).then((x) => (chPhotos[m.id] = x && JPEG_URL.test(x) ? x : null), () => delete chPhotos[m.id]).then(renderMsgs);
+  }
+  return d === null ? `<p class="note">Photo cleared after 30 days</p>` : d && d !== "loading" ? `<img src="${d}" alt="Photo from ${esc(m.name)}">` : `<p class="note">Loading photo…</p>`;
+}
+function renderMsgs() {
+  const el = $("#ch-msgs"), c = openRoom(); if (!el || !c) return;
+  chatSeen(c);
+  if (!LIVE.loaded.has("msgs")) { el.innerHTML = `<p class="note">Loading messages…</p>`; return; }
+  el.innerHTML = LIVE.msgs.map((m) => { const mine = m.uid === LIVE.uid, at = m.mentions?.includes(LIVE.uid) && c.kind !== "dm";
+    return `<div class="msg${mine ? " me" : ""}${at ? " at" : ""}"><div class="meta">${mine ? "You" : `<b>${esc(m.name)}</b>`} · ${chWhen(m.at)}${m.pending ? " · sending…" : ""}</div>
+      ${m.mentions?.length && c.kind !== "dm" ? `<div class="tags">${m.mentions.map((u) => `<span class="pill${u === LIVE.uid ? " wait" : ""}">@${esc(u === LIVE.uid ? "you" : dirName(u))}</span>`).join(" ")}</div>` : ""}
+      ${m.text ? `<p class="txt">${esc(m.text)}</p>` : ""}${m.photo ? photoOf(c, m) : ""}${mine && !m.pending ? `<button class="linkbtn" data-ch-unsend="${m.id}">Unsend</button>` : ""}</div>`; }).join("")
+    || `<p class="note">No messages yet.</p>`;
+  el.scrollTop = el.scrollHeight;
+}
+function renderCompose(c) {
+  const ps = pingable(c), n = chF.mentions.length;
+  $("#ch-compose").innerHTML = `${ps.length ? `<details class="setup"${n ? " open" : ""}><summary>Ping someone${n ? ` (${n})` : ""}</summary><div class="recent">${ps.map((u) => `<button class="chip" data-ch-ping="${u}" aria-pressed="${chF.mentions.includes(u)}">@${esc(dirName(u))}</button>`).join("")}</div><p class="note">Up to 5 people per message.</p></details>` : ""}
+    ${chF.photo ? `<div class="photo"><img src="${chF.photo}" alt="Photo to send"><button class="btn danger" data-ch-unphoto>Remove photo</button></div>` : ""}
+    <label class="fld">Message<textarea id="ch-text" rows="2" maxlength="1000" placeholder="${c.kind === "dm" ? `Message ${esc(chatName(c))}` : c.kind === "team" ? "Message the team" : "Message the group"}">${esc(chF.text)}</textarea></label>
+    <div class="actions"><label class="btn" for="ch-in" style="cursor:pointer">${chBusy ? "Adding photo…" : chF.photo ? "Change photo" : "Add a photo"}</label><button class="btn pri" id="ch-send">Send</button></div>`;
+}
+// Opening a chat marks it read and clears its ping, once per new message.
+function chatSeen(c) {
+  const k = c.id + c.lastId + pinged(c);
+  if (!viewing(c.id) || (!unread(c) && !pinged(c)) || chMarked === k) return;
+  chMarked = k; LIVE.api.markRead(c).catch(() => (chMarked = ""));
+}
+document.addEventListener("visibilitychange", () => { const c = openRoom(); if (c && !document.hidden) chatSeen(c); });
+// A new message in a chat that isn't open pops up, saying if it pinged you. The team chat stays quiet while the Team page
+// is open, unless it pings you.
+function chatToasts() {
+  // The first time both chat lists have loaded, what's there already is old news.
+  if (!LIVE.loaded.has("chats") || !LIVE.loaded.has("team-chat")) return;
+  const first = !firstSnap.has("chats"); firstSnap.add("chats");
+  for (const c of LIVE.chats.filter(unread)) {
+    const k = "msg" + c.lastId, me = c.kind !== "dm" && c.lastPings?.includes(LIVE.uid);
+    if (told.has(k)) continue; told.add(k);
+    if (first || viewing(c.id) || (c.kind === "team" && !me && !$("#v-notices").hidden)) continue;
+    toast(`${c.lastName}${me ? " pinged you" : c.kind === "dm" ? "" : ` in ${chatName(c)}`}: ${c.lastText}`); haptic();
+  }
+}
+$("#chat").addEventListener("input", (e) => { if (e.target.id === "ch-text") chF.text = e.target.value; if (e.target.id === "ch-title") chF.title = e.target.value; });
+$("#chat").addEventListener("click", (e) => {
+  const b = e.target.closest("button"), A = LIVE.api; if (!b) return;
+  const c = openRoom(), d = b.dataset;
+  if (d.chView) { chatView = d.chView === chatView && !c ? "list" : d.chView; if (chatView === "group") Object.assign(chF, { title: "", members: [] }); renderChat(); return; }
+  if (d.chOpen) return goChat(d.chOpen);
+  if (d.chDm) {
+    const id = A.dmId(d.chDm);
+    if (!LIVE.chats.some((x) => x.id === id)) track(A.newChat("dm", { other: d.chDm }), null, "Couldn't start the chat. Try again");
+    return goChat(id);
+  }
+  if (d.chMem) { const u = d.chMem; chF.members = chF.members.includes(u) ? chF.members.filter((x) => x !== u) : [...chF.members, u]; b.setAttribute("aria-pressed", chF.members.includes(u)); return; }
+  if (b.id === "ch-make") {
+    const title = chF.title.trim();
+    if (!title) return toast("Give the group a name");
+    if (!chF.members.length) return toast("Pick who's in it");
+    if (chF.members.length > 39) return toast("40 people is the most for a group");
+    if (chatView === "edit") { track(A.editGroup(c, title, [LIVE.uid, ...chF.members.filter((u) => u !== LIVE.uid)]), "Group changed", "Not saved. Try again"); chatView = "room"; renderChat(); return; }
+    A.newChat("group", { title, members: chF.members }).then(goChat, () => toast("Couldn't start the group. Try again")); chatView = "list"; renderChat(); return;
+  }
+  if (!c) return;
+  if ("chEdit" in d) { Object.assign(chF, { title: c.title, members: c.members.filter((u) => u !== LIVE.uid) }); chatView = "edit"; renderChat(); return; }
+  if ("chLeave" in d) {
+    if (!confirm(`Leave ${c.title}? You won't see its messages any more.`)) return;
+    track(A.leaveGroup(c), "You left the group", "Couldn't leave. Try again"); chatView = "list"; A.watchMessages(""); renderChat(); return;
+  }
+  if (d.chPing) {
+    const u = d.chPing;
+    if (!chF.mentions.includes(u) && chF.mentions.length >= 5) return toast("Up to 5 people per message");
+    chF.mentions = chF.mentions.includes(u) ? chF.mentions.filter((x) => x !== u) : [...chF.mentions, u]; renderCompose(c); return;
+  }
+  if ("chUnphoto" in d) { chF.photo = ""; renderCompose(c); return; }
+  if (d.chUnsend) {
+    const m = LIVE.msgs.find((x) => x.id === d.chUnsend);
+    if (m && confirm("Unsend this message? It's deleted for everyone.")) track(A.unsend(c, m), null, "Couldn't unsend. Try again");
+    return;
+  }
+  if (b.id === "ch-send") {
+    const text = chF.text.trim();
+    if (!text && !chF.photo) return toast("Write a message or add a photo");
+    track(A.sendChat(c, text, chF.photo, chF.mentions.filter((u) => pingable(c).includes(u))), null, "Not sent. Try again");
+    Object.assign(chF, { text: "", photo: "", mentions: [] }); haptic(); renderCompose(c);
+  }
+});
+// Like the other photo pickers, it lives outside the part that's redrawn, so a new message can't lose the photo.
+$("#ch-in").addEventListener("change", async (e) => {
+  const f = e.target.files[0]; e.target.value = "";
+  const c = openRoom(); if (!f || !c) return;
+  chBusy = true; renderCompose(c);
+  try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try another"); else chF.photo = data; }
+  catch { toast("Couldn't read that photo"); }
+  chBusy = false; if (openRoom()) renderCompose(openRoom());
+});
 /* ---------- Broadcasts ----------
    A broadcast stays at the top of every page until that person taps Got it, on any of their phones. */
 function renderBcast() {
@@ -2399,6 +2576,7 @@ const MINE = {
 function liveChanged(what) {
   if (what === "notices" || what === "seen" || what === "me") renderBcast();
   if (what === "events") markEvents();
+  if (what === "chats") chatToasts();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
@@ -2416,10 +2594,10 @@ function liveChanged(what) {
       asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis], restock: [renderDash, renderLive],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
-      concerns: [renderConcerns, renderDash, renderAct] }[what];
+      concerns: [renderConcerns, renderDash, renderAct], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);

@@ -623,7 +623,7 @@ describe("restocking from the cellar", () => {
     await assertSucceeds(x.commit());
     await fails(y.commit(), "two people taking it on at once");
     await fails(move(db("staff1"), "staff1", id, "asked", { r: { v: 5 }, event: { v: 5 }, eventId: `s-${id}-5` }), "jumping a version");
-    for (const r of [{ item: "Lemons" }, { qty: 5 }, { dest: "down" }, { unit: "box" }, { detail: "Changed" }, { askedBy: "Tia Staff" }, { day: dayFromNow(-1) }]) {
+    for (const r of [{ item: "Lemons" }, { qty: 5 }, { dest: "down" }, { unit: "box" }, { detail: "Changed" }, { askedBy: "Tia Staff" }, { day: dayFromNow(-30) }]) {
       await fails(move(db("staff1"), "staff1", id, "delivered", { moved: 2, r }), JSON.stringify(r));
     }
     for (const who of ["staff1", "mgr1", "owner1"]) await fails(deleteDoc(doc(db(who), "restock", id)), `${who} deletes`);
@@ -1217,6 +1217,186 @@ describe("concerns", () => {
 });
 
 // =====================================================================================
+describe("team chat", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const chat = (uid, kind, members = [], extra = {}) => ({ kind, title: "", members, by: uid, at: now(), lastId: "", lastText: "", lastName: "", lastUid: "", lastAt: now(), lastPings: [], read: {}, ...extra });
+  const dmId = (a, b) => [a, b].sort().join("-");
+  const makeDm = (uid, other) => setDoc(doc(db(uid), "chats", dmId(uid, other)), chat(uid, "dm", [uid, other].sort()));
+  async function makeGroup(uid, members, title = "Floor team") {
+    const id = autoId();
+    await assertSucceeds(setDoc(doc(db(uid), "chats", id), chat(uid, "group", members, { title })));
+    return id;
+  }
+  // A message, its chat's preview, its photo and its pings in one write, as the app sends them.
+  function send(d, uid, chatId, { text = "Can someone grab limes?", photo = false, mentions = [], pings = mentions, skip = [], msg = {}, last = {}, pic = {}, ping = {} } = {}) {
+    const b = writeBatch(d), m = doc(collection(d, "chats", chatId, "msgs"));
+    if (!skip.includes("msg")) b.set(m, { text, photo, mentions, ...by(uid), ...msg });
+    if (!skip.includes("last")) b.update(doc(d, "chats", chatId), { lastId: m.id, lastText: text || "Photo", lastName: TEAM[uid].name, lastUid: uid, lastAt: now(), lastPings: mentions, [`read.${uid}`]: now(), ...last });
+    if (photo && !skip.includes("photo")) b.set(doc(d, "chatPhotos", `${chatId}-${m.id}`), { chat: chatId, msg: m.id, day: today(), data: JPEG, ...by(uid), ...pic });
+    for (const to of pings) b.set(doc(d, "pings", `${to}-${chatId}`), { to, chat: chatId, msg: m.id, text, ...by(uid), ...ping });
+    return { b, id: m.id };
+  }
+  const sent = async (d, uid, chatId, o) => { const x = send(d, uid, chatId, o); await assertSucceeds(x.b.commit()); return x.id; };
+  const msgs = (uid, chatId) => getDocs(query(collection(db(uid), "chats", chatId, "msgs"), orderBy("at", "desc"), limit(60)));
+
+  test("the directory: everyone keeps their own entry, managers keep everyone's, and it always matches the staff record", async () => {
+    await assertSucceeds(setDoc(doc(db("staff1"), "directory", "staff1"), { name: "Sam Staff", role: "staff" }));
+    await fails(setDoc(doc(db("staff1"), "directory", "staff2"), { name: "Tia Staff", role: "staff" }), "staff writing someone else's");
+    await fails(setDoc(doc(db("staff1"), "directory", "staff1"), { name: "Sam Staff", role: "manager" }), "staff calling themselves a manager");
+    await fails(setDoc(doc(db("staff1"), "directory", "staff1"), { name: "Sam the Boss", role: "staff" }), "a name that isn't theirs");
+    await fails(setDoc(doc(db("staff1"), "directory", "staff1"), { name: "Sam Staff", role: "staff", username: "sam" }), "extra fields");
+    await assertSucceeds(setDoc(doc(db("mgr1"), "directory", "staff2"), { name: "Tia Staff", role: "staff" }));
+    await assertSucceeds(setDoc(doc(db("mgr1"), "directory", "owner1"), { name: "Olly Owner", role: "owner" }));
+    await assertSucceeds(getDocs(collection(db("staff2"), "directory")));
+    await fails(getDocs(collection(db("stranger"), "directory")), "someone not on the team reading it");
+    await fails(setDoc(doc(db("stranger"), "directory", "stranger"), { name: "Stray", role: "staff" }), "someone not on the team adding themselves");
+    await fails(deleteDoc(doc(db("mgr1"), "directory", "staff2")), "a manager deleting a current member's entry");
+    await assertSucceeds(removeBatch(db("mgr1"), "mgr1", "staff2").commit());
+    await fails(deleteDoc(doc(db("staff1"), "directory", "staff2")), "staff tidying up");
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "directory", "staff2")));
+  });
+
+  test("the team chat: anyone makes it once, everyone reads and writes it, and each message updates the preview", async () => {
+    await assertSucceeds(getDoc(doc(db("staff1"), "chats", "team")));
+    await fails(setDoc(doc(db("stranger"), "chats", "team"), chat("stranger", "team")), "someone not on the team making it");
+    await fails(setDoc(doc(db("staff1"), "chats", "team"), chat("staff1", "team", ["staff1"])), "the team chat with members");
+    await fails(setDoc(doc(db("staff1"), "chats", "team"), chat("staff1", "team", [], { lastText: "Hi" })), "a made-up preview");
+    await assertSucceeds(setDoc(doc(db("staff1"), "chats", "team"), chat("staff1", "team")));
+    await fails(setDoc(doc(db("staff2"), "chats", "team"), chat("staff2", "team")), "making it again over the top");
+    const id = await sent(db("staff2"), "staff2", "team", { text: "Ice machine is fixed" });
+    const c = await current("chats/team");
+    assert.deepEqual([c.lastId, c.lastText, c.lastName, c.lastUid, Object.keys(c.read)], [id, "Ice machine is fixed", "Tia Staff", "staff2", ["staff2"]]);
+    for (const who of ["staff1", "mgr1", "owner1"]) { await assertSucceeds(getDoc(doc(db(who), "chats", "team"))); await assertSucceeds(msgs(who, "team")); }
+    await fails(getDoc(doc(db("stranger"), "chats", "team")), "someone not on the team reading it");
+    await fails(msgs("stranger", "team"), "someone not on the team reading its messages");
+    await sent(db("owner1"), "owner1", "team", { mentions: ["staff1", "mgr1"] });
+  });
+
+  test("a message and its preview go together, signed by the sender, and messages can't be edited", async () => {
+    await assertSucceeds(setDoc(doc(db("staff1"), "chats", "team"), chat("staff1", "team")));
+    await fails(send(db("staff1"), "staff1", "team", { skip: ["last"] }).b.commit(), "a message without the preview");
+    await fails(send(db("staff1"), "staff1", "team", { skip: ["msg"] }).b.commit(), "a preview without the message");
+    await fails(send(db("staff1"), "staff1", "team", { last: { lastName: "Tia Staff" } }).b.commit(), "a preview under someone else's name");
+    await fails(send(db("staff1"), "staff1", "team", { last: { lastUid: "staff2" } }).b.commit(), "a preview under someone else's uid");
+    await fails(send(db("staff1"), "staff1", "team", { last: { "read.staff2": now() } }).b.commit(), "marking it read for someone else");
+    await fails(send(db("staff1"), "staff1", "team", { mentions: ["staff2"], last: { lastPings: [] } }).b.commit(), "a preview that hides who was pinged");
+    await fails(send(db("staff1"), "staff1", "team", { msg: { name: "Tia Staff" } }).b.commit(), "a message under someone else's name");
+    for (const msg of [{ text: "" }, { text: "   " }, { text: "x".repeat(1001) }, { photo: "no" }, { mentions: "staff2" }, { mentions: ["a", "b", "c", "d", "e", "f"] }, { mentions: ["staff1"] }, { extra: 1 }]) {
+      await fails(send(db("staff1"), "staff1", "team", { msg, pings: [] }).b.commit(), JSON.stringify(msg).slice(0, 60));
+    }
+    const id = await sent(db("staff1"), "staff1", "team");
+    await fails(updateDoc(doc(db("staff1"), "chats", "team", "msgs", id), { text: "Changed" }), "editing a message");
+    await fails(updateDoc(doc(db("staff1"), "chats", "team"), { lastText: "Changed" }), "changing the preview on its own");
+  });
+
+  test("read times: each person marks only their own, at the server's clock", async () => {
+    await assertSucceeds(setDoc(doc(db("staff1"), "chats", "team"), chat("staff1", "team")));
+    await sent(db("staff1"), "staff1", "team");
+    await assertSucceeds(updateDoc(doc(db("staff2"), "chats", "team"), { "read.staff2": now() }));
+    await fails(updateDoc(doc(db("staff2"), "chats", "team"), { "read.staff1": now() }), "someone else's read time");
+    await fails(updateDoc(doc(db("staff2"), "chats", "team"), { "read.staff2": Timestamp.fromMillis(Date.now() + 864e5) }), "a read time in the future");
+    await fails(updateDoc(doc(db("staff2"), "chats", "team"), { "read.staff2": now(), lastText: "x" }), "a read time with another change");
+  });
+
+  test("private chats: one per pair, only the two of them read it, not managers or the owner", async () => {
+    await fails(setDoc(doc(db("staff1"), "chats", "staff2-staff1"), chat("staff1", "dm", ["staff2", "staff1"])), "the uids out of order");
+    await fails(setDoc(doc(db("staff1"), "chats", "mgr1-staff2"), chat("staff1", "dm", ["mgr1", "staff2"])), "a chat for two other people");
+    await fails(setDoc(doc(db("staff1"), "chats", dmId("staff1", "ghost")), chat("staff1", "dm", [ "ghost", "staff1"].sort())), "a chat with someone not on the team");
+    await fails(setDoc(doc(db("staff1"), "chats", "staff1-staff2"), chat("staff1", "dm", ["staff1", "staff2"], { title: "Us" })), "a private chat with a name");
+    await assertSucceeds(makeDm("staff1", "staff2"));
+    await fails(makeDm("staff2", "staff1"), "a second chat for the same pair");
+    const id = dmId("staff1", "staff2");
+    await sent(db("staff1"), "staff1", id, { text: "Can you cover Friday?", mentions: ["staff2"] });
+    await sent(db("staff2"), "staff2", id, { text: "Yes", mentions: ["staff1"] });
+    for (const who of ["staff1", "staff2"]) { await assertSucceeds(getDoc(doc(db(who), "chats", id))); await assertSucceeds(msgs(who, id)); }
+    for (const who of ["mgr1", "owner1"]) {
+      await fails(getDoc(doc(db(who), "chats", id)), `${who} reading the chat`);
+      await fails(msgs(who, id), `${who} reading its messages`);
+      await fails(send(db(who), who, id).b.commit(), `${who} writing in it`);
+      await fails(updateDoc(doc(db(who), "chats", id), { [`read.${who}`]: now() }), `${who} marking it read`);
+    }
+    await fails(send(db("staff1"), "staff1", id, { mentions: ["mgr1"] }).b.commit(), "pinging someone who isn't in it");
+    await assertSucceeds(getDocs(query(collection(db("staff1"), "chats"), where("members", "array-contains", "staff1"))));
+    await fails(getDocs(query(collection(db("mgr1"), "chats"), where("members", "array-contains", "staff1"))), "listing someone else's chats");
+    await fails(getDocs(collection(db("owner1"), "chats")), "listing every chat");
+  });
+
+  test("groups: whoever starts one, or a manager in it, changes it; anyone leaves; outsiders can't read it", async () => {
+    for (const bad of [{ title: "" }, { title: "x".repeat(41) }, { members: ["staff1"] }, { members: ["staff2", "mgr1"] }, { members: "staff1,staff2" }]) {
+      await fails(setDoc(doc(db("staff1"), "chats", autoId()), chat("staff1", "group", ["staff1", "staff2"], { title: "Floor", ...bad })), JSON.stringify(bad));
+    }
+    await fails(setDoc(doc(db("staff1"), "chats", "floor"), chat("staff1", "group", ["staff1", "staff2"], { title: "Floor" })), "a group with a made-up id");
+    const id = await makeGroup("staff1", ["staff1", "staff2", "mgr2"]);
+    await sent(db("staff2"), "staff2", id, { mentions: ["staff1", "mgr2"] });
+    await fails(send(db("staff2"), "staff2", id, { mentions: ["mgr1"] }).b.commit(), "pinging someone who isn't in it");
+    for (const who of ["mgr1", "owner1"]) { await fails(getDoc(doc(db(who), "chats", id)), `${who} reading it`); await fails(msgs(who, id), `${who} reading its messages`); }
+    await assertSucceeds(updateDoc(doc(db("staff1"), "chats", id), { title: "Floor crew", members: ["staff1", "staff2", "mgr2", "mgr1"] }));
+    await assertSucceeds(msgs("mgr1", id));
+    await fails(updateDoc(doc(db("staff2"), "chats", id), { members: ["staff1", "staff2"] }), "a member who didn't start it removing someone");
+    await fails(updateDoc(doc(db("staff2"), "chats", id), { title: "Mine" }), "a member who didn't start it renaming it");
+    await fails(updateDoc(doc(db("owner1"), "chats", id), { members: ["staff1", "staff2", "mgr2", "mgr1", "owner1"] }), "the owner adding themselves to a group they aren't in");
+    await assertSucceeds(updateDoc(doc(db("mgr2"), "chats", id), { members: ["staff1", "staff2", "mgr2"] }));
+    await fails(updateDoc(doc(db("staff2"), "chats", id), { members: ["staff2"] }), "leaving and taking someone with you");
+    await assertSucceeds(updateDoc(doc(db("staff2"), "chats", id), { members: ["staff1", "mgr2"] }));
+    await fails(msgs("staff2", id), "reading it after leaving");
+    await fails(updateDoc(doc(db("staff1"), "chats", id), { members: ["staff1"] }), "the starter cutting it down to just themselves");
+  });
+
+  test("pings: only for someone mentioned in a message sent in the same write; only they read and clear it", async () => {
+    await assertSucceeds(setDoc(doc(db("staff1"), "chats", "team"), chat("staff1", "team")));
+    await sent(db("staff1"), "staff1", "team", { text: "Tia, the keg needs changing", mentions: ["staff2"] });
+    await fails(send(db("staff1"), "staff1", "team", { mentions: [], pings: ["staff2"] }).b.commit(), "a ping for someone who isn't mentioned");
+    await fails(send(db("staff1"), "staff1", "team", { mentions: ["ghost"] }).b.commit(), "a ping for someone not on the team");
+    await fails(send(db("staff1"), "staff1", "team", { mentions: ["staff2"], ping: { name: "Mia Manager" } }).b.commit(), "a ping under someone else's name");
+    await fails(setDoc(doc(db("staff1"), "pings", "staff2-team"), { to: "staff2", chat: "team", msg: autoId(), text: "hi", ...by("staff1") }), "a ping with no message");
+    await assertSucceeds(getDocs(query(collection(db("staff2"), "pings"), where("to", "==", "staff2"))));
+    await fails(getDoc(doc(db("staff1"), "pings", "staff2-team")), "the sender reading it");
+    await fails(getDoc(doc(db("owner1"), "pings", "staff2-team")), "the owner reading it");
+    await fails(getDocs(collection(db("mgr1"), "pings")), "listing everyone's pings");
+    await fails(deleteDoc(doc(db("staff1"), "pings", "staff2-team")), "someone else clearing it");
+    await assertSucceeds(deleteDoc(doc(db("staff2"), "pings", "staff2-team")));
+  });
+
+  test("photos: added only with their message, read by the people in the chat, cleared by the sender", async () => {
+    await assertSucceeds(makeDm("staff1", "staff2"));
+    const id = dmId("staff1", "staff2");
+    const m = await sent(db("staff1"), "staff1", id, { text: "", photo: true, mentions: ["staff2"] });
+    assert.equal((await current(`chats/${id}`)).lastText, "Photo");
+    await assertSucceeds(getDoc(doc(db("staff2"), "chatPhotos", `${id}-${m}`)));
+    for (const who of ["mgr1", "owner1"]) await fails(getDoc(doc(db(who), "chatPhotos", `${id}-${m}`)), `${who} seeing it`);
+    await fails(send(db("staff1"), "staff1", id, { text: "", photo: true, skip: ["photo"] }).b.commit(), "a photo message without its photo");
+    await fails(send(db("staff1"), "staff1", id, { photo: true, pic: { data: "data:image/png;base64,AAAA" } }).b.commit(), "something that isn't a JPEG");
+    await fails(send(db("staff1"), "staff1", id, { photo: true, pic: { data: "data:image/jpeg;base64," + "A".repeat(700001) } }).b.commit(), "a photo that's too big");
+    await fails(send(db("staff1"), "staff1", id, { photo: true, pic: { day: dayFromNow(-5) } }).b.commit(), "a photo dated days ago");
+    await fails(setDoc(doc(db("staff1"), "chatPhotos", `${id}-${m}x`), { chat: id, msg: m, day: today(), data: JPEG, ...by("staff1") }), "a photo added to an old message");
+    await assertSucceeds(getDocs(query(collection(db("staff1"), "chatPhotos"), where("uid", "==", "staff1"), where("day", "==", dayFromNow(-31)))));
+    await fails(deleteDoc(doc(db("staff2"), "chatPhotos", `${id}-${m}`)), "the other person clearing it");
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "chatPhotos", `${id}-${m}`)));
+  });
+
+  test("unsending: the sender takes back a message with its photo, and the preview clears if it was the latest", async () => {
+    await assertSucceeds(setDoc(doc(db("staff1"), "chats", "team"), chat("staff1", "team")));
+    const m = await sent(db("staff1"), "staff1", "team", { text: "Wrong chat", photo: true });
+    for (const who of ["staff2", "mgr1", "owner1"]) await fails(deleteDoc(doc(db(who), "chats", "team", "msgs", m)), `${who} deleting it`);
+    await fails(deleteDoc(doc(db("staff1"), "chats", "team", "msgs", m)), "leaving the photo behind");
+    await fails(updateDoc(doc(db("staff1"), "chats", "team"), { lastText: "" }), "clearing the preview with the message still there");
+    const d = db("staff1"), b = writeBatch(d);
+    b.delete(doc(d, "chats", "team", "msgs", m));
+    b.delete(doc(d, "chatPhotos", `team-${m}`));
+    b.update(doc(d, "chats", "team"), { lastText: "" });
+    await assertSucceeds(b.commit());
+    await sent(db("staff2"), "staff2", "team");
+    await fails(updateDoc(doc(db("staff1"), "chats", "team"), { lastText: "" }), "clearing someone else's preview");
+  });
+
+  test("someone removed from the team loses every chat at once", async () => {
+    await assertSucceeds(makeDm("staff1", "staff2"));
+    await assertSucceeds(removeBatch(db("mgr1"), "mgr1", "staff2").commit());
+    await fails(msgs("staff2", dmId("staff1", "staff2")), "reading their old private chat");
+    await fails(getDocs(query(collection(db("staff2"), "chats"), where("members", "array-contains", "staff2"))), "listing their chats");
+  });
+});
+
 describe("every query the app makes works for the roles that make it", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const common = (d, uid) => [
@@ -1237,6 +1417,10 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "issues"), where("status", "in", ["open", "taken"])),
     query(collection(d, "issues"), orderBy("at", "desc"), limit(30)),
     query(collection(d, "concerns"), where("uid", "==", uid)),
+    collection(d, "directory"),
+    query(collection(d, "chats"), where("members", "array-contains", uid)),
+    query(collection(d, "pings"), where("to", "==", uid)),
+    query(collection(d, "chatPhotos"), where("uid", "==", uid), where("day", "==", dayFromNow(-31))),
   ];
   const managers = (d) => [
     query(collection(d, "asks"), orderBy("at", "desc"), limit(100)),

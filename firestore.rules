@@ -585,5 +585,112 @@ service cloud.firestore {
       allow delete: if isMember() && (resource == null || !existsAfter(concernDoc(resource.data.concern))
         || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
     }
+
+    // ---------- Team chat ----------
+    // Who's on the team, for picking someone to message: name and role only. Staff can't list staff records (they hold
+    // usernames), so each phone keeps its own entry up to date and managers' phones keep everyone's. An entry always
+    // matches its staff record, and goes when the person does.
+    match /directory/{uid} {
+      allow read: if isMember();
+      allow create, update: if isMember() && (uid == request.auth.uid || isManager()) && exactly(['name', 'role'])
+        && get(staffDoc(uid)).data.name == incoming().name && get(staffDoc(uid)).data.role == incoming().role;
+      allow delete: if isManager() && get(staffDoc(uid)) == null;
+    }
+    // Three kinds of chat: the team chat (id team, everyone on the team is in it), private chats between two people (one
+    // per pair, named after both uids in order) and groups (anyone starts one, with a name and who's in it). Only the
+    // people in a private chat or a group can read it: managers and the owner can't read other people's chats in the app.
+    // A chat keeps a preview of its latest message (with who it pinged), written in the same batch as the message, and
+    // read {uid: time}, when each person last read it, which is how a phone shows what's unread.
+    function chatDoc(id) { return /databases/$(database)/documents/chats/$(id); }
+    function msgDoc(chat, id) { return /databases/$(database)/documents/chats/$(chat)/msgs/$(id); }
+    function chatPhotoDoc(id) { return /databases/$(database)/documents/chatPhotos/$(id); }
+    function inChat(c) { return c.kind == 'team' || request.auth.uid in c.members; }
+    // Marks only the caller's own read time, at the server's clock.
+    function readNow(c) {
+      return c.read.diff(resource.data.read).affectedKeys().hasOnly([request.auth.uid]) && c.read[request.auth.uid] == request.time;
+    }
+    match /chats/{id} {
+      // Asking for the team chat before anyone has made it is allowed (there's nothing to see). A list must ask only for
+      // chats the caller is in.
+      allow get: if isMember() && (resource == null || inChat(resource.data));
+      allow list: if isMember() && request.auth.uid in resource.data.members;
+      allow create: if isMember() && newChat(id);
+      allow update: if isMember() && inChat(resource.data) && (
+        (changesOnly(['read']) && readNow(incoming()))
+        || newMessage(id)
+        // Unsending your own latest message clears the preview.
+        || (changesOnly(['lastText']) && incoming().lastText == '' && resource.data.lastUid == request.auth.uid
+          && !existsAfter(msgDoc(id, resource.data.lastId)))
+        || groupChange());
+    }
+    function newChat(id) {
+      let c = incoming();
+      return exactly(['kind', 'title', 'members', 'by', 'at', 'lastId', 'lastText', 'lastName', 'lastUid', 'lastAt', 'lastPings', 'read'])
+        && c.by == request.auth.uid && c.at == request.time && c.lastAt == request.time
+        && c.lastId == '' && c.lastText == '' && c.lastName == '' && c.lastUid == '' && c.lastPings == [] && c.read == {}
+        && ((c.kind == 'team' && id == 'team' && c.title == '' && c.members == [])
+          || (c.kind == 'dm' && c.title == '' && c.members is list && c.members.size() == 2 && request.auth.uid in c.members
+            && c.members[0] is string && c.members[1] is string && c.members[0] < c.members[1] && id == c.members[0] + '-' + c.members[1]
+            && get(staffDoc(c.members[0])) != null && get(staffDoc(c.members[1])) != null)
+          || (c.kind == 'group' && autoId(id) && reqText(c.title, 40) && c.members is list
+            && c.members.size() >= 2 && c.members.size() <= 40 && request.auth.uid in c.members));
+    }
+    // The preview of a message the caller sends in the same batch. Sending also marks the chat read for them.
+    function newMessage(id) {
+      let c = incoming();
+      let m = getAfter(msgDoc(id, c.lastId)).data;
+      return changesOnly(['lastId', 'lastText', 'lastName', 'lastUid', 'lastAt', 'lastPings', 'read'])
+        && c.lastUid == request.auth.uid && c.lastName == profile().data.name && c.lastAt == request.time && optText(c.lastText, 200)
+        && readNow(c) && m.uid == request.auth.uid && m.at == request.time && c.lastPings == m.mentions;
+    }
+    // Whoever started a group, or a manager in it, renames it and changes who's in it (staying in it themselves).
+    // Anyone can leave a group.
+    function groupChange() {
+      let c = incoming();
+      return resource.data.kind == 'group' && changesOnly(['title', 'members']) && reqText(c.title, 40)
+        && c.members is list && c.members.size() <= 40
+        && (((resource.data.by == request.auth.uid || isManager()) && request.auth.uid in c.members && c.members.size() >= 2)
+          || (changesOnly(['members']) && c.members == resource.data.members.removeAll([request.auth.uid])));
+    }
+    // Messages can't be edited. Whoever sent one can unsend it, and its photo goes with it. Up to five people are pinged
+    // (mentioned) per message, and they must be in the chat; in a private chat the other person is pinged every time.
+    match /chats/{chat}/msgs/{id} {
+      allow read: if isMember() && inChat(get(chatDoc(chat)).data);
+      allow create: if isMember() && autoId(id) && stamped() && exactly(['text', 'photo', 'mentions', 'uid', 'name', 'at'])
+        && optText(incoming().text, 1000) && incoming().photo is bool && (incoming().photo || incoming().text.trim().size() > 0)
+        && incoming().mentions is list && incoming().mentions.size() <= 5 && !(request.auth.uid in incoming().mentions)
+        && inChat(get(chatDoc(chat)).data)
+        && (get(chatDoc(chat)).data.kind == 'team' || incoming().mentions.hasOnly(get(chatDoc(chat)).data.members))
+        && getAfter(chatDoc(chat)).data.lastId == id
+        && (!incoming().photo || existsAfter(chatPhotoDoc(chat + '-' + id)));
+      allow delete: if isMember() && resource.data.uid == request.auth.uid
+        && (!resource.data.photo || !existsAfter(chatPhotoDoc(chat + '-' + id)));
+    }
+    // A message's photo, kept apart so the chat loads quickly, added only in the write that sends its message. Readable by
+    // the people in that chat. day is the business day it was sent: the sender's phone clears their own after 30 days.
+    match /chatPhotos/{id} {
+      allow read: if isMember() && (resource.data.uid == request.auth.uid || inChat(get(chatDoc(resource.data.chat)).data));
+      allow create: if isMember() && stamped() && exactly(['chat', 'msg', 'day', 'data', 'uid', 'name', 'at'])
+        && incoming().chat is string && incoming().msg is string && id == incoming().chat + '-' + incoming().msg
+        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.uid == request.auth.uid
+        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.at == request.time
+        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.photo == true
+        && nearNow(incoming().day) && incoming().data is string && incoming().data.size() <= 700000
+        && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+');
+      // (Unsending a message names its photo even if it was already cleared; deleting nothing is allowed.)
+      allow delete: if isMember() && (resource == null || resource.data.uid == request.auth.uid);
+    }
+    // Pings: one record per person per chat, {to}-{chat}, pointing at the latest message that pinged them, written in the
+    // same batch as that message. Only the person pinged reads it, and their phone deletes it once they've read the chat.
+    match /pings/{id} {
+      allow read, delete: if isMember() && resource.data.to == request.auth.uid;
+      allow create, update: if isMember() && stamped() && exactly(['to', 'chat', 'msg', 'text', 'uid', 'name', 'at'])
+        && incoming().to is string && incoming().chat is string && incoming().msg is string
+        && id == incoming().to + '-' + incoming().chat && optText(incoming().text, 200)
+        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.uid == request.auth.uid
+        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.at == request.time
+        && incoming().to in getAfter(msgDoc(incoming().chat, incoming().msg)).data.mentions
+        && get(staffDoc(incoming().to)) != null;
+    }
   }
 }
