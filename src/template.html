@@ -1388,7 +1388,7 @@ document.addEventListener("click", (e) => {
    Tax is worked out month by month (the Month 1 basis on the payslips), using HMRC's 2026 to 2027 rates for England,
    Wales and Northern Ireland: gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027. Employee National
    Insurance (category A) is on the hours pay only: tronc shared out by a troncmaster carries no National Insurance. */
-const PAY_DEFAULT = { rate: "12.71", worked: "", rota: "", lastHours: "", tronc: "", code: "1257L", slipTronc: "", slipHours: "" };
+const PAY_DEFAULT = { rate: "12.71", worked: "", rota: "", lastHours: "", tronc: "", low: "", high: "", per: "month", code: "1257L", slipTronc: "", slipHours: "" };
 let pay = { ...PAY_DEFAULT, ...store.get("pay", {}) };
 const num = (v) => { const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) && n >= 0 ? n : 0; };
 const gbp = (n) => "£" + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1427,27 +1427,35 @@ function lastFriday(now = new Date()) {
   return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 }
 const TRONC_STEPS = ["0.75", "1.00", "1.25", "1.50"];
+// The month is worked out first; a day, a week and a year are that month spread over the year (365 days, 52 weeks).
+const PER = { day: ["A day", 12 / 365], week: ["A week", 12 / 52], month: ["A month", 1], year: ["A year", 12] };
 function payOutHtml() {
+  const f = PER[pay.per]?.[1] ?? 1, money = (n) => gbp(pence(n * f));
   const r = payCalc(pay), row = (k, v, cls = "") => `<dt${cls}>${k}</dt><dd${cls}>${v}</dd>`;
+  // Tronc depends on how busy the month was, so take-home is also shown at a quiet and a busy month's rate.
+  const at = (k, label) => { if (!num(pay[k])) return ""; const x = payCalc({ ...pay, tronc: pay[k] }); return row(`${label} (£${num(pay[k]).toFixed(2)}/h)`, x.net == null ? "?" : money(x.net)); };
+  const range = at("low", "Quiet month") + at("high", "Busy month");
   const slip = num(pay.slipTronc) > 0 && num(pay.slipHours) > 0 ? Math.round((num(pay.slipTronc) / num(pay.slipHours)) * 10000) / 10000 : 0;
-  return `<dl class="kv paykv">
-      ${row(`Hours pay (${fmtN(r.hours)} h)`, gbp(r.basic))}${row(`Tronc (${fmtN(num(pay.lastHours))} h last month)`, gbp(r.tronc))}${row("Gross", gbp(r.gross))}
-      ${row("Income tax", r.tax == null ? "Check the tax code" : "−" + gbp(r.tax))}${row("National Insurance", "−" + gbp(r.ni))}
-      ${row("Take-home", r.net == null ? "?" : gbp(r.net), ' class="take"')}
+  return `<div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:14px" role="group" aria-label="Show pay for">${Object.entries(PER).map(([k, [t]]) => `<button data-pay-per="${k}" aria-pressed="${k === (PER[pay.per] ? pay.per : "month")}">${t.slice(2)}</button>`).join("")}</div>
+    <dl class="kv paykv">
+      ${row(`Hours pay (${fmtN(r.hours * f)} h)`, money(r.basic))}${row("Tronc", money(r.tronc))}${row("Gross", money(r.gross))}
+      ${row("Income tax", r.tax == null ? "Check the tax code" : "−" + money(r.tax))}${row("National Insurance", "−" + money(r.ni))}
+      ${row(`Take-home, ${PER[pay.per]?.[0].toLowerCase() ?? "a month"}`, r.net == null ? "?" : money(r.net), ' class="take"')}
     </dl>
+    ${range ? `<div class="sec">Take-home if tronc is different</div><dl class="kv paykv">${range}</dl>` : ""}
     ${slip ? `<button class="btn" data-pay-slip="${slip}">Use £${slip.toFixed(2)} an hour from your payslip</button>` : ""}`;
 }
 function payHtml() {
   const f = (k, label, hint = "") => `<label class="fld">${label}<input data-pay="${k}" inputmode="decimal" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
   return `<h2 style="margin-top:18px">My pay</h2>
     <p class="note">An estimate for this month, on this phone only. Pay day is usually the last Friday: ${lastFriday()}.</p>
-    <div class="paygrid">${f("rate", "Hourly rate (£)")}${f("code", "Tax code")}${f("worked", "Hours worked so far", "0")}${f("rota", "Hours still on the rota", "0")}${f("lastHours", "Last month's hours", "0")}${f("tronc", "Tronc per hour (£)", "0.00")}</div>
+    <div class="paygrid">${f("rate", "Hourly rate (£)")}${f("code", "Tax code")}${f("worked", "Hours worked so far", "0")}${f("rota", "Hours still on the rota", "0")}${f("lastHours", "Last month's hours", "0")}${f("tronc", "Tronc per hour (£)", "0.00")}${f("low", "Tronc, quiet month (£/h)", "0.00")}${f("high", "Tronc, busy month (£/h)", "0.00")}</div>
     <div class="recent" style="margin-top:8px">${TRONC_STEPS.map((t) => `<button class="chip" data-pay-tronc="${t}" aria-pressed="${num(pay.tronc) === num(t)}">£${t}</button>`).join("")}</div>
     <details class="setup"><summary>Work out tronc per hour from a payslip</summary>
       <p class="note">Tronc is paid on the month before's hours. Enter the tronc on a payslip and the hours from the payslip before it.</p>
       <div class="paygrid">${f("slipTronc", "Tronc on the payslip (£)")}${f("slipHours", "Hours the month before")}</div></details>
     <div id="pay-out">${payOutHtml()}</div>
-    <p class="note">No pension or student loan taken off. Tax is worked out month by month, as on a Month 1 code; a normal code can come out a little different across the year. Scottish tax codes aren't covered.</p>`;
+    <p class="note">A day, a week and a year are this month spread over the year, so a year assumes every month is like this one. No pension or student loan taken off. Tax is worked out month by month, as on a Month 1 code; a normal code can come out a little different across the year. Scottish tax codes aren't covered.</p>`;
 }
 $("#v-info").addEventListener("input", (e) => {
   const k = e.target.dataset.pay; if (!k) return;
@@ -1456,6 +1464,8 @@ $("#v-info").addEventListener("input", (e) => {
   if (k === "tronc") $$("[data-pay-tronc]").forEach((b) => b.setAttribute("aria-pressed", num(b.dataset.payTronc) === num(pay.tronc)));
 });
 $("#v-info").addEventListener("click", (e) => {
+  const pp = e.target.closest("[data-pay-per]");
+  if (pp) { pay.per = pp.dataset.payPer; store.set("pay", pay); haptic(); $("#pay-out").innerHTML = payOutHtml(); return; }
   const b = e.target.closest("[data-pay-tronc], [data-pay-slip]"); if (!b) return;
   pay.tronc = b.dataset.payTronc || b.dataset.paySlip; store.set("pay", pay); haptic();
   $('[data-pay="tronc"]').value = pay.tronc; $("#pay-out").innerHTML = payOutHtml();

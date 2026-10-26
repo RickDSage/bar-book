@@ -124,7 +124,15 @@ test("my pay: September's payslip comes out to the penny, tronc from August's ho
   await put("slipTronc", "592.95"); await put("slipHours", "82");
   await p.click("[data-pay-slip]");
   const out = await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " "));
-  assert.match(out, /Hours pay \(246\.4 h\) £3,131\.62 Tronc \(82 h last month\) £592\.95 Gross £3,724\.57 Income tax −£579\.40 National Insurance −£166\.69 Take-home £2,978\.48/);
+  assert.match(out, /Hours pay \(246\.4 h\) £3,131\.62 Tronc £592\.95 Gross £3,724\.57 Income tax −£579\.40 National Insurance −£166\.69 Take-home, a month £2,978\.48/);
+  // A quiet and a busy month: the same hours, tronc at £5 and £9 an hour of last month's 82.
+  await put("low", "5"); await put("high", "9");
+  assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Quiet month \(£5\.00\/h\) £2,832\.13 Busy month \(£9\.00\/h\) £3,094\.53/);
+  await p.click("[data-pay-per=year]");
+  assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Gross £44,694\.84 .*Take-home, a year £35,741\.76/);
+  await p.click("[data-pay-per=week]");
+  assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Take-home, a week £687\.34/);
+  await p.click("[data-pay-per=month]");
   await p.click('[data-pay-tronc="1.00"]');
   assert.match(await p.$eval("#pay-out", (e) => e.innerText), /£82\.00/);
   await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]");
