@@ -44,12 +44,13 @@ test("a phone photo is shrunk, noted, sent with the report and locked once sent"
   await addPhoto(S, big, 1);
   const data = await S.evaluate(() => LIVE.myPhotos[0].data);
   assert.ok(data.startsWith("data:image/jpeg;base64,") && data.length <= 600000, `stored as a JPEG of ${data.length} characters`);
-  await addPhoto(S, big, 2);
-  await S.fill("[data-ph-note] >> nth=0", "Back bar wiped and restocked"); await S.press("[data-ph-note] >> nth=0", "Tab");
-  await S.waitForFunction(() => LIVE.myPhotos[0].note === "Back bar wiped and restocked");
-  await S.click("[data-ph-del] >> nth=1");
-  await S.waitForFunction(() => LIVE.myPhotos.length === 1);
+  // Photos are found by id: one still sending sorts by its estimated time, so the order on screen can change.
   const mine = await S.evaluate(() => LIVE.myPhotos[0].id);
+  await addPhoto(S, big, 2);
+  await S.fill(`[data-ph-note="${mine}"]`, "Back bar wiped and restocked"); await S.press(`[data-ph-note="${mine}"]`, "Tab");
+  await S.waitForFunction((id) => LIVE.myPhotos.find((p) => p.id === id).note === "Back bar wiped and restocked", mine);
+  await S.click(`[data-ph-del]:not([data-ph-del="${mine}"])`);
+  await S.waitForFunction(() => LIVE.myPhotos.length === 1);
   assert.equal(await attempt(O, (id) => LIVE.api.notePhoto(id, "Not yours"), mine), "permission-denied", "nobody else can change a photo before it's sent");
 
   await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
