@@ -1216,6 +1216,33 @@ describe("concerns", () => {
 });
 
 // =====================================================================================
+describe("football on the screens", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const game = (uid, extra = {}) => ({ day: today(), ko: "20:00", home: "Arsenal", away: "PSG", comp: "Champions League", channel: "TNT Sports 1", screen: "All screens", ...by(uid), ...extra });
+  test("managers add and take down games; everyone on the team reads them", async () => {
+    const ref = doc(collection(db("mgr1"), "fixtures"));
+    await assertSucceeds(setDoc(ref, game("mgr1")));
+    await assertSucceeds(addDoc(collection(db("owner1"), "fixtures"), game("owner1", { day: dayFromNow(30), comp: "", channel: "", screen: "" })));
+    await assertSucceeds(getDocs(collection(db("staff1"), "fixtures")));
+    await fails(getDocs(collection(db("stranger"), "fixtures")), "someone not on the team reading them");
+    await fails(addDoc(collection(db("staff1"), "fixtures"), game("staff1")), "staff adding a game");
+    await fails(deleteDoc(doc(db("staff1"), "fixtures", ref.id)), "staff taking one down");
+    await fails(updateDoc(doc(db("mgr1"), "fixtures", ref.id), { ko: "19:45" }), "editing in place");
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "fixtures", ref.id)));
+  });
+  test("a game must be a real day, a real time and two teams, signed by whoever adds it", async () => {
+    const add = (extra) => addDoc(collection(db("mgr1"), "fixtures"), game("mgr1", extra));
+    await fails(add({ ko: "25:00" }), "a time that doesn't exist");
+    await fails(add({ day: "2026-02-31" }), "a day that doesn't exist");
+    await fails(add({ day: dayFromNow(-5) }), "a game days ago");
+    await fails(add({ day: dayFromNow(120) }), "a game months away");
+    await fails(add({ home: " " }), "no home team");
+    await fails(add({ away: "x".repeat(41) }), "a team name too long");
+    await fails(add({ name: "Max Manager" }), "someone else's name");
+    await fails(add({ extra: true }), "extra fields");
+  });
+});
+
 describe("team chat", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const chat = (uid, kind, members = [], extra = {}) => ({ kind, title: "", members, by: uid, at: now(), lastId: "", lastText: "", lastName: "", lastUid: "", lastAt: now(), lastPings: [], read: {}, ...extra });
@@ -1420,6 +1447,7 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "chats"), where("members", "array-contains", uid)),
     query(collection(d, "pings"), where("to", "==", uid)),
     query(collection(d, "chatPhotos"), where("uid", "==", uid), where("day", "==", dayFromNow(-31))),
+    query(collection(d, "fixtures"), where("day", ">=", dayFromNow(-1)), orderBy("day"), limit(60)),
   ];
   const managers = (d) => [
     query(collection(d, "asks"), orderBy("at", "desc"), limit(100)),
