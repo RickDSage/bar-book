@@ -2,7 +2,7 @@
 // Tasks and restocking have their own file, tasks.test.mjs.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, oldPost } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -102,14 +102,16 @@ test("notices and the team board: who can post and who can take things down", as
   await O.waitForFunction(() => LIVE.notices.length === 2);
   assert.equal(await attempt(O, (id) => LIVE.api.unpin(id), await O.evaluate(() => LIVE.notices.find((x) => x.name === "Mia Manager").id)), "allowed");
 
-  await S.evaluate(() => LIVE.api.post("Limes low"));
-  await O.evaluate(() => LIVE.api.post("Team meeting Monday"));
-  await M.waitForFunction(() => LIVE.feed.length === 2 && !LIVE.feed.some((x) => x.pending));
+  // The board is closed: old posts show folded away, and can still be taken down.
+  await oldPost(await S.evaluate(() => LIVE.uid), "Sam Staff", "Limes low");
+  await oldPost(await O.evaluate(() => LIVE.uid), "Olly Owner", "Team meeting Monday");
+  await M.waitForFunction(() => LIVE.feed.length === 2);
+  assert.equal(await M.locator("#c-text").count(), 0, "no Post box");
+  assert.match(await M.$eval("#feed summary", (e) => e.textContent), /Old board posts \(2\)/);
   const post = (p, name) => p.evaluate((n) => LIVE.feed.find((x) => x.name === n).id, name);
   assert.equal(await attempt(M, (id) => LIVE.api.removePost(id), await post(M, "Olly Owner")), "permission-denied");
   assert.equal(await attempt(S, (id) => LIVE.api.removePost(id), await post(S, "Olly Owner")), "permission-denied");
   assert.equal(await attempt(M, (id) => LIVE.api.removePost(id), await post(M, "Sam Staff")), "allowed");
-  assert.equal(await attempt(S, () => LIVE.api.post("   ")), "permission-denied", "blank posts are refused");
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
@@ -117,7 +119,8 @@ test("shift reports are sent once, signed off once, and show on Tonight", async 
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=send]");
-  await S.fill("#s-who", "Sam Staff"); await S.click("#t-copy");
+  assert.equal(await S.locator("#s-who").count(), 0, "no name box: the login says who");
+  await S.click("#t-copy");
   await waitToast(S, /^Sent to the managers for sign-off$/);
   await O.waitForFunction(() => LIVE.reports.length === 1);
   const r = await O.evaluate(() => LIVE.reports[0]);

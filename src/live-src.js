@@ -123,7 +123,7 @@ function listen(uid) {
     sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); });
     sub("staff", collection(db, "staff"), (snap) => {
       LIVE.staff = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
-      liveChanged("staff"); if (!snap.metadata.hasPendingWrites) syncDirectory();
+      staffSettled = !snap.metadata.hasPendingWrites; liveChanged("staff"); syncDirectory();
     });
     sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
     clearOldPhotos();
@@ -148,8 +148,8 @@ function watchSeen(uid) {
 const byName = (a, b) => a.name.localeCompare(b.name);
 function watchChats(uid) {
   sub("directory", collection(db, "directory"), (snap) => {
-    LIVE.directory = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort(byName); liveChanged("directory");
-    if (!snap.metadata.hasPendingWrites) syncDirectory();
+    LIVE.directory = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort(byName);
+    dirSettled = !snap.metadata.hasPendingWrites; liveChanged("directory"); syncDirectory();
   });
   const ch = { mine: [], team: [] };
   const merge = () => { LIVE.chats = [...ch.team, ...ch.mine].sort((a, b) => ms(b.lastAt) - ms(a.lastAt)); liveChanged("chats"); };
@@ -160,10 +160,12 @@ function watchChats(uid) {
 }
 // Each phone keeps its own directory entry matching its staff record; managers' phones keep everyone's and remove
 // people who have left. Only from what the server has confirmed: a change still saving (a role change, say) may yet be
-// refused. A write the rules refuse isn't tried again until something changes.
+// refused, and a refused write makes the phone resend the writes queued behind it, which those can't survive (a role
+// change's audit entry only matches the first time). A write the rules refuse isn't tried again until something changes.
 const triedDir = new Set();
+let staffSettled = false, dirSettled = false;
 function syncDirectory() {
-  if (!LIVE.loaded.has("directory") || (LIVE.admin && !LIVE.loaded.has("staff"))) return;
+  if (!LIVE.loaded.has("directory") || !dirSettled || (LIVE.admin && (!LIVE.loaded.has("staff") || !staffSettled))) return;
   const want = LIVE.admin ? LIVE.staff : [{ uid: auth.currentUser.uid, name: LIVE.me, role: LIVE.role }];
   const have = new Map(LIVE.directory.map((p) => [p.uid, p]));
   // (After logging out the database is closed, and a write throws straight away.)
@@ -318,7 +320,6 @@ LIVE.api = {
     audit(b, doc(collection(db, "audit")).id, "role", { ...person, role });
     return b.commit();
   },
-  post: (text) => addDoc(collection(db, "feed"), { kind: "comment", text, ...me() }),
   removePost: (id) => deleteDoc(doc(db, "feed", id)),
   // side: "all", "bar" or "floor". managers: false leaves managers out (the owner only).
   pin: (text, side, managers) => addDoc(collection(db, "notices"), { text, side, managers, ...me() }),

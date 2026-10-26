@@ -100,9 +100,9 @@ test("adding someone, logging in, promoting, resetting a PIN and removing them",
   assert.equal(await S.evaluate(() => LIVE.admin), false);
   assert.equal(await S.locator("#a-go").count(), 0, "staff don't get the add-person form");
 
-  await S.fill("#c-text", "Limes low"); await S.click("#c-post");
-  await O.waitForFunction(() => LIVE.feed.length === 1);
-  assert.equal(await O.evaluate(() => LIVE.feed[0].name + ": " + LIVE.feed[0].text), "Sam Staff: Limes low");
+  await S.evaluate(() => LIVE.api.raise({ title: "Limes low", detail: "", area: "bar", urgent: false }));
+  await O.waitForFunction(() => LIVE.issues.length === 1 && !LIVE.issues[0].pending);
+  assert.equal(await O.evaluate(() => LIVE.issues[0].name + ": " + LIVE.issues[0].title), "Sam Staff: Limes low");
 
   await O.click("[data-role]");
   await S.waitForFunction(() => LIVE.admin);
@@ -140,7 +140,7 @@ test("adding someone, logging in, promoting, resetting a PIN and removing them",
   assert.equal((log.match(/new PIN/g) || []).length, 1, "a reset shows once, not once per account");
 
   await O.reload(); await O.click("#w-ok");
-  await O.waitForFunction(() => LIVE.me === "Olly Owner" && LIVE.feed.length === 1);
+  await O.waitForFunction(() => LIVE.me === "Olly Owner" && LIVE.issues.length === 1);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 

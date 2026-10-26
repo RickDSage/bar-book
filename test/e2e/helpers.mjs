@@ -38,6 +38,9 @@ export async function resetEmulators() {
 }
 // The emulator treats "Bearer owner" as an admin that skips the rules. Test setup only.
 export const adminWrite = (p, fields) => fetch(`${DOCS}/${p}`, { method: "PATCH", headers: { Authorization: "Bearer owner", "Content-Type": "application/json" }, body: JSON.stringify({ fields }) });
+// A team board post from before the board closed (26 October 2026), written past the rules.
+export const oldPost = (uid, name, text) => adminWrite(`feed/${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`, {
+  kind: { stringValue: "comment" }, text: { stringValue: text }, uid: { stringValue: uid }, name: { stringValue: name }, at: { timestampValue: new Date().toISOString() } });
 export const adminGet = (p) => fetch(`${DOCS}/${p}`, { headers: { Authorization: "Bearer owner" } });
 // How many logins exist in the Auth emulator, to check that refused writes don't leave stray ones behind.
 export const authAccounts = async () => {

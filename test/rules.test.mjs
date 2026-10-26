@@ -331,7 +331,7 @@ describe("team accounts", () => {
     await assertSucceeds(removeBatch(db("mgr1"), "mgr1", "staff1").commit());
   });
   test("someone removed loses access at once, and their old posts keep their name", async () => {
-    await assertSucceeds(addDoc(collection(db("staff1"), "feed"), { kind: "comment", text: "Limes low", ...by("staff1") }));
+    await seed((s) => addDoc(collection(s, "feed"), { kind: "comment", text: "Limes low", uid: "staff1", name: "Sam Staff", at: Timestamp.now() }));
     await assertSucceeds(removeBatch(db("mgr1"), "mgr1", "staff1").commit());
     await assertFails(getDocs(collection(db("staff1"), "feed")));
     await assertFails(addDoc(collection(db("staff1"), "feed"), { kind: "comment", text: "still here?", ...by("staff1") }));
@@ -940,14 +940,13 @@ describe("anonymous feedback between managers", () => {
 // =====================================================================================
 describe("team board and notices", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
-  const post = (uid, extra = {}) => addDoc(collection(db(uid), "feed"), { kind: "comment", text: "Guinness line down", ...by(uid), ...extra });
+  // Posts from before the board closed, written past the rules.
+  const post = async (uid) => { let id; await seed(async (s) => { id = (await addDoc(collection(s, "feed"), { kind: "comment", text: "Guinness line down", uid, name: TEAM[uid].name, at: Timestamp.now() })).id; }); return { id }; };
   const notice = (uid, extra = {}) => addDoc(collection(db(uid), "notices"), { text: "Tasting at 4", side: "all", managers: true, ...by(uid), ...extra });
-  test("posts are signed by the real author", async () => {
-    await assertSucceeds(post("staff1"));
-    await assertFails(post("staff1", { name: "Olly Owner" }));
-    await assertFails(post("staff1", { uid: "owner1" }));
-    await assertFails(post("staff1", { text: "   " }));
-    await assertFails(post("staff1", { kind: "notice" }));
+  test("the board is closed: nobody posts, the owner included, and old posts are still readable", async () => {
+    for (const uid of ["staff1", "mgr1", "owner1"]) await fails(addDoc(collection(db(uid), "feed"), { kind: "comment", text: "Limes low", ...by(uid) }), `${uid} posting`);
+    await post("staff1");
+    await assertSucceeds(getDocs(query(collection(db("staff2"), "feed"), orderBy("at", "desc"), limit(40))));
   });
   test("who can take a post down", async () => {
     const s = await post("staff1"), o = await post("owner1"), m = await post("mgr2");
