@@ -314,6 +314,45 @@ service cloud.firestore {
         && getAfter(listDoc(incoming().list)).data.at == request.time;
     }
 
+    // ---------- Date labels for open items ----------
+    // One record per thing a side dates once it's opened (a juice, a sauce, a cake): what it is, its side, how many days
+    // it keeps once opened, whether it needs a label (on), and where it's up to. Managers add, change and remove them.
+    // Anyone on the team opens one (today, with the use-by date its life gives it, or an earlier one when the pack's own
+    // date comes first), changes one (the old one binned and a new one opened and labelled) or bins one (used up or
+    // thrown away, with no new one opened). Each change raises v and writes events/l-{id}-{v} in the same batch, so every
+    // label has a record of who did what and when, and a phone working from an old copy is refused.
+    function labelDoc(id) { return /databases/$(database)/documents/labels/$(id); }
+    match /labels/{id} {
+      allow read: if isMember();
+      allow create: if isManager() && autoId(id) && stamped() && validLabel() && incoming().v == 1 && incoming().act == 'added'
+        && notOpen(incoming()) && existsAfter(eventDoc('l-' + id + '-1'));
+      allow update: if isMember() && stamped() && validLabel() && incoming().v == resource.data.v + 1 && labelMove()
+        && existsAfter(eventDoc('l-' + id + '-' + string(incoming().v)));
+      allow delete: if isManager() && existsAfter(eventDoc('l-' + id + '-' + string(resource.data.v + 1)));
+    }
+    function validLabel() {
+      let l = incoming();
+      return exactly(['item', 'side', 'life', 'on', 'state', 'openedOn', 'useBy', 'openedBy', 'openedUid', 'act', 'v', 'uid', 'name', 'at'])
+        && reqText(l.item, 60) && l.side in ['bar', 'floor', 'kitchen'] && l.life is int && l.life >= 1 && l.life <= 365 && l.on is bool;
+    }
+    function notOpen(l) { return l.state == 'none' && l.openedOn == null && l.useBy == null && l.openedBy == null && l.openedUid == null; }
+    // Opened by the caller today, with a use-by date no later than its life allows.
+    function openedNow(l) {
+      return l.state == 'open' && nearNow(l.openedOn) && isDay(l.useBy)
+        && dayOf(l.useBy) >= dayOf(l.openedOn) && dayOf(l.useBy) <= dayOf(l.openedOn) + duration.value(l.life, 'd')
+        && l.openedBy == profile().data.name && l.openedUid == request.auth.uid;
+    }
+    function labelMove() {
+      let l = incoming();
+      let old = resource.data;
+      let same = l.state == old.state && l.openedOn == old.openedOn && l.useBy == old.useBy && l.openedBy == old.openedBy && l.openedUid == old.openedUid;
+      let def = l.item == old.item && l.side == old.side && l.life == old.life && l.on == old.on;
+      return (l.act == 'edited' && isManager() && same && !def)
+        || (l.act == 'opened' && def && old.state == 'none' && openedNow(l))
+        || (l.act == 'changed' && def && old.state == 'open' && openedNow(l))
+        || (l.act == 'binned' && def && old.state == 'open' && notOpen(l));
+    }
+
     // ---------- Restocking from the cellar ----------
     // Someone asks for an item, an amount and where it's going, with any detail (which never changes). Someone takes it
     // on (or a manager gives it to someone), brings it up saying how much they moved, and the bar, floor or kitchen
@@ -367,14 +406,16 @@ service cloud.firestore {
     }
 
     // ---------- Audit trail ----------
-    // One event per change to a task, a procedure or a restock, written in the same batch as the change and matching it
-    // (the status before and after, the version, who, the reason and the time; for a restock, the item, amount and place). Nobody edits or deletes an event, the
-    // owner included: a correction is a new change with its own event. Ids carry the record's version, so a retried
-    // or repeated write can't add a second event for the same change.
+    // One event per change to a task, a procedure, a restock or a date label, written in the same batch as the change and
+    // matching it (the status before and after, the version, who, the reason and the time; for a restock, the item,
+    // amount and place; for a label, what was done and its dates). Nobody edits or deletes an event, the owner included:
+    // a correction is a new change with its own event. Ids carry the record's version, so a retried or repeated write
+    // can't add a second event for the same change.
     match /events/{id} {
       allow read: if isMember();
       allow create: if isMember() && stamped() && nearNow(incoming().day) && reqText(incoming().label, 200) && optText(incoming().note, 300)
-        && (incoming().kind == 'task' ? taskEvent(id) : incoming().kind == 'run' ? runEvent(id) : incoming().kind == 'restock' && restockEvent(id));
+        && (incoming().kind == 'task' ? taskEvent(id) : incoming().kind == 'run' ? runEvent(id) : incoming().kind == 'restock' ? restockEvent(id)
+          : incoming().kind == 'label' && labelEvent(id));
     }
     function taskEvent(id) {
       let e = incoming();
@@ -408,6 +449,23 @@ service cloud.firestore {
         && e.from == (before == null ? 'new' : before.data.status)
         && e.qty == (e.to == 'delivered' ? now.moved : e.to == 'received' ? now.got : e.from == 'new' ? now.qty : null)
         && e.area == (e.dest in ['up', 'down'] ? 'bar' : e.dest == 'kitchen' ? 'kitchen' : 'floor');
+    }
+    // act is what was done (added, edited, opened, changed, binned or removed). useBy is the label's date after the change
+    // and was its date before, so a late change shows on the record. Opening and changing are recorded on the day the
+    // label says it was opened.
+    function labelEvent(id) {
+      let e = incoming();
+      let before = get(labelDoc(e.ref));
+      let after = getAfter(labelDoc(e.ref));
+      let l = after == null ? before.data : after.data;
+      return exactly(['kind', 'day', 'ref', 'label', 'area', 'act', 'life', 'on', 'useBy', 'was', 'note', 'v', 'uid', 'name', 'at'])
+        && autoId(e.ref) && id == 'l-' + e.ref + '-' + string(e.v) && e.note == ''
+        && (after == null
+          ? before != null && e.act == 'removed' && e.v == before.data.v + 1 && e.useBy == null
+          : after.data.at == request.time && after.data.v == e.v && after.data.act == e.act && e.useBy == after.data.useBy
+            && (!(e.act in ['opened', 'changed']) || e.day == after.data.openedOn))
+        && e.was == (before == null ? null : before.data.useBy)
+        && e.label == l.item && e.area == l.side && e.life == l.life && e.on == l.on;
     }
 
     // ---------- Old records: waste and due diligence ----------

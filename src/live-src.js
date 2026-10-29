@@ -1,5 +1,5 @@
 // Live team layer: individual logins, the team board, notices, shift reports, the shared 86 list, tonight's tasks and
-// procedures, restocking from the cellar and the events behind them, synced through Firebase. Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE
+// procedures, date labels, restocking from the cellar and the events behind them, synced through Firebase. Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE
 // and calls liveChanged(). Every write here has a matching rule in firestore.rules and a test in test/rules.test.mjs.
 // Each person logs in with a username and a PIN. Under the hood that is a Firebase email/password account with a
 // made-up address; usernames/{username} maps the username to it. Access comes from having a staff/{uid} record.
@@ -86,6 +86,8 @@ function listen(uid) {
       LIVE.lists = Object.fromEntries(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
       liveChanged("lists");
     });
+    // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
+    sub("labels", collection(db, "labels"), (snap) => { LIVE.labels = rows(snap); liveChanged("labels"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
     // same record a moment apart, so the newer version wins.
     const rs = { open: [], recent: [] };
@@ -372,6 +374,26 @@ LIVE.api = {
   },
   // Every saved version of a list, newest first, read once when a manager opens its history.
   listHistory: (key) => getDocs(query(collection(db, "listlog"), where("list", "==", key))).then((s) => rows(s).sort((a, b) => b.v - a.v)),
+  // A date label: added, edited or removed by a manager (item, side, life and on say what it is), or opened, changed or
+  // binned by anyone (useBy is the date written on it). Opening and changing date it today and put this person's name on
+  // it. The label and its event go in one write, and the version goes up by one, so a change made from an old copy is
+  // refused. The event keeps the label's date before and after, so a late change shows.
+  label(x, act, { item, side, life, on, useBy } = {}) {
+    const day = shiftDay(), add = act === "added", ref = add ? doc(collection(db, "labels")) : doc(db, "labels", x.id), v = add ? 1 : x.v + 1;
+    const def = add || act === "edited" ? { item, side, life, on } : { item: x.item, side: x.side, life: x.life, on: x.on };
+    const open = act === "opened" || act === "changed", shut = add || act === "binned", keep = (k) => (shut ? null : x[k]);
+    const now = act === "removed" ? null : {
+      ...def, state: open ? "open" : shut ? "none" : x.state, openedOn: open ? day : keep("openedOn"), useBy: open ? useBy : keep("useBy"),
+      openedBy: open ? LIVE.me : keep("openedBy"), openedUid: open ? auth.currentUser.uid : keep("openedUid"), act, v, ...me(),
+    };
+    const b = writeBatch(db);
+    if (now) b.set(ref, now); else b.delete(ref);
+    b.set(doc(db, "events", `l-${ref.id}-${v}`), { kind: "label", day, ref: ref.id, label: def.item, area: def.side, act, life: def.life, on: def.on,
+      useBy: now ? now.useBy : null, was: add ? null : x.useBy, note: "", v, ...me() });
+    return b.commit();
+  },
+  // Every change to one label, oldest first, read when someone opens its history.
+  labelHistory: (id) => getDocs(query(collection(db, "events"), where("ref", "==", id))).then((s) => rows(s).filter((e) => e.kind === "label").sort((a, b) => a.v - b.v)),
   // Restocking from the cellar: what, how much, which unit, where it's going (up, down, shakes, floor or kitchen) and any detail.
   askRestock({ item, qty, unit, dest, detail }) {
     const day = shiftDay(), ref = doc(collection(db, "restock")), b = writeBatch(db);
@@ -509,7 +531,7 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
   training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;

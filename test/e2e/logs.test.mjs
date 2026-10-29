@@ -31,7 +31,7 @@ test("temperatures, waste and stock counts are left to Alert65 and Nory; what wa
 
   // Shift has no Logs pane, Managers no Waste, Safety or Stock, and the app has no way left to write them.
   await S.click("[data-tab=tally]");
-  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["open", "stock", "close", "send"]);
+  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["open", "labels", "stock", "close", "send"]);
   await S.click("[data-mode=floor]");
   assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["fset", "fshake", "stock", "fclose", "send"]);
   assert.deepEqual(await S.evaluate(() => ["waste", "logCheck", "addKit", "setPar", "saveCount"].filter((k) => LIVE.api[k])), []);
