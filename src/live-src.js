@@ -1,6 +1,7 @@
 // Live team layer: individual logins, the team board, notices, shift reports, the shared 86 list, tonight's tasks and
-// procedures, date labels, restocking from the cellar and the events behind them, synced through Firebase. Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE
-// and calls liveChanged(). Every write here has a matching rule in firestore.rules and a test in test/rules.test.mjs.
+// procedures, date labels, the rota, restocking from the cellar and the events behind them, synced through Firebase.
+// Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE and calls liveChanged().
+// Every write here has a matching rule in firestore.rules and a test in test/rules.test.mjs.
 // Each person logs in with a username and a PIN. Under the hood that is a Firebase email/password account with a
 // made-up address; usernames/{username} maps the username to it. Access comes from having a staff/{uid} record.
 import { initializeApp } from "firebase/app";
@@ -48,6 +49,11 @@ function sub(k, ref, fn) {
 const plain = (x) => /^[A-Za-z0-9-]+$/.test(x.id);
 const rows = (snap) => snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id, pending: x.metadata.hasPendingWrites })).sort((a, b) => ms(b.at) - ms(a.at));
 const me = () => ({ uid: auth.currentUser.uid, name: LIVE.me, at: serverTimestamp() });
+const SHIFT_KEYS = ["week", "day", "start", "end", "side", "note", "who", "whoName", "offer", "offerName", "cover", "wants", "pub"];
+// A published shift's event: what was done, the shift after it (or as it was, when it's removed), and its day, times,
+// side and person before.
+const shiftEvent = (id, s, was) => ({ kind: "shift", day: shiftDay(), ref: id, label: `${s.day} ${s.start}-${s.end}`, area: s.side, act: s.act, sday: s.day, start: s.start,
+  end: s.end, who: s.whoName, offer: s.offerName, cover: s.cover, was: was && { day: was.day, start: was.start, end: was.end, side: was.side, who: was.whoName }, note: "", v: s.v, ...me() });
 
 function listen(uid) {
   unsubAll();
@@ -229,11 +235,11 @@ async function clearOldPhotos() {
   }
 }
 
-// Listeners tied to the business day start again with that day's query when it rolls over at 6am.
+// Listeners tied to the business day (or its week) start again with the new query when it rolls over at 6am.
 const dayKeys = {};
-function subDay(k, ref, fn) {
-  if (dayKeys[k] === shiftDay() && subs[k]) return;
-  unsub(k); dayKeys[k] = shiftDay();
+function subDay(k, ref, fn, when = shiftDay()) {
+  if (dayKeys[k] === when && subs[k]) return;
+  unsub(k); dayKeys[k] = when;
   sub(k, ref(), fn);
 }
 // Tonight's tasks (one record per checklist item), procedures (one per list) and every change to them or to restocking,
@@ -243,6 +249,24 @@ function watchDays() {
   subDay("tasks", () => collection(db, "shift", shiftDay(), "tasks"), (snap) => { LIVE.tasks = byId(snap); liveChanged("tasks"); });
   subDay("runs", () => collection(db, "shift", shiftDay(), "runs"), (snap) => { LIVE.runs = byId(snap); liveChanged("runs"); });
   subDay("events", () => query(collection(db, "events"), where("day", "==", shiftDay()), limit(2000)), (snap) => { LIVE.events = rows(snap); liveChanged("events"); });
+  watchRota();
+}
+// The rota. Managers get every shift from four weeks back, drafts included. Everyone else gets the published shifts
+// from last week to the week after next, a week at a time: a query the rules can check, with no index to set up.
+function watchRota() {
+  const wk = weekOf(shiftDay());
+  if (LIVE.admin) {
+    subDay("shifts", () => query(collection(db, "shifts"), where("week", ">=", addDays(wk, -28))), (snap) => { LIVE.shifts = rows(snap); liveChanged("shifts"); }, wk);
+    return;
+  }
+  const got = {};
+  for (const n of [-1, 0, 1, 2]) {
+    subDay(`shifts${n}`, () => query(collection(db, "shifts"), where("week", "==", addDays(wk, 7 * n)), where("pub", "==", true)), (snap) => {
+      got[n] = rows(snap); LIVE.shifts = Object.values(got).flat();
+      if (n === 0) LIVE.loaded.add("shifts");
+      liveChanged("shifts");
+    }, wk);
+  }
 }
 setInterval(() => { if (LIVE.me) watchDays(); }, 60000);
 // Which side of the venue each list and each restocking destination belongs to, as the rules work it out.
@@ -394,6 +418,28 @@ LIVE.api = {
   },
   // Every change to one label, oldest first, read when someone opens its history.
   labelHistory: (id) => getDocs(query(collection(db, "events"), where("ref", "==", id))).then((s) => rows(s).filter((e) => e.kind === "label").sort((a, b) => a.v - b.v)),
+  // The rota. Shifts for one week, as drafts (nothing for staff to see until it's published) or straight onto a week
+  // that's out, each with its event. f is {week, day, start, end, side, note, who, whoName}.
+  shiftsAdd(fs, pub) {
+    const b = writeBatch(db);
+    for (const f of fs) {
+      const ref = doc(collection(db, "shifts")), s = { ...f, offer: "", offerName: "", cover: "", wants: {}, pub, act: "added", v: 1, ...me() };
+      b.set(ref, s);
+      if (pub) b.set(doc(db, "events", `w-${ref.id}-1`), shiftEvent(ref.id, s, null));
+    }
+    return b.commit();
+  },
+  // A change to one shift: f holds the fields that change. Once it's published, the change goes with its event, which
+  // keeps the shift as it was before; the version goes up by one, so a change made from an old copy is refused.
+  shift(x, act, f = {}) {
+    const ref = doc(db, "shifts", x.id), v = x.v + 1, b = writeBatch(db);
+    const s = { ...Object.fromEntries(SHIFT_KEYS.map((k) => [k, x[k]])), ...f, act, v, ...me() };
+    if (act === "removed") b.delete(ref); else b.set(ref, s);
+    if (x.pub) b.set(doc(db, "events", `w-${x.id}-${v}`), shiftEvent(x.id, act === "removed" ? { ...x, act, v } : s, x));
+    return b.commit();
+  },
+  // Publishing a week: every draft in it, in one write, with no events (drafts have none).
+  publish: (xs) => { const b = writeBatch(db); for (const x of xs) b.update(doc(db, "shifts", x.id), { pub: true, act: "published", v: x.v + 1, ...me() }); return b.commit(); },
   // Restocking from the cellar: what, how much, which unit, where it's going (up, down, shakes, floor or kitchen) and any detail.
   askRestock({ item, qty, unit, dest, detail }) {
     const day = shiftDay(), ref = doc(collection(db, "restock")), b = writeBatch(db);
@@ -531,7 +577,7 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
   training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
