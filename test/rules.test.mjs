@@ -134,7 +134,7 @@ async function current(path) {
 }
 // Tonight's tasks and procedures, and restocking: each change writes the record and its event in one batch, from the
 // record as it is now, as the app does. A give of null takes a task off whoever it was for.
-const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor" };
+const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor", kopen: "kitchen", kclose: "kitchen" };
 async function taskBatch(d, uid, list, item, to, { note = "", give, day = today(), task = {}, event = {}, eventId } = {}) {
   const id = `${list}-${item}`, cur = await current(`shift/${day}/tasks/${id}`), v = (cur?.v || 0) + 1, from = cur?.status || "todo";
   const who = give === undefined ? cur?.who ?? null : give ? TEAM[give]?.name ?? "Gus Ghost" : null;
@@ -150,7 +150,7 @@ async function runBatch(d, uid, list, to, { done = 0, required = 21, note = "", 
   b.set(doc(d, "events", `r-${day}-${list}-${v}`), { kind: "run", day, list, label: "Closing checklist", area: SIDE[list] ?? "bar", from, to, done, required, note, v, ...by(uid), ...event });
   return b;
 }
-const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor" };
+const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
 function askBatch(d, uid, { item = "Limes", qty = 2, unit = "bag", dest = "up", detail = "", day = today(), r = {}, event = {} } = {}) {
   const ref = doc(collection(d, "restock")), b = writeBatch(d);
   b.set(ref, { item, qty, unit, dest, detail, day, status: "asked", who: null, whoUid: null, moved: null, got: null, note: "", v: 1, askedBy: TEAM[uid].name, askedUid: uid, askedAt: now(), ...by(uid), ...r });
@@ -178,9 +178,9 @@ describe("visitors who aren't logged in", () => {
   const PRIVATE = ["staff/staff1", "config/owner", "config/pins", "feed/a", "notices/a", "reports/a", "photos/a", "shift/2026-10-25/ticks/open-1",
     "shift/2026-10-25/tasks/open-1", "shift/2026-10-25/runs/open", "events/a", "restock/a",
     "requests/a", "out/gin", "outlog/a", "asks/a", "incidents/a", "reviews/a", "ratings/a", "audit/a", "issues/a", "seen/a-staff1",
-    "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0"];
+    "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0", "lists/close", "listlog/close-1"];
   for (const p of PRIVATE) test(`can't read ${p}`, () => assertFails(getDoc(doc(db(), p))));
-  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos", "events", "restock"]) {
+  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos", "events", "restock", "lists", "listlog"]) {
     test(`can't list ${c}`, () => assertFails(getDocs(collection(db(), c))));
   }
   test("can look up one username, and it holds only the sign-in address and uid", async () => {
@@ -408,12 +408,20 @@ describe("tonight's tasks: statuses, with an event for every change", () => {
   });
   test("tasks that don't match their list, item, version, name or time are refused", async () => {
     const d = db("staff1");
-    for (const [why, list, item, o] of [["unknown list", "bins", 1, {}], ["item 60", "open", 60, {}], ["item -1", "open", -1, {}], ["id for another item", "open", 1, { task: { item: 2 }, event: { item: 2 } }],
+    for (const [why, list, item, o] of [["unknown list", "bins", 1, {}], ["item 1000", "open", 1000, {}], ["item -1", "open", -1, {}], ["id for another item", "open", 1, { task: { item: 2 }, event: { item: 2 } }],
       ["skipped version", "open", 1, { task: { v: 2 } }], ["long note", "open", 1, { note: "x".repeat(201) }], ["someone else's name", "open", 1, { task: { name: "Tia Staff" } }],
       ["someone else's uid", "open", 1, { task: { uid: "staff2" } }], ["phone's clock", "open", 1, { task: { at: Timestamp.now() } }], ["extra field", "open", 1, { task: { done: true } }]]) {
       await fails(task(d, "staff1", list, item, "done", o), why);
     }
     await fails(task(d, "staff1", "open", 1, "finished"), "unknown status");
+  });
+  test("the kitchen's lists work like the others, on the kitchen side, and an item's id can go up to 999", async () => {
+    await assertSucceeds(task(db("staff1"), "staff1", "kopen", 3, "done"));
+    await assertSucceeds(task(db("staff1"), "staff1", "kclose", 999, "done"));
+    await fails(task(db("staff1"), "staff1", "kclose", 2, "done", { event: { area: "bar" } }), "a kitchen task on the bar's side");
+    await fails(task(db("staff1"), "staff1", "open", 2, "done", { event: { area: "kitchen" } }), "a bar task on the kitchen's side");
+    assert.deepEqual((await eventsOf("kopen-3")).map((e) => e.area), ["kitchen"]);
+    await assertSucceeds((await runBatch(db("staff1"), "staff1", "kclose", "started", { required: 15 })).commit());
   });
   test("only tonight's business day (give or take a day for late syncing) can be changed", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "open", 1, "done", { day: dayFromNow(-1) }));
@@ -548,6 +556,73 @@ describe("opening and closing procedures", () => {
   });
 });
 
+describe("the lists themselves: managers change them, and every version is kept", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const ITEMS = [{ id: 0, t: "Fridges and freezers working" }, { id: 1, t: "Probe thermometer working" }, { id: 15, t: "Fryer oil changed", days: [1, 4] }];
+  // A save as the app makes it, from the list as it is now: the list and its copy in the history, in one write.
+  async function save(d, uid, key, { items = ITEMS, next = 16, list = {}, log = {}, logId } = {}) {
+    const cur = await current(`lists/${key}`), v = (cur?.v || 0) + 1, b = writeBatch(d), x = { items, next, v, ...by(uid) };
+    b.set(doc(d, "lists", key), { ...x, ...list });
+    b.set(doc(d, "listlog", logId || `${key}-${v}`), { list: key, ...x, ...log });
+    return b.commit();
+  }
+  test("a manager saves a list with its history in one write; everyone reads the list, only managers the history", async () => {
+    await assertSucceeds(save(db("mgr1"), "mgr1", "kclose"));
+    await assertSucceeds(save(db("owner1"), "owner1", "kclose", { items: ITEMS.slice(0, 2) }));
+    const l = (await getDoc(doc(db("staff1"), "lists", "kclose"))).data();
+    assert.deepEqual([l.v, l.name, l.items, l.next], [2, "Olly Owner", ITEMS.slice(0, 2), 16]);
+    await assertSucceeds(getDocs(collection(db("staff1"), "lists")));
+    await fails(getDocs(collection(db("staff1"), "listlog")), "staff reading the history");
+    await fails(getDoc(doc(db("staff1"), "listlog", "kclose-1")), "staff reading a version");
+    const h = await getDocs(query(collection(db("mgr2"), "listlog"), where("list", "==", "kclose")));
+    assert.deepEqual(h.docs.map((x) => [x.id, x.data().v, x.data().name, x.data().items.length]).sort(), [["kclose-1", 1, "Mia Manager", 3], ["kclose-2", 2, "Olly Owner", 2]]);
+  });
+  test("staff can't change a list", () => fails(save(db("staff1"), "staff1", "close"), "staff saving"));
+  test("a save without its history, or with a history that doesn't match it, is refused", async () => {
+    const d = db("mgr1");
+    await fails(setDoc(doc(d, "lists", "open"), { items: ITEMS, next: 16, v: 1, ...by("mgr1") }), "no history");
+    await fails(setDoc(doc(d, "listlog", "open-1"), { list: "open", items: ITEMS, next: 16, v: 1, ...by("mgr1") }), "history with no list");
+    for (const [why, log] of [["other items", { items: ITEMS.slice(1) }], ["other next", { next: 17 }], ["other version", { v: 2 }], ["other list", { list: "close" }],
+      ["someone else's name", { name: "Max Manager" }], ["phone's clock", { at: Timestamp.now() }], ["extra field", { note: "Tidied" }]]) {
+      await fails(save(d, "mgr1", "open", { log }), why);
+    }
+    await fails(save(d, "mgr1", "open", { logId: "open-2" }), "history named for another version");
+    await assertSucceeds(save(d, "mgr1", "open"));
+  });
+  test("lists that don't fit are refused", async () => {
+    const d = db("mgr1"), many = Array.from({ length: 61 }, (_, id) => ({ id, t: `Item ${id + 1}` }));
+    for (const [why, key, o] of [["unknown list", "bins", {}], ["no items", "open", { items: [] }], ["61 items", "open", { items: many, next: 61 }], ["items not a list", "open", { items: "Fridges" }],
+      ["next not a whole number", "open", { next: "16" }], ["next over 1000", "open", { next: 1001 }], ["skipped version", "open", { list: { v: 2 }, log: { v: 2 }, logId: "open-2" }],
+      ["someone else's name", "open", { list: { name: "Max Manager" }, log: { name: "Max Manager" } }], ["phone's clock", "open", { list: { at: Timestamp.now() }, log: { at: Timestamp.now() } }],
+      ["extra field", "open", { list: { title: "Opening" }, log: { title: "Opening" } }]]) {
+      await fails(save(d, "mgr1", key, o), why);
+    }
+    await assertSucceeds(save(d, "mgr1", "open", { items: many.slice(0, 60), next: 60 }));
+  });
+  test("next never goes down, so no id is used for two items", async () => {
+    await assertSucceeds(save(db("mgr1"), "mgr1", "fclose", { next: 16 }));
+    await fails(save(db("mgr1"), "mgr1", "fclose", { next: 15 }), "next going down");
+    await assertSucceeds(save(db("mgr1"), "mgr1", "fclose", { next: 16, items: ITEMS.slice(0, 1) }));
+  });
+  test("a manager saving from an old copy is refused, so two managers can't overwrite each other", async () => {
+    await assertSucceeds(save(db("mgr1"), "mgr1", "close"));
+    // Max is working from version 1, and Mia saves version 2 first.
+    await assertSucceeds(save(db("mgr1"), "mgr1", "close", { items: ITEMS.slice(0, 2) }));
+    const d = db("mgr2"), b = writeBatch(d), x = { items: ITEMS.slice(0, 1), next: 16, v: 2, ...by("mgr2") };
+    b.set(doc(d, "lists", "close"), x); b.set(doc(d, "listlog", "close-2"), { list: "close", ...x });
+    await fails(b.commit(), "a stale save");
+    assert.deepEqual([(await current("lists/close")).name, (await current("listlog/close-2")).name], ["Mia Manager", "Mia Manager"]);
+  });
+  test("nobody deletes a list, or changes or deletes its history, the owner included", async () => {
+    await assertSucceeds(save(db("mgr1"), "mgr1", "kopen"));
+    for (const uid of ["mgr1", "owner1"]) {
+      await fails(deleteDoc(doc(db(uid), "lists", "kopen")), `${uid} deleting the list`);
+      await fails(deleteDoc(doc(db(uid), "listlog", "kopen-1")), `${uid} deleting a version`);
+      await fails(updateDoc(doc(db(uid), "listlog", "kopen-1"), { name: "Someone Else" }), `${uid} editing a version`);
+    }
+  });
+});
+
 describe("restocking from the cellar", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const move = async (d, uid, id, to, o) => (await moveBatch(d, uid, id, to, o)).commit();
@@ -567,6 +642,13 @@ describe("restocking from the cellar", () => {
     const ev = (await getDocs(collection(db("mgr1"), "events"))).docs.map((x) => x.data()).sort((a, b) => a.v - b.v);
     assert.deepEqual(ev.map((e) => [e.from, e.to, e.qty, e.name, e.area]), [["new", "asked", 2, "Sam Staff", "bar"], ["asked", "doing", null, "Tia Staff", "bar"],
       ["doing", "delivered", 1, "Tia Staff", "bar"], ["delivered", "received", 1, "Sam Staff", "bar"]]);
+  });
+  test("the kitchen asks for things too, on the kitchen side", async () => {
+    const id = await asked("staff1", { item: "Fryer oil", qty: 2, unit: "each", dest: "kitchen" });
+    await fails(askBatch(db("staff1"), "staff1", { dest: "kitchen", event: { area: "floor" } }).b.commit(), "a kitchen restock on the floor's side");
+    await assertSucceeds(move(db("staff2"), "staff2", id, "doing"));
+    const ev = (await getDocs(collection(db("mgr1"), "events"))).docs.map((x) => x.data());
+    assert.deepEqual(ev.map((e) => e.area), ["kitchen", "kitchen"]);
   });
   test("bad asks are refused", async () => {
     for (const [why, o] of [["no item", { item: " " }], ["nothing", { qty: 0 }], ["too much", { qty: 1001 }], ["amount as text", { qty: "2" }], ["unknown unit", { unit: "crate" }],
@@ -682,7 +764,8 @@ describe("shift reports and photos", () => {
   test("staff send a report; bad ones are refused", async () => {
     await assertSucceeds(addDoc(collection(db("staff1"), "reports"), report("staff1")));
     await assertSucceeds(addDoc(collection(db("staff1"), "reports"), report("staff1", { side: "floor" })));
-    for (const bad of [{ side: "kitchen" }, { text: "   " }, { photos: 9 }, { photos: -1 }, { photos: "2" }, { name: "Mia Manager" }, { uid: "staff2" }, { signedBy: "Sam Staff" }]) {
+    await assertSucceeds(addDoc(collection(db("staff1"), "reports"), report("staff1", { side: "kitchen" })));
+    for (const bad of [{ side: "cellar" }, { text: "   " }, { photos: 9 }, { photos: -1 }, { photos: "2" }, { name: "Mia Manager" }, { uid: "staff2" }, { signedBy: "Sam Staff" }]) {
       await assertFails(addDoc(collection(db("staff1"), "reports"), report("staff1", bad)));
     }
     const { side, ...noSide } = report("staff1");
@@ -966,10 +1049,11 @@ describe("team board and notices", () => {
     await assertSucceeds(deleteDoc(doc(db("mgr2"), "notices", m.id)));
     await assertSucceeds(deleteDoc(doc(db("owner1"), "notices", o.id)));
   });
-  test("broadcasts go to everyone, the bar or the floor; only the owner can leave managers out", async () => {
+  test("broadcasts go to everyone, the bar, the floor or the kitchen; only the owner can leave managers out", async () => {
     await assertSucceeds(notice("mgr1", { side: "bar" }));
     await assertSucceeds(notice("mgr1", { side: "floor" }));
-    await assertFails(notice("mgr1", { side: "kitchen" }));
+    await assertSucceeds(notice("mgr1", { side: "kitchen" }));
+    await assertFails(notice("mgr1", { side: "cellar" }));
     await assertFails(notice("mgr1", { managers: "no" }));
     await assertFails(addDoc(collection(db("mgr1"), "notices"), { text: "No audience", ...by("mgr1") }));
     await assertFails(notice("mgr1", { managers: false }));
@@ -979,7 +1063,7 @@ describe("team board and notices", () => {
     await assertSucceeds(getDoc(doc(db("owner1"), "notices", hidden.id)));
     await assertFails(getDocs(collection(db("mgr1"), "notices")), "a manager can't list them all");
     const mine = await getDocs(query(collection(db("mgr1"), "notices"), where("managers", "==", true)));
-    assert.equal(mine.size, 2);
+    assert.equal(mine.size, 3);
     await assertFails(deleteDoc(doc(db("mgr1"), "notices", hidden.id)));
     // One from before audiences existed has no managers field: staff and the owner still read it.
     await seed((s) => setDoc(doc(s, "notices/old"), { text: "Old notice", ...by("owner1") }));

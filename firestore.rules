@@ -152,15 +152,15 @@ service cloud.firestore {
         || (isManager() && notOwner(resource.data.uid)));
     }
     // Broadcasts (stored as notices). They can't be edited: send a new one and remove the old.
-    // side is who it's for: everyone, the bar or the floor. Each phone shows the ones for the side it's set to, which is
-    // about relevance, not privacy. The owner can leave managers out (managers false), and then no manager can read it,
-    // so a manager's phone asks only for the ones with managers true. (No default value for a missing field here: with
-    // one, a query that asks for everything gets through. Broadcasts from before audiences existed are for staff and
-    // the owner only.)
+    // side is who it's for: everyone, the bar, the floor or the kitchen. Each phone shows the ones for the side it's set
+    // to, which is about relevance, not privacy. The owner can leave managers out (managers false), and then no manager
+    // can read it, so a manager's phone asks only for the ones with managers true. (No default value for a missing field
+    // here: with one, a query that asks for everything gets through. Broadcasts from before audiences existed are for
+    // staff and the owner only.)
     match /notices/{id} {
       allow read: if isMember() && (resource.data.managers == true || profile().data.role != 'manager');
       allow create: if isManager() && exactly(['text', 'side', 'managers', 'uid', 'name', 'at']) && reqText(incoming().text, 1000)
-        && incoming().side in ['all', 'bar', 'floor'] && incoming().managers is bool && (incoming().managers || isOwner()) && stamped();
+        && incoming().side in ['all', 'bar', 'floor', 'kitchen'] && incoming().managers is bool && (incoming().managers || isOwner()) && stamped();
       allow delete: if isOwner() || (isManager() && notOwner(resource.data.uid));
     }
     // "Got it" on a broadcast: one record per person per broadcast, so the team can see who has read it. It copies the
@@ -178,7 +178,7 @@ service cloud.firestore {
     match /reports/{id} {
       allow read: if isMember();
       allow create: if isMember() && exactly(['side', 'text', 'summary', 'photos', 'uid', 'name', 'at'])
-        && incoming().side in ['bar', 'floor']
+        && incoming().side in ['bar', 'floor', 'kitchen']
         && reqText(incoming().text, 8000) && reqText(incoming().summary, 200)
         && incoming().photos is int && incoming().photos >= 0 && incoming().photos <= 8
         && stamped();
@@ -211,9 +211,10 @@ service cloud.firestore {
     function nearNow(day) {
       return isDay(day) && dayOf(day) > request.time - duration.value(2, 'd') && dayOf(day) < request.time + duration.value(1, 'd');
     }
-    // Each list is a procedure: the bar's opening and closing, the floor's tables, milkshake station and close.
-    function isList(l) { return l in ['open', 'close', 'fset', 'fshake', 'fclose']; }
-    function sideOf(l) { return l in ['open', 'close'] ? 'bar' : 'floor'; }
+    // Each list is a procedure: the bar's opening and closing, the floor's tables, milkshake station and close, and the
+    // kitchen's opening and closing.
+    function isList(l) { return l in ['open', 'close', 'fset', 'fshake', 'fclose', 'kopen', 'kclose']; }
+    function sideOf(l) { return l in ['open', 'close'] ? 'bar' : l in ['kopen', 'kclose'] ? 'kitchen' : 'floor'; }
     function taskDoc(day, id) { return /databases/$(database)/documents/shift/$(day)/tasks/$(id); }
     function runDoc(day, list) { return /databases/$(database)/documents/shift/$(day)/runs/$(list); }
     function eventDoc(id) { return /databases/$(database)/documents/events/$(id); }
@@ -229,7 +230,8 @@ service cloud.firestore {
       allow read: if isMember();
     }
 
-    // One record per item per night: todo (not started), doing, done, blocked or cancelled (not needed tonight). Each
+    // One record per item per night: todo (not started), doing, done, blocked or cancelled (not needed tonight). item is
+    // the item's id in its list, which stays with it when a manager changes the list (see lists below). Each
     // change raises v by one and writes events/t-{day}-{list}-{item}-{v} in the same batch, so a change can't happen
     // without its event, an event can't be made up, and a phone working from an old copy (two people at once, or a late
     // sync) is refused instead of overwriting the newer change. Nobody deletes a task.
@@ -242,7 +244,7 @@ service cloud.firestore {
       let t = incoming();
       let from = was('status', 'todo');
       return exactly(['list', 'item', 'status', 'who', 'whoUid', 'note', 'v', 'uid', 'name', 'at'])
-        && isList(t.list) && t.item is int && t.item >= 0 && t.item < 60 && id == t.list + '-' + string(t.item)
+        && isList(t.list) && t.item is int && t.item >= 0 && t.item < 1000 && id == t.list + '-' + string(t.item)
         && t.v == was('v', 0) + 1 && optText(t.note, 200) && unlocked(day, t.list)
         && ((t.status == from && givenTo(t, from))
           || (t.status != from && t.who == was('who', null) && t.whoUid == was('whoUid', null) && taskMove(from, t.status, t.note)));
@@ -285,11 +287,38 @@ service cloud.firestore {
           || (r.status == 'started' && from == 'finished' && isManager() && reqText(r.note, 300)));
     }
 
+    // ---------- The lists themselves ----------
+    // Every list starts as the standard version written into the app. A manager changes it in the app (rewords, adds,
+    // moves or removes items, or picks the days one shows) by saving the whole list as lists/{key}, which then takes the
+    // standard one's place on every phone. Each save raises v by one and writes a copy to listlog/{key}-{v} in the same
+    // batch, so every version is kept with who saved it and when, and putting an old one back is a new version. Each
+    // item is {id, t, days}: the id stays with the item, so tonight's tasks stay on the right one, and next is the id
+    // the next new item gets, which never goes down, so no id is used for two items. The rules can't look inside a
+    // list, so the app checks each item when it reads them. Lists can't be deleted, and the history can't be changed.
+    function listDoc(k) { return /databases/$(database)/documents/lists/$(k); }
+    match /lists/{key} {
+      allow read: if isMember();
+      allow create, update: if isManager() && isList(key) && stamped() && exactly(['items', 'next', 'v', 'uid', 'name', 'at'])
+        && incoming().items is list && incoming().items.size() > 0 && incoming().items.size() <= 60
+        && incoming().next is int && incoming().next >= was('next', 0) && incoming().next <= 1000
+        && incoming().v == was('v', 0) + 1
+        && existsAfter(/databases/$(database)/documents/listlog/$(key + '-' + string(incoming().v)));
+    }
+    match /listlog/{id} {
+      allow read: if isManager();
+      allow create: if isManager() && stamped() && exactly(['list', 'items', 'next', 'v', 'uid', 'name', 'at'])
+        && isList(incoming().list) && incoming().v is int && id == incoming().list + '-' + string(incoming().v)
+        && getAfter(listDoc(incoming().list)).data.v == incoming().v
+        && getAfter(listDoc(incoming().list)).data.items == incoming().items
+        && getAfter(listDoc(incoming().list)).data.next == incoming().next
+        && getAfter(listDoc(incoming().list)).data.at == request.time;
+    }
+
     // ---------- Restocking from the cellar ----------
     // Someone asks for an item, an amount and where it's going, with any detail (which never changes). Someone takes it
-    // on (or a manager gives it to someone), brings it up saying how much they moved, and the bar or floor confirms how
-    // much arrived. Asked, moved and received are kept apart, so a request is never taken as proof that the stock
-    // arrived, and no stock level changes here. note is the reason for the latest change. Each change raises v and
+    // on (or a manager gives it to someone), brings it up saying how much they moved, and the bar, floor or kitchen
+    // confirms how much arrived. Asked, moved and received are kept apart, so a request is never taken as proof that the
+    // stock arrived, and no stock level changes here. note is the reason for the latest change. Each change raises v and
     // writes events/s-{id}-{v} in the same batch, like tasks.
     function restockDoc(id) { return /databases/$(database)/documents/restock/$(id); }
     function amount(n) { return n is number && n > 0 && n <= 1000; }
@@ -302,7 +331,7 @@ service cloud.firestore {
       let r = incoming();
       return exactly(['item', 'qty', 'unit', 'dest', 'detail', 'day', 'status', 'who', 'whoUid', 'moved', 'got', 'note', 'v', 'askedBy', 'askedUid', 'askedAt', 'uid', 'name', 'at'])
         && reqText(r.item, 80) && amount(r.qty) && r.unit in ['each', 'bottle', 'case', 'box', 'pack', 'bag', 'roll', 'keg', 'tub']
-        && r.dest in ['up', 'down', 'shakes', 'floor'] && nearNow(r.day) && optText(r.detail, 200) && r.note == ''
+        && r.dest in ['up', 'down', 'shakes', 'floor', 'kitchen'] && nearNow(r.day) && optText(r.detail, 200) && r.note == ''
         && r.status == 'asked' && r.who == null && r.whoUid == null && r.moved == null && r.got == null && r.v == 1
         && r.askedBy == profile().data.name && r.askedUid == request.auth.uid && r.askedAt == request.time;
     }
@@ -378,7 +407,7 @@ service cloud.firestore {
         && now.item == e.label && now.unit == e.unit && now.dest == e.dest
         && e.from == (before == null ? 'new' : before.data.status)
         && e.qty == (e.to == 'delivered' ? now.moved : e.to == 'received' ? now.got : e.from == 'new' ? now.qty : null)
-        && e.area == (e.dest in ['up', 'down'] ? 'bar' : 'floor');
+        && e.area == (e.dest in ['up', 'down'] ? 'bar' : e.dest == 'kitchen' ? 'kitchen' : 'floor');
     }
 
     // ---------- Old records: waste and due diligence ----------
