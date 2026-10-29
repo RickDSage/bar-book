@@ -53,8 +53,11 @@ test("the floor's lists follow the UK business day, which ends at 6am", async ()
     assert.deepEqual(p.errs, [], label);
     await p.context().close();
   }
+  // Date labels count whole days from the business day, so the clocks going back moves no date.
   const p = await open({ start: "#w-floor", at: "2026-10-24T22:30:00Z" });
-  assert.match(await p.evaluate(() => labelsHtml().replace(/<[^>]+>/g, " ")), /Desserts[\s\S]*Mon 26 Oct[\s\S]*Strawberry and raspberry[\s\S]*Sat 7 Nov[\s\S]*Maraschino cherries[\s\S]*Sat 21 Nov/);
+  assert.deepEqual(await p.evaluate(() => [2, 14, 28].map((n) => dayName(addDays(shiftDay(), n)))), ["Mon 26 Oct", "Sat 7 Nov", "Sat 21 Nov"]);
+  const due = (useBy) => p.evaluate((u) => labelDue({ state: "open", useBy: u }), useBy);
+  assert.deepEqual([await due("2026-10-23"), await due("2026-10-24"), await due("2026-10-25"), await due("2026-10-26")], ["overdue", "today", "tomorrow", "open"]);
   await p.evaluate(() => setMode("bar"));
   assert.equal(await p.$eval("#shift-title", (e) => e.textContent), "Bar shift");
   assert.deepEqual(p.errs, []);

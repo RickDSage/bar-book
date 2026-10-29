@@ -1,5 +1,5 @@
 // Live team layer: individual logins, the team board, notices, shift reports, the shared 86 list, tonight's tasks and
-// procedures, restocking from the cellar and the events behind them, synced through Firebase. Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE
+// procedures, date labels, restocking from the cellar and the events behind them, synced through Firebase. Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE
 // and calls liveChanged(). Every write here has a matching rule in firestore.rules and a test in test/rules.test.mjs.
 // Each person logs in with a username and a PIN. Under the hood that is a Firebase email/password account with a
 // made-up address; usernames/{username} maps the username to it. Access comes from having a staff/{uid} record.
@@ -81,6 +81,13 @@ function listen(uid) {
     });
     sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
     watchDays();
+    // Managers' versions of the lists. A list with none here is the app's standard one.
+    sub("lists", collection(db, "lists"), (snap) => {
+      LIVE.lists = Object.fromEntries(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
+      liveChanged("lists");
+    });
+    // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
+    sub("labels", collection(db, "labels"), (snap) => { LIVE.labels = rows(snap); liveChanged("labels"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
     // same record a moment apart, so the newer version wins.
     const rs = { open: [], recent: [] };
@@ -239,8 +246,8 @@ function watchDays() {
 }
 setInterval(() => { if (LIVE.me) watchDays(); }, 60000);
 // Which side of the venue each list and each restocking destination belongs to, as the rules work it out.
-const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor" };
-const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor" };
+const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor", kopen: "kitchen", kclose: "kitchen" };
+const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
 const RS_OPEN = ["asked", "given", "doing", "blocked", "delivered"];
 
 // Makes a login for someone else, runs the database write, and deletes the login again if the write is refused.
@@ -323,7 +330,7 @@ LIVE.api = {
     return b.commit();
   },
   removePost: (id) => deleteDoc(doc(db, "feed", id)),
-  // side: "all", "bar" or "floor". managers: false leaves managers out (the owner only).
+  // side: "all", "bar", "floor" or "kitchen". managers: false leaves managers out (the owner only).
   pin: (text, side, managers) => addDoc(collection(db, "notices"), { text, side, managers, ...me() }),
   // Got it: carries the broadcast's managers setting, as the rules require. Broadcasts from before audiences count as true.
   gotIt: (n) => setDoc(doc(db, "seen", `${n.id}-${auth.currentUser.uid}`), { notice: n.id, managers: n.managers ?? true, ...me() }),
@@ -356,7 +363,38 @@ LIVE.api = {
     b.set(doc(db, "events", `r-${day}-${list}-${v}`), { kind: "run", day, list, label, area: SIDE[list], from, to, done, required, note, v, ...me() });
     return b.commit();
   },
-  // Restocking from the cellar: what, how much, which unit, where it's going (up, down, shakes or floor) and any detail.
+  // A manager's version of a list: its items ({id, t, days}), the id the next new item gets, and a copy in the list's
+  // history, in one write. The version goes up by one, so if two managers save at once the second is refused instead of
+  // overwriting the first without knowing.
+  saveList(key, items, next) {
+    const v = (LIVE.lists[key]?.v || 0) + 1, x = { items, next, v, ...me() }, b = writeBatch(db);
+    b.set(doc(db, "lists", key), x);
+    b.set(doc(db, "listlog", `${key}-${v}`), { list: key, ...x });
+    return b.commit();
+  },
+  // Every saved version of a list, newest first, read once when a manager opens its history.
+  listHistory: (key) => getDocs(query(collection(db, "listlog"), where("list", "==", key))).then((s) => rows(s).sort((a, b) => b.v - a.v)),
+  // A date label: added, edited or removed by a manager (item, side, life and on say what it is), or opened, changed or
+  // binned by anyone (useBy is the date written on it). Opening and changing date it today and put this person's name on
+  // it. The label and its event go in one write, and the version goes up by one, so a change made from an old copy is
+  // refused. The event keeps the label's date before and after, so a late change shows.
+  label(x, act, { item, side, life, on, useBy } = {}) {
+    const day = shiftDay(), add = act === "added", ref = add ? doc(collection(db, "labels")) : doc(db, "labels", x.id), v = add ? 1 : x.v + 1;
+    const def = add || act === "edited" ? { item, side, life, on } : { item: x.item, side: x.side, life: x.life, on: x.on };
+    const open = act === "opened" || act === "changed", shut = add || act === "binned", keep = (k) => (shut ? null : x[k]);
+    const now = act === "removed" ? null : {
+      ...def, state: open ? "open" : shut ? "none" : x.state, openedOn: open ? day : keep("openedOn"), useBy: open ? useBy : keep("useBy"),
+      openedBy: open ? LIVE.me : keep("openedBy"), openedUid: open ? auth.currentUser.uid : keep("openedUid"), act, v, ...me(),
+    };
+    const b = writeBatch(db);
+    if (now) b.set(ref, now); else b.delete(ref);
+    b.set(doc(db, "events", `l-${ref.id}-${v}`), { kind: "label", day, ref: ref.id, label: def.item, area: def.side, act, life: def.life, on: def.on,
+      useBy: now ? now.useBy : null, was: add ? null : x.useBy, note: "", v, ...me() });
+    return b.commit();
+  },
+  // Every change to one label, oldest first, read when someone opens its history.
+  labelHistory: (id) => getDocs(query(collection(db, "events"), where("ref", "==", id))).then((s) => rows(s).filter((e) => e.kind === "label").sort((a, b) => a.v - b.v)),
+  // Restocking from the cellar: what, how much, which unit, where it's going (up, down, shakes, floor or kitchen) and any detail.
   askRestock({ item, qty, unit, dest, detail }) {
     const day = shiftDay(), ref = doc(collection(db, "restock")), b = writeBatch(db);
     b.set(ref, { item, qty, unit, dest, detail, day, status: "asked", who: null, whoUid: null, moved: null, got: null, note: "", v: 1, askedBy: LIVE.me, askedUid: auth.currentUser.uid, askedAt: serverTimestamp(), ...me() });
@@ -493,7 +531,7 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
   training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
