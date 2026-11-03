@@ -118,13 +118,17 @@ const fizzLast = (spec) => [...spec.filter((l) => !(FIZZ.test(l) && !/^\d/.test(
 const topLine = (l) => (FIZZ.test(l) && !/^(Top |Side|Splash|Dash|\d)/.test(l) ? `Top ${l}` : l);
 // Every drink served up goes in a chilled coupe, and its guide already chills it. One name for each glass.
 // Glasses behind the bar (owner, 3 Nov 2026): rocks, highball, martini, wine and spritz. No hurricanes, coupes or flutes,
-// so hurricane drinks go in a highball, coupe drinks in a martini glass, flute drinks in a wine glass, wine-glass spritzes in a spritz glass.
-const GLASS = { "Rocks glass": "Rocks", "Hurricane": "Highball", "Highball or hurricane": "Highball", "Coupe or flute": "Wine glass", "Large wine glass": "Spritz glass" };
-const glassFor = (d) => (GLASS[d.glass] || (/none|served up/i.test(d.ice) && /^Coupe( \+ shot glass)?$/.test(d.glass) ? `Chilled c${d.glass.slice(1)}` : d.glass)).replace(/\bcoupe\b/i, "martini glass");
+// They also have coupes (owner, 3 Nov 2026): the Martinis section goes in a martini glass, everything else served up in a coupe.
+// Hurricane drinks go in a highball, flute drinks in a coupe, wine-glass spritzes in a spritz glass.
+const GLASS = { "Rocks glass": "Rocks", "Hurricane": "Highball", "Highball or hurricane": "Highball", "Coupe or flute": "Coupe", "Large wine glass": "Spritz glass" };
+const martini = (d) => d.section === "Martinis";
+const glassFor = (d) => { const g = GLASS[d.glass] || (/none|served up/i.test(d.ice) && /^Coupe( \+ shot glass)?$/.test(d.glass) ? `Chilled c${d.glass.slice(1)}` : d.glass); return martini(d) ? g.replace(/\bcoupe\b/i, "martini glass") : g; };
 // The same swap in every line of text that names a glass. spritz: the drink's glass is a spritz glass.
-function glassText(t, spritz) {
+function glassText(t, spritz, mart) {
   if (!t) return t;
-  t = t.replace(/\b(chilled )?coupe or flute\b/gi, "wine glass").replace(/\bflute\b/g, "wine glass").replace(/\bcoupes?\b/g, "martini glass").replace(/\bCoupe\b/g, "Martini glass")
+  t = t.replace(/\bcoupe or flute\b/gi, "coupe").replace(/\bflute\b/g, "coupe");
+  if (mart) t = t.replace(/\bcoupes?\b/g, "martini glass").replace(/\bCoupe\b/g, "Martini glass");
+  t = t
     .replace(/\bhurricane glass\b/gi, "highball").replace(/\bthe hurricane\b/gi, "the highball");
   if (spritz) t = t.replace(/\b(large )?wine glass\b/gi, "spritz glass");
   return t;
@@ -164,15 +168,15 @@ function tidyMethod(d, guide) {
   const st = guide.steps.find((s) => s.title === "Stir"), secs = st && st.text.match(/(\d+(?: to \d+)?) seconds/);
   let m = SAY.reduce((t, [re, to]) => t.replace(re, to), d.method).replace(/^Stir,/, secs ? `Stir ${secs[1]} seconds,` : "Stir,");
   if (guide.steps.some((s) => s.double) && !/double strain/.test(m)) m = m.replace(/\bstrain\b/, "double strain");
-  if (/^Stir/.test(m) && /^Chilled martini glass/.test(d.glass)) m = m.replace(/, strain(?=$|\.)/, ", strain into a chilled martini glass");
-  return glassText(m, /spritz/i.test(d.glass));
+  if (/^Stir/.test(m) && /^Chilled (coupe|martini glass)/.test(d.glass)) m = m.replace(/, strain(?=$|\.)/, `, strain into a chilled ${martini(d) ? "martini glass" : "coupe"}`);
+  return glassText(m, /spritz/i.test(d.glass), martini(d));
 }
 
 function destination(d) {
   const ice = d.ice.toLowerCase();
   if (/none|served up/.test(ice)) {
     const g = d.glass.toLowerCase();
-    return /wine/.test(g) ? "into the wine glass" : /rocks/.test(g) ? "into the chilled rocks glass" : "into the chilled martini glass";
+    return /wine/.test(g) ? "into the wine glass" : /rocks/.test(g) ? "into the chilled rocks glass" : /martini/.test(g) ? "into the chilled martini glass" : "into the chilled coupe";
   }
   if (/large cube/.test(ice)) return "over the large cube";
   if (/crushed/.test(ice)) return "over the crushed ice";
@@ -221,7 +225,7 @@ function fixGuide(g, d) {
       : `Hawthorne strainer on the tin. Strain ${destination(d)}.`;
   }
   const spritz = /spritz/i.test(d.glass);
-  steps = steps.map((s, i) => ({ ...s, n: i + 1, title: glassText(s.title, spritz), text: glassText(s.text, spritz), ...(s.garnish ? { garnish: glassText(s.garnish, spritz) } : {}) }));
+  steps = steps.map((s, i) => ({ ...s, n: i + 1, title: glassText(s.title, spritz, martini(d)), text: glassText(s.text, spritz, martini(d)), ...(s.garnish ? { garnish: glassText(s.garnish, spritz, martini(d)) } : {}) }));
   const tools = g.tools.filter((t) => t !== "fine strainer");
   if (steps.some((s) => s.double)) tools.splice(tools.indexOf("Hawthorne strainer") + 1, 0, "fine strainer");
   return { ...g, tools, steps };
@@ -265,8 +269,8 @@ function fixDrink(d) {
   const spec = fizzLast(fixSpec(d.name, d.spec).map(topLine));
   const glass = glassFor(d), spritz = /spritz/i.test(glass);
   return { ...d, spec, glass, allergens: allergens({ ...d, spec }), subs: subsFor(spec),
-    garnish: glassText(d.garnish, spritz), desc: glassText(d.desc, spritz), blurb: glassText(d.blurb, spritz),
-    method: glassText(METHOD[d.name] || d.method.replace(/\s*\(card does not state method[^)]*\)/, ""), spritz) };
+    garnish: glassText(d.garnish, spritz, martini(d)), desc: glassText(d.desc, spritz, martini(d)), blurb: glassText(d.blurb, spritz, martini(d)),
+    method: glassText(METHOD[d.name] || d.method.replace(/\s*\(card does not state method[^)]*\)/, ""), spritz, martini(d)) };
 }
 
 module.exports = { fixGuide, fixDrink, tidyMethod };
