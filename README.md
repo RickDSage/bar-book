@@ -19,7 +19,7 @@ Open it at https://rickdsage.github.io/bar-book/ and add it to your home screen 
 | `src/build.js`, `src/site.js` | Bundle the drinks data into the page, then write the site files. |
 | `src/extras.js`, `src/builds.js`, `src/art.js` | Extra drinks, guide corrections and artwork. |
 | `test/rules.test.mjs` | 217 allowed and refused cases for every collection and role. |
-| `test/e2e/` | 59 browser tests: the real app on phone-sized screens, as owner, manager and staff at once, including offline and two phones changing the same item. |
+| `test/e2e/` | 60 browser tests: the real app on phone-sized screens, as owner, manager and staff at once, including offline and two phones changing the same item. |
 | `docs/SECURITY.md` | Permissions, owner setup, risks, costs, safety check limits, release checklist, rollback and keeping the code private. |
 | `LICENSE` | All rights reserved. No licence is granted. |
 

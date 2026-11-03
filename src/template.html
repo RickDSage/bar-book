@@ -720,16 +720,17 @@ function navHtml(id) {
   const pv = D[ctx[(i - 1 + ctx.length) % ctx.length]], nx = D[ctx[(i + 1) % ctx.length]];
   return `<div class="pn"><button class="btn" data-go="-1">\u2039 ${esc(pv.name)}</button><button class="btn" data-go="1">${esc(nx.name)} \u203a</button></div><p class="note" style="text-align:center">${i + 1} of ${ctx.length} \u00b7 swipe the page for the next drink</p>`;
 }
-function go(step) { const i = ctx.indexOf(curId); if (i < 0) return; mult = 1; openSheet(ctx[(i + step + ctx.length) % ctx.length], true); $("#sheet").scrollTop = 0; }
+// Not called go: the Team page's go() further down would silently replace it.
+function nextDrink(step) { const i = ctx.indexOf(curId); if (i < 0) return; mult = 1; openSheet(ctx[(i + step + ctx.length) % ctx.length], true); $("#sheet").scrollTop = 0; }
 const calm = () => matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Slide the current drink off in the swipe direction, then slide the next one in from the other side.
 function slideTo(step) {
   const sw = $("#sw"); haptic();
-  if (!sw || calm()) return go(step);
+  if (!sw || calm()) return nextDrink(step);
   sw.style.transition = "transform .16s ease-in, opacity .16s ease-in";
   sw.style.transform = `translateX(${step > 0 ? -60 : 60}%)`; sw.style.opacity = "0";
   setTimeout(() => {
-    go(step);
+    nextDrink(step);
     const nw = $("#sw"); nw.style.transition = "none"; nw.style.transform = `translateX(${step > 0 ? 40 : -40}%)`; nw.style.opacity = "0";
     nw.getBoundingClientRect();
     nw.style.transition = "transform .24s cubic-bezier(.2,.8,.2,1), opacity .2s"; nw.style.transform = ""; nw.style.opacity = "";

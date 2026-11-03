@@ -37,6 +37,18 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   assert.deepEqual(p.errs, []);
 });
 
+test("a drink's next and previous buttons and the arrow keys move through the list, round from the end", async () => {
+  const p = await open();
+  const [first, second, last] = await p.evaluate(() => [listIds[0], listIds[1], listIds.at(-1)].map((i) => D[i].name));
+  const showing = (n) => p.waitForFunction((x) => document.querySelector("#sh-name")?.textContent === x, n);
+  await p.evaluate(() => openSheet(listIds[0]));
+  await p.click('#sheet [data-go="1"]'); await showing(second);
+  await p.click('#sheet [data-go="-1"]'); await showing(first);
+  await p.keyboard.press("ArrowLeft"); await showing(last);
+  await p.keyboard.press("ArrowRight"); await showing(first);
+  assert.deepEqual(p.errs, []);
+});
+
 test("recently opened drinks come back as shortcuts", async () => {
   const p = await open({ recent: "[3,7,12]" });
   assert.equal(await p.$$eval("#quick [data-open]", (x) => x.length), 3);
