@@ -571,6 +571,17 @@ service cloud.firestore {
       allow delete: if isOwner() || (isMember() && resource.data.uid == request.auth.uid && resource.data.status in ['pending', 'seen']);
     }
 
+    // ---------- Features this venue uses ----------
+    // One record, settings/features: the features the owner has switched off for everyone here (a venue that runs its
+    // rota in Nory switches the rota off). Switching one off hides it; nothing saved under it is deleted. Everyone on the
+    // team reads it, only the owner changes it, and it names who changed it last.
+    match /settings/{id} {
+      allow read: if isMember();
+      allow create, update: if isOwner() && id == 'features' && exactly(['off', 'uid', 'name', 'at']) && stamped()
+        && incoming().off is list && incoming().off.size() <= 11
+        && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay']);
+    }
+
     // ---------- Rota ----------
     // One record per shift: its week (the Monday), day, start and end (an end before the start is after midnight), side,
     // a short note, who's on it (nobody makes it an open shift), who it's offered to, why its person needs cover, and who

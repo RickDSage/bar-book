@@ -127,6 +127,7 @@ nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: g
 nav.tabs button { height: var(--tabh); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; color: var(--muted); }
 nav.tabs button svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
+nav.tabs button[hidden] { display: none; }
 
 /* Allergens, tally, practice, info */
 .lead { color: var(--muted); margin: 8px 0 0; max-width: 62ch; }
@@ -319,6 +320,12 @@ a.btn { text-decoration: none; color: inherit; }
 .staffrow .n { font-weight: 700; }
 .staffrow .s { color: var(--muted); font-size: 14px; }
 .night .staffrow:last-child { border-bottom: 0; padding-bottom: 0; }
+.feat.off { opacity: .65; }
+.feat .fh { font-size: 18px; } .feat .fh .pill { vertical-align: 2px; }
+.feat .txt { margin: 6px 0 0; } .feat .s { margin: 6px 0 0; }
+.tour { position: fixed; left: 10px; right: 10px; z-index: 15; max-height: 45vh; overflow-y: auto; background: var(--surface); border: 2px solid var(--brass); border-radius: 16px; padding: 12px 14px; box-shadow: 0 10px 30px rgb(0 0 0 / .25); }
+.tour p { margin: 4px 0 0; }
+.tour .actions { margin-top: 10px; }
 .staffrow .actions { margin-top: 8px; }
 .staffrow .actions .btn { padding: 8px 12px; font-size: 15px; min-height: 40px; }
 /* Saving state: shown while a change is waiting to reach the server, or when there's no signal */
@@ -525,6 +532,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <button data-tab="tally"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l2 2 4-4M8.5 16h7"/></svg>Shift</button>
   <button data-tab="info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>Bar info</button>
 </nav>
+<div id="tour" class="tour" hidden role="dialog" aria-label="Tour of the app"></div>
 
 <div id="sheet" class="sheet gut" hidden role="dialog" aria-modal="true" aria-labelledby="sh-name"></div>
 <div id="toast" class="toast" hidden></div>
@@ -676,7 +684,10 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], off: new Set(store.get("off", [])), offBy: null };
+// Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
+// stay hidden while it connects and when nobody is logged in.
+const isOn = (k) => !LIVE.off.has(k);
 // The 86 board is shared by everyone logged in. Logged out, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -953,7 +964,7 @@ function renderPractice() {
   const mine = new Set(LIVE.me ? LIVE.training.filter((t) => t.trainee === LIVE.uid).map((t) => t.drinkName) : []), inPool = D.filter(POOLS[pool]);
   $("#ppool").innerHTML = Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}</button>`).join("");
   const d = pDrink;
-  $("#pcard").innerHTML = `${LIVE.me ? `<p class="note" id="p-signed">Signed off by a manager: ${inPool.filter((x) => mine.has(x.name)).length} of ${inPool.length}${pool === "Everything" ? " drinks" : ` ${pool}`}</p>` : ""}<div class="card"><span class="g" aria-hidden="true">${glass(d)}</span><h2>${esc(d.name)}</h2>${mine.has(d.name) ? `<span class="pill ok">Signed off</span>` : ""}<p class="lead" style="margin:6px auto 0">What goes in, which glass, which ice, what garnish?</p>
+  $("#pcard").innerHTML = `${LIVE.me && isOn("training") ? `<p class="note" id="p-signed">Signed off by a manager: ${inPool.filter((x) => mine.has(x.name)).length} of ${inPool.length}${pool === "Everything" ? " drinks" : ` ${pool}`}</p>` : ""}<div class="card"><span class="g" aria-hidden="true">${glass(d)}</span><h2>${esc(d.name)}</h2>${mine.has(d.name) ? `<span class="pill ok">Signed off</span>` : ""}<p class="lead" style="margin:6px auto 0">What goes in, which glass, which ice, what garnish?</p>
     ${pShown ? `<div style="text-align:left;margin-top:14px"><dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl><ul class="spec" style="margin-top:10px">${d.spec.map(specRow).join("")}</ul><p style="margin:10px 0 0">${esc(d.method)}</p></div>
       <div class="actions" style="justify-content:center"><button class="btn danger" data-p="miss">Missed it</button><button class="btn pri" data-p="got">Got it</button></div>`
       : `<button class="btn pri wide" data-p="show">Show the spec</button>`}
@@ -1875,7 +1886,7 @@ const fxRow = (x) => `<div class="staffrow fx"><div class="n"><b class="dt">${es
   <div class="s">${[x.comp, x.channel, x.screen && `Screen: ${x.screen}`].filter(Boolean).map(esc).join(" · ")}${LIVE.admin ? ` · <button class="linkbtn" data-fx-drop="${x.id}">Take down</button>` : ""}</div></div>`;
 function renderFootball() {
   const box = $("#football"); if (!box) return;
-  if (!LIVE.me) { box.innerHTML = ""; return; }
+  if (!LIVE.me || !isOn("football")) { box.innerHTML = ""; return; }
   const today = ukDay(Date.now()), games = LIVE.fixtures.filter((x) => !x.pending || x.uid === LIVE.uid).sort((a, b) => (a.day + a.ko).localeCompare(b.day + b.ko));
   const now = games.filter((x) => x.day === today), soon = games.filter((x) => x.day > today);
   if (!now.length && !soon.length && !LIVE.admin) { box.innerHTML = ""; return; }
@@ -2014,7 +2025,7 @@ function payOutHtml() {
 }
 function payHtml() {
   const f = (k, label, hint = "") => `<label class="fld">${label}<input data-pay="${k}" inputmode="decimal" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
-  return `<h2 style="margin-top:18px">My pay</h2>
+  return `<h2 style="margin-top:18px" id="pay-h">My pay</h2>
     <p class="note">An estimate for this month, on this phone only. Pay day is usually the last Friday: ${lastFriday()}.</p>
     <div class="paygrid">${f("rate", "Hourly rate (£)")}${f("code", "Tax code")}${f("worked", "Hours worked so far", "0")}${f("rota", "Hours still on the rota", "0")}${f("lastHours", "Last month's hours", "0")}${f("tronc", "Tronc per hour (£)", "0.00")}${f("low", "Tronc, quiet month (£/h)", "0.00")}${f("high", "Tronc, busy month (£/h)", "0.00")}</div>
     <div class="recent" style="margin-top:8px">${TRONC_STEPS.map((t) => `<button class="chip" data-pay-tronc="${t}" aria-pressed="${num(pay.tronc) === num(t)}">£${t}</button>`).join("")}</div>
@@ -2043,10 +2054,11 @@ $("#v-info").addEventListener("click", (e) => {
 function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
-    <h2 style="margin-top:12px">Light or dark</h2>
+    <div class="fbbox" style="margin-top:12px"><h2 style="margin-top:0">What's in the app</h2><p>Every feature, what it's for and what you can do with it, and a tour that shows you round.</p><button class="btn pri" data-feat-open>See the features</button></div>
+    <h2>Light or dark</h2>
     <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. This phone only.</p>
-    ${payHtml()}
+    ${isOn("pay") ? payHtml() : ""}
     <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and sends the good ones out as broadcasts.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
     <h2>Measures and the law</h2>
     <ul>
@@ -2085,6 +2097,182 @@ function renderInfo() {
     <p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p>`;
 }
 
+/* ---------- Features ----------
+   Every feature: what it's for, what staff and managers can do with it, and where it is. The owner can switch the ones
+   marked sw off for everyone here, for example the rota at a venue that runs it in Nory. A switched-off feature is
+   hidden, with its tiles and pop-ups; nothing saved under it is deleted, so switching it back on brings it all back.
+   The tour goes through the ones marked tour that are on and that the person can use ("mgr": managers only). */
+const FEATURES = [
+  { g: "Drinks", k: "drinks", n: "Drinks", go: "tab:drinks", tour: 1,
+    what: "Every drink with its spec, glass, ice, garnish and method, and a picture guide for each step.",
+    staff: "Search and filter, star favourites, scale a spec for up to 4 drinks, and swipe to the next drink. Logged in, 86 a drink that's run out." },
+  { g: "Drinks", k: "allergens", n: "Allergens", go: "tab:allergens", sw: 1, tour: 1,
+    what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
+    staff: "Tap an allergen to see every drink with it." },
+  { g: "Drinks", k: "practice", n: "Practise", go: "tab:practice", sw: 1, tour: 1,
+    what: "Flashcards on the specs: say the spec out loud, then check it.",
+    staff: "Practise one section or everything, and see which drinks a manager has signed you off on." },
+  { g: "Drinks", k: "info", n: "Bar info", go: "tab:info",
+    what: "Measures and the law, the technique key, prep and batches, the shot tray guide, and putting the app on your home screen." },
+  { g: "Drinks", k: "pay", n: "My pay", go: "pay", sw: 1, tour: 1,
+    what: "An estimate of this month's take-home pay, with tax, National Insurance and tronc. It stays on your phone: nobody else sees it.",
+    staff: "Enter your rate, hours and tronc, and work out your tronc per hour from a payslip." },
+  { g: "Shift", k: "lists", n: "Checklists", go: "shift", login: 1, tour: 1,
+    what: "Opening and closing checklists for the bar, floor and kitchen, ticked off live on every phone.",
+    staff: "Tick items off, start one, or mark one blocked and say why.", mgr: "Give an item to someone and change what's on each list." },
+  { g: "Shift", k: "labels", n: "Date labels", go: "labels", login: 1, tour: 1,
+    what: "Everything that gets dated once it's opened: when each one needs changing, and what's due tomorrow.",
+    staff: "Tap Opened one or Changed it. Each tap is saved with your name and the time.", mgr: "Add items and how long each one lasts once it's opened." },
+  { g: "Shift", k: "stock", n: "Restock and 86", go: "stock", login: 1, tour: 1,
+    what: "Asking for stock from the cellar and following it until it arrives, and what's 86'd tonight.",
+    staff: "Ask for something, take a request on, bring it up, and confirm it arrived.", mgr: "Give a request to someone and see which are late." },
+  { g: "Shift", k: "send", n: "Shift report", go: "send", login: 1, tour: 1,
+    what: "Each side's report at the end of the shift, with up to 8 closing photos, sent to the managers.",
+    staff: "Send your side's report.", mgr: "Sign it off, give it a thumbs up, flag it or add a note." },
+  { g: "Shift", k: "football", n: "Football", go: "football", login: 1, sw: 1,
+    what: "Today's and coming games at the top of the Shift tab, so everyone knows what's on the screens.",
+    staff: "See the games and kick-off times.", mgr: "Add and remove games." },
+  { g: "Team", k: "board", n: "Broadcasts", go: "board", login: 1,
+    what: "Messages from the managers that stay at the top of every page until each person taps Got it.",
+    staff: "Read them and tap Got it.", mgr: "Send one to everyone or to one side, and see who has read it." },
+  { g: "Team", k: "issues", n: "Issues and handover", go: "issues", login: 1, tour: 1,
+    what: "Anything that needs fixing, from a leaking glass washer to a broken heater, listed until someone fixes it.",
+    staff: "Raise one (urgent if it is), take it on, fix it, or raise it again if it's still broken.", mgr: "Give one to someone." },
+  { g: "Team", k: "concerns", n: "Concerns", go: "concerns", login: 1,
+    what: "Something that needs cleaning, a safety hazard or anything else that's wrong, with photos, sent to the managers or the team, anonymously if you like.",
+    staff: "Report one, deal with one sent to the team, and see when yours is dealt with.", mgr: "Deal with any of them, including those for managers only." },
+  { g: "Team", k: "chat", n: "Chat", go: "chat", login: 1, sw: 1, tour: 1,
+    what: "Messages to the whole team, one person or a group. Ping someone with @.",
+    staff: "Message anyone on the team." },
+  { g: "Team", k: "rota", n: "Rota", go: "rota", login: 1, sw: 1, tour: 1,
+    what: "The week's shifts once a manager publishes them, with open shifts, offers and cover.",
+    staff: "See your shifts, put your hand up for an open one, take or turn down an offer, or say you can't make one.",
+    mgr: "Make a week as a draft, publish it, give shifts to people, copy last week, and download or share it." },
+  { g: "Team", k: "asks", n: "Time off and swaps", go: "me", mgrGo: "requests", login: 1, sw: 1,
+    what: "Asking for time off or a shift swap, answered by a manager.",
+    staff: "Ask from the Me tab and see the answer there.", mgr: "Approve or decline each one. A manager's own go to another manager or the owner." },
+  { g: "Team", k: "late", n: "Running late", go: "me", mgrGo: "requests", login: 1,
+    what: "Telling the managers roughly when you'll get in.",
+    staff: "Send it from the Me tab in two taps.", mgr: "See it straight away and mark it seen." },
+  { g: "Team", k: "reports", n: "Reports", go: "reports", login: 1, tour: 1,
+    what: "Every shift report, night by night, with the ones waiting for sign-off first.",
+    staff: "Read every side's reports, as far back as you like.", mgr: "Sign off, flag or comment, see each night's flags and lateness, and download every report." },
+  { g: "Team", k: "incidents", n: "Incidents", go: "me", mgrGo: "incidents", login: 1, sw: 1,
+    what: "Guest complaints, breakages and anything else that went wrong, written down while it's fresh. Accidents and injuries go in Alert65.",
+    staff: "Log one from the Me tab. Only managers can read it.", mgr: "Close each one with what was done, and download them all." },
+  { g: "Managers", k: "live", n: "Live", go: "msub:live", login: 1, admin: 1, tour: 1,
+    what: "Tonight as it happens: what needs you now, each side's checklists, restocks, date labels, who's doing what and the exceptions.",
+    mgr: "Share tonight's summary on WhatsApp or by email." },
+  { g: "Managers", k: "activity", n: "Activity", go: "activity", mgrGo: "msub:act", login: 1,
+    what: "Everything done in the app, newest first, and each item's full history.",
+    staff: "See what the team has done.", mgr: "Pick a night, a person or an area, search it, and download the audit trail." },
+  { g: "Managers", k: "kpis", n: "Closing KPIs", go: "msub:kpis", login: 1, admin: 1, sw: 1, tour: 1,
+    what: "The last 7 nights worked out from every tap: when each list was started and finished, what was blocked or taken back, and how long restocks took, by night and by person.",
+    mgr: "Read them, download them and share them." },
+  { g: "Managers", k: "out", n: "86 log", go: "msub:out", login: 1, admin: 1,
+    what: "Every 86 and back in stock, and what runs out most.", mgr: "Read the last 100 changes." },
+  { g: "Managers", k: "training", n: "Training", go: "tab:practice", mgrGo: "msub:training", login: 1, sw: 1, tour: "mgr",
+    what: "Signing people off drink by drink once they've made it to spec in front of a manager.",
+    staff: "See your sign-offs in Practise.", mgr: "Sign someone off or undo it, and download every sign-off." },
+  { g: "Managers", k: "team", n: "Team logins", go: "msub:team", login: 1, admin: 1,
+    what: "Everyone's login, with every change recorded.",
+    mgr: "Add people, reset a PIN and remove someone. The owner also makes people managers." },
+  { g: "Managers", k: "feedback", n: "Manager feedback", go: "msub:feedback", login: 1, admin: 1, sw: 1,
+    what: "Anonymous feedback between managers.",
+    mgr: "Send feedback about another manager and read what's about you. The owner reads all of it." },
+];
+// What the owner can switch off. The rules allow exactly these.
+const SWITCHES = FEATURES.filter((f) => f.sw).map((f) => f.k);
+// Allergens and Practise are bottom tabs, so switching one off hides its tab.
+const tabOn = (t) => !["allergens", "practice"].includes(t) || isOn(t);
+const fUsable = (f) => (!f.login || !!LIVE.me) && (!f.admin || LIVE.admin);
+const fGo = (f) => (LIVE.admin && f.mgrGo) || f.go;
+const lowerFirst = (t) => t[0].toLowerCase() + t.slice(1);
+function featHtml() {
+  const role = LIVE.owner ? "owner" : LIVE.admin ? "manager" : LIVE.me ? "staff" : "";
+  const intro = {
+    owner: "You're the owner, so you can do everything here. Untick a feature to switch it off for everyone at this venue: it's hidden, and nothing saved under it is deleted.",
+    manager: "You're a manager: you can do what staff can, and what's under Managers.",
+    staff: "You're staff: what you can do is under You. What managers can do is there too.",
+    "": "Without a login you get the drinks, Allergens, Practise, Bar info and My pay. A manager gives you a login for the rest.",
+  }[role];
+  const mine = role === "staff" ? ["You", "Managers"] : role ? ["Staff", "You"] : ["Staff", "Managers"];
+  const card = (f) => {
+    const off = !isOn(f.k), can = fUsable(f), why = off ? "Off here" : can ? "" : f.admin ? "Managers only" : "Needs a team login";
+    const mgr = f.mgr && f.staff ? `The same, and ${lowerFirst(f.mgr)}` : f.mgr || (f.staff ? "The same." : "");
+    const acts = (!off && can ? `<button class="btn" data-feat-go="${f.k}">Open</button>` : "") +
+      (LIVE.owner && f.sw ? `<label class="check"><input type="checkbox" data-feat-sw="${f.k}"${off ? "" : " checked"}> On for everyone here</label>` : "");
+    return `<article class="notice feat${off ? " off" : ""}" data-feat="${f.k}"><div class="fh"><b>${f.n}</b>${why ? ` <span class="pill${off ? " no" : ""}">${why}</span>` : ""}</div>
+      <p class="txt">${f.what}</p>${f.staff ? `<p class="s"><b>${mine[0]}:</b> ${f.staff}</p>` : ""}${mgr ? `<p class="s"><b>${mine[1]}:</b> ${mgr}</p>` : ""}
+      ${acts ? `<div class="actions">${acts}</div>` : ""}</article>`;
+  };
+  return `<h2 id="sh-name" style="margin-top:12px">What's in Bar Book</h2>
+    <p class="lead">The drinks, the shift and the team in one app. Here's every feature, what it's for, and what staff and managers can do with it.</p>
+    <p class="note">${intro}</p>${LIVE.offBy ? `<p class="note">Last switched on or off by ${esc(LIVE.offBy.name)}, ${when(LIVE.offBy.at)}.</p>` : ""}
+    <div class="actions"><button class="btn pri" id="tour-go">Take the tour (${tourSteps().length} steps)</button></div>
+    ${[...new Set(FEATURES.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${FEATURES.filter((f) => f.g === g).map(card).join("")}`).join("")}`;
+}
+function openFeatures() {
+  lastFocus = document.activeElement;
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Features</span><span></span></div></div><div id="feat">${featHtml()}</div><button class="btn wide" id="sh-close2">Close</button>`;
+  showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus();
+}
+// Where a feature lives: a bottom tab, My pay, a part of the Shift tab, or a Team tab.
+function openAt(where) {
+  if (where.startsWith("tab:")) return show(where.slice(4));
+  if (where === "pay") { show("info"); return $("#pay-h")?.scrollIntoView({ block: "start" }); }
+  if (where === "football" || where === "send") { if (where === "send") pane = "send"; return show("tally"); }
+  if (where === "shift" || where === "stock" || where === "labels") return go(where);
+  show("notices"); go(where);
+}
+document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-open]")) openFeatures(); });
+$("#sheet").addEventListener("click", (e) => {
+  const g = e.target.closest("[data-feat-go]"), t = e.target.closest("#tour-go");
+  if (!g && !t) return;
+  lastFocus = null; closeSheet();
+  if (t) tour(0); else openAt(fGo(FEATURES.find((f) => f.k === g.dataset.featGo)));
+});
+// The owner's switches. Each change saves the whole list of what's off, with who changed it.
+$("#sheet").addEventListener("change", (e) => {
+  const k = e.target.dataset.featSw; if (!k) return;
+  const off = new Set(LIVE.off), f = FEATURES.find((x) => x.k === k);
+  if (e.target.checked) off.delete(k); else off.add(k);
+  track(LIVE.api.setOff(SWITCHES.filter((x) => off.has(x))), `${f.n} is ${e.target.checked ? "on" : "off"} for everyone here`, "Not saved. Check the signal and try again");
+  haptic();
+});
+// A change to the switches, from this phone or the owner's: the tabs, the page on screen and the tour follow it.
+function applyFeatures() {
+  store.set("off", [...LIVE.off]);
+  const bs = [...$$("nav.tabs [data-tab]")];
+  bs.forEach((b) => (b.hidden = !tabOn(b.dataset.tab)));
+  $("nav.tabs").style.gridTemplateColumns = `repeat(${bs.filter((b) => !b.hidden).length}, 1fr)`;
+  const cur = TABS.find((t) => !$("#v-" + t).hidden);
+  if (cur && !tabOn(cur)) show("drinks");
+  else if (cur === "tally") renderTally();
+  else if (cur === "info") renderInfo();
+  else if (cur === "practice") renderPractice();
+  if (!$("#sheet").hidden && $("#feat")) $("#feat").innerHTML = featHtml();
+  if (tourAt >= 0) tourCard();
+}
+// The tour: a card over the app for each step, opening each feature in turn.
+let tourAt = -1;
+const tourSteps = () => FEATURES.filter((f) => f.tour && (f.tour !== "mgr" || LIVE.admin) && isOn(f.k) && fUsable(f));
+function tour(i) {
+  const xs = tourSteps();
+  if (i < 0 || i >= xs.length) { tourAt = -1; $("#tour").hidden = true; return; }
+  tourAt = i; openAt(fGo(xs[i])); tourCard();
+}
+function tourCard() {
+  const xs = tourSteps(), i = Math.min(tourAt, xs.length - 1), f = xs[i], t = $("#tour");
+  if (!f) { tourAt = -1; t.hidden = true; return; }
+  const last = i === xs.length - 1;
+  t.innerHTML = `<div class="mini">Step ${i + 1} of ${xs.length}</div><b>${f.n}</b><p>${f.what}</p>
+    <div class="actions">${i ? `<button class="btn" data-tour="${i - 1}">Back</button>` : ""}<button class="btn pri" data-tour="${last ? -1 : i + 1}">${last ? "Done" : "Next"}</button>${last ? "" : `<button class="btn" data-tour="-1">End the tour</button>`}</div>`;
+  t.hidden = false;
+  t.style.bottom = `${innerHeight - $("nav.tabs").getBoundingClientRect().top + 10}px`;
+}
+$("#tour").addEventListener("click", (e) => { const b = e.target.closest("[data-tour]"); if (b) { haptic(); tour(+b.dataset.tour); } });
+
 /* ---------- Tabs ---------- */
 function renderBell() {
   const n = feedNew().length + unreadChats().length;
@@ -2122,7 +2310,7 @@ function renderTeamTop() {
     return;
   }
   if (!LIVE.me) { $("#team").innerHTML = `<p class="note">Checking your account… · <button class="linkbtn" id="l-out">Log out</button></p>`; return; }
-  $("#team").innerHTML = `<p class="note"><b>${esc(LIVE.me)}</b>${LIVE.owner ? " · owner" : LIVE.admin ? " · manager" : ""} · <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>`;
+  $("#team").innerHTML = `<p class="note"><b>${esc(LIVE.me)}</b>${LIVE.owner ? " · owner" : LIVE.admin ? " · manager" : ""} · <button class="linkbtn" data-feat-open>What I can do</button> · <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>`;
   if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Send a broadcast</summary>
     <p class="note">It stays at the top of every page until each person taps Got it, and stays pinned here until you remove it. You'll see who has read it.</p>
     <label class="fld">Message<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
@@ -2145,6 +2333,8 @@ let tpane = "board";
 const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#feed"], chat: ["#chat"], rota: ["#rota", "#requests"], activity: ["#sact"], reports: ["#reports"], managers: ["#msub", "#live", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
+// Time off and swaps can be switched off (a venue that does them in Nory). Running late can't.
+const askOn = (a) => a.kind === "late" || isOn("asks");
 // The Managers tab in parts, so nothing is a long scroll away.
 const MSUB = [["live", "Live", ["#live"]], ["act", "Activity", ["#act"]], ["kpis", "KPIs", ["#kpis"]],
   ["out", "86 log", ["#outlog"]], ["training", "Training", ["#mtrain"]], ["team", "Team", ["#mgr"]], ["feedback", "Feedback", ["#fb"]]];
@@ -2153,17 +2343,21 @@ const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 function renderTeamTabs() {
   const all = Object.values(TSLOTS).flat();
   if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
-  const tabs = [["board", "Board"], ["chat", "Chat"], ["rota", "Rota"], ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["managers", "Managers"]] : []), ["me", "Me"]];
+  // With the rota switched off, managers keep the tab for staff requests.
+  const rotaTab = isOn("rota") ? [["rota", "Rota"]] : LIVE.admin ? [["rota", "Requests"]] : [];
+  const tabs = [["board", "Board"], ...(isOn("chat") ? [["chat", "Chat"]] : []), ...rotaTab, ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["managers", "Managers"]] : []), ["me", "Me"]];
   if (!tabs.some(([k]) => k === tpane)) tpane = "board";
   // Managers: requests to answer and shifts to fill. Staff: shifts offered to them.
-  const offers = roOffers().length, rota = LIVE.admin ? [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length + roToFill().length, "waiting"] : [offers, offers === 1 ? "offer" : "offers"];
-  const count = { board: [openIssues().length + openConcerns().length, "open"], chat: [unreadChats().length, "new"], rota, reports: [rpReports().filter((r) => !r.signedBy).length + (LIVE.admin ? rpIncidents().filter((x) => x.status !== "closed").length : 0), "waiting"] };
+  const ro = isOn("rota"), offers = ro ? roOffers().length : 0, rota = LIVE.admin ? [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter((a) => waiting(a) && askOn(a)).length + (ro ? roToFill().length : 0), "waiting"] : [offers, offers === 1 ? "offer" : "offers"];
+  const count = { board: [openIssues().length + openConcerns().length, "open"], chat: [unreadChats().length, "new"], rota, reports: [rpReports().filter((r) => !r.signedBy).length + (LIVE.admin && isOn("incidents") ? rpIncidents().filter((x) => x.status !== "closed").length : 0), "waiting"] };
   const badge = (k) => (count[k] && count[k][0] ? `${count[k][0]} ${count[k][1]}` : "");
   $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge(k)}</small></button>`).join("")}</div>`;
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
   if (tpane !== "managers") return;
+  const subs = MSUB.filter(([k]) => !["kpis", "training", "feedback"].includes(k) || isOn(k));
+  if (!subs.some(([k]) => k === msub)) msub = "live";
   const now = needsYou().length, small = { live: now ? `${now} need${now === 1 ? "s" : ""} you` : "" };
-  $("#msub").innerHTML = `<div class="ptabs msub" role="tablist" aria-label="Managers">${MSUB.map(([k, t]) => `<button role="tab" data-msub="${k}" aria-selected="${k === msub}">${t}${small[k] ? `<small>${small[k]}</small>` : ""}</button>`).join("")}</div>`;
+  $("#msub").innerHTML = `<div class="ptabs msub" role="tablist" aria-label="Managers">${subs.map(([k, t]) => `<button role="tab" data-msub="${k}" aria-selected="${k === msub}">${t}${small[k] ? `<small>${small[k]}</small>` : ""}</button>`).join("")}</div>`;
   for (const [k, , sels] of MSUB) sels.forEach((x) => ($(x).hidden = k !== msub));
   // Training loads its records the first time it's opened, and the KPIs read the last 7 nights.
   if (msub === "training") LIVE.api.watchTraining();
@@ -2180,7 +2374,7 @@ function renderDash() {
   const open = openIssues(), urgent = open.filter((x) => x.urgent).length;
   const tonight = LIVE.reports.filter((r) => bday(r.at) === shiftDay());
   const sent = (side) => (tonight.some((r) => r.side === side) ? "Sent" : "Not yet");
-  const unsigned = LIVE.reports.filter((r) => !r.signedBy).length, inc = LIVE.incidents.filter((x) => x.status !== "closed").length;
+  const unsigned = LIVE.reports.filter((r) => !r.signedBy).length, inc = LIVE.incidents.filter((x) => x.status !== "closed").length, ro = isOn("rota");
   const lbSides = LIVE.admin ? LB_SIDES : [mode], lbNow = toChange(lbSides), lbNext = labelsDue(lbSides).length - lbNow.length;
   const next = roNext(), fill = roToFill();
   const tiles = [
@@ -2195,12 +2389,12 @@ function renderDash() {
     // The kitchen's report on a phone set to the kitchen, or once the kitchen has sent one.
     ...Object.keys(MODE_LISTS).filter((s) => s !== "kitchen" || mode === s || LIVE.reports.some((r) => r.side === s)).map((s) => [v("reports", sent(s)), `${s} report tonight`, "reports"]),
     // Staff always see their next shift; managers only when they're on the rota.
-    ...(next || !LIVE.admin ? [[v("shifts", next ? (next.day === shiftDay() ? "Today" : dayName(next.day, { weekday: "short" })) : "None"), next ? `your next shift, ${roTime(next)}` : "your next shift on the rota", "rota"]] : []),
+    ...(ro && (next || !LIVE.admin) ? [[v("shifts", next ? (next.day === shiftDay() ? "Today" : dayName(next.day, { weekday: "short" })) : "None"), next ? `your next shift, ${roTime(next)}` : "your next shift on the rota", "rota"]] : []),
     ...(LIVE.admin ? [
       [v("reports", unsigned), "reports to sign off", "reports", unsigned > 0],
-      [v("asks", LIVE.asks.filter(waiting).length), "staff requests to answer", "requests"],
-      [v("shifts", fill.length), `shift${fill.length === 1 ? "" : "s"} to fill in the next 7 days`, "rota", fill.some((x) => x.day <= addDays(shiftDay(), 1))],
-      [v("incidents", inc), "open incidents", "incidents", inc > 0],
+      [v("asks", LIVE.asks.filter((a) => waiting(a) && askOn(a)).length), "staff requests to answer", "requests"],
+      ...(ro ? [[v("shifts", fill.length), `shift${fill.length === 1 ? "" : "s"} to fill in the next 7 days`, "rota", fill.some((x) => x.day <= addDays(shiftDay(), 1))]] : []),
+      ...(isOn("incidents") ? [[v("incidents", inc), "open incidents", "incidents", inc > 0]] : []),
     ] : []),
   ];
   $("#dash").innerHTML = `<div class="sec">Tonight</div><div class="dash">${tiles.map(([x, label, go, hot]) => `<button data-go="${go}"${hot ? ' class="hot"' : ""}><b>${x}</b><span>${label}</span></button>`).join("")}</div>`;
@@ -2218,6 +2412,8 @@ function go(where) {
   // Staff requests sit under the rota. A week can come with it ("rota:2026-11-09").
   if (where === "requests") { tpane = "rota"; renderTeamTabs(); $("#requests").scrollIntoView({ block: "start" }); return; }
   if (where.startsWith("rota")) { roWk = where.split(":")[1] || roWk; where = "rota"; renderRota(); }
+  // A part of the Managers tab ("msub:kpis").
+  if (where.startsWith("msub:")) { msub = where.slice(5); where = "managers"; }
   const board = where === "issues" || where === "concerns";
   tpane = board ? "board" : where; renderTeamTabs();
   $(board ? `#${where}` : "#tpanes").scrollIntoView({ block: "start" });
@@ -2276,15 +2472,15 @@ const rpMore = (k) => rpOld.more[k] ?? LIVE[k].length >= LIVE.api.LIVE_N[k];
 const rpFlagged = (r) => rpReviews().some((v) => v.report === r.id && v.verdict === "flag");
 function renderReports() {
   if (!LIVE.me) return;
-  const A = LIVE.admin, reps = rpReports(), incs = A ? rpIncidents() : [];
-  const shows = [...RP_SHOW, ...(A ? RP_ADMIN : [])];
+  const A = LIVE.admin, reps = rpReports(), incs = A && isOn("incidents") ? rpIncidents() : [];
+  const shows = [...RP_SHOW, ...(A ? RP_ADMIN.filter(([k]) => k !== "incidents" || isOn("incidents")) : [])];
   if (!shows.some(([k]) => k === rpShow)) rpShow = "all";
   const waitingR = reps.filter((r) => !r.signedBy), openI = incs.filter((x) => x.status !== "closed");
   const body = (r) => `<details><summary>Show the report</summary><pre>${esc(r.text)}</pre></details>${r.photos ? `<div data-photos-of="${r.id}">${shownPhotos[r.id] || `<button class="btn" data-photos="${r.id}">Show ${r.photos} photo${r.photos > 1 ? "s" : ""}</button>`}</div>` : ""}`;
   const top = `<div class="sec">Waiting for sign-off</div>` +
     (waitingR.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}${r.pending ? " · sending…" : ""}</div><p class="txt">${esc(r.summary)}</p>${body(r)}
       ${A ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>${reviewHtml(r)}` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
-    (A ? `<div class="sec">Open incidents</div>${openI.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill wait">Open</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>
+    (A && isOn("incidents") ? `<div class="sec">Open incidents</div>${openI.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill wait">Open</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>
       <div class="rvrow" style="grid-template-columns:1fr auto"><input data-inct="${x.id}" maxlength="500" placeholder="What was done about it" value="${esc(incText[x.id] || "")}" aria-label="What was done about it"><button class="btn" data-inc-close="${x.id}">Close</button></div></div>`).join("") || `<p class="note">No open incidents. Anyone can log one from the Me tab.</p>`}` : "");
   // Night by night. For the last 7 nights managers also get the flags, incidents and lateness counted, as those are
   // all loaded; further back the counts could be short, so they're left off.
@@ -2331,7 +2527,7 @@ function rpPatch(k, id, fields) {
 function renderRequests() {
   if (!LIVE.admin) return;
   const open = LIVE.requests.filter((r) => !r.done);
-  const pend = LIVE.asks.filter(waiting), decided = LIVE.asks.filter((a) => !waiting(a)).slice(0, 30);
+  const pend = LIVE.asks.filter((a) => waiting(a) && askOn(a)), decided = LIVE.asks.filter((a) => !waiting(a) && askOn(a)).slice(0, 30);
   // Managers don't decide their own requests; another manager or the owner does.
   const own = (a) => a.uid === LIVE.uid && !LIVE.owner;
   $("#requests").innerHTML = `<div class="sec">Staff requests</div>` +
@@ -2462,7 +2658,7 @@ function roText(e, mine) {
 }
 function renderRota() {
   const box = $("#rota"); if (!box) return;
-  if (!LIVE.me) { box.innerHTML = ""; return; }
+  if (!LIVE.me || !isOn("rota")) { box.innerHTML = ""; return; }
   const A = LIVE.admin, head = `<div class="sec">Rota</div><p class="note">${A ? "Make a week as a draft, then publish it. Hands up, offers and cover requests show on each shift." : "Put your hand up for an open shift, or say here if you can't make one of yours. A manager decides who works it."}</p>`;
   if (!LIVE.loaded.has("shifts")) { box.innerHTML = `${head}<p class="note">Loading the rota. It needs signal the first time.</p>`; return; }
   const wk = roWeek(), [lo, hi] = roRange(), xs = weekShifts(wk), drafts = xs.filter((x) => !x.pub), last = weekShifts(addDays(wk, -7));
@@ -2734,6 +2930,8 @@ const rvText = {};
 const etaIn = (m) => hhmm(new Date(Date.now() + m * 6e4));
 function renderMe() {
   if (!LIVE.me) return;
+  const kinds = ME_KINDS.filter(([k]) => k === "late" || isOn(k === "incident" ? "incidents" : "asks"));
+  if (!kinds.some(([k]) => k === meKind)) meKind = "late";
   const fld = (label, f, attrs = "") => `<label class="fld">${label}<input data-f="${f}" value="${esc(meF[f])}" ${attrs}></label>`;
   const from = `type="date" min="${shiftDay()}"`;
   const form = {
@@ -2745,9 +2943,9 @@ function renderMe() {
       <label class="fld">What happened<textarea data-f="itext" rows="4" maxlength="1000" placeholder="What happened, where, and what was done. Use table numbers, not guests' names or contact details.">${esc(meF.itext)}</textarea></label>
       <p class="note">Only managers can read it. Accidents, injuries and near misses go in Alert65.</p>`,
   }[meKind]();
-  const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
+  const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid && askOn(a));
   $("#me").innerHTML = `<div class="sec">Tell the managers</div>
-    <div class="recent">${ME_KINDS.map(([k, t]) => `<button class="chip" data-mek="${k}" aria-pressed="${k === meKind}">${t}</button>`).join("")}</div>
+    <div class="recent">${kinds.map(([k, t]) => `<button class="chip" data-mek="${k}" aria-pressed="${k === meKind}">${t}</button>`).join("")}</div>
     ${form}${meKind === "incident" ? "" : fld("Note (optional)", "note", 'maxlength="300"')}
     <button class="btn pri wide" id="me-go">Send to managers</button>
     ${mine.length ? `<div class="sec">Your requests</div>${mine.map((a) => `<div class="staffrow"><div class="n">${askLine(a)}</div><div class="s">${statusPill(a)}${a.by ? ` by ${esc(a.by)}` : ""} · sent ${when(a.at)}${a.pending ? " · sending…" : ""}</div>${waiting(a) ? `<div class="actions"><button class="btn" data-ask-del="${a.id}">Cancel</button></div>` : ""}</div>`).join("")}` : ""}`;
@@ -2861,7 +3059,7 @@ function needsYou() {
   }
   for (const x of LIVE.labels) if (x.on && labelDue(x) === "overdue") xs.push(flag(Date.parse(x.useBy), "Label overdue", "no", `${x.item} (${sideName(x.side)})`, `Use by ${dayName(x.useBy)}`, cap(opener(x)), `labels:${x.side}`));
   // Shifts today and tomorrow with nobody on them, or whose person can't make it.
-  for (const x of roToFill()) if (x.day <= addDays(shiftDay(), 1)) {
+  for (const x of isOn("rota") ? roToFill() : []) if (x.day <= addDays(shiftDay(), 1)) {
     const n = Object.keys(x.wants).length;
     xs.push(flag(roSpan(x)[0] * 6e4, x.cover ? "Can't make it" : "Open shift", "no", `${roWhen(x)} (${sideName(x.side)})`, x.cover ? `${x.whoName}: ${x.cover}` : "", n ? `${n} hand${n === 1 ? "" : "s"} up` : "No hands up yet", `rota:${x.week}`));
   }
@@ -3291,7 +3489,7 @@ const chatName = (c) => (c.kind === "team" ? "Team chat" : c.kind === "group" ? 
 // When this person last read it: never (0), or a moment ago if their phone is still saving it.
 const readAt = (c) => { const r = c.read?.[LIVE.uid]; return r === undefined ? 0 : ms(r); };
 const unread = (c) => !!c.lastUid && c.lastUid !== LIVE.uid && ms(c.lastAt) > readAt(c);
-const unreadChats = () => LIVE.chats.filter(unread);
+const unreadChats = () => (isOn("chat") ? LIVE.chats.filter(unread) : []);
 const pinged = (c) => LIVE.pings.some((p) => p.chat === c.id);
 const chWhen = (t) => { const d = new Date(ms(t)); return ukDay(d) === ukDay(Date.now()) ? hhmm(d) : `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: UK })}, ${hhmm(d)}`; };
 const openRoom = () => LIVE.chats.find((c) => c.id === chatId && (chatView === "room" || chatView === "edit"));
@@ -3376,7 +3574,7 @@ document.addEventListener("visibilitychange", () => { const c = openRoom(); if (
 // is open, unless it pings you.
 function chatToasts() {
   // The first time both chat lists have loaded, what's there already is old news.
-  if (!LIVE.loaded.has("chats") || !LIVE.loaded.has("team-chat")) return;
+  if (!LIVE.loaded.has("chats") || !LIVE.loaded.has("team-chat") || !isOn("chat")) return;
   const first = !firstSnap.has("chats"); firstSnap.add("chats");
   for (const c of LIVE.chats.filter(unread)) {
     const k = "msg" + c.lastId, me = c.kind !== "dm" && c.lastPings?.includes(LIVE.uid);
@@ -3472,7 +3670,7 @@ function eventToast(e) {
     return { delivered: `${e.name} brought up ${amtOf(e.qty, e.unit, e.label)}. Tap Got it to confirm`, unavailable: `${e.label} isn't in the cellar (${e.name})`,
       blocked: `Your restock is blocked: ${e.label}${e.note ? `: ${e.note}` : ""}` }[e.to] || "";
   }
-  if (e.kind === "shift") return roToast(e);
+  if (e.kind === "shift") return isOn("rota") ? roToast(e) : "";
   if (e.kind === "label") return side && ["changed", "binned"].includes(e.act) && e.was && e.was <= e.day ? `${e.name} ${e.act} ${e.label}` : "";
   if (e.kind === "task") {
     if (e.from === e.to) return e.who === LIVE.me ? `${e.name} gave you: ${e.label}` : "";
@@ -3486,23 +3684,24 @@ function eventToast(e) {
 const TOAST = {
   notices: (x) => (forSide(x) ? `Broadcast: ${x.text.slice(0, 70)}` : ""),
   reports: (x) => (x.signedBy ? "" : `${x.name} sent a shift report`),
-  asks: (x) => (LIVE.admin && x.status === "pending" ? `${x.name}: ${askText(x)}` : ""),
-  incidents: (x) => (x.status !== "closed" ? `Incident logged: ${x.kind}` : ""),
+  asks: (x) => (LIVE.admin && x.status === "pending" && askOn(x) ? `${x.name}: ${askText(x)}` : ""),
+  incidents: (x) => (x.status !== "closed" && isOn("incidents") ? `Incident logged: ${x.kind}` : ""),
   reviews: (x) => `${x.name} ${x.verdict === "flag" ? "flagged" : x.verdict === "up" ? "gave a thumbs up to" : "commented on"} a report`,
-  ratings: (x) => (x.about === LIVE.uid ? "You have new anonymous feedback" : ""),
+  ratings: (x) => (x.about === LIVE.uid && isOn("feedback") ? "You have new anonymous feedback" : ""),
   issues: issueToast,
-  training: (x) => (x.trainee === LIVE.uid ? `${x.name} signed you off on ${x.drinkName}` : ""),
+  training: (x) => (x.trainee === LIVE.uid && isOn("training") ? `${x.name} signed you off on ${x.drinkName}` : ""),
   concerns: (x) => (x.status === "open" && cnForMe(x) ? `New concern: ${cnName(x)}` : ""),
   events: eventToast,
-  shifts: roOutToast,
+  shifts: (x) => (isOn("rota") ? roOutToast(x) : ""),
 };
 const MINE = {
   reports: (x) => (x.signedBy ? `${x.signedBy} signed off your shift report` : ""),
-  asks: (x) => (x.status !== "pending" ? `${STATUS[x.status][0]} by ${x.by}: ${askText(x)}` : ""),
+  asks: (x) => (x.status !== "pending" && askOn(x) ? `${STATUS[x.status][0]} by ${x.by}: ${askText(x)}` : ""),
   issues: issueToast,
   concerns: (x) => (x.status === "closed" && x.fixedByUid !== LIVE.uid ? `${x.fixedBy} dealt with your concern: ${cnName(x)}` : ""),
 };
 function liveChanged(what) {
+  if (what === "features") applyFeatures();
   if (what === "lists" || what === "me") applyLists();
   if (what === "notices" || what === "seen" || what === "me") renderBcast();
   if (what === "events") markEvents();
@@ -3771,7 +3970,7 @@ $("#home").addEventListener("click", (e) => { e.preventDefault(); show("drinks")
 
 const TABS = ["drinks", "allergens", "practice", "tally", "info", "notices"];
 function show(tab) {
-  if (!TABS.includes(tab)) tab = "drinks";
+  if (!TABS.includes(tab) || !tabOn(tab)) tab = "drinks";
   TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
   $("#hdr").hidden = tab !== "drinks";
@@ -3800,6 +3999,7 @@ renderChips(); renderList();
     if (mode !== "bar") show("tally");
   });
 }
+applyFeatures();
 show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 </script>
 <script type="module" src="live.js"></script></body></html>
