@@ -34,7 +34,7 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
   // Blocked tasks go to a manager's Live view, and to the list with the blocked item for staff.
   await S.click('[data-go="blocked"]');
   assert.deepEqual(await S.evaluate(() => [$("#v-tally").hidden, pane]), [false, "close"]);
-  for (const [go, tab] of [["requests", "rota"], ["incidents", "managers"], ["blocked", "managers"], ["reports", "reports"], ["issues", "board"]]) {
+  for (const [go, tab] of [["requests", "rota"], ["incidents", "reports"], ["blocked", "managers"], ["reports", "reports"], ["issues", "board"]]) {
     await O.evaluate(() => show("notices"));
     await O.click(`[data-go="${go}"]`);
     assert.equal(await O.$eval("[data-tpane][aria-selected=true]", (e) => e.dataset.tpane), tab, `${go} tile opens the ${tab} tab`);

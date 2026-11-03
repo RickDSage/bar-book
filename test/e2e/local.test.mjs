@@ -116,8 +116,9 @@ test("my pay: September's payslip comes out to the penny, tronc from August's ho
   await p.click("[data-pay-per=week]");
   assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Take-home, a week £687\.34/);
   await p.click("[data-pay-per=month]");
-  await p.click('[data-pay-tronc="1.00"]');
-  assert.match(await p.$eval("#pay-out", (e) => e.innerText), /£82\.00/);
+  await p.click('[data-pay-tronc="6.00"]');
+  assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Tronc £492\.00/, "82 hours at £6");
+  assert.deepEqual(await p.$$eval("[data-pay-tronc]", (bs) => bs.map((b) => b.textContent)), ["£6.00", "£6.50", "£7.00", "£7.50", "£8.00", "£8.50", "£9.00"]);
   await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]");
   assert.equal(await p.$eval('[data-pay="code"]', (e) => e.value), "992L", "kept on this phone");
   await put("code", "S1257L");

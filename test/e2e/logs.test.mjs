@@ -36,7 +36,7 @@ test("temperatures, waste and stock counts are left to Alert65 and Nory; what wa
   assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["fset", "fshake", "stock", "fclose", "send"]);
   assert.deepEqual(await S.evaluate(() => ["waste", "logCheck", "addKit", "setPar", "saveCount"].filter((k) => LIVE.api[k])), []);
   await managers(O, "act");
-  assert.deepEqual(await O.$$eval("#msub [data-msub]", (x) => x.map((b) => b.dataset.msub)), ["live", "act", "kpis", "nights", "incidents", "out", "training", "team", "feedback"]);
+  assert.deepEqual(await O.$$eval("#msub [data-msub]", (x) => x.map((b) => b.dataset.msub)), ["live", "act", "kpis", "out", "training", "team", "feedback"]);
 
   // Managers download the old records from Activity.
   const safety = await download(O, "old-safety");

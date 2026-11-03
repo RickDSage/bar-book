@@ -51,7 +51,7 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   await S.waitForFunction(() => LIVE.labels.length === 3 && LIVE.labels.every((x) => !x.pending));
   // (The page isn't redrawn under someone typing, so the ideas catch up once they stop.)
   await M.evaluate(() => { document.activeElement.blur(); renderTally(); });
-  assert.deepEqual(await M.$$eval("[data-lb-idea]", (x) => x.map((b) => b.dataset.lbIdea)), ["Pineapple juice", "Tomato juice", "Lime juice", "Lemon juice", "Sugar syrup", "Aquafaba"]);
+  assert.deepEqual(await M.$$eval("[data-lb-idea]", (x) => x.map((b) => b.dataset.lbIdea)), ["Pineapple juice", "Tomato juice", "Lime juice", "Lemon juice", "Sugar syrup"]);
   assert.equal(await rowText(S, "Apple juice"), "Apple juice Not open Keeps 3 days once opened Opened one");
 
   // Opening one: today plus its days, saved with who opened it.
