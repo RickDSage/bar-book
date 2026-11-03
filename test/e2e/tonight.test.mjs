@@ -14,7 +14,7 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await O.evaluate(() => show("notices"));
-  assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 open issues", "0 open concerns", "Not yet bar report tonight", "Not yet floor report tonight",
+  assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 date labels to change", "0 open issues", "0 open concerns", "Not yet bar report tonight", "Not yet floor report tonight",
     "0 reports to sign off", "0 staff requests to answer", "0 open incidents"]);
 
   await S.evaluate(async () => {
@@ -24,10 +24,10 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
       A.incident("Breakage or damage", "Glass washer door cracked"), A.raise({ title: "Glass washer leaking", detail: "", area: "bar", urgent: true, again: null }), A.sendReport("bar", "Bar report", "Bar · test")]);
   });
   await O.waitForFunction(() => [...document.querySelectorAll("#dash b")].filter((b) => b.textContent === "1").length === 7);
-  assert.deepEqual(await tiles(O), ["1/36 Bar checklists done", "1 blocked task (hot)", "1 restock open", "1 86'd right now (hot)", "1 open issues, 1 urgent (hot)", "0 open concerns", "Sent bar report tonight", "Not yet floor report tonight",
+  assert.deepEqual(await tiles(O), ["1/36 Bar checklists done", "1 blocked task (hot)", "1 restock open", "1 86'd right now (hot)", "0 date labels to change", "1 open issues, 1 urgent (hot)", "0 open concerns", "Sent bar report tonight", "Not yet floor report tonight",
     "1 reports to sign off (hot)", "1 staff requests to answer", "1 open incidents (hot)"]);
   await S.evaluate(() => show("notices"));
-  assert.equal((await tiles(S)).length, 8, "staff see the shift tiles, not the managers' ones");
+  assert.equal((await tiles(S)).length, 9, "staff see the shift tiles, not the managers' ones");
 
   await O.click('[data-go="stock"]');
   assert.deepEqual(await O.evaluate(() => [$("#v-tally").hidden, document.querySelector(".ptabs [aria-selected=true]").dataset.pane]), [false, "stock"]);
@@ -40,6 +40,9 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
     assert.equal(await O.$eval("[data-tpane][aria-selected=true]", (e) => e.dataset.tpane), tab, `${go} tile opens the ${tab} tab`);
   }
   assert.ok(await O.$eval("#issues", (e) => { const y = e.getBoundingClientRect().top; return y >= 0 && y < innerHeight; }), "the issues tile scrolls the issues into view");
+  // A manager's six tabs fit a 320px phone.
+  await O.setViewportSize({ width: 320, height: 640 }); await O.evaluate(() => show("notices"));
+  assert.ok(await O.evaluate(() => document.documentElement.scrollWidth <= 320), "no sideways scrolling on a 320px phone");
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 

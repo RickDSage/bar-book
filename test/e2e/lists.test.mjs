@@ -31,7 +31,7 @@ test("the kitchen has its own opening and closing lists, restocking, report and 
   const { O, M, S } = await team(browser, site, people);
   await kitchen(S, "kopen");
   assert.equal(await S.$eval("#shift-title", (e) => e.textContent), "Kitchen shift");
-  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.firstChild.textContent)), ["Open", "Stock", "Close", "Send"]);
+  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.firstChild.textContent)), ["Open", "Labels", "Stock", "Close", "Send"]);
   assert.equal(await S.locator("[data-list=kopen]").count(), 14);
   assert.match(await row(S, "kopen", 0), /^Fridges and freezers working, temperatures logged in Alert65/);
 

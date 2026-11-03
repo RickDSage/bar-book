@@ -169,6 +169,25 @@ async function moveBatch(d, uid, id, to, { note = "", give, moved, got, day = to
     qty: to === "delivered" ? m : to === "received" ? g : null, unit: cur.unit, dest: cur.dest, note, v, ...by(uid), ...event });
   return b;
 }
+// Date labels: each change writes the label and its event in one batch, from the label as it is now, as the app does.
+// Opening and changing date it today, with the use-by its life gives it unless the test picks another.
+const plusDays = (day, n) => new Date(Date.parse(day) + n * 864e5).toISOString().slice(0, 10);
+async function labelBatch(d, uid, act, { id, def = {}, useBy, day = today(), l = {}, event = {}, eventId } = {}) {
+  const add = act === "added", ref = id ? doc(d, "labels", id) : doc(collection(d, "labels")), cur = add ? null : await current(`labels/${id}`);
+  const v = add ? 1 : cur.v + 1, open = act === "opened" || act === "changed", shut = add || act === "binned";
+  const D = { ...(add ? { item: "Apple juice", side: "bar", life: 3, on: true } : { item: cur.item, side: cur.side, life: cur.life, on: cur.on }), ...def };
+  const x = act === "removed" ? null : {
+    ...D, state: open ? "open" : shut ? "none" : cur.state,
+    openedOn: open ? day : shut ? null : cur.openedOn, useBy: open ? useBy ?? plusDays(day, D.life) : shut ? null : cur.useBy,
+    openedBy: open ? TEAM[uid].name : shut ? null : cur.openedBy, openedUid: open ? uid : shut ? null : cur.openedUid,
+    act, v, ...by(uid), ...l,
+  };
+  const b = writeBatch(d);
+  if (x) b.set(ref, x); else b.delete(ref);
+  b.set(doc(d, "events", eventId || `l-${ref.id}-${v}`), { kind: "label", day, ref: ref.id, label: D.item, area: D.side, act, life: D.life, on: D.on,
+    useBy: x ? x.useBy : null, was: cur ? cur.useBy : null, note: "", v, ...by(uid), ...event });
+  return { b, id: ref.id };
+}
 const ask = (uid, kind, fields) => ({ kind, note: "", status: "pending", ...by(uid), ...fields });
 const issue = (uid, extra = {}) => ({ title: "Glass washer leaking", detail: "", area: "bar", urgent: false, again: null, status: "open", ...by(uid), ...extra });
 
@@ -178,9 +197,9 @@ describe("visitors who aren't logged in", () => {
   const PRIVATE = ["staff/staff1", "config/owner", "config/pins", "feed/a", "notices/a", "reports/a", "photos/a", "shift/2026-10-25/ticks/open-1",
     "shift/2026-10-25/tasks/open-1", "shift/2026-10-25/runs/open", "events/a", "restock/a",
     "requests/a", "out/gin", "outlog/a", "asks/a", "incidents/a", "reviews/a", "ratings/a", "audit/a", "issues/a", "seen/a-staff1",
-    "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0", "lists/close", "listlog/close-1"];
+    "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0", "lists/close", "listlog/close-1", "labels/a"];
   for (const p of PRIVATE) test(`can't read ${p}`, () => assertFails(getDoc(doc(db(), p))));
-  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos", "events", "restock", "lists", "listlog"]) {
+  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos", "events", "restock", "lists", "listlog", "labels"]) {
     test(`can't list ${c}`, () => assertFails(getDocs(collection(db(), c))));
   }
   test("can look up one username, and it holds only the sign-in address and uid", async () => {
@@ -619,6 +638,111 @@ describe("the lists themselves: managers change them, and every version is kept"
       await fails(deleteDoc(doc(db(uid), "lists", "kopen")), `${uid} deleting the list`);
       await fails(deleteDoc(doc(db(uid), "listlog", "kopen-1")), `${uid} deleting a version`);
       await fails(updateDoc(doc(db(uid), "listlog", "kopen-1"), { name: "Someone Else" }), `${uid} editing a version`);
+    }
+  });
+});
+
+describe("date labels: managers keep the list, anyone opens, changes or bins one, and every change says who", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const act = async (uid, a, o) => (await labelBatch(db(uid), uid, a, o)).b.commit();
+  const added = async (o = {}) => { const x = await labelBatch(db("mgr1"), "mgr1", "added", o); await x.b.commit(); return x.id; };
+  const evs = async (id) => (await getDocs(query(collection(db("staff1"), "events"), where("ref", "==", id)))).docs.map((x) => x.data()).sort((a, b) => a.v - b.v);
+
+  test("opened, changed and binned, each with who and when, and the dates on the label", async () => {
+    const id = await added({ def: { item: "Cranberry juice", life: 4 } });
+    await assertSucceeds(getDocs(collection(db("staff2"), "labels")));
+    await assertSucceeds(act("staff1", "opened", { id }));
+    let l = await current(`labels/${id}`);
+    assert.deepEqual([l.state, l.openedOn, l.useBy, l.openedBy, l.openedUid, l.act, l.v], ["open", today(), plusDays(today(), 4), "Sam Staff", "staff1", "opened", 2]);
+    await assertSucceeds(act("staff2", "changed", { id, useBy: plusDays(today(), 2) }));
+    l = await current(`labels/${id}`);
+    assert.deepEqual([l.openedBy, l.useBy], ["Tia Staff", plusDays(today(), 2)]);
+    await assertSucceeds(act("staff1", "binned", { id }));
+    l = await current(`labels/${id}`);
+    assert.deepEqual([l.state, l.openedOn, l.useBy, l.openedBy, l.openedUid], ["none", null, null, null, null]);
+    assert.deepEqual((await evs(id)).map((e) => [e.act, e.name, e.useBy, e.was, e.label, e.area]), [
+      ["added", "Mia Manager", null, null, "Cranberry juice", "bar"], ["opened", "Sam Staff", plusDays(today(), 4), null, "Cranberry juice", "bar"],
+      ["changed", "Tia Staff", plusDays(today(), 2), plusDays(today(), 4), "Cranberry juice", "bar"], ["binned", "Sam Staff", null, plusDays(today(), 2), "Cranberry juice", "bar"]]);
+  });
+  test("only managers add, change or remove items", async () => {
+    await fails((await labelBatch(db("staff1"), "staff1", "added")).b.commit(), "staff adding");
+    const id = await added();
+    await fails(act("staff1", "edited", { id, def: { life: 5 } }), "staff changing its life");
+    await fails(act("staff1", "removed", { id }), "staff removing it");
+    await assertSucceeds(act("mgr2", "edited", { id, def: { item: "Apple juice (cloudy)", life: 5, side: "floor", on: false } }));
+    const l = await current(`labels/${id}`);
+    assert.deepEqual([l.item, l.life, l.side, l.on, l.name], ["Apple juice (cloudy)", 5, "floor", false, "Max Manager"]);
+    await fails(act("mgr1", "edited", { id }), "a change that changes nothing");
+    await assertSucceeds(act("owner1", "removed", { id }));
+    assert.equal(await current(`labels/${id}`), null);
+    assert.deepEqual((await evs(id)).map((e) => [e.act, e.name, e.label, e.area, e.life, e.on]), [["added", "Mia Manager", "Apple juice", "bar", 3, true],
+      ["edited", "Max Manager", "Apple juice (cloudy)", "floor", 5, false], ["removed", "Olly Owner", "Apple juice (cloudy)", "floor", 5, false]]);
+  });
+  test("a manager's change leaves the dates alone, and nothing is removed without its event", async () => {
+    const id = await added();
+    await assertSucceeds(act("staff1", "opened", { id }));
+    await fails(act("mgr1", "edited", { id, def: { life: 7 }, l: { useBy: plusDays(today(), 7) } }), "moving the use-by");
+    await fails(act("mgr1", "edited", { id, def: { life: 7 }, l: { state: "none", openedOn: null, useBy: null, openedBy: null, openedUid: null } }), "closing it");
+    await fails(act("mgr1", "edited", { id, def: { life: 7 }, l: { openedBy: "Mia Manager", openedUid: "mgr1" } }), "taking the opener's name off");
+    await assertSucceeds(act("mgr1", "edited", { id, def: { life: 7 } }));
+    assert.deepEqual([(await current(`labels/${id}`)).useBy, (await current(`labels/${id}`)).openedBy], [plusDays(today(), 3), "Sam Staff"]);
+    await fails(deleteDoc(doc(db("mgr1"), "labels", id)), "removed with no event");
+    await fails(act("mgr1", "removed", { id, event: { label: "Orange juice" } }), "an event for something else");
+  });
+  test("the use-by: from the day it's opened to its life at most, and opened today by whoever taps", async () => {
+    const id = await added({ def: { life: 3 } });
+    for (const [why, o] of [["a day past its life", { useBy: plusDays(today(), 4) }], ["before it was opened", { useBy: plusDays(today(), -1) }],
+      ["opened days ago", { day: dayFromNow(-5) }], ["not a date", { useBy: "Friday" }], ["someone else's name as opener", { l: { openedBy: "Tia Staff" } }],
+      ["someone else's uid as opener", { l: { openedUid: "staff2" } }], ["opened on another day than its event", { l: { openedOn: plusDays(today(), -1), useBy: plusDays(today(), 2) } }]]) {
+      await fails(act("staff1", "opened", { id, ...o }), why);
+    }
+    await assertSucceeds(act("staff1", "opened", { id, useBy: today() }));
+  });
+  test("opening needs it not open; changing and binning need it open; a stale copy is refused", async () => {
+    const id = await added();
+    await fails(act("staff1", "changed", { id }), "changing one that isn't open");
+    await fails(act("staff1", "binned", { id }), "binning one that isn't open");
+    await assertSucceeds(act("staff1", "opened", { id }));
+    await fails(act("staff2", "opened", { id }), "opening it twice");
+    await fails(act("staff2", "changed", { id, def: { life: 30 }, useBy: plusDays(today(), 30) }), "a longer life while changing it");
+    const [x, y] = await Promise.all([labelBatch(db("staff1"), "staff1", "changed", { id }), labelBatch(db("staff2"), "staff2", "binned", { id })]);
+    await assertSucceeds(x.b.commit());
+    await fails(y.b.commit(), "two people at once");
+    await fails(act("staff1", "binned", { id, l: { v: 9 }, event: { v: 9 }, eventId: `l-${id}-9` }), "jumping a version");
+    assert.equal((await current(`labels/${id}`)).openedBy, "Sam Staff");
+  });
+  test("every change needs its event, and the event has to match it", async () => {
+    const id = await added();
+    for (const [why, event] of [["another act", { act: "changed" }], ["another item", { label: "Orange juice" }], ["another side", { area: "floor" }], ["another life", { life: 5 }],
+      ["another on", { on: false }], ["another use-by", { useBy: plusDays(today(), 1) }], ["another was", { was: today() }], ["a reason", { note: "Smelt off" }],
+      ["an extra field", { who: "Sam Staff" }], ["another day", { day: plusDays(today(), -1) }], ["someone else's name", { name: "Tia Staff" }], ["phone's clock", { at: Timestamp.now() }]]) {
+      await fails(act("staff1", "opened", { id, event }), why);
+    }
+    await fails(act("staff1", "opened", { id, eventId: `l-${id}-3` }), "an event for another version");
+    const l = { item: "Apple juice", side: "bar", life: 3, on: true, state: "open", openedOn: today(), useBy: plusDays(today(), 3), openedBy: "Sam Staff", openedUid: "staff1", act: "opened", v: 2, ...by("staff1") };
+    await fails(setDoc(doc(db("staff1"), "labels", id), l), "a label with no event");
+    await fails(setDoc(doc(db("staff1"), "events", `l-${id}-2`), { kind: "label", day: today(), ref: id, label: "Apple juice", area: "bar", act: "opened", life: 3, on: true,
+      useBy: plusDays(today(), 3), was: null, note: "", v: 2, ...by("staff1") }), "an event with no label");
+    await assertSucceeds(act("staff1", "opened", { id }));
+  });
+  test("items that don't fit are refused", async () => {
+    for (const [why, o] of [["no name", { def: { item: " " } }], ["a long name", { def: { item: "x".repeat(61) } }], ["unknown side", { def: { side: "cellar" } }],
+      ["no life", { def: { life: 0 } }], ["over a year", { def: { life: 366 } }], ["life as text", { def: { life: "3" } }], ["part days", { def: { life: 2.5 } }],
+      ["on as text", { def: { on: "yes" } }], ["extra field", { l: { note: "Top shelf" } }],
+      ["already open", { l: { state: "open", openedOn: today(), useBy: plusDays(today(), 3), openedBy: "Mia Manager", openedUid: "mgr1" } }],
+      ["another act", { l: { act: "opened" }, event: { act: "opened" } }], ["someone else's name", { l: { name: "Max Manager" }, event: { name: "Max Manager" } }],
+      ["a made-up id", { id: "apple-juice" }]]) {
+      await fails((await labelBatch(db("mgr1"), "mgr1", "added", o)).b.commit(), why);
+    }
+    const id = autoId();
+    await fails((await labelBatch(db("mgr1"), "mgr1", "added", { id, l: { v: 2 }, event: { v: 2 }, eventId: `l-${id}-2` })).b.commit(), "starting at version 2");
+    await assertSucceeds(act("mgr1", "added", { def: { item: "Philly cheese", side: "kitchen", life: 365, on: false } }));
+  });
+  test("nobody edits or deletes a label's history, the owner included", async () => {
+    const id = await added();
+    for (const uid of ["staff1", "mgr1", "owner1"]) {
+      await fails(updateDoc(doc(db(uid), "events", `l-${id}-1`), { name: "Someone Else" }), `${uid} editing an event`);
+      await fails(deleteDoc(doc(db(uid), "events", `l-${id}-1`)), `${uid} deleting an event`);
     }
   });
 });
@@ -1532,6 +1656,10 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "pings"), where("to", "==", uid)),
     query(collection(d, "chatPhotos"), where("uid", "==", uid), where("day", "==", dayFromNow(-31))),
     query(collection(d, "fixtures"), where("day", ">=", dayFromNow(-1)), orderBy("day"), limit(60)),
+    collection(d, "lists"),
+    collection(d, "labels"),
+    // One date label's history.
+    query(collection(d, "events"), where("ref", "==", autoId())),
   ];
   const managers = (d) => [
     query(collection(d, "asks"), orderBy("at", "desc"), limit(100)),

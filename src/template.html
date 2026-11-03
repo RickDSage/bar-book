@@ -231,6 +231,7 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .ptabs small { font-size: 11.5px; font-weight: 600; opacity: .85; min-height: 14px; }
 #tpanes .ptabs button { min-height: 44px; justify-content: center; font-size: 14px; }
 #tpanes .ptabs small:empty { display: none; }
+@media (max-width: 339px) { #tpanes .ptabs button { font-size: 13px; padding-inline: 0; } }
 .ptabs button[aria-selected="true"] { background: var(--brass); color: var(--brass-ink); }
 .pane.enter { animation: paneIn .18s ease-out; }
 @keyframes paneIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -348,6 +349,24 @@ a.btn { text-decoration: none; color: inherit; }
 .le .btn:disabled { opacity: .4; }
 .hist { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
 .hist .s { padding: 3px 0; }
+/* Date labels: one row per thing a side dates, the date to write in large type when one is opened, and a reminder at
+   the top of a side's first and last pages. */
+.lb { border-bottom: 1px solid var(--line); padding: 10px 0; }
+.lb .le-row b { font-size: 16.5px; }
+.lb .le-row .s { color: var(--muted); font-size: 13.5px; margin-top: 3px; }
+.lb .actions { margin-top: 8px; }
+.lb .actions .btn { padding: 8px 14px; min-height: 44px; font-size: 15px; }
+.lb .more { min-height: 44px; border-radius: 10px; color: var(--muted); font-size: 22px; line-height: 1; }
+.lb .more[aria-expanded="true"] { background: var(--surface); color: var(--fg); }
+.lb .tmore { padding-left: 0; border-bottom: 0; }
+.lbo { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--brass); border-radius: 12px; background: var(--surface); }
+.lbo .s { color: var(--muted); font-size: 14px; }
+.lbdate { font-family: var(--display); font-size: 28px; text-transform: uppercase; margin-top: 4px; }
+.lbdate b { color: var(--brass); }
+.lbdue { border: 1px solid var(--brass); border-radius: 12px; padding: 10px 12px; margin: 12px 0 4px; background: var(--surface); }
+.lbdue.late { border-color: var(--warn); }
+.lbdue .s { display: block; color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+.lbideas .chip { white-space: normal; max-width: 100%; text-align: left; }
 .prep.st-doing .box { border-color: var(--brass); color: var(--brass); }
 .prep.st-blocked .box { border-color: var(--warn); color: var(--warn); }
 .prep.st-cancelled { opacity: .62; }
@@ -572,7 +591,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] };
 // The 86 board is shared by everyone logged in. Logged out, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -986,15 +1005,6 @@ const sideName = (s) => SIDE_NAME[s] || "Bar";
 let mode = store.get("mode", "bar");
 if (!MODE_LISTS[mode]) mode = "bar";
 function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); renderTally(); renderBcast(); }
-// Use-by dates for the milkshake station, counted from the day it is opened.
-const LABELS = [
-  ["Desserts", "Guinness cake, sprinkle cake, brownies, cheesecake, ice cream, Oreo and Jammie Dodger ice cream sandwiches", 2],
-  ["Strawberry and raspberry", "", 14],
-  ["Maraschino cherries", "", 28],
-];
-const useBy = (days) => new Date(Date.now() + days * 864e5).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: UK });
-const labelsHtml = () => `<div class="sec">Date labels</div><p class="note">Opened today? Write this use-by date on the label.</p>
-  ${LABELS.map(([n, s, d]) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${n}${s ? `<div class="s" style="font-weight:400">${s}</div>` : ""}</div><b class="dt">${useBy(d)}</b></div>`).join("")}`;
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
@@ -1045,14 +1055,16 @@ function tallyText() {
     };
     return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
-  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
 SHARE.shift = () => [`Black Tap Soho ${mode} shift, ${stamp(new Date())}`, tallyText()];
+// The floor's date labels are all at the milkshake station, so they're on its Shakes page; the bar and kitchen have a page for them.
 const PANES = {
-  bar: [["open", "Open"], ["stock", "Stock"], ["close", "Close"], ["send", "Send"]],
+  bar: [["open", "Open"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Close"], ["send", "Send"]],
   floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["fclose", "Close"], ["send", "Send"]],
-  kitchen: [["kopen", "Open"], ["stock", "Stock"], ["kclose", "Close"], ["send", "Send"]],
+  kitchen: [["kopen", "Open"], ["labels", "Labels"], ["stock", "Stock"], ["kclose", "Close"], ["send", "Send"]],
 };
+const labelPane = (side) => (side === "floor" ? "fshake" : "labels");
 // Each side's last list is its close.
 const closeList = () => MODE_LISTS[mode].at(-1);
 const defaultPane = () => (new Date().getHours() >= 6 && new Date().getHours() < 16 ? PANES[mode][0][0] : closeList());
@@ -1304,13 +1316,14 @@ function handoverHtml() {
 function stillToDoHtml() {
   // The closing lists first: they're what's left at the end of the night.
   const open = [...MODE_LISTS[mode]].reverse().flatMap((k) => shown(k).filter(([i]) => ["todo", "doing", "blocked"].includes(statusOf(k, i))).map(([i, t]) => [k, i, t]));
-  const unfinished = MODE_LISTS[mode].filter((k) => { const p = progress(k); return p.n === p.of && !isLocked(k); });
-  if (!open.length && !unfinished.length) return `<p class="note">Everything's done and finished.</p>`;
+  const unfinished = MODE_LISTS[mode].filter((k) => { const p = progress(k); return p.n === p.of && !isLocked(k); }), lbs = toChange([mode]);
+  if (!open.length && !unfinished.length && !lbs.length) return `<p class="note">Everything's done and finished.</p>`;
   const st = (k, i) => statusOf(k, i) === "blocked" ? `<span class="pill no">Blocked</span> ` : statusOf(k, i) === "doing" ? `<span class="pill wait">In progress</span> ` : "";
-  const n = open.length + unfinished.length;
+  const n = open.length + unfinished.length + lbs.length;
   // A long list folds away so the note and Send stay near the top. Tapping an item goes to it.
   return `<details class="setup" id="todo"${n <= 6 ? " open" : ""}><summary>Still to do (${n})</summary>
     ${unfinished.map((k) => `<button class="todo" data-jump="${k}"><b>${esc(LISTS[k].title)}</b> is all done: open it and tap Finish</button>`).join("")}
+    ${lbs.map((x) => `<button class="todo" data-pane="${labelPane(mode)}"><span class="pill ${LB_DUE[labelDue(x)][1]}">${LB_DUE[labelDue(x)][0]}</span> Date label: ${esc(x.item)}</button>`).join("")}
     ${open.map(([k, i, t]) => `<button class="todo" data-jump="${k}" data-jump-i="${i}">${st(k, i)}${esc(t)} <span class="s">· ${esc(LISTS[k].short)}</span></button>`).join("")}</details>`;
 }
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
@@ -1393,6 +1406,179 @@ function moveRs(r, to) {
   track(LIVE.api.moveRestock(r, to, { note, moved, got }), ok, "Not saved. Someone may have just changed it");
   haptic();
 }
+/* ---------- Date labels (logged in) ----------
+   Each side keeps a list of what it dates once it's opened: juices, sauces, cakes. Managers add them and say how many
+   days each keeps once opened. Whoever opens one taps Opened one and writes the use-by date the app gives them on the
+   label (or the pack's own date, if that comes first). Whoever bins the old one and opens a new one taps Changed it, and
+   Binned is for one used up or thrown away with no new one opened. Each tap is saved with who and when, so a label that
+   wasn't changed can be traced. What's due tomorrow, today or overdue shows at the top of the side's first and last
+   pages, on the dashboard and in Live, and goes in the closing report. A phone with the app shut isn't told: that needs
+   a paid Firebase plan. */
+// Ideas for managers setting up. Days are filled in only where Bar Book's own lists already gave them.
+const LABEL_IDEAS = {
+  bar: [["Apple juice"], ["Cranberry juice"], ["Orange juice"], ["Pineapple juice"], ["Tomato juice"], ["Lime juice"], ["Lemon juice"], ["Sugar syrup"], ["Aquafaba"]],
+  floor: [["Guinness cake", 2], ["Sprinkle cake", 2], ["Brownies", 2], ["Cheesecake", 2], ["Ice cream", 2], ["Oreo ice cream sandwiches", 2], ["Jammie Dodger ice cream sandwiches", 2],
+    ["Salted caramel sauce"], ["Strawberry sauce", 14], ["Raspberry sauce", 14], ["Chocolate sauce"], ["Philly cheese"], ["Maraschino cherries", 28]],
+  kitchen: [],
+};
+const LB_SIDES = Object.keys(MODE_LISTS);
+// Sums on YYYY-MM-DD dates, done in UTC so the clocks changing never moves a date.
+const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
+const addDays = (day, n) => new Date(Date.parse(day) + n * 864e5).toISOString().slice(0, 10);
+const daysFrom = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+const nDays = (n) => `${n} day${n === 1 ? "" : "s"}`;
+// Where an open label is up to tonight: overdue (past its use-by), today (its last day), tomorrow, or open.
+function labelDue(x) {
+  if (x.state !== "open" || !ISO_DAY.test(x.useBy)) return "none";
+  const d = daysFrom(shiftDay(), x.useBy);
+  return d < 0 ? "overdue" : d === 0 ? "today" : d === 1 ? "tomorrow" : "open";
+}
+const LB_DUE = { overdue: ["Overdue", "no"], today: ["Due today", "wait"], tomorrow: ["Due tomorrow", "wait"], open: ["Open", "ok"], none: ["Not open", ""] };
+const LB_ORDER = Object.keys(LB_DUE);
+// One side's labels, the most urgent and soonest first. Managers also see the ones that need no label, at the end.
+const sideLabels = (side) => LIVE.labels.filter((x) => x.side === side && (x.on || LIVE.admin))
+  .sort((a, b) => b.on - a.on || LB_ORDER.indexOf(labelDue(a)) - LB_ORDER.indexOf(labelDue(b)) || (a.useBy || "").localeCompare(b.useBy || "") || a.item.localeCompare(b.item));
+// What's overdue, due today or due tomorrow on these sides, soonest first.
+const labelsDue = (sides) => LIVE.labels.filter((x) => x.on && sides.includes(x.side) && ["overdue", "today", "tomorrow"].includes(labelDue(x))).sort((a, b) => a.useBy.localeCompare(b.useBy));
+const toChange = (sides) => labelsDue(sides).filter((x) => labelDue(x) !== "tomorrow");
+const dupLabel = (item, side, id = "") => LIVE.labels.some((x) => x.id !== id && x.side === side && x.item.trim().toLowerCase() === item.trim().toLowerCase());
+const opener = (x) => `opened ${x.openedOn === shiftDay() ? "today" : dayName(x.openedOn)} by ${x.openedBy}`;
+// How many days past its use-by a label was changed or binned: 0 if it wasn't late.
+const lateBy = (e) => (["changed", "binned"].includes(e.act) && e.was && e.day > e.was ? daysFrom(e.was, e.day) : 0);
+function labelLine(x) {
+  const due = labelDue(x);
+  if (due === "none") return `Keeps ${nDays(x.life)} once opened`;
+  return `Use by ${dayName(x.useBy)}${due === "overdue" ? `, ${nDays(daysFrom(x.useBy, shiftDay()))} ago` : ""} · ${opener(x)}`;
+}
+// "opened Apple juice, use by Thu 31 Oct", "changed Apple juice, 2 days past its use-by". In a label's own history (mine)
+// it's "it" or "one". prev is the change before, so a manager's change can say what changed.
+function labelText(e, prev, mine) {
+  const it = mine ? "it" : e.label, late = lateBy(e) ? `, ${nDays(lateBy(e))} past its use-by` : "";
+  if (e.act === "added") return `added ${mine ? "it" : `${e.label} to the date labels`}: keeps ${nDays(e.life)}${e.on ? "" : ", no label needed"}`;
+  if (e.act === "opened") return `opened ${mine ? "one" : e.label}, use by ${dayName(e.useBy)}`;
+  if (e.act === "changed") return `changed ${it}${late}. New one, use by ${dayName(e.useBy)}`;
+  if (e.act === "binned") return `binned ${it}${late}`;
+  if (e.act === "removed") return `took ${mine ? "it" : e.label} off the date labels`;
+  const what = prev ? [prev.label !== e.label && `renamed from ${prev.label}`, prev.life !== e.life && `keeps ${nDays(e.life)}`, prev.area !== e.area && `moved to the ${lower(sideName(e.area))}`,
+    prev.on !== e.on && (e.on ? "needs a label again" : "no label needed")] : [`keeps ${nDays(e.life)}`, !e.on && "no label needed"];
+  return `changed ${mine ? "its details" : `the date label for ${e.label}`}: ${what.filter(Boolean).join(", ")}`;
+}
+// The label being opened or changed ({id, act, v, date}), the one whose ⋯ is open, a manager's changes to it, its
+// history and the add form, kept apart from the page so a teammate's change redrawing it loses nothing.
+let lbo = null, lbm = "", lbe = null, lbh = null;
+const lbF = { item: "", life: "", on: true, open: false };
+function labelRow(x) {
+  const due = labelDue(x), [tag, cls] = x.on ? LB_DUE[due] : ["No label needed", ""];
+  const b = (act, t, c = "") => `<button class="btn${c}" data-lb="${x.id}" data-lb-act="${act}">${t}</button>`;
+  const btns = !x.on ? "" : x.state === "open" ? b("changed", "Changed it", ["overdue", "today"].includes(due) ? " pri" : "") + b("binned", "Binned…") : b("opened", "Opened one", " pri");
+  return `<div class="lb${flashed("lb-" + x.id, x) ? " flash" : ""}"><div class="le-row"><div><b>${esc(x.item)}</b> <span class="pill ${cls}">${tag}</span>
+      <div class="s">${x.pending ? "Saving… · " : ""}${esc(labelLine(x))}</div></div>
+    <button class="more" data-lb-more="${x.id}" aria-expanded="${lbm === x.id}" aria-label="History${LIVE.admin ? " and changes" : ""}: ${esc(x.item)}">⋯</button></div>
+    ${lbo?.id === x.id ? openHtml(x) : btns ? `<div class="actions">${btns}</div>` : ""}${lbm === x.id ? labelMore(x) : ""}</div>`;
+}
+// Opening or changing one: the date to write on the label, which can be brought forward to the pack's own date.
+function openHtml(x) {
+  return `<div class="lbo"><p class="s">${lbo.act === "changed" ? "Bin the old one, open a new one and write this on its label:" : "Write this on its label:"}</p>
+    <p class="lbdate">Use by <b>${dayName(lbo.date)}</b></p>
+    <label class="fld">Its own use-by date is sooner? Pick that instead<input type="date" data-lb-date min="${shiftDay()}" max="${addDays(shiftDay(), x.life)}" value="${lbo.date}"></label>
+    <div class="actions"><button class="btn pri" data-lb-save="${x.id}">Save</button><button class="btn" data-lb-cancel>Cancel</button></div></div>`;
+}
+const LB_PAST = { added: "added", edited: "changed the details of", opened: "opened", changed: "changed", binned: "binned" };
+function saveOpen(x) {
+  const max = addDays(shiftDay(), x.life), d = lbo.date, act = lbo.act;
+  if (x.v !== lbo.v) { lbo = null; renderTally(); return toast(`${x.name} has just ${LB_PAST[x.act]} it. Check it and try again`); }
+  if (!ISO_DAY.test(d) || d < shiftDay() || d > max) return toast(`Pick a date from today to ${dayName(max)}`);
+  lbo = null;
+  track(LIVE.api.label(x, act, { useBy: d }), `Saved. Use by ${dayName(d)}`, "Not saved. Someone may have just changed it");
+  haptic(); renderTally();
+}
+function binLabel(x) {
+  if (!confirm(`Bin ${x.item}? Only if it's used up or thrown away, with no new one opened. Opened a new one? Tap Changed it instead.`)) return;
+  track(LIVE.api.label(x, "binned"), `${x.item} binned`, "Not saved. Someone may have just changed it");
+  haptic();
+}
+// ⋯: the label's history for everyone, and for managers, a form to change it or take it off the list.
+function labelMore(x) {
+  const edit = LIVE.admin && lbe?.id === x.id ? `<div class="mini">Change it</div>
+    <label class="fld">What it is<input data-lbe="item" maxlength="60" value="${esc(lbe.item)}"></label>
+    <div class="two"><label class="fld">Days it keeps<input data-lbe="life" inputmode="numeric" maxlength="3" value="${esc(lbe.life)}"></label>
+      <label class="fld">Side<select data-lbe="side">${LB_SIDES.map((s) => `<option value="${s}"${s === lbe.side ? " selected" : ""}>${sideName(s)}</option>`).join("")}</select></label></div>
+    <label class="check"><input type="checkbox" data-lbe="on"${lbe.on ? " checked" : ""}> Needs a date label</label>
+    <div class="actions"><button class="btn pri" data-lb-edit="${x.id}">Save changes</button><button class="btn danger" data-lb-del="${x.id}">Take it off the list</button></div>` : "";
+  return `<div class="tmore">${edit}<div class="mini">History</div>${labelHist(x)}</div>`;
+}
+function openMore(x) {
+  lbm = lbm === x.id ? "" : x.id;
+  lbe = lbm && LIVE.admin ? { id: x.id, item: x.item, life: String(x.life), side: x.side, on: x.on } : null;
+  if (lbm) loadLabelHist(x.id); else renderTally();
+}
+function editLabel(x) {
+  const item = lbe.item.trim().slice(0, 60), life = Number(lbe.life), f = { item, life, side: lbe.side, on: lbe.on };
+  if (!item) return toast("Say what it is");
+  if (!Number.isInteger(life) || life < 1 || life > 365) return toast("Days it keeps: a whole number from 1 to 365");
+  if (item === x.item && life === x.life && f.side === x.side && f.on === x.on) return toast("Nothing changed");
+  if (dupLabel(item, f.side, x.id)) return toast(`${item} is on the ${lower(sideName(f.side))}'s list already`);
+  track(LIVE.api.label(x, "edited", f), f.side === x.side ? "Saved. Every phone has it now" : `Saved. It's on the ${lower(sideName(f.side))}'s labels now`, "Not saved. Someone may have just changed it");
+  if (f.side !== x.side) { lbm = ""; lbe = null; }
+  haptic(); renderTally();
+}
+function dropLabel(x) {
+  if (!confirm(`Take ${x.item} off the date labels? ${x.state === "open" ? "It's open, so its use-by date goes too. " : ""}Its history stays in Activity.`)) return;
+  lbm = ""; lbe = null;
+  track(LIVE.api.label(x, "removed"), `${x.item} taken off the list`, "Not saved. Try again");
+  haptic(); renderTally();
+}
+// Everything that happened to one label, oldest first: read when ⋯ is opened, with tonight's changes added as they come.
+async function loadLabelHist(id) {
+  lbh = { id, busy: true }; renderTally();
+  const xs = await LIVE.api.labelHistory(id).catch(() => null);
+  if (lbh?.id === id) { lbh = xs ? { id, xs } : { id, err: true }; renderTally(); }
+}
+function labelHist(x) {
+  if (lbh?.id !== x.id || lbh.busy) return `<p class="note">Reading the history…</p>`;
+  if (lbh.err) return `<p class="note">Couldn't read the history. Check your signal.</p><div class="actions"><button class="btn" data-lb-hist="${x.id}">Try again</button></div>`;
+  const by = new Map([...lbh.xs, ...LIVE.events.filter((e) => e.kind === "label" && e.ref === x.id)].map((e) => [e.id, e])), xs = [...by.values()].sort((a, b) => a.v - b.v);
+  return `<div class="hist">${xs.map((e, n) => `<div class="s">${dayName(e.day)}, ${at(e)} · ${esc(e.name)} ${esc(labelText(e, xs[n - 1], true))}</div>`).join("")}</div>`;
+}
+function labelAddHtml(side) {
+  const ideas = (LABEL_IDEAS[side] || []).filter(([n]) => !dupLabel(n, side));
+  return `<details class="setup" id="lb-add"${lbF.open ? " open" : ""}><summary>Add something to date</summary>
+    ${ideas.length ? `<div class="mini">Ideas for the ${lower(sideName(side))}</div><div class="recent lbideas">${ideas.map(([n, d]) => `<button class="chip" data-lb-idea="${esc(n)}" data-life="${d || ""}">${esc(n)}${d ? ` · ${nDays(d)}` : ""}</button>`).join("")}</div>
+      <p class="note">Days are filled in only where Bar Book's own lists already had them. Check each one against the pack and your food safety rules.</p>` : ""}
+    <label class="fld">What it is<input id="lb-item" maxlength="60" value="${esc(lbF.item)}" placeholder="Apple juice, salted caramel sauce…"></label>
+    <label class="fld">Days it keeps once opened<input id="lb-life" inputmode="numeric" maxlength="3" value="${esc(lbF.life)}"></label>
+    <label class="check"><input type="checkbox" id="lb-on"${lbF.on ? " checked" : ""}> Needs a date label</label>
+    <div class="actions"><button class="btn pri" id="lb-go">Add it</button></div></details>`;
+}
+function addLabel(side) {
+  const item = lbF.item.trim().slice(0, 60), life = Number(lbF.life);
+  if (!item) return toast("Say what it is");
+  if (!Number.isInteger(life) || life < 1 || life > 365) return toast("Days it keeps once opened: a whole number from 1 to 365");
+  if (dupLabel(item, side)) return toast(`${item} is on the list already`);
+  track(LIVE.api.label(null, "added", { item, side, life, on: lbF.on }), `${item} added. Everyone on the ${lower(sideName(side))} can see it`, "Not saved. Try again");
+  Object.assign(lbF, { item: "", life: "", on: true }); haptic(); renderTally();
+}
+function labelsHtml(side) {
+  const head = `<div class="sec">Date labels</div>`;
+  if (!LIVE.loaded.has("labels")) return `${head}<p class="note">Loading. It needs signal the first time.</p>`;
+  return `${head}<p class="note">Opened one? Tap Opened one and write the date it gives you on the label. Binned the old one and opened a new one? Tap Changed it. Each tap is saved with your name and the time.</p>
+    ${sideLabels(side).map(labelRow).join("") || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
+    ${LIVE.admin ? labelAddHtml(side) : ""}`;
+}
+// The reminder at the top of a side's first and last pages: what's overdue, due today and due tomorrow.
+function labelsDueHtml(side) {
+  const xs = labelsDue([side]); if (!xs.length) return "";
+  const n = (d) => xs.filter((x) => labelDue(x) === d).length, late = n("overdue");
+  const sum = [late && `${late} overdue`, n("today") && `${n("today")} due today`, n("tomorrow") && `${n("tomorrow")} due tomorrow`].filter(Boolean).join(", ");
+  return `<button class="todo lbdue${late ? " late" : ""}" data-pane="${labelPane(side)}"><b>Date labels: ${sum}</b><span class="s">${xs.slice(0, 4).map((x) => esc(x.item)).join(", ")}${xs.length > 4 ? "…" : ""} ›</span></button>`;
+}
+// For the closing report: what's still due on this side as it's sent, and who opened it. A phone that hasn't read the
+// labels yet says so, rather than "nothing due".
+function labelsReport(side) {
+  if (!LIVE.loaded.has("labels")) return "Date labels: not checked (this phone hasn't loaded them)";
+  const xs = labelsDue([side]);
+  return xs.length ? `Date labels:\n${xs.map((x) => `- ${LB_DUE[labelDue(x)][0]}: ${x.item} (use by ${dayName(x.useBy)}, ${opener(x)})`).join("\n")}` : "Date labels: nothing due";
+}
 /* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
@@ -1419,6 +1605,7 @@ async function shrink(file) {
 function paneBadge(k) {
   if (LISTS[k]) { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
   if (k === "stock") return [outNow().size && `${outNow().size} out`, rsOpen().length && `${rsOpen().length} up`].filter(Boolean).join(" \u00b7 ");
+  if (k === "labels") { const n = labelsDue([mode]).length; return n ? `${n} due` : ""; }
   return "";
 }
 let lastPane = "";
@@ -1437,21 +1624,22 @@ function renderTally() {
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
   const tabs = `<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
   const body = {
-    open: () => `${handoverHtml()}${listPane("open")}${nextBtn("stock", "Next: stock and 86s")}`,
-    fset: () => `${handoverHtml()}${listPane("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
-    fshake: () => `${labelsHtml()}<div class="sec">Station checklist</div>${listPane("fshake")}${nextBtn("stock", "Next: stock and 86s")}`,
-    fclose: () => `${listPane("fclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
-    kopen: () => `${handoverHtml()}${listPane("kopen")}${nextBtn("stock", "Next: stock and 86s")}`,
-    kclose: () => `${listPane("kclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
+    open: () => `${handoverHtml()}${labelsDueHtml("bar")}${listPane("open")}${nextBtn("labels", "Next: date labels")}`,
+    labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
+    fset: () => `${handoverHtml()}${labelsDueHtml("floor")}${listPane("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
+    fshake: () => `${labelsHtml("floor")}<div class="sec">Station checklist</div>${listPane("fshake")}${nextBtn("stock", "Next: stock and 86s")}`,
+    fclose: () => `${labelsDueHtml("floor")}${listPane("fclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
+    kopen: () => `${handoverHtml()}${labelsDueHtml("kitchen")}${listPane("kopen")}${nextBtn("labels", "Next: date labels")}`,
+    kclose: () => `${labelsDueHtml("kitchen")}${listPane("kclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     stock: () => `<div class="sec">86'd tonight</div>
       <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
       ${restockHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
-    close: () => `${listPane("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
+    close: () => `${labelsDueHtml("bar")}${listPane("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
-        ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div><div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>
+        ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div><div><span>Labels due</span><b>${toChange([mode]).length}</b></div><div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>
       </div>
       ${stillToDoHtml()}
       <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${m === closer}">${esc(m)}</button>`).join("") || `<span class="note">No managers on the team yet.</span>`}</div></div>
@@ -1494,14 +1682,21 @@ $("#tally").addEventListener("change", async (e) => {
     haptic(); return;
   }
   if (t.dataset.phNote) { track(LIVE.api.notePhoto(t.dataset.phNote, t.value.trim()), null, "Note not saved"); return; }
+  if (t.dataset.lbDate != null && lbo) { if (ISO_DAY.test(t.value)) { lbo.date = t.value; t.closest(".lbo").querySelector(".lbdate b").textContent = dayName(t.value); } return; }
+  if (t.id === "lb-on") { lbF.on = t.checked; return; }
+  if (t.dataset.lbe && lbe) { lbe[t.dataset.lbe] = t.type === "checkbox" ? t.checked : t.value; return; }
   if (t.id !== "s-86" || !t.value) return;
   const n = t.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
 });
+$("#tally").addEventListener("toggle", (e) => { if (e.target.id === "lb-add") lbF.open = e.target.open; }, true);
 $("#tally").addEventListener("input", (e) => {
   if (le && e.target.dataset.leT != null) { le.items[+e.target.dataset.leT].t = e.target.value; return; }
   if (e.target.id === "rs-other") { rsF.other = e.target.value; return; }
   if (e.target.id === "rs-qty") { rsF.qty = e.target.value; return; }
   if (e.target.id === "rs-detail") { rsF.detail = e.target.value; return; }
+  if (e.target.id === "lb-item") { lbF.item = e.target.value; return; }
+  if (e.target.id === "lb-life") { lbF.life = e.target.value; return; }
+  if (lbe && e.target.dataset.lbe && e.target.type !== "checkbox") { lbe[e.target.dataset.lbe] = e.target.value; return; }
   if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
   if ($("#t-text")) $("#t-text").value = tallyText();
 });
@@ -1510,7 +1705,8 @@ $("#tally").addEventListener("click", async (e) => {
     // Firestore queues the write with no signal and sends it when the phone reconnects.
     const done = (k) => `${progress(k).n}/${progress(k).of}`;
     const n = Math.min(LIVE.myPhotos.length, LIVE.api.MAX_PHOTOS);
-    const summary = `${sideName(mode)} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closing manager ${closer}` : ""}`;
+    const lb = toChange([mode]).length;
+    const summary = `${sideName(mode)} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${lb ? ` · ${lb} date label${lb > 1 ? "s" : ""} to change` : ""}${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closing manager ${closer}` : ""}`;
     track(LIVE.api.sendReport(mode, tallyText(), summary), "Sent to the managers for sign-off", "Report not sent. Try again"); haptic(); return;
   }
   if (e.target.closest("[data-login]")) { show("notices"); return; }
@@ -1547,6 +1743,29 @@ $("#tally").addEventListener("click", async (e) => {
   const rn = e.target.closest("[data-run]"); if (rn) { runTo(rn.dataset.run, rn.dataset.to); return; }
   const rs = e.target.closest("[data-rs]"); if (rs) { const r = LIVE.restock.find((x) => x.id === rs.dataset.rs); if (r) moveRs(r, rs.dataset.to); return; }
   const rd = e.target.closest("[data-rs-dest]"); if (rd) { rsF.dest = rd.dataset.rsDest; renderTally(); return; }
+  // Date labels. A label taken off the list on another phone goes from this one too, and says so.
+  const lbOf = (el, k) => {
+    const x = LIVE.labels.find((y) => y.id === el.dataset[k]);
+    if (!x) { lbo = null; lbm = ""; lbe = null; renderTally(); toast("Someone has just taken it off the list"); }
+    return x;
+  };
+  const la = e.target.closest("[data-lb]"); if (la) {
+    const x = lbOf(la, "lb"); if (!x) return;
+    if (la.dataset.lbAct === "binned") return binLabel(x);
+    lbo = { id: x.id, act: la.dataset.lbAct, v: x.v, date: addDays(shiftDay(), x.life) }; renderTally(); return;
+  }
+  const ls = e.target.closest("[data-lb-save]"); if (ls) { const x = lbOf(ls, "lbSave"); if (x) saveOpen(x); return; }
+  if (e.target.closest("[data-lb-cancel]")) { lbo = null; renderTally(); return; }
+  const lmo = e.target.closest("[data-lb-more]"); if (lmo) { const x = lbOf(lmo, "lbMore"); if (x) openMore(x); return; }
+  const lhi = e.target.closest("[data-lb-hist]"); if (lhi) { loadLabelHist(lhi.dataset.lbHist); return; }
+  const led = e.target.closest("[data-lb-edit]"); if (led) { const x = lbOf(led, "lbEdit"); if (x) editLabel(x); return; }
+  const ldl = e.target.closest("[data-lb-del]"); if (ldl) { const x = lbOf(ldl, "lbDel"); if (x) dropLabel(x); return; }
+  const lid = e.target.closest("[data-lb-idea]"); if (lid) {
+    Object.assign(lbF, { item: lid.dataset.lbIdea, life: lid.dataset.life || lbF.life }); renderTally();
+    if (!lid.dataset.life) { $("#lb-life")?.focus(); toast("How many days does it keep once opened?"); }
+    return;
+  }
+  if (e.target.closest("#lb-go")) { addLabel(mode); return; }
   if (e.target.closest("#rs-go")) {
     const item = (rsF.item === OTHER ? rsF.other : rsF.item).trim(), qty = Number(rsF.qty.replace(",", "."));
     if (!item) return toast(rsF.item === OTHER ? "Write what's needed in the box" : "Pick what's needed");
@@ -1873,11 +2092,14 @@ function renderDash() {
   const tonight = LIVE.reports.filter((r) => bday(r.at) === shiftDay());
   const sent = (side) => (tonight.some((r) => r.side === side) ? "Sent" : "Not yet");
   const unsigned = LIVE.reports.filter((r) => !r.signedBy).length, inc = LIVE.incidents.filter((x) => x.status !== "closed").length;
+  const lbSides = LIVE.admin ? LB_SIDES : [mode], lbNow = toChange(lbSides), lbNext = labelsDue(lbSides).length - lbNow.length;
   const tiles = [
     [v("tasks", `${done}/${of}`), `${sideName(mode)} checklists done`, "shift"],
     [v("tasks", blocked), blocked === 1 ? "blocked task" : "blocked tasks", "blocked", blocked > 0],
     [v("restock", rsO.length), `restock${rsO.length === 1 ? "" : "s"} open${rsL ? `, ${rsL} waiting` : ""}`, "stock", rsL > 0],
     [v("out", LIVE.out.size), "86'd right now", "stock", LIVE.out.size > 0],
+    // Managers go to the side of the one most overdue.
+    [v("labels", lbNow.length), `date label${lbNow.length === 1 ? "" : "s"} to change${lbNext ? `, ${lbNext} tomorrow` : ""}`, `labels:${lbNow[0]?.side || mode}`, lbNow.some((x) => labelDue(x) === "overdue")],
     [v("issues", open.length), urgent ? `open issues, ${urgent} urgent` : "open issues", "issues", urgent > 0],
     [v("concerns", openConcerns().length), "open concerns", "concerns", openConcerns().some((x) => x.reason === "hazard")],
     // The kitchen's report on a phone set to the kitchen, or once the kitchen has sent one.
@@ -1897,6 +2119,8 @@ function go(where) {
   if (where === "blocked" && !LIVE.admin) { pane = MODE_LISTS[mode].find((k) => blockedTasks([k]).length) || defaultPane(); show("tally"); return; }
   if (where === "blocked") { msub = "live"; where = "managers"; }
   if (where === "shift" || where === "stock") { pane = where === "shift" ? defaultPane() : where; show("tally"); return; }
+  // Date labels: this phone's side, or the side a label in Live is on.
+  if (where.startsWith("labels")) { const s = where.split(":")[1] || mode; if (s !== mode) setMode(s); pane = labelPane(s); show("tally"); return; }
   if (where === "incidents") { msub = where; where = "managers"; }
   const board = where === "issues" || where === "concerns";
   tpane = board ? "board" : where; renderTeamTabs();
@@ -2155,6 +2379,7 @@ const lower = (s) => s.charAt(0).toLowerCase() + s.slice(1);
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // "started: Ice well emptied", "brought up 2 bags of Limes for the upstairs bar".
 function evText(e) {
+  if (e.kind === "label") return labelText(e);
   if (e.kind === "task") return e.from === e.to ? (e.who ? `gave ${e.who}: ${e.label}` : `took this off whoever it was for: ${e.label}`)
     : { doing: `started: ${e.label}`, done: `completed: ${e.label}`, blocked: `blocked: ${e.label}`, cancelled: `marked not needed tonight: ${e.label}`,
       todo: { done: `took back: ${e.label}`, doing: `stopped: ${e.label}`, blocked: `unblocked: ${e.label}`, cancelled: `brought back: ${e.label}` }[e.from] }[e.to];
@@ -2188,7 +2413,8 @@ const overdue = (k, i) => { const x = taskOf(k, i); return x?.status === "doing"
 // Something for a manager to look at: a tag (shown as a label, never as colour alone), what it is, any reason, who and
 // when, and where it's dealt with.
 const flag = (t, tag, cls, what, note, by, go) => ({ t, tag, cls, what, note, by, go });
-const flagHtml = (x) => `<div class="staffrow"><div class="n"><span class="pill ${x.cls}">${esc(x.tag)}</span> <span class="did">${esc(x.what)}</span></div><div class="s">${x.note ? `${esc(x.note)} · ` : ""}${esc(x.by)} · <button class="linkbtn" data-go="${x.go}">${x.go === "stock" ? "Restock board" : "Open the list"}</button></div></div>`;
+const goName = (go) => (go === "stock" ? "Restock board" : go.startsWith("labels") ? "Date labels" : "Open the list");
+const flagHtml = (x) => `<div class="staffrow"><div class="n"><span class="pill ${x.cls}">${esc(x.tag)}</span> <span class="did">${esc(x.what)}</span></div><div class="s">${x.note ? `${esc(x.note)} · ` : ""}${esc(x.by)} · <button class="linkbtn" data-go="${x.go}">${goName(x.go)}</button></div></div>`;
 const flagText = (x) => `- ${x.tag}: ${x.what}${x.note ? ` (${x.note})` : ""}. ${x.by}`;
 // Now: what's blocked, overdue or waiting too long, longest waiting first.
 function needsYou() {
@@ -2204,6 +2430,7 @@ function needsYou() {
     if (r.status === "blocked") xs.push(flag(ms(r.at), "Restock blocked", "no", what, r.note, `${r.name}, ${at(r)}`, "stock"));
     else if (rsLate(r)) xs.push(flag(ms(r.askedAt), rsLateText(r), "no", what, "", r.status === "delivered" ? `Brought up by ${r.who}, ${at(r)}` : `Asked by ${r.askedBy}`, "stock"));
   }
+  for (const x of LIVE.labels) if (x.on && labelDue(x) === "overdue") xs.push(flag(Date.parse(x.useBy), "Label overdue", "no", `${x.item} (${sideName(x.side)})`, `Use by ${dayName(x.useBy)}`, cap(opener(x)), `labels:${x.side}`));
   return xs.sort((a, b) => a.t - b.t);
 }
 // Tonight's exceptions, newest first: these stay listed after they're dealt with, as the night's record.
@@ -2216,6 +2443,7 @@ function exceptions() {
     else if (e.kind === "task" && e.from === "done" && e.to === "todo" && e.note) f(e, "Taken back", "wait");
     else if (e.kind === "restock" && e.to === "unavailable") f(e, "Not in the cellar", "no");
     else if (e.kind === "restock" && e.from === "delivered" && e.to === "asked") f(e, "Didn't arrive", "no");
+    else if (e.kind === "label" && lateBy(e)) xs.push(flag(ms(e.at), "Label changed late", "wait", `${e.label} (${sideName(e.area)})`, `Its use-by was ${dayName(e.was)}`, `${e.name}, ${at(e)}`, `labels:${e.area}`));
   }
   return xs;
 }
@@ -2232,8 +2460,8 @@ const rsRow = (r) => `<div class="staffrow"><div class="n">${esc(amtOf(r.qty, r.
 // Who's done what tonight: what they have in progress now, how many items they've done, any restock they have, and
 // when they last changed anything.
 function whoRows() {
-  const P = new Map(), get = (uid, name) => { if (!P.has(uid)) P.set(uid, { name, doing: [], done: 0, rs: [], last: 0 }); return P.get(uid); };
-  for (const e of LIVE.events) { const p = get(e.uid, e.name); p.last = Math.max(p.last, ms(e.at)); }
+  const P = new Map(), get = (uid, name) => { if (!P.has(uid)) P.set(uid, { name, doing: [], done: 0, rs: [], lb: 0, last: 0 }); return P.get(uid); };
+  for (const e of LIVE.events) { const p = get(e.uid, e.name); p.last = Math.max(p.last, ms(e.at)); if (e.kind === "label" && ["opened", "changed", "binned"].includes(e.act)) p.lb++; }
   for (const k of ALL_LISTS) for (const [i, text] of shown(k)) {
     const x = taskOf(k, i); if (!x || !["doing", "done"].includes(x.status)) continue;
     const m = lastMove(k, i, x), p = get(m.uid, m.name);
@@ -2243,7 +2471,7 @@ function whoRows() {
   return [...P.values()].sort((a, b) => b.last - a.last);
 }
 const whoRow = (p) => `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${[p.doing.length && `In progress: ${esc(p.doing.join(", "))}`, `${p.done} done`,
-  p.rs.length && `Restock: ${esc(p.rs.join(", "))}`, p.last && `Last change ${hhmm(new Date(p.last))}, ${Math.max(0, Math.floor((Date.now() - p.last) / 6e4))} min ago`].filter(Boolean).join(" · ")}</div></div>`;
+  p.rs.length && `Restock: ${esc(p.rs.join(", "))}`, p.lb && `${p.lb} date label${p.lb > 1 ? "s" : ""}`, p.last && `Last change ${hhmm(new Date(p.last))}, ${Math.max(0, Math.floor((Date.now() - p.last) / 6e4))} min ago`].filter(Boolean).join(" · ")}</div></div>`;
 function renderLive() {
   if (!LIVE.admin) return;
   const head = `<div class="sec">Tonight, live</div>`;
@@ -2255,11 +2483,14 @@ function renderLive() {
     <div class="h3">Opening and closing</div>${ALL_LISTS.map(procRow).join("")}
     <div class="h3">Restocking</div>${open.map(rsRow).join("") || `<p class="note">Nothing waiting to come up.</p>`}
     <p class="note">Tonight: ${R.filter((e) => e.from === "new").length} asked for, ${R.filter((e) => e.to === "delivered").length} brought up, ${R.filter((e) => e.to === "received").length} confirmed arrived.</p>
+    <div class="h3">Date labels</div>${labelsDue(LB_SIDES).map(lbLiveRow).join("") || `<p class="note">Nothing overdue, due today or due tomorrow.</p>`}
     <div class="h3">Who's doing what</div>${who.map(whoRow).join("") || `<p class="note">Nobody has changed anything yet tonight.</p>`}
     <div class="h3">Exceptions tonight</div>${exceptions().map(flagHtml).join("") || `<p class="note">Nothing finished early, reopened, taken back, not needed or missing from the cellar tonight.</p>`}
     <div class="h3">Latest</div>${LIVE.events.slice(0, 12).map(evRow).join("") || `<p class="note">No changes yet tonight.</p>`}
     <div class="actions"><button class="btn" data-msub="act">All activity</button></div>`;
 }
+const lbLiveRow = (x) => `<div class="staffrow"><div class="n">${esc(x.item)} <span class="pill ${LB_DUE[labelDue(x)][1]}">${LB_DUE[labelDue(x)][0]}</span> <span class="did">${sideName(x.side)}</span></div>
+  <div class="s">Use by ${dayName(x.useBy)} · ${esc(opener(x))} · <button class="linkbtn" data-go="labels:${x.side}">Date labels</button></div></div>`;
 function liveText() {
   const lines = [`Black Tap Soho, ${dayName(shiftDay())}, at ${hhmm(new Date())}`, ""];
   for (const k of ALL_LISTS) {
@@ -2270,6 +2501,8 @@ function liveText() {
   if (now.length) lines.push("", "Needs a manager:", ...now.map(flagText));
   if (exc.length) lines.push("", "Exceptions tonight:", ...exc.map(flagText));
   lines.push("", `Restocking open: ${open.length}`, ...open.map((r) => `- ${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}: ${RS[r.status]}${r.who ? ` (${r.who})` : ""}${rsLate(r) ? `, ${lower(rsLateText(r))}` : ""}`));
+  const lbs = labelsDue(LB_SIDES);
+  lines.push("", `Date labels due: ${lbs.length}`, ...lbs.map((x) => `- ${x.item} (${sideName(x.side)}): ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}, ${opener(x)}`));
   lines.push("", `86'd: ${LIVE.out.size ? [...LIVE.out].sort().join(", ") : "nothing"}`);
   return lines.join("\n");
 }
@@ -2297,7 +2530,7 @@ const byTime = (ev) => [...ev].sort((a, b) => ms(a.at) - ms(b.at));
 function nightStats(ev) {
   const G = new Map();
   for (const e of byTime(ev)) {
-    if (e.kind === "restock") continue;
+    if (e.kind !== "task" && e.kind !== "run") continue;
     const k = `${e.day}|${e.list}`;
     if (!G.has(k)) G.set(k, { day: e.day, list: e.list, start: ms(e.at), end: null, done: null, required: null, override: "", reopened: 0, blocked: 0, back: 0, skipped: 0 });
     const g = G.get(k);
@@ -2385,18 +2618,18 @@ SHARE.kpis = () => ["Black Tap Soho closing KPIs", kpiText()];
    tonight's tasks, procedures and restocks, which keep every change, corrections included. Deleting a post leaves no
    record. Managers see every section, can pick a night, a person, an area or a kind of change, and can download the
    full history; staff see the team's side of things for their own side of the venue (bar, floor or kitchen). */
-const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["86", "86"], ["stock", "Restocking"], ["asks", "Staff requests"], ["issues", "Issues"],
+const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["labels", "Date labels"], ["86", "86"], ["stock", "Restocking"], ["asks", "Staff requests"], ["issues", "Issues"],
   ["concerns", "Concerns"], ["reports", "Reports"], ["incidents", "Incidents"], ["training", "Training"], ["team", "Team"]];
 // Downloads and old records keep their own names in the spreadsheets.
 const ACT_NAME = { ...Object.fromEntries(ACT), safety: "Safety", waste: "Waste", counts: "Stock counts", requests: "Old stock requests", trail: "Audit trail", kpis: "Closing KPIs", people: "KPIs by person" };
-const STAFF_ACT = ["all", "board", "checks", "86", "stock", "issues", "concerns", "reports"];
+const STAFF_ACT = ["all", "board", "checks", "labels", "86", "stock", "issues", "concerns", "reports"];
 const DID = { setup: () => "set up the owner account", add: (a) => `added ${a.targetName} (${ROLE[a.role].toLowerCase()})`, reset: (a) => `gave ${a.targetName} a new PIN`, remove: (a) => `removed ${a.targetName}`, role: (a) => `made ${a.targetName} ${a.role === "manager" ? "a manager" : "staff"}` };
 const DECIDED = { seen: "saw", approved: "approved", declined: "declined" };
 // A PIN reset writes two audit entries (the new account and the old one); count it once.
 const auditOnce = (xs) => xs.filter((a) => a.action !== "reset" || a.id.endsWith("-in"));
-const SEC = { task: "checks", run: "checks", restock: "stock" };
+const SEC = { task: "checks", run: "checks", restock: "stock", label: "labels" };
 // The record a change belongs to, so everything that happened to it can be shown together.
-const evRef = (e) => (e.kind === "restock" ? `s-${e.ref}` : e.kind === "run" ? `r-${e.day}-${e.list}` : `t-${e.day}-${e.list}-${e.item}`);
+const evRef = (e) => (e.kind === "restock" ? `s-${e.ref}` : e.kind === "label" ? `l-${e.ref}` : e.kind === "run" ? `r-${e.day}-${e.list}` : `t-${e.day}-${e.list}-${e.item}`);
 function events(x) {
   const ev = [], add = (sec, at, who, what, detail, more) => ev.push({ t: ms(at), sec, who, what, detail: detail || "", ...more });
   const whose = (id) => { const r = x.reports.find((r) => r.id === id); return r ? `${r.name}'s ${r.side} report` : "a report"; };
@@ -2440,6 +2673,8 @@ const AF_TO = [
   ["asked", "Asked for", (e) => e.from === "new"],
   ["delivered", "Brought up", (e) => e.to === "delivered"],
   ["unavailable", "Not in the cellar", (e) => e.to === "unavailable"],
+  ["lbopen", "Date label opened or changed", (e) => e.kind === "label" && ["opened", "changed"].includes(e.act)],
+  ["lblate", "Date label changed after its use-by", (e) => e.kind === "label" && lateBy(e) > 0],
 ];
 const AF_TEST = Object.fromEntries(AF_TO.map(([k, , f]) => [k, f]));
 // What this phone already has. Staff can't read the 86 log, so they see what's 86'd right now.
@@ -2528,22 +2763,28 @@ const KIND = { late: "Running late", off: "Time off", swap: "Shift swap" };
 const ISSUE = { open: "Open", taken: "Being dealt with", fixed: "Fixed" };
 // Rows given as [time, row], newest first.
 const newest = (xs) => xs.sort((a, b) => b[0] - a[0]).map((x) => x[1]);
-const evFrom = (e) => (e.kind === "restock" ? (e.from === "new" ? "New" : RS[e.from]) : e.kind === "run" ? RUN[e.from] : TS[e.from]);
-const evTo = (e) => (e.kind === "restock" ? RS[e.to] : e.kind === "run" ? RUN[e.to] : TS[e.to]);
+// A date label's change has no before and after status: its act says what was done, with the date written on it.
+const LB_ACT = { added: "Added", edited: "Details changed", opened: "Opened", changed: "Changed", binned: "Binned", removed: "Taken off the list" };
+const evFrom = (e) => (e.kind === "label" ? "" : e.kind === "restock" ? (e.from === "new" ? "New" : RS[e.from]) : e.kind === "run" ? RUN[e.from] : TS[e.from]);
+const evTo = (e) => (e.kind === "label" ? `${LB_ACT[e.act]}${e.useBy ? `, use by ${e.useBy}` : ""}` : e.kind === "restock" ? RS[e.to] : e.kind === "run" ? RUN[e.to] : TS[e.to]);
 const changeText = (e) => (e.kind === "task" ? cap(moveText(e)) : e.from === "new" ? "Asked for" : e.from === e.to ? `Given to ${e.who}` : `${evFrom(e)} → ${evTo(e)}${e.kind === "run" && e.to === "finished" ? ` (${e.done} of ${e.required} done)` : ""}`);
 const TABLES = {
   all: (x) => [["Date", "Time", "Section", "Who", "What", "Details"], ...events(x).map((e) => [ukDay(e.t), hhmm(new Date(e.t)), ACT_NAME[e.sec], e.who, e.what, e.detail])],
   board: (x) => [["Date", "Time", "Type", "By", "For", "Text"], ...[...x.notices.map((p) => [...dt(p.at), "Broadcast", p.name, `${SIDES[p.side || "all"]}${p.managers === false ? ", managers left out" : ""}`, p.text]), ...x.feed.map((p) => [...dt(p.at), "Post", p.name, "", p.text])].sort((a, b) => (b[0] + b[1]).localeCompare(a[0] + a[1]))],
   checks: (x) => [["Night", "Time", "Checklist", "Item", "Change", "For", "Reason", "By"], ...newest([
-    ...x.events.filter((e) => e.kind !== "restock").map((e) => [ms(e.at), [e.day, dt(e.at)[1], LISTS[e.list]?.title || e.list, e.kind === "run" ? "(the whole list)" : e.label, changeText(e), e.kind === "task" ? e.who : "", e.note, e.name]]),
+    ...x.events.filter((e) => e.kind === "task" || e.kind === "run").map((e) => [ms(e.at), [e.day, dt(e.at)[1], LISTS[e.list]?.title || e.list, e.kind === "run" ? "(the whole list)" : e.label, changeText(e), e.kind === "task" ? e.who : "", e.note, e.name]]),
     ...x.ticks.map((t) => [ms(t.at), [t.day, dt(t.at)[1], LISTS[t.list]?.title, itemText(t.list, t.item), "Ticked", "", "", t.name]])])],
+  // Every date label change: what was done, the date on the label after it and before it, and who.
+  labels: (x) => [["Night", "Time", "Side", "Item", "Change", "Use by", "Use by before", "Days after its use-by", "Days it keeps", "Needs a label", "By"],
+    ...newest(x.events.filter((e) => e.kind === "label").map((e) => [ms(e.at), [e.day, dt(e.at)[1], sideName(e.area), e.label, LB_ACT[e.act], e.useBy, e.was,
+      lateBy(e) || "", e.life, e.on ? "Yes" : "No", e.name]]))],
   86: (x) => [["Date", "Time", "Item", "Change", "By"], ...x.outlog.map((o) => [...dt(o.at), o.itemName, o.action === "out" ? "86'd" : "Back in stock", o.name])],
   stock: (x) => [["Night", "Asked at", "Item", "Asked for", "Unit", "Where", "Detail", "Asked by", "Status", "Who has it", "Brought up", "Received", "Last change by", "Last change on", "Last change at", "Reason"],
     ...x.restock.map((r) => [r.day, dt(r.askedAt)[1], r.item, r.qty, r.unit, DEST[r.dest], r.detail, r.askedBy, RS[r.status], r.who, r.moved, r.got, r.name, ...dt(r.at), r.note])],
   requests: (x) => [["Date", "Time", "Item", "Note", "Asked by", "Status", "Ordered by", "Ordered on", "Ordered at"], ...x.requests.map((r) => [...dt(r.at), r.item, r.note, r.name, r.done ? "Ordered" : "Waiting", r.doneBy, ...dt(r.doneAt)])],
   // Every change to a task, a list or a restock: the record, its status before and after, who and why.
   trail: (x) => [["Event", "Night", "Date", "Time", "Kind", "Record", "What", "Area", "From", "To", "For", "Amount", "Unit", "Done", "Required", "Reason", "By"],
-    ...newest(x.events.map((e) => [ms(e.at), [e.id, e.day, ...dt(e.at), { task: "Checklist item", run: "Checklist", restock: "Restock" }[e.kind], evRef(e), e.label, sideName(e.area),
+    ...newest(x.events.map((e) => [ms(e.at), [e.id, e.day, ...dt(e.at), { task: "Checklist item", run: "Checklist", restock: "Restock", label: "Date label" }[e.kind], evRef(e), e.label, sideName(e.area),
       evFrom(e), evTo(e), e.who, e.qty, e.qty == null ? "" : e.unit, e.done, e.required, e.note, e.name]]))],
   kpis: (x) => [["Night", "Side", "Checklist", "Started", "Finished", "Minutes taken", "Done", "Required", "Finished with items left", "Reason", "Reopened", "Blocked", "Taken back", "Not needed"],
     ...nightStats(x.events).map((g) => [g.day, sideName(listSide(g.list)), LISTS[g.list]?.title || g.list, hhmm(new Date(g.start)), g.end ? hhmm(new Date(g.end)) : "Not finished", g.end ? Math.round((g.end - g.start) / 6e4) : "",
@@ -2568,9 +2809,9 @@ const TABLES = {
   counts: (x) => [["Date", "Time", "Counted by", "Item", "Group", "Par", "Counted", "To order"], ...x.counts.flatMap((c) => c.lines.map((l) => [...dt(c.at), c.name, l.item, l.group, l.par, l.n, Math.max(0, Math.ceil(l.par - l.n))]))],
 };
 const NEEDS = { all: ["feed", "notices", "ticks", "events", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit", "safety", "waste", "counts", "training", "concerns"], board: ["feed", "notices"],
-  checks: ["events", "ticks"], 86: ["outlog"], stock: ["restock"], requests: ["requests"], trail: ["events"], kpis: ["events"], people: ["events"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"],
+  checks: ["events", "ticks"], labels: ["events"], 86: ["outlog"], stock: ["restock"], requests: ["requests"], trail: ["events"], kpis: ["events"], people: ["events"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"],
   incidents: ["incidents"], team: ["audit"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], concerns: ["concerns"] };
-const FILE = { all: "activity", checks: "checklists", stock: "restocking", requests: "old-stock-requests", trail: "audit-trail", kpis: "closing-kpis", people: "kpis-by-person", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
+const FILE = { all: "activity", checks: "checklists", labels: "date-labels", stock: "restocking", requests: "old-stock-requests", trail: "audit-trail", kpis: "closing-kpis", people: "kpis-by-person", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
 // A download button, or once the file is ready, the Save link (a separate tap, which iPhone needs).
 const dlHtml = (sec, label, id) => (actFile && actFile.sec === sec
   ? `<a class="btn pri" id="${id}-save" href="${actFile.url}" download="${actFile.name}">Save the spreadsheet (${actFile.n} row${actFile.n === 1 ? "" : "s"})</a>`
@@ -2788,6 +3029,7 @@ function eventToast(e) {
     return { delivered: `${e.name} brought up ${amtOf(e.qty, e.unit, e.label)}. Tap Got it to confirm`, unavailable: `${e.label} isn't in the cellar (${e.name})`,
       blocked: `Your restock is blocked: ${e.label}${e.note ? `: ${e.note}` : ""}` }[e.to] || "";
   }
+  if (e.kind === "label") return side && ["changed", "binned"].includes(e.act) && e.was && e.was <= e.day ? `${e.name} ${e.act} ${e.label}` : "";
   if (e.kind === "task") {
     if (e.from === e.to) return e.who === LIVE.me ? `${e.name} gave you: ${e.label}` : "";
     if (e.to === "blocked") return side ? `Blocked: ${e.label}${e.note ? `: ${e.note}` : ""}` : "";
@@ -2835,7 +3077,7 @@ function liveChanged(what) {
   if (!$("#v-notices").hidden) {
     const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues, renderLive], requests: [renderRequests, renderAct],
       asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis], lists: [renderDash, renderLive], restock: [renderDash, renderLive],
+      out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis], lists: [renderDash, renderLive], labels: [renderDash, renderLive], restock: [renderDash, renderLive],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
       concerns: [renderConcerns, renderDash, renderAct], fixtures: [], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
@@ -2845,15 +3087,17 @@ function liveChanged(what) {
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "tasks", "runs", "events", "lists", "restock", "staff", "reports", "directory"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports", "directory"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
-// Overdue and waiting times move on with no change to the data, so the Shift tab and Live are redrawn each minute.
+// Overdue and waiting times move on with no change to the data, and date labels fall due when the day rolls over at 6am,
+// so the Shift tab, the dashboard and Live are redrawn each minute.
 setInterval(() => {
   const ae = document.activeElement;
   if (!LIVE.me || (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) return;
   if (!$("#v-tally").hidden) renderTally();
+  if (!$("#v-notices").hidden) renderDash();
   if (!$("#v-notices").hidden && tpane === "managers") { renderLive(); renderTeamTabs(); }
 }, 60000);
 function markSeen() {
