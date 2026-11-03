@@ -15,8 +15,8 @@ test("staff ask for time off, swaps and lateness; managers decide", async () => 
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   for (const p of [O, M, S]) await p.evaluate(() => show("notices"));
-  assert.equal(await S.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,chat,activity,reports,me");
-  assert.equal(await O.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,chat,reports,requests,managers,me");
+  assert.equal(await S.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,chat,rota,activity,reports,me");
+  assert.equal(await O.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,chat,rota,reports,managers,me");
 
   await O.evaluate(() => show("drinks"));
   await S.click("[data-tpane=me]"); await S.click('[data-eta="15"]'); await S.fill("[data-f=note]", "Train delayed"); await S.click("#me-go");
@@ -35,7 +35,7 @@ test("staff ask for time off, swaps and lateness; managers decide", async () => 
   assert.deepEqual(asks, ["at,date1,kind,name,note,status,uid,with", "at,date1,date2,kind,name,note,status,uid", "at,eta,kind,name,note,status,uid"], "each kind saves only its own fields");
 
   await S.evaluate(() => show("drinks"));
-  await M.click("[data-tpane=requests]");
+  await M.click("[data-tpane=rota]");
   await M.click("[data-to=seen]");
   await M.waitForFunction(() => !document.querySelector("[data-to=seen]"));
   await M.click("[data-to=approved] >> nth=0");

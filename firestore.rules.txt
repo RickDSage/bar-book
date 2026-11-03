@@ -406,16 +406,17 @@ service cloud.firestore {
     }
 
     // ---------- Audit trail ----------
-    // One event per change to a task, a procedure, a restock or a date label, written in the same batch as the change and
-    // matching it (the status before and after, the version, who, the reason and the time; for a restock, the item,
-    // amount and place; for a label, what was done and its dates). Nobody edits or deletes an event, the owner included:
+    // One event per change to a task, a procedure, a restock, a date label or a published shift, written in the same batch
+    // as the change and matching it (the status before and after, the version, who, the reason and the time; for a
+    // restock, the item, amount and place; for a label, what was done and its dates; for a shift, what was done, its day,
+    // times and people, and its day, times and person before). Nobody edits or deletes an event, the owner included:
     // a correction is a new change with its own event. Ids carry the record's version, so a retried or repeated write
     // can't add a second event for the same change.
     match /events/{id} {
       allow read: if isMember();
       allow create: if isMember() && stamped() && nearNow(incoming().day) && reqText(incoming().label, 200) && optText(incoming().note, 300)
         && (incoming().kind == 'task' ? taskEvent(id) : incoming().kind == 'run' ? runEvent(id) : incoming().kind == 'restock' ? restockEvent(id)
-          : incoming().kind == 'label' && labelEvent(id));
+          : incoming().kind == 'label' ? labelEvent(id) : incoming().kind == 'shift' && shiftEvent(id));
     }
     function taskEvent(id) {
       let e = incoming();
@@ -466,6 +467,23 @@ service cloud.firestore {
             && (!(e.act in ['opened', 'changed']) || e.day == after.data.openedOn))
         && e.was == (before == null ? null : before.data.useBy)
         && e.label == l.item && e.area == l.side && e.life == l.life && e.on == l.on;
+    }
+    // act is what was done (added, edited, wants, unwants, took, declined, cover, kept or removed). who, offer and cover
+    // are the shift's after the change; was is its day, times, side and person before, so a moved or reassigned shift
+    // shows on the record. label is the shift's day and times. Only a published shift has events.
+    function shiftEvent(id) {
+      let e = incoming();
+      let before = get(shiftDoc(e.ref));
+      let after = getAfter(shiftDoc(e.ref));
+      let s = after == null ? before.data : after.data;
+      return exactly(['kind', 'day', 'ref', 'label', 'area', 'act', 'sday', 'start', 'end', 'who', 'offer', 'cover', 'was', 'note', 'v', 'uid', 'name', 'at'])
+        && autoId(e.ref) && id == 'w-' + e.ref + '-' + string(e.v) && e.note == ''
+        && (after == null
+          ? before != null && before.data.pub == true && e.act == 'removed' && e.v == before.data.v + 1
+          : after.data.pub == true && after.data.at == request.time && after.data.v == e.v && after.data.act == e.act)
+        && e.was == (before == null ? null : { 'day': before.data.day, 'start': before.data.start, 'end': before.data.end, 'side': before.data.side, 'who': before.data.whoName })
+        && e.label == s.day + ' ' + s.start + '-' + s.end && e.area == s.side && e.sday == s.day && e.start == s.start && e.end == s.end
+        && e.who == s.whoName && e.offer == s.offerName && e.cover == s.cover;
     }
 
     // ---------- Old records: waste and due diligence ----------
@@ -551,6 +569,56 @@ service cloud.firestore {
           || (resource.data.status == 'seen' && incoming().status in ['approved', 'declined']));
       // The person who asked can withdraw it until it's decided. The owner can delete any.
       allow delete: if isOwner() || (isMember() && resource.data.uid == request.auth.uid && resource.data.status in ['pending', 'seen']);
+    }
+
+    // ---------- Rota ----------
+    // One record per shift: its week (the Monday), day, start and end (an end before the start is after midnight), side,
+    // a short note, who's on it (nobody makes it an open shift), who it's offered to, why its person needs cover, and who
+    // has put their hand up for it (wants: uid to name). Managers make a week as a draft only they can read, then publish
+    // it, and a published shift can't go back to being a draft. Every change to a published shift raises v and writes
+    // events/w-{id}-{v} in the same batch, so the rota keeps who changed what and when; drafts have no events, so a whole
+    // week can be copied or published in one write. Managers are trusted with who goes on a shift (the app picks them from
+    // the team). On a published shift, anyone on the team: puts their hand up for an open shift or one that needs cover,
+    // or takes it down; takes or turns down a shift offered to them; asks for cover for their own shift, or keeps it.
+    function shiftDoc(id) { return /databases/$(database)/documents/shifts/$(id); }
+    match /shifts/{id} {
+      allow read: if isManager() || (isMember() && resource.data.pub == true);
+      allow create: if isManager() && autoId(id) && stamped() && validShift() && incoming().v == 1 && incoming().act == 'added'
+        && (incoming().pub == false || existsAfter(eventDoc('w-' + id + '-1')));
+      allow update: if isMember() && stamped() && validShift() && incoming().v == resource.data.v + 1 && shiftMove()
+        && (incoming().pub == false || incoming().act == 'published' || existsAfter(eventDoc('w-' + id + '-' + string(incoming().v))));
+      allow delete: if isManager() && (resource.data.pub == false || existsAfter(eventDoc('w-' + id + '-' + string(resource.data.v + 1))));
+    }
+    function validShift() {
+      let s = incoming();
+      return exactly(['week', 'day', 'start', 'end', 'side', 'note', 'who', 'whoName', 'offer', 'offerName', 'cover', 'wants', 'pub', 'act', 'v', 'uid', 'name', 'at'])
+        && isDay(s.week) && isDay(s.day) && dayOf(s.week).dayOfWeek() == 1
+        && dayOf(s.day) >= dayOf(s.week) && dayOf(s.day) < dayOf(s.week) + duration.value(7, 'd')
+        && isTime(s.start) && isTime(s.end) && s.start != s.end && s.side in ['bar', 'floor', 'kitchen'] && optText(s.note, 60)
+        && s.who is string && s.who.size() <= 128 && (s.who == '') == (s.whoName == '') && optText(s.whoName, 40)
+        && s.offer is string && s.offer.size() <= 128 && (s.offer == '') == (s.offerName == '') && optText(s.offerName, 40)
+        && (s.offer == '' || s.who == '') && optText(s.cover, 120) && (s.cover == '' || s.who != '')
+        && s.wants is map && s.wants.size() <= 30 && (s.wants.size() == 0 || s.who == '' || s.cover != '')
+        && s.pub is bool && s.v is int;
+    }
+    // Which change this is, and that it's this person's to make. validShift keeps the rest true: a shift with someone
+    // on it and no cover asked has nobody's hand up, and only an open shift is offered.
+    function shiftMove() {
+      let s = incoming();
+      let o = resource.data;
+      let me = request.auth.uid;
+      let base = ['act', 'v', 'uid', 'name', 'at'];
+      let hand = s.wants.diff(o.wants).affectedKeys();
+      return (s.act == 'edited' && isManager() && s.pub == o.pub)
+        || (s.act == 'published' && isManager() && !o.pub && s.pub && changesOnly(base.concat(['pub'])))
+        || (o.pub && s.act == 'wants' && (o.who == '' || o.cover != '') && o.who != me && changesOnly(base.concat(['wants']))
+          && hand.hasOnly([me]) && s.wants[me] == profile().data.name)
+        || (o.pub && s.act == 'unwants' && changesOnly(base.concat(['wants'])) && hand.hasOnly([me]) && !(me in s.wants))
+        || (o.pub && s.act == 'took' && o.who == '' && o.offer == me && s.who == me && s.whoName == profile().data.name
+          && s.offer == '' && changesOnly(base.concat(['who', 'whoName', 'offer', 'offerName', 'wants'])))
+        || (o.pub && s.act == 'declined' && o.offer == me && s.offer == '' && changesOnly(base.concat(['offer', 'offerName'])))
+        || (o.pub && s.act == 'cover' && o.who == me && o.cover == '' && reqText(s.cover, 120) && changesOnly(base.concat(['cover'])))
+        || (o.pub && s.act == 'kept' && o.who == me && o.cover != '' && s.cover == '' && changesOnly(base.concat(['cover', 'wants'])));
     }
 
     // ---------- Incidents ----------
