@@ -318,6 +318,7 @@ a.btn { text-decoration: none; color: inherit; }
 .staffrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .staffrow .n { font-weight: 700; }
 .staffrow .s { color: var(--muted); font-size: 14px; }
+.night .staffrow:last-child { border-bottom: 0; padding-bottom: 0; }
 .staffrow .actions { margin-top: 8px; }
 .staffrow .actions .btn { padding: 8px 12px; font-size: 15px; min-height: 40px; }
 /* Saving state: shown while a change is waiting to reach the server, or when there's no signal */
@@ -2298,7 +2299,7 @@ function renderReports() {
   const repRow = (r) => `<div class="staffrow"><div class="n">${sideName(r.side)} · ${esc(r.name)} ${r.signedBy ? `<span class="pill ok">Signed off</span>` : `<span class="pill wait">Waiting</span>`}${A && rpFlagged(r) ? ` <span class="pill no">Flagged</span>` : ""}</div>
     <div class="s">${hhmm(new Date(ms(r.at)))} · ${esc(r.summary.replace(/^(Floor|Bar|Kitchen) · /, ""))}</div>${r.signedBy ? `<div class="s ok">Signed off by ${esc(r.signedBy)}, ${when(r.signedAt)}</div>` : ""}${body(r)}${A && r.signedBy ? reviewHtml(r) : ""}</div>`;
   const incRow = (x) => `<div class="staffrow"><div class="n">${esc(x.kind)} ${x.status === "closed" ? `<span class="pill ok">Closed</span>` : `<span class="pill wait">Open</span>`}</div><div class="s">${hhmm(new Date(ms(x.at)))} · ${esc(x.name)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>${x.status === "closed" ? `<div class="s">What was done: ${esc(x.outcome)} · ${esc(x.closedBy)}, ${when(x.closedAt)}</div>` : ""}</div>`;
-  const list = [...nights].map(([k, ys]) => `<article class="notice"><div class="meta"><b>${dayName(k, { weekday: "long", day: "numeric", month: "long" })}</b></div>${A && !inc && recent.includes(k) ? facts(k) : ""}${ys.map(inc ? incRow : repRow).join("")}</article>`).join("");
+  const list = [...nights].map(([k, ys]) => `<article class="notice night"><div class="meta"><b>${dayName(k, { weekday: "long", day: "numeric", month: "long" })}</b></div>${A && !inc && recent.includes(k) ? facts(k) : ""}${ys.map(inc ? incRow : repRow).join("")}</article>`).join("");
   const what = inc ? "incidents" : "reports", more = rpMore(what);
   $("#reports").innerHTML = top + `<div class="sec">Every report</div>
     <div class="recent">${shows.map(([k, t]) => `<button class="chip" data-rp-show="${k}" aria-pressed="${k === rpShow}">${t}</button>`).join("")}</div>
