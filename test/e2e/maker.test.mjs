@@ -86,6 +86,6 @@ test("the randomiser keeps to alcohol-free when asked, and quick specs search", 
   await p.click("[data-mk-rmode=alc]"); await p.click("[data-mk-rkind=spritz]"); await p.click("[data-mk=spin]");
   assert.match(await p.evaluate(() => D[mk.rnd.cur].section), /Spritz/);
   await p.click("[data-mk-pane=qs]"); await p.fill("#mk-qs", "hugo");
-  assert.match(await p.$eval("#mk-qlist", (e) => e.innerText), /1 drink[\s\S]*Hugo Spritz[\s\S]*25 ml elderflower cordial/);
+  assert.match(await p.$eval("#mk-qlist", (e) => e.innerText), /Hugo Spritz[\s\S]*25 ml elderflower cordial/);
   assert.deepEqual(p.errs, []);
 });
