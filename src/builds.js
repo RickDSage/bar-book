@@ -261,6 +261,7 @@ const SUBS = [
   [/Monin Salted Caramel/, "No Monin Salted Caramel? Use 25 ml salted caramel sauce."],
   [/Monin Watermelon/, "No Monin Watermelon? Use sugar syrup and 4 chunks of fresh watermelon pressed in the tin."],
   [/pisco/, "No pisco? Use Abelha cachaça."],
+  [/pink gin/, "No pink gin? Use Tanqueray and add 10 ml Chambord."],
   [/sambuca/, "No sambuca? Use NV Absinthe, 10 ml only."],
   [/butterscotch schnapps/, "No butterscotch schnapps? Use Monin Butterscotch or salted caramel sauce."],
 ];
