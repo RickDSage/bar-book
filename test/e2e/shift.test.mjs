@@ -87,12 +87,12 @@ test("old stock requests from before restocking: only managers see them, and mar
   assert.equal(await S.evaluate(() => LIVE.requests.length), 0, "staff don't load them any more");
   assert.equal(await attempt(S, () => LIVE.api.markOrdered("a")), "permission-denied");
 
-  await O.evaluate(() => show("notices")); await O.click("[data-tpane=requests]");
+  await O.evaluate(() => show("notices")); await O.click("[data-tpane=rota]");
   assert.match(await O.$eval("#requests", (e) => e.innerText), /Old stock requests[\s\S]*Limes[\s\S]*Large black bin liners[\s\S]*Blue roll\n2 rolls/i);
   await O.click('[data-ordered="b"]');
   await M.waitForFunction(() => LIVE.requests.find((r) => r.id === "b")?.done);
   assert.equal(await attempt(M, () => LIVE.api.cancelRequest("b")), "permission-denied", "an ordered request stays on record");
-  await M.evaluate(() => show("notices")); await M.click("[data-tpane=requests]");
+  await M.evaluate(() => show("notices")); await M.click("[data-tpane=rota]");
   await M.click('[data-rq-drop="c"]');
   await O.waitForFunction(() => LIVE.requests.length === 2);
   // Once the last one is cleared, the section goes.

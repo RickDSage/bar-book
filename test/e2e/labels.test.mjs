@@ -233,7 +233,7 @@ test("two people at once: the second is told, and nothing is overwritten", async
   await resetEmulators();
   const { M, S, T } = await team(browser, site, people);
   await add(M, "Pineapple juice", 3);
-  await S.waitForFunction(() => LIVE.labels.length === 1 && !LIVE.labels[0].pending);
+  for (const p of [S, T]) await p.waitForFunction(() => LIVE.labels.length === 1 && !LIVE.labels[0].pending);
   await labels(S); await labels(T);
   await tap(S, "Pineapple juice", "opened"); await tap(T, "Pineapple juice", "opened");
   await S.click("[data-lb-save]");

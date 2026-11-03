@@ -101,7 +101,7 @@ test("records written outside the app can't run code on a manager's phone", asyn
   await adminWrite("restock/plainrestock", { item: html(12), qty: int(1), unit: str("each"), dest: str("up"), detail: html(13), day, status: str("blocked"), who: html(14), whoUid: str("x"), moved: nul, got: nul, note: html(15), v: int(2),
     askedBy: html(16), askedUid: str("x"), askedAt: now, uid: str("x"), name: html(17), at: now });
 
-  await O.evaluate(() => show("notices")); await O.click("[data-tpane=requests]");
+  await O.evaluate(() => show("notices")); await O.click("[data-tpane=rota]");
   await waitText(O, "#requests", /Old stock requests[\s\S]*Blue roll/);
   await O.click("[data-tpane=managers]");
   await waitText(O, "#live", /Restock blocked/);

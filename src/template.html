@@ -367,6 +367,12 @@ a.btn { text-decoration: none; color: inherit; }
 .lbdue.late { border-color: var(--warn); }
 .lbdue .s { display: block; color: var(--muted); font-size: 13.5px; margin-top: 2px; }
 .lbideas .chip { white-space: normal; max-width: 100%; text-align: left; }
+/* The rota: a week at a time, with arrows to the week before and after, and each day's shifts in time order. */
+.rowk { display: grid; grid-template-columns: 44px 1fr 44px; gap: 8px; align-items: center; margin: 10px 0 2px; text-align: center; }
+.rowk b { display: block; font-size: 17px; }
+.rowk .s { color: var(--muted); font-size: 13.5px; }
+.rowk .round:disabled { opacity: .3; }
+.two.even { grid-template-columns: 1fr 1fr; }
 .prep.st-doing .box { border-color: var(--brass); color: var(--brass); }
 .prep.st-blocked .box { border-color: var(--warn); color: var(--warn); }
 .prep.st-cancelled { opacity: .62; }
@@ -505,7 +511,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="mgrs"></div><div id="incs"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="rota"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="mgrs"></div><div id="incs"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
 </main>
@@ -560,8 +566,11 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = fal
    nothing itself. They're plain links whose address is filled in as they're tapped, from SHARE[k]() (the subject and
    the text right then), so it's never out of date and nothing blocks it as a pop-up. */
 const SHARE = {};
-const shareBtns = (k) => `<a class="btn" data-share="${k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a><a class="btn" data-share="${k}" data-via="mail" href="mailto:">Email</a>`;
+// Other apps opens the phone's own share sheet (Messages, Notes, AirDrop, Slack…) where the browser has one.
+const shareBtns = (k) => `<a class="btn" data-share="${k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a><a class="btn" data-share="${k}" data-via="mail" href="mailto:">Email</a>${navigator.share ? `<button class="btn" data-share-sheet="${k}">Other apps…</button>` : ""}`;
 document.addEventListener("click", (e) => {
+  const sh = e.target.closest("[data-share-sheet]");
+  if (sh) { const [title, text] = SHARE[sh.dataset.shareSheet](); navigator.share({ title, text }).catch(() => {}); return; }
   const a = e.target.closest("a[data-share]"); if (!a) return;
   const [subject, text] = SHARE[a.dataset.share]();
   a.href = a.dataset.via === "wa" ? `https://wa.me/?text=${encodeURIComponent(text)}` : `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
@@ -591,7 +600,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] };
 // The 86 board is shared by everyone logged in. Logged out, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -1426,6 +1435,8 @@ const LB_SIDES = Object.keys(MODE_LISTS);
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
 const addDays = (day, n) => new Date(Date.parse(day) + n * 864e5).toISOString().slice(0, 10);
 const daysFrom = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
+// The Monday of a day's week. The rota goes a week at a time, Monday to Sunday.
+const weekOf = (day) => addDays(day, -((new Date(Date.parse(day)).getUTCDay() + 6) % 7));
 const nDays = (n) => `${n} day${n === 1 ? "" : "s"}`;
 // Where an open label is up to tonight: overdue (past its use-by), today (its last day), tomorrow, or open.
 function labelDue(x) {
@@ -1531,7 +1542,7 @@ function dropLabel(x) {
 // Everything that happened to one label, oldest first: read when ⋯ is opened, with tonight's changes added as they come.
 async function loadLabelHist(id) {
   lbh = { id, busy: true }; renderTally();
-  const xs = await LIVE.api.labelHistory(id).catch(() => null);
+  const xs = await LIVE.api.eventsOf(id, "label").catch(() => null);
   if (lbh?.id === id) { lbh = xs ? { id, xs } : { id, err: true }; renderTally(); }
 }
 function labelHist(x) {
@@ -2013,9 +2024,9 @@ const feedNew = () => [...LIVE.notices, ...LIVE.reports].filter(isNew);
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#dash", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#requests", "#feed", "#reports", "#sact", "#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#dash", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#rota", "#requests", "#feed", "#reports", "#sact", "#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
-  $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
+  $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, the rota, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
   if (!LIVE.api) { $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Team logins</h2><p>Your own login, the team board, pinned notices, shift sign-off, stock requests and closing photos.</p>${SOON}</div>`; return; }
   if (!LIVE.ready) { $("#team").innerHTML = `<p class="note">Connecting to the team feed. It needs signal the first time.</p>`; return; }
@@ -2050,11 +2061,11 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderRequests(); renderFeed(); renderReports(); renderMgrs(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#feed"], chat: ["#chat"], activity: ["#sact"], reports: ["#reports"], requests: ["#requests"], managers: ["#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
+const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#feed"], chat: ["#chat"], rota: ["#rota", "#requests"], activity: ["#sact"], reports: ["#reports"], managers: ["#msub", "#live", "#act", "#kpis", "#mgrs", "#incs", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
 // The Managers tab in parts, so nothing is a long scroll away.
@@ -2065,9 +2076,11 @@ const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 function renderTeamTabs() {
   const all = Object.values(TSLOTS).flat();
   if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
-  const tabs = [["board", "Board"], ["chat", "Chat"], ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["requests", "Requests"], ["managers", "Managers"]] : []), ["me", "Me"]];
+  const tabs = [["board", "Board"], ["chat", "Chat"], ["rota", "Rota"], ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["managers", "Managers"]] : []), ["me", "Me"]];
   if (!tabs.some(([k]) => k === tpane)) tpane = "board";
-  const count = { board: [openIssues().length + openConcerns().length, "open"], chat: [unreadChats().length, "new"], reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"], requests: [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length, "waiting"] };
+  // Managers: requests to answer and shifts to fill. Staff: shifts offered to them.
+  const offers = roOffers().length, rota = LIVE.admin ? [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter(waiting).length + roToFill().length, "waiting"] : [offers, offers === 1 ? "offer" : "offers"];
+  const count = { board: [openIssues().length + openConcerns().length, "open"], chat: [unreadChats().length, "new"], rota, reports: [LIVE.reports.filter((r) => !r.signedBy).length, "waiting"] };
   const badge = (k) => (count[k] && count[k][0] ? `${count[k][0]} ${count[k][1]}` : "");
   $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge(k)}</small></button>`).join("")}</div>`;
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
@@ -2093,6 +2106,7 @@ function renderDash() {
   const sent = (side) => (tonight.some((r) => r.side === side) ? "Sent" : "Not yet");
   const unsigned = LIVE.reports.filter((r) => !r.signedBy).length, inc = LIVE.incidents.filter((x) => x.status !== "closed").length;
   const lbSides = LIVE.admin ? LB_SIDES : [mode], lbNow = toChange(lbSides), lbNext = labelsDue(lbSides).length - lbNow.length;
+  const next = roNext(), fill = roToFill();
   const tiles = [
     [v("tasks", `${done}/${of}`), `${sideName(mode)} checklists done`, "shift"],
     [v("tasks", blocked), blocked === 1 ? "blocked task" : "blocked tasks", "blocked", blocked > 0],
@@ -2104,9 +2118,12 @@ function renderDash() {
     [v("concerns", openConcerns().length), "open concerns", "concerns", openConcerns().some((x) => x.reason === "hazard")],
     // The kitchen's report on a phone set to the kitchen, or once the kitchen has sent one.
     ...Object.keys(MODE_LISTS).filter((s) => s !== "kitchen" || mode === s || LIVE.reports.some((r) => r.side === s)).map((s) => [v("reports", sent(s)), `${s} report tonight`, "reports"]),
+    // Staff always see their next shift; managers only when they're on the rota.
+    ...(next || !LIVE.admin ? [[v("shifts", next ? (next.day === shiftDay() ? "Today" : dayName(next.day, { weekday: "short" })) : "None"), next ? `your next shift, ${roTime(next)}` : "your next shift on the rota", "rota"]] : []),
     ...(LIVE.admin ? [
       [v("reports", unsigned), "reports to sign off", "reports", unsigned > 0],
       [v("asks", LIVE.asks.filter(waiting).length), "staff requests to answer", "requests"],
+      [v("shifts", fill.length), `shift${fill.length === 1 ? "" : "s"} to fill in the next 7 days`, "rota", fill.some((x) => x.day <= addDays(shiftDay(), 1))],
       [v("incidents", inc), "open incidents", "incidents", inc > 0],
     ] : []),
   ];
@@ -2122,6 +2139,9 @@ function go(where) {
   // Date labels: this phone's side, or the side a label in Live is on.
   if (where.startsWith("labels")) { const s = where.split(":")[1] || mode; if (s !== mode) setMode(s); pane = labelPane(s); show("tally"); return; }
   if (where === "incidents") { msub = where; where = "managers"; }
+  // Staff requests sit under the rota. A week can come with it ("rota:2026-11-09").
+  if (where === "requests") { tpane = "rota"; renderTeamTabs(); $("#requests").scrollIntoView({ block: "start" }); return; }
+  if (where.startsWith("rota")) { roWk = where.split(":")[1] || roWk; where = "rota"; renderRota(); }
   const board = where === "issues" || where === "concerns";
   tpane = board ? "board" : where; renderTeamTabs();
   $(board ? `#${where}` : "#tpanes").scrollIntoView({ block: "start" });
@@ -2186,6 +2206,296 @@ function renderRequests() {
     (open.length ? `<div class="sec">Old stock requests</div><p class="note">From before restocking. Mark each one ordered or turn it down. New asks for stock are on the Shift tab's Stock page.</p>` +
       open.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt"><b>${esc(r.item)}</b>${r.note ? `<br>${esc(r.note)}` : ""}</p><div class="actions"><button class="btn pri" data-ordered="${r.id}">Ordered</button><button class="btn" data-rq-drop="${r.id}">Turn down</button></div></article>`).join("") : "");
 }
+/* ---------- Rota ----------
+   Managers make a week as a draft only they can see, then publish it. After that every change is saved with who made
+   it and when, in the shift's history and in Activity. Staff see the published weeks from last week to the week after
+   next. On a shift that's open or needs cover, anyone can put their hand up and a manager picks who gets it; a shift
+   offered to someone is theirs to take or turn down; anyone who can't make their shift says why, and it stays theirs
+   until a manager gives it to someone else. Only managers put people on shifts. Time off asked for or approved shows on
+   its days, and a manager is warned before putting someone on a shift that clashes with another or with time off.
+   Hours run from start to finish, before breaks. Phones with the app closed aren't told: that needs a paid plan. */
+const ISO_TIME = /^([01]\d|2[0-3]):[0-5]\d$/;
+const toMin = (t) => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+// An end at or before the start is the next morning.
+const shiftLen = (x) => (toMin(x.end) - toMin(x.start) + 1440) % 1440;
+const hrs = (m) => `${+(m / 60).toFixed(2)} h`;
+const nShifts = (n) => `${n} shift${n === 1 ? "" : "s"}`;
+const roTime = (x) => `${x.start}–${x.end}`;
+const roWhen = (x) => `${dayName(x.day)} ${roTime(x)}`;
+// A shift's start and end in minutes, UK clock time counted from the same point, so shifts on different days compare.
+const roSpan = (x) => { const a = Date.parse(x.day) / 6e4 + toMin(x.start); return [a, a + shiftLen(x)]; };
+const roNow = () => Date.parse(ukDay(Date.now())) / 6e4 + toMin(hhmm(new Date()));
+// Time off on a day: approved, or asked for and not decided yet. Managers see everyone's; staff see their own.
+const offOn = (day) => LIVE.asks.filter((a) => a.kind === "off" && a.date1 <= day && day <= a.date2 && (a.status === "approved" || waiting(a)));
+const offText = (a) => (a.uid === LIVE.uid ? (a.status === "approved" ? "You're off" : "You've asked for the day off") : `${a.name} ${a.status === "approved" ? "is off" : "has asked for the day off"}`);
+// Why this person shouldn't be on shift s (one being added or changed, id ""), or "" if nothing clashes.
+function roClash(uid, s, id) {
+  const [a, b] = roSpan(s), other = LIVE.shifts.find((x) => x.id !== id && x.who === uid && roSpan(x)[0] < b && a < roSpan(x)[1]);
+  const off = offOn(s.day).find((o) => o.uid === uid);
+  return other ? `is on ${roWhen(other)} too` : off ? (off.status === "approved" ? `is off on ${dayName(s.day)}` : `has asked for ${dayName(s.day)} off`) : "";
+}
+const roPeople = () => [...LIVE.staff].sort((a, b) => a.name.localeCompare(b.name));
+// The week shown, the filter, the shift whose ⋯ is open, a manager's changes to it, its history and the add form, kept
+// apart from the page so a teammate's change redrawing it loses nothing.
+let roWk = "", roSide = "", roM = "", roE = null, roH = null;
+const roF = { days: [], start: "", end: "", side: "", who: "", offer: "", note: "", open: false };
+const roThis = () => weekOf(shiftDay());
+// Managers plan up to 12 weeks ahead and look back 4; staff have last week to the week after next.
+const roRange = () => { const t = roThis(); return LIVE.admin ? [addDays(t, -28), addDays(t, 84)] : [addDays(t, -7), addDays(t, 14)]; };
+function roWeek() { const [lo, hi] = roRange(), w = roWk || roThis(); return w < lo ? lo : w > hi ? hi : w; }
+const weekShifts = (wk) => LIVE.shifts.filter((x) => x.week === wk);
+const roWeekName = (n) => (n === 0 ? "This week" : n === 1 ? "Next week" : n === -1 ? "Last week" : n > 0 ? `In ${n} weeks` : `${-n} weeks ago`);
+const roOrder = (a, b) => toMin(a.start) - toMin(b.start) || a.side.localeCompare(b.side) || a.whoName.localeCompare(b.whoName);
+// Published shifts in the next 7 days with nobody on them or whose person can't make it.
+const roToFill = () => LIVE.shifts.filter((x) => x.pub && x.day >= shiftDay() && x.day < addDays(shiftDay(), 7) && (!x.who || x.cover) && roSpan(x)[1] > roNow());
+const roOffers = () => LIVE.shifts.filter((x) => x.pub && !x.who && x.offer === LIVE.uid && roSpan(x)[1] > roNow());
+const roNext = () => LIVE.shifts.filter((x) => x.pub && x.who === LIVE.uid && roSpan(x)[1] > roNow()).sort((a, b) => roSpan(a)[0] - roSpan(b)[0])[0];
+// The start and end times used most, for one tap in the add form.
+function roTimes() {
+  const n = new Map();
+  for (const x of LIVE.shifts) { const k = `${x.start}-${x.end}`; n.set(k, (n.get(k) || 0) + 1); }
+  return [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 6).map(([k]) => k.split("-"));
+}
+const RO_SHOW = [["", "Everyone"], ["me", "Just me"], ...Object.entries(SIDE_NAME)];
+function roRow(x) {
+  const A = LIVE.admin, me = LIVE.uid, mine = x.who === me, offered = !x.who && x.offer === me, open = !x.who || !!x.cover;
+  const live = x.pub && roSpan(x)[1] > roNow(), hands = Object.entries(x.wants), clash = A && x.who ? roClash(x.who, x, x.id) : "";
+  const pills = [!x.pub && `<span class="pill wait">Draft</span>`, !x.who && `<span class="pill no">Open shift</span>`, x.cover && `<span class="pill no">Needs cover</span>`,
+    !x.who && x.offer && `<span class="pill wait">Offered to ${offered ? "you" : esc(x.offerName)}</span>`, `<span class="pill">${sideName(x.side)}</span>`].filter(Boolean).join(" ");
+  const line = [x.note && esc(x.note), x.cover && `${mine ? "You" : esc(x.whoName)} can't make it: ${esc(x.cover)}`, hands.length && `Hands up: ${esc(hands.map(([, n]) => n).join(", "))}`,
+    clash && `<b class="late">${esc(x.whoName)} ${esc(clash)}</b>`, A && x.who && !LIVE.staff.some((p) => p.uid === x.who) && `${esc(x.whoName)} has left the team`, x.pending && "Saving…"].filter(Boolean).join(" · ");
+  const b = (act, t, c = "") => `<button class="btn${c}" data-ro="${x.id}" data-ro-act="${act}">${t}</button>`;
+  // Managers give it to someone with a hand up. Anyone: takes or turns down a shift offered to them, says they can't
+  // make their own (or can after all). Staff put a hand up for one that's open or needs cover.
+  const btns = !live ? "" : [
+    ...(A && open ? hands.map(([uid, n]) => `<button class="btn pri" data-ro="${x.id}" data-ro-give="${uid}">Give it to ${esc(n)}</button>`) : []),
+    offered && b("took", "Take it", " pri"), offered && b("declined", "No thanks"),
+    mine && (x.cover ? b("kept", "I can do it after all") : b("cover", "Can't make it…")),
+    !A && open && !mine && !offered && (x.wants[me] ? b("unwants", "Take my hand down") : b("wants", x.who ? "I can cover it" : "I can do it", " pri")),
+  ].filter(Boolean).join("");
+  return `<div class="lb ro${flashed("ro-" + x.id, x) ? " flash" : ""}"><div class="le-row"><div><b>${roTime(x)}</b> ${x.who ? esc(mine ? "You" : x.whoName) : ""} ${pills}${line ? `<div class="s">${line}</div>` : ""}</div>
+    <button class="more" data-ro-more="${x.id}" aria-expanded="${roM === x.id}" aria-label="${A ? "Change it, and its history" : "History"}: ${esc(roWhen(x))}">⋯</button></div>
+    ${btns ? `<div class="actions">${btns}</div>` : ""}${roM === x.id ? `<div class="tmore">${A && roE?.id === x.id ? roEditHtml(x) : ""}<div class="mini">History</div>${roHist(x)}</div>` : ""}</div>`;
+}
+const roOpts = (xs, cur) => xs.map(([v, t]) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(t)}</option>`).join("");
+// The team to pick from, keeping someone who has left on the shift they're still on until a manager changes it.
+function roPick(uid, name) {
+  const ps = roPeople().map((p) => [p.uid, p.name]);
+  return uid && !ps.some(([u]) => u === uid) ? [...ps, [uid, `${name} (left the team)`]] : ps;
+}
+// The fields the add form (a "rof") and a manager's changes to one shift (a "roe", x) share.
+function roFields(a, f, x) {
+  return `<div class="two even"><label class="fld">Starts<input type="time" data-${a}="start" value="${esc(f.start)}"></label><label class="fld">Ends<input type="time" data-${a}="end" value="${esc(f.end)}"></label></div>
+    <label class="fld">Who<select data-${a}="who">${roOpts([["", "Nobody yet: an open shift"], ...roPick(x?.who, x?.whoName)], f.who)}</select></label>
+    ${f.who ? "" : `<label class="fld">Offer it to someone, who takes it or says no<select data-${a}="offer">${roOpts([["", "Nobody: anyone can put their hand up"], ...roPick(x?.offer, x?.offerName)], f.offer)}</select></label>`}
+    <label class="fld">Side<select data-${a}="side">${roOpts(Object.entries(SIDE_NAME), f.side)}</select></label>
+    <label class="fld">Note (optional)<input data-${a}="note" maxlength="60" value="${esc(f.note)}" placeholder="Close, training, football…"></label>`;
+}
+function roEditHtml(x) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(x.week, i));
+  return `<div class="mini">Change it</div><label class="fld">Day<select data-roe="day">${roOpts(days.map((d) => [d, dayName(d, { weekday: "long", day: "numeric", month: "short" })]), roE.day)}</select></label>
+    ${roFields("roe", roE, x)}
+    <div class="actions"><button class="btn pri" data-ro-save="${x.id}">Save changes</button><button class="btn danger" data-ro-drop="${x.id}">Remove the shift</button></div>`;
+}
+// Everything that happened to one shift since it was published, oldest first: read when ⋯ is opened, with today's
+// changes added as they come.
+async function roLoadHist(id) {
+  roH = { id, busy: true }; renderRota();
+  const xs = await LIVE.api.eventsOf(id, "shift").catch(() => null);
+  if (roH?.id === id) { roH = xs ? { id, xs } : { id, err: true }; renderRota(); }
+}
+function roHist(x) {
+  if (!x.pub) return `<p class="note">A draft, last changed by ${esc(x.name)}, ${when(x.at)}. Its history starts when the week is published.</p>`;
+  if (roH?.id !== x.id || roH.busy) return `<p class="note">Reading the history…</p>`;
+  if (roH.err) return `<p class="note">Couldn't read the history. Check your signal.</p><div class="actions"><button class="btn" data-ro-hist="${x.id}">Try again</button></div>`;
+  const by = new Map([...roH.xs, ...LIVE.events.filter((e) => e.kind === "shift" && e.ref === x.id)].map((e) => [e.id, e])), xs = [...by.values()].sort((a, b) => a.v - b.v);
+  if (!xs.length) return `<p class="note">Published by ${esc(x.name)}, ${when(x.at)}, with the rest of the week. Not changed since.</p>`;
+  return `<div class="hist">${xs[0].act === "added" ? "" : `<div class="s">Made as a draft, then published with the week.</div>`}${xs.map((e) => `<div class="s">${dayName(e.day)}, ${at(e)} · ${esc(e.name)} ${esc(roText(e, true))}</div>`).join("")}</div>`;
+}
+// One change in words: "put a hand up for Tue 4 Nov 18:00–02:00 (Bar)". In a shift's own history (mine) it's "it".
+function roText(e, mine) {
+  const w = mine ? "it" : `${dayName(e.sday)} ${e.start}–${e.end} (${sideName(e.area)})`, was = e.was;
+  if (e.act === "added") return `added ${w}${e.who ? ` for ${e.who}` : e.offer ? `, offered to ${e.offer}` : ", as an open shift"}`;
+  if (e.act === "removed") return `removed ${w}${e.who ? `, ${e.who}'s shift` : ""}`;
+  const said = { wants: `put a hand up for ${w}`, unwants: `took their hand down for ${w}`, took: `took ${w}`, declined: `turned down ${w}`, cover: `can't make ${w}: ${e.cover}`, kept: `can make ${w} after all` }[e.act];
+  if (said) return said;
+  const moved = was && (was.day !== e.sday || was.start !== e.start || was.end !== e.end || was.side !== e.area);
+  const parts = [moved && `moved it from ${dayName(was.day)} ${was.start}–${was.end}${was.side !== e.area ? ` (${sideName(was.side)})` : ""}`,
+    was && was.who !== e.who && (e.who ? `gave it to ${e.who}${was.who ? ` instead of ${was.who}` : ""}` : `took ${was.who} off it`), !e.who && e.offer && `now offered to ${e.offer}`].filter(Boolean);
+  return `changed ${w}${parts.length ? `: ${parts.join(", ")}` : ""}`;
+}
+function renderRota() {
+  const box = $("#rota"); if (!box) return;
+  if (!LIVE.me) { box.innerHTML = ""; return; }
+  const A = LIVE.admin, head = `<div class="sec">Rota</div><p class="note">${A ? "Make a week as a draft, then publish it. Hands up, offers and cover requests show on each shift." : "Put your hand up for an open shift, or say here if you can't make one of yours. A manager decides who works it."}</p>`;
+  if (!LIVE.loaded.has("shifts")) { box.innerHTML = `${head}<p class="note">Loading the rota. It needs signal the first time.</p>`; return; }
+  const wk = roWeek(), [lo, hi] = roRange(), xs = weekShifts(wk), drafts = xs.filter((x) => !x.pub), last = weekShifts(addDays(wk, -7));
+  const mine = xs.filter((x) => x.who === LIVE.uid), offers = roOffers().filter((x) => x.week !== wk);
+  const shown = xs.filter((x) => !roSide || (roSide === "me" ? x.who === LIVE.uid : x.side === roSide));
+  const nav = `<div class="rowk"><button class="round" data-ro-wk="-7" aria-label="The week before"${wk <= lo ? " disabled" : ""}>‹</button>
+    <div><b>Week of ${dayName(wk, { weekday: "short", day: "numeric", month: "long" })}</b><span class="s">${roWeekName(daysFrom(roThis(), wk) / 7)}</span></div>
+    <button class="round" data-ro-wk="7" aria-label="The week after"${wk >= hi ? " disabled" : ""}>›</button></div>`;
+  const status = A ? (!xs.length ? `<p class="note">Nothing on this week yet. Add shifts below${last.length ? ", or start from last week's" : ""}.</p>${last.length ? `<div class="actions"><button class="btn pri" id="ro-copy">Copy last week (${nShifts(last.length)})</button></div>` : ""}`
+    : drafts.length ? `<p class="note"><span class="pill wait">Draft</span> ${drafts.length === xs.length ? "Only managers can see this week until it's published." : `${nShifts(drafts.length)} only managers can see yet.`}</p><div class="actions"><button class="btn pri" id="ro-pub">Publish ${nShifts(drafts.length)}</button></div>`
+    : `<p class="note">Published. Everyone can see it, and each change is saved with who made it and when.</p>`)
+    : xs.length ? "" : `<p class="note">Nothing published for this week yet.</p>`;
+  const you = mine.length ? `<p class="note"><b>You: ${nShifts(mine.length)}, ${hrs(mine.reduce((t, x) => t + shiftLen(x), 0))}</b></p>` : "";
+  const elsewhere = offers.length ? `<p class="note">Offered to you: ${offers.map((x) => `<button class="linkbtn" data-ro-goto="${x.week}">${esc(roWhen(x))}</button>`).join(", ")}</p>` : "";
+  const chips = xs.length ? `<div class="chips" role="toolbar" aria-label="Show">${RO_SHOW.map(([k, t]) => `<button class="chip" data-ro-side="${k}" aria-pressed="${k === roSide}">${t}</button>`).join("")}</div>` : "";
+  // Managers see every day, with who's off, even before there are shifts; staff see the days once the week is out.
+  const days = xs.length || A ? Array.from({ length: 7 }, (_, i) => addDays(wk, i)).map((d) => {
+    const ds = shown.filter((x) => x.day === d).sort(roOrder), off = offOn(d).filter((a) => A || a.uid === LIVE.uid);
+    return `<h3 class="actday">${dayName(d, { weekday: "long", day: "numeric", month: "short" })}${d === shiftDay() ? " · today" : ""}</h3>
+      ${off.length ? `<p class="note">${off.map((a) => esc(offText(a))).join(" · ")}</p>` : ""}${ds.map(roRow).join("") || `<p class="note">No shifts${roSide ? " to show" : ""}.</p>`}`;
+  }).join("") : "";
+  const hours = A && xs.length ? roHours(xs) : "";
+  const acts = xs.length ? `<div class="actions">${shareBtns("rota")}${A ? dlHtml("shifts", "Download every week as a spreadsheet", "rota") : ""}</div>` : "";
+  const foot = A ? roAddHtml(wk, xs.some((x) => x.pub)) : `<p class="note">Need a day off? Ask from the <button class="linkbtn" data-go="me">Me tab</button>.</p>`;
+  box.innerHTML = head + nav + status + you + elsewhere + chips + days + hours + acts + foot;
+}
+// Each person's shifts and hours in the week, then the open shifts.
+function roHours(xs) {
+  const by = new Map();
+  for (const x of xs) { const h = by.get(x.who) || { name: x.who ? x.whoName : "Open shifts", n: 0, m: 0 }; h.n++; h.m += shiftLen(x); by.set(x.who, h); }
+  const rows = [...by.entries()].sort(([a, x], [b, y]) => (a === "") - (b === "") || x.name.localeCompare(y.name));
+  return `<div class="mini">Hours this week</div>${rows.map(([, h]) => `<div class="staffrow"><div class="n">${esc(h.name)} <span class="did">· ${nShifts(h.n)}, ${hrs(h.m)}</span></div></div>`).join("")}
+    <p class="note">${nShifts(xs.length)}, ${hrs(xs.reduce((t, x) => t + shiftLen(x), 0))} in all. From start to finish, before breaks${xs.some((x) => !x.pub) ? ", drafts included" : ""}.</p>`;
+}
+function roAddHtml(wk, pub) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(wk, i)), f = { ...roF, side: roF.side || mode }, times = roTimes();
+  return `<details class="setup" id="ro-add"${roF.open ? " open" : ""}><summary>Add shifts</summary>
+    <div class="mini">Day, or several days</div>
+    <div class="chips">${days.map((d) => `<button class="chip" data-ro-day="${d}" aria-pressed="${roF.days.includes(d)}">${dayName(d, { weekday: "short", day: "numeric" })}</button>`).join("")}</div>
+    ${times.length ? `<div class="mini">Times used before</div><div class="chips">${times.map(([s, e]) => `<button class="chip" data-ro-times="${s}-${e}" aria-pressed="${f.start === s && f.end === e}">${s}–${e}</button>`).join("")}</div>` : ""}
+    ${roFields("rof", f, null)}
+    <p class="note">${pub ? "This week is published, so new shifts go out straight away." : "They stay a draft until you publish the week."}</p>
+    <div class="actions"><button class="btn pri" id="ro-go">${pub ? "Add and publish" : "Add to the draft"}</button></div></details>`;
+}
+function roAdd() {
+  const wk = roWeek(), pub = weekShifts(wk).some((x) => x.pub), days = roF.days.filter((d) => weekOf(d) === wk).sort();
+  const p = LIVE.staff.find((s) => s.uid === roF.who), o = !p && LIVE.staff.find((s) => s.uid === roF.offer);
+  if (!days.length) return toast("Pick the day or days");
+  if (!ISO_TIME.test(roF.start) || !ISO_TIME.test(roF.end)) return toast("Pick when it starts and ends");
+  if (roF.start === roF.end) return toast("It can't start and end at the same time");
+  const fs = days.map((day) => ({ week: wk, day, start: roF.start, end: roF.end, side: roF.side || mode, note: roF.note.trim().slice(0, 60),
+    who: p?.uid || "", whoName: p?.name || "", offer: o?.uid || "", offerName: o?.name || "" }));
+  const clash = p ? fs.map((f) => roClash(p.uid, f, "")).filter(Boolean) : [];
+  if (clash.length && !confirm(`${p.name} ${clash.join(", and ")}. Add it anyway?`)) return;
+  track(LIVE.api.shiftsAdd(fs, pub), `${fs.length === 1 ? "Shift" : nShifts(fs.length)} added${pub ? " and published" : " to the draft"}`, "Not all of it was saved. Check the week and try again");
+  // The times and the side stay for the next one; the days, the note and the person don't, so nobody is put on a
+  // shift a manager didn't mean to give them.
+  Object.assign(roF, { days: [], note: "", who: "", offer: "" }); haptic(); renderRota();
+}
+// A new week from last week's: the same days, times, sides and people. Anyone who has left becomes an open shift.
+function roCopy() {
+  const wk = roWeek(), from = weekShifts(addDays(wk, -7));
+  if (!from.length || weekShifts(wk).length) return;
+  const fs = from.map((x) => {
+    const p = LIVE.staff.find((s) => s.uid === x.who);
+    return { week: wk, day: addDays(x.day, 7), start: x.start, end: x.end, side: x.side, note: x.note, who: p ? p.uid : "", whoName: p ? p.name : "", offer: "", offerName: "" };
+  });
+  track(LIVE.api.shiftsAdd(fs, false), `Copied ${nShifts(fs.length)} into a draft. Check them, then publish`, "Not all of it was copied. Check the week and try again");
+  haptic();
+}
+function roPublish() {
+  const wk = roWeek(), xs = weekShifts(wk).filter((x) => !x.pub);
+  if (!xs.length) return;
+  const clashes = xs.filter((x) => x.who && roClash(x.who, x, x.id)).length;
+  if (!confirm(`Publish ${nShifts(xs.length)} for the week of ${dayName(wk)}? Everyone can see the week then, and each change after that is saved with who made it.${clashes ? ` ${clashes} of them clash with time off or another shift, as marked on the rota.` : ""}`)) return;
+  track(LIVE.api.publish(xs), `Published. Everyone can see the week of ${dayName(wk)}`, "Not all of it was published. Check your signal and publish again");
+  haptic();
+}
+// What a teammate's own change sets, beyond who made it and when.
+const RO_DO = {
+  wants: (x) => ({ wants: { ...x.wants, [LIVE.uid]: LIVE.me } }),
+  unwants: (x) => ({ wants: Object.fromEntries(Object.entries(x.wants).filter(([k]) => k !== LIVE.uid)) }),
+  took: () => ({ who: LIVE.uid, whoName: LIVE.me, offer: "", offerName: "", wants: {} }),
+  declined: () => ({ offer: "", offerName: "" }),
+  kept: () => ({ cover: "", wants: {} }),
+};
+const RO_SAID = { wants: "Hand up. A manager picks who gets it", unwants: "Hand down", took: "It's yours. It's on the rota with your name", declined: "Turned down. The managers can see it's free",
+  cover: "Asked. It's still yours until a manager gives it to someone else", kept: "Done. It's still yours, and nobody needs to cover it" };
+function roDo(x, act) {
+  let f = RO_DO[act]?.(x) || {};
+  if (act === "cover") {
+    const why = reason(`Can't make ${roWhen(x)}? Say why in a few words, like "appointment" or "family". The whole team can see it, so tell a manager anything private in Chat.`).slice(0, 120);
+    if (!why) return;
+    f = { cover: why };
+  }
+  track(LIVE.api.shift(x, act, f), RO_SAID[act], "Not saved. Someone may have just changed it");
+  haptic();
+}
+function roGive(x, uid) {
+  const p = LIVE.staff.find((s) => s.uid === uid);
+  if (!p) return toast("They're not on the team any more");
+  const c = roClash(uid, x, x.id);
+  if (c && !confirm(`${p.name} ${c}. Give it to them anyway?`)) return;
+  track(LIVE.api.shift(x, "edited", { who: uid, whoName: p.name, offer: "", offerName: "", cover: "", wants: {} }), `Given to ${p.name}`, "Not saved. Someone may have just changed it");
+  haptic();
+}
+function roOpen(x) {
+  roM = roM === x.id ? "" : x.id;
+  roE = roM && LIVE.admin ? { id: x.id, v: x.v, day: x.day, start: x.start, end: x.end, side: x.side, who: x.who, offer: x.offer, note: x.note } : null;
+  if (roM && x.pub) roLoadHist(x.id); else renderRota();
+}
+function roSave(x) {
+  if (x.v !== roE.v) { roM = ""; roOpen(x); return toast(`${x.name} has just changed it. Check it and try again`); }
+  if (!ISO_TIME.test(roE.start) || !ISO_TIME.test(roE.end)) return toast("Pick when it starts and ends");
+  if (roE.start === roE.end) return toast("It can't start and end at the same time");
+  const who = roE.who, same = who === x.who, p = LIVE.staff.find((s) => s.uid === who), o = LIVE.staff.find((s) => s.uid === roE.offer);
+  // Someone keeps their cover request and the hands up for it only while they stay on the shift; an open shift keeps
+  // its hands up; only an open shift is offered.
+  const f = { day: roE.day, start: roE.start, end: roE.end, side: roE.side, note: roE.note.trim().slice(0, 60), who, whoName: who ? p?.name || x.whoName : "",
+    offer: who ? "" : roE.offer, offerName: who || !roE.offer ? "" : o?.name || x.offerName, cover: who && same ? x.cover : "", wants: !who || (same && x.cover) ? x.wants : {} };
+  if (["day", "start", "end", "side", "note", "who", "offer"].every((k) => f[k] === x[k])) return toast("Nothing changed");
+  const c = who && roClash(who, f, x.id);
+  if (c && !confirm(`${f.whoName} ${c}. Save it anyway?`)) return;
+  track(LIVE.api.shift(x, "edited", f), x.pub ? "Saved. Everyone can see the change" : "Saved", "Not saved. Someone may have just changed it");
+  roM = ""; roE = null; haptic(); renderRota();
+}
+function roDrop(x) {
+  if (!confirm(`Remove ${roWhen(x)}${x.who ? `, ${x.whoName}'s shift` : ""}?${x.pub ? " Everyone can see it was removed, and who by." : ""}`)) return;
+  roM = ""; roE = null;
+  track(LIVE.api.shift(x, "removed"), "Shift removed", "Not removed. Someone may have just changed it");
+  haptic(); renderRota();
+}
+// A week going out pops up once on other phones, with how many shifts this person has in it once the whole week has
+// arrived (a big week is saved in parts).
+const roOut = new Set();
+function roOutToast(x) {
+  if (x.act !== "published" || roOut.has(x.week) || Date.now() - ms(x.at) > 3e5) return "";
+  roOut.add(x.week);
+  const said = `${x.name} published the rota for the week of ${dayName(x.week)}`;
+  if (LIVE.admin) return said;
+  setTimeout(() => { const n = weekShifts(x.week).filter((s) => s.who === LIVE.uid).length; toast(`${said}. ${n ? `You're on ${nShifts(n)}` : "You're not on it"}`); }, 2000);
+  return "";
+}
+// A change to a published shift pops up for whoever it's about; managers also hear about hands up, offers taken or
+// turned down and cover; staff on the same side hear when someone can't make a shift, in case they can cover it.
+const roOffered = new Set();
+function roToast(e) {
+  const me = LIVE.me, w = `${dayName(e.sday)} ${e.start}–${e.end}`, was = e.was;
+  if (["added", "edited", "removed"].includes(e.act)) {
+    if (e.act !== "removed" && e.who === me && was?.who !== me) return `${e.name} put you on ${w}`;
+    if (was?.who === me && (e.act === "removed" || e.who !== me)) return `${e.name} took you off ${dayName(was.day)} ${was.start}–${was.end}`;
+    if (e.act === "edited" && e.who === me && (was.day !== e.sday || was.start !== e.start || was.end !== e.end)) return `${e.name} changed your shift: it's ${w} now`;
+    if (e.act !== "removed" && !e.who && e.offer === me && !roOffered.has(e.ref)) { roOffered.add(e.ref); return `${e.name} offered you ${w}. Take it or say no thanks on the rota`; }
+    return "";
+  }
+  if (LIVE.admin) return { wants: `${e.name} can do ${w}`, took: `${e.name} took ${w}`, declined: `${e.name} turned down ${w}`, cover: `${e.name} can't make ${w}: ${e.cover}`, kept: `${e.name} can make ${w} after all` }[e.act] || "";
+  return e.act === "cover" && e.area === mode ? `${e.name} can't make ${w}. Can you cover it? It's on the rota` : "";
+}
+const RO_ACT = { added: "Added", edited: "Changed", removed: "Removed", wants: "Hand up", unwants: "Hand down", took: "Taken", declined: "Turned down", cover: "Can't make it", kept: "Can make it after all" };
+const roWas = (e) => (e.was ? `${e.was.day} ${e.was.start}-${e.was.end}, ${sideName(e.was.side)}, ${e.was.who || "open"}` : "");
+// Shared to WhatsApp, email or another app: the week, day by day.
+function roShareText(wk) {
+  const xs = weekShifts(wk);
+  return [`Black Tap Soho rota, week of ${dayName(wk, { weekday: "long", day: "numeric", month: "long" })}`, "", ...Array.from({ length: 7 }, (_, i) => addDays(wk, i)).flatMap((d) => {
+    const ds = xs.filter((x) => x.day === d).sort(roOrder);
+    return ds.length ? [dayName(d, { weekday: "long", day: "numeric", month: "short" }), ...ds.map((x) => `- ${roTime(x)} ${x.whoName || "Open shift"} (${sideName(x.side)})${x.note ? `, ${x.note}` : ""}${x.pub ? "" : " [draft]"}`), ""] : [];
+  })].join("\n").trim();
+}
+SHARE.rota = () => [`Black Tap Soho rota, week of ${dayName(roWeek())}`, roShareText(roWeek())];
 // Photos load only when asked for, so the feed stays quick and cheap on data.
 const shownPhotos = {};
 async function showPhotos(id) {
@@ -2380,6 +2690,7 @@ const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 // "started: Ice well emptied", "brought up 2 bags of Limes for the upstairs bar".
 function evText(e) {
   if (e.kind === "label") return labelText(e);
+  if (e.kind === "shift") return roText(e);
   if (e.kind === "task") return e.from === e.to ? (e.who ? `gave ${e.who}: ${e.label}` : `took this off whoever it was for: ${e.label}`)
     : { doing: `started: ${e.label}`, done: `completed: ${e.label}`, blocked: `blocked: ${e.label}`, cancelled: `marked not needed tonight: ${e.label}`,
       todo: { done: `took back: ${e.label}`, doing: `stopped: ${e.label}`, blocked: `unblocked: ${e.label}`, cancelled: `brought back: ${e.label}` }[e.from] }[e.to];
@@ -2413,7 +2724,7 @@ const overdue = (k, i) => { const x = taskOf(k, i); return x?.status === "doing"
 // Something for a manager to look at: a tag (shown as a label, never as colour alone), what it is, any reason, who and
 // when, and where it's dealt with.
 const flag = (t, tag, cls, what, note, by, go) => ({ t, tag, cls, what, note, by, go });
-const goName = (go) => (go === "stock" ? "Restock board" : go.startsWith("labels") ? "Date labels" : "Open the list");
+const goName = (go) => (go === "stock" ? "Restock board" : go.startsWith("labels") ? "Date labels" : go.startsWith("rota") ? "Rota" : "Open the list");
 const flagHtml = (x) => `<div class="staffrow"><div class="n"><span class="pill ${x.cls}">${esc(x.tag)}</span> <span class="did">${esc(x.what)}</span></div><div class="s">${x.note ? `${esc(x.note)} · ` : ""}${esc(x.by)} · <button class="linkbtn" data-go="${x.go}">${goName(x.go)}</button></div></div>`;
 const flagText = (x) => `- ${x.tag}: ${x.what}${x.note ? ` (${x.note})` : ""}. ${x.by}`;
 // Now: what's blocked, overdue or waiting too long, longest waiting first.
@@ -2431,6 +2742,11 @@ function needsYou() {
     else if (rsLate(r)) xs.push(flag(ms(r.askedAt), rsLateText(r), "no", what, "", r.status === "delivered" ? `Brought up by ${r.who}, ${at(r)}` : `Asked by ${r.askedBy}`, "stock"));
   }
   for (const x of LIVE.labels) if (x.on && labelDue(x) === "overdue") xs.push(flag(Date.parse(x.useBy), "Label overdue", "no", `${x.item} (${sideName(x.side)})`, `Use by ${dayName(x.useBy)}`, cap(opener(x)), `labels:${x.side}`));
+  // Shifts today and tomorrow with nobody on them, or whose person can't make it.
+  for (const x of roToFill()) if (x.day <= addDays(shiftDay(), 1)) {
+    const n = Object.keys(x.wants).length;
+    xs.push(flag(roSpan(x)[0] * 6e4, x.cover ? "Can't make it" : "Open shift", "no", `${roWhen(x)} (${sideName(x.side)})`, x.cover ? `${x.whoName}: ${x.cover}` : "", n ? `${n} hand${n === 1 ? "" : "s"} up` : "No hands up yet", `rota:${x.week}`));
+  }
   return xs.sort((a, b) => a.t - b.t);
 }
 // Tonight's exceptions, newest first: these stay listed after they're dealt with, as the night's record.
@@ -2461,7 +2777,7 @@ const rsRow = (r) => `<div class="staffrow"><div class="n">${esc(amtOf(r.qty, r.
 // when they last changed anything.
 function whoRows() {
   const P = new Map(), get = (uid, name) => { if (!P.has(uid)) P.set(uid, { name, doing: [], done: 0, rs: [], lb: 0, last: 0 }); return P.get(uid); };
-  for (const e of LIVE.events) { const p = get(e.uid, e.name); p.last = Math.max(p.last, ms(e.at)); if (e.kind === "label" && ["opened", "changed", "binned"].includes(e.act)) p.lb++; }
+  for (const e of LIVE.events) { if (e.kind === "shift") continue; const p = get(e.uid, e.name); p.last = Math.max(p.last, ms(e.at)); if (e.kind === "label" && ["opened", "changed", "binned"].includes(e.act)) p.lb++; }
   for (const k of ALL_LISTS) for (const [i, text] of shown(k)) {
     const x = taskOf(k, i); if (!x || !["doing", "done"].includes(x.status)) continue;
     const m = lastMove(k, i, x), p = get(m.uid, m.name);
@@ -2551,6 +2867,7 @@ function personStats(ev) {
   const P = new Map(), started = {}, doneBy = {}, taken = {};
   const get = (uid, name) => { if (!P.has(uid)) P.set(uid, { name, nights: new Set(), done: 0, back: 0, blocked: 0, work: [], fetched: 0, fetch: [], confirmed: 0, gap: 0, last: {} }); return P.get(uid); };
   for (const e of byTime(ev)) {
+    if (e.kind === "shift") continue;
     const p = get(e.uid, e.name), t = ms(e.at);
     p.nights.add(e.day);
     if (p.last[e.day] != null) p.gap = Math.max(p.gap, t - p.last[e.day]);
@@ -2618,18 +2935,18 @@ SHARE.kpis = () => ["Black Tap Soho closing KPIs", kpiText()];
    tonight's tasks, procedures and restocks, which keep every change, corrections included. Deleting a post leaves no
    record. Managers see every section, can pick a night, a person, an area or a kind of change, and can download the
    full history; staff see the team's side of things for their own side of the venue (bar, floor or kitchen). */
-const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["labels", "Date labels"], ["86", "86"], ["stock", "Restocking"], ["asks", "Staff requests"], ["issues", "Issues"],
+const ACT = [["all", "All"], ["board", "Board"], ["checks", "Checklists"], ["labels", "Date labels"], ["86", "86"], ["stock", "Restocking"], ["asks", "Staff requests"], ["rota", "Rota"], ["issues", "Issues"],
   ["concerns", "Concerns"], ["reports", "Reports"], ["incidents", "Incidents"], ["training", "Training"], ["team", "Team"]];
 // Downloads and old records keep their own names in the spreadsheets.
-const ACT_NAME = { ...Object.fromEntries(ACT), safety: "Safety", waste: "Waste", counts: "Stock counts", requests: "Old stock requests", trail: "Audit trail", kpis: "Closing KPIs", people: "KPIs by person" };
-const STAFF_ACT = ["all", "board", "checks", "labels", "86", "stock", "issues", "concerns", "reports"];
+const ACT_NAME = { ...Object.fromEntries(ACT), rota: "Rota changes", shifts: "Rota", safety: "Safety", waste: "Waste", counts: "Stock counts", requests: "Old stock requests", trail: "Audit trail", kpis: "Closing KPIs", people: "KPIs by person" };
+const STAFF_ACT = ["all", "board", "checks", "labels", "86", "stock", "rota", "issues", "concerns", "reports"];
 const DID = { setup: () => "set up the owner account", add: (a) => `added ${a.targetName} (${ROLE[a.role].toLowerCase()})`, reset: (a) => `gave ${a.targetName} a new PIN`, remove: (a) => `removed ${a.targetName}`, role: (a) => `made ${a.targetName} ${a.role === "manager" ? "a manager" : "staff"}` };
 const DECIDED = { seen: "saw", approved: "approved", declined: "declined" };
 // A PIN reset writes two audit entries (the new account and the old one); count it once.
 const auditOnce = (xs) => xs.filter((a) => a.action !== "reset" || a.id.endsWith("-in"));
-const SEC = { task: "checks", run: "checks", restock: "stock", label: "labels" };
+const SEC = { task: "checks", run: "checks", restock: "stock", label: "labels", shift: "rota" };
 // The record a change belongs to, so everything that happened to it can be shown together.
-const evRef = (e) => (e.kind === "restock" ? `s-${e.ref}` : e.kind === "label" ? `l-${e.ref}` : e.kind === "run" ? `r-${e.day}-${e.list}` : `t-${e.day}-${e.list}-${e.item}`);
+const evRef = (e) => (e.kind === "restock" ? `s-${e.ref}` : e.kind === "label" ? `l-${e.ref}` : e.kind === "shift" ? `w-${e.ref}` : e.kind === "run" ? `r-${e.day}-${e.list}` : `t-${e.day}-${e.list}-${e.item}`);
 function events(x) {
   const ev = [], add = (sec, at, who, what, detail, more) => ev.push({ t: ms(at), sec, who, what, detail: detail || "", ...more });
   const whose = (id) => { const r = x.reports.find((r) => r.id === id); return r ? `${r.name}'s ${r.side} report` : "a report"; };
@@ -2675,6 +2992,7 @@ const AF_TO = [
   ["unavailable", "Not in the cellar", (e) => e.to === "unavailable"],
   ["lbopen", "Date label opened or changed", (e) => e.kind === "label" && ["opened", "changed"].includes(e.act)],
   ["lblate", "Date label changed after its use-by", (e) => e.kind === "label" && lateBy(e) > 0],
+  ["rcover", "Rota: can't make a shift", (e) => e.kind === "shift" && e.act === "cover"],
 ];
 const AF_TEST = Object.fromEntries(AF_TO.map(([k, , f]) => [k, f]));
 // What this phone already has. Staff can't read the 86 log, so they see what's 86'd right now.
@@ -2765,8 +3083,8 @@ const ISSUE = { open: "Open", taken: "Being dealt with", fixed: "Fixed" };
 const newest = (xs) => xs.sort((a, b) => b[0] - a[0]).map((x) => x[1]);
 // A date label's change has no before and after status: its act says what was done, with the date written on it.
 const LB_ACT = { added: "Added", edited: "Details changed", opened: "Opened", changed: "Changed", binned: "Binned", removed: "Taken off the list" };
-const evFrom = (e) => (e.kind === "label" ? "" : e.kind === "restock" ? (e.from === "new" ? "New" : RS[e.from]) : e.kind === "run" ? RUN[e.from] : TS[e.from]);
-const evTo = (e) => (e.kind === "label" ? `${LB_ACT[e.act]}${e.useBy ? `, use by ${e.useBy}` : ""}` : e.kind === "restock" ? RS[e.to] : e.kind === "run" ? RUN[e.to] : TS[e.to]);
+const evFrom = (e) => (e.kind === "shift" ? roWas(e) : e.kind === "label" ? "" : e.kind === "restock" ? (e.from === "new" ? "New" : RS[e.from]) : e.kind === "run" ? RUN[e.from] : TS[e.from]);
+const evTo = (e) => (e.kind === "shift" ? RO_ACT[e.act] : e.kind === "label" ? `${LB_ACT[e.act]}${e.useBy ? `, use by ${e.useBy}` : ""}` : e.kind === "restock" ? RS[e.to] : e.kind === "run" ? RUN[e.to] : TS[e.to]);
 const changeText = (e) => (e.kind === "task" ? cap(moveText(e)) : e.from === "new" ? "Asked for" : e.from === e.to ? `Given to ${e.who}` : `${evFrom(e)} → ${evTo(e)}${e.kind === "run" && e.to === "finished" ? ` (${e.done} of ${e.required} done)` : ""}`);
 const TABLES = {
   all: (x) => [["Date", "Time", "Section", "Who", "What", "Details"], ...events(x).map((e) => [ukDay(e.t), hhmm(new Date(e.t)), ACT_NAME[e.sec], e.who, e.what, e.detail])],
@@ -2778,13 +3096,20 @@ const TABLES = {
   labels: (x) => [["Night", "Time", "Side", "Item", "Change", "Use by", "Use by before", "Days after its use-by", "Days it keeps", "Needs a label", "By"],
     ...newest(x.events.filter((e) => e.kind === "label").map((e) => [ms(e.at), [e.day, dt(e.at)[1], sideName(e.area), e.label, LB_ACT[e.act], e.useBy, e.was,
       lateBy(e) || "", e.life, e.on ? "Yes" : "No", e.name]]))],
+  // Every change to a published shift: what was done, the shift after it, and before it when it moved or changed hands.
+  rota: (x) => [["Night", "Time", "Change", "Shift day", "Starts", "Ends", "Side", "Who", "Offered to", "Can't make it because", "Before", "By"],
+    ...newest(x.events.filter((e) => e.kind === "shift").map((e) => [ms(e.at), [e.day, dt(e.at)[1], RO_ACT[e.act], e.sday, e.start, e.end, sideName(e.area), e.who, e.offer, e.cover, roWas(e), e.name]]))],
+  // The rota itself: every week this phone has, in time order.
+  shifts: (x) => [["Week", "Day", "Starts", "Ends", "Hours", "Side", "Who", "Note", "Published", "Offered to", "Can't make it because", "Hands up"],
+    ...[...x.shifts].sort((a, b) => roSpan(a)[0] - roSpan(b)[0] || roOrder(a, b)).map((s) => [s.week, s.day, s.start, s.end, +(shiftLen(s) / 60).toFixed(2), sideName(s.side), s.whoName || "Open shift", s.note,
+      s.pub ? "Yes" : "No, a draft", s.offerName, s.cover, Object.values(s.wants).join(", ")])],
   86: (x) => [["Date", "Time", "Item", "Change", "By"], ...x.outlog.map((o) => [...dt(o.at), o.itemName, o.action === "out" ? "86'd" : "Back in stock", o.name])],
   stock: (x) => [["Night", "Asked at", "Item", "Asked for", "Unit", "Where", "Detail", "Asked by", "Status", "Who has it", "Brought up", "Received", "Last change by", "Last change on", "Last change at", "Reason"],
     ...x.restock.map((r) => [r.day, dt(r.askedAt)[1], r.item, r.qty, r.unit, DEST[r.dest], r.detail, r.askedBy, RS[r.status], r.who, r.moved, r.got, r.name, ...dt(r.at), r.note])],
   requests: (x) => [["Date", "Time", "Item", "Note", "Asked by", "Status", "Ordered by", "Ordered on", "Ordered at"], ...x.requests.map((r) => [...dt(r.at), r.item, r.note, r.name, r.done ? "Ordered" : "Waiting", r.doneBy, ...dt(r.doneAt)])],
   // Every change to a task, a list or a restock: the record, its status before and after, who and why.
   trail: (x) => [["Event", "Night", "Date", "Time", "Kind", "Record", "What", "Area", "From", "To", "For", "Amount", "Unit", "Done", "Required", "Reason", "By"],
-    ...newest(x.events.map((e) => [ms(e.at), [e.id, e.day, ...dt(e.at), { task: "Checklist item", run: "Checklist", restock: "Restock", label: "Date label" }[e.kind], evRef(e), e.label, sideName(e.area),
+    ...newest(x.events.map((e) => [ms(e.at), [e.id, e.day, ...dt(e.at), { task: "Checklist item", run: "Checklist", restock: "Restock", label: "Date label", shift: "Rota" }[e.kind], evRef(e), e.label, sideName(e.area),
       evFrom(e), evTo(e), e.who, e.qty, e.qty == null ? "" : e.unit, e.done, e.required, e.note, e.name]]))],
   kpis: (x) => [["Night", "Side", "Checklist", "Started", "Finished", "Minutes taken", "Done", "Required", "Finished with items left", "Reason", "Reopened", "Blocked", "Taken back", "Not needed"],
     ...nightStats(x.events).map((g) => [g.day, sideName(listSide(g.list)), LISTS[g.list]?.title || g.list, hhmm(new Date(g.start)), g.end ? hhmm(new Date(g.end)) : "Not finished", g.end ? Math.round((g.end - g.start) / 6e4) : "",
@@ -2810,8 +3135,8 @@ const TABLES = {
 };
 const NEEDS = { all: ["feed", "notices", "ticks", "events", "outlog", "requests", "asks", "issues", "reports", "reviews", "incidents", "audit", "safety", "waste", "counts", "training", "concerns"], board: ["feed", "notices"],
   checks: ["events", "ticks"], labels: ["events"], 86: ["outlog"], stock: ["restock"], requests: ["requests"], trail: ["events"], kpis: ["events"], people: ["events"], asks: ["asks"], issues: ["issues"], reports: ["reports", "reviews"],
-  incidents: ["incidents"], team: ["audit"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], concerns: ["concerns"] };
-const FILE = { all: "activity", checks: "checklists", labels: "date-labels", stock: "restocking", requests: "old-stock-requests", trail: "audit-trail", kpis: "closing-kpis", people: "kpis-by-person", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
+  incidents: ["incidents"], team: ["audit"], rota: ["events"], shifts: ["shifts"], safety: ["safety"], waste: ["waste"], training: ["training"], counts: ["counts"], concerns: ["concerns"] };
+const FILE = { all: "activity", checks: "checklists", labels: "date-labels", rota: "rota-changes", shifts: "rota", stock: "restocking", requests: "old-stock-requests", trail: "audit-trail", kpis: "closing-kpis", people: "kpis-by-person", counts: "stock-counts", safety: "safety-checks", training: "training-sign-offs" };
 // A download button, or once the file is ready, the Save link (a separate tap, which iPhone needs).
 const dlHtml = (sec, label, id) => (actFile && actFile.sec === sec
   ? `<a class="btn pri" id="${id}-save" href="${actFile.url}" download="${actFile.name}">Save the spreadsheet (${actFile.n} row${actFile.n === 1 ? "" : "s"})</a>`
@@ -2826,7 +3151,7 @@ async function events31() {
   if (past.day !== day) past = { day, ev: (await LIVE.api.eventsFrom(lastNights(31).at(-1))).filter((e) => e.day !== day) };
   return [...past.ev, ...LIVE.events];
 }
-const LOAD = { ticks: () => LIVE.api.ticksFor(lastNights(31)), events: events31, restock: () => LIVE.api.restockFrom(lastNights(31).at(-1)) };
+const LOAD = { ticks: () => LIVE.api.ticksFor(lastNights(31)), events: events31, restock: () => LIVE.api.restockFrom(lastNights(31).at(-1)), shifts: async () => LIVE.shifts };
 async function prepareDownload(sec) {
   const x = Object.fromEntries([...new Set(Object.values(NEEDS).flat()), "restock"].map((k) => [k, []]));
   await Promise.all(NEEDS[sec].map(async (k) => { x[k] = await (LOAD[k] ? LOAD[k]() : LIVE.api.history(k)); }));
@@ -2834,7 +3159,7 @@ async function prepareDownload(sec) {
   if (actFile) URL.revokeObjectURL(actFile.url);
   const name = FILE[sec] || ACT_NAME[sec].toLowerCase().replace(/ /g, "-");
   actFile = { sec, n: rows.length - 1, name: `black-tap-${name}-${ukDay(Date.now())}.csv`, url: URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })) };
-  [renderAct, renderTraining, renderKpis].forEach((f) => f());
+  [renderAct, renderTraining, renderKpis, renderRota].forEach((f) => f());
 }
 /* ---------- Team chat ----------
    The team chat (everyone), private chats between two people and groups. Pinging someone (@) marks the chat for them and
@@ -3029,6 +3354,7 @@ function eventToast(e) {
     return { delivered: `${e.name} brought up ${amtOf(e.qty, e.unit, e.label)}. Tap Got it to confirm`, unavailable: `${e.label} isn't in the cellar (${e.name})`,
       blocked: `Your restock is blocked: ${e.label}${e.note ? `: ${e.note}` : ""}` }[e.to] || "";
   }
+  if (e.kind === "shift") return roToast(e);
   if (e.kind === "label") return side && ["changed", "binned"].includes(e.act) && e.was && e.was <= e.day ? `${e.name} ${e.act} ${e.label}` : "";
   if (e.kind === "task") {
     if (e.from === e.to) return e.who === LIVE.me ? `${e.name} gave you: ${e.label}` : "";
@@ -3050,6 +3376,7 @@ const TOAST = {
   training: (x) => (x.trainee === LIVE.uid ? `${x.name} signed you off on ${x.drinkName}` : ""),
   concerns: (x) => (x.status === "open" && cnForMe(x) ? `New concern: ${cnName(x)}` : ""),
   events: eventToast,
+  shifts: roOutToast,
 };
 const MINE = {
   reports: (x) => (x.signedBy ? `${x.signedBy} signed off your shift report` : ""),
@@ -3065,7 +3392,7 @@ function liveChanged(what) {
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
-      const k = what + x.id + (x.signedBy ? ":s" : "") + (x.done ? ":d" : "") + (x.status || "") + (x.whoUid || "");
+      const k = what + x.id + (x.signedBy ? ":s" : "") + (x.done ? ":d" : "") + (x.status || "") + (x.whoUid || "") + (x.pub ? ":p" : "");
       if (x.pending || told.has(k)) continue; told.add(k);
       if (first || !$("#v-notices").hidden) continue;
       const msg = (x.uid === LIVE.uid ? MINE[what] : TOAST[what])?.(x);
@@ -3075,14 +3402,14 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues, renderLive], requests: [renderRequests, renderAct],
-      asks: [renderRequests, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis], lists: [renderDash, renderLive], labels: [renderDash, renderLive], restock: [renderDash, renderLive],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderMgrs, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderMgrs, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
+      asks: [renderRequests, renderRota, renderMe, renderMgrs, renderDash, renderAct], incidents: [renderMgrs, renderDash, renderAct], reviews: [renderReports, renderMgrs, renderAct], ratings: [renderMgrs], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
+      out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota], shifts: [renderRota, renderDash, renderLive], lists: [renderDash, renderLive], labels: [renderDash, renderLive], restock: [renderDash, renderLive],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
       concerns: [renderConcerns, renderDash, renderAct], fixtures: [], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
@@ -3118,6 +3445,8 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.id === "cn-note") cnF.note = t.value;
   if (t.dataset.cnFixt) cnText[t.dataset.cnFixt] = t.value;
   if (t.id === "af-q") { af.q = t.value; actMax = 50; renderActRows(); }
+  if (t.dataset.rof) roF[t.dataset.rof] = t.value;
+  if (t.dataset.roe && roE) roE[t.dataset.roe] = t.value;
 });
 $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
@@ -3132,6 +3461,9 @@ $("#v-notices").addEventListener("change", (e) => {
     renderAct();
   }
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
+  // The rota's forms: picking someone hides or shows who it's offered to.
+  if (t.dataset.rof) { roF[t.dataset.rof] = t.value; if (t.dataset.rof === "who") renderRota(); }
+  if (t.dataset.roe && roE) { roE[t.dataset.roe] = t.value; if (t.dataset.roe === "who") renderRota(); }
   if (t.dataset.give && t.value) {
     const p = LIVE.staff.find((x) => x.uid === t.value);
     track(LIVE.api.take(t.dataset.give, p), `Given to ${p.name}`, "Not updated. It may have just been fixed");
@@ -3140,6 +3472,7 @@ $("#v-notices").addEventListener("change", (e) => {
 $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
   if (e.target.id === "cn-form") cnF.open = e.target.open;
+  if (e.target.id === "ro-add") roF.open = e.target.open;
 }, true);
 function sendMe(A) {
   const f = meF, sent = () => { haptic(); Object.keys(meF).filter((k) => !k.startsWith("fb")).forEach((k) => (meF[k] = "")); renderMe(); };
@@ -3159,6 +3492,25 @@ $("#v-notices").addEventListener("click", (e) => {
   const A = LIVE.api, b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.go) return go(b.dataset.go);
+  if (b.dataset.roWk) { roWk = addDays(roWeek(), +b.dataset.roWk); Object.assign(roF, { days: [] }); roM = ""; roE = null; renderRota(); return; }
+  if (b.dataset.roGoto) { roWk = b.dataset.roGoto; roF.days = []; renderRota(); return; }
+  if (b.dataset.roSide !== undefined) { roSide = b.dataset.roSide; renderRota(); return; }
+  if (b.dataset.roDay) { const d = b.dataset.roDay; roF.days = roF.days.includes(d) ? roF.days.filter((x) => x !== d) : [...roF.days, d]; renderRota(); return; }
+  if (b.dataset.roTimes) { [roF.start, roF.end] = b.dataset.roTimes.split("-"); renderRota(); return; }
+  if (b.dataset.roHist) { roLoadHist(b.dataset.roHist); return; }
+  if (b.id === "ro-go") return roAdd();
+  if (b.id === "ro-pub") return roPublish();
+  if (b.id === "ro-copy") return roCopy();
+  const rid = b.dataset.ro || b.dataset.roMore || b.dataset.roSave || b.dataset.roDrop;
+  if (rid) {
+    const x = LIVE.shifts.find((s) => s.id === rid);
+    if (!x) { roM = ""; roE = null; renderRota(); return toast("Someone has just removed that shift"); }
+    if (b.dataset.roGive) return roGive(x, b.dataset.roGive);
+    if (b.dataset.roAct) return roDo(x, b.dataset.roAct);
+    if (b.dataset.roMore) return roOpen(x);
+    if (b.dataset.roSave) return roSave(x);
+    return roDrop(x);
+  }
   if (b.dataset.msub) { msub = b.dataset.msub; renderTeamTabs(); return; }
   if (b.dataset.bcSide) { bcSide = b.dataset.bcSide; $$("[data-bc-side]").forEach((c) => c.setAttribute("aria-pressed", c === b)); return; }
   if (b.dataset.act) { actSec = b.dataset.act; actMax = 50; renderAct(); return; }

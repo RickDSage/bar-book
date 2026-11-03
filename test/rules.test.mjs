@@ -188,6 +188,22 @@ async function labelBatch(d, uid, act, { id, def = {}, useBy, day = today(), l =
     useBy: x ? x.useBy : null, was: cur ? cur.useBy : null, note: "", v, ...by(uid), ...event });
   return { b, id: ref.id };
 }
+// The rota: a shift and, once it's published, its event, written in one batch from the shift as it is now, as the app
+// does. A new shift is Sam's, on Saturday this week, 18:00 to 02:00 on the bar, as a draft.
+const mondayOf = (day) => plusDays(day, -((new Date(Date.parse(day)).getUTCDay() + 6) % 7));
+const SHIFT = () => ({ week: mondayOf(today()), day: plusDays(mondayOf(today()), 5), start: "18:00", end: "02:00", side: "bar", note: "", who: "staff1", whoName: "Sam Staff",
+  offer: "", offerName: "", cover: "", wants: {}, pub: false });
+const STAMPS = ["act", "v", "uid", "name", "at"];
+async function shiftBatch(d, uid, act, { id, f = {}, s = {}, event = {}, eventId, noEvent } = {}) {
+  const add = act === "added", ref = id ? doc(d, "shifts", id) : doc(collection(d, "shifts")), cur = add ? null : await current(`shifts/${id}`);
+  const v = add ? 1 : cur.v + 1, base = add ? SHIFT() : Object.fromEntries(Object.entries(cur).filter(([k]) => !STAMPS.includes(k)));
+  const x = act === "removed" ? null : { ...base, ...f, act, v, ...by(uid), ...s }, after = x || base, b = writeBatch(d);
+  if (x) b.set(ref, x); else b.delete(ref);
+  if (!noEvent && (after.pub === true && act !== "published")) b.set(doc(d, "events", eventId || `w-${ref.id}-${v}`), { kind: "shift", day: today(), ref: ref.id,
+    label: `${after.day} ${after.start}-${after.end}`, area: after.side, act, sday: after.day, start: after.start, end: after.end, who: after.whoName, offer: after.offerName,
+    cover: after.cover, was: cur ? { day: cur.day, start: cur.start, end: cur.end, side: cur.side, who: cur.whoName } : null, note: "", v, ...by(uid), ...event });
+  return { b, id: ref.id };
+}
 const ask = (uid, kind, fields) => ({ kind, note: "", status: "pending", ...by(uid), ...fields });
 const issue = (uid, extra = {}) => ({ title: "Glass washer leaking", detail: "", area: "bar", urgent: false, again: null, status: "open", ...by(uid), ...extra });
 
@@ -197,9 +213,9 @@ describe("visitors who aren't logged in", () => {
   const PRIVATE = ["staff/staff1", "config/owner", "config/pins", "feed/a", "notices/a", "reports/a", "photos/a", "shift/2026-10-25/ticks/open-1",
     "shift/2026-10-25/tasks/open-1", "shift/2026-10-25/runs/open", "events/a", "restock/a",
     "requests/a", "out/gin", "outlog/a", "asks/a", "incidents/a", "reviews/a", "ratings/a", "audit/a", "issues/a", "seen/a-staff1",
-    "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0", "lists/close", "listlog/close-1", "labels/a"];
+    "waste/a", "kit/a", "safety/a", "pars/gin", "counts/a", "training/staff1-negroni", "concerns/a", "concernPhotos/a-0", "lists/close", "listlog/close-1", "labels/a", "shifts/a"];
   for (const p of PRIVATE) test(`can't read ${p}`, () => assertFails(getDoc(doc(db(), p))));
-  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos", "events", "restock", "lists", "listlog", "labels"]) {
+  for (const c of ["staff", "usernames", "feed", "notices", "seen", "reports", "photos", "requests", "out", "outlog", "asks", "incidents", "reviews", "ratings", "audit", "issues", "waste", "kit", "safety", "pars", "counts", "training", "concerns", "concernPhotos", "events", "restock", "lists", "listlog", "labels", "shifts"]) {
     test(`can't list ${c}`, () => assertFails(getDocs(collection(db(), c))));
   }
   test("can look up one username, and it holds only the sign-in address and uid", async () => {
@@ -743,6 +759,140 @@ describe("date labels: managers keep the list, anyone opens, changes or bins one
     for (const uid of ["staff1", "mgr1", "owner1"]) {
       await fails(updateDoc(doc(db(uid), "events", `l-${id}-1`), { name: "Someone Else" }), `${uid} editing an event`);
       await fails(deleteDoc(doc(db(uid), "events", `l-${id}-1`)), `${uid} deleting an event`);
+    }
+  });
+});
+
+describe("the rota: managers draft a week and publish it; then every change says who, and staff answer for themselves", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const act = async (uid, a, o) => (await shiftBatch(db(uid), uid, a, o)).b.commit();
+  const added = async (o = {}) => { const x = await shiftBatch(db("mgr1"), "mgr1", "added", o); await x.b.commit(); return x.id; };
+  const live = async (o = {}) => { const id = await added(o); await act("mgr1", "published", { id, f: { pub: true } }); return id; };
+  const open = { who: "", whoName: "" };
+  const evs = async (id) => (await getDocs(query(collection(db("staff1"), "events"), where("ref", "==", id)))).docs.map((x) => x.data()).sort((a, b) => a.v - b.v);
+  const week = (uid) => query(collection(db(uid), "shifts"), where("week", "==", mondayOf(today())), where("pub", "==", true));
+
+  test("a draft is for managers only; publishing shows it to the team, and it can't go back", async () => {
+    const id = await added();
+    await fails(getDoc(doc(db("staff1"), "shifts", id)), "staff reading a draft");
+    await fails(getDocs(query(collection(db("staff1"), "shifts"), where("week", "==", mondayOf(today())))), "staff asking for drafts too");
+    assert.equal((await assertSucceeds(getDocs(week("staff1")))).size, 0);
+    await assertSucceeds(getDoc(doc(db("mgr2"), "shifts", id)));
+    await assertSucceeds(act("mgr2", "edited", { id, f: { start: "17:00" } }));
+    await fails((await shiftBatch(db("staff1"), "staff1", "added")).b.commit(), "staff adding a shift");
+    await fails(act("staff1", "edited", { id, f: { start: "16:00" } }), "staff changing a draft");
+    await fails(act("staff1", "published", { id, f: { pub: true } }), "staff publishing");
+    await fails(act("mgr1", "published", { id, f: { pub: true, start: "16:00" } }), "publishing with a change");
+    await assertSucceeds(act("mgr1", "published", { id, f: { pub: true } }));
+    assert.equal((await assertSucceeds(getDocs(week("staff1")))).size, 1);
+    await fails(act("mgr1", "edited", { id, f: { pub: false } }), "back to a draft");
+    await fails(act("mgr1", "published", { id, f: { pub: true } }), "publishing it twice");
+    assert.deepEqual(await evs(id), [], "a draft and its publishing have no events");
+    const gone = await added();
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "shifts", gone)));
+  });
+  test("a whole week is copied in one write and published in another", async () => {
+    const d = db("mgr1"), b = writeBatch(d), ids = [];
+    for (let i = 0; i < 40; i++) { const r = doc(collection(d, "shifts")); ids.push(r.id); b.set(r, { ...SHIFT(), day: plusDays(mondayOf(today()), i % 7), act: "added", v: 1, ...by("mgr1") }); }
+    await assertSucceeds(b.commit());
+    const p = writeBatch(d);
+    for (const id of ids) p.update(doc(d, "shifts", id), { pub: true, act: "published", v: 2, ...by("mgr1") });
+    await assertSucceeds(p.commit());
+    assert.equal((await getDocs(week("staff2"))).size, 40);
+  });
+  test("once published, every change needs its event, and the event has to match", async () => {
+    const id = await live();
+    await fails(act("mgr1", "edited", { id, f: { start: "17:00" }, noEvent: true }), "a change with no event");
+    for (const [why, event] of [["another act", { act: "took" }], ["another day", { sday: plusDays(today(), 1) }], ["another start", { start: "19:00" }], ["another person", { who: "Tia Staff" }],
+      ["another offer", { offer: "Tia Staff" }], ["a cover reason", { cover: "Sick" }], ["another side", { area: "floor" }], ["another label", { label: "Saturday" }], ["no was", { was: null }],
+      ["another was", { was: { day: today(), start: "18:00", end: "02:00", side: "bar", who: "Sam Staff" } }], ["a note", { note: "Swapped" }], ["an extra field", { whoUid: "staff1" }],
+      ["another night", { day: dayFromNow(-5) }], ["someone else's name", { name: "Max Manager" }], ["phone's clock", { at: Timestamp.now() }]]) {
+      await fails(act("mgr1", "edited", { id, f: { start: "17:00" }, event }), why);
+    }
+    await fails(act("mgr1", "edited", { id, f: { start: "17:00" }, eventId: `w-${id}-9` }), "an event for another version");
+    await assertSucceeds(act("mgr1", "edited", { id, f: { start: "17:00", who: "staff2", whoName: "Tia Staff" } }));
+    await fails(deleteDoc(doc(db("mgr1"), "shifts", id)), "removed with no event");
+    await fails(act("staff1", "removed", { id }), "staff removing it");
+    await assertSucceeds(act("owner1", "removed", { id }));
+    assert.deepEqual((await evs(id)).map((e) => [e.act, e.name, e.label, e.who, e.was?.who ?? null, e.was?.start ?? null]), [
+      ["edited", "Mia Manager", `${plusDays(mondayOf(today()), 5)} 17:00-02:00`, "Tia Staff", "Sam Staff", "18:00"],
+      ["removed", "Olly Owner", `${plusDays(mondayOf(today()), 5)} 17:00-02:00`, "Tia Staff", "Tia Staff", "17:00"]]);
+    // A shift added to a week that's already out goes straight on, with its event.
+    await fails(act("mgr1", "added", { f: { pub: true }, noEvent: true }), "added to a published week with no event");
+    const late = await added({ f: { pub: true } });
+    assert.deepEqual((await evs(late)).map((e) => [e.act, e.was]), [["added", null]]);
+  });
+  test("an open shift: anyone puts their hand up or takes it down, and a manager gives it to one of them", async () => {
+    const id = await live({ f: open });
+    await assertSucceeds(act("staff2", "wants", { id, f: { wants: { staff2: "Tia Staff" } } }));
+    await fails(act("staff1", "wants", { id, f: { wants: { staff2: "Tia Staff", staff1: "Tia Staff" } } }), "someone else's name");
+    await fails(act("staff1", "wants", { id, f: { wants: { staff1: "Sam Staff" } } }), "taking someone else's hand down");
+    await fails(act("staff1", "wants", { id, f: { wants: { staff2: "Tia Staff", staff1: "Sam Staff" }, note: "Me please" } }), "changing the note too");
+    await assertSucceeds(act("staff1", "wants", { id, f: { wants: { staff2: "Tia Staff", staff1: "Sam Staff" } } }));
+    await assertSucceeds(act("staff2", "unwants", { id, f: { wants: { staff1: "Sam Staff" } } }));
+    await fails(act("staff1", "took", { id, f: { who: "staff1", whoName: "Sam Staff", wants: {} } }), "taking it without an offer");
+    await fails(act("staff1", "edited", { id, f: { who: "staff1", whoName: "Sam Staff", wants: {} } }), "giving it to themselves");
+    await assertSucceeds(act("mgr1", "edited", { id, f: { who: "staff1", whoName: "Sam Staff", wants: {} } }));
+    await fails(act("staff2", "wants", { id, f: { wants: { staff2: "Tia Staff" } } }), "a hand up for someone's shift");
+    assert.deepEqual((await evs(id)).map((e) => [e.act, e.name, e.who]), [["wants", "Tia Staff", ""], ["wants", "Sam Staff", ""], ["unwants", "Tia Staff", ""], ["edited", "Mia Manager", "Sam Staff"]]);
+  });
+  test("an offer: only the person it's offered to takes it or turns it down", async () => {
+    const id = await live({ f: open });
+    await fails(act("mgr1", "edited", { id: await live(), f: { offer: "staff2", offerName: "Tia Staff" } }), "offering a shift someone has");
+    await assertSucceeds(act("mgr1", "edited", { id, f: { offer: "staff2", offerName: "Tia Staff" } }));
+    await fails(act("staff1", "took", { id, f: { who: "staff1", whoName: "Sam Staff", offer: "", offerName: "" } }), "taking someone else's offer");
+    await fails(act("staff1", "declined", { id, f: { offer: "", offerName: "" } }), "turning down someone else's offer");
+    await fails(act("staff2", "took", { id, f: { who: "staff2", whoName: "Sam Staff", offer: "", offerName: "" } }), "taking it under another name");
+    await fails(act("staff2", "took", { id, f: { who: "staff2", whoName: "Tia Staff" } }), "taking it and leaving the offer");
+    await assertSucceeds(act("staff2", "declined", { id, f: { offer: "", offerName: "" } }));
+    await assertSucceeds(act("mgr2", "edited", { id, f: { offer: "staff2", offerName: "Tia Staff" } }));
+    await assertSucceeds(act("staff2", "took", { id, f: { who: "staff2", whoName: "Tia Staff", offer: "", offerName: "" } }));
+    assert.equal((await current(`shifts/${id}`)).who, "staff2");
+    assert.deepEqual((await evs(id)).map((e) => [e.act, e.name, e.who, e.offer]), [["edited", "Mia Manager", "", "Tia Staff"], ["declined", "Tia Staff", "", ""],
+      ["edited", "Max Manager", "", "Tia Staff"], ["took", "Tia Staff", "Tia Staff", ""]]);
+  });
+  test("cover: only for your own shift and with a reason; others put their hands up; keeping it clears them", async () => {
+    const id = await live();
+    await fails(act("staff2", "cover", { id, f: { cover: "Sick" } }), "someone else's shift");
+    await fails(act("staff1", "cover", { id, f: { cover: " " } }), "no reason");
+    await assertSucceeds(act("staff1", "cover", { id, f: { cover: "Sick" } }));
+    await fails(act("staff1", "wants", { id, f: { wants: { staff1: "Sam Staff" } } }), "a hand up for their own shift");
+    await assertSucceeds(act("staff2", "wants", { id, f: { wants: { staff2: "Tia Staff" } } }));
+    await fails(act("staff1", "kept", { id, f: { cover: "" } }), "keeping it with hands still up");
+    await assertSucceeds(act("staff1", "kept", { id, f: { cover: "", wants: {} } }));
+    await assertSucceeds(act("staff1", "cover", { id, f: { cover: "Uni exam" } }));
+    await assertSucceeds(act("mgr1", "edited", { id, f: { who: "staff2", whoName: "Tia Staff", cover: "" } }));
+    await fails(act("staff1", "kept", { id, f: { cover: "", wants: {} } }), "keeping a shift that's been given away");
+    assert.deepEqual((await evs(id)).map((e) => [e.act, e.who, e.cover]), [["cover", "Sam Staff", "Sick"], ["wants", "Sam Staff", "Sick"], ["kept", "Sam Staff", ""],
+      ["cover", "Sam Staff", "Uni exam"], ["edited", "Tia Staff", ""]]);
+  });
+  test("two managers at once: the one working from an old copy is refused", async () => {
+    const id = await live();
+    const [x, y] = await Promise.all([shiftBatch(db("mgr1"), "mgr1", "edited", { id, f: { start: "17:00" } }), shiftBatch(db("mgr2"), "mgr2", "edited", { id, f: { end: "01:00" } })]);
+    await assertSucceeds(x.b.commit());
+    await fails(y.b.commit(), "the second");
+    await fails(act("mgr1", "edited", { id, f: { end: "01:00" }, s: { v: 9 }, eventId: `w-${id}-9`, event: { v: 9 } }), "jumping a version");
+  });
+  test("shifts that don't fit are refused", async () => {
+    const mon = mondayOf(today());
+    for (const [why, f] of [["a week that isn't a Monday", { week: plusDays(mon, 1), day: plusDays(mon, 1) }], ["a day outside its week", { day: plusDays(mon, 7) }],
+      ["no end", { end: "" }], ["the same start and end", { end: "18:00" }], ["25 o'clock", { start: "25:00" }], ["an unknown side", { side: "cellar" }], ["a long note", { note: "x".repeat(61) }],
+      ["a name with nobody", { who: "", whoName: "Sam Staff" }], ["somebody with no name", { whoName: "" }], ["offered while someone has it", { offer: "staff2", offerName: "Tia Staff" }],
+      ["cover with nobody on it", { ...open, cover: "Sick" }], ["hands up for someone's shift", { wants: { staff2: "Tia Staff" } }], ["pub as text", { pub: "yes" }],
+      ["hands up as a list", { ...open, wants: ["staff2"] }], ["an extra field", { hours: 8 }]]) {
+      await fails((await shiftBatch(db("mgr1"), "mgr1", "added", { f })).b.commit(), why);
+    }
+    await fails((await shiftBatch(db("mgr1"), "mgr1", "added", { id: "sat-bar" })).b.commit(), "a made-up id");
+    await fails((await shiftBatch(db("mgr1"), "mgr1", "added", { s: { v: 2 } })).b.commit(), "starting at version 2");
+    await fails((await shiftBatch(db("mgr1"), "mgr1", "added", { s: { name: "Max Manager" } })).b.commit(), "someone else's name");
+    await assertSucceeds((await shiftBatch(db("mgr1"), "mgr1", "added", { f: { ...open, day: mon, start: "11:30", end: "17:00", side: "kitchen", note: "Prep" } })).b.commit());
+  });
+  test("nobody edits or deletes a shift's history, the owner included", async () => {
+    const id = await live();
+    await act("staff1", "cover", { id, f: { cover: "Sick" } });
+    for (const uid of ["staff1", "mgr1", "owner1"]) {
+      await fails(updateDoc(doc(db(uid), "events", `w-${id}-3`), { cover: "" }), `${uid} editing an event`);
+      await fails(deleteDoc(doc(db(uid), "events", `w-${id}-3`)), `${uid} deleting an event`);
     }
   });
 });
@@ -1658,8 +1808,10 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "fixtures"), where("day", ">=", dayFromNow(-1)), orderBy("day"), limit(60)),
     collection(d, "lists"),
     collection(d, "labels"),
-    // One date label's history.
+    // One date label's or shift's history.
     query(collection(d, "events"), where("ref", "==", autoId())),
+    // The rota, a week at a time, as published.
+    query(collection(d, "shifts"), where("week", "==", mondayOf(today())), where("pub", "==", true)),
   ];
   const managers = (d) => [
     query(collection(d, "asks"), orderBy("at", "desc"), limit(100)),
@@ -1676,6 +1828,8 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "concerns"), where("status", "==", "open")),
     query(collection(d, "concerns"), orderBy("at", "desc"), limit(50)),
     query(collection(d, "concernPhotos"), where("at", "<", daysAgo(31)), limit(100)),
+    // The rota with its drafts, from four weeks back.
+    query(collection(d, "shifts"), where("week", ">=", plusDays(mondayOf(today()), -28))),
   ];
   test("staff", async () => {
     const d = db("staff1");
