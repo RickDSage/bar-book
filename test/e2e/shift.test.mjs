@@ -64,7 +64,7 @@ test("the next shift sees the last handover, the send page lists what's left, an
   await O.click('[data-jump="close"][data-jump-i="1"]');
   assert.equal(await O.evaluate(() => pane), "close");
 
-  await S.click(".ptabs [data-pane=send]"); await S.fill("#s-note", "Ice machine slow"); await S.click('[data-closer="Olaya"]');
+  await S.click(".ptabs [data-pane=send]"); await S.fill("#s-note", "Ice machine slow"); await S.click('[data-closer="Mia Manager"]');
   await S.evaluate(() => renderTally());
   assert.equal(await S.$eval("#s-note", (e) => e.value), "Ice machine slow", "kept through the night");
   await S.evaluate(() => { store.set("noteDay", "2000-01-01"); renderTally(); });

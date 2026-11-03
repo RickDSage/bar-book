@@ -81,6 +81,11 @@ function listen(uid) {
     });
     sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
     watchDays();
+    // Managers' versions of the lists. A list with none here is the app's standard one.
+    sub("lists", collection(db, "lists"), (snap) => {
+      LIVE.lists = Object.fromEntries(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
+      liveChanged("lists");
+    });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
     // same record a moment apart, so the newer version wins.
     const rs = { open: [], recent: [] };
@@ -239,8 +244,8 @@ function watchDays() {
 }
 setInterval(() => { if (LIVE.me) watchDays(); }, 60000);
 // Which side of the venue each list and each restocking destination belongs to, as the rules work it out.
-const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor" };
-const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor" };
+const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor", kopen: "kitchen", kclose: "kitchen" };
+const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
 const RS_OPEN = ["asked", "given", "doing", "blocked", "delivered"];
 
 // Makes a login for someone else, runs the database write, and deletes the login again if the write is refused.
@@ -323,7 +328,7 @@ LIVE.api = {
     return b.commit();
   },
   removePost: (id) => deleteDoc(doc(db, "feed", id)),
-  // side: "all", "bar" or "floor". managers: false leaves managers out (the owner only).
+  // side: "all", "bar", "floor" or "kitchen". managers: false leaves managers out (the owner only).
   pin: (text, side, managers) => addDoc(collection(db, "notices"), { text, side, managers, ...me() }),
   // Got it: carries the broadcast's managers setting, as the rules require. Broadcasts from before audiences count as true.
   gotIt: (n) => setDoc(doc(db, "seen", `${n.id}-${auth.currentUser.uid}`), { notice: n.id, managers: n.managers ?? true, ...me() }),
@@ -356,7 +361,18 @@ LIVE.api = {
     b.set(doc(db, "events", `r-${day}-${list}-${v}`), { kind: "run", day, list, label, area: SIDE[list], from, to, done, required, note, v, ...me() });
     return b.commit();
   },
-  // Restocking from the cellar: what, how much, which unit, where it's going (up, down, shakes or floor) and any detail.
+  // A manager's version of a list: its items ({id, t, days}), the id the next new item gets, and a copy in the list's
+  // history, in one write. The version goes up by one, so if two managers save at once the second is refused instead of
+  // overwriting the first without knowing.
+  saveList(key, items, next) {
+    const v = (LIVE.lists[key]?.v || 0) + 1, x = { items, next, v, ...me() }, b = writeBatch(db);
+    b.set(doc(db, "lists", key), x);
+    b.set(doc(db, "listlog", `${key}-${v}`), { list: key, ...x });
+    return b.commit();
+  },
+  // Every saved version of a list, newest first, read once when a manager opens its history.
+  listHistory: (key) => getDocs(query(collection(db, "listlog"), where("list", "==", key))).then((s) => rows(s).sort((a, b) => b.v - a.v)),
+  // Restocking from the cellar: what, how much, which unit, where it's going (up, down, shakes, floor or kitchen) and any detail.
   askRestock({ item, qty, unit, dest, detail }) {
     const day = shiftDay(), ref = doc(collection(db, "restock")), b = writeBatch(db);
     b.set(ref, { item, qty, unit, dest, detail, day, status: "asked", who: null, whoUid: null, moved: null, got: null, note: "", v: 1, askedBy: LIVE.me, askedUid: auth.currentUser.uid, askedAt: serverTimestamp(), ...me() });
@@ -493,7 +509,7 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
   training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
