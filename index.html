@@ -20,6 +20,7 @@
   --warn: #ff8a6b;      /* allergens and unconfirmed */
   --ok: #8fd39a;
   --cool: #8db9e8;      /* school holidays on the calendar */
+  --game: #c39bff;      /* games on the calendar */
   --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
   --body: "Atkinson Hyperlegible", -apple-system, "Segoe UI", Roboto, sans-serif;
   --tabh: 62px;
@@ -39,6 +40,7 @@
   --warn: #b0361b;
   --ok: #2d7a3a;
   --cool: #2a5f9e;
+  --game: #6a3fb0;
   --shadow: rgba(60,40,10,.18);
 }
 * { box-sizing: border-box; }
@@ -397,17 +399,19 @@ a.btn { text-decoration: none; color: inherit; }
 .cd.today { box-shadow: inset 0 0 0 2px var(--brass); }
 .cd.rng { background: color-mix(in srgb, var(--ok) 26%, var(--surface)); border-color: var(--ok); }
 .cd[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
-.cd .dots { display: flex; gap: 3px; height: 6px; }
-.cd .dots i, .calkey i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+.cd .cdots { display: flex; gap: 3px; height: 6px; }
+.cd .cdots i, .calkey i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
 .cd.sc::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: 3px; height: 3px; border-radius: 2px; background: var(--cool); }
-.d-hol { background: var(--brass); } .d-ev { background: var(--warn); } .d-on { background: var(--fg); } .d-off { background: var(--ok); }
+.d-hol { background: var(--brass); } .d-ev { background: var(--warn); } .d-game { background: var(--game); } .d-on { background: var(--fg); } .d-off { background: var(--ok); }
 .d-ask { box-shadow: inset 0 0 0 1.5px var(--ok); }
-.cd[aria-pressed="true"] .dots i { box-shadow: 0 0 0 1px var(--brass-ink); }
+.cd[aria-pressed="true"] .cdots i { box-shadow: 0 0 0 1px var(--brass-ink); }
 .calkey { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 10px 0 4px; font-size: 13px; color: var(--muted); }
 .calkey i { margin-right: 6px; vertical-align: 1px; }
 .calkey i.sch { width: 14px; height: 3px; border-radius: 2px; background: var(--cool); }
-.calrow { display: block; width: 100%; text-align: left; padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--fg); }
-.calrow .w { display: inline-block; min-width: 7.5em; color: var(--muted); }
+.calrow { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 8px; width: 100%; text-align: left; padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--fg); }
+.calwk { display: block; width: 100%; text-align: left; margin: 16px 0 0; padding: 4px 0; color: var(--fg); }
+.calwk b { font-family: var(--display); font-size: 20px; letter-spacing: .02em; text-transform: uppercase; }
+.calrow .w { color: var(--muted); }
 .two.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 /* Start fresh: what it would clear, one kind a line. */
 .frlist { margin: 4px 0 14px; padding-left: 20px; color: var(--muted); }
@@ -1976,8 +1980,10 @@ $("#tally").addEventListener("click", async (e) => {
 /* ---------- Football on the screens ----------
    Managers add the games the bar is showing; everyone sees today's at the top of the Shift tab, and what's coming up.
    No free listing says which games are on TNT, so the manager picks the channel. */
-const COMPS = ["Premier League", "Champions League", "Europa League", "Conference League", "FA Cup", "Serie A"];
-const CHANNELS = ["TNT Sports 1", "TNT Sports 2", "TNT Sports 3", "TNT Sports 4", "Sky Sports", "BBC", "ITV"];
+const COMPS = ["Premier League", "Championship", "Champions League", "Europa League", "Conference League", "FA Cup", "Carabao Cup",
+  "Women's Super League", "Scottish Premiership", "International", "La Liga", "Serie A", "Bundesliga"];
+const CHANNELS = ["Sky Sports Main Event", "Sky Sports Premier League", "Sky Sports Football", "Sky Sports+", "TNT Sports 1", "TNT Sports 2",
+  "TNT Sports 3", "TNT Sports 4", "Amazon Prime Video", "BBC One", "BBC Two", "ITV1", "ITV4", "Channel 4", "DAZN", "Premier Sports", "Netflix"];
 let fxForm = { day: "", ko: "20:00", home: "", away: "", comp: "", channel: "", screen: "" };
 const fxRow = (x) => `<div class="staffrow fx"><div class="n"><b class="dt">${esc(x.ko)}</b> ${esc(x.home)} v ${esc(x.away)}</div>
   <div class="s">${[x.comp, x.channel, x.screen && `Screen: ${x.screen}`].filter(Boolean).map(esc).join(" · ")}${LIVE.admin ? ` · <button class="linkbtn" data-fx-drop="${x.id}">Take down</button>` : ""}</div></div>`;
@@ -2376,8 +2382,8 @@ const FEATURES = [
     staff: "See your shifts, put your hand up for an open one, take or turn down an offer, or say you can't make one.",
     mgr: "Make a week as a draft, publish it, give shifts to people, copy last week, and download or share it." },
   { g: "Team", k: "calendar", n: "Calendar", go: "cal", login: 1, sw: 1, tour: 1,
-    what: "Bank holidays, school holidays and half terms, events, and the nights that change how busy we are, with your shifts and time off.",
-    staff: "Tap a day to see what's on it, and ask for time off from there.",
+    what: "The next 7 days and a month at a time: bank holidays, school holidays, faith days, big games, London events, the nights that change how busy we are and the games on our screens, with your shifts and time off.",
+    staff: "See the week ahead at a glance. Tap a day to see what's on it, and ask for time off from there.",
     mgr: "Add school holidays for the boroughs that matter to the team, events and days we're shut, and see everyone's time off." },
   { g: "Team", k: "asks", n: "Time off and swaps", go: "me", mgrGo: "requests", login: 1, sw: 1,
     what: "Asking for time off or a shift swap, answered by a manager.",
@@ -3097,27 +3103,74 @@ function easter(y) {
   const l = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - h - (c % 4)) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), n = h + l - 7 * m + 114;
   return `${y}-${String(Math.floor(n / 31)).padStart(2, "0")}-${String((n % 31) + 1).padStart(2, "0")}`;
 }
-// A month's nth Sunday, or with n = 0 its last. Month 1 is January.
-function sundayOf(y, mo, n) {
-  if (!n) { const last = new Date(Date.UTC(y, mo, 0)); return addDays(last.toISOString().slice(0, 10), -last.getUTCDay()); }
+// A month's nth weekday (0 is Sunday, 6 Saturday), or with n = 0 its last. Month 1 is January.
+function weekdayOf(y, mo, wd, n) {
+  if (!n) { const last = new Date(Date.UTC(y, mo, 0)); return addDays(last.toISOString().slice(0, 10), -((last.getUTCDay() - wd + 7) % 7)); }
   const first = new Date(Date.UTC(y, mo - 1, 1));
-  return addDays(first.toISOString().slice(0, 10), ((7 - first.getUTCDay()) % 7) + 7 * (n - 1));
+  return addDays(first.toISOString().slice(0, 10), ((wd - first.getUTCDay() + 7) % 7) + 7 * (n - 1));
 }
-// Days that change the night, worked out for any year: [day, name, more]. The clocks change in the early hours of a
-// Sunday, so the night it happens on is the Saturday's. When Christmas Day, Boxing Day or New Year's Day is at a weekend,
-// the bank holiday moves to a weekday, so the day itself is here too.
+// Days that change the night, worked out for any year: [day, name, more, kind]. The clocks change in the early hours of
+// a Sunday, so the night it happens on is the Saturday's. When Christmas Day, Boxing Day or New Year's Day is at a
+// weekend, the bank holiday moves to a weekday, so the day itself is here too. Notting Hill Carnival is on the Sunday and
+// Monday of the summer bank holiday, and the Lord Mayor's Show on the second Saturday of November.
 const NOTABLE = new Map();
 function notable(y) {
-  if (!NOTABLE.has(y)) NOTABLE.set(y, [
+  if (NOTABLE.has(y)) return NOTABLE.get(y);
+  const carnival = weekdayOf(y, 8, 1, 0), thanks = weekdayOf(y, 11, 4, 4);
+  NOTABLE.set(y, [
     ...[[`${y}-01-01`, "New Year's Day"], [`${y}-12-25`, "Christmas Day"], [`${y}-12-26`, "Boxing Day"]].filter(([d]) => !BANK_HOLS[d]),
-    [`${y}-02-14`, "Valentine's Day"], [`${y}-03-17`, "St Patrick's Day"], [addDays(easter(y), -21), "Mothering Sunday"],
-    [addDays(sundayOf(y, 3, 0), -1), "Clocks go forward tonight", "At 1am they go to 2am, so a shift that runs past 1am is an hour shorter than its times say."],
-    [sundayOf(y, 6, 3), "Father's Day"],
-    [addDays(sundayOf(y, 10, 0), -1), "Clocks go back tonight", "At 2am they go back to 1am, so a shift that runs past 2am is an hour longer than its times say."],
-    [`${y}-10-31`, "Halloween"], [`${y}-12-24`, "Christmas Eve"], [`${y}-12-31`, "New Year's Eve"],
-  ]);
+    [`${y}-01-25`, "Burns Night"], [addDays(easter(y), -47), "Pancake Day"], [`${y}-02-14`, "Valentine's Day"], [`${y}-03-01`, "St David's Day"],
+    [`${y}-03-08`, "International Women's Day"], [`${y}-03-17`, "St Patrick's Day"], [addDays(easter(y), -21), "Mothering Sunday"],
+    [addDays(weekdayOf(y, 3, 0, 0), -1), "Clocks go forward tonight", "At 1am they go to 2am, so a shift that runs past 1am is an hour shorter than its times say."],
+    [easter(y), "Easter Sunday"], [`${y}-04-23`, "St George's Day"], [weekdayOf(y, 6, 0, 3), "Father's Day"], [`${y}-07-04`, "US Independence Day"],
+    [addDays(carnival, -1), "Notting Hill Carnival", "Sunday and bank holiday Monday", "london"], [carnival, "Notting Hill Carnival", "Sunday and bank holiday Monday", "london"],
+    [addDays(weekdayOf(y, 10, 0, 0), -1), "Clocks go back tonight", "At 2am they go back to 1am, so a shift that runs past 2am is an hour longer than its times say."],
+    [`${y}-10-31`, "Halloween"], [`${y}-11-05`, "Bonfire Night"], [weekdayOf(y, 11, 6, 2), "Lord Mayor's Show", "A parade through the City", "london"],
+    [weekdayOf(y, 11, 0, 2), "Remembrance Sunday"], [thanks, "Thanksgiving (US)"], [addDays(thanks, 1), "Black Friday"], [`${y}-11-30`, "St Andrew's Day"],
+    [`${y}-12-24`, "Christmas Eve"], [`${y}-12-31`, "New Year's Eve", "Fireworks on the Thames at midnight"],
+  ].map(([d, t, more = "", k = "day"]) => [d, t, more, k]));
   return NOTABLE.get(y);
 }
+// Days that move each year or that organisers set, as published (checked 4 November 2026): [day, name, more, kind].
+// Faith and culture: Diwali and Holi from publicholidays.co.uk; Vaisakhi from officeholidays.com and
+// templesinindiainfo.com; Chinese New Year from chinatravel.com; Ramadan from timeanddate.com; Eid from
+// publicholidays.co.uk and awarenessdays.com (both expected: they follow the moon, so they can move by a day); the Jewish
+// festivals from the Hebrew calendar (they start at sunset, so they're on the evening they begin). Sport and London:
+// Sky Sports (Six Nations 2027 kick-offs, the darts, the Super Bowl), England Rugby (every England Six Nations game is on
+// ITV), ITV (every Rugby World Cup game), UEFA (Champions League final, Euro 2028), the London Marathon, Wimbledon and
+// Hyde Park Winter Wonderland. Comic cons, Pride and the like go on once their dates are out; managers can add them as
+// events until then. Like the bank holidays, this runs to the end of 2028.
+const ON_DAYS = [
+  ["2026-09-11", "Rosh Hashanah starts tonight", "Jewish New Year", "faith"], ["2026-09-20", "Yom Kippur starts tonight", "A day of fasting", "faith"],
+  ["2026-11-08", "Diwali", "", "faith"], ["2026-11-19", "Winter Wonderland opens in Hyde Park", "Until 3 January", "london"],
+  ["2026-12-04", "Hanukkah starts tonight", "Eight nights", "faith"],
+  ["2026-12-11", "World Darts Championship starts", "Alexandra Palace, on Sky Sports, until 3 January with a break from 24 to 27 December", "sport"],
+  ["2027-01-03", "World Darts Championship final", "Alexandra Palace, on Sky Sports", "sport"],
+  ["2027-02-05", "Six Nations: Ireland v England", "8.10pm, on ITV", "sport"],
+  ["2027-02-06", "Chinese New Year", "Year of the Goat", "faith"], ["2027-02-06", "Six Nations", "Scotland v Italy 2.10pm, France v Wales 4.40pm", "sport"],
+  ["2027-02-08", "Ramadan starts (expected)", "A month of fasting from dawn to sunset", "faith"],
+  ["2027-02-13", "Six Nations", "Italy v Ireland 2.10pm, Scotland v Wales 4.40pm", "sport"],
+  ["2027-02-14", "Six Nations: England v France", "3.10pm at Twickenham, on ITV", "sport"], ["2027-02-14", "Super Bowl", "Late at night, on Sky Sports", "sport"],
+  ["2027-02-20", "Six Nations: England v Italy", "4.40pm, on ITV. Also Wales v Ireland 2.10pm", "sport"], ["2027-02-21", "Six Nations", "France v Scotland 3.10pm", "sport"],
+  ["2027-03-05", "Six Nations", "Scotland v Ireland 8.10pm", "sport"], ["2027-03-06", "Six Nations: Wales v England", "4.40pm, on ITV. Also Italy v France 2.10pm", "sport"],
+  ["2027-03-09", "Eid al-Fitr (expected)", "The end of Ramadan", "faith"],
+  ["2027-03-13", "Six Nations final day", "Italy v Wales 2.10pm, England v Scotland 4.40pm at Twickenham (ITV), Ireland v France 8.10pm", "sport"],
+  ["2027-03-23", "Holi", "", "faith"], ["2027-04-14", "Vaisakhi", "", "faith"], ["2027-04-21", "Passover starts tonight", "", "faith"],
+  ["2027-04-24", "London Marathon, day one", "Over two days this year", "london"], ["2027-04-25", "London Marathon, day two", "", "london"],
+  ["2027-05-16", "Eid al-Adha (expected)", "", "faith"], ["2027-06-05", "Champions League final", "In Madrid", "sport"],
+  ["2027-06-28", "Wimbledon starts", "Until 11 July", "sport"], ["2027-07-11", "Wimbledon final day", "", "sport"],
+  ["2027-10-01", "Rugby World Cup starts", "In Australia. Every game is on ITV", "sport"], ["2027-10-01", "Rosh Hashanah starts tonight", "Jewish New Year", "faith"],
+  ["2027-10-10", "Yom Kippur starts tonight", "A day of fasting", "faith"], ["2027-10-29", "Diwali", "", "faith"],
+  ["2027-11-13", "Rugby World Cup final", "On ITV", "sport"], ["2027-12-24", "Hanukkah starts tonight", "Eight nights", "faith"],
+  ["2028-01-26", "Chinese New Year", "Year of the Monkey", "faith"], ["2028-01-28", "Ramadan starts (expected)", "A month of fasting from dawn to sunset", "faith"],
+  ["2028-02-26", "Eid al-Fitr (expected)", "The end of Ramadan", "faith"], ["2028-03-11", "Holi", "", "faith"],
+  ["2028-04-10", "Passover starts tonight", "", "faith"], ["2028-04-13", "Vaisakhi", "", "faith"], ["2028-05-05", "Eid al-Adha (expected)", "", "faith"],
+  ["2028-06-09", "Euro 2028 starts", "The UK and Ireland host it. The opening game is in Cardiff", "sport"], ["2028-07-09", "Euro 2028 final", "At Wembley", "sport"],
+  ["2028-09-20", "Rosh Hashanah starts tonight", "Jewish New Year", "faith"], ["2028-09-29", "Yom Kippur starts tonight", "A day of fasting", "faith"],
+  ["2028-10-17", "Diwali", "", "faith"], ["2028-12-12", "Hanukkah starts tonight", "Eight nights", "faith"],
+];
+// What each built-in kind is called on a day and in the month's list.
+const ON_KINDS = { day: "", faith: "Faith and culture", sport: "Sport", london: "London" };
 const CAL_KINDS = { school: "School holidays", event: "Event", closed: "Venue closed" };
 const CAL_EG = { school: "Half term (Westminster schools)", event: "Pride in London", closed: "Closed for the refit" };
 const calOn = () => isOn("calendar");
@@ -3126,9 +3179,15 @@ const calOn = () => isOn("calendar");
 let roView = "week", calMon = "", calSel = "", calDayShown = "";
 const calF = { open: false, date1: "", date2: "", note: "" };
 const calE = { open: false, id: "", kind: "school", title: "", date1: "", date2: "", note: "" };
-// With the rota and the calendar both on, the Rota tab shows one of them; with only one on, that one.
-const calShown = () => calOn() && (!isOn("rota") || roView === "cal");
-const roViews = () => (isOn("rota") && calOn() ? `<div class="chips" role="toolbar" aria-label="Show">${[["week", "Shifts"], ["cal", "Calendar"]].map(([k, t]) => `<button class="chip" data-roview="${k}" aria-pressed="${roView === k}">${t}</button>`).join("")}</div>` : "");
+// The Rota tab shows the week's shifts (week), the next 7 days (next) or the month (cal). With the rota off, the calendar's
+// two; with the calendar off, just the shifts.
+const calShown = () => calOn() && (!isOn("rota") || roView !== "week");
+const calMode = () => (roView === "cal" ? "cal" : "next");
+function roViews() {
+  if (!calOn()) return "";
+  const xs = [...(isOn("rota") ? [["week", "Shifts"]] : []), ["next", "Next 7 days"], ["cal", "Month"]], at = calShown() ? calMode() : "week";
+  return `<div class="chips" role="toolbar" aria-label="Show">${xs.map(([k, t]) => `<button class="chip" data-roview="${k}" aria-pressed="${at === k}">${t}</button>`).join("")}</div>`;
+}
 const monthOf = (day) => day.slice(0, 7);
 const addMonths = (mon, n) => { const t = +mon.slice(0, 4) * 12 + +mon.slice(5, 7) - 1 + n; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`; };
 const monthEnd = (mon) => addDays(`${addMonths(mon, 1)}-01`, -1);
@@ -3139,7 +3198,7 @@ function calMonth() { const [lo, hi] = calRange(), m = calMon || monthOf(shiftDa
 function calItems(d) {
   const out = [];
   if (BANK_HOLS[d]) out.push({ k: "bank", t: BANK_HOLS[d] });
-  for (const [day, t, more] of notable(+d.slice(0, 4))) if (day === d) out.push({ k: "day", t, more });
+  for (const [day, t, more, k] of [...notable(+d.slice(0, 4)), ...ON_DAYS]) if (day === d) out.push({ k, t, more });
   for (const x of LIVE.cal) if (x.date1 <= d && d <= x.date2) out.push({ k: x.kind, t: x.title, x });
   return out;
 }
@@ -3151,30 +3210,43 @@ function calGridHtml(mon, sel) {
   const days = [], [a, b] = calF.open ? [calF.date1, calF.date2 || calF.date1] : ["", ""];
   for (let d = weekOf(`${mon}-01`), end = addDays(weekOf(monthEnd(mon)), 6); d <= end; d = addDays(d, 1)) days.push(d);
   return `<div class="calgrid">${["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((w) => `<div class="wd" aria-hidden="true">${w}</div>`).join("")}${days.map((d) => {
-    const it = calItems(d), on = myShifts(d), off = calOff(d);
-    const dots = [it.some((i) => i.k === "bank" || i.k === "day") && "hol", it.some((i) => i.k === "event" || i.k === "closed") && "ev", on.length && "on",
-      off.length && (off.some((o) => o.status === "approved") ? "off" : "ask")].filter(Boolean);
+    const it = calItems(d), on = myShifts(d), off = calOff(d), games = calGames(d);
+    const dots = [it.some((i) => ["bank", "day", "faith", "london"].includes(i.k)) && "hol", it.some((i) => i.k === "event" || i.k === "closed") && "ev",
+      (games.length || it.some((i) => i.k === "sport")) && "game", on.length && "on", off.length && (off.some((o) => o.status === "approved") ? "off" : "ask")].filter(Boolean);
     const cls = ["cd", monthOf(d) !== mon && "out", BANK_HOLS[d] && "bh", d === shiftDay() && "today", a && a <= d && d <= b && "rng", it.some((i) => i.k === "school") && "sc"].filter(Boolean).join(" ");
-    const say = [dayName(d, { weekday: "long", day: "numeric", month: "long" }), ...it.map((i) => i.t), on.length && `You're on ${on.map(roTime).join(" and ")}`, ...off.map(offText)].filter(Boolean).join(". ");
-    return `<button class="${cls}" data-cal-day="${d}" aria-pressed="${d === sel}" aria-label="${esc(say)}">${+d.slice(8)}<span class="dots">${dots.map((k) => `<i class="d-${k}"></i>`).join("")}</span></button>`;
+    const say = [dayName(d, { weekday: "long", day: "numeric", month: "long" }), ...it.map((i) => i.t), ...games.map((g) => `${g.ko} ${g.home} v ${g.away}`),
+      on.length && `You're on ${on.map(roTime).join(" and ")}`, ...off.map(offText)].filter(Boolean).join(". ");
+    return `<button class="${cls}" data-cal-day="${d}" aria-pressed="${d === sel}" aria-label="${esc(say)}">${+d.slice(8)}<span class="cdots">${dots.map((k) => `<i class="d-${k}"></i>`).join("")}</span></button>`;
   }).join("")}</div>`;
 }
-function calDayHtml(d) {
-  const A = LIVE.admin, it = calItems(d), on = myShifts(d), off = calOff(d), games = calGames(d), short = { weekday: "short", day: "numeric", month: "short" };
+// Everything on a day, as rows: what's on, your shifts and time off, and the games on the screens. full is the day picked
+// in the month, where managers also see who added an entry and can change it.
+function calRows(d, full) {
+  const A = LIVE.admin && full, short = { weekday: "short", day: "numeric", month: "short" };
   const row = (title, s = "", acts = "") => `<div class="staffrow"><div class="n">${title}</div>${s ? `<div class="s">${s}</div>` : ""}${acts}</div>`;
-  const rows = [
-    ...it.map((i) => (i.x ? row(`${esc(i.t)} <span class="pill${i.k === "closed" ? " no" : ""}">${CAL_KINDS[i.k]}</span>`,
+  const pill = (t, no) => (t ? ` <span class="pill${no ? " no" : ""}">${t}</span>` : "");
+  return [
+    ...calItems(d).map((i) => (i.x ? row(`${esc(i.t)}${pill(CAL_KINDS[i.k], i.k === "closed")}`,
       [i.x.date1 !== i.x.date2 && esc(calSpan(i.x.date1, i.x.date2, short)), i.x.note && esc(i.x.note), A && `Added by ${esc(i.x.name)}, ${i.x.pending ? "saving…" : when(i.x.at)}`].filter(Boolean).join(" · "),
       A ? `<div class="actions"><button class="btn" data-cal-edit="${i.x.id}">Change</button><button class="btn" data-cal-drop="${i.x.id}">Remove</button></div>` : "")
-      : row(`${esc(i.t)}${i.k === "bank" ? ` <span class="pill">Bank holiday</span>` : ""}`, i.k === "bank" ? "England and Wales" : i.more ? esc(i.more) : ""))),
-    ...on.map((x) => row(`You're on ${roTime(x)}`, `${sideName(x.side)}${x.note ? ` · ${esc(x.note)}` : ""}`)),
-    ...off.map((a) => row(esc(offText(a)), `${esc(calSpan(a.date1, a.date2, short))}${a.note ? ` · ${esc(a.note)}` : ""}`)),
-    ...games.map((g) => row(`${esc(g.ko)} ${esc(g.home)} v ${esc(g.away)}`, [g.comp, g.channel, g.screen].filter(Boolean).map(esc).join(" · "))),
+      : i.k === "bank" ? row(`${esc(i.t)}${pill("Bank holiday")}`, "England and Wales") : row(`${esc(i.t)}${pill(ON_KINDS[i.k])}`, esc(i.more)))),
+    ...myShifts(d).map((x) => row(`You're on ${roTime(x)}`, `${sideName(x.side)}${x.note ? ` · ${esc(x.note)}` : ""}`)),
+    ...calOff(d).map((a) => row(esc(offText(a)), `${esc(calSpan(a.date1, a.date2, short))}${a.note ? ` · ${esc(a.note)}` : ""}`)),
+    ...calGames(d).map((g) => row(`${esc(g.ko)} ${esc(g.home)} v ${esc(g.away)}`, [g.comp, g.channel, g.screen && `Screen: ${g.screen}`].filter(Boolean).map(esc).join(" · "))),
   ];
+}
+function calDayHtml(d) {
   const can = isOn("asks") && d >= shiftDay();
   return `<h3 class="actday">${dayName(d, { weekday: "long", day: "numeric", month: "long" })}${d === shiftDay() ? " · today" : ""}</h3>
-    ${rows.join("") || `<p class="note">Nothing on.</p>`}
+    ${calRows(d, true).join("") || `<p class="note">Nothing on.</p>`}
     ${calF.open ? calAskHtml() : can ? `<div class="actions"><button class="btn pri" id="cal-ask">Ask for time off from ${dayName(d, { weekday: "short", day: "numeric" })}</button></div>` : ""}`;
+}
+// The next 7 days, today first, each with everything on it. A day's name opens it in the month.
+function calWeekHtml() {
+  return [0, 1, 2, 3, 4, 5, 6].map((n) => {
+    const d = addDays(shiftDay(), n), rows = calRows(d, false);
+    return `<button class="calwk" data-cal-open="${d}"><b>${n === 0 ? "Today" : n === 1 ? "Tomorrow" : dayName(d, { weekday: "long" })}</b> <span class="s">${dayName(d, { day: "numeric", month: "long" })}${rows.length ? "" : " · nothing on"}</span></button>${rows.join("")}`;
+  }).join("");
 }
 // Asking for time off: the days, any of your shifts in them, and a note.
 function calAskHtml() {
@@ -3191,11 +3263,11 @@ function calAskHtml() {
 function calListHtml(mon) {
   const lo = `${mon}-01`, hi = monthEnd(mon), short = { weekday: "short", day: "numeric", month: "short" };
   const xs = [...Object.entries(BANK_HOLS).filter(([d]) => d >= lo && d <= hi).map(([d, t]) => ({ a: d, b: d, t, k: "Bank holiday" })),
-    ...notable(+mon.slice(0, 4)).filter(([d]) => d >= lo && d <= hi).map(([d, t]) => ({ a: d, b: d, t, k: "" })),
+    ...[...notable(+mon.slice(0, 4)), ...ON_DAYS].filter(([d]) => d >= lo && d <= hi).map(([d, t, , k]) => ({ a: d, b: d, t, k: ON_KINDS[k] })),
     ...LIVE.cal.filter((x) => x.date1 <= hi && x.date2 >= lo).map((x) => ({ a: x.date1, b: x.date2, t: x.title, k: CAL_KINDS[x.kind] }))]
     .sort((x, y) => x.a.localeCompare(y.a) || x.t.localeCompare(y.t));
-  const late = lo > BANK_TO ? `<p class="note">Bank holidays after ${BANK_TO.slice(0, 4)} aren't in the app yet.</p>` : "";
-  return `<div class="mini">In ${dayName(lo, { month: "long" })}</div>${xs.map((x) => `<button class="calrow" data-cal-day="${x.a < lo ? lo : x.a}"><span class="w">${esc(calSpan(x.a, x.b, short))}</span> <b>${esc(x.t)}</b>${x.k ? ` <span class="s">· ${x.k}</span>` : ""}</button>`).join("") || `<p class="note">Nothing this month.</p>`}${late}`;
+  const late = lo > BANK_TO ? `<p class="note">Bank holidays, faith days and big events after ${BANK_TO.slice(0, 4)} aren't in the app yet.</p>` : "";
+  return `<div class="mini">In ${dayName(lo, { month: "long" })}</div>${xs.map((x) => `<button class="calrow" data-cal-day="${x.a < lo ? lo : x.a}"><span class="w">${esc(calSpan(x.a, x.b, short))}</span><span><b>${esc(x.t)}</b>${x.k ? ` <span class="s">· ${x.k}</span>` : ""}</span></button>`).join("") || `<p class="note">Nothing this month.</p>`}${late}`;
 }
 // Managers add school holidays, events and days the venue is shut, or change one.
 function calEditHtml() {
@@ -3213,13 +3285,18 @@ function calEditHtml() {
 function renderCal() {
   const box = $("#cal"); if (!box) return;
   if (!LIVE.me || !calOn()) { box.innerHTML = ""; return; }
+  const what = `Bank holidays, school holidays, faith days, big games and London events, the games on our screens, and your shifts and time off${LIVE.admin ? " (and everyone's time off)" : ""}`;
+  if (calMode() === "next") {
+    box.innerHTML = `${roViews()}<div class="sec">Next 7 days</div><p class="note">${what}. Tap a day to open it in the month${isOn("asks") ? ", where you can ask for it off" : ""}.</p>${calWeekHtml()}`;
+    return;
+  }
   const mon = calMonth(), [lo, hi] = calRange(), here = monthOf(shiftDay());
   const sel = calSel && monthOf(calSel) === mon ? calSel : mon === here ? shiftDay() : `${mon}-01`, n = (+mon.slice(0, 4) - +here.slice(0, 4)) * 12 + +mon.slice(5, 7) - +here.slice(5, 7);
-  const head = `<div class="sec">Calendar</div><p class="note">Bank holidays, school holidays and the big nights, with your shifts and time off${LIVE.admin ? ", and everyone's time off" : ""}. Tap a day to see it${isOn("asks") ? " or ask for it off" : ""}.</p>`;
+  const head = `<div class="sec">Calendar</div><p class="note">${what}. Tap a day to see it${isOn("asks") ? " or ask for it off" : ""}.</p>`;
   const nav = `<div class="rowk"><button class="round" data-cal-mon="-1" aria-label="The month before"${mon <= lo ? " disabled" : ""}>‹</button>
     <div><b>${dayName(`${mon}-01`, { month: "long", year: "numeric" })}</b><span class="s">${n === 0 ? "This month" : n === 1 ? "Next month" : n === -1 ? "Last month" : n > 0 ? `In ${n} months` : `${-n} months ago`}</span></div>
     <button class="round" data-cal-mon="1" aria-label="The month after"${mon >= hi ? " disabled" : ""}>›</button></div>`;
-  const key = `<div class="calkey" aria-hidden="true"><span><i class="d-hol"></i>Bank holiday or big night</span><span><i class="sch"></i>School holidays</span><span><i class="d-ev"></i>Event or closed</span>${isOn("rota") ? `<span><i class="d-on"></i>You're on</span>` : ""}${isOn("asks") ? `<span><i class="d-off"></i>Time off</span>` : ""}</div>`;
+  const key = `<div class="calkey" aria-hidden="true"><span><i class="d-hol"></i>Holiday or big day</span><span><i class="sch"></i>School holidays</span><span><i class="d-ev"></i>Event or closed</span><span><i class="d-game"></i>Game on</span>${isOn("rota") ? `<span><i class="d-on"></i>You're on</span>` : ""}${isOn("asks") ? `<span><i class="d-off"></i>Time off</span>` : ""}</div>`;
   calDayShown = sel;
   box.innerHTML = `${roViews()}${head}${nav}${calGridHtml(mon, sel)}${key}<div id="cal-day">${calDayHtml(sel)}</div><div id="cal-list">${calListHtml(mon)}</div>${calEditHtml()}`;
 }
@@ -3937,12 +4014,13 @@ async function frGo() {
     });
     Object.assign(frF, { counts: null, words: "", msg: `Done: ${frCount(n)} cleared. Everyone's app has the fresh start.` });
   } catch (e) {
-    frF.msg = e.message === "That PIN isn't right" ? "That PIN isn't right." : frF.done ? `Stopped after ${frCount(frF.done)} of ${frCount(frF.of)}. Check your signal, then clear it again to finish.`
+    frF.msg = e.code === "fresh/pin" ? e.message : frF.done ? `Stopped after ${frCount(frF.done)} of ${frCount(frF.of)}. Check your signal, then clear it again to finish.`
       : e.code === "permission-denied" ? "Firebase refused it. The rules with Start fresh need publishing first." : "Nothing cleared. Check your signal and try again.";
   }
   frF.busy = false; renderFresh();
 }
-// A new start fresh: drop what this phone kept of what went (older reports, the downloads' copies, the KPIs).
+// A new start fresh: drop what this phone kept of what went (older reports, the downloads' and the KPIs' copies of
+// earlier nights). A spreadsheet already made stays, to be saved. The others are told, if it's today's news.
 let resetSeen;
 function freshHeard() {
   const r = LIVE.reset, id = r?.id || "";
@@ -3951,8 +4029,7 @@ function freshHeard() {
   resetSeen = id;
   rpSeen.clear(); Object.assign(rpOld, { incidents: [], reviews: [], more: {} });
   past = { day: "", ev: [] }; kpi.ev = null;
-  if (actFile) { URL.revokeObjectURL(actFile.url); actFile = null; }
-  if (r.uid !== LIVE.uid) toast(`${r.name} started the app fresh`);
+  if (r.uid !== LIVE.uid && ms(r.at) > Date.now() - 864e5) toast(`${r.name} started the app fresh`);
 }
 /* ---------- Team chat ----------
    The team chat (everyone), private chats between two people and groups. Pinging someone (@) marks the chat for them and
@@ -4301,6 +4378,7 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.dataset.roview) { roView = b.dataset.roview; renderRota(); renderCal(); renderTeamTabs(); $("#tpanes").scrollIntoView({ block: "start" }); return; }
   if (b.dataset.calMon) { calMon = addMonths(calMonth(), +b.dataset.calMon); calSel = ""; renderCal(); return; }
   if (b.dataset.calDay) return calPick(b.dataset.calDay);
+  if (b.dataset.calOpen) { roView = "cal"; calMon = monthOf(b.dataset.calOpen); calSel = b.dataset.calOpen; renderCal(); $("#tpanes").scrollIntoView({ block: "start" }); return; }
   if (b.id === "cal-ask") { Object.assign(calF, { open: true, date1: calDayShown, date2: calDayShown, note: "" }); renderCal(); return; }
   if (b.id === "cal-cancel") { Object.assign(calF, { open: false, date1: "", date2: "", note: "" }); renderCal(); return; }
   if (b.id === "cal-send") return calSend(A);

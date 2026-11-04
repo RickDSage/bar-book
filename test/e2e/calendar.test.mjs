@@ -1,5 +1,6 @@
-// The calendar under the Rota tab: bank holidays and the big nights built in, school holidays, events and closed days
-// that managers add, each person's shifts and time off, and asking for time off from a day.
+// The calendar under the Rota tab: the next 7 days and the month, with bank holidays, the big nights, faith days, big
+// games and London events built in, school holidays, events and closed days that managers add, the games on our
+// screens, each person's shifts and time off, and asking for time off from a day.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { serve, resetEmulators, launch, team, toastOf, attempt } from "./helpers.mjs";
@@ -14,11 +15,11 @@ const text = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
 const teamTabs = (p) => p.$$eval("[data-tpane]", (x) => x.map((b) => `${b.dataset.tpane}:${b.firstChild.textContent}`));
 const switched = (p, off) => p.waitForFunction((o) => [...LIVE.off].sort().join() === o, [...off].sort().join());
-// The calendar, from the Rota tab.
-async function calendar(p) {
+// The month, or the next 7 days, from the Rota tab.
+async function calendar(p, view = "cal") {
   await p.evaluate(() => show("notices")); await p.click("[data-tpane=rota]");
-  if (await p.locator('#rota [data-roview="cal"]').count()) await p.click('#rota [data-roview="cal"]');
-  await p.waitForSelector("#cal .calgrid");
+  await p.locator(`.chip[data-roview="${view}"]:visible`).click();
+  await p.waitForSelector(view === "cal" ? "#cal .calgrid" : "#cal .calwk");
 }
 const dayFromNow = (p, n) => p.evaluate((n) => addDays(shiftDay(), n), n);
 // Opens a day, moving the calendar to its month with the arrows.
@@ -32,13 +33,13 @@ const panel = (p) => text(p, "#cal-day");
 // A day as its heading reads, and as the ask button names it.
 const long = (p, d) => p.evaluate((d) => dayName(d, { weekday: "long", day: "numeric", month: "long" }).toUpperCase(), d);
 const short = (p, d) => p.evaluate((d) => dayName(d, { weekday: "short", day: "numeric" }), d);
-const cell = (p, day) => p.$eval(`[data-cal-day="${day}"]`, (b) => ({ cls: b.className, dots: [...b.querySelectorAll(".dots i")].map((i) => i.className), say: b.getAttribute("aria-label") }));
+const cell = (p, day) => p.$eval(`[data-cal-day="${day}"]`, (b) => ({ cls: b.className, dots: [...b.querySelectorAll(".cdots i")].map((i) => i.className), say: b.getAttribute("aria-label") }));
 
 test("bank holidays and the big nights are on it, and what a manager adds shows on every phone straight away", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await calendar(S);
-  assert.match(await text(S, "#cal"), /^Shifts Calendar CALENDAR Bank holidays, school holidays and the big nights, with your shifts and time off\. Tap a day to see it or ask for it off\. ‹ [A-Z][a-z]+ 20\d\d This month › Mo Tu We Th Fr Sa Su /);
+  assert.match(await text(S, "#cal"), /^Shifts Next 7 days Month CALENDAR Bank holidays, school holidays, faith days, big games and London events, the games on our screens, and your shifts and time off\. Tap a day to see it or ask for it off\. ‹ [A-Z][a-z]+ 20\d\d This month › Mo Tu We Th Fr Sa Su /);
   assert.ok(await S.evaluate(() => $("#rota").hidden && !$("#cal").hidden), "the calendar shows instead of the week");
   const today = await dayFromNow(S, 0);
   assert.match((await cell(S, today)).cls, /\btoday\b/);
@@ -51,20 +52,23 @@ test("bank holidays and the big nights are on it, and what a manager adds shows 
   await open(S, xmas);
   const x = await cell(S, xmas);
   assert.equal(/\bbh\b/.test(x.cls), bank); assert.deepEqual(x.dots, ["d-hol"]);
+  // Each dot shows in its own colour (the step-by-step guides' grey dots once took them over).
+  assert.ok(await S.$eval(`[data-cal-day="${xmas}"] .cdots i`, (i) => { const t = document.createElement("i"); t.style.background = "var(--brass)"; document.body.append(t);
+    const want = getComputedStyle(t).backgroundColor; t.remove(); return getComputedStyle(i).backgroundColor === want; }), "the holiday dot is brass");
   assert.equal(x.say, `${await S.evaluate((d) => dayName(d, { weekday: "long", day: "numeric", month: "long" }), xmas)}. Christmas Day`);
   assert.equal(await panel(S), `${await long(S, xmas)} Christmas Day${bank ? " Bank holiday England and Wales" : ""} Ask for time off from ${await short(S, xmas)}`);
   assert.match(await text(S, "#cal-list"), /^IN DECEMBER .*\w{3} 24 Dec Christmas Eve .*\w{3} 25 Dec Christmas Day.* \w{3} 2[678] Dec Boxing Day.* \w{3} 31 Dec New Year's Eve$/);
   assert.deepEqual(await S.evaluate(() => ["2027-12-25", "2027-12-26", "2027-12-27", "2027-12-28", "2028-01-01", "2028-01-03"].map((d) => calItems(d).map((i) => `${i.k}: ${i.t}`).join())),
     ["day: Christmas Day", "day: Boxing Day", "bank: Christmas Day (substitute day)", "bank: Boxing Day (substitute day)", "day: New Year's Day", "bank: New Year's Day (substitute day)"]);
   // The clocks go back in the early hours of a Sunday, so it's on the Saturday night before.
-  const back = await S.evaluate(() => { const y = +shiftDay().slice(0, 4) + 1; return addDays(sundayOf(y, 10, 0), -1); });
+  const back = await S.evaluate(() => { const y = +shiftDay().slice(0, 4) + 1; return addDays(weekdayOf(y, 10, 0, 0), -1); });
   assert.equal(await S.evaluate((d) => new Date(d + "T12:00Z").getUTCDay(), back), 6);
   await open(S, back);
   assert.match(await panel(S), /^[A-Z]+ \d+ OCTOBER Clocks go back tonight At 2am they go back to 1am, so a shift that runs past 2am is an hour longer than its times say\. Ask for time off /);
 
   // A manager adds half term. Nothing is saved without a name or the days.
   await calendar(M);
-  assert.match(await text(M, "#cal"), /with your shifts and time off, and everyone's time off\./);
+  assert.match(await text(M, "#cal"), /and your shifts and time off \(and everyone's time off\)\./);
   await M.click("#cal-add summary");
   await M.click("#cal-save");
   assert.equal(await toastOf(M), "Give it a name");
@@ -176,6 +180,53 @@ test("staff ask for time off from the calendar, see their shifts on it, and the 
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
+test("the next 7 days show what's on, the games on our screens and your shifts, and the big days are built in", async () => {
+  await resetEmulators();
+  const { O, M, S } = await team(browser, site, people);
+  const [d1, d2, d3, d7] = [await dayFromNow(M, 1), await dayFromNow(M, 2), await dayFromNow(M, 3), await dayFromNow(M, 7)];
+  const sam = await M.evaluate(() => LIVE.staff.find((p) => p.name === "Sam Staff").uid);
+  await M.evaluate((x) => LIVE.api.addFixture(x), { day: d1, ko: "20:00", home: "Arsenal", away: "Chelsea", comp: "Premier League", channel: "Sky Sports Main Event", screen: "All screens" });
+  await M.evaluate(([d, uid]) => LIVE.api.shiftsAdd([{ week: weekOf(d), day: d, start: "18:00", end: "02:00", side: "bar", note: "", who: uid, whoName: "Sam Staff", offer: "", offerName: "" }], true), [d2, sam]);
+  await M.evaluate((d) => LIVE.api.saveCal("", { title: "Quiz night", kind: "event", date1: d, date2: d, note: "Upstairs from 7pm" }), d3);
+  await M.evaluate((d) => LIVE.api.saveCal("", { title: "Too far ahead", kind: "event", date1: d, date2: d, note: "" }), d7);
+  await S.waitForFunction(() => LIVE.fixtures.length === 1 && LIVE.shifts.length === 1 && LIVE.cal.length === 2);
+
+  // Today and the six days after, each with everything on it.
+  await calendar(S, "next");
+  assert.ok(await S.evaluate(() => $("#rota").hidden && !$("#cal").hidden));
+  assert.deepEqual(await S.$$eval("#cal .calwk", (x) => x.map((b) => b.dataset.calOpen)), await S.evaluate(() => [0, 1, 2, 3, 4, 5, 6].map((n) => addDays(shiftDay(), n))));
+  const week = await text(S, "#cal");
+  assert.match(week, /^Shifts Next 7 days Month NEXT 7 DAYS .* Tap a day to open it in the month, where you can ask for it off\. TODAY /);
+  const day = async (d) => { const all = await S.$$eval("#cal .calwk", (x) => x.map((b) => b.dataset.calOpen)), i = all.indexOf(d);
+    return flat(await S.evaluate(([i]) => { const bs = [...document.querySelectorAll("#cal .calwk")]; let t = "", e = bs[i].nextElementSibling;
+      while (e && !e.classList.contains("calwk")) { t += " " + e.innerText; e = e.nextElementSibling; } return bs[i].innerText + t; }, [i])); };
+  assert.match(await day(d1), /^TOMORROW .*20:00 Arsenal v Chelsea Premier League · Sky Sports Main Event · Screen: All screens/);
+  assert.match(await day(d2), /You're on 18:00–02:00 Bar/);
+  assert.match(await day(d3), /Quiz night Event Upstairs from 7pm/);
+  assert.doesNotMatch(week, /Too far ahead/, "a week today isn't in the next 7 days");
+  assert.doesNotMatch(week, /Change|Remove|Added by/, "no managers' buttons in the list");
+
+  // A day opens in the month, where the game has its own dot.
+  await S.click(`[data-cal-open="${d1}"]`);
+  await S.waitForSelector("#cal .calgrid");
+  assert.equal(await S.evaluate(() => calDayShown), d1);
+  assert.ok((await cell(S, d1)).dots.includes("d-game"));
+  assert.match((await cell(S, d1)).say, /20:00 Arsenal v Chelsea/);
+  assert.match(await text(S, "#cal .calkey"), /Holiday or big day School holidays Event or closed Game on You're on Time off/);
+
+  // Built in, whatever the year: faith days, big games, London events and the days worked out from the calendar.
+  const items = (ds) => S.evaluate((ds) => ds.map((d) => calItems(d).map((i) => `${i.k}: ${i.t}`).join(" | ")), ds);
+  assert.deepEqual(await items(["2026-11-08", "2026-11-14", "2026-11-26", "2026-11-27", "2027-02-09", "2027-02-14", "2027-03-28", "2027-08-29", "2027-08-30", "2027-12-24", "2028-07-09"]), [
+    "day: Remembrance Sunday | faith: Diwali", "london: Lord Mayor's Show", "day: Thanksgiving (US)", "day: Black Friday", "day: Pancake Day",
+    "day: Valentine's Day | sport: Six Nations: England v France | sport: Super Bowl", "day: Easter Sunday", "london: Notting Hill Carnival",
+    "bank: Summer bank holiday | london: Notting Hill Carnival", "day: Christmas Eve | faith: Hanukkah starts tonight", "sport: Euro 2028 final",
+  ]);
+  // Every built-in date is a real day, in order, and the sport on it is a game in the month.
+  assert.deepEqual(await S.evaluate(() => ON_DAYS.filter(([d], i) => !/^20(26|27|28)-\d\d-\d\d$/.test(d) || new Date(d + "T12:00Z").toISOString().slice(0, 10) !== d || (i && ON_DAYS[i - 1][0] > d))), []);
+  assert.deepEqual(await S.evaluate(() => [...new Set(ON_DAYS.map((x) => x[3]))].sort()), ["faith", "london", "sport"]);
+  assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
+});
+
 test("the owner can switch the calendar off, and with the rota off the calendar has the tab to itself", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
@@ -185,8 +236,10 @@ test("the owner can switch the calendar off, and with the rota off the calendar 
   assert.deepEqual(await teamTabs(S), ["board:Board", "chat:Chat", "rota:Calendar", "activity:Activity", "reports:Reports", "me:Me"]);
   await S.click("[data-tpane=rota]");
   assert.ok(await S.evaluate(() => !$("#cal").hidden && $("#rota").hidden));
-  assert.equal(await S.locator("[data-roview]").count(), 0, "no Shifts and Calendar switch without the rota");
-  assert.doesNotMatch(await text(S, "#cal"), /You're on/, "no shifts in the key");
+  assert.deepEqual(await S.$$eval("#cal [data-roview]", (x) => x.map((b) => b.textContent)), ["Next 7 days", "Month"], "no Shifts without the rota");
+  assert.match(await text(S, "#cal"), /^Next 7 days Month NEXT 7 DAYS .* TODAY /, "the next 7 days first");
+  await S.click('[data-roview="cal"]');
+  assert.doesNotMatch(await text(S, "#cal .calkey"), /You're on/, "no shifts in the key");
   await M.evaluate(() => show("notices"));
   assert.deepEqual(await teamTabs(M), ["board:Board", "chat:Chat", "rota:Calendar", "reports:Reports", "managers:Managers", "me:Me"]);
 

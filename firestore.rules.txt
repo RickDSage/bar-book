@@ -23,8 +23,11 @@ service cloud.firestore {
     function isMember() { return signedIn() && profile() != null; }
     function isManager() { return isMember() && profile().data.role in ['manager', 'owner']; }
     function isOwner() { return isMember() && profile().data.role == 'owner'; }
-    // The owner within 15 minutes of typing their PIN. Start fresh (see resets below) signs in afresh for this.
-    function freshOwner() { return isOwner() && request.time.toMillis() < request.auth.token.auth_time * 1000 + 15 * 60 * 1000; }
+    // Start fresh (see resets below): the owner within 15 minutes of typing their PIN, and only once this sign-in has
+    // recorded that it's starting fresh, so nothing is ever deleted without everyone seeing a record of it.
+    function recentOwner() { return isOwner() && request.time.toMillis() < request.auth.token.auth_time * 1000 + 15 * 60 * 1000; }
+    function resetId() { return request.auth.uid + '-' + string(request.auth.token.auth_time); }
+    function freshOwner() { return recentOwner() && exists(/databases/$(database)/documents/resets/$(resetId())); }
     // True unless uid belongs to the owner. Someone who has left counts as not the owner.
     function notOwner(uid) { let p = get(staffDoc(uid)); return p == null || p.data.role != 'owner'; }
 
@@ -617,12 +620,13 @@ service cloud.firestore {
     // out: the rota, asks, shift reports with their photos and reviews, the checklists and their events, restocking, the
     // 86 board and its log, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
     // Accounts, the audit trail, lists, date labels, drink media, the calendar, games, incidents, training, feedback,
-    // chats and the old records stay. It needs the owner's PIN in the last 15 minutes (freshOwner), and each time is
-    // recorded here first, with how many of each it found. A record can't be changed or deleted. Every phone watches the
-    // latest, so its copies of what went are dropped.
+    // chats and the old records stay. It needs the owner's PIN in the last 15 minutes, and each time is recorded here
+    // first, under the owner's uid and the time they signed in, with how many of each it found: the deletes check for
+    // that record (freshOwner). A record can't be changed or deleted. Every phone watches the latest, so its copies of
+    // what went are dropped.
     match /resets/{id} {
       allow read: if isMember();
-      allow create: if freshOwner() && autoId(id) && exactly(['counts', 'total', 'uid', 'name', 'at']) && stamped()
+      allow create: if recentOwner() && id == resetId() && exactly(['counts', 'total', 'uid', 'name', 'at']) && stamped()
         && incoming().counts is map && incoming().counts.size() <= 20 && incoming().total is int && incoming().total >= 0;
     }
 
