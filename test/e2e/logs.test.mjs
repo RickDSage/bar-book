@@ -2,7 +2,7 @@
 // and that nothing written outside the app can run code.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -12,7 +12,6 @@ const text = (p, sel) => p.$eval(sel, (e) => e.textContent);
 const rx = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 const waitText = (p, sel, re) => p.waitForFunction(([s, r]) => new RegExp(r).test(document.querySelector(s)?.textContent || ""), [sel, re.source]);
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
-const managers = async (p, sub) => { await p.evaluate(() => show("notices")); await p.click("[data-tpane=managers]"); await p.click(`[data-msub=${sub}]`); };
 // Prepares a download, then reads the file the Save button would give.
 async function download(p, id) {
   await p.click(`#${id}-csv`);
@@ -35,8 +34,9 @@ test("temperatures, waste and stock counts are left to Alert65 and Nory; what wa
   await S.click("[data-mode=floor]");
   assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["fset", "fshake", "stock", "fclose", "send"]);
   assert.deepEqual(await S.evaluate(() => ["waste", "logCheck", "addKit", "setPar", "saveCount"].filter((k) => LIVE.api[k])), []);
-  await managers(O, "act");
-  assert.deepEqual(await O.$$eval("#msub [data-msub]", (x) => x.map((b) => b.dataset.msub)), ["live", "act", "kpis", "out", "training", "team", "feedback"]);
+  await part(O, "");
+  assert.deepEqual(await O.$$eval('#hub [data-g="Managers"] [data-tpane]', (x) => x.map((b) => b.dataset.tpane)), ["live", "requests", "act", "kpis", "out", "training", "team", "feedback"]);
+  await part(O, "act");
 
   // Managers download the old records from Activity.
   const safety = await download(O, "old-safety");
@@ -49,7 +49,7 @@ test("temperatures, waste and stock counts are left to Alert65 and Nory; what wa
   assert.equal(await S.locator("#old-safety-csv").count(), 0, "staff don't get the downloads");
 
   // Accidents and near misses go in Alert65 now.
-  await S.evaluate(() => show("notices")); await S.click("[data-tpane=me]"); await S.click("[data-mek=incident]");
+  await part(S, "me"); await S.click("[data-mek=incident]");
   const kinds = await S.$$eval("[data-f=ikind] option", (x) => x.map((o) => o.textContent));
   assert.ok(!kinds.some((k) => /Accident|Near miss/.test(k)), kinds.join());
   assert.match(await text(S, "#me"), /Accidents, injuries and near misses go in Alert65/);
@@ -59,7 +59,7 @@ test("temperatures, waste and stock counts are left to Alert65 and Nory; what wa
 test("training: managers sign people off drink by drink, and staff see it in Practise", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
-  await managers(M, "training");
+  await part(M, "training");
   const sam = await M.evaluate(() => LIVE.staff.find((p) => p.name === "Sam Staff").uid);
   await M.click(`[data-tr-who="${sam}"]`);
   const first = await M.$eval("[data-tr-sign]", (b) => b.dataset.trSign);
@@ -101,16 +101,15 @@ test("records written outside the app can't run code on a manager's phone", asyn
   await adminWrite("restock/plainrestock", { item: html(12), qty: int(1), unit: str("each"), dest: str("up"), detail: html(13), day, status: str("blocked"), who: html(14), whoUid: str("x"), moved: nul, got: nul, note: html(15), v: int(2),
     askedBy: html(16), askedUid: str("x"), askedAt: now, uid: str("x"), name: html(17), at: now });
 
-  await O.evaluate(() => show("notices")); await O.click("[data-tpane=rota]");
+  await part(O, "requests");
   await waitText(O, "#requests", /Old stock requests[\s\S]*Blue roll/);
-  await O.click("[data-tpane=managers]");
+  await part(O, "live");
   await waitText(O, "#live", /Restock blocked/);
-  await O.click("[data-msub=act]");
+  await part(O, "act");
   await waitText(O, "#act", /asked for 1 <img/);
   await O.evaluate(() => { pane = "stock"; show("tally"); });
   await waitText(O, "#tally", /Restock blocked|Blocked/);
-  await O.evaluate(() => show("notices"));
-  await O.click("[data-tpane=board]");
+  await part(O, "concerns");
   await waitText(O, "#concerns", /Ice bucket cracked/);
   await O.waitForTimeout(300);
   assert.equal(await O.evaluate(() => window.pwned), undefined);

@@ -3,7 +3,7 @@
 // screens, each person's shifts and time off, and asking for time off from a day.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -13,11 +13,12 @@ const people = [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff", "sam"
 const flat = (s) => s.replace(/\s+/g, " ").trim();
 const text = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
-const teamTabs = (p) => p.$$eval("[data-tpane]", (x) => x.map((b) => `${b.dataset.tpane}:${b.firstChild.textContent}`));
+// The Team page's cards for everyone (the first group), as part:name.
+const teamTabs = async (p) => { await part(p, ""); return p.$$eval('#hub [data-g="Everyone"] [data-tpane]', (x) => x.map((b) => `${b.dataset.tpane}:${b.querySelector("b").textContent}`)); };
 const switched = (p, off) => p.waitForFunction((o) => [...LIVE.off].sort().join() === o, [...off].sort().join());
 // The month, or the next 7 days, from the Rota tab.
 async function calendar(p, view = "cal") {
-  await p.evaluate(() => show("notices")); await p.click("[data-tpane=rota]");
+  await part(p, "rota");
   await p.locator(`.chip[data-roview="${view}"]:visible`).click();
   await p.waitForSelector(view === "cal" ? "#cal .calgrid" : "#cal .calwk");
 }
@@ -160,12 +161,13 @@ test("staff ask for time off from the calendar, see their shifts on it, and the 
   await open(S, a);
   assert.match(await panel(S), /You've asked for the day off .* · Sister's wedding/);
 
-  // The manager sees who's asked on the calendar, approves it, and it shows as time off on the staff phone.
+  // The manager sees who's asked on the calendar, approves it from For you, and it shows as time off on the staff phone.
   await calendar(M);
   await open(M, a);
   assert.match(await panel(M), /Sam Staff has asked for the day off /);
   await M.click('#cal [data-roview="week"]');
   assert.ok(await M.evaluate(() => !$("#rota").hidden && $("#cal").hidden), "Shifts goes back to the week");
+  await part(M, ""); await M.click('#foryou [data-go="requests"]');
   await M.click(`[data-decide="${await M.evaluate(() => LIVE.asks[0].id)}"][data-to="approved"]`);
   await S.waitForFunction(() => LIVE.asks[0]?.status === "approved");
   await S.waitForFunction((d) => /You're off/.test($("#cal").innerText) && document.querySelector(`[data-cal-day="${d}"] .d-off`), a);
@@ -173,8 +175,8 @@ test("staff ask for time off from the calendar, see their shifts on it, and the 
   const bd = (await cell(S, b)).dots;
   assert.ok(bd.includes("d-on") && bd.includes("d-off"), bd.join());
 
-  // The Me tab points to the calendar for picking days.
-  await S.click("[data-tpane=me]"); await S.click('[data-mek="off"]');
+  // Tell the managers points to the calendar for picking days.
+  await part(S, "me"); await S.click('[data-mek="off"]');
   await S.click('#me [data-go="cal"]');
   assert.ok(await S.evaluate(() => tpane === "rota" && !$("#cal").hidden));
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
@@ -232,31 +234,31 @@ test("the owner can switch the calendar off, and with the rota off the calendar 
   const { O, M, S } = await team(browser, site, people);
   await O.evaluate(() => LIVE.api.setOff(["rota"]));
   for (const p of [M, S]) await switched(p, ["rota"]);
-  await S.evaluate(() => show("notices"));
-  assert.deepEqual(await teamTabs(S), ["board:Board", "chat:Chat", "rota:Calendar", "activity:Activity", "reports:Reports", "me:Me"]);
-  await S.click("[data-tpane=rota]");
+  const rest = ["reports:Reports", "issues:Issues and handover", "concerns:Concerns", "board:Broadcasts", "me:Tell the managers"];
+  assert.deepEqual(await teamTabs(S), ["chat:Chat", "rota:Calendar", ...rest, "activity:Activity"]);
+  await part(S, "rota");
   assert.ok(await S.evaluate(() => !$("#cal").hidden && $("#rota").hidden));
   assert.deepEqual(await S.$$eval("#cal [data-roview]", (x) => x.map((b) => b.textContent)), ["Next 7 days", "Month"], "no Shifts without the rota");
   assert.match(await text(S, "#cal"), /^Next 7 days Month NEXT 7 DAYS .* TODAY /, "the next 7 days first");
   await S.click('[data-roview="cal"]');
   assert.doesNotMatch(await text(S, "#cal .calkey"), /You're on/, "no shifts in the key");
-  await M.evaluate(() => show("notices"));
-  assert.deepEqual(await teamTabs(M), ["board:Board", "chat:Chat", "rota:Calendar", "reports:Reports", "managers:Managers", "me:Me"]);
+  assert.deepEqual(await teamTabs(M), ["chat:Chat", "rota:Calendar", ...rest]);
 
-  // Calendar off too: the tab goes for staff, and managers keep it for requests.
+  // Calendar off too: its card goes, and managers keep Requests.
   await O.evaluate(() => LIVE.api.setOff(["rota", "calendar"]));
   for (const p of [M, S]) await switched(p, ["rota", "calendar"]);
-  assert.deepEqual(await teamTabs(S), ["board:Board", "chat:Chat", "activity:Activity", "reports:Reports", "me:Me"]);
-  assert.deepEqual(await teamTabs(M), ["board:Board", "chat:Chat", "rota:Requests", "reports:Reports", "managers:Managers", "me:Me"]);
-  await S.click("[data-tpane=me]"); await S.click('[data-mek="off"]');
+  assert.deepEqual(await teamTabs(S), ["chat:Chat", ...rest, "activity:Activity"]);
+  assert.deepEqual(await teamTabs(M), ["chat:Chat", ...rest]);
+  assert.equal(await M.locator('#hub [data-tpane="requests"]').count(), 1);
+  await part(S, "me"); await S.click('[data-mek="off"]');
   assert.equal(await S.locator('#me [data-go="cal"]').count(), 0);
 
   // Only the calendar off: the rota is as it was.
   await O.evaluate(() => LIVE.api.setOff(["calendar"]));
   for (const p of [M, S]) await switched(p, ["calendar"]);
-  await S.click("[data-tpane=rota]");
+  await part(S, "rota");
   assert.equal(await S.locator("[data-roview]").count(), 0);
   assert.ok(await S.evaluate(() => !$("#rota").hidden && $("#cal").hidden && $("#cal").innerHTML === ""));
-  assert.match(await text(S, "#rota"), /Need a day off\? Ask from the Me tab\./);
+  assert.match(await text(S, "#rota"), /Need a day off\? Ask in Tell the managers\./);
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });

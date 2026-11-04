@@ -2,7 +2,7 @@
 // Tasks and restocking have their own file, tasks.test.mjs.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, oldPost } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, oldPost, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -87,12 +87,12 @@ test("old stock requests from before restocking: only managers see them, and mar
   assert.equal(await S.evaluate(() => LIVE.requests.length), 0, "staff don't load them any more");
   assert.equal(await attempt(S, () => LIVE.api.markOrdered("a")), "permission-denied");
 
-  await O.evaluate(() => show("notices")); await O.click("[data-tpane=rota]");
+  await part(O, "requests");
   assert.match(await O.$eval("#requests", (e) => e.innerText), /Old stock requests[\s\S]*Limes[\s\S]*Large black bin liners[\s\S]*Blue roll\n2 rolls/i);
   await O.click('[data-ordered="b"]');
   await M.waitForFunction(() => LIVE.requests.find((r) => r.id === "b")?.done);
   assert.equal(await attempt(M, () => LIVE.api.cancelRequest("b")), "permission-denied", "an ordered request stays on record");
-  await M.evaluate(() => show("notices")); await M.click("[data-tpane=rota]");
+  await part(M, "requests");
   await M.click('[data-rq-drop="c"]');
   await O.waitForFunction(() => LIVE.requests.length === 2);
   // Once the last one is cleared, the section goes.
@@ -106,13 +106,13 @@ test("old stock requests from before restocking: only managers see them, and mar
 test("notices and the team board: who can post and who can take things down", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
-  await O.evaluate(() => show("notices"));
+  await part(O, "board");
   await O.click("#pin-form summary"); await O.fill("#p-text", "Guinness line down tonight"); await O.click("#p-go");
   await waitToast(S, /^Broadcast: Guinness line down tonight$/);
   assert.equal(await S.$eval("#bell-n", (e) => (e.hidden ? "0" : e.textContent)), "1");
   assert.equal(await attempt(S, () => LIVE.api.pin("Free drinks", "all", true)), "permission-denied");
 
-  await M.evaluate(() => show("notices"));
+  await part(M, "board");
   await M.waitForFunction(() => LIVE.notices.length === 1);
   assert.equal(await M.locator("[data-unpin]").count(), 0, "no remove button on the owner's notice");
   const ownerNotice = await M.evaluate(() => LIVE.notices[0].id);
@@ -148,7 +148,7 @@ test("shift reports are sent once, signed off once, and show on Tonight", async 
   assert.match(r.text, /Run by: Sam Staff/);
   assert.equal(await attempt(S, (id) => LIVE.api.signOff(id), r.id), "permission-denied");
 
-  await O.evaluate(() => show("notices")); await O.click("[data-tpane=reports]"); await O.click("[data-sign]");
+  await part(O, "reports"); await O.click("[data-sign]");
   await waitToast(S, /^Olly Owner signed off your shift report$/);
   assert.equal(await attempt(M, (id) => LIVE.api.signOff(id), r.id), "permission-denied", "a signed report can't be signed again");
   await O.waitForFunction(() => /Signed off by Olly Owner/.test(document.querySelector("#reports").textContent));
@@ -156,8 +156,9 @@ test("shift reports are sent once, signed off once, and show on Tonight", async 
   await S.evaluate(() => setMode("floor")); await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
   await O.waitForFunction(() => LIVE.reports.length === 2);
   assert.equal(await O.evaluate(() => LIVE.reports[0].side), "floor");
-  await O.click("[data-tpane=board]");
+  await part(O, "");
   const dash = await O.$eval("#dash", (e) => e.innerText.replace(/\n+/g, " | "));
-  assert.match(dash, /Sent \| bar report tonight \| Sent \| floor report tonight \| 1 \| reports to sign off/);
+  assert.match(dash, /Sent \| bar report tonight \| Sent \| floor report tonight/);
+  assert.equal(await O.$eval('#foryou [data-go="reports"]', (e) => e.innerText.replace(/\s*›$/, "")), "1 report to sign off");
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });

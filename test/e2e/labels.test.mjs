@@ -3,7 +3,7 @@
 // the closing report; and every change stays in the label's history, Activity and the download.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -121,7 +121,7 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   assert.match(await text(S, "#dash"), /2 date labels to change/);
   await M.evaluate(() => show("notices"));
   assert.match(await text(M, "#dash"), /2 date labels to change/);
-  await M.click("[data-tpane=managers]"); await M.click("#msub [data-msub=live]");
+  await part(M, "live");
   const live = await text(M, "#live");
   // (Headings read in capitals: innerText follows the page's CSS.)
   assert.match(live, new RegExp(`Needs you now Label overdue Orange juice \\(Bar\\) Use by ${wasName} · Opened ${openedName} by Tia Staff · Date labels`, "i"));
@@ -146,7 +146,7 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   await S.click("[data-lb-save]");
   await waitToast(T, /^Sam Staff changed Orange juice$/);
   await settled(M, "Orange juice", 3);
-  await M.evaluate(() => show("notices"));
+  await part(M, "live");
   await M.waitForFunction(() => /Label changed late/.test(document.querySelector("#live").innerText));
   assert.match(await text(M, "#live"), new RegExp(`Exceptions tonight Label changed late Orange juice \\(Bar\\) Its use-by was ${wasName} · Sam Staff, \\d\\d:\\d\\d · Date labels`, "i"));
   assert.doesNotMatch(await text(M, "#live"), /Label overdue/);
@@ -166,7 +166,7 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   assert.deepEqual(await lb(M, "Cranberry juice").then((x) => [x.state, x.useBy, x.openedBy]), ["none", null, null]);
 
   // Activity: the changes in words, a filter for late changes, and the download.
-  await M.click("[data-tpane=managers]"); await M.click("#msub [data-msub=act]");
+  await part(M, "act");
   await M.click("#act [data-act=labels]");
   const act = await text(M, "#act-rows");
   for (const re of [/Sam Staff binned Cranberry juice/, /Sam Staff changed Orange juice, 1 day past its use-by\. New one, use by/, /Sam Staff opened Cranberry juice, use by/, /Mia Manager added Orange juice to the date labels: keeps 3 days/]) assert.match(act, re);

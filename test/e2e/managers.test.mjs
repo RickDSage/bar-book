@@ -1,8 +1,8 @@
-// The Me and Managers tabs end to end: running late, time off, swaps, incidents, report reviews and
-// anonymous feedback, and what each role can see and decide.
+// Tell the managers, Requests, Reports and Manager feedback end to end: running late, time off, swaps, incidents,
+// report reviews and anonymous feedback, and what each role can see and decide.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, ukDay } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, ukDay, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -14,12 +14,7 @@ const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(documen
 test("staff ask for time off, swaps and lateness; managers decide", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
-  for (const p of [O, M, S]) await p.evaluate(() => show("notices"));
-  assert.equal(await S.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,chat,rota,activity,reports,me");
-  assert.equal(await O.$$eval("[data-tpane]", (x) => x.map((e) => e.dataset.tpane).join()), "board,chat,rota,reports,managers,me");
-
-  await O.evaluate(() => show("drinks"));
-  await S.click("[data-tpane=me]"); await S.click('[data-eta="15"]'); await S.fill("[data-f=note]", "Train delayed"); await S.click("#me-go");
+  await part(S, "me"); await S.click('[data-eta="15"]'); await S.fill("[data-f=note]", "Train delayed"); await S.click("#me-go");
   await waitToast(O, /^Sam Staff: Running late · ETA \d\d:\d\d$/);
 
   await S.click("[data-mek=off]"); await S.fill("[data-f=date1]", day(7)); await S.click("#me-go");
@@ -35,7 +30,7 @@ test("staff ask for time off, swaps and lateness; managers decide", async () => 
   assert.deepEqual(asks, ["at,date1,kind,name,note,status,uid,with", "at,date1,date2,kind,name,note,status,uid", "at,eta,kind,name,note,status,uid"], "each kind saves only its own fields");
 
   await S.evaluate(() => show("drinks"));
-  await M.click("[data-tpane=rota]");
+  await part(M, "requests");
   await M.click("[data-to=seen]");
   await M.waitForFunction(() => !document.querySelector("[data-to=seen]"));
   await M.click("[data-to=approved] >> nth=0");
@@ -75,7 +70,7 @@ test("incidents are for managers' eyes and close with what was done", async () =
   assert.equal(await S.evaluate(() => LIVE.incidents.length), 0, "staff can't read incidents, their own included");
   const id = await M.evaluate(() => LIVE.incidents[0].id);
   assert.equal(await attempt(S, (id) => LIVE.api.closeIncident(id, "Fixed"), id), "permission-denied");
-  await M.evaluate(() => show("notices")); await M.click("[data-tpane=reports]");
+  await part(M, "reports");
   await M.click("[data-inc-close]");
   assert.equal(await toastOf(M), "Say what was done about it first");
   await M.fill("[data-inct]", "Engineer booked for Tuesday"); await M.click("[data-inc-close]");
@@ -92,7 +87,7 @@ test("managers review reports and leave each other anonymous feedback", async ()
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
   await S.evaluate(() => setMode("floor")); await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
   await O.waitForFunction(() => LIVE.reports.length === 2 && !LIVE.reports.some((r) => r.pending));
-  await O.evaluate(() => show("notices")); await O.click("[data-tpane=reports]");
+  await part(O, "reports");
   await O.click("[data-rv][data-v=flag] >> nth=0");
   assert.equal(await toastOf(O), "Say what's wrong in the comment box, then flag it");
   await O.fill("[data-rvt] >> nth=0", "Good close, bins missed"); await O.click("[data-rv][data-v=flag] >> nth=0");
@@ -102,11 +97,11 @@ test("managers review reports and leave each other anonymous feedback", async ()
   assert.equal(await attempt(S, () => LIVE.api.review(LIVE.reports[0].id, "up", "")), "permission-denied");
   assert.equal(await attempt(O, () => LIVE.api.review("abcdefghijklmnopqrst", "up", "")), "permission-denied", "a review needs a real report");
 
-  await M.evaluate(() => show("notices")); await M.click("[data-tpane=managers]"); await M.click("[data-msub=feedback]");
+  await part(M, "feedback");
   await M.selectOption("[data-f=fbWho]", { label: "Olly Owner" }); await M.click('[data-score="Needs improvement"]'); await M.click("#fb-go");
   assert.equal(await toastOf(M), "Say what needs to improve");
   await M.fill("[data-f=fbText]", "Sign off faster please"); await M.click("#fb-go");
-  await O.click("[data-tpane=managers]"); await O.click("[data-msub=feedback]");
+  await part(O, "feedback");
   await O.selectOption("[data-f=fbWho]", { label: "Mia Manager" }); await O.click("[data-score=Excellent]"); await O.click("#fb-go");
   await O.waitForFunction(() => LIVE.ratings.length === 2);
   await M.waitForFunction(() => LIVE.ratings.length === 1);

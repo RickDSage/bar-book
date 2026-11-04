@@ -68,6 +68,8 @@ export async function afterReload(p) {
   await p.waitForFunction(() => LIVE.ready && !LIVE.uid);
 }
 export const toastOf = (p) => p.$eval("#toast", (t) => (t.hidden ? "" : t.textContent));
+// Opens a part of the Team page ("issues", "rota", "live"…) as tapping its card does. "" is the cards.
+export const part = (p, k) => p.evaluate((k) => { show("notices"); openPlace(k); }, k);
 // Runs a LIVE.api call in the page and reports "allowed" or the error code, for the rule checks.
 export const attempt = (p, fn, ...args) => p.evaluate(([f, a]) => (0, eval)(f)(...a).then(() => "allowed", (e) => e.code || e.message), [fn.toString(), args]);
 

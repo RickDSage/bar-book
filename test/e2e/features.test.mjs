@@ -2,7 +2,7 @@
 // and the tour.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, phone, toastOf, attempt } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, phone, toastOf, attempt, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -13,11 +13,12 @@ const card = async (p, k) => flat(await p.$eval(`[data-feat="${k}"]`, (e) => e.i
 const openFeatures = async (p) => { await p.evaluate(() => show("info")); await p.click("#v-info [data-feat-open]"); await p.waitForSelector("#feat"); };
 const closed = (p) => p.waitForFunction(() => document.querySelector("#sheet").hidden);
 const navTabs = (p) => p.$$eval("nav.tabs [data-tab]", (x) => x.filter((b) => !b.hidden).map((b) => b.dataset.tab));
-const teamTabs = (p) => p.$$eval("[data-tpane]", (x) => x.map((b) => `${b.dataset.tpane}:${b.firstChild.textContent}`));
-// Which page is showing: a bottom tab, the Shift tab's pane, or the Team tab (and the Managers part).
+// The Team page's cards, as part:name: those for everyone, or the managers'.
+const teamTabs = async (p, g = "Everyone") => { await part(p, ""); return p.$$eval(`#hub [data-g="${g}"] [data-tpane]`, (x) => x.map((b) => `${b.dataset.tpane}:${b.querySelector("b").textContent}`)); };
+// Which page is showing: a bottom tab, the Shift tab's pane, or the part of the Team page.
 const where = (p) => p.evaluate(() => {
   const v = TABS.find((t) => !$("#v-" + t).hidden);
-  return v === "tally" ? `tally:${pane}` : v === "notices" ? `team:${tpane}${tpane === "managers" ? `:${msub}` : ""}` : v;
+  return v === "tally" ? `tally:${pane}` : v === "notices" ? `team:${tpane}` : v;
 });
 const switched = (p, off) => p.waitForFunction((o) => [...LIVE.off].sort().join() === o, [...off].sort().join());
 
@@ -38,6 +39,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   await closed(S);
   assert.equal(await where(S), "team:rota");
   // From the Team page too: "What I can do".
+  await part(S, "");
   await S.click("#team [data-feat-open]");
   await S.waitForSelector("#feat");
   await S.click('[data-feat-go="send"]'); await closed(S);
@@ -48,7 +50,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   assert.match(await card(M, "live"), /^Live Tonight as it happens: .* You: Share tonight's summary on WhatsApp or by email\. Open$/);
   assert.match(await card(M, "lists"), /Staff: Tick items off, .* You: The same, and give an item to someone/);
   await M.click('[data-feat-go="kpis"]'); await closed(M);
-  assert.equal(await where(M), "team:managers:kpis");
+  assert.equal(await where(M), "team:kpis");
   await openFeatures(M);
   await M.click('[data-feat-go="incidents"]'); await closed(M);
   assert.equal(await where(M), "team:reports");
@@ -97,15 +99,15 @@ test("the owner switches features off for everyone, and switching them on brings
   await O.evaluate((o) => LIVE.api.setOff(o), off);
   for (const p of [M, S]) await switched(p, off);
 
-  // Staff: no Allergens tab (and off it if they were on it), no Chat or Rota, only Running late in Me, no My pay.
+  // Staff: no Allergens tab (and off it if they were on it), no Chat or Rota, only Running late in Tell the managers, no My pay.
   assert.equal(await where(S), "drinks");
   assert.deepEqual(await navTabs(S), ["drinks", "make", "practice", "tally", "info"]);
   assert.equal(await S.evaluate(() => getComputedStyle($("nav.tabs")).gridTemplateColumns.split(" ").length), 5);
   await S.evaluate(() => show("allergens"));
   assert.equal(await where(S), "drinks", "a switched-off tab can't be opened");
-  await S.evaluate(() => show("notices"));
-  assert.deepEqual(await teamTabs(S), ["board:Board", "activity:Activity", "reports:Reports", "me:Me"]);
-  await S.click("[data-tpane=me]");
+  const rest = ["reports:Reports", "issues:Issues and handover", "concerns:Concerns", "board:Broadcasts", "me:Tell the managers"];
+  assert.deepEqual(await teamTabs(S), [...rest, "activity:Activity"]);
+  await part(S, "me");
   assert.deepEqual(await S.$$eval("[data-mek]", (x) => x.map((b) => b.dataset.mek)), ["late"]);
   assert.doesNotMatch(await S.$eval("#me", (e) => e.innerText), /YOUR REQUESTS|Time off/, "time off is hidden, not deleted");
   assert.equal((await S.$$eval("#dash button", (x) => x.map((b) => b.textContent))).filter((t) => /next shift/.test(t)).length, 0);
@@ -115,19 +117,16 @@ test("the owner switches features off for everyone, and switching them on brings
   await S.evaluate(() => show("practice"));
   assert.equal(await S.locator("#p-signed").count(), 0, "no training sign-offs in Practise");
 
-  // A manager: the Rota tab is just Requests, no incidents, KPIs, training or feedback, and no football form.
-  await M.evaluate(() => show("notices"));
-  assert.deepEqual(await teamTabs(M), ["board:Board", "rota:Requests", "reports:Reports", "managers:Managers", "me:Me"]);
-  await M.click("[data-tpane=rota]");
+  // A manager: Requests but no rota or calendar, no incidents, KPIs, training or feedback, and no football form.
+  assert.deepEqual(await teamTabs(M), rest);
   assert.equal(await M.$eval("#rota", (e) => e.innerHTML), "");
+  await part(M, "requests");
   assert.doesNotMatch(await M.$eval("#requests", (e) => e.innerText), /Wedding/);
-  await M.click("[data-tpane=reports]");
+  await part(M, "reports");
   assert.deepEqual(await M.$$eval("[data-rp-show]", (x) => x.map((b) => b.dataset.rpShow)), ["all", "bar", "floor", "kitchen", "flagged"]);
   assert.doesNotMatch(await M.$eval("#reports", (e) => e.innerText), /OPEN INCIDENTS|Cold fries/);
-  await M.click("[data-tpane=managers]");
-  assert.deepEqual(await M.$$eval("#msub [data-msub]", (x) => x.map((b) => b.dataset.msub)), ["live", "act", "out", "team"]);
-  const tiles = await M.$$eval("#dash button span", (x) => x.map((e) => e.textContent));
-  assert.ok(!tiles.some((t) => /shifts? to fill|open incidents/.test(t)), tiles.join());
+  assert.deepEqual(await teamTabs(M, "Managers"), ["live:Live", "requests:Requests", "act:Activity", "out:86 log", "team:Team logins"]);
+  assert.doesNotMatch(await M.$eval("#foryou", (e) => e.innerText), /shifts? to fill|open incident/);
   await M.evaluate(() => show("tally"));
   assert.equal(await M.locator("#fx-add").count(), 0, "no football");
 
@@ -144,11 +143,11 @@ test("the owner switches features off for everyone, and switching them on brings
   await O.evaluate(() => LIVE.api.setOff([]));
   for (const p of [M, S]) await switched(p, []);
   assert.deepEqual(await navTabs(S), ["drinks", "make", "allergens", "practice", "tally", "pay", "info"]);
-  await M.evaluate(() => show("notices")); await M.click("[data-tpane=rota]");
+  await part(M, "requests");
   await M.waitForFunction(() => /Wedding/.test($("#requests").innerText));
-  await M.click("[data-tpane=reports]");
+  await part(M, "reports");
   assert.match(await M.$eval("#reports", (e) => e.innerText), /OPEN INCIDENTS\s.*Cold fries/s);
-  await S.evaluate(() => show("notices")); await S.click("[data-tpane=me]");
+  await part(S, "me");
   assert.match(await S.$eval("#me", (e) => e.innerText), /YOUR REQUESTS\sTime off · /);
   assert.equal(await toastOf(S), "");
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
@@ -174,7 +173,7 @@ test("the tour opens each feature that's on, one step at a time", async () => {
   assert.match(await step(S), /^STEP 1 OF 14 Drinks Every drink with its spec/);
   const shift = await S.evaluate(() => defaultPane());
   assert.deepEqual(await walk(S), ["Drinks drinks", "Cocktail maker make", "Allergens allergens", "Practise practice", "My pay pay", `Checklists tally:${shift}`, "Date labels tally:labels",
-    "Restock and 86 tally:stock", "Shift report tally:send", "Issues and handover team:board", "Chat team:chat", "Rota team:rota", "Calendar team:rota", "Reports team:reports"]);
+    "Restock and 86 tally:stock", "Shift report tally:send", "Issues and handover team:issues", "Chat team:chat", "Rota team:rota", "Calendar team:rota", "Reports team:reports"]);
   assert.equal(await step(S), "", "Done ends the tour");
 
   // Back goes back a step; End the tour stops it.
@@ -195,6 +194,6 @@ test("the tour opens each feature that's on, one step at a time", async () => {
   await switched(M, ["rota", "chat", "allergens"]);
   await openFeatures(M); await M.click("#tour-go"); await closed(M);
   assert.deepEqual(await walk(M), ["Drinks drinks", "Cocktail maker make", "Practise practice", "My pay pay", `Checklists tally:${shift}`, "Date labels tally:labels", "Restock and 86 tally:stock",
-    "Shift report tally:send", "Issues and handover team:board", "Calendar team:rota", "Reports team:reports", "Live team:managers:live", "Closing KPIs team:managers:kpis", "Training team:managers:training"]);
+    "Shift report tally:send", "Issues and handover team:issues", "Calendar team:rota", "Reports team:reports", "Live team:live", "Closing KPIs team:kpis", "Training team:training"]);
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
