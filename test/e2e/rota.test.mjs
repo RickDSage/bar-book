@@ -13,9 +13,14 @@ const people = [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff", "sam"
 const flat = (s) => s.replace(/\s+/g, " ").trim();
 const text = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
-const rota = async (p) => { await p.evaluate(() => show("notices")); await p.click("[data-tpane=rota]"); };
+// The rota, showing the week with day n in it (days by number from this week's Monday, so 7 is next Monday).
+const rota = async (p, n = 0) => { await p.evaluate(() => show("notices")); await p.click("[data-tpane=rota]"); if (n >= 7) await p.click('[data-ro-wk="7"]'); };
 const week = (p, n = 0) => p.evaluate((n) => addDays(weekOf(shiftDay()), 7 * n), n);
 const day = (p, n) => p.evaluate((n) => addDays(weekOf(shiftDay()), n), n);
+// Two days still to come, whatever day the tests run: tomorrow and the day after, or next Monday and Tuesday when this
+// week ends tomorrow, so both are in one week and in the next 7 days. Only a shift still to come can be taken, turned
+// down or covered.
+const soon = (p) => p.evaluate(() => { const n = (Date.parse(shiftDay()) - Date.parse(weekOf(shiftDay()))) / 864e5 + 1; return n >= 6 ? [7, 8] : [n, n + 1]; });
 // One shift by its day and start time, and the row as it reads without the ⋯ button.
 const idOf = (p, day, start) => p.evaluate(([d, s]) => LIVE.shifts.find((x) => x.day === d && x.start === s)?.id, [day, start]);
 const rowText = async (p, d, start) => flat(await p.$eval(`[data-ro-more="${await idOf(p, d, start)}"]`, (b) => b.closest(".ro").innerText)).replace(/ ⋯/g, "");
@@ -106,13 +111,14 @@ test("a manager drafts a week, copies last week's and publishes it", async () =>
 test("hands up for an open shift, and a manager gives it to someone", async () => {
   await resetEmulators();
   const { O, M, S, T } = await team(browser, site, people);
-  await rota(O);
-  await add(O, [1], "18:00", "02:00");
+  const [n] = await soon(O);
+  await rota(O, n);
+  await add(O, [n], "18:00", "02:00");
   await settled(O, 1);
   await O.click("#ro-pub");
   await settled(S, 1);
-  const d1 = await day(S, 1);
-  await rota(S); await rota(T);
+  const d1 = await day(S, n);
+  await rota(S, n); await rota(T, n);
   assert.match(await rowText(S, d1, "18:00"), /18:00–02:00 Open shift Bar I can do it/);
 
   await S.click(`[data-ro="${await idOf(S, d1, "18:00")}"][data-ro-act=wants]`);
@@ -144,13 +150,14 @@ test("hands up for an open shift, and a manager gives it to someone", async () =
 test("a shift offered to someone is theirs to take or turn down", async () => {
   await resetEmulators();
   const { O, S, T } = await team(browser, site, people);
-  await rota(O);
-  await add(O, [1, 2], "18:00", "02:00", "", { offer: "Sam Staff" });
+  const [n1, n2] = await soon(O);
+  await rota(O, n1);
+  await add(O, [n1, n2], "18:00", "02:00", "", { offer: "Sam Staff" });
   await settled(O, 2);
   await O.click("#ro-pub");
   await settled(S, 2);
-  const [d1, d2] = [await day(S, 1), await day(S, 2)];
-  await rota(S); await rota(T);
+  const [d1, d2] = [await day(S, n1), await day(S, n2)];
+  await rota(S, n1); await rota(T, n1);
   assert.match(await rowText(S, d1, "18:00"), /Offered to you Bar Take it No thanks/);
   assert.match(await rowText(T, d1, "18:00"), /Offered to Sam Staff Bar/);
   assert.equal(await T.locator("[data-ro-act=took]").count(), 0, "only the person it's offered to can take it");
@@ -172,13 +179,14 @@ test("a shift offered to someone is theirs to take or turn down", async () => {
 test("someone who can't make their shift says so, and can take it back", async () => {
   await resetEmulators();
   const { O, M, S, T } = await team(browser, site, people);
-  await rota(O);
-  await add(O, [1], "18:00", "02:00", "Sam Staff");
+  const [n] = await soon(O);
+  await rota(O, n);
+  await add(O, [n], "18:00", "02:00", "Sam Staff");
   await settled(O, 1);
   await O.click("#ro-pub");
   await settled(S, 1);
-  const d1 = await day(S, 1);
-  await rota(S); await rota(T);
+  const d1 = await day(S, n);
+  await rota(S, n); await rota(T, n);
 
   S.answer = "";
   await S.click(`[data-ro="${await idOf(S, d1, "18:00")}"][data-ro-act=cover]`);

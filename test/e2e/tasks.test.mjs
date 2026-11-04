@@ -19,6 +19,9 @@ const csv = (v) => (/[",\r\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""
 const hm = (t) => new Date(t).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Europe/London" });
 const minsAgo = (m) => new Date(Date.now() - m * 6e4);
 const row = (p, k, i) => p.$eval(`[data-list=${k}][data-i="${i}"]`, (e) => e.innerText.replace(/\s+/g, " ").trim());
+// The list's status box, found and read in one go. ($eval finds it, then reads it in a second step; a teammate's change
+// arriving in between redraws the list, and a box no longer on the page reads without its line breaks.)
+const runBox = (p) => p.evaluate(() => document.querySelector(".run").innerText.replace(/\s+/g, " ").trim());
 const settled = (p, id, status) => p.waitForFunction(([id, s]) => LIVE.tasks[id]?.status === s && !LIVE.tasks[id].pending, [id, status]);
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
 const shift = async (p, pane) => { await p.click("[data-tab=tally]"); await p.click(`.ptabs [data-pane=${pane}]`); };
@@ -68,7 +71,7 @@ test("tasks change on every phone as they happen, with who, when and why, and co
   await settled(T, "close-0", "done");
   assert.match(await row(T, "close", 0), /Done By Sam Staff, \d\d:\d\d$/);
   await T.waitForFunction(() => LIVE.runs.close?.status === "started" && !LIVE.runs.close.pending);
-  assert.match(flat(await T.$eval(".run", (e) => e.innerText)), /^In progress Started by Sam Staff, \d\d:\d\d Finish shows once every item is done\.$/);
+  assert.match(await runBox(T), /^In progress Started by Sam Staff, \d\d:\d\d Finish shows once every item is done\.$/);
 
   // Started, then blocked with a reason: everyone on the bar and the managers are told.
   await pick(S, "close-3", "doing");
@@ -165,7 +168,7 @@ test("a list finishes once everything's done; finishing early takes a manager an
   for (const i of [1, 2, 3]) await S.click(`[data-list=fset][data-i="${i}"]`);
   await M.waitForFunction(() => [1, 2, 3].every((i) => LIVE.tasks[`fset-${i}`]?.status === "done" && !LIVE.tasks[`fset-${i}`].pending));
   assert.equal(await S.locator('[data-run="fset"][data-to="finished"]').count(), 0);
-  assert.match(await S.$eval(".run", (e) => e.innerText), /Finish shows once every item is done/);
+  assert.match(await runBox(S), /Finish shows once every item is done/);
   assert.equal(await attempt(S, () => LIVE.api.setRun("fset", "Tables and cutlery", "finished", 3, 4, "Done enough")), "permission-denied");
 
   // A manager can finish it anyway, saying why. The floor is told, and the list locks.
@@ -173,7 +176,7 @@ test("a list finishes once everything's done; finishing early takes a manager an
   await M.click('[data-run="fset"][data-to="override"]');
   await waitToast(S, /^Tables and cutlery finished by Mia Manager, with 1 not done$/);
   await S.waitForFunction(() => LIVE.runs.fset?.status === "finished" && !LIVE.runs.fset.pending);
-  assert.match(flat(await S.$eval(".run", (e) => e.innerText)),
+  assert.match(await runBox(S),
     /^Finished Started by Mia Manager, \d\d:\d\d\. Finished by Mia Manager, \d\d:\d\d, with 1 of 4 not done\. Reason: Short staffed, last table done tomorrow$/);
   await S.click('[data-list=fset][data-i="4"]');
   assert.equal(await toastOf(S), "Tables and cutlery is finished. A manager can reopen it");
