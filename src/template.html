@@ -132,6 +132,8 @@ nav.tabs button { height: var(--tabh); display: flex; flex-direction: column; al
 nav.tabs button svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
 nav.tabs button[hidden] { display: none; }
+/* Seven tabs on a small phone: a size smaller, so every name stays on one line. */
+@media (max-width: 359px) { nav.tabs button { font-size: 11px; white-space: nowrap; } }
 
 /* Allergens, tally, practice, info */
 .lead { color: var(--muted); margin: 8px 0 0; max-width: 62ch; }
@@ -717,7 +719,6 @@ function rowHtml(d) {
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
 }
-const byName = (n) => D.find((d) => d.name === n);
 let recent = store.get("recent", []).filter((id) => D[id]);
 const FLAVOURS = {
   "Fruity": ["Fruity"], "Sweet": ["Sweet"], "Sour": ["Sour", "Zesty", "Citrus"], "Fresh & light": ["Fresh", "Light", "Easy"],
@@ -954,11 +955,6 @@ $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("[data-dm-photo-del]") && confirm(`Remove the photo of ${d.name} for everyone?`)) saveMedia(d, "", null, "Photo removed");
 });
 
-function openGuide(name) {
-  lastFocus = document.activeElement; keepAwake();
-  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">${esc(name)}</span><span></span></div></div><div class="hero solo"><div><h2 id="sh-name">${esc(name)}</h2><div class="sub">Tap each step when it is done</div></div></div>${guideHtml(DATA.guides[name])}<button class="btn wide" id="sh-close2">Back to drinks</button>`;
-  showSheet(false); $("#car").addEventListener("scroll", carSync, { passive: true }); $("#sheet").scrollTop = 0; $("#sh-close").focus();
-}
 function closeSheet() { if (history.state?.sheet) history.back(); else hideSheet(); }
 function hideSheet() {
   document.querySelector(".swhint")?.remove();
@@ -2294,10 +2290,6 @@ function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
     <div class="fbbox" style="margin-top:12px"><h2 style="margin-top:0">What's in the app</h2><p>Every feature, what it's for and what you can do with it, and a tour that shows you round.</p><button class="btn pri" data-feat-open>See the features</button></div>
-    <h2>Light or dark</h2>
-    <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
-    <p class="note">Auto follows your phone. This phone only.</p>
-    <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and sends the good ones out as broadcasts.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
     <h2>Measures and the law</h2>
     <ul>
       <li>Gin, rum, vodka and whisky on their own or with one mixer go in 25 ml or 35 ml measures (or multiples). We use 25 ml and 50 ml.</li>
@@ -2316,6 +2308,10 @@ function renderInfo() {
     </dl>
     <h2>Prep and batches</h2>${prep}
     <h2>Shot tray, step by step</h2>${guideHtml(DATA.guides["Shot tray"])}
+    <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and sends the good ones out as broadcasts.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
+    <h2>Light or dark</h2>
+    <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
+    <p class="note">Auto follows your phone. This phone only.</p>
     <h2>Put this app on your home screen</h2>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
     <h3 style="font-size:18px;margin-top:14px">iPhone</h3>
@@ -2331,7 +2327,7 @@ function renderInfo() {
       <li>Tap <b>Install</b>. It now opens like an app.</li>
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>
-    <p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 25 October 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
+    <p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
     <p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p>`;
 }
 
