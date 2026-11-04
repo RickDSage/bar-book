@@ -19,6 +19,7 @@
   --brass-ink: #1b1408;
   --warn: #ff8a6b;      /* allergens and unconfirmed */
   --ok: #8fd39a;
+  --cool: #8db9e8;      /* school holidays on the calendar */
   --display: "Big Shoulders Display", "Arial Narrow", Impact, sans-serif;
   --body: "Atkinson Hyperlegible", -apple-system, "Segoe UI", Roboto, sans-serif;
   --tabh: 62px;
@@ -37,6 +38,7 @@
   --brass-ink: #fffaf0;
   --warn: #b0361b;
   --ok: #2d7a3a;
+  --cool: #2a5f9e;
   --shadow: rgba(60,40,10,.18);
 }
 * { box-sizing: border-box; }
@@ -386,6 +388,26 @@ a.btn { text-decoration: none; color: inherit; }
 .rowk b { display: block; font-size: 17px; }
 .rowk .s { color: var(--muted); font-size: 13.5px; }
 .rowk .round:disabled { opacity: .3; }
+/* The calendar: a month of days, each with dots for what's on it and a line under it in school holidays. */
+.calgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 6px; }
+.calgrid .wd { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); padding: 2px 0; }
+.cd { position: relative; display: flex; flex-direction: column; align-items: center; gap: 4px; min-height: 50px; padding: 7px 0 8px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-weight: 700; font-size: 15px; }
+.cd.out { opacity: .45; }
+.cd.bh { background: color-mix(in srgb, var(--brass) 20%, var(--surface)); }
+.cd.today { box-shadow: inset 0 0 0 2px var(--brass); }
+.cd.rng { background: color-mix(in srgb, var(--ok) 26%, var(--surface)); border-color: var(--ok); }
+.cd[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
+.cd .dots { display: flex; gap: 3px; height: 6px; }
+.cd .dots i, .calkey i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+.cd.sc::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: 3px; height: 3px; border-radius: 2px; background: var(--cool); }
+.d-hol { background: var(--brass); } .d-ev { background: var(--warn); } .d-on { background: var(--fg); } .d-off { background: var(--ok); }
+.d-ask { box-shadow: inset 0 0 0 1.5px var(--ok); }
+.cd[aria-pressed="true"] .dots i { box-shadow: 0 0 0 1px var(--brass-ink); }
+.calkey { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 10px 0 4px; font-size: 13px; color: var(--muted); }
+.calkey i { margin-right: 6px; vertical-align: 1px; }
+.calkey i.sch { width: 14px; height: 3px; border-radius: 2px; background: var(--cool); }
+.calrow { display: block; width: 100%; text-align: left; padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--fg); }
+.calrow .w { display: inline-block; min-width: 7.5em; color: var(--muted); }
 .two.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .prep.st-doing .box { border-color: var(--brass); color: var(--brass); }
 .prep.st-blocked .box { border-color: var(--warn); color: var(--warn); }
@@ -528,7 +550,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="rota"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
 </main>
@@ -619,7 +641,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -2276,9 +2298,13 @@ const FEATURES = [
     what: "The week's shifts once a manager publishes them, with open shifts, offers and cover.",
     staff: "See your shifts, put your hand up for an open one, take or turn down an offer, or say you can't make one.",
     mgr: "Make a week as a draft, publish it, give shifts to people, copy last week, and download or share it." },
+  { g: "Team", k: "calendar", n: "Calendar", go: "cal", login: 1, sw: 1, tour: 1,
+    what: "Bank holidays, school holidays and half terms, events, and the nights that change how busy we are, with your shifts and time off.",
+    staff: "Tap a day to see what's on it, and ask for time off from there.",
+    mgr: "Add school holidays for the boroughs that matter to the team, events and days we're shut, and see everyone's time off." },
   { g: "Team", k: "asks", n: "Time off and swaps", go: "me", mgrGo: "requests", login: 1, sw: 1,
     what: "Asking for time off or a shift swap, answered by a manager.",
-    staff: "Ask from the Me tab and see the answer there.", mgr: "Approve or decline each one. A manager's own go to another manager or the owner." },
+    staff: "Ask from the Me tab or a day on the calendar, and see the answer in Me.", mgr: "Approve or decline each one. A manager's own go to another manager or the owner." },
   { g: "Team", k: "late", n: "Running late", go: "me", mgrGo: "requests", login: 1,
     what: "Telling the managers roughly when you'll get in.",
     staff: "Send it from the Me tab in two taps.", mgr: "See it straight away and mark it seen." },
@@ -2454,11 +2480,11 @@ function renderTeamTop() {
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#feed"], chat: ["#chat"], rota: ["#rota", "#requests"], activity: ["#sact"], reports: ["#reports"], managers: ["#msub", "#live", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
+const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#feed"], chat: ["#chat"], rota: ["#rota", "#cal", "#requests"], activity: ["#sact"], reports: ["#reports"], managers: ["#msub", "#live", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
 // Time off and swaps can be switched off (a venue that does them in Nory). Running late can't.
@@ -2471,8 +2497,8 @@ const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 function renderTeamTabs() {
   const all = Object.values(TSLOTS).flat();
   if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
-  // With the rota switched off, managers keep the tab for staff requests.
-  const rotaTab = isOn("rota") ? [["rota", "Rota"]] : LIVE.admin ? [["rota", "Requests"]] : [];
+  // With the rota switched off, the tab is the calendar's, and managers keep it for staff requests.
+  const rotaTab = isOn("rota") ? [["rota", "Rota"]] : calOn() ? [["rota", "Calendar"]] : LIVE.admin ? [["rota", "Requests"]] : [];
   const tabs = [["board", "Board"], ...(isOn("chat") ? [["chat", "Chat"]] : []), ...rotaTab, ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["managers", "Managers"]] : []), ["me", "Me"]];
   if (!tabs.some(([k]) => k === tpane)) tpane = "board";
   // Managers: requests to answer and shifts to fill. Staff: shifts offered to them.
@@ -2481,6 +2507,7 @@ function renderTeamTabs() {
   const badge = (k) => (count[k] && count[k][0] ? `${count[k][0]} ${count[k][1]}` : "");
   $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge(k)}</small></button>`).join("")}</div>`;
   for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
+  if (tpane === "rota") { $("#rota").hidden = calShown(); $("#cal").hidden = !calShown(); }
   if (tpane !== "managers") return;
   const subs = MSUB.filter(([k]) => !["kpis", "training", "feedback"].includes(k) || isOn(k));
   if (!subs.some(([k]) => k === msub)) msub = "live";
@@ -2539,7 +2566,9 @@ function go(where) {
   if (where === "incidents") { rpShow = "all"; where = "reports"; }
   // Staff requests sit under the rota. A week can come with it ("rota:2026-11-09").
   if (where === "requests") { tpane = "rota"; renderTeamTabs(); $("#requests").scrollIntoView({ block: "start" }); return; }
-  if (where.startsWith("rota")) { roWk = where.split(":")[1] || roWk; where = "rota"; renderRota(); }
+  // The calendar is under the Rota tab, so the rota means its week view.
+  if (where === "cal") { roView = "cal"; where = "rota"; renderCal(); }
+  else if (where.startsWith("rota")) { roView = "week"; roWk = where.split(":")[1] || roWk; where = "rota"; renderRota(); }
   // A part of the Managers tab ("msub:kpis").
   if (where.startsWith("msub:")) { msub = where.slice(5); where = "managers"; }
   const board = where === "issues" || where === "concerns";
@@ -2788,7 +2817,7 @@ function renderRota() {
   const box = $("#rota"); if (!box) return;
   if (!LIVE.me || !isOn("rota")) { box.innerHTML = ""; return; }
   const A = LIVE.admin, head = `<div class="sec">Rota</div><p class="note">${A ? "Make a week as a draft, then publish it. Hands up, offers and cover requests show on each shift." : "Put your hand up for an open shift, or say here if you can't make one of yours. A manager decides who works it."}</p>`;
-  if (!LIVE.loaded.has("shifts")) { box.innerHTML = `${head}<p class="note">Loading the rota. It needs signal the first time.</p>`; return; }
+  if (!LIVE.loaded.has("shifts")) { box.innerHTML = `${roViews()}${head}<p class="note">Loading the rota. It needs signal the first time.</p>`; return; }
   const wk = roWeek(), [lo, hi] = roRange(), xs = weekShifts(wk), drafts = xs.filter((x) => !x.pub), last = weekShifts(addDays(wk, -7));
   const mine = xs.filter((x) => x.who === LIVE.uid), offers = roOffers().filter((x) => x.week !== wk);
   const shown = xs.filter((x) => !roSide || (roSide === "me" ? x.who === LIVE.uid : x.side === roSide));
@@ -2810,8 +2839,9 @@ function renderRota() {
   }).join("") : "";
   const hours = A && xs.length ? roHours(xs) : "";
   const acts = xs.length ? `<div class="actions">${shareBtns("rota")}${A ? dlHtml("shifts", "Download every week as a spreadsheet", "rota") : ""}</div>` : "";
-  const foot = A ? roAddHtml(wk, xs.some((x) => x.pub)) : `<p class="note">Need a day off? Ask from the <button class="linkbtn" data-go="me">Me tab</button>.</p>`;
-  box.innerHTML = head + nav + status + you + elsewhere + chips + days + hours + acts + foot;
+  const foot = A ? roAddHtml(wk, xs.some((x) => x.pub)) : !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? Tap it on the <button class="linkbtn" data-roview="cal">calendar</button>, or ask from the <button class="linkbtn" data-go="me">Me tab</button>.</p>`
+    : `<p class="note">Need a day off? Ask from the <button class="linkbtn" data-go="me">Me tab</button>.</p>`;
+  box.innerHTML = roViews() + head + nav + status + you + elsewhere + chips + days + hours + acts + foot;
 }
 // Each person's shifts and hours in the week, then the open shifts.
 function roHours(xs) {
@@ -2963,6 +2993,179 @@ async function showPhotos(id) {
   shownPhotos[id] = ps.length ? ps.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><p class="txt">${p.note ? esc(p.note) : "<span class=\"note\">No note</span>"}</p></div>`).join("") : `<p class="note">These photos were cleared (photos are kept for ${LIVE.api.KEEP_DAYS} days).</p>`;
   const box = document.querySelector(`[data-photos-of="${id}"]`); if (box) box.innerHTML = shownPhotos[id];
 }
+/* ---------- Calendar ----------
+   A month at a time, under the Rota tab: bank holidays in England and Wales, the days that change a bar's night, what
+   managers add (school holidays and half terms, which differ by borough, events, and days the venue is shut), and each
+   person's own shifts, time off and the games on the screens. Managers see everyone's time off. Tapping a day shows all
+   of it, and asking for time off from there goes to the managers like an ask from the Me tab. */
+// England and Wales, from https://www.gov.uk/bank-holidays.json (fetched 4 November 2026). It runs to the end of 2028:
+// add the next years when gov.uk publishes them, and move BANK_TO on.
+const BANK_HOLS = {
+  "2026-01-01": "New Year's Day", "2026-04-03": "Good Friday", "2026-04-06": "Easter Monday", "2026-05-04": "Early May bank holiday",
+  "2026-05-25": "Spring bank holiday", "2026-08-31": "Summer bank holiday", "2026-12-25": "Christmas Day", "2026-12-28": "Boxing Day (substitute day)",
+  "2027-01-01": "New Year's Day", "2027-03-26": "Good Friday", "2027-03-29": "Easter Monday", "2027-05-03": "Early May bank holiday",
+  "2027-05-31": "Spring bank holiday", "2027-08-30": "Summer bank holiday", "2027-12-27": "Christmas Day (substitute day)", "2027-12-28": "Boxing Day (substitute day)",
+  "2028-01-03": "New Year's Day (substitute day)", "2028-04-14": "Good Friday", "2028-04-17": "Easter Monday", "2028-05-01": "Early May bank holiday",
+  "2028-05-29": "Spring bank holiday", "2028-08-28": "Summer bank holiday", "2028-12-25": "Christmas Day", "2028-12-26": "Boxing Day",
+};
+const BANK_TO = "2028-12-31";
+// Easter Sunday by the Gregorian rule (the "anonymous" algorithm), for Mothering Sunday.
+function easter(y) {
+  const a = y % 19, b = Math.floor(y / 100), c = y % 100;
+  const h = (19 * a + b - Math.floor(b / 4) - Math.floor((b - Math.floor((b + 8) / 25) + 1) / 3) + 15) % 30;
+  const l = (32 + 2 * (b % 4) + 2 * Math.floor(c / 4) - h - (c % 4)) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451), n = h + l - 7 * m + 114;
+  return `${y}-${String(Math.floor(n / 31)).padStart(2, "0")}-${String((n % 31) + 1).padStart(2, "0")}`;
+}
+// A month's nth Sunday, or with n = 0 its last. Month 1 is January.
+function sundayOf(y, mo, n) {
+  if (!n) { const last = new Date(Date.UTC(y, mo, 0)); return addDays(last.toISOString().slice(0, 10), -last.getUTCDay()); }
+  const first = new Date(Date.UTC(y, mo - 1, 1));
+  return addDays(first.toISOString().slice(0, 10), ((7 - first.getUTCDay()) % 7) + 7 * (n - 1));
+}
+// Days that change the night, worked out for any year: [day, name, more]. The clocks change in the early hours of a
+// Sunday, so the night it happens on is the Saturday's. When Christmas Day, Boxing Day or New Year's Day is at a weekend,
+// the bank holiday moves to a weekday, so the day itself is here too.
+const NOTABLE = new Map();
+function notable(y) {
+  if (!NOTABLE.has(y)) NOTABLE.set(y, [
+    ...[[`${y}-01-01`, "New Year's Day"], [`${y}-12-25`, "Christmas Day"], [`${y}-12-26`, "Boxing Day"]].filter(([d]) => !BANK_HOLS[d]),
+    [`${y}-02-14`, "Valentine's Day"], [`${y}-03-17`, "St Patrick's Day"], [addDays(easter(y), -21), "Mothering Sunday"],
+    [addDays(sundayOf(y, 3, 0), -1), "Clocks go forward tonight", "At 1am they go to 2am, so a shift that runs past 1am is an hour shorter than its times say."],
+    [sundayOf(y, 6, 3), "Father's Day"],
+    [addDays(sundayOf(y, 10, 0), -1), "Clocks go back tonight", "At 2am they go back to 1am, so a shift that runs past 2am is an hour longer than its times say."],
+    [`${y}-10-31`, "Halloween"], [`${y}-12-24`, "Christmas Eve"], [`${y}-12-31`, "New Year's Eve"],
+  ]);
+  return NOTABLE.get(y);
+}
+const CAL_KINDS = { school: "School holidays", event: "Event", closed: "Venue closed" };
+const CAL_EG = { school: "Half term (Westminster schools)", event: "Pride in London", closed: "Closed for the refit" };
+const calOn = () => isOn("calendar");
+// The month shown ("2026-11"; "" is this month), the day picked ("" is today), and the two forms, kept apart from the
+// page so a teammate's change redrawing it loses nothing.
+let roView = "week", calMon = "", calSel = "", calDayShown = "";
+const calF = { open: false, date1: "", date2: "", note: "" };
+const calE = { open: false, id: "", kind: "school", title: "", date1: "", date2: "", note: "" };
+// With the rota and the calendar both on, the Rota tab shows one of them; with only one on, that one.
+const calShown = () => calOn() && (!isOn("rota") || roView === "cal");
+const roViews = () => (isOn("rota") && calOn() ? `<div class="chips" role="toolbar" aria-label="Show">${[["week", "Shifts"], ["cal", "Calendar"]].map(([k, t]) => `<button class="chip" data-roview="${k}" aria-pressed="${roView === k}">${t}</button>`).join("")}</div>` : "");
+const monthOf = (day) => day.slice(0, 7);
+const addMonths = (mon, n) => { const t = +mon.slice(0, 4) * 12 + +mon.slice(5, 7) - 1 + n; return `${Math.floor(t / 12)}-${String((t % 12) + 1).padStart(2, "0")}`; };
+const monthEnd = (mon) => addDays(`${addMonths(mon, 1)}-01`, -1);
+// Three months back (as far as the app loads what managers add) to two years ahead.
+const calRange = () => { const m = monthOf(shiftDay()); return [addMonths(m, -3), addMonths(m, 24)]; };
+function calMonth() { const [lo, hi] = calRange(), m = calMon || monthOf(shiftDay()); return m < lo ? lo : m > hi ? hi : m; }
+// What's on a day for everyone: [{ k: kind, t: name, more, x: a manager's entry }].
+function calItems(d) {
+  const out = [];
+  if (BANK_HOLS[d]) out.push({ k: "bank", t: BANK_HOLS[d] });
+  for (const [day, t, more] of notable(+d.slice(0, 4))) if (day === d) out.push({ k: "day", t, more });
+  for (const x of LIVE.cal) if (x.date1 <= d && d <= x.date2) out.push({ k: x.kind, t: x.title, x });
+  return out;
+}
+const myShifts = (d1, d2 = d1) => (isOn("rota") ? LIVE.shifts.filter((x) => x.pub && x.who === LIVE.uid && x.day >= d1 && x.day <= d2).sort((a, b) => a.day.localeCompare(b.day) || roOrder(a, b)) : []);
+const calOff = (d) => (isOn("asks") ? offOn(d).filter((a) => LIVE.admin || a.uid === LIVE.uid) : []);
+const calGames = (d) => (isOn("football") ? LIVE.fixtures.filter((g) => g.day === d).sort((a, b) => a.ko.localeCompare(b.ko)) : []);
+const calSpan = (a, b, o) => (a === b ? dayName(a, o) : `${dayName(a, o)} to ${dayName(b, o)}`);
+function calGridHtml(mon, sel) {
+  const days = [], [a, b] = calF.open ? [calF.date1, calF.date2 || calF.date1] : ["", ""];
+  for (let d = weekOf(`${mon}-01`), end = addDays(weekOf(monthEnd(mon)), 6); d <= end; d = addDays(d, 1)) days.push(d);
+  return `<div class="calgrid">${["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].map((w) => `<div class="wd" aria-hidden="true">${w}</div>`).join("")}${days.map((d) => {
+    const it = calItems(d), on = myShifts(d), off = calOff(d);
+    const dots = [it.some((i) => i.k === "bank" || i.k === "day") && "hol", it.some((i) => i.k === "event" || i.k === "closed") && "ev", on.length && "on",
+      off.length && (off.some((o) => o.status === "approved") ? "off" : "ask")].filter(Boolean);
+    const cls = ["cd", monthOf(d) !== mon && "out", BANK_HOLS[d] && "bh", d === shiftDay() && "today", a && a <= d && d <= b && "rng", it.some((i) => i.k === "school") && "sc"].filter(Boolean).join(" ");
+    const say = [dayName(d, { weekday: "long", day: "numeric", month: "long" }), ...it.map((i) => i.t), on.length && `You're on ${on.map(roTime).join(" and ")}`, ...off.map(offText)].filter(Boolean).join(". ");
+    return `<button class="${cls}" data-cal-day="${d}" aria-pressed="${d === sel}" aria-label="${esc(say)}">${+d.slice(8)}<span class="dots">${dots.map((k) => `<i class="d-${k}"></i>`).join("")}</span></button>`;
+  }).join("")}</div>`;
+}
+function calDayHtml(d) {
+  const A = LIVE.admin, it = calItems(d), on = myShifts(d), off = calOff(d), games = calGames(d), short = { weekday: "short", day: "numeric", month: "short" };
+  const row = (title, s = "", acts = "") => `<div class="staffrow"><div class="n">${title}</div>${s ? `<div class="s">${s}</div>` : ""}${acts}</div>`;
+  const rows = [
+    ...it.map((i) => (i.x ? row(`${esc(i.t)} <span class="pill${i.k === "closed" ? " no" : ""}">${CAL_KINDS[i.k]}</span>`,
+      [i.x.date1 !== i.x.date2 && esc(calSpan(i.x.date1, i.x.date2, short)), i.x.note && esc(i.x.note), A && `Added by ${esc(i.x.name)}, ${i.x.pending ? "saving…" : when(i.x.at)}`].filter(Boolean).join(" · "),
+      A ? `<div class="actions"><button class="btn" data-cal-edit="${i.x.id}">Change</button><button class="btn" data-cal-drop="${i.x.id}">Remove</button></div>` : "")
+      : row(`${esc(i.t)}${i.k === "bank" ? ` <span class="pill">Bank holiday</span>` : ""}`, i.k === "bank" ? "England and Wales" : i.more ? esc(i.more) : ""))),
+    ...on.map((x) => row(`You're on ${roTime(x)}`, `${sideName(x.side)}${x.note ? ` · ${esc(x.note)}` : ""}`)),
+    ...off.map((a) => row(esc(offText(a)), `${esc(calSpan(a.date1, a.date2, short))}${a.note ? ` · ${esc(a.note)}` : ""}`)),
+    ...games.map((g) => row(`${esc(g.ko)} ${esc(g.home)} v ${esc(g.away)}`, [g.comp, g.channel, g.screen].filter(Boolean).map(esc).join(" · "))),
+  ];
+  const can = isOn("asks") && d >= shiftDay();
+  return `<h3 class="actday">${dayName(d, { weekday: "long", day: "numeric", month: "long" })}${d === shiftDay() ? " · today" : ""}</h3>
+    ${rows.join("") || `<p class="note">Nothing on.</p>`}
+    ${calF.open ? calAskHtml() : can ? `<div class="actions"><button class="btn pri" id="cal-ask">Ask for time off from ${dayName(d, { weekday: "short", day: "numeric" })}</button></div>` : ""}`;
+}
+// Asking for time off: the days, any of your shifts in them, and a note.
+function calAskHtml() {
+  const f = calF, clash = f.date1 && f.date2 >= f.date1 ? myShifts(f.date1, f.date2) : [];
+  return `<div class="mini">Time off</div>
+    <p class="note">Tap the last day on the calendar, or pick the days here.</p>
+    <label class="fld">From<input type="date" data-calf="date1" min="${shiftDay()}" value="${f.date1}"></label>
+    <label class="fld">To<input type="date" data-calf="date2" min="${f.date1 || shiftDay()}" value="${f.date2}"></label>
+    ${clash.length ? `<p class="note"><b class="late">You're on ${clash.map((x) => esc(roWhen(x))).join(", ")}.</b> Say in the note if someone could cover.</p>` : ""}
+    <label class="fld">Note (optional)<input data-calf="note" maxlength="300" value="${esc(f.note)}"></label>
+    <div class="actions"><button class="btn pri" id="cal-send">Send to managers</button><button class="btn" id="cal-cancel">Cancel</button></div>`;
+}
+// Everything in the month in date order, each a shortcut to its first day in the month.
+function calListHtml(mon) {
+  const lo = `${mon}-01`, hi = monthEnd(mon), short = { weekday: "short", day: "numeric", month: "short" };
+  const xs = [...Object.entries(BANK_HOLS).filter(([d]) => d >= lo && d <= hi).map(([d, t]) => ({ a: d, b: d, t, k: "Bank holiday" })),
+    ...notable(+mon.slice(0, 4)).filter(([d]) => d >= lo && d <= hi).map(([d, t]) => ({ a: d, b: d, t, k: "" })),
+    ...LIVE.cal.filter((x) => x.date1 <= hi && x.date2 >= lo).map((x) => ({ a: x.date1, b: x.date2, t: x.title, k: CAL_KINDS[x.kind] }))]
+    .sort((x, y) => x.a.localeCompare(y.a) || x.t.localeCompare(y.t));
+  const late = lo > BANK_TO ? `<p class="note">Bank holidays after ${BANK_TO.slice(0, 4)} aren't in the app yet.</p>` : "";
+  return `<div class="mini">In ${dayName(lo, { month: "long" })}</div>${xs.map((x) => `<button class="calrow" data-cal-day="${x.a < lo ? lo : x.a}"><span class="w">${esc(calSpan(x.a, x.b, short))}</span> <b>${esc(x.t)}</b>${x.k ? ` <span class="s">· ${x.k}</span>` : ""}</button>`).join("") || `<p class="note">Nothing this month.</p>`}${late}`;
+}
+// Managers add school holidays, events and days the venue is shut, or change one.
+function calEditHtml() {
+  if (!LIVE.admin) return "";
+  const f = calE;
+  return `<details class="setup" id="cal-add"${f.open ? " open" : ""}><summary>${f.id ? "Change an entry" : "Add to the calendar"}</summary>
+    <p class="note">School holidays and half terms differ by borough, so add the ones that matter to the team and say which borough. Bank holidays are in already.</p>
+    <div class="chips">${Object.entries(CAL_KINDS).map(([k, t]) => `<button class="chip" data-cal-kind="${k}" aria-pressed="${f.kind === k}">${t}</button>`).join("")}</div>
+    <label class="fld">Name<input data-cale="title" maxlength="60" value="${esc(f.title)}" placeholder="${CAL_EG[f.kind]}"></label>
+    <label class="fld">From<input type="date" data-cale="date1" value="${f.date1}"></label>
+    <label class="fld">To<input type="date" data-cale="date2" min="${f.date1}" value="${f.date2}"></label>
+    <label class="fld">Note (optional)<input data-cale="note" maxlength="200" value="${esc(f.note)}" placeholder="Anything the team should know"></label>
+    <div class="actions"><button class="btn pri" id="cal-save">${f.id ? "Save the changes" : "Add to the calendar"}</button>${f.id ? `<button class="btn" id="cal-new">Don't change it</button>` : ""}</div></details>`;
+}
+function renderCal() {
+  const box = $("#cal"); if (!box) return;
+  if (!LIVE.me || !calOn()) { box.innerHTML = ""; return; }
+  const mon = calMonth(), [lo, hi] = calRange(), here = monthOf(shiftDay());
+  const sel = calSel && monthOf(calSel) === mon ? calSel : mon === here ? shiftDay() : `${mon}-01`, n = (+mon.slice(0, 4) - +here.slice(0, 4)) * 12 + +mon.slice(5, 7) - +here.slice(5, 7);
+  const head = `<div class="sec">Calendar</div><p class="note">Bank holidays, school holidays and the big nights, with your shifts and time off${LIVE.admin ? ", and everyone's time off" : ""}. Tap a day to see it${isOn("asks") ? " or ask for it off" : ""}.</p>`;
+  const nav = `<div class="rowk"><button class="round" data-cal-mon="-1" aria-label="The month before"${mon <= lo ? " disabled" : ""}>‹</button>
+    <div><b>${dayName(`${mon}-01`, { month: "long", year: "numeric" })}</b><span class="s">${n === 0 ? "This month" : n === 1 ? "Next month" : n === -1 ? "Last month" : n > 0 ? `In ${n} months` : `${-n} months ago`}</span></div>
+    <button class="round" data-cal-mon="1" aria-label="The month after"${mon >= hi ? " disabled" : ""}>›</button></div>`;
+  const key = `<div class="calkey" aria-hidden="true"><span><i class="d-hol"></i>Bank holiday or big night</span><span><i class="sch"></i>School holidays</span><span><i class="d-ev"></i>Event or closed</span>${isOn("rota") ? `<span><i class="d-on"></i>You're on</span>` : ""}${isOn("asks") ? `<span><i class="d-off"></i>Time off</span>` : ""}</div>`;
+  calDayShown = sel;
+  box.innerHTML = `${roViews()}${head}${nav}${calGridHtml(mon, sel)}${key}<div id="cal-day">${calDayHtml(sel)}</div><div id="cal-list">${calListHtml(mon)}</div>${calEditHtml()}`;
+}
+function calPick(d) {
+  if (monthOf(d) !== calMonth()) calMon = monthOf(d);
+  // With the time off form open, a day before the first moves it, and any other day is the last.
+  if (calF.open) {
+    if (d < shiftDay()) return toast("That day has gone");
+    if (d < calF.date1) calF.date1 = d; else calF.date2 = d;
+  }
+  calSel = d; renderCal();
+}
+function calSend(A) {
+  const f = calF;
+  if (!f.date1 || !f.date2 || f.date2 < f.date1) return toast("Pick the first and last day off");
+  if (f.date1 < shiftDay()) return toast("That day has gone");
+  if (f.date2 > ukDay(Date.now() + 365 * 864e5)) return toast("Pick days in the next year");
+  track(A.ask({ kind: "off", date1: f.date1, date2: f.date2, note: f.note.trim() }), "Sent to the managers", "Not sent. Try again");
+  Object.assign(calF, { open: false, date1: "", date2: "", note: "" }); haptic(); renderCal();
+}
+function calSave(A) {
+  const f = calE, title = f.title.trim();
+  if (!title) return toast("Give it a name");
+  if (!f.date1 || !f.date2 || f.date2 < f.date1) return toast("Pick the first and last day");
+  track(A.saveCal(f.id, { ...f, title, note: f.note.trim() }), f.id ? "Changed on the calendar for everyone" : `${title} is on the calendar for everyone`, "Not saved. Check the signal and try again");
+  Object.assign(calE, { open: false, id: "", title: "", date1: "", date2: "", note: "" }); haptic(); renderCal();
+}
 /* ---------- Concerns ----------
    Anyone can report something that isn't right, with up to 3 photos, to the team or to managers only, and anonymously
    if they like: an anonymous one saves no name, so no one can see it was them. Anyone it went to can mark it dealt with. */
@@ -3065,7 +3268,7 @@ function renderMe() {
   const form = {
     late: () => `<p class="note">Roughly when will you get here? Managers see it straight away.</p>
       <div class="recent">${[10, 15, 20, 30, 45, 60].map((m) => `<button class="chip" data-eta="${m}">+${m} min</button>`).join("")}</div>${fld("Arriving at", "eta", 'type="time"')}`,
-    off: () => fld("From", "date1", from) + fld("To", "date2", from),
+    off: () => fld("From", "date1", from) + fld("To", "date2", from) + (calOn() ? `<p class="note">Or <button class="linkbtn" data-go="cal">pick the days on the calendar</button>, with the bank and school holidays on it.</p>` : ""),
     swap: () => fld("Shift date", "date1", from) + fld("Swapping with", "with", 'maxlength="40" placeholder="Their name"'),
     incident: () => `<label class="fld">What kind<select data-f="ikind"><option value="">Choose…</option>${INCIDENTS.map((k) => `<option${k === meF.ikind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
       <label class="fld">What happened<textarea data-f="itext" rows="4" maxlength="1000" placeholder="What happened, where, and what was done. Use table numbers, not guests' names or contact details.">${esc(meF.itext)}</textarea></label>
@@ -3849,13 +4052,13 @@ function liveChanged(what) {
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
     const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
-      asks: [renderRequests, renderRota, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota], shifts: [renderRota, renderDash, renderLive], lists: [renderDash, renderLive], labels: [renderDash, renderLive], restock: [renderDash, renderLive],
+      asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
+      out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota], shifts: [renderRota, renderCal, renderDash, renderLive], lists: [renderDash, renderLive], labels: [renderDash, renderLive], restock: [renderDash, renderLive],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
-      concerns: [renderConcerns, renderDash, renderAct], fixtures: [], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
+      concerns: [renderConcerns, renderDash, renderAct], fixtures: [renderCal], calendar: [renderCal], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderReports, "#reports"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
@@ -3893,6 +4096,8 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.id === "af-q") { af.q = t.value; actMax = 50; renderActRows(); }
   if (t.dataset.rof) roF[t.dataset.rof] = t.value;
   if (t.dataset.roe && roE) roE[t.dataset.roe] = t.value;
+  if (t.dataset.calf) calF[t.dataset.calf] = t.value;
+  if (t.dataset.cale) calE[t.dataset.cale] = t.value;
 });
 $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
@@ -3910,6 +4115,9 @@ $("#v-notices").addEventListener("change", (e) => {
   // The rota's forms: picking someone hides or shows who it's offered to.
   if (t.dataset.rof) { roF[t.dataset.rof] = t.value; if (t.dataset.rof === "who") renderRota(); }
   if (t.dataset.roe && roE) { roE[t.dataset.roe] = t.value; if (t.dataset.roe === "who") renderRota(); }
+  // The calendar's days: a last day before the first moves up to it, and the page shows the new days.
+  if (t.dataset.calf && t.type === "date") { calF[t.dataset.calf] = t.value; if (calF.date1 && calF.date2 < calF.date1) calF.date2 = calF.date1; renderCal(); }
+  if (t.dataset.cale && t.type === "date") { calE[t.dataset.cale] = t.value; if (calE.date1 && calE.date2 < calE.date1) calE.date2 = calE.date1; renderCal(); }
   if (t.dataset.give && t.value) {
     const p = LIVE.staff.find((x) => x.uid === t.value);
     track(LIVE.api.take(t.dataset.give, p), `Given to ${p.name}`, "Not updated. It may have just been fixed");
@@ -3919,6 +4127,7 @@ $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
   if (e.target.id === "cn-form") cnF.open = e.target.open;
   if (e.target.id === "ro-add") roF.open = e.target.open;
+  if (e.target.id === "cal-add") calE.open = e.target.open;
 }, true);
 function sendMe(A) {
   const f = meF, sent = () => { haptic(); Object.keys(meF).filter((k) => !k.startsWith("fb")).forEach((k) => (meF[k] = "")); renderMe(); };
@@ -3941,6 +4150,25 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.dataset.roWk) { roWk = addDays(roWeek(), +b.dataset.roWk); Object.assign(roF, { days: [] }); roM = ""; roE = null; renderRota(); return; }
   if (b.dataset.roGoto) { roWk = b.dataset.roGoto; roF.days = []; renderRota(); return; }
   if (b.dataset.roSide !== undefined) { roSide = b.dataset.roSide; renderRota(); return; }
+  if (b.dataset.roview) { roView = b.dataset.roview; renderRota(); renderCal(); renderTeamTabs(); $("#tpanes").scrollIntoView({ block: "start" }); return; }
+  if (b.dataset.calMon) { calMon = addMonths(calMonth(), +b.dataset.calMon); calSel = ""; renderCal(); return; }
+  if (b.dataset.calDay) return calPick(b.dataset.calDay);
+  if (b.id === "cal-ask") { Object.assign(calF, { open: true, date1: calDayShown, date2: calDayShown, note: "" }); renderCal(); return; }
+  if (b.id === "cal-cancel") { Object.assign(calF, { open: false, date1: "", date2: "", note: "" }); renderCal(); return; }
+  if (b.id === "cal-send") return calSend(A);
+  if (b.dataset.calKind) { calE.kind = b.dataset.calKind; renderCal(); return; }
+  if (b.id === "cal-save") return calSave(A);
+  if (b.id === "cal-new") { Object.assign(calE, { id: "", title: "", date1: "", date2: "", note: "" }); renderCal(); return; }
+  if (b.dataset.calEdit) {
+    const x = LIVE.cal.find((c) => c.id === b.dataset.calEdit); if (!x) return;
+    Object.assign(calE, { open: true, id: x.id, kind: x.kind, title: x.title, date1: x.date1, date2: x.date2, note: x.note }); renderCal();
+    $("#cal-add").scrollIntoView({ behavior: calm() ? "auto" : "smooth", block: "center" }); return;
+  }
+  if (b.dataset.calDrop) {
+    const x = LIVE.cal.find((c) => c.id === b.dataset.calDrop);
+    if (x && confirm(`Remove ${x.title} from the calendar for everyone?`)) track(A.dropCal(x.id), `${x.title} is off the calendar`, "Not removed. Check the signal and try again");
+    return;
+  }
   if (b.dataset.roDay) { const d = b.dataset.roDay; roF.days = roF.days.includes(d) ? roF.days.filter((x) => x !== d) : [...roF.days, d]; renderRota(); return; }
   if (b.dataset.roTimes) { [roF.start, roF.end] = b.dataset.roTimes.split("-"); renderRota(); return; }
   if (b.dataset.roHist) { roLoadHist(b.dataset.roHist); return; }

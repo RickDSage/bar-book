@@ -43,7 +43,7 @@ test("a manager drafts a week, copies last week's and publishes it", async () =>
   const { O, M, S } = await team(browser, site, people);
   await rota(M); await rota(S);
   assert.match(await text(S, "#rota"), /Nothing published for this week yet\./);
-  assert.match(await text(S, "#rota"), /Need a day off\? Ask from the Me tab\./);
+  assert.match(await text(S, "#rota"), /Need a day off\? Tap it on the calendar, or ask from the Me tab\./);
   assert.equal(await S.locator("#ro-add").count(), 0, "staff don't get the add form");
   assert.match(await text(M, "#rota"), /Nothing on this week yet\. Add shifts below\./);
   assert.equal(await M.locator("#ro-copy").count(), 0, "nothing to copy on an empty rota");
@@ -155,7 +155,7 @@ test("a shift offered to someone is theirs to take or turn down", async () => {
   await add(O, [n1, n2], "18:00", "02:00", "", { offer: "Sam Staff" });
   await settled(O, 2);
   await O.click("#ro-pub");
-  await settled(S, 2);
+  await settled(S, 2); await settled(T, 2);
   const [d1, d2] = [await day(S, n1), await day(S, n2)];
   await rota(S, n1); await rota(T, n1);
   assert.match(await rowText(S, d1, "18:00"), /Offered to you Bar Take it No thanks/);
