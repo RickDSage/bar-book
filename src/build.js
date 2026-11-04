@@ -8,8 +8,8 @@ const dark = (s) => s.replace(/#1a1a1a/g, "currentColor");
 // Notes about checking a wall card are for the menu writers, not the bar team.
 const clean = (t) => t && t.replace(/\s*\((?:website says|overwritten|as read|card says|card has)[^)]*\)/gi, "");
 // Owner's call: no frozen drinks, no spiked shakes, no shake-station dessert drinks and no shake pairings in the bar book.
-// Bramble: no crème de mûre behind the bar (bar team, 24 Oct). Manhattan: replaced by the corrected versions in extras.js.
-const DROP = new Set(["Soho Sizzle", "The Bronx Boss", "Bramble", "Manhattan"]);
+// Manhattan: replaced by the corrected versions in extras.js. Bramble is back (owner, 3 Nov 2026: list it whatever the stock).
+const DROP = new Set(["Soho Sizzle", "The Bronx Boss", "Manhattan"]);
 const SHAKE_STATION = new Set(["Spiked Egg Cream", "Brooklyn Egg Cream", "Fairground", "PB&J", "Salted Caramel"]);
 const noShake = (d) => d.section !== "Spike Your Shake" && d.section !== "Soho Originals" && !SHAKE_STATION.has(d.name);
 const unpairShake = (d) => ({
@@ -20,10 +20,10 @@ const unpairShake = (d) => ({
 });
 const extras = require("./extras.js")(icons);
 const { fixGuide, fixDrink, tidyMethod } = require("./builds.js");
-const drinks = [...src.drinks.filter((d) => !DROP.has(d.name) && noShake(d)).map(unpairShake), ...extras.map((x) => x.drink)].map(fixDrink).map(({ price, ...d }, i) => ({
+const drinks = [...src.drinks.filter((d) => !DROP.has(d.name) && noShake(d)).map(unpairShake), ...extras.map((x) => x.drink)].map((d) => ({ ...d, spec: d.spec.map(clean) })).map(fixDrink).map(({ price, ...d }, i) => ({
   // No prices in the staff app (owner, 24 Oct)
   id: i, ...d, spec: d.spec.map(clean),
-  g: icons.glassKind(d.glass),
+  g: icons.glassKind(d.glass.replace(/spritz/i, "wine")),
   c: icons.colourFor(d),
 }));
 const glassSvg = {};
@@ -34,7 +34,7 @@ const scenes = [], sceneIdx = new Map();
 const guides = {};
 const byName = new Map(drinks.map((d) => [d.name, d]));
 for (const raw of [...require(DATA + "guides.json").guides.filter((g) => !DROP.has(g.name) && noShake(g)), ...extras.map((x) => x.guide)]) {
-  const g = byName.has(raw.name) ? fixGuide(raw, byName.get(raw.name)) : raw;
+  const g = byName.has(raw.name) ? { ...fixGuide(raw, byName.get(raw.name)), glassKind: byName.get(raw.name).g } : raw;
   guides[g.name] = { tools: g.tools, steps: g.steps.map((st) => {
     const svg = scene(st, g);
     if (!sceneIdx.has(svg)) { sceneIdx.set(svg, scenes.length); scenes.push(svg); }

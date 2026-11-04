@@ -17,6 +17,7 @@ const METHOD = {
   "Bellini": "Purée first, top Prosecco slowly, gentle lift",
   "Chambord Royale": "Chambord first, top Prosecco slowly",
   "Mimosa": "Orange juice first, top Prosecco slowly",
+  "Bramble": "Shake gin, lemon and sugar, strain over crushed ice, drizzle crème de mûre on top",
   "Jägerbomb": "Pour the shot. Pour half a can of Red Bull into a rocks glass. Serve side by side, guest drops the shot in",
 };
 // Checked against the IBA official recipes (iba-world.com, 24 Oct 2026) and Difford's Guide (25 Oct 2026).
@@ -45,11 +46,27 @@ const FIX = {
   "Tequila Sunrise": { ml: { "grenadine": 15 } },
   "Lynchburg Lemonade": { ml: { "Cointreau": 25, "lemon juice": 25 } },
   // Camden Hells isn't on our taps.
+  // 3 Nov 2026 audit against iba-world.com (Espresso Martini, Porn Star Martini, Mai Tai, Paloma, Piña Colada,
+  // Irish Coffee) and Difford's Guide (Midori Sour). add: lines the source has and our card was missing.
+  "Espresso Martini": { ml: { "sugar syrup": 10 } },
+  "Hazelnut Espresso Martini": { ml: { "sugar syrup": 10 } },
+  "Pornstar Martini": { ml: { "Passoa": 20 } },
+  "Mai Tai": { ml: { "Cointreau": 15, "Giffard Orgeat": 15 }, add: ["7.5 ml sugar syrup"] },
+  "Paloma": { ml: { "Casamigos Reposado": 50, "agave syrup": 10, "grapefruit juice": 50 }, add: ["Pinch of salt"] },
+  "Piña Colada": { ml: { "Coco Real": 30, "pineapple juice": 50 }, drop: ["Malibu", "lime juice"] },
+  "Irish Coffee": { ml: { "hot Americano": 120, "double cream, lightly whipped": 50 } },
+  "Midori Sour": { ml: { "lemon juice": 15, "lime juice": 15 } },
+  // Back on the list now stock doesn't decide it (owner, 3 Nov). IBA: crème de mûre, not Chambord.
+  "Bramble": { rename: { "Chambord": "crème de mûre" }, ml: { "crème de mûre": 15 },
+    text: { float: "Drizzle the crème de mûre over the top so it bleeds down through the ice." } },
   "Pickleback & a Half": { spec: ["Half pint Stella Artois", "25 ml Jameson", "25 ml chilled pickle brine"], rename: { "Half pint Camden Hells": "Half pint Stella Artois" },
     text: { half: "Pour a half pint of Stella Artois with a neat head." } },
 };
 // One name for each ingredient in every drink, and one choice where a spec offered two.
 const WORDS = {
+  // House pour is Bulleit, not Buffalo Trace (owner, 3 Nov 2026).
+  "Buffalo Trace": "Bulleit Bourbon",
+  "chocolate bitters": "cocoa bitters",
   "cranberry": "cranberry juice",
   "espresso": "fresh espresso",
   "Amarás Mezcal": "Amarás Mezcal Verde",
@@ -60,34 +77,62 @@ const WORDS = {
   "hot filter coffee or Americano": "hot Americano",
   "soda or Fever-Tree Light Tonic": "soda",
 };
-const word = (w) => WORDS[w] || w;
+const word = (w) => WORDS[w] || w.replace(/chocolate bitters/, "cocoa bitters");
 const PHRASES = Object.keys(WORDS).filter((w) => w.includes(" or "));
 const wordText = (t) => PHRASES.reduce((s, w) => s.split(w).join(WORDS[w]), t);
 function fixSpec(name, spec) {
   const f = FIX[name] || {};
   if (f.spec) return f.spec;
-  return spec.flatMap((l) => {
+  const out = spec.flatMap((l) => {
     const t = l.match(/^Top (.*)$/);
-    const m = l.match(/^(Top )?([\d.]+) ml (.*)$/); if (!m) return [t ? `Top ${word(t[1])}` : l];
+    const m = l.match(/^(Top )?([\d.]+) ml (.*)$/); if (!m) return [t ? `Top ${word(t[1])}` : word(l)];
     const item = word((f.rename || {})[m[3]] || m[3]);
     if ((f.drop || []).includes(item)) return [];
+    if (item === "aquafaba") return [FOAMER];
     return [`${m[1] || ""}${(f.ml || {})[item] ?? m[2]} ml ${item}`];
   });
+  // Added lines go in before a float or a topper, in pour order.
+  const at = out.findIndex((l) => /floated$|^Top /.test(l));
+  return at < 0 ? [...out, ...(f.add || [])] : [...out.slice(0, at), ...(f.add || []), ...out.slice(at)];
 }
+// No aquafaba behind the bar: every foam is foamer drops (owner, 3 Nov 2026).
+const FOAMER = "2 drops foamer";
+const asItem = (l) => { const m = l.match(/^([\d.]+) ml (.*)$/); return m ? { ml: +m[1], item: m[2], hint: HINT[m[1]] || null, note: null, role: "mix" } : { ml: null, item: l, hint: null, note: null, role: "mix" }; };
 function fixSteps(name, steps) {
   const f = FIX[name] || {};
-  return steps.map((s) => {
+  const out = steps.map((s) => {
     const items = s.items && s.items.map((i) => ({ ...i, item: word((f.rename || {})[i.item] || i.item) })).filter((i) => !(f.drop || []).includes(i.item))
+      .map((i) => (i.item === "aquafaba" ? { ...i, ml: null, item: FOAMER, hint: null } : i))
       .map((i) => (f.ml || {})[i.item] != null && i.ml != null ? { ...i, ml: f.ml[i.item], hint: HINT[f.ml[i.item]] || null } : i);
     return { ...s, items, text: wordText((f.text || {})[s.scene] || s.text) };
   });
+  if (f.add) {
+    const pour = out.find((s) => /^pour(Tin|Mix|Glass)$/.test(s.scene));
+    if (!pour) throw new Error("No pour step to add to in " + name);
+    pour.items = [...pour.items, ...f.add.map(asItem)];
+  }
+  return out;
 }
 const fizzLast = (spec) => [...spec.filter((l) => !(FIZZ.test(l) && !/^\d/.test(l))), ...spec.filter((l) => FIZZ.test(l) && !/^\d/.test(l))];
 // A mixer that fills the glass always reads "Top ...".
 const topLine = (l) => (FIZZ.test(l) && !/^(Top |Side|Splash|Dash|\d)/.test(l) ? `Top ${l}` : l);
 // Every drink served up goes in a chilled coupe, and its guide already chills it. One name for each glass.
-const GLASS = { "Rocks glass": "Rocks" };
-const glassFor = (d) => GLASS[d.glass] || (/none|served up/i.test(d.ice) && /^Coupe( \+ shot glass)?$/.test(d.glass) ? `Chilled c${d.glass.slice(1)}` : d.glass);
+// Glasses behind the bar (owner, 3 Nov 2026): rocks, highball, martini, wine and spritz. No hurricanes, coupes or flutes,
+// They also have coupes (owner, 3 Nov 2026): the Martinis section goes in a martini glass, everything else served up in a coupe.
+// Hurricane drinks go in a highball, flute drinks in a coupe, wine-glass spritzes in a spritz glass.
+const GLASS = { "Rocks glass": "Rocks", "Hurricane": "Highball", "Highball or hurricane": "Highball", "Coupe or flute": "Coupe", "Large wine glass": "Spritz glass" };
+const martini = (d) => d.section === "Martinis";
+const glassFor = (d) => { const g = GLASS[d.glass] || (/none|served up/i.test(d.ice) && /^Coupe( \+ shot glass)?$/.test(d.glass) ? `Chilled c${d.glass.slice(1)}` : d.glass); return martini(d) ? g.replace(/\bcoupe\b/i, "martini glass") : g; };
+// The same swap in every line of text that names a glass. spritz: the drink's glass is a spritz glass.
+function glassText(t, spritz, mart) {
+  if (!t) return t;
+  t = t.replace(/\bcoupe or flute\b/gi, "coupe").replace(/\bflute\b/g, "coupe");
+  if (mart) t = t.replace(/\bcoupes?\b/g, "martini glass").replace(/\bCoupe\b/g, "Martini glass");
+  t = t
+    .replace(/\bhurricane glass\b/gi, "highball").replace(/\bthe hurricane\b/gi, "the highball");
+  if (spritz) t = t.replace(/\b(large )?wine glass\b/gi, "spritz glass");
+  return t;
+}
 
 // Allergens the hand-written list missed, read from the spec. The labels in the allergen folder have the final word.
 const AUTO = [
@@ -123,15 +168,15 @@ function tidyMethod(d, guide) {
   const st = guide.steps.find((s) => s.title === "Stir"), secs = st && st.text.match(/(\d+(?: to \d+)?) seconds/);
   let m = SAY.reduce((t, [re, to]) => t.replace(re, to), d.method).replace(/^Stir,/, secs ? `Stir ${secs[1]} seconds,` : "Stir,");
   if (guide.steps.some((s) => s.double) && !/double strain/.test(m)) m = m.replace(/\bstrain\b/, "double strain");
-  if (/^Stir/.test(m) && /^Chilled coupe/.test(d.glass)) m = m.replace(/, strain(?=$|\.)/, ", strain into a chilled coupe");
-  return m;
+  if (/^Stir/.test(m) && /^Chilled (coupe|martini glass)/.test(d.glass)) m = m.replace(/, strain(?=$|\.)/, `, strain into a chilled ${martini(d) ? "martini glass" : "coupe"}`);
+  return glassText(m, /spritz/i.test(d.glass), martini(d));
 }
 
 function destination(d) {
   const ice = d.ice.toLowerCase();
   if (/none|served up/.test(ice)) {
     const g = d.glass.toLowerCase();
-    return "into the chilled " + (/coupe or flute/.test(g) ? "coupe or flute" : /flute/.test(g) ? "flute" : "coupe");
+    return /wine/.test(g) ? "into the wine glass" : /rocks/.test(g) ? "into the chilled rocks glass" : /martini/.test(g) ? "into the chilled martini glass" : "into the chilled coupe";
   }
   if (/large cube/.test(ice)) return "over the large cube";
   if (/crushed/.test(ice)) return "over the crushed ice";
@@ -139,6 +184,8 @@ function destination(d) {
 }
 
 function fixGuide(g, d) {
+  // Read before fixSteps swaps aquafaba for foamer: the drinks that had it still get their dry shake.
+  const hadFoam = g.steps.some((s) => /pourTin|muddle/.test(s.scene) && (s.items || []).some((i) => /aquafaba/i.test(i.item)));
   let steps = fixSteps(g.name, g.steps.map((s) => ({ ...s, items: s.items ? [...s.items] : s.items })));
   // A glass the card calls chilled gets chilled first.
   if (/^chilled/i.test(d.glass) && !steps.some((s) => s.scene === "chill")) {
@@ -159,7 +206,7 @@ function fixGuide(g, d) {
   }
   // Foam needs a dry shake first.
   const tin = steps.filter((s) => /pourTin|muddle/.test(s.scene)).flatMap((s) => s.items || []);
-  if (tin.some((i) => /aquafaba/i.test(i.item)) && !steps.some((s) => s.scene === "dryShake")) {
+  if (hadFoam && !steps.some((s) => s.scene === "dryShake")) {
     const k = steps.findIndex((s) => s.scene === "shake");
     steps.splice(k, 1,
       { scene: "dryShake", title: "Dry shake", text: "Seal the tin with no ice. Shake hard for 10 seconds to whip up the foam." },
@@ -177,15 +224,54 @@ function fixGuide(g, d) {
       ? `Hawthorne strainer on the tin, fine strainer over the glass. Strain ${destination(d)}.`
       : `Hawthorne strainer on the tin. Strain ${destination(d)}.`;
   }
-  steps = steps.map((s, i) => ({ ...s, n: i + 1 }));
+  const spritz = /spritz/i.test(d.glass);
+  steps = steps.map((s, i) => ({ ...s, n: i + 1, title: glassText(s.title, spritz, martini(d)), text: glassText(s.text, spritz, martini(d)), ...(s.garnish ? { garnish: glassText(s.garnish, spritz, martini(d)) } : {}) }));
   const tools = g.tools.filter((t) => t !== "fine strainer");
   if (steps.some((s) => s.double)) tools.splice(tools.indexOf("Hawthorne strainer") + 1, 0, "fine strainer");
   return { ...g, tools, steps };
 }
+// What to use when a bottle is out. Matched against the spec; the bar keeps the first choice when it has it.
+const SUBS = [
+  [/crème de mûre/, "No crème de mûre? Use Chambord."],
+  [/crème de cassis/, "No crème de cassis? Use Chambord."],
+  [/Velvet Falernum/, "No falernum? Use the same of Giffard Orgeat and add 1 dash Angostura."],
+  [/Bacardí Carta Oro/, "No Carta Oro? Use Captain Morgan White."],
+  [/Wray & Nephew/, "No overproof rum? Use Captain Morgan White."],
+  [/apricot brandy/, "No apricot brandy? Use Archers."],
+  [/Fernet-Branca/, "No Fernet? Use Jägermeister."],
+  [/Bénédictine/, "No Bénédictine? Use yellow Chartreuse."],
+  [/Drambuie/, "No Drambuie? Use 15 ml honey syrup (2:1) and 10 ml more whisky."],
+  [/Peychaud/, "No Peychaud's? Use Angostura."],
+  [/rye whiskey/, "No rye? Use Bulleit Bourbon."],
+  [/Crown Royal/, "No Crown Royal? Use Jameson."],
+  [/Lillet Blanc/, "No Lillet? Use Martini Extra Dry."],
+  [/Luxardo Maraschino/, "No maraschino? Use Heering Cherry."],
+  [/green Chartreuse/, "No green Chartreuse? Use yellow Chartreuse."],
+  [/cinnamon syrup/, "No cinnamon syrup? Use sugar syrup and grate a little cinnamon into the tin."],
+  [/honey-ginger syrup/, "No honey-ginger syrup? Use Monin Honey and press 2 thin slices of fresh ginger in the tin."],
+  [/Casamigos Blanco/, "No Casamigos? Use El Jimador Blanco."],
+  [/Casamigos Reposado/, "No Casamigos? Use El Jimador Reposado."],
+  [/blue curaçao/, "No blue curaçao? Use Cointreau (the drink won't be blue)."],
+  [/orange bitters/, "No orange bitters? Use cocoa bitters, or a strip of orange zest in the glass."],
+  [/Monin Strawberry/, "No Monin Strawberry? Use 25 ml strawberry purée and 10 ml sugar syrup."],
+  [/Monin Raspberry/, "No Monin Raspberry? Use 15 ml Chambord and 10 ml sugar syrup."],
+  [/Monin Passion Fruit/, "No Monin Passion Fruit? Use 20 ml Passoa."],
+  [/Monin Elderflower/, "No Monin Elderflower? Use 20 ml elderflower cordial."],
+  [/Monin Honey/, "No Monin Honey? Use honey syrup (2:1)."],
+  [/Monin Salted Caramel/, "No Monin Salted Caramel? Use 25 ml salted caramel sauce."],
+  [/Monin Watermelon/, "No Monin Watermelon? Use sugar syrup and 4 chunks of fresh watermelon pressed in the tin."],
+  [/pisco/, "No pisco? Use Abelha cachaça."],
+  [/pink gin/, "No pink gin? Use Tanqueray and add 10 ml Chambord."],
+  [/sambuca/, "No sambuca? Use NV Absinthe, 10 ml only."],
+  [/butterscotch schnapps/, "No butterscotch schnapps? Use Monin Butterscotch or salted caramel sauce."],
+];
+const subsFor = (spec) => { const out = SUBS.filter(([re]) => spec.some((l) => re.test(l))).map(([, t]) => t); return out.length ? out : undefined; };
 function fixDrink(d) {
   const spec = fizzLast(fixSpec(d.name, d.spec).map(topLine));
-  return { ...d, spec, glass: glassFor(d), allergens: allergens({ ...d, spec }),
-    method: METHOD[d.name] || d.method.replace(/\s*\(card does not state method[^)]*\)/, "") };
+  const glass = glassFor(d), spritz = /spritz/i.test(glass);
+  return { ...d, spec, glass, allergens: allergens({ ...d, spec }), subs: subsFor(spec),
+    garnish: glassText(d.garnish, spritz, martini(d)), desc: glassText(d.desc, spritz, martini(d)), blurb: glassText(d.blurb, spritz, martini(d)),
+    method: glassText(METHOD[d.name] || d.method.replace(/\s*\(card does not state method[^)]*\)/, ""), spritz, martini(d)) };
 }
 
 module.exports = { fixGuide, fixDrink, tidyMethod };
