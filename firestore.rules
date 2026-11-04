@@ -596,8 +596,24 @@ service cloud.firestore {
     match /settings/{id} {
       allow read: if isMember();
       allow create, update: if isOwner() && id == 'features' && exactly(['off', 'uid', 'name', 'at']) && stamped()
-        && incoming().off is list && incoming().off.size() <= 11
-        && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay']);
+        && incoming().off is list && incoming().off.size() <= 12
+        && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay']);
+    }
+
+    // ---------- Calendar ----------
+    // What managers add to the calendar: school holidays and half terms (they differ by borough, so each venue adds the
+    // ones that matter to its team), events, and days the venue is shut. Everyone on the team reads them. Bank holidays
+    // and the other fixed days are in the app, not here.
+    function calDay(s) {
+      return isDay(s) && dayOf(s) > request.time - duration.value(400, 'd') && dayOf(s) < request.time + duration.value(1100, 'd');
+    }
+    match /calendar/{id} {
+      allow read: if isMember();
+      allow create, update: if isManager() && exactly(['title', 'kind', 'date1', 'date2', 'note', 'uid', 'name', 'at']) && stamped()
+        && reqText(incoming().title, 60) && incoming().kind in ['school', 'event', 'closed']
+        && calDay(incoming().date1) && calDay(incoming().date2) && incoming().date2 >= incoming().date1
+        && optText(incoming().note, 200);
+      allow delete: if isManager();
     }
 
     // ---------- Rota ----------

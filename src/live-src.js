@@ -123,6 +123,8 @@ function listen(uid) {
     });
     // Football: today's games and the ones coming up. Old ones drop off the screen by date.
     sub("fixtures", query(collection(db, "fixtures"), where("day", ">=", ukDay(Date.now() - 864e5)), orderBy("day"), limit(60)), (snap) => { LIVE.fixtures = rows(snap); liveChanged("fixtures"); });
+    // The calendar: what the managers have added that hasn't long finished. The app goes back three months.
+    sub("calendar", query(collection(db, "calendar"), where("date2", ">=", ukDay(Date.now() - 100 * 864e5)), limit(300)), (snap) => { LIVE.cal = rows(snap); liveChanged("calendar"); });
     // Issues: everything still open, however old, plus the latest few including fixed ones.
     const issues = { open: [], recent: [] };
     const mergeIssues = () => { LIVE.issues = [...new Map([...issues.recent, ...issues.open].map((x) => [x.id, x])).values()].sort((a, b) => ms(b.at) - ms(a.at)); liveChanged("issues"); };
@@ -539,6 +541,9 @@ LIVE.api = {
   // No name or uid is saved, so nobody (the owner included) can tell who wrote it.
   rate: (person, score, text) => addDoc(collection(db, "ratings"), { about: person.uid, aboutName: person.name, score, text, at: serverTimestamp() }),
   // Issues and handover: raise, take on (or give to someone), mark fixed. "Still broken" raises a new one linked back.
+  // A calendar entry, new (no id) or changed: the whole entry each time, signed by whoever saves it.
+  saveCal: (id, x) => { const v = { title: x.title, kind: x.kind, date1: x.date1, date2: x.date2, note: x.note, ...me() }; return id ? setDoc(doc(db, "calendar", id), v) : addDoc(collection(db, "calendar"), v); },
+  dropCal: (id) => deleteDoc(doc(db, "calendar", id)),
   addFixture: (x) => addDoc(collection(db, "fixtures"), { day: x.day, ko: x.ko, home: x.home, away: x.away, comp: x.comp, channel: x.channel, screen: x.screen, ...me() }),
   dropFixture: (id) => deleteDoc(doc(db, "fixtures", id)),
   raise: (x) => addDoc(collection(db, "issues"), { title: x.title, detail: x.detail, area: x.area, urgent: x.urgent, again: x.again || null, status: "open", ...me() }),
@@ -609,7 +614,7 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
   training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
