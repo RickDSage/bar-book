@@ -27,8 +27,8 @@ test("every feature, what it's for and what each person can do with it, with sho
 
   // Staff: from Bar info, what they can do and what managers can, with no switches.
   await openFeatures(S);
-  assert.match(flat(await S.$eval("#feat", (e) => e.innerText)), /^WHAT'S IN BAR BOOK The drinks, the shift and the team in one app\. .* You're staff: what you can do is under You\. .* Take the tour \(12 steps\) DRINKS /);
-  assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 26);
+  assert.match(flat(await S.$eval("#feat", (e) => e.innerText)), /^WHAT'S IN BAR BOOK The drinks, the shift and the team in one app\. .* You're staff: what you can do is under You\. .* Take the tour \(13 steps\) DRINKS /);
+  assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 27);
   assert.match(await card(S, "lists"), /^Checklists Opening and closing .* You: Tick items off, start one, or mark one blocked and say why\. Managers: The same, and give an item to someone and change what's on each list\. Open$/);
   assert.match(await card(S, "live"), /^Live Managers only Tonight as it happens: .* Managers: Share tonight's summary on WhatsApp or by email\.$/);
   assert.equal(await S.$$eval("[data-feat-sw]", (x) => x.length), 0, "only the owner gets switches");
@@ -65,7 +65,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   // Logged out: the drinks side opens, the rest needs a login.
   const P = await phone(browser, site);
   await openFeatures(P);
-  assert.match(flat(await P.$eval("#feat", (e) => e.innerText)), /Without a login you get the drinks, Allergens, Practise, Bar info and My pay\. .* Take the tour \(4 steps\)/);
+  assert.match(flat(await P.$eval("#feat", (e) => e.innerText)), /Without a login you get the drinks, the cocktail maker, Allergens, Practise, Bar info and My pay\. .* Take the tour \(5 steps\)/);
   assert.match(await card(P, "lists"), /^Checklists Needs a team login .* Staff: Tick items off, .* Managers: The same, and /);
   assert.equal(await P.$$eval('[data-feat-go="lists"]', (x) => x.length), 0);
   await P.click('[data-feat-go="allergens"]'); await closed(P);
@@ -99,8 +99,8 @@ test("the owner switches features off for everyone, and switching them on brings
 
   // Staff: no Allergens tab (and off it if they were on it), no Chat or Rota, only Running late in Me, no My pay.
   assert.equal(await where(S), "drinks");
-  assert.deepEqual(await navTabs(S), ["drinks", "practice", "tally", "info"]);
-  assert.equal(await S.evaluate(() => getComputedStyle($("nav.tabs")).gridTemplateColumns.split(" ").length), 4);
+  assert.deepEqual(await navTabs(S), ["drinks", "make", "practice", "tally", "info"]);
+  assert.equal(await S.evaluate(() => getComputedStyle($("nav.tabs")).gridTemplateColumns.split(" ").length), 5);
   await S.evaluate(() => show("allergens"));
   assert.equal(await where(S), "drinks", "a switched-off tab can't be opened");
   await S.evaluate(() => show("notices"));
@@ -137,12 +137,12 @@ test("the owner switches features off for everyone, and switching them on brings
 
   // A phone that saw the list keeps it while it connects.
   await S.reload(); await S.click("#w-ok");
-  assert.deepEqual(await navTabs(S), ["drinks", "practice", "tally", "info"]);
+  assert.deepEqual(await navTabs(S), ["drinks", "make", "practice", "tally", "info"]);
 
   // All back on: everything saved is still there.
   await O.evaluate(() => LIVE.api.setOff([]));
   for (const p of [M, S]) await switched(p, []);
-  assert.deepEqual(await navTabs(S), ["drinks", "allergens", "practice", "tally", "info"]);
+  assert.deepEqual(await navTabs(S), ["drinks", "make", "allergens", "practice", "tally", "info"]);
   await M.evaluate(() => show("notices")); await M.click("[data-tpane=rota]");
   await M.waitForFunction(() => /Wedding/.test($("#requests").innerText));
   await M.click("[data-tpane=reports]");
@@ -170,19 +170,19 @@ test("the tour opens each feature that's on, one step at a time", async () => {
 
   await openFeatures(S);
   await S.click("#tour-go"); await closed(S);
-  assert.match(await step(S), /^STEP 1 OF 12 Drinks Every drink with its spec/);
+  assert.match(await step(S), /^STEP 1 OF 13 Drinks Every drink with its spec/);
   const shift = await S.evaluate(() => defaultPane());
-  assert.deepEqual(await walk(S), ["Drinks drinks", "Allergens allergens", "Practise practice", "My pay info", `Checklists tally:${shift}`, "Date labels tally:labels",
+  assert.deepEqual(await walk(S), ["Drinks drinks", "Cocktail maker make", "Allergens allergens", "Practise practice", "My pay info", `Checklists tally:${shift}`, "Date labels tally:labels",
     "Restock and 86 tally:stock", "Shift report tally:send", "Issues and handover team:board", "Chat team:chat", "Rota team:rota", "Reports team:reports"]);
   assert.equal(await step(S), "", "Done ends the tour");
 
   // Back goes back a step; End the tour stops it.
   await openFeatures(S); await S.click("#tour-go"); await closed(S);
   await S.click("#tour .btn.pri"); await S.click("#tour .btn.pri");
-  assert.match(await step(S), /^STEP 3 OF 12 Practise/);
+  assert.match(await step(S), /^STEP 3 OF 13 Allergens/);
   await S.click("#tour [data-tour='1']");
-  assert.match(await step(S), /^STEP 2 OF 12 Allergens/);
-  assert.equal(await where(S), "allergens");
+  assert.match(await step(S), /^STEP 2 OF 13 Cocktail maker/);
+  assert.equal(await where(S), "make");
   // The card sits above the tabs and fits a small phone.
   await S.setViewportSize({ width: 320, height: 640 }); await S.click("#tour [data-tour='2']");
   assert.ok(await S.evaluate(() => { const t = $("#tour").getBoundingClientRect(), n = $("nav.tabs").getBoundingClientRect(); return t.bottom <= n.top && t.right <= innerWidth && document.documentElement.scrollWidth <= innerWidth; }));
@@ -193,7 +193,7 @@ test("the tour opens each feature that's on, one step at a time", async () => {
   await O.evaluate(() => LIVE.api.setOff(["rota", "chat", "allergens"]));
   await switched(M, ["rota", "chat", "allergens"]);
   await openFeatures(M); await M.click("#tour-go"); await closed(M);
-  assert.deepEqual(await walk(M), ["Drinks drinks", "Practise practice", "My pay info", `Checklists tally:${shift}`, "Date labels tally:labels", "Restock and 86 tally:stock",
+  assert.deepEqual(await walk(M), ["Drinks drinks", "Cocktail maker make", "Practise practice", "My pay info", `Checklists tally:${shift}`, "Date labels tally:labels", "Restock and 86 tally:stock",
     "Shift report tally:send", "Issues and handover team:board", "Reports team:reports", "Live team:managers:live", "Closing KPIs team:managers:kpis", "Training team:managers:training"]);
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
