@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { serve, resetEmulators, launch, team, attempt, adminWrite, adminGet } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, attempt, adminWrite, adminGet, part } from "./helpers.mjs";
 
 let site, browser, dir, big, small;
 before(async () => {
@@ -58,7 +58,7 @@ test("a phone photo is shrunk, noted, sent with the report and locked once sent"
   await O.waitForFunction(() => LIVE.reports.length === 1);
   assert.match(await O.evaluate(() => LIVE.reports[0].summary), / · 1 photo$/);
   assert.equal(await O.evaluate(() => LIVE.reports[0].photos), 1);
-  await O.evaluate(() => show("notices")); await O.click("[data-tpane=reports]"); await O.click("[data-photos]");
+  await part(O, "reports"); await O.click("[data-photos]");
   await O.waitForSelector("[data-photos-of] img");
   assert.match(await O.$eval("[data-photos-of]", (e) => e.innerText), /Back bar wiped and restocked/);
 

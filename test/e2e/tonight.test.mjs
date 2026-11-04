@@ -1,7 +1,7 @@
-// The new Team page features end to end: Tonight at a glance, and issues and handover.
+// The Team page end to end: For you, Tonight at a glance and the cards for each part, and issues and handover.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -9,13 +9,21 @@ after(async () => { await browser.close(); site.close(); });
 const people = [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff", "sam", "staff"]];
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
 const tiles = (p) => p.$$eval("#dash button", (x) => x.map((b) => `${b.querySelector("b").textContent} ${b.querySelector("span").textContent}${b.classList.contains("hot") ? " (hot)" : ""}`));
+// For you: each row's words, and the part it opens.
+const forYou = (p) => p.$$eval("#foryou .fy", (x) => x.map((b) => `${b.innerText.replace(/\s*›$/, "").replace(/\s*\n+\s*/g, " | ")} > ${b.dataset.go}${b.classList.contains("hot") ? " (hot)" : ""}`));
+// The cards: each part's name, its line and its count.
+const cards = (p) => p.$$eval("#hub .place", (x) => x.map((b) => `${b.dataset.tpane}: ${b.querySelector("b").textContent} | ${b.querySelector("small").textContent}${b.querySelector(".pc") ? ` (${b.querySelector(".pc").textContent}${b.classList.contains("hot") ? ", hot" : ""})` : ""}`));
 
-test("Tonight counts what needs doing and each tile goes to it", async () => {
+test("the Team page: what needs you first, tonight's shift, then a card for each part, each with its own page", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await O.evaluate(() => show("notices"));
-  assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 date labels to change", "0 open issues", "0 open concerns", "Not yet bar report tonight", "Not yet floor report tonight",
-    "0 reports to sign off", "0 staff requests to answer", "0 shifts to fill in the next 7 days", "0 open incidents"]);
+  assert.deepEqual(await forYou(O), []);
+  assert.match(await O.$eval("#foryou", (e) => e.innerText), /Nothing new, and nothing waiting on you\./);
+  assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 date labels to change", "Not yet bar report tonight", "Not yet floor report tonight"]);
+  assert.deepEqual(await O.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), ["Everyone", "Managers"]);
+  assert.deepEqual(await O.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)),
+    ["chat", "rota", "reports", "issues", "concerns", "board", "me", "live", "requests", "act", "kpis", "out", "training", "team", "feedback"]);
 
   await S.evaluate(async () => {
     const A = LIVE.api;
@@ -23,33 +31,50 @@ test("Tonight counts what needs doing and each tile goes to it", async () => {
       A.askRestock({ item: "Blue roll", qty: 1, unit: "each", dest: "up", detail: "" }), A.ask({ kind: "late", eta: "18:00", note: "" }),
       A.incident("Breakage or damage", "Glass washer door cracked"), A.raise({ title: "Glass washer leaking", detail: "", area: "bar", urgent: true, again: null }), A.sendReport("bar", "Bar report", "Bar · test")]);
   });
-  await O.waitForFunction(() => [...document.querySelectorAll("#dash b")].filter((b) => b.textContent === "1").length === 7);
-  assert.deepEqual(await tiles(O), ["1/36 Bar checklists done", "1 blocked task (hot)", "1 restock open", "1 86'd right now (hot)", "0 date labels to change", "1 open issues, 1 urgent (hot)", "0 open concerns", "Sent bar report tonight", "Not yet floor report tonight",
-    "1 reports to sign off (hot)", "1 staff requests to answer", "0 shifts to fill in the next 7 days", "1 open incidents (hot)"]);
+  await O.waitForFunction(() => document.querySelectorAll("#foryou .fy").length === 5);
+  assert.deepEqual(await forYou(O), ["Urgent: Glass washer leaking | Raised by Sam Staff. Nobody's on it yet > issues (hot)", "1 thing needs you tonight | Blocked > live (hot)",
+    "1 open incident | Close each one with what was done > incidents (hot)", "1 request to answer | Sam Staff > requests", "1 report to sign off > reports"]);
+  assert.deepEqual(await tiles(O), ["1/36 Bar checklists done", "1 blocked task (hot)", "1 restock open", "1 86'd right now (hot)", "0 date labels to change", "Sent bar report tonight", "Not yet floor report tonight"]);
+  assert.deepEqual((await cards(O)).filter((c) => /\(/.test(c)), ["reports: Reports | 1 report to sign off (2, hot)", "issues: Issues and handover | 1 open, 1 urgent (1, hot)",
+    "live: Live | 1 needs you now (1, hot)", "requests: Requests | 1 request to answer (1)"]);
+  // Staff: their own For you, the shift's tiles and the parts for everyone.
   await S.evaluate(() => show("notices"));
-  assert.equal((await tiles(S)).length, 10, "staff see the shift tiles and their next shift, not the managers' ones");
+  assert.deepEqual(await forYou(S), ["Urgent: Glass washer leaking | Raised by you. Nobody's on it yet > issues (hot)"]);
+  assert.equal((await tiles(S)).length, 7, "staff see the same shift tiles");
+  assert.deepEqual(await S.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)), ["chat", "rota", "reports", "issues", "concerns", "board", "me", "activity"]);
+  assert.deepEqual(await S.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), ["Everyone"]);
 
+  // A tile goes to the Shift tab; blocked tasks go to a manager's Live, and to the list with the blocked item for staff.
   await O.click('[data-go="stock"]');
   assert.deepEqual(await O.evaluate(() => [$("#v-tally").hidden, document.querySelector(".ptabs [aria-selected=true]").dataset.pane]), [false, "stock"]);
-  // Blocked tasks go to a manager's Live view, and to the list with the blocked item for staff.
   await S.click('[data-go="blocked"]');
   assert.deepEqual(await S.evaluate(() => [$("#v-tally").hidden, pane]), [false, "close"]);
-  for (const [go, tab] of [["requests", "rota"], ["incidents", "reports"], ["blocked", "managers"], ["reports", "reports"], ["issues", "board"]]) {
+  // Each row of For you, and each card, opens its part on a page of its own with Back to the cards.
+  for (const [go, k, title] of [["requests", "requests", "Requests"], ["incidents", "reports", "Reports"], ["live", "live", "Live"], ["reports", "reports", "Reports"], ["issues", "issues", "Issues and handover"]]) {
     await O.evaluate(() => show("notices"));
-    await O.click(`[data-go="${go}"]`);
-    assert.equal(await O.$eval("[data-tpane][aria-selected=true]", (e) => e.dataset.tpane), tab, `${go} tile opens the ${tab} tab`);
+    await O.click(`#foryou [data-go="${go}"]`);
+    assert.deepEqual(await O.evaluate(() => [tpane, $("#placebar .t").textContent, $("#hub").hidden, $("#foryou").hidden]), [k, title, true, true], `${go} opens ${k}`);
   }
-  assert.ok(await O.$eval("#issues", (e) => { const y = e.getBoundingClientRect().top; return y >= 0 && y < innerHeight; }), "the issues tile scrolls the issues into view");
-  // A manager's six tabs fit a 320px phone.
+  assert.ok(await O.$eval("#issues", (e) => { const y = e.getBoundingClientRect().top; return y >= 0 && y < innerHeight; }), "the issues are on screen");
+  await O.click("#hub-back");
+  assert.deepEqual(await O.evaluate(() => [tpane, $("#hub").hidden, $("#issues").hidden, $("#placebar").hidden]), ["", false, true, true]);
+  await O.click('#hub [data-tpane="team"]');
+  assert.deepEqual(await O.evaluate(() => [$("#placebar .t").textContent, $("#mgr").hidden, $("#live").hidden]), ["Team logins", false, true]);
+  // The bell always opens the cards.
+  await O.click("#bell");
+  assert.deepEqual(await O.evaluate(() => [tpane, $("#hub").hidden]), ["", false]);
+  // A manager's 15 cards fit a 320px phone.
   await O.setViewportSize({ width: 320, height: 640 }); await O.evaluate(() => show("notices"));
   assert.ok(await O.evaluate(() => document.documentElement.scrollWidth <= 320), "no sideways scrolling on a 320px phone");
+  await O.click('#hub [data-tpane="feedback"]');
+  assert.ok(await O.evaluate(() => document.documentElement.scrollWidth <= 320), "nor on a part's page");
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
 test("issues: raise, take on, give to someone, fix, and raise again", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
-  await S.evaluate(() => show("notices"));
+  await part(S, "issues");
   await S.click("#is-form summary"); await S.click("#is-go");
   assert.equal(await toastOf(S), "Say what it is and where");
   await S.fill("[data-is=title]", "Glass washer leaking"); await S.selectOption("[data-is=area]", "bar");
@@ -58,16 +83,20 @@ test("issues: raise, take on, give to someone, fix, and raise again", async () =
   const washer = await O.evaluate(() => LIVE.issues[0].id);
 
   await S.evaluate(() => show("drinks"));
-  await M.evaluate(() => show("notices"));
+  await part(M, "issues");
   await M.selectOption(`[data-give="${washer}"]`, { label: "Sam Staff" });
   await waitToast(S, /^Mia Manager gave you: Glass washer leaking$/);
   assert.match(await M.$eval("#issues", (e) => e.innerText), /On it: Sam Staff/);
+  // It's under For you until it's fixed.
+  await S.evaluate(() => show("notices"));
+  assert.deepEqual(await forYou(S), ["Mia Manager gave you: Glass washer leaking | Mark it fixed when it's done > issues"]);
+  await S.evaluate(() => show("drinks"));
   const mia = await M.evaluate(() => ({ uid: LIVE.uid, name: LIVE.me }));
   assert.equal(await attempt(S, (id, p) => LIVE.api.take(id, p), washer, mia), "permission-denied", "staff can only take things on themselves");
   assert.equal(await attempt(S, (id) => LIVE.api.withdrawIssue(id), washer), "permission-denied", "once someone's on it, it can't be withdrawn");
 
   await S.evaluate(() => LIVE.api.raise({ title: "Terrace heater out", detail: "", area: "terrace", urgent: false, again: null }));
-  await O.evaluate(() => show("notices"));
+  await part(O, "issues");
   await O.waitForFunction(() => LIVE.issues.length === 2 && !LIVE.issues.some((x) => x.pending));
   const heater = await O.evaluate(() => LIVE.issues.find((x) => x.title === "Terrace heater out").id);
   await O.click(`[data-take="${heater}"]`);
@@ -79,7 +108,7 @@ test("issues: raise, take on, give to someone, fix, and raise again", async () =
   assert.equal(await attempt(S, (id) => LIVE.api.take(id, { uid: LIVE.uid, name: LIVE.me }), heater), "permission-denied", "a fixed issue can't be reopened");
 
   // Still broken: a new issue linked to the fixed one.
-  await S.evaluate(() => show("notices"));
+  await part(S, "issues");
   await S.click(`#issues details:not(#is-form) summary`);
   await S.click(`[data-again="${heater}"]`);
   assert.equal(await S.$eval("#is-form summary", (e) => e.textContent), "Raise it again");

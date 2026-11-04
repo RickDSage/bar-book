@@ -2,7 +2,7 @@
 // time, and the Black Tap name at the top going home.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, adminWrite, attempt, toastOf } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, adminWrite, attempt, toastOf, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -33,7 +33,7 @@ test("every report in one tab: waiting first, night by night, filters, and older
   const { O, S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
   await seed(await O.evaluate(() => LIVE.staff.find((p) => p.name === "Sam Staff").uid));
   await O.waitForFunction(() => LIVE.reports.length === 30 && LIVE.incidents.length === 50 && LIVE.reviews.length === 1);
-  await O.evaluate(() => show("notices")); await O.click("[data-tpane=reports]");
+  await part(O, "reports");
 
   // The managers' Nights and Incidents pages are part of this tab now.
   assert.deepEqual(await O.$$eval("[data-rp-show]", (x) => x.map((b) => b.dataset.rpShow)), ["all", "bar", "floor", "kitchen", "flagged", "incidents"]);
@@ -72,7 +72,7 @@ test("every report in one tab: waiting first, night by night, filters, and older
   assert.match(await text(O), /That's every incident\./);
   await O.fill('[data-inct="inc00"]', "Comped the fries"); await O.click('[data-inc-close="inc00"]');
   await O.waitForFunction(() => /What was done: Comped the fries · Olly Owner/.test(document.querySelector("#reports").innerText));
-  assert.match(await text(O), /No open incidents\. Anyone can log one from the Me tab\./);
+  assert.match(await text(O), /No open incidents\. Anyone can log one in Tell the managers\./);
 
   // The spreadsheet has every report, not only the ones on screen.
   await O.click("[data-rp-show=all]");
@@ -85,7 +85,7 @@ test("every report in one tab: waiting first, night by night, filters, and older
   assert.equal(await attempt(S, () => LIVE.api.olderThan("incidents", LIVE.reports[0].at, 30)), "permission-denied");
 
   // Staff: the same list by side, without flags or incidents, and older reports too.
-  await S.evaluate(() => show("notices")); await S.click("[data-tpane=reports]");
+  await part(S, "reports");
   assert.deepEqual(await S.$$eval("[data-rp-show]", (x) => x.map((b) => b.dataset.rpShow)), ["all", "bar", "floor", "kitchen"]);
   assert.doesNotMatch(await text(S), /open incidents|flagged/i);
   await S.click("#rp-older");

@@ -3,7 +3,7 @@
 // published shift keeps who made it, in the shift's history, Activity and the download.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -14,7 +14,7 @@ const flat = (s) => s.replace(/\s+/g, " ").trim();
 const text = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
 // The rota, showing the week with day n in it (days by number from this week's Monday, so 7 is next Monday).
-const rota = async (p, n = 0) => { await p.evaluate(() => show("notices")); await p.click("[data-tpane=rota]"); if (n >= 7) await p.click('[data-ro-wk="7"]'); };
+const rota = async (p, n = 0) => { await part(p, "rota"); if (n >= 7) await p.click('[data-ro-wk="7"]'); };
 const week = (p, n = 0) => p.evaluate((n) => addDays(weekOf(shiftDay()), 7 * n), n);
 const day = (p, n) => p.evaluate((n) => addDays(weekOf(shiftDay()), n), n);
 // Two days still to come, whatever day the tests run: tomorrow and the day after, or next Monday and Tuesday when this
@@ -43,7 +43,7 @@ test("a manager drafts a week, copies last week's and publishes it", async () =>
   const { O, M, S } = await team(browser, site, people);
   await rota(M); await rota(S);
   assert.match(await text(S, "#rota"), /Nothing published for this week yet\./);
-  assert.match(await text(S, "#rota"), /Need a day off\? Tap it on the calendar, or ask from the Me tab\./);
+  assert.match(await text(S, "#rota"), /Need a day off\? Tap it on the calendar, or ask in Tell the managers\./);
   assert.equal(await S.locator("#ro-add").count(), 0, "staff don't get the add form");
   assert.match(await text(M, "#rota"), /Nothing on this week yet\. Add shifts below\./);
   assert.equal(await M.locator("#ro-copy").count(), 0, "nothing to copy on an empty rota");
@@ -170,8 +170,9 @@ test("a shift offered to someone is theirs to take or turn down", async () => {
   await O.waitForFunction(() => LIVE.shifts.filter((x) => x.who).length === 1 && LIVE.shifts.filter((x) => !x.who && !x.offer).length === 1);
   // A turned-down shift is open to anyone, and shows for the managers as one to fill.
   assert.match(await rowText(T, d2, "18:00"), /Open shift Bar I can do it/);
-  await O.evaluate(() => renderDash());
-  assert.match(await text(O, "#dash"), /1 shifts? to fill in the next 7 days/);
+  await part(O, "");
+  assert.match(await text(O, "#foryou"), /1 shift to fill in the next 7 days/);
+  assert.match(await text(O, '#hub [data-tpane="rota"]'), /^Rota 1 shift to fill in the next 7 days 1$/);
   assert.deepEqual(await O.evaluate(() => LIVE.events.filter((e) => e.kind === "shift").map((e) => e.act).sort()), ["declined", "took"]);
   assert.deepEqual([O.errs, S.errs, T.errs], [[], [], []]);
 });
@@ -277,7 +278,7 @@ test("a manager changes a published shift, with its history, warnings and the re
   assert.equal(await attempt(O, () => { const x = LIVE.shifts.find((s) => s.v > 1); return LIVE.api.shift({ ...x, v: x.v - 1 }, "edited", { note: "stale" }); }), "permission-denied", "a change from an old copy is refused");
 
   // The rota is in Activity and in both spreadsheets.
-  await O.click("[data-tpane=managers]"); await O.click("[data-msub=act]");
+  await part(O, "act");
   await O.click('[data-act="rota"]');
   assert.match(await text(O, "#act"), /Olly Owner removed .*Olly Owner changed .*Olly Owner added /s);
   await O.click("#act-csv");

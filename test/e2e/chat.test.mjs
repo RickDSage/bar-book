@@ -43,11 +43,13 @@ test("the team chat: everyone's in it, a ping pops up and is marked, and reading
   await say(S, "Ice machine is playing up", { ping: ["Tia Staff"] });
   await S.waitForFunction(() => LIVE.msgs.length === 1 && !LIVE.msgs[0].pending);
 
-  // Tia is on the drinks list: a pop-up, and the bell and Chat tab show it's new.
+  // Tia is on the drinks list: a pop-up, and the bell, For you and the Chat card show it's new.
   await waitToast(T, /^Sam Staff pinged you: Ice machine is playing up$/);
   await T.waitForFunction(() => document.querySelector("#bell-n").textContent === "1");
+  await T.evaluate(() => show("notices"));
+  assert.equal(await T.$eval('#foryou [data-go="chat:team"]', (b) => b.innerText.replace(/\s+/g, " ")), "New in Team chat You were pinged ›");
+  assert.equal(await T.$eval('#hub [data-tpane="chat"] .pc', (e) => e.textContent), "1");
   await openChat(T);
-  assert.match(await T.$eval('[data-tpane="chat"]', (b) => b.textContent), /1 new/);
   assert.match(await T.$eval('[data-ch-open="team"]', (b) => b.textContent), /Team chat.*@ you.*Sam Staff: Ice machine is playing up/s);
   await T.click('[data-ch-open="team"]');
   await T.waitForFunction(() => /Ice machine/.test(document.querySelector("#ch-msgs")?.textContent));

@@ -2,7 +2,7 @@
 // the logins, lists, labels, calendar, games and records stay.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, OWNER_PIN } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, OWNER_PIN, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -16,10 +16,6 @@ const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(documen
 const work = (p) => p.evaluate(() => ({ reports: LIVE.reports.length, shifts: LIVE.shifts.length, tasks: Object.keys(LIVE.tasks).length, out: LIVE.out.size,
   restock: LIVE.restock.length, issues: LIVE.issues.length, notices: LIVE.notices.length, concerns: LIVE.concerns.length, events: LIVE.events.filter((e) => e.kind !== "label").length }));
 const kept = (p) => p.evaluate(() => ({ cal: LIVE.cal.length, fixtures: LIVE.fixtures.length, labels: LIVE.labels.length, labelEvents: LIVE.events.filter((e) => e.kind === "label").length }));
-async function teamPage(p) {
-  await p.evaluate(() => show("notices"));
-  await p.click("[data-tpane=managers]"); await p.click('[data-msub="team"]');
-}
 
 test("the owner sees what it clears and keeps, needs their PIN, and every phone has the fresh start", async () => {
   await resetEmulators();
@@ -49,9 +45,9 @@ test("the owner sees what it clears and keeps, needs their PIN, and every phone 
   assert.deepEqual(await work(S), before);
 
   // Only the owner has it, under Team members.
-  await teamPage(M);
+  await part(M, "team");
   assert.equal(await M.locator("#fresh-box").count(), 0, "managers don't");
-  await teamPage(O);
+  await part(O, "team");
   await O.click("#fresh-box summary");
   const box = await text(O, "#fresh");
   assert.match(box, /^Clears the shift work for everyone, for a clean start once you've finished trying the app out\. It can't be undone/);

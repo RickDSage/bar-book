@@ -3,7 +3,7 @@
 // can't overwrite each other without knowing, and the closing manager is picked from the team's logins.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, phone, team, toastOf, attempt } from "./helpers.mjs";
+import { serve, resetEmulators, launch, phone, team, toastOf, attempt, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -39,7 +39,7 @@ test("the kitchen has its own opening and closing lists, restocking, report and 
   await S.click('[data-list=kopen][data-i="0"]');
   await M.waitForFunction(() => LIVE.tasks["kopen-0"]?.status === "done" && LIVE.runs.kopen?.status === "started" && LIVE.events.some((e) => e.list === "kopen" && e.to === "done"));
   assert.equal(await M.evaluate(() => LIVE.events.find((e) => e.list === "kopen" && e.to === "done").area), "kitchen");
-  await M.evaluate(() => show("notices")); await M.click("[data-tpane=managers]"); await M.click("#msub [data-msub=live]");
+  await part(M, "live");
   const live = flat(await M.$eval("#live", (e) => e.innerText));
   assert.match(live, /Kitchen opening In progress Kitchen 1 of 14 done · Started by Sam Staff/);
   assert.match(live, /Kitchen closing Not started Kitchen 0 of 15 done/);
@@ -61,7 +61,7 @@ test("the kitchen has its own opening and closing lists, restocking, report and 
   await S.click("#t-copy");
   await O.waitForFunction(() => LIVE.reports[0]?.side === "kitchen" && !LIVE.reports[0].pending);
   assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Kitchen · Opening 1\/14 · Closing 0\/15 · 0 86'd · Closing manager Mia Manager$/);
-  await M.click("[data-tpane=reports]");
+  await part(M, "reports");
   await M.waitForFunction(() => /Kitchen · Sam Staff/.test(document.querySelector("#reports").innerText));
   assert.match(flat(await M.$eval("#reports", (e) => e.innerText)), /Kitchen · Sam Staff Waiting \d\d:\d\d · Opening 1\/14 · Closing 0\/15/);
 

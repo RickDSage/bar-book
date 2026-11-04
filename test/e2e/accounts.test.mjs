@@ -1,7 +1,7 @@
 // Accounts end to end: owner setup, adding people, logging in, roles, PIN resets, removal and logging out.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, phone, team, afterReload, toastOf, attempt, adminGet, authAccounts, cachedDocs, SETUP_CODE, OWNER_PIN, MANAGER_PIN, STAFF_PIN } from "./helpers.mjs";
+import { serve, resetEmulators, launch, phone, team, afterReload, toastOf, attempt, adminGet, authAccounts, cachedDocs, SETUP_CODE, OWNER_PIN, MANAGER_PIN, STAFF_PIN, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -72,8 +72,7 @@ test("adding someone, logging in, promoting, resetting a PIN and removing them",
   await resetEmulators();
   const { O } = await team(browser, site);
   const S = await phone(browser, site);
-  await O.evaluate(() => show("notices"));
-  await O.click("[data-tpane=managers]"); await O.click("[data-msub=team]");
+  await part(O, "team");
   await O.fill("#a-name", "Sam Staff"); await O.fill("#a-user", "sam");
   const pin1 = await O.inputValue("#a-pin");
   assert.match(pin1, /^\d{6}$/, "a staff PIN is made up for you, 6 digits");

@@ -237,9 +237,6 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px var(--shadow); }
 .ptabs button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 52px; padding: 6px 2px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--muted); }
 .ptabs small { font-size: 11.5px; font-weight: 600; opacity: .85; min-height: 14px; }
-#tpanes .ptabs button { min-height: 44px; justify-content: center; font-size: 14px; }
-#tpanes .ptabs small:empty { display: none; }
-@media (max-width: 339px) { #tpanes .ptabs button { font-size: 13px; padding-inline: 0; } }
 .ptabs button[aria-selected="true"] { background: var(--brass); color: var(--brass-ink); }
 .pane.enter { animation: paneIn .18s ease-out; }
 @keyframes paneIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
@@ -314,8 +311,6 @@ details.setup summary { color: var(--brass); font-weight: 700; min-height: 40px;
 .rvrow input { min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
 .rvrow .btn { min-height: 40px; padding: 8px 12px; }
 a.btn { text-decoration: none; color: inherit; }
-.ptabs.msub { position: static; grid-template-columns: repeat(3, 1fr); box-shadow: none; margin-top: 10px; }
-.ptabs.msub button { min-height: 44px; justify-content: center; font-size: 14px; }
 .two { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
 .actday { font-family: var(--body); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 0; }
 .staffrow .did { font-weight: 400; }
@@ -340,6 +335,24 @@ a.btn { text-decoration: none; color: inherit; }
 /* Saving state: shown while a change is waiting to reach the server, or when there's no signal */
 .net { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 25; padding: 7px 16px; text-align: center; font-size: 14px; font-weight: 700; background: var(--surface); border-bottom: 2px solid var(--brass); }
 .net.off { border-color: var(--warn); }
+/* Your name and the account links, spaced rather than dotted, so a line never starts or ends on a dot. */
+.acct { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
+.acct .linkbtn { padding-inline: 0; }
+/* The Team page (the bell): what needs you, tonight, then a card for each part. Each part has its own page, with Back. */
+#placebar { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line); margin-top: 4px; padding-bottom: 2px; }
+.fy { display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; margin-top: 8px; padding: 11px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-weight: 700; color: var(--fg); }
+.fy.hot { border-color: var(--warn); }
+.fy small { display: block; font-weight: 400; font-size: 14px; color: var(--muted); }
+.fy .go { margin-left: auto; color: var(--brass); font-size: 24px; line-height: 1; }
+.places { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 10px; }
+.place { display: flex; align-items: flex-start; gap: 6px; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px 10px 12px; min-height: 76px; color: var(--fg); }
+.place.hot { border-color: var(--warn); }
+.place > span:first-child { flex: 1; min-width: 0; }
+.place b { display: block; font-size: 16px; line-height: 1.2; }
+.place small { display: block; margin-top: 3px; font-size: 13px; line-height: 1.3; color: var(--muted); }
+.place .pc { flex: none; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px; background: var(--brass); color: var(--brass-ink); font-size: 13px; font-weight: 700; display: grid; place-items: center; }
+.place.hot .pc { background: var(--warn); }
+@media (max-width: 339px) { .place { padding-inline: 9px 7px; } .place b { font-size: 15px; } }
 /* Tonight on the Team page: live counts that jump to the right place */
 .dash { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 8px; margin-top: 12px; }
 .dash button { text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 9px 10px; min-height: 64px; }
@@ -555,9 +568,9 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   </section>
 
   <section class="view" id="v-notices" hidden>
-    <h2 style="font-size:28px;margin-top:12px">Team</h2>
-    <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p>
-    <div id="team"></div><div id="dash"></div><div id="tpanes"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="msub"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="hubtop"><h2 style="font-size:28px;margin-top:12px">Team</h2>
+    <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p></div>
+    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
   </section>
   <section class="view info" id="v-info" hidden></section>
 </main>
@@ -2387,37 +2400,37 @@ const FEATURES = [
     mgr: "Add school holidays for the boroughs that matter to the team, events and days we're shut, and see everyone's time off." },
   { g: "Team", k: "asks", n: "Time off and swaps", go: "me", mgrGo: "requests", login: 1, sw: 1,
     what: "Asking for time off or a shift swap, answered by a manager.",
-    staff: "Ask from the Me tab or a day on the calendar, and see the answer in Me.", mgr: "Approve or decline each one. A manager's own go to another manager or the owner." },
+    staff: "Ask from Tell the managers or a day on the calendar, and see the answer there.", mgr: "Approve or decline each one. A manager's own go to another manager or the owner." },
   { g: "Team", k: "late", n: "Running late", go: "me", mgrGo: "requests", login: 1,
     what: "Telling the managers roughly when you'll get in.",
-    staff: "Send it from the Me tab in two taps.", mgr: "See it straight away and mark it seen." },
+    staff: "Send it from Tell the managers in two taps.", mgr: "See it straight away and mark it seen." },
   { g: "Team", k: "reports", n: "Reports", go: "reports", login: 1, tour: 1,
     what: "Every shift report, night by night, with the ones waiting for sign-off first.",
     staff: "Read every side's reports, as far back as you like.", mgr: "Sign off, flag or comment, see each night's flags and lateness, and download every report." },
   { g: "Team", k: "incidents", n: "Incidents", go: "me", mgrGo: "incidents", login: 1, sw: 1,
     what: "Guest complaints, breakages and anything else that went wrong, written down while it's fresh. Accidents and injuries go in Alert65.",
-    staff: "Log one from the Me tab. Only managers can read it.", mgr: "Close each one with what was done, and download them all." },
-  { g: "Managers", k: "live", n: "Live", go: "msub:live", login: 1, admin: 1, tour: 1,
+    staff: "Log one from Tell the managers. Only managers can read it.", mgr: "Close each one with what was done, and download them all." },
+  { g: "Managers", k: "live", n: "Live", go: "live", login: 1, admin: 1, tour: 1,
     what: "Tonight as it happens: what needs you now, each side's checklists, restocks, date labels, who's doing what and the exceptions.",
     mgr: "Share tonight's summary on WhatsApp or by email." },
-  { g: "Managers", k: "activity", n: "Activity", go: "activity", mgrGo: "msub:act", login: 1,
+  { g: "Managers", k: "activity", n: "Activity", go: "activity", mgrGo: "act", login: 1,
     what: "Everything done in the app, newest first, and each item's full history.",
     staff: "See what the team has done.", mgr: "Pick a night, a person or an area, search it, and download the audit trail." },
-  { g: "Managers", k: "kpis", n: "Closing KPIs", go: "msub:kpis", login: 1, admin: 1, sw: 1, tour: 1,
+  { g: "Managers", k: "kpis", n: "Closing KPIs", go: "kpis", login: 1, admin: 1, sw: 1, tour: 1,
     what: "The last 7 nights worked out from every tap: when each list was started and finished, what was blocked or taken back, and how long restocks took, by night and by person.",
     mgr: "Read them, download them and share them." },
-  { g: "Managers", k: "out", n: "86 log", go: "msub:out", login: 1, admin: 1,
+  { g: "Managers", k: "out", n: "86 log", go: "out", login: 1, admin: 1,
     what: "Every 86 and back in stock, and what runs out most.", mgr: "Read the last 100 changes." },
-  { g: "Managers", k: "training", n: "Training", go: "tab:practice", mgrGo: "msub:training", login: 1, sw: 1, tour: "mgr",
+  { g: "Managers", k: "training", n: "Training", go: "tab:practice", mgrGo: "training", login: 1, sw: 1, tour: "mgr",
     what: "Signing people off drink by drink once they've made it to spec in front of a manager.",
     staff: "See your sign-offs in Practise.", mgr: "Sign someone off or undo it, and download every sign-off." },
-  { g: "Managers", k: "team", n: "Team logins", go: "msub:team", login: 1, admin: 1,
+  { g: "Managers", k: "team", n: "Team logins", go: "team", login: 1, admin: 1,
     what: "Everyone's login, with every change recorded.",
     mgr: "Add people, reset a PIN and remove someone. The owner also makes people managers." },
-  { g: "Managers", k: "fresh", n: "Start fresh", go: "msub:team", login: 1, admin: 1,
+  { g: "Managers", k: "fresh", n: "Start fresh", go: "team", login: 1, admin: 1,
     what: "A clean start for everyone once the venue has finished trying the app out: the shift work goes, the logins, lists and records stay.",
     mgr: "The owner downloads what to keep, sees what it would clear, then types their PIN to clear it for everyone." },
-  { g: "Managers", k: "feedback", n: "Manager feedback", go: "msub:feedback", login: 1, admin: 1, sw: 1,
+  { g: "Managers", k: "feedback", n: "Manager feedback", go: "feedback", login: 1, admin: 1, sw: 1,
     what: "Anonymous feedback between managers.",
     mgr: "Send feedback about another manager and read what's about you. The owner reads all of it." },
 ];
@@ -2457,7 +2470,7 @@ function openFeatures() {
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Features</span><span></span></div></div><div id="feat">${featHtml()}</div><button class="btn wide" id="sh-close2">Close</button>`;
   showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus();
 }
-// Where a feature lives: a bottom tab, My pay, a part of the Shift tab, or a Team tab.
+// Where a feature lives: a bottom tab, My pay, a part of the Shift tab, or a part of the Team page.
 function openAt(where) {
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where === "pay") { show("info"); return $("#pay-h")?.scrollIntoView({ block: "start" }); }
@@ -2529,9 +2542,9 @@ const feedNew = () => [...LIVE.notices, ...LIVE.reports].filter(isNew);
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#dash", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#rota", "#requests", "#feed", "#reports", "#sact", "#msub", "#live", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
-  $("#team-lead").textContent = LIVE.api ? "Tonight at a glance, the team board, the rota, issues and shift reports." : "Messages from the manager and bar lead. Newest first.";
+  $("#team-lead").textContent = LIVE.api ? "What needs you, tonight at a glance, and everything for the team." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
   if (!LIVE.api) { $("#team").innerHTML = `<div class="fbbox"><h2 style="margin-top:0">Team logins</h2><p>Your own login, the team board, pinned notices, shift sign-off, stock requests and closing photos.</p>${SOON}</div>`; return; }
   if (!LIVE.ready) { $("#team").innerHTML = `<p class="note">Connecting to the team feed. It needs signal the first time.</p>`; return; }
@@ -2550,7 +2563,7 @@ function renderTeamTop() {
     return;
   }
   if (!LIVE.me) { $("#team").innerHTML = `<p class="note">Checking your account… · <button class="linkbtn" id="l-out">Log out</button></p>`; return; }
-  $("#team").innerHTML = `<p class="note"><b>${esc(LIVE.me)}</b>${LIVE.owner ? " · owner" : LIVE.admin ? " · manager" : ""} · <button class="linkbtn" data-feat-open>What I can do</button> · <button class="linkbtn" id="l-chg">Change PIN</button> · <button class="linkbtn" id="l-out">Log out</button></p>`;
+  $("#team").innerHTML = `<p class="note acct"><span><b>${esc(LIVE.me)}</b>${LIVE.owner ? " · owner" : LIVE.admin ? " · manager" : ""}</span><button class="linkbtn" data-feat-open>What I can do</button><button class="linkbtn" id="l-chg">Change PIN</button><button class="linkbtn" id="l-out">Log out</button></p>`;
   if (LIVE.admin) $("#pin-form").innerHTML = `<details class="setup"><summary>Send a broadcast</summary>
     <p class="note">It stays at the top of every page until each person taps Got it, and stays pinned here until you remove it. You'll see who has read it.</p>
     <label class="fld">Message<textarea id="p-text" rows="3" maxlength="1000" placeholder="Guinness line down. Tasting at 4. New spec for the Paddington."></textarea></label>
@@ -2567,58 +2580,125 @@ function renderTeamTop() {
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>
       ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderFresh(); renderTeamTabs();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderFresh(); renderHub();
 }
-// Team page sections as tabs, so nobody scrolls past the team list to find the board.
-let tpane = "board";
-const TSLOTS = { board: ["#pins", "#pin-form", "#concerns", "#issues", "#feed"], chat: ["#chat"], rota: ["#rota", "#cal", "#requests"], activity: ["#sact"], reports: ["#reports"], managers: ["#msub", "#live", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb"], me: ["#me"] };
+/* The Team page, which the bell opens: what's new and what needs you, tonight at a glance, then a card for each part of
+   the team side of the app, in the Features page's groups and names. Each part opens on a page of its own, with Back to
+   the cards. The bell always opens the cards; a shortcut (a tile, a feature, a link) opens its part straight away. */
+let tpane = "";
 // Off and swap requests wait for a decision; a late one is done once a manager has seen it.
 const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind !== "late");
 // Time off and swaps can be switched off (a venue that does them in Nory). Running late can't.
 const askOn = (a) => a.kind === "late" || isOn("asks");
-// The Managers tab in parts, so nothing is a long scroll away.
-const MSUB = [["live", "Live", ["#live"]], ["act", "Activity", ["#act"]], ["kpis", "KPIs", ["#kpis"]],
-  ["out", "86 log", ["#outlog"]], ["training", "Training", ["#mtrain"]], ["team", "Team", ["#mgr"]], ["feedback", "Feedback", ["#fb"]]];
-let msub = "live";
 const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
-function renderTeamTabs() {
-  const all = Object.values(TSLOTS).flat();
-  if (!LIVE.me) { $("#tpanes").innerHTML = ""; all.forEach((x) => ($(x).hidden = false)); return; }
-  // With the rota switched off, the tab is the calendar's, and managers keep it for staff requests.
-  const rotaTab = isOn("rota") ? [["rota", "Rota"]] : calOn() ? [["rota", "Calendar"]] : LIVE.admin ? [["rota", "Requests"]] : [];
-  const tabs = [["board", "Board"], ...(isOn("chat") ? [["chat", "Chat"]] : []), ...rotaTab, ...(LIVE.admin ? [] : [["activity", "Activity"]]), ["reports", "Reports"], ...(LIVE.admin ? [["managers", "Managers"]] : []), ["me", "Me"]];
-  if (!tabs.some(([k]) => k === tpane)) tpane = "board";
-  // Managers: requests to answer and shifts to fill. Staff: shifts offered to them.
-  const ro = isOn("rota"), offers = ro ? roOffers().length : 0, rota = LIVE.admin ? [LIVE.requests.filter((r) => !r.done).length + LIVE.asks.filter((a) => waiting(a) && askOn(a)).length + (ro ? roToFill().length : 0), "waiting"] : [offers, offers === 1 ? "offer" : "offers"];
-  const count = { board: [openIssues().length + openConcerns().length, "open"], chat: [unreadChats().length, "new"], rota, reports: [rpReports().filter((r) => !r.signedBy).length + (LIVE.admin && isOn("incidents") ? rpIncidents().filter((x) => x.status !== "closed").length : 0), "waiting"] };
-  const badge = (k) => (count[k] && count[k][0] ? `${count[k][0]} ${count[k][1]}` : "");
-  $("#tpanes").innerHTML = `<div class="ptabs" role="tablist" style="grid-template-columns:repeat(${tabs.length},1fr)">${tabs.map(([k, t]) => `<button role="tab" data-tpane="${k}" aria-selected="${k === tpane}">${t}<small>${badge(k)}</small></button>`).join("")}</div>`;
-  for (const [k, xs] of Object.entries(TSLOTS)) xs.forEach((x) => ($(x).hidden = k !== tpane));
-  if (tpane === "rota") { $("#rota").hidden = calShown(); $("#cal").hidden = !calShown(); }
-  if (tpane !== "managers") return;
-  const subs = MSUB.filter(([k]) => !["kpis", "training", "feedback"].includes(k) || isOn(k));
-  if (!subs.some(([k]) => k === msub)) msub = "live";
-  const now = needsYou().length, small = { live: now ? `${now} need${now === 1 ? "s" : ""} you` : "" };
-  $("#msub").innerHTML = `<div class="ptabs msub" role="tablist" aria-label="Managers">${subs.map(([k, t]) => `<button role="tab" data-msub="${k}" aria-selected="${k === msub}">${t}${small[k] ? `<small>${small[k]}</small>` : ""}</button>`).join("")}</div>`;
-  for (const [k, , sels] of MSUB) sels.forEach((x) => ($(x).hidden = k !== msub));
-  // Training loads its records the first time it's opened, and the KPIs read the last 7 nights.
-  if (msub === "training") LIVE.api.watchTraining();
-  if (msub === "kpis" && !kpi.ev && !kpi.busy) loadKpis();
+const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
+// What's waiting on a manager.
+const toAnswer = () => LIVE.asks.filter((a) => waiting(a) && askOn(a)).length + LIVE.requests.filter((r) => !r.done).length;
+const toSign = () => rpReports().filter((r) => !r.signedBy).length;
+const openInc = () => (LIVE.admin && isOn("incidents") ? rpIncidents().filter((x) => x.status !== "closed").length : 0);
+// Each part: its card's name and line, how many there need you (a hot count is urgent), and the slots on its page.
+const PLACES = [
+  { g: "Everyone", k: "chat", n: () => "Chat", on: () => isOn("chat"), slots: ["#chat"],
+    sub: () => { const u = unreadChats(); return u.length ? `New in ${u.map(chatName).join(", ")}` : "The team, one person or a group"; }, cnt: () => unreadChats().length },
+  { g: "Everyone", k: "rota", n: () => (isOn("rota") ? "Rota" : "Calendar"), on: () => isOn("rota") || calOn(), slots: ["#rota", "#cal"],
+    sub: () => {
+      if (!isOn("rota")) return "The next 7 days and the month";
+      if (LIVE.admin) { const n = roToFill().length; return n ? `${plural(n, "shift")} to fill in the next 7 days` : "This week's shifts and the calendar"; }
+      const x = roNext(); return x ? `Your next shift: ${x.day === shiftDay() ? "today" : dayName(x.day)}, ${roTime(x)}` : "No shifts for you on the rota yet";
+    },
+    cnt: () => (!isOn("rota") ? 0 : LIVE.admin ? roToFill().length : roOffers().length), hot: () => isOn("rota") && LIVE.admin && roToFill().some((x) => x.day <= addDays(shiftDay(), 1)) },
+  { g: "Everyone", k: "reports", n: () => "Reports", slots: ["#reports"],
+    sub: () => (LIVE.admin && toSign() ? `${plural(toSign(), "report")} to sign off` : "Every shift report, night by night"), cnt: () => (LIVE.admin ? toSign() + openInc() : 0), hot: () => openInc() > 0 },
+  { g: "Everyone", k: "issues", n: () => "Issues and handover", slots: ["#issues"],
+    sub: () => { const o = openIssues(), u = o.filter((x) => x.urgent).length; return o.length ? `${o.length} open${u ? `, ${u} urgent` : ""}` : "Nothing open"; },
+    cnt: () => openIssues().length, hot: () => openIssues().some((x) => x.urgent) },
+  { g: "Everyone", k: "concerns", n: () => "Concerns", slots: ["#concerns"],
+    sub: () => (openConcerns().length ? `${openConcerns().length} open` : "Nothing open"), cnt: () => openConcerns().length, hot: () => openConcerns().some((x) => x.reason === "hazard") },
+  { g: "Everyone", k: "board", n: () => "Broadcasts", slots: ["#pins", "#pin-form", "#feed"],
+    sub: () => { const n = LIVE.notices.filter(forMe).length; return `${n ? `${n} up now` : "None up now"}${LIVE.admin ? ". Send one" : ""}`; } },
+  { g: "Everyone", k: "me", n: () => "Tell the managers", slots: ["#me"],
+    sub: () => { const n = LIVE.asks.filter((a) => a.uid === LIVE.uid && waiting(a) && askOn(a)).length; return n ? `${plural(n, "request")} waiting for an answer` : isOn("asks") ? "Running late, time off and swaps" : "Running late"; } },
+  { g: "Everyone", k: "activity", n: () => "Activity", staff: 1, slots: ["#sact"], sub: () => "What the team has done" },
+  { g: "Managers", k: "live", n: () => "Live", admin: 1, slots: ["#live"],
+    sub: () => (needsYou().length ? `${needsYou().length} need${needsYou().length === 1 ? "s" : ""} you now` : "Tonight as it happens"), cnt: () => needsYou().length, hot: () => needsYou().length > 0 },
+  { g: "Managers", k: "requests", n: () => "Requests", admin: 1, slots: ["#requests"],
+    sub: () => (toAnswer() ? `${plural(toAnswer(), "request")} to answer` : isOn("asks") ? "Time off, swaps and running late" : "Running late"), cnt: toAnswer },
+  { g: "Managers", k: "act", n: () => "Activity", admin: 1, slots: ["#act"], sub: () => "Everything done in the app" },
+  { g: "Managers", k: "kpis", n: () => "Closing KPIs", admin: 1, on: () => isOn("kpis"), slots: ["#kpis"], sub: () => "The last 7 nights" },
+  { g: "Managers", k: "out", n: () => "86 log", admin: 1, slots: ["#outlog"], sub: () => (LIVE.out.size ? `${LIVE.out.size} 86'd now` : "Every 86 and back in stock") },
+  { g: "Managers", k: "training", n: () => "Training", admin: 1, on: () => isOn("training"), slots: ["#mtrain"], sub: () => "Sign-offs, drink by drink" },
+  { g: "Managers", k: "team", n: () => "Team logins", admin: 1, slots: ["#mgr"], sub: () => `${plural(LIVE.staff.length, "person", "people")}` },
+  { g: "Managers", k: "feedback", n: () => "Manager feedback", admin: 1, on: () => isOn("feedback"), slots: ["#fb"], sub: () => "Anonymous, between managers" },
+];
+const placesOn = () => PLACES.filter((p) => (!p.on || p.on()) && (!p.admin || LIVE.admin) && (!p.staff || !LIVE.admin));
+// What's new since the Team page was last opened (what the bell counts), then what's waiting on this person, most
+// pressing first. Each is a shortcut to where it's dealt with.
+let hubSince = feedSeen;
+function forYou() {
+  const xs = [], add = (text, go, sub = "", hot = false) => xs.push({ text, go, sub, hot });
+  const urgent = openIssues().filter((x) => x.urgent && x.status === "open"), hazards = openConcerns().filter((x) => x.reason === "hazard");
+  for (const x of urgent) add(`Urgent: ${x.title}`, "issues", `Raised by ${x.uid === LIVE.uid ? "you" : x.name}. Nobody's on it yet`, true);
+  for (const x of hazards) add(`Safety hazard: ${AREA[x.area] || "Other"}`, "concerns", x.note || "", true);
+  if (LIVE.admin) {
+    const now = needsYou();
+    const kinds = [...new Set(now.map((x) => (/^(Waiting|Not confirmed)/.test(x.tag) ? "Restock late" : x.tag.replace(/:.*/, ""))))];
+    if (now.length) add(`${plural(now.length, "thing")} need${now.length === 1 ? "s" : ""} you tonight`, "live", kinds.map((t, i) => (i ? t.toLowerCase() : t)).join(", "), true);
+    if (openInc()) add(`${plural(openInc(), "open incident")}`, "incidents", "Close each one with what was done", true);
+    if (toAnswer()) add(`${plural(toAnswer(), "request")} to answer`, "requests", [...new Set(LIVE.asks.filter((a) => waiting(a) && askOn(a)).map((a) => a.name))].join(", "));
+    if (toSign()) add(`${plural(toSign(), "report")} to sign off`, "reports");
+    const fill = isOn("rota") ? roToFill() : [];
+    if (fill.length) add(`${plural(fill.length, "shift")} to fill in the next 7 days`, "rota", fill.slice(0, 3).map(roWhen).join(", "), fill.some((x) => x.day <= addDays(shiftDay(), 1)));
+  }
+  for (const x of isOn("rota") ? roOffers() : []) add(`${x.name} offered you a shift`, `rota:${x.week}`, `${roWhen(x)}, ${sideName(x.side)}`);
+  for (const x of openIssues().filter((i) => i.status === "taken" && i.whoUid === LIVE.uid)) add(x.setByUid === LIVE.uid ? `You're on: ${x.title}` : `${x.setBy} gave you: ${x.title}`, "issues", "Mark it fixed when it's done");
+  for (const c of unreadChats()) add(`New in ${chatName(c)}`, `chat:${c.id}`, pinged(c) ? "You were pinged" : "");
+  const reps = LIVE.reports.filter((r) => r.uid !== LIVE.uid && ms(r.at) > hubSince);
+  if (reps.length && !LIVE.admin) add(`${plural(reps.length, "new report")}`, "reports", reps.map((r) => `${sideName(r.side)}, from ${r.name}`).join(". "));
+  return xs;
 }
-/* Tonight at a glance: counts worked out from the live data, each one a shortcut to where it's dealt with.
-   "…" means that part hasn't loaded yet (it needs signal the first time). */
+function renderForYou() {
+  const xs = forYou();
+  $("#foryou").innerHTML = `<div class="sec">For you</div>${xs.map((x) => `<button class="fy${x.hot ? " hot" : ""}" data-go="${esc(x.go)}"><span>${esc(x.text)}${x.sub ? `<small>${esc(x.sub)}</small>` : ""}</span><span class="go" aria-hidden="true">›</span></button>`).join("")
+    || `<p class="note">Nothing new, and nothing waiting on you.</p>`}`;
+}
+function renderHub() {
+  const ps = placesOn(), all = PLACES.flatMap((p) => p.slots);
+  if (!LIVE.me) { tpane = ""; ["#placebar", "#foryou", "#hub"].forEach((x) => ($(x).innerHTML = "")); $("#hubtop").hidden = false; all.forEach((x) => ($(x).hidden = false)); return; }
+  const p = ps.find((x) => x.k === tpane);
+  if (!p) tpane = "";
+  $("#hubtop").hidden = !!p;
+  ["#team", "#foryou", "#dash", "#hub"].forEach((x) => ($(x).hidden = !!p));
+  $("#placebar").hidden = !p;
+  for (const q of PLACES) q.slots.forEach((x) => ($(x).hidden = q !== p));
+  if (p) {
+    $("#placebar").innerHTML = `<div class="bar1"><button class="back" id="hub-back">‹ Team</button><span class="t">${p.n()}</span><span></span></div>`;
+    if (p.k === "rota") { $("#rota").hidden = calShown(); $("#cal").hidden = !calShown(); }
+    // Training loads its records the first time it's opened, and the KPIs read the last 7 nights.
+    if (p.k === "training") LIVE.api.watchTraining();
+    if (p.k === "kpis" && !kpi.ev && !kpi.busy) loadKpis();
+    return;
+  }
+  renderForYou();
+  const card = (q) => {
+    const n = q.cnt?.() || 0, hot = n > 0 && !!q.hot?.();
+    return `<button class="place${hot ? " hot" : ""}" data-tpane="${q.k}"><span><b>${q.n()}</b><small>${esc(q.sub())}</small></span>${n ? `<span class="pc" aria-label="${n} waiting">${n > 99 ? "99+" : n}</span>` : ""}</button>`;
+  };
+  $("#hub").innerHTML = [...new Set(ps.map((q) => q.g))].map((g) => `<div class="sec">${g}</div><div class="places" data-g="${g}">${ps.filter((q) => q.g === g).map(card).join("")}</div>`).join("");
+}
+// Opens a part of the Team page ("" for the cards) at its top.
+function openPlace(k) { tpane = k; renderHub(); window.scrollTo(0, 0); }
+/* Tonight at a glance: the shift's counts, worked out from the live data, each one a shortcut to where it's dealt with.
+   What's waiting on a manager is under For you, and each part's own count is on its card. "…" means that part hasn't
+   loaded yet (it needs signal the first time). */
 function renderDash() {
   if (!LIVE.me) { $("#dash").innerHTML = ""; return; }
   const v = (k, x) => (LIVE.loaded.has(k) ? x : "…");
   const ps = MODE_LISTS[mode].map(progress), done = ps.reduce((a, p) => a + p.n, 0), of = ps.reduce((a, p) => a + p.of, 0);
   // Managers see blocked tasks on every side; staff on the side their phone is set to.
   const blocked = blockedTasks(LIVE.admin ? ALL_LISTS : MODE_LISTS[mode]).length, rsO = rsOpen(), rsL = rsO.filter(rsLate).length;
-  const open = openIssues(), urgent = open.filter((x) => x.urgent).length;
   const tonight = LIVE.reports.filter((r) => bday(r.at) === shiftDay());
   const sent = (side) => (tonight.some((r) => r.side === side) ? "Sent" : "Not yet");
-  const unsigned = LIVE.reports.filter((r) => !r.signedBy).length, inc = LIVE.incidents.filter((x) => x.status !== "closed").length, ro = isOn("rota");
   const lbSides = LIVE.admin ? LB_SIDES : [mode], lbNow = toChange(lbSides), lbNext = labelsDue(lbSides).length - lbNow.length;
-  const next = roNext(), fill = roToFill();
   const tiles = [
     [v("tasks", `${done}/${of}`), `${sideName(mode)} checklists done`, "shift"],
     [v("tasks", blocked), blocked === 1 ? "blocked task" : "blocked tasks", "blocked", blocked > 0],
@@ -2626,18 +2706,8 @@ function renderDash() {
     [v("out", LIVE.out.size), "86'd right now", "stock", LIVE.out.size > 0],
     // Managers go to the side of the one most overdue.
     [v("labels", lbNow.length), `date label${lbNow.length === 1 ? "" : "s"} to change${lbNext ? `, ${lbNext} tomorrow` : ""}`, `labels:${lbNow[0]?.side || mode}`, lbNow.some((x) => labelDue(x) === "overdue")],
-    [v("issues", open.length), urgent ? `open issues, ${urgent} urgent` : "open issues", "issues", urgent > 0],
-    [v("concerns", openConcerns().length), "open concerns", "concerns", openConcerns().some((x) => x.reason === "hazard")],
     // The kitchen's report on a phone set to the kitchen, or once the kitchen has sent one.
     ...Object.keys(MODE_LISTS).filter((s) => s !== "kitchen" || mode === s || LIVE.reports.some((r) => r.side === s)).map((s) => [v("reports", sent(s)), `${s} report tonight`, "reports"]),
-    // Staff always see their next shift; managers only when they're on the rota.
-    ...(ro && (next || !LIVE.admin) ? [[v("shifts", next ? (next.day === shiftDay() ? "Today" : dayName(next.day, { weekday: "short" })) : "None"), next ? `your next shift, ${roTime(next)}` : "your next shift on the rota", "rota"]] : []),
-    ...(LIVE.admin ? [
-      [v("reports", unsigned), "reports to sign off", "reports", unsigned > 0],
-      [v("asks", LIVE.asks.filter((a) => waiting(a) && askOn(a)).length), "staff requests to answer", "requests"],
-      ...(ro ? [[v("shifts", fill.length), `shift${fill.length === 1 ? "" : "s"} to fill in the next 7 days`, "rota", fill.some((x) => x.day <= addDays(shiftDay(), 1))]] : []),
-      ...(isOn("incidents") ? [[v("incidents", inc), "open incidents", "incidents", inc > 0]] : []),
-    ] : []),
   ];
   $("#dash").innerHTML = `<div class="sec">Tonight</div><div class="dash">${tiles.map(([x, label, go, hot]) => `<button data-go="${go}"${hot ? ' class="hot"' : ""}><b>${x}</b><span>${label}</span></button>`).join("")}</div>`;
 }
@@ -2646,21 +2716,19 @@ function go(where) {
   if (where.startsWith("list:")) { const k = where.slice(5); if (listSide(k) !== mode) setMode(listSide(k)); pane = k; show("tally"); return; }
   // Blocked tasks: managers see them in Live; staff go to the first list with one.
   if (where === "blocked" && !LIVE.admin) { pane = MODE_LISTS[mode].find((k) => blockedTasks([k]).length) || defaultPane(); show("tally"); return; }
-  if (where === "blocked") { msub = "live"; where = "managers"; }
+  if (where === "blocked") where = "live";
   if (where === "shift" || where === "stock") { pane = where === "shift" ? defaultPane() : where; show("tally"); return; }
   // Date labels: this phone's side, or the side a label in Live is on.
   if (where.startsWith("labels")) { const s = where.split(":")[1] || mode; if (s !== mode) setMode(s); pane = labelPane(s); show("tally"); return; }
   if (where === "incidents") { rpShow = "all"; where = "reports"; }
-  // Staff requests sit under the rota. A week can come with it ("rota:2026-11-09").
-  if (where === "requests") { tpane = "rota"; renderTeamTabs(); $("#requests").scrollIntoView({ block: "start" }); return; }
-  // The calendar is under the Rota tab, so the rota means its week view.
+  // A chat, opened ("chat:{id}").
+  if (where.startsWith("chat:")) { openPlace("chat"); return goChat(where.slice(5)); }
+  // The calendar is in the Rota part, so the rota means its week view. A week can come with it ("rota:2026-11-09").
   if (where === "cal") { roView = "cal"; where = "rota"; renderCal(); }
   else if (where.startsWith("rota")) { roView = "week"; roWk = where.split(":")[1] || roWk; where = "rota"; renderRota(); }
-  // A part of the Managers tab ("msub:kpis").
-  if (where.startsWith("msub:")) { msub = where.slice(5); where = "managers"; }
-  const board = where === "issues" || where === "concerns";
-  tpane = board ? "board" : where; renderTeamTabs();
-  $(board ? `#${where}` : "#tpanes").scrollIntoView({ block: "start" });
+  // Activity: managers have it in full.
+  if (where === "activity" && LIVE.admin) where = "act";
+  openPlace(where);
 }
 const ROLE = { owner: "Owner", manager: "Manager", staff: "Staff" };
 const AUDIT = { setup: "owner account set up", add: "added", reset: "new PIN", remove: "removed", role: "role changed" };
@@ -2725,7 +2793,7 @@ function renderReports() {
     (waitingR.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}${r.pending ? " · sending…" : ""}</div><p class="txt">${esc(r.summary)}</p>${body(r)}
       ${A ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>${reviewHtml(r)}` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
     (A && isOn("incidents") ? `<div class="sec">Open incidents</div>${openI.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill wait">Open</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>
-      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-inct="${x.id}" maxlength="500" placeholder="What was done about it" value="${esc(incText[x.id] || "")}" aria-label="What was done about it"><button class="btn" data-inc-close="${x.id}">Close</button></div></div>`).join("") || `<p class="note">No open incidents. Anyone can log one from the Me tab.</p>`}` : "");
+      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-inct="${x.id}" maxlength="500" placeholder="What was done about it" value="${esc(incText[x.id] || "")}" aria-label="What was done about it"><button class="btn" data-inc-close="${x.id}">Close</button></div></div>`).join("") || `<p class="note">No open incidents. Anyone can log one in Tell the managers.</p>`}` : "");
   // Night by night. For the last 7 nights managers also get the flags, incidents and lateness counted, as those are
   // all loaded; further back the counts could be short, so they're left off.
   const inc = rpShow === "incidents", xs = inc ? incs : reps.filter((r) => rpShow === "all" || (rpShow === "flagged" ? rpFlagged(r) : r.side === rpShow));
@@ -2926,8 +2994,8 @@ function renderRota() {
   }).join("") : "";
   const hours = A && xs.length ? roHours(xs) : "";
   const acts = xs.length ? `<div class="actions">${shareBtns("rota")}${A ? dlHtml("shifts", "Download every week as a spreadsheet", "rota") : ""}</div>` : "";
-  const foot = A ? roAddHtml(wk, xs.some((x) => x.pub)) : !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? Tap it on the <button class="linkbtn" data-roview="cal">calendar</button>, or ask from the <button class="linkbtn" data-go="me">Me tab</button>.</p>`
-    : `<p class="note">Need a day off? Ask from the <button class="linkbtn" data-go="me">Me tab</button>.</p>`;
+  const foot = A ? roAddHtml(wk, xs.some((x) => x.pub)) : !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? Tap it on the <button class="linkbtn" data-roview="cal">calendar</button>, or ask in <button class="linkbtn" data-go="me">Tell the managers</button>.</p>`
+    : `<p class="note">Need a day off? Ask in <button class="linkbtn" data-go="me">Tell the managers</button>.</p>`;
   box.innerHTML = roViews() + head + nav + status + you + elsewhere + chips + days + hours + acts + foot;
 }
 // Each person's shifts and hours in the week, then the open shifts.
@@ -3081,10 +3149,10 @@ async function showPhotos(id) {
   const box = document.querySelector(`[data-photos-of="${id}"]`); if (box) box.innerHTML = shownPhotos[id];
 }
 /* ---------- Calendar ----------
-   A month at a time, under the Rota tab: bank holidays in England and Wales, the days that change a bar's night, what
+   A month at a time, in Rota: bank holidays in England and Wales, the days that change a bar's night, what
    managers add (school holidays and half terms, which differ by borough, events, and days the venue is shut), and each
    person's own shifts, time off and the games on the screens. Managers see everyone's time off. Tapping a day shows all
-   of it, and asking for time off from there goes to the managers like an ask from the Me tab. */
+   of it, and asking for time off from there goes to the managers like an ask from Tell the managers. */
 // England and Wales, from https://www.gov.uk/bank-holidays.json (fetched 4 November 2026). It runs to the end of 2028:
 // add the next years when gov.uk publishes them, and move BANK_TO on.
 const BANK_HOLS = {
@@ -3179,7 +3247,7 @@ const calOn = () => isOn("calendar");
 let roView = "week", calMon = "", calSel = "", calDayShown = "";
 const calF = { open: false, date1: "", date2: "", note: "" };
 const calE = { open: false, id: "", kind: "school", title: "", date1: "", date2: "", note: "" };
-// The Rota tab shows the week's shifts (week), the next 7 days (next) or the month (cal). With the rota off, the calendar's
+// Rota shows the week's shifts (week), the next 7 days (next) or the month (cal). With the rota off, the calendar's
 // two; with the calendar off, just the shifts.
 const calShown = () => calOn() && (!isOn("rota") || roView !== "week");
 const calMode = () => (roView === "cal" ? "cal" : "next");
@@ -3445,7 +3513,7 @@ function reviewHtml(r) {
   return `${vs.map((v) => `<div class="s" style="margin-top:6px"><b>${esc(v.name)}</b> ${v.verdict === "up" ? "👍" : v.verdict === "flag" ? `<span class="pill no">Flagged</span>` : ""}${v.text ? ` ${esc(v.text)}` : ""} · ${when(v.at)}</div>`).join("")}
     <div class="rvrow"><input data-rvt="${r.id}" maxlength="500" placeholder="Comment for managers" value="${esc(rvText[r.id] || "")}" aria-label="Comment for managers"><button class="btn" data-rv="${r.id}" data-v="up" aria-label="Thumbs up">👍</button><button class="btn" data-rv="${r.id}" data-v="flag">Flag</button><button class="btn" data-rv="${r.id}" data-v="note">Note</button></div>`;
 }
-// Anonymous feedback between managers. Nights and incidents moved to the Reports tab (3 November 2026).
+// Anonymous feedback between managers. Nights and incidents moved to Reports (3 November 2026).
 function renderFeedback() {
   if (!LIVE.admin) return;
   const others = LIVE.staff.filter((p) => p.role !== "staff" && p.uid !== LIVE.uid);
@@ -3608,7 +3676,7 @@ function renderLive() {
     <div class="h3">Who's doing what</div>${who.map(whoRow).join("") || `<p class="note">Nobody has changed anything yet tonight.</p>`}
     <div class="h3">Exceptions tonight</div>${exceptions().map(flagHtml).join("") || `<p class="note">Nothing finished early, reopened, taken back, not needed or missing from the cellar tonight.</p>`}
     <div class="h3">Latest</div>${LIVE.events.slice(0, 12).map(evRow).join("") || `<p class="note">No changes yet tonight.</p>`}
-    <div class="actions"><button class="btn" data-msub="act">All activity</button></div>`;
+    <div class="actions"><button class="btn" data-tpane="act">All activity</button></div>`;
 }
 const lbLiveRow = (x) => `<div class="staffrow"><div class="n">${esc(x.item)} <span class="pill ${LB_DUE[labelDue(x)][1]}">${LB_DUE[labelDue(x)][0]}</span> <span class="did">${sideName(x.side)}</span></div>
   <div class="s">Use by ${dayName(x.useBy)} · ${esc(opener(x))} · <button class="linkbtn" data-go="labels:${x.side}">Date labels</button></div></div>`;
@@ -4053,7 +4121,7 @@ const pingable = (c) => (c.kind === "team" ? LIVE.directory.map((p) => p.uid) : 
 const canEdit = (c) => c.kind === "group" && (c.by === LIVE.uid || LIVE.admin);
 function goChat(id) {
   chatId = id; chatView = "room"; Object.assign(chF, { text: "", photo: "", mentions: [] });
-  renderChat(); $("#tpanes").scrollIntoView({ block: "start" });
+  renderChat(); window.scrollTo(0, 0);
 }
 function renderChat() {
   const box = $("#chat"); if (!LIVE.me) { box.innerHTML = ""; return; }
@@ -4283,7 +4351,7 @@ function liveChanged(what) {
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
     const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"]];
-    if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
+    if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderHub(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
@@ -4297,8 +4365,7 @@ setInterval(() => {
   const ae = document.activeElement;
   if (!LIVE.me || (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) return;
   if (!$("#v-tally").hidden) renderTally();
-  if (!$("#v-notices").hidden) renderDash();
-  if (!$("#v-notices").hidden && tpane === "managers") { renderLive(); renderTeamTabs(); }
+  if (!$("#v-notices").hidden) { renderDash(); if (tpane === "live") renderLive(); renderHub(); }
 }, 60000);
 function markSeen() {
   const all = [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].map((x) => ms(x.at));
@@ -4375,10 +4442,10 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.dataset.roWk) { roWk = addDays(roWeek(), +b.dataset.roWk); Object.assign(roF, { days: [] }); roM = ""; roE = null; renderRota(); return; }
   if (b.dataset.roGoto) { roWk = b.dataset.roGoto; roF.days = []; renderRota(); return; }
   if (b.dataset.roSide !== undefined) { roSide = b.dataset.roSide; renderRota(); return; }
-  if (b.dataset.roview) { roView = b.dataset.roview; renderRota(); renderCal(); renderTeamTabs(); $("#tpanes").scrollIntoView({ block: "start" }); return; }
+  if (b.dataset.roview) { roView = b.dataset.roview; renderRota(); renderCal(); renderHub(); window.scrollTo(0, 0); return; }
   if (b.dataset.calMon) { calMon = addMonths(calMonth(), +b.dataset.calMon); calSel = ""; renderCal(); return; }
   if (b.dataset.calDay) return calPick(b.dataset.calDay);
-  if (b.dataset.calOpen) { roView = "cal"; calMon = monthOf(b.dataset.calOpen); calSel = b.dataset.calOpen; renderCal(); $("#tpanes").scrollIntoView({ block: "start" }); return; }
+  if (b.dataset.calOpen) { roView = "cal"; calMon = monthOf(b.dataset.calOpen); calSel = b.dataset.calOpen; renderCal(); renderHub(); window.scrollTo(0, 0); return; }
   if (b.id === "cal-ask") { Object.assign(calF, { open: true, date1: calDayShown, date2: calDayShown, note: "" }); renderCal(); return; }
   if (b.id === "cal-cancel") { Object.assign(calF, { open: false, date1: "", date2: "", note: "" }); renderCal(); return; }
   if (b.id === "cal-send") return calSend(A);
@@ -4413,7 +4480,6 @@ $("#v-notices").addEventListener("click", (e) => {
   }
   if (b.dataset.rpShow) { rpShow = b.dataset.rpShow; renderReports(); return; }
   if (b.id === "rp-older") return rpOlder();
-  if (b.dataset.msub) { msub = b.dataset.msub; renderTeamTabs(); return; }
   if (b.dataset.bcSide) { bcSide = b.dataset.bcSide; $$("[data-bc-side]").forEach((c) => c.setAttribute("aria-pressed", c === b)); return; }
   if (b.dataset.act) { actSec = b.dataset.act; actMax = 50; renderAct(); return; }
   if (b.id === "act-more") { actMax += 50; renderActRows(); return; }
@@ -4497,7 +4563,8 @@ $("#v-notices").addEventListener("click", (e) => {
     Object.assign(isF, { title: x.title, detail: "", area: x.area, urgent: false, again: x.id, open: true }); renderIssues();
     $("#is-form").scrollIntoView({ block: "start" }); return;
   }
-  if (b.dataset.tpane) { tpane = b.dataset.tpane; renderTeamTabs(); window.scrollTo(0, 0); return; }
+  if (b.dataset.tpane) { openPlace(b.dataset.tpane); return; }
+  if (b.id === "hub-back") { openPlace(""); return; }
   const person = (id) => LIVE.staff.find((p) => p.uid === id);
   if (b.id === "l-go") {
     const u = val("#l-user").toLowerCase(), pin = val("#l-pin");
@@ -4568,7 +4635,7 @@ function show(tab) {
   if (tab === "practice" && !pDrink) nextCard();
   if (tab === "tally") renderTally();
   if (tab === "info") renderInfo();
-  if (tab === "notices") renderNotices();
+  if (tab === "notices") { tpane = ""; hubSince = feedSeen; renderNotices(); }
   store.set("tab", tab); window.scrollTo(0, 0);
 }
 document.querySelector("nav.tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });

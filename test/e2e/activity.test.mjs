@@ -2,7 +2,7 @@
 // downloaded files contain.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, attempt, oldPost } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, attempt, oldPost, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -32,7 +32,7 @@ test("activity, downloads and broadcasts", async () => {
   await oldPost(await S.evaluate(() => LIVE.uid), "Sam Staff", "=1+1 limes, please");
 
   // A broadcast sits at the top of every page for everyone else until they tap Got it.
-  await M.evaluate(() => show("notices"));
+  await part(M, "board");
   await M.click("#pin-form summary"); await M.fill("#p-text", "Tasting at 4"); await M.click("#p-go");
   await S.waitForSelector("#bcast .bcast");
   assert.match(await text(S, "#bcast"), /Broadcast from Mia Manager.*Tasting at 4/);
@@ -42,10 +42,8 @@ test("activity, downloads and broadcasts", async () => {
   await S.waitForSelector("#bcast .bcast", { state: "detached" });
   assert.equal(await S.evaluate(() => (renderBcast(), document.querySelectorAll("#bcast .bcast").length)), 0, "Got it is remembered");
 
-  // Managers: Live opens first in the Managers tab, and Activity has every section.
-  await O.evaluate(() => show("notices")); await O.click("[data-tpane=managers]");
-  assert.equal(await O.$eval("[data-msub][aria-selected=true]", (e) => e.dataset.msub), "live");
-  await O.click("[data-msub=act]");
+  // Managers: Activity has every section.
+  await part(O, "act");
   await O.waitForFunction(() => LIVE.feed.length && LIVE.outlog.length && LIVE.issues.length && LIVE.restock.length && LIVE.events.length === 3);
   await O.waitForFunction(() => /sent a broadcast/.test(document.querySelector("#act").textContent));
   const act = await text(O, "#act");
@@ -73,12 +71,12 @@ test("activity, downloads and broadcasts", async () => {
   assert.match(stock.csv, /^Night,Asked at,Item,Asked for,Unit,Where,Detail,Asked by,Status,Who has it,Brought up,Received,/);
   assert.match(stock.csv, /\r\n\d{4}-\d\d-\d\d,\d\d:\d\d,Limes,2,bag,Upstairs bar,,Sam Staff,Waiting,,,,Sam Staff,/);
 
-  // Managers' other pages are one tap away.
-  await O.click("[data-msub=team]");
+  // Managers' other parts are a card each.
+  await part(O, "team");
   assert.deepEqual(await O.evaluate(() => ["#act", "#mgr"].map((s) => document.querySelector(s).hidden)), [true, false]);
 
   // Staff get their own Activity for their side of the venue, without the managers' sections or downloads.
-  await S.evaluate(() => show("notices")); await S.click("[data-tpane=activity]");
+  await part(S, "activity");
   await S.waitForFunction(() => /86'd/.test(document.querySelector("#sact").textContent));
   assert.deepEqual(await S.$$eval("#sact [data-act]", (x) => x.map((e) => e.dataset.act)), ["all", "board", "checks", "labels", "86", "stock", "rota", "issues", "concerns", "reports"]);
   assert.equal(await S.locator("#act-csv").count(), 0);
@@ -91,7 +89,7 @@ test("broadcasts for the bar or the floor, managers left out, and who has read t
   await resetEmulators();
   const { O, M, S, T } = await team(browser, site, [...people, ["T", "Tia Staff", "tia", "staff"]]);
   await T.evaluate(() => setMode("floor"));
-  for (const p of [O, M]) await p.evaluate(() => show("notices"));
+  for (const p of [O, M]) await part(p, "board");
 
   // The owner sends one to the bar only and leaves managers out.
   await O.click("#pin-form summary"); await O.click('[data-bc-side="bar"]'); await O.uncheck("#p-mgrs");

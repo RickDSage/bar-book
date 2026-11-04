@@ -4,7 +4,7 @@
 // and the layout on a phone and a desktop in light and dark.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, ukDay } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, ukDay, part } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -25,7 +25,6 @@ const runBox = (p) => p.evaluate(() => document.querySelector(".run").innerText.
 const settled = (p, id, status) => p.waitForFunction(([id, s]) => LIVE.tasks[id]?.status === s && !LIVE.tasks[id].pending, [id, status]);
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
 const shift = async (p, pane) => { await p.click("[data-tab=tally]"); await p.click(`.ptabs [data-pane=${pane}]`); };
-const managers = async (p, sub) => { await p.evaluate(() => show("notices")); await p.click("[data-tpane=managers]"); await p.click(`#msub [data-msub=${sub}]`); };
 // An item's ⋯ options stay open while the list changes, so this only opens them if they're closed.
 const opts = async (p, id) => { if ((await p.getAttribute(`[data-more="${id}"]`, "aria-expanded")) !== "true") await p.click(`[data-more="${id}"]`); };
 const pick = async (p, id, to) => { await opts(p, id); await p.click(`[data-task="${id}"][data-to="${to}"]`); };
@@ -193,7 +192,7 @@ test("a list finishes once everything's done; finishing early takes a manager an
   await M.waitForFunction(() => LIVE.runs.fset?.status === "finished" && LIVE.runs.fset.done === 4 && LIVE.runs.fset.required === 4 && !LIVE.runs.fset.pending);
 
   // Managers see the exceptions on Live and in the KPIs, and they stay listed once dealt with.
-  await managers(M, "live");
+  await part(M, "live");
   const exc = await section(M, "#live", "Exceptions tonight");
   assert.equal(exc.length, 3);
   assert.match(exc[0], /^Reopened Tables and cutlery Last table needs laying · Mia Manager, \d\d:\d\d · Open the list$/);
@@ -201,7 +200,7 @@ test("a list finishes once everything's done; finishing early takes a manager an
   assert.match(exc[2], new RegExp(`^Not needed tonight ${rx(l0)} \\(Tables and cutlery\\) Terrace closed · Mia Manager, \\d\\d:\\d\\d · Open the list$`));
   const lists = await section(M, "#live", "Opening and closing");
   assert.match(lists[2], /^Tables and cutlery Finished Floor 4 of 4 done · 1 not needed tonight · Started by Mia Manager, \d\d:\d\d\. Finished by Sam Staff, \d\d:\d\d$/);
-  await M.click("#msub [data-msub=kpis]");
+  await part(M, "kpis");
   await M.waitForFunction(() => document.querySelector("#kpis p.txt"));
   assert.match(await M.$eval("#kpis p.txt", (e) => e.textContent), /^Tables and cutlery: started on 1 night and finished on 1, at \d\d:\d\d on average, taking \d+ min\.$/);
   assert.deepEqual((await section(M, "#kpis", "Night by night")).map((s) => s.replace(/^\w{3} \d{1,2} \w{3} · /, "")),
@@ -306,7 +305,7 @@ test("restocking: asked for, given to someone, brought up and confirmed, each st
   assert.deepEqual(await M.$$eval('[data-rs-card="late1"] .pill', (xs) => xs.map((e) => e.textContent.replace(/2[56] min/, "25 min"))), ["Waiting", "Waiting 25 min"]);
   await M.evaluate(() => show("notices"));
   assert.equal(flat(await M.$eval('#dash [data-go="stock"].hot', (e) => e.innerText)), "1 restock open, 1 waiting");
-  await managers(M, "live");
+  await part(M, "live");
   assert.deepEqual((await section(M, "#live", "Needs you now")).map((s) => s.replace(/2[56] min/, "25 min")), ["Waiting 25 min 1 case of Coke for the downstairs bar Asked by Sam Staff · Restock board"]);
   assert.match(await M.$eval("#live", (e) => e.textContent), /Tonight: 1 asked for, 1 brought up, 1 confirmed arrived\./);
   assert.deepEqual([O.errs, M.errs, S.errs, T.errs], [[], [], [], []]);
@@ -352,7 +351,7 @@ test("managers follow the night live, filter its history, read and download the 
   await M.waitForFunction(() => LIVE.events.length === 5 && LIVE.events.every((e) => !e.pending) && LIVE.restock.length === 1);
 
   // Live: what needs a manager now, longest waiting first, and where each list is up to.
-  await managers(M, "live");
+  await part(M, "live");
   const live = async () => ({ now: (await section(M, "#live", "Needs you now")).map((s) => s.replace(/Overdue: 3[5-7] min/, "Overdue: 35 min")), lists: await section(M, "#live", "Opening and closing") });
   const before = await live();
   assert.equal(before.now.length, 2);
@@ -369,11 +368,11 @@ test("managers follow the night live, filter its history, read and download the 
   // A reload shows the same night: it's all saved, not held on the phone.
   await M.reload(); await M.click("#w-ok");
   await M.waitForFunction(() => LIVE.me && ["tasks", "runs", "events", "restock"].every((k) => LIVE.loaded.has(k)));
-  await managers(M, "live");
+  await part(M, "live");
   assert.deepEqual(await live(), before);
 
   // Activity: last night, then one person, one kind of change, or a word, and everything that happened to one item.
-  await M.click("#msub [data-msub=act]");
+  await part(M, "act");
   await M.selectOption("#af-night", y);
   await M.waitForFunction(() => /finished the closing checklist with 2 of 21 not done/.test(document.querySelector("#act-rows").textContent));
   const rows = () => M.$$eval("#act-rows .staffrow .n", (xs) => xs.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
@@ -410,7 +409,7 @@ test("managers follow the night live, filter its history, read and download the 
   ]) assert.ok(trail.lines.includes(line(want)), line(want));
 
   // The KPIs: each list night by night, then each person, worked out from the changes.
-  await M.click("#msub [data-msub=kpis]");
+  await part(M, "kpis");
   await M.waitForFunction(() => document.querySelector("#kpis p.txt"));
   const tName = await M.evaluate(() => dayName(shiftDay()));
   assert.equal(await M.$eval("#kpis p.txt", (e) => e.textContent), `Closing checklist: started on 2 nights and finished on 1, at ${hm(at(45))} on average, taking 45 min. 1 finished with items not done.`);
@@ -445,7 +444,7 @@ test("managers follow the night live, filter its history, read and download the 
     for (const p of [M, S]) { await p.emulateMedia({ colorScheme: scheme }); await p.setViewportSize({ width, height: 900 }); }
     await M.waitForFunction((s) => document.documentElement.dataset.theme === s, scheme);
     const views = [["shift", S, async () => { await shift(S, "close"); await opts(S, "close-3"); }], ["stock", S, () => shift(S, "stock")],
-      ["live", M, () => managers(M, "live")], ["activity", M, () => managers(M, "act")], ["kpis", M, () => managers(M, "kpis")]];
+      ["live", M, () => part(M, "live")], ["activity", M, () => part(M, "act")], ["kpis", M, () => part(M, "kpis")]];
     for (const [name, p, go] of views) {
       await go();
       assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name} fits ${width}px in ${scheme}`);
