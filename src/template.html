@@ -3023,10 +3023,12 @@ function sundayOf(y, mo, n) {
   return addDays(first.toISOString().slice(0, 10), ((7 - first.getUTCDay()) % 7) + 7 * (n - 1));
 }
 // Days that change the night, worked out for any year: [day, name, more]. The clocks change in the early hours of a
-// Sunday, so the night it happens on is the Saturday's.
+// Sunday, so the night it happens on is the Saturday's. When Christmas Day, Boxing Day or New Year's Day is at a weekend,
+// the bank holiday moves to a weekday, so the day itself is here too.
 const NOTABLE = new Map();
 function notable(y) {
   if (!NOTABLE.has(y)) NOTABLE.set(y, [
+    ...[[`${y}-01-01`, "New Year's Day"], [`${y}-12-25`, "Christmas Day"], [`${y}-12-26`, "Boxing Day"]].filter(([d]) => !BANK_HOLS[d]),
     [`${y}-02-14`, "Valentine's Day"], [`${y}-03-17`, "St Patrick's Day"], [addDays(easter(y), -21), "Mothering Sunday"],
     [addDays(sundayOf(y, 3, 0), -1), "Clocks go forward tonight", "At 1am they go to 2am, so a shift that runs past 1am is an hour shorter than its times say."],
     [sundayOf(y, 6, 3), "Father's Day"],

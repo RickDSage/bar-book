@@ -44,14 +44,18 @@ test("bank holidays and the big nights are on it, and what a manager adds shows 
   assert.match((await cell(S, today)).cls, /\btoday\b/);
   assert.match(await panel(S), new RegExp(`^${await long(S, today)} · TODAY .*Ask for time off from ${await short(S, today)}$`));
 
-  // The next Christmas: a bank holiday, with Christmas Eve and New Year's Eve in the month's list.
+  // The next Christmas, with Christmas Eve, Boxing Day and New Year's Eve in the month's list. At a weekend the bank
+  // holiday moves to a weekday and the 25th is still Christmas Day.
   const xmas = await S.evaluate(() => { const y = +shiftDay().slice(0, 4); return shiftDay() <= `${y}-12-25` ? `${y}-12-25` : `${y + 1}-12-25`; });
+  const bank = await S.evaluate((d) => !!BANK_HOLS[d], xmas);
   await open(S, xmas);
   const x = await cell(S, xmas);
-  assert.match(x.cls, /\bbh\b/); assert.deepEqual(x.dots, ["d-hol"]);
+  assert.equal(/\bbh\b/.test(x.cls), bank); assert.deepEqual(x.dots, ["d-hol"]);
   assert.equal(x.say, `${await S.evaluate((d) => dayName(d, { weekday: "long", day: "numeric", month: "long" }), xmas)}. Christmas Day`);
-  assert.equal(await panel(S), `${await long(S, xmas)} Christmas Day Bank holiday England and Wales Ask for time off from ${await short(S, xmas)}`);
-  assert.match(await text(S, "#cal-list"), /^IN DECEMBER \w{3} 24 Dec Christmas Eve \w{3} 25 Dec Christmas Day · Bank holiday \w{3} \d\d Dec Boxing Day.* · Bank holiday \w{3} 31 Dec New Year's Eve$/);
+  assert.equal(await panel(S), `${await long(S, xmas)} Christmas Day${bank ? " Bank holiday England and Wales" : ""} Ask for time off from ${await short(S, xmas)}`);
+  assert.match(await text(S, "#cal-list"), /^IN DECEMBER .*\w{3} 24 Dec Christmas Eve .*\w{3} 25 Dec Christmas Day.* \w{3} 2[678] Dec Boxing Day.* \w{3} 31 Dec New Year's Eve$/);
+  assert.deepEqual(await S.evaluate(() => ["2027-12-25", "2027-12-26", "2027-12-27", "2027-12-28", "2028-01-01", "2028-01-03"].map((d) => calItems(d).map((i) => `${i.k}: ${i.t}`).join())),
+    ["day: Christmas Day", "day: Boxing Day", "bank: Christmas Day (substitute day)", "bank: Boxing Day (substitute day)", "day: New Year's Day", "bank: New Year's Day (substitute day)"]);
   // The clocks go back in the early hours of a Sunday, so it's on the Saturday night before.
   const back = await S.evaluate(() => { const y = +shiftDay().slice(0, 4) + 1; return addDays(sundayOf(y, 10, 0), -1); });
   assert.equal(await S.evaluate((d) => new Date(d + "T12:00Z").getUTCDay(), back), 6);
