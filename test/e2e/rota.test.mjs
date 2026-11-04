@@ -181,7 +181,8 @@ test("hands up for an open shift, and a manager gives it to someone", async () =
   await add(O, [n], "18:00", "02:00");
   await settled(O, 1);
   await O.click("#ro-pub");
-  await settled(S, 1);
+  // Both phones have the shift before either acts on it.
+  for (const p of [S, T]) await settled(p, 1);
   const d1 = await day(S, n);
   await rota(S, n); await rota(T, n);
   assert.match(await rowText(S, d1, "18:00"), /18:00–02:00 Open shift Bar I can do it/);
@@ -250,7 +251,8 @@ test("someone who can't make their shift says so, and can take it back", async (
   await add(O, [n], "18:00", "02:00", "Sam Staff");
   await settled(O, 1);
   await O.click("#ro-pub");
-  await settled(S, 1);
+  // Both phones have the shift before either acts on it.
+  for (const p of [S, T]) await settled(p, 1);
   const d1 = await day(S, n);
   await rota(S, n); await rota(T, n);
 
