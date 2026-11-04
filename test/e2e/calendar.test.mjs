@@ -32,7 +32,7 @@ const panel = (p) => text(p, "#cal-day");
 // A day as its heading reads, and as the ask button names it.
 const long = (p, d) => p.evaluate((d) => dayName(d, { weekday: "long", day: "numeric", month: "long" }).toUpperCase(), d);
 const short = (p, d) => p.evaluate((d) => dayName(d, { weekday: "short", day: "numeric" }), d);
-const cell = (p, day) => p.$eval(`[data-cal-day="${day}"]`, (b) => ({ cls: b.className, dots: [...b.querySelectorAll(".dots i")].map((i) => i.className), say: b.getAttribute("aria-label") }));
+const cell = (p, day) => p.$eval(`[data-cal-day="${day}"]`, (b) => ({ cls: b.className, dots: [...b.querySelectorAll(".cdots i")].map((i) => i.className), say: b.getAttribute("aria-label") }));
 
 test("bank holidays and the big nights are on it, and what a manager adds shows on every phone straight away", async () => {
   await resetEmulators();
@@ -51,6 +51,9 @@ test("bank holidays and the big nights are on it, and what a manager adds shows 
   await open(S, xmas);
   const x = await cell(S, xmas);
   assert.equal(/\bbh\b/.test(x.cls), bank); assert.deepEqual(x.dots, ["d-hol"]);
+  // Each dot shows in its own colour (the step-by-step guides' grey dots once took them over).
+  assert.ok(await S.$eval(`[data-cal-day="${xmas}"] .cdots i`, (i) => { const t = document.createElement("i"); t.style.background = "var(--brass)"; document.body.append(t);
+    const want = getComputedStyle(t).backgroundColor; t.remove(); return getComputedStyle(i).backgroundColor === want; }), "the holiday dot is brass");
   assert.equal(x.say, `${await S.evaluate((d) => dayName(d, { weekday: "long", day: "numeric", month: "long" }), xmas)}. Christmas Day`);
   assert.equal(await panel(S), `${await long(S, xmas)} Christmas Day${bank ? " Bank holiday England and Wales" : ""} Ask for time off from ${await short(S, xmas)}`);
   assert.match(await text(S, "#cal-list"), /^IN DECEMBER .*\w{3} 24 Dec Christmas Eve .*\w{3} 25 Dec Christmas Day.* \w{3} 2[678] Dec Boxing Day.* \w{3} 31 Dec New Year's Eve$/);

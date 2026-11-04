@@ -397,17 +397,17 @@ a.btn { text-decoration: none; color: inherit; }
 .cd.today { box-shadow: inset 0 0 0 2px var(--brass); }
 .cd.rng { background: color-mix(in srgb, var(--ok) 26%, var(--surface)); border-color: var(--ok); }
 .cd[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
-.cd .dots { display: flex; gap: 3px; height: 6px; }
-.cd .dots i, .calkey i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
+.cd .cdots { display: flex; gap: 3px; height: 6px; }
+.cd .cdots i, .calkey i { display: inline-block; width: 6px; height: 6px; border-radius: 50%; }
 .cd.sc::after { content: ""; position: absolute; left: 4px; right: 4px; bottom: 3px; height: 3px; border-radius: 2px; background: var(--cool); }
 .d-hol { background: var(--brass); } .d-ev { background: var(--warn); } .d-on { background: var(--fg); } .d-off { background: var(--ok); }
 .d-ask { box-shadow: inset 0 0 0 1.5px var(--ok); }
-.cd[aria-pressed="true"] .dots i { box-shadow: 0 0 0 1px var(--brass-ink); }
+.cd[aria-pressed="true"] .cdots i { box-shadow: 0 0 0 1px var(--brass-ink); }
 .calkey { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 10px 0 4px; font-size: 13px; color: var(--muted); }
 .calkey i { margin-right: 6px; vertical-align: 1px; }
 .calkey i.sch { width: 14px; height: 3px; border-radius: 2px; background: var(--cool); }
-.calrow { display: block; width: 100%; text-align: left; padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--fg); }
-.calrow .w { display: inline-block; min-width: 7.5em; color: var(--muted); }
+.calrow { display: grid; grid-template-columns: 7.5em minmax(0, 1fr); gap: 8px; width: 100%; text-align: left; padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--fg); }
+.calrow .w { color: var(--muted); }
 .two.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
 .prep.st-doing .box { border-color: var(--brass); color: var(--brass); }
 .prep.st-blocked .box { border-color: var(--warn); color: var(--warn); }
@@ -3149,7 +3149,7 @@ function calGridHtml(mon, sel) {
       off.length && (off.some((o) => o.status === "approved") ? "off" : "ask")].filter(Boolean);
     const cls = ["cd", monthOf(d) !== mon && "out", BANK_HOLS[d] && "bh", d === shiftDay() && "today", a && a <= d && d <= b && "rng", it.some((i) => i.k === "school") && "sc"].filter(Boolean).join(" ");
     const say = [dayName(d, { weekday: "long", day: "numeric", month: "long" }), ...it.map((i) => i.t), on.length && `You're on ${on.map(roTime).join(" and ")}`, ...off.map(offText)].filter(Boolean).join(". ");
-    return `<button class="${cls}" data-cal-day="${d}" aria-pressed="${d === sel}" aria-label="${esc(say)}">${+d.slice(8)}<span class="dots">${dots.map((k) => `<i class="d-${k}"></i>`).join("")}</span></button>`;
+    return `<button class="${cls}" data-cal-day="${d}" aria-pressed="${d === sel}" aria-label="${esc(say)}">${+d.slice(8)}<span class="cdots">${dots.map((k) => `<i class="d-${k}"></i>`).join("")}</span></button>`;
   }).join("")}</div>`;
 }
 function calDayHtml(d) {
@@ -3188,7 +3188,7 @@ function calListHtml(mon) {
     ...LIVE.cal.filter((x) => x.date1 <= hi && x.date2 >= lo).map((x) => ({ a: x.date1, b: x.date2, t: x.title, k: CAL_KINDS[x.kind] }))]
     .sort((x, y) => x.a.localeCompare(y.a) || x.t.localeCompare(y.t));
   const late = lo > BANK_TO ? `<p class="note">Bank holidays after ${BANK_TO.slice(0, 4)} aren't in the app yet.</p>` : "";
-  return `<div class="mini">In ${dayName(lo, { month: "long" })}</div>${xs.map((x) => `<button class="calrow" data-cal-day="${x.a < lo ? lo : x.a}"><span class="w">${esc(calSpan(x.a, x.b, short))}</span> <b>${esc(x.t)}</b>${x.k ? ` <span class="s">· ${x.k}</span>` : ""}</button>`).join("") || `<p class="note">Nothing this month.</p>`}${late}`;
+  return `<div class="mini">In ${dayName(lo, { month: "long" })}</div>${xs.map((x) => `<button class="calrow" data-cal-day="${x.a < lo ? lo : x.a}"><span class="w">${esc(calSpan(x.a, x.b, short))}</span><span><b>${esc(x.t)}</b>${x.k ? ` <span class="s">· ${x.k}</span>` : ""}</span></button>`).join("") || `<p class="note">Nothing this month.</p>`}${late}`;
 }
 // Managers add school holidays, events and days the venue is shut, or change one.
 function calEditHtml() {
