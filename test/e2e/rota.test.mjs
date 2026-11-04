@@ -155,7 +155,7 @@ test("a shift offered to someone is theirs to take or turn down", async () => {
   await add(O, [n1, n2], "18:00", "02:00", "", { offer: "Sam Staff" });
   await settled(O, 2);
   await O.click("#ro-pub");
-  await settled(S, 2);
+  await settled(S, 2); await settled(T, 2);
   const [d1, d2] = [await day(S, n1), await day(S, n2)];
   await rota(S, n1); await rota(T, n1);
   assert.match(await rowText(S, d1, "18:00"), /Offered to you Bar Take it No thanks/);
