@@ -27,8 +27,8 @@ test("every feature, what it's for and what each person can do with it, with sho
 
   // Staff: from Bar info, what they can do and what managers can, with no switches.
   await openFeatures(S);
-  assert.match(flat(await S.$eval("#feat", (e) => e.innerText)), /^WHAT'S IN BAR BOOK The drinks, the shift and the team in one app\. .* You're staff: what you can do is under You\. .* Take the tour \(13 steps\) DRINKS /);
-  assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 27);
+  assert.match(flat(await S.$eval("#feat", (e) => e.innerText)), /^WHAT'S IN BAR BOOK The drinks, the shift and the team in one app\. .* You're staff: what you can do is under You\. .* Take the tour \(14 steps\) DRINKS /);
+  assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 28);
   assert.match(await card(S, "lists"), /^Checklists Opening and closing .* You: Tick items off, start one, or mark one blocked and say why\. Managers: The same, and give an item to someone and change what's on each list\. Open$/);
   assert.match(await card(S, "live"), /^Live Managers only Tonight as it happens: .* Managers: Share tonight's summary on WhatsApp or by email\.$/);
   assert.equal(await S.$$eval("[data-feat-sw]", (x) => x.length), 0, "only the owner gets switches");
@@ -57,7 +57,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   await openFeatures(O);
   assert.match(flat(await O.$eval("#feat", (e) => e.innerText)), /You're the owner, so you can do everything here\. Untick a feature to switch it off for everyone at this venue/);
   assert.deepEqual(await O.$$eval("[data-feat-sw]", (x) => x.map((b) => `${b.dataset.featSw}:${b.checked}`)),
-    ["allergens", "practice", "pay", "football", "chat", "rota", "asks", "incidents", "kpis", "training", "feedback"].map((k) => `${k}:true`));
+    ["allergens", "practice", "pay", "football", "chat", "rota", "calendar", "asks", "incidents", "kpis", "training", "feedback"].map((k) => `${k}:true`));
   await O.click('[data-feat-go="pay"]'); await closed(O);
   assert.equal(await where(O), "pay", "My pay is its own tab");
 
@@ -92,7 +92,7 @@ test("the owner switches features off for everyone, and switching them on brings
   await switched(S, ["allergens", "rota"]);
   assert.match(await card(O, "rota"), /^Rota Off here /);
   assert.match(flat(await O.$eval("#feat", (e) => e.innerText)), /Last switched on or off by Olly Owner, /);
-  const off = ["allergens", "rota", "asks", "chat", "incidents", "kpis", "training", "feedback", "pay", "football"];
+  const off = ["allergens", "rota", "calendar", "asks", "chat", "incidents", "kpis", "training", "feedback", "pay", "football"];
   await O.evaluate((o) => LIVE.api.setOff(o), off);
   for (const p of [M, S]) await switched(p, off);
 
@@ -170,18 +170,18 @@ test("the tour opens each feature that's on, one step at a time", async () => {
 
   await openFeatures(S);
   await S.click("#tour-go"); await closed(S);
-  assert.match(await step(S), /^STEP 1 OF 13 Drinks Every drink with its spec/);
+  assert.match(await step(S), /^STEP 1 OF 14 Drinks Every drink with its spec/);
   const shift = await S.evaluate(() => defaultPane());
   assert.deepEqual(await walk(S), ["Drinks drinks", "Cocktail maker make", "Allergens allergens", "Practise practice", "My pay pay", `Checklists tally:${shift}`, "Date labels tally:labels",
-    "Restock and 86 tally:stock", "Shift report tally:send", "Issues and handover team:board", "Chat team:chat", "Rota team:rota", "Reports team:reports"]);
+    "Restock and 86 tally:stock", "Shift report tally:send", "Issues and handover team:board", "Chat team:chat", "Rota team:rota", "Calendar team:rota", "Reports team:reports"]);
   assert.equal(await step(S), "", "Done ends the tour");
 
   // Back goes back a step; End the tour stops it.
   await openFeatures(S); await S.click("#tour-go"); await closed(S);
   await S.click("#tour .btn.pri"); await S.click("#tour .btn.pri");
-  assert.match(await step(S), /^STEP 3 OF 13 Allergens/);
+  assert.match(await step(S), /^STEP 3 OF 14 Allergens/);
   await S.click("#tour [data-tour='1']");
-  assert.match(await step(S), /^STEP 2 OF 13 Cocktail maker/);
+  assert.match(await step(S), /^STEP 2 OF 14 Cocktail maker/);
   assert.equal(await where(S), "make");
   // The card sits above the tabs and fits a small phone.
   await S.setViewportSize({ width: 320, height: 640 }); await S.click("#tour [data-tour='2']");
@@ -194,6 +194,6 @@ test("the tour opens each feature that's on, one step at a time", async () => {
   await switched(M, ["rota", "chat", "allergens"]);
   await openFeatures(M); await M.click("#tour-go"); await closed(M);
   assert.deepEqual(await walk(M), ["Drinks drinks", "Cocktail maker make", "Practise practice", "My pay pay", `Checklists tally:${shift}`, "Date labels tally:labels", "Restock and 86 tally:stock",
-    "Shift report tally:send", "Issues and handover team:board", "Reports team:reports", "Live team:managers:live", "Closing KPIs team:managers:kpis", "Training team:managers:training"]);
+    "Shift report tally:send", "Issues and handover team:board", "Calendar team:rota", "Reports team:reports", "Live team:managers:live", "Closing KPIs team:managers:kpis", "Training team:managers:training"]);
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });

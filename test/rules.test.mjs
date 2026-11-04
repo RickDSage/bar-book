@@ -1784,7 +1784,7 @@ describe("team chat", () => {
 describe("features the owner switches off for the venue", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   // Everything the app lets the owner switch off.
-  const ALL = ["allergens", "practice", "pay", "football", "chat", "rota", "asks", "incidents", "kpis", "training", "feedback"];
+  const ALL = ["allergens", "practice", "pay", "football", "chat", "rota", "calendar", "asks", "incidents", "kpis", "training", "feedback"];
   const ref = (uid, id = "features") => doc(db(uid), "settings", id);
   const set = (uid, off, extra = {}) => setDoc(ref(uid), { off, ...by(uid), ...extra });
   test("only the owner switches features off and on, and everyone on the team reads it", async () => {
@@ -1807,6 +1807,47 @@ describe("features the owner switches off for the venue", () => {
     await fails(set("owner1", ["rota"], { at: daysAgo(1) }), "a time that isn't now");
     await fails(set("owner1", ["rota"], { extra: true }), "extra fields");
     await fails(setDoc(ref("owner1", "other"), { off: [], ...by("owner1") }), "any other settings record");
+  });
+});
+
+describe("the calendar: school holidays, events and days the venue is shut", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const ref = (uid, id = "half-term") => doc(db(uid), "calendar", id);
+  const entry = (uid, extra = {}) => ({ title: "Half term (Westminster schools)", kind: "school", date1: dayFromNow(20), date2: dayFromNow(24), note: "", ...by(uid), ...extra });
+  test("managers and the owner add, change and remove them, and everyone on the team reads them", async () => {
+    await assertSucceeds(setDoc(ref("mgr1"), entry("mgr1")));
+    await assertSucceeds(addDoc(collection(db("owner1"), "calendar"), entry("owner1", { title: "Closed for the refit", kind: "closed", date1: dayFromNow(60), date2: dayFromNow(60) })));
+    await assertSucceeds(addDoc(collection(db("mgr2"), "calendar"), entry("mgr2", { title: "Pride in London", kind: "event", note: "Busy from noon. Extra floor staff." })));
+    // A change is the whole entry again, signed by whoever makes it.
+    await assertSucceeds(setDoc(ref("mgr2"), entry("mgr2", { date2: dayFromNow(25), note: "Some academies go back a day later" })));
+    for (const uid of ["staff1", "mgr1", "owner1"]) {
+      await assertSucceeds(getDoc(ref(uid)));
+      await assertSucceeds(getDocs(query(collection(db(uid), "calendar"), where("date2", ">=", dayFromNow(-100)))));
+    }
+    await fails(getDoc(ref("stranger")), "someone not on the team reading one");
+    await fails(getDocs(collection(db(null), "calendar")), "reading them logged out");
+    await fails(setDoc(ref("staff1", "mine"), entry("staff1")), "staff adding one");
+    await fails(setDoc(ref("staff1"), entry("staff1", { title: "Half term" })), "staff changing one");
+    await fails(deleteDoc(ref("staff1")), "staff removing one");
+    await assertSucceeds(deleteDoc(ref("mgr1")));
+  });
+  test("a title, one of three kinds, real days in order within about three years, and who added it", async () => {
+    const add = (extra) => setDoc(ref("mgr1"), entry("mgr1", extra));
+    await assertSucceeds(add({ date1: dayFromNow(-300), date2: dayFromNow(-290) }));
+    await assertSucceeds(add({ date1: dayFromNow(1000), date2: dayFromNow(1050), note: "x".repeat(200) }));
+    await fails(add({ title: " " }), "no title");
+    await fails(add({ title: "x".repeat(61) }), "a title too long");
+    await fails(add({ kind: "bank" }), "a kind the app doesn't have (bank holidays are built in)");
+    await fails(add({ date1: "2026-02-31", date2: "2026-03-02" }), "a day that doesn't exist");
+    await fails(add({ date1: "26-11-04" }), "not a date");
+    await fails(add({ date1: dayFromNow(24), date2: dayFromNow(20) }), "ending before it starts");
+    await fails(add({ date1: dayFromNow(-420), date2: dayFromNow(-410) }), "more than a year ago");
+    await fails(add({ date2: dayFromNow(1120) }), "more than three years ahead");
+    await fails(add({ note: "x".repeat(201) }), "a note too long");
+    await fails(add({ note: null }), "a note that isn't text");
+    await fails(add({ name: "Max Manager" }), "someone else's name");
+    await fails(add({ at: daysAgo(1) }), "a time that isn't now");
+    await fails(add({ extra: true }), "extra fields");
   });
 });
 
@@ -1869,6 +1910,7 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "pings"), where("to", "==", uid)),
     query(collection(d, "chatPhotos"), where("uid", "==", uid), where("day", "==", dayFromNow(-31))),
     query(collection(d, "fixtures"), where("day", ">=", dayFromNow(-1)), orderBy("day"), limit(60)),
+    query(collection(d, "calendar"), where("date2", ">=", dayFromNow(-100)), limit(300)),
     collection(d, "lists"),
     collection(d, "labels"),
     // One date label's or shift's history.
