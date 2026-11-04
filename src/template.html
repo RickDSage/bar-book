@@ -283,6 +283,9 @@ b.dt { color: var(--fg); font-weight: 700; }
 .photo { margin-top: 12px; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .photo img { display: block; width: 100%; border-radius: 8px; }
 .photo .btn { margin-top: 8px; }
+.dphoto { display: block; max-width: 100%; max-height: 42vh; margin: 16px auto 0; border-radius: 14px; }
+.hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
+#dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
 /* Team chat */
 .chrow { display: block; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
@@ -515,6 +518,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <div id="football"></div>
     <div id="tally"></div>
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
+    <input id="dm-in" type="file" accept="image/*" hidden>
     <input id="cn-in" type="file" accept="image/*" hidden>
     <input id="ch-in" type="file" accept="image/*" hidden>
   </section>
@@ -612,7 +616,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -760,7 +764,7 @@ function openSheet(id, keepScroll) {
     <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">${esc(d.name)}</span><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></div>
       <div class="seg" role="group" aria-label="View"><button data-view="spec" aria-pressed="${view === "spec"}">Spec</button><button data-view="steps" aria-pressed="${view === "steps"}">Step by step</button></div></div>
     <div class="sw${view === "steps" ? " compact" : ""}" id="sw">
-    <div class="hero"><span class="g" aria-hidden="true">${glass(d)}</span><div><h2 id="sh-name">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div></div></div>
+    <div class="hero"><span class="g" id="sh-g" aria-hidden="true">${heroArt(d)}</span><div><h2 id="sh-name">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div></div></div>
     <div class="badges">
       ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
     </div>
@@ -775,13 +779,16 @@ function openSheet(id, keepScroll) {
     <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger.</p>
     <div class="h3">Method</div>${steps(d.method)}
     `}
+    <div id="dmedia">${mediaHtml(d)}</div>
     ${tryInstead(d)}
     ${d.pairsWith ? `<div class="pair"><b>Sell it with:</b> ${esc(d.pairsWith)}</div>` : ""}
     ${navHtml(id)}
+    <div id="dmedit">${mediaEditHtml(d)}</div>
     ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
+  if (LIVE.me) LIVE.api?.watchMedia(d.name);
   $("#car")?.addEventListener("scroll", carSync, { passive: true });
   if (!keepScroll) { $("#sheet").scrollTop = 0; $("#sh-close").focus(); if (view === "steps") stepsIntoView(); }
   const seen = store.get("swHint", 0);
@@ -802,6 +809,64 @@ function showSheet(keepScroll) {
 window.addEventListener("popstate", () => { if (!$("#sheet").hidden) hideSheet(); });
 let lock = null;
 async function keepAwake() { try { if (!lock && navigator.wakeLock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch {} }
+/* ---------- House photos and how-to videos ----------
+   Managers add a photo of how we serve a drink and a link to a video showing how it's made; everyone logged in sees them
+   on the drink. The photo takes the drawing's place at the top and shows in full after the method, so the spec stays
+   first. The drink that's open is read live (one read as it opens), so a photo added on another phone shows straight
+   away. The links are only to these video sites; the rules check the same. */
+const VIDEO = /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be|vimeo\.com|instagram\.com|tiktok\.com|drive\.google\.com)\/[!-~]*$/;
+const mediaOf = (d) => (LIVE.media?.drink === d.name ? LIVE.media : null);
+let dmOpen = false, dmBusy = false;
+const heroArt = (d) => (mediaOf(d)?.photo ? `<img src="${mediaOf(d).photo}" alt="">` : glass(d));
+function mediaHtml(d) {
+  const m = mediaOf(d); if (!m) return "";
+  return `${m.photo ? `<img class="dphoto" src="${m.photo}" alt="${esc(d.name)}, as we serve it">` : ""}
+    ${m.video ? `<a class="btn wide" href="${esc(m.video)}" target="_blank" rel="noopener">Watch how it's made</a>` : ""}`;
+}
+function mediaEditHtml(d) {
+  if (!LIVE.admin) return "";
+  const m = mediaOf(d) || { photo: "", video: "" };
+  return `<details class="setup" id="dm-box"${dmOpen ? " open" : ""}><summary>House photo and how-to video</summary>
+    <p class="note">Everyone on the team sees them on this drink: a photo of how we serve it, and a link to a video on YouTube, Vimeo, Instagram, TikTok or Google Drive.${m.photo || m.video ? ` Last changed by ${esc(m.name)}, ${m.pending ? "saving…" : when(m.at)}.` : ""}</p>
+    <div class="actions"><label class="btn${m.photo ? "" : " pri"}" for="dm-in" style="cursor:pointer">${dmBusy ? "Adding the photo…" : m.photo ? "Change the photo" : "Add a photo"}</label>${m.photo ? `<button class="btn danger" data-dm-photo-del>Remove the photo</button>` : ""}</div>
+    <label class="fld">How-to video link<input id="dm-video" inputmode="url" maxlength="300" value="${esc(m.video)}" placeholder="https://youtu.be/…"></label>
+    <div class="actions"><button class="btn" data-dm-video-save>Save the link</button>${m.video ? `<button class="btn danger" data-dm-video-del>Remove the link</button>` : ""}</div></details>`;
+}
+// A change from this phone or another: the photo and video redraw, and the managers' box too unless a link is being typed.
+function renderMedia() {
+  const d = D[curId]; if ($("#sheet").hidden || !d || !$("#dmedia")) return;
+  $("#sh-g").innerHTML = heroArt(d);
+  $("#dmedia").innerHTML = mediaHtml(d);
+  if (document.activeElement?.id !== "dm-video") $("#dmedit").innerHTML = mediaEditHtml(d);
+}
+$("#sheet").addEventListener("toggle", (e) => { if (e.target.id === "dm-box") dmOpen = e.target.open; }, true);
+// What's saved goes with what's there already, so this drink's record has to have loaded first. The drink is passed
+// in, so a photo still shrinking when someone swipes to the next drink can't land on that one.
+function saveMedia(d, photo, video, ok) {
+  const m = mediaOf(d);
+  if (!m) return toast("Still loading this drink. Try again in a moment");
+  track(LIVE.api.setMedia(d.name, photo ?? m.photo, video ?? m.video), ok, "Not saved. Check the signal and try again");
+}
+$("#dm-in").addEventListener("change", async (e) => {
+  const f = e.target.files[0], d = D[curId]; e.target.value = "";
+  if (!f || !d || !LIVE.admin) return;
+  dmBusy = true; renderMedia();
+  try { saveMedia(d, await shrink(f), null, `Photo saved on ${d.name} for everyone`); } catch { toast("That photo couldn't be read. Try another"); }
+  dmBusy = false; renderMedia();
+});
+$("#sheet").addEventListener("click", (e) => {
+  const d = D[curId];
+  // Tapping the photo at the top goes to it in full.
+  if (e.target.closest("#sh-g img")) return $(".dphoto")?.scrollIntoView({ behavior: calm() ? "auto" : "smooth", block: "center" });
+  if (e.target.closest("[data-dm-video-save]")) {
+    const v = $("#dm-video").value.trim();
+    if (v && !VIDEO.test(v)) return toast("Paste a link to YouTube, Vimeo, Instagram, TikTok or Google Drive, starting https://");
+    $("#dm-video").blur(); return saveMedia(d, null, v, v ? "Video link saved" : "Video link removed");
+  }
+  if (e.target.closest("[data-dm-video-del]")) return saveMedia(d, null, "", "Video link removed");
+  if (e.target.closest("[data-dm-photo-del]") && confirm(`Remove the photo of ${d.name} for everyone?`)) saveMedia(d, "", null, "Photo removed");
+});
+
 function openGuide(name) {
   lastFocus = document.activeElement; keepAwake();
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">${esc(name)}</span><span></span></div></div><div class="hero solo"><div><h2 id="sh-name">${esc(name)}</h2><div class="sub">Tap each step when it is done</div></div></div>${guideHtml(DATA.guides[name])}<button class="btn wide" id="sh-close2">Back to drinks</button>`;
@@ -814,6 +879,7 @@ function hideSheet() {
   const done = () => { sh.hidden = true; sh.classList.remove("closing"); };
   if (calm()) done(); else { sh.classList.add("closing"); setTimeout(done, 170); }
   document.body.style.overflow = ""; lock?.release?.().catch(() => {}); lock = null; renderQuick(!$("#q").value.trim()); lastFocus?.focus?.();
+  LIVE.api?.watchMedia(null);
 }
 $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
@@ -2159,7 +2225,8 @@ function renderInfo() {
 const FEATURES = [
   { g: "Drinks", k: "drinks", n: "Drinks", go: "tab:drinks", tour: 1,
     what: "Every drink with its spec, glass, ice, garnish and method, and a picture guide for each step.",
-    staff: "Search and filter, star favourites, scale a spec for up to 4 drinks, and swipe to the next drink. Logged in, 86 a drink that's run out." },
+    staff: "Search and filter, star favourites, scale a spec for up to 4 drinks, and swipe to the next drink. Logged in, see the house photo and how-to video, and 86 a drink that's run out.",
+    mgr: "Add the house photo and a how-to video link to each drink." },
   { g: "Drinks", k: "allergens", n: "Allergens", go: "tab:allergens", sw: 1, tour: 1,
     what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
     staff: "Tap an allergen to see every drink with it." },
@@ -3756,6 +3823,7 @@ const MINE = {
 };
 function liveChanged(what) {
   if (what === "features") applyFeatures();
+  if (what === "media") renderMedia();
   if (what === "lists" || what === "me") applyLists();
   if (what === "notices" || what === "seen" || what === "me") renderBcast();
   if (what === "events") markEvents();

@@ -37,9 +37,9 @@ let stop = null, subs = {};
 const unsub = (k) => { if (subs[k]) { subs[k](); delete subs[k]; } };
 const unsubAll = () => { Object.keys(subs).forEach(unsub); if (stop) { stop(); stop = null; } };
 // A listen the rules refuse (account not confirmed by the server yet) is dropped and retried on the next staff snapshot.
-function sub(k, ref, fn) {
+function sub(k, ref, fn, failed) {
   if (subs[k]) return;
-  subs[k] = onSnapshot(ref, (snap) => { LIVE.loaded.add(k); fn(snap); }, () => delete subs[k]);
+  subs[k] = onSnapshot(ref, (snap) => { LIVE.loaded.add(k); fn(snap); }, () => { delete subs[k]; failed?.(); });
 }
 // Something just written on this phone has no server time yet, so its "at" is null and it sorts as newest. (Firestore's
 // own estimate is rounded down to the second, which can put it below something written a moment earlier.)
@@ -221,6 +221,16 @@ function watchMessages(id) {
   if (id) sub("msgs", query(collection(db, "chats", id, "msgs"), orderBy("at", "desc"), limit(60)), (snap) => { LIVE.msgs = rows(snap).reverse(); liveChanged("msgs"); });
 }
 const preview = (text) => [...(text || "Photo")].slice(0, 80).join("");
+// The house photo and how-to video of the drink that's open, kept live while it's open. LIVE.media says which drink it's
+// for, so a drink just swiped to shows nothing of the last one's. A record that can't be read (before the rules that
+// allow it are published) shows as none, so a manager's save is tried and says it wasn't saved.
+let mediaFor = "";
+function watchMedia(drink) {
+  if (drink === mediaFor && (subs.media || !drink)) return;
+  unsub("media"); mediaFor = drink || ""; LIVE.media = null;
+  const show = (m) => { LIVE.media = { photo: "", video: "", pending: false, ...m, drink }; liveChanged("media"); };
+  if (drink) sub("media", doc(db, "drinkMedia", slug(drink)), (d) => show({ ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites }), () => show());
+}
 
 // Logging out, or being removed, wipes this phone's copy of the team's data, then starts the app afresh.
 let leaving = false;
@@ -593,11 +603,14 @@ LIVE.api = {
   leaveGroup: (c) => updateDoc(doc(db, "chats", c.id), { members: arrayRemove(auth.currentUser.uid) }),
   // A photo's data, or null once it has been cleared after 30 days.
   chatPhoto: (c, m) => getDoc(doc(db, "chatPhotos", `${c.id}-${m.id}`)).then((x) => (x.exists() ? x.data().data : null)),
+  watchMedia,
+  // A drink's photo and video link, saved together. With neither, the record goes.
+  setMedia: (drink, photo, video) => (photo || video ? setDoc(doc(db, "drinkMedia", slug(drink)), { drink, photo, video, ...me() }) : deleteDoc(doc(db, "drinkMedia", slug(drink)))),
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [] });
+  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }

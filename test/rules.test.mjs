@@ -1810,6 +1810,40 @@ describe("features the owner switches off for the venue", () => {
   });
 });
 
+describe("house photos and how-to videos on the drinks", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const ref = (uid, id = "negroni") => doc(db(uid), "drinkMedia", id);
+  const media = (uid, extra = {}) => ({ drink: "Negroni", photo: JPEG, video: "https://youtu.be/abc123", ...by(uid), ...extra });
+  test("managers and the owner add and change them, everyone on the team sees them", async () => {
+    await assertSucceeds(setDoc(ref("mgr1"), media("mgr1")));
+    await assertSucceeds(setDoc(ref("owner1"), media("owner1", { video: "" })));
+    await assertSucceeds(setDoc(ref("mgr2"), media("mgr2", { photo: "" })));
+    await assertSucceeds(setDoc(ref("mgr1", "espresso-martini"), media("mgr1", { drink: "Espresso Martini" })));
+    // The app's id for a name with an accent: the rules lower-case and dash it the same way.
+    await assertSucceeds(setDoc(ref("mgr1", "pi-a-colada"), media("mgr1", { drink: "Piña Colada" })));
+    for (const uid of ["staff1", "mgr1", "owner1"]) await assertSucceeds(getDoc(ref(uid)));
+    await fails(getDoc(ref("stranger")), "someone not on the team reading one");
+    await fails(getDoc(ref(null)), "reading one logged out");
+    await fails(setDoc(ref("staff1"), media("staff1")), "staff adding one");
+    await fails(deleteDoc(ref("staff1")), "staff removing one");
+    await assertSucceeds(deleteDoc(ref("mgr2")));
+  });
+  test("a JPEG photo of bounded size and a link to a video site, under the drink's own name", async () => {
+    await fails(setDoc(ref("mgr1", "martini"), media("mgr1")), "another drink's record");
+    await fails(setDoc(ref("mgr1"), media("mgr1", { drink: "" })), "no drink");
+    await fails(setDoc(ref("mgr1"), media("mgr1", { photo: "data:image/png;base64,AAAA" })), "not a JPEG");
+    await fails(setDoc(ref("mgr1"), media("mgr1", { photo: "data:image/jpeg;base64," + "A".repeat(700000) })), "too big");
+    await fails(setDoc(ref("mgr1"), media("mgr1", { photo: "", video: "" })), "nothing in it");
+    for (const v of ["http://youtu.be/abc", "https://youtube.com.evil.example/watch", "https://evil.example/youtube.com/", "javascript:alert(1)", "https://youtu.be/a b", "https://youtu.be/" + "a".repeat(290)])
+      await fails(setDoc(ref("mgr1"), media("mgr1", { video: v })), `the link ${v.slice(0, 40)}`);
+    for (const v of ["https://www.youtube.com/watch?v=abc&t=10s", "https://m.youtube.com/shorts/abc", "https://vimeo.com/123", "https://www.instagram.com/reel/abc/", "https://www.tiktok.com/@bar/video/1", "https://drive.google.com/file/d/abc/view"])
+      await assertSucceeds(setDoc(ref("mgr1"), media("mgr1", { video: v })));
+    await fails(setDoc(ref("mgr1"), media("mgr1", { name: "Max Manager" })), "someone else's name");
+    await fails(setDoc(ref("mgr1"), media("mgr1", { at: daysAgo(1) })), "a time that isn't now");
+    await fails(setDoc(ref("mgr1"), media("mgr1", { extra: true })), "extra fields");
+  });
+});
+
 describe("every query the app makes works for the roles that make it", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const common = (d, uid) => [

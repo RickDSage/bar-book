@@ -523,6 +523,24 @@ service cloud.firestore {
               && getAfter(outDoc(incoming().item)) == null));
     }
 
+    // ---------- Drink photos and how-to videos ----------
+    // One record per drink, under the drink's name as the 86 board keys it. Managers add the house photo (a JPEG, like
+    // the closing photos) and a link to a how-to video on a video site, and everyone on the team sees them on the drink.
+    // Only links to these sites are taken, so a record can't point anyone at a lookalike login page.
+    function videoLink(s) {
+      return s == '' || (s.size() <= 300
+        && s.matches('https://(www[.]|m[.])?(youtube[.]com|youtu[.]be|vimeo[.]com|instagram[.]com|tiktok[.]com|drive[.]google[.]com)/[!-~]*'));
+    }
+    match /drinkMedia/{id} {
+      allow read: if isMember();
+      allow create, update: if isManager() && exactly(['drink', 'photo', 'video', 'uid', 'name', 'at']) && stamped()
+        && reqText(incoming().drink, 80) && slug(incoming().drink) == id
+        && incoming().photo is string && incoming().video is string
+        && (incoming().photo == '' || (incoming().photo.size() <= 700000 && incoming().photo.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+')))
+        && videoLink(incoming().video) && (incoming().photo != '' || incoming().video != '');
+      allow delete: if isManager();
+    }
+
     // ---------- Stock requests (before restocking from the cellar, 25 October 2026) ----------
     // Kept for the record. Nothing new is asked for here; managers can still mark old ones ordered or turn them down.
     match /requests/{id} {
