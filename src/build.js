@@ -47,5 +47,6 @@ const names = drinks.map((d) => d.name);
 if (new Set(names).size !== names.length) throw new Error("Duplicate drink name");
 const data = { guides, scenes, drinks, prep: src.prep.map((p) => ({ ...p, spec: p.spec.map(clean) })), };
 const tpl = fs.readFileSync("template.html", "utf8");
-fs.writeFileSync("black-tap-bar-app.html", tpl.replace("/*DATA*/", () => "const DATA = " + JSON.stringify(data) + ";\n" + fs.readFileSync("art.js", "utf8")));
+// The cocktail maker (Make tab) goes in near the end of the script, once the drinks and helpers it reads exist.
+fs.writeFileSync("black-tap-bar-app.html", tpl.replace("/*DATA*/", () => "const DATA = " + JSON.stringify(data) + ";\n" + fs.readFileSync("art.js", "utf8")).replace("/*MAKER*/", () => fs.readFileSync("maker.js", "utf8")));
 console.log("drinks", drinks.length, "bytes", fs.statSync("black-tap-bar-app.html").size);
