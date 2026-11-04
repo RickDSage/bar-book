@@ -1781,6 +1781,35 @@ describe("team chat", () => {
   });
 });
 
+describe("features the owner switches off for the venue", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  // Everything the app lets the owner switch off.
+  const ALL = ["allergens", "practice", "pay", "football", "chat", "rota", "asks", "incidents", "kpis", "training", "feedback"];
+  const ref = (uid, id = "features") => doc(db(uid), "settings", id);
+  const set = (uid, off, extra = {}) => setDoc(ref(uid), { off, ...by(uid), ...extra });
+  test("only the owner switches features off and on, and everyone on the team reads it", async () => {
+    await assertSucceeds(set("owner1", ["rota", "asks"]));
+    await assertSucceeds(set("owner1", ALL));
+    await assertSucceeds(set("owner1", []));
+    for (const uid of ["staff1", "mgr1", "owner1"]) await assertSucceeds(getDoc(ref(uid)));
+    await fails(getDoc(ref("stranger")), "someone not on the team reading it");
+    await fails(getDoc(ref(null)), "reading it logged out");
+    await fails(set("mgr1", ["rota"]), "a manager switching one off");
+    await fails(set("staff1", ["rota"]), "staff switching one off");
+    await fails(deleteDoc(ref("owner1")), "deleting it");
+  });
+  test("it lists only what can be switched off, and says who changed it", async () => {
+    await fails(set("owner1", ["drinks"]), "the drinks");
+    await fails(set("owner1", ["reports"]), "something that can't be switched off");
+    await fails(set("owner1", "rota"), "not a list");
+    await fails(set("owner1", [...ALL, "rota"]), "more entries than there are features");
+    await fails(set("owner1", ["rota"], { name: "Mia Manager" }), "someone else's name");
+    await fails(set("owner1", ["rota"], { at: daysAgo(1) }), "a time that isn't now");
+    await fails(set("owner1", ["rota"], { extra: true }), "extra fields");
+    await fails(setDoc(ref("owner1", "other"), { off: [], ...by("owner1") }), "any other settings record");
+  });
+});
+
 describe("every query the app makes works for the roles that make it", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const common = (d, uid) => [
@@ -1812,8 +1841,12 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "events"), where("ref", "==", autoId())),
     // The rota, a week at a time, as published.
     query(collection(d, "shifts"), where("week", "==", mondayOf(today())), where("pub", "==", true)),
+    // The Reports tab's "Show older".
+    query(collection(d, "reports"), where("at", "<", Timestamp.now()), orderBy("at", "desc"), limit(30)),
   ];
   const managers = (d) => [
+    query(collection(d, "incidents"), where("at", "<", Timestamp.now()), orderBy("at", "desc"), limit(30)),
+    query(collection(d, "reviews"), where("report", "in", ["r1", "r2"])),
     query(collection(d, "asks"), orderBy("at", "desc"), limit(100)),
     query(collection(d, "incidents"), orderBy("at", "desc"), limit(50)),
     query(collection(d, "reviews"), orderBy("at", "desc"), limit(200)),

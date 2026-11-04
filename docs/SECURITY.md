@@ -58,6 +58,7 @@ O = owner, M = manager, S = staff, X = logged in but not on the team (for exampl
 | `chats/{id}/msgs` (messages) | the people in the chat | the people in the chat, as themselves, with up to 5 pings, all in the chat | nobody | the sender (unsend), with its photo |
 | `chatPhotos/{chat}-{msg}` | the people in the chat, and the sender | only in the write that sends its message: a JPEG up to 700,000 characters | nobody | the sender; their phone clears their own after 30 days |
 | `pings/{uid}-{chat}` | only the person pinged | only with a message that mentions them, sent in the same write | the same | only the person pinged (their phone does on reading the chat) |
+| `settings/features` (what the owner has switched off for everyone here) | O, M, S | O only, as themselves: a list of features from the 11 that can be switched off (allergens, Practise, My pay, football, chat, the rota, time off and swaps, incidents, the KPIs, training and manager feedback), and nothing else | the same as create | nobody |
 
 Concerns sent to the bar or the floor reach every staff phone, and each shows the ones for the side it's set to, like broadcasts. Managers only is enforced: a staff login can't read that concern or its photos, and the anonymous sender can't see it again either. Photos are re-saved by the app before upload, which drops the location and camera details a phone puts in its photos.
 
@@ -66,6 +67,8 @@ Since 25 October 2026 temperatures, line cleans, cleaning checks, accidents and 
 A broadcast for the bar or the floor reaches every staff phone, and each shows the ones for the side it's set to in Shift. That's about relevance, not privacy. Leaving managers out is enforced: a manager's login can't read that broadcast or who has read it.
 
 Visitors (V) can do one thing: look up a single username, which returns the made-up sign-in address and the uid. X can do the same, plus read their own (missing) staff record. Both are tested.
+
+Switching a feature off on the Features page hides it for everyone; it doesn't change who may read or write what, and nothing saved under it is deleted. A switched-off feature's records stay protected by their own rows above.
 
 Hiding a button is never the protection. Every row above is enforced by `firestore.rules` and covered by an allowed and a refused case in `test/rules.test.mjs`.
 

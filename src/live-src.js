@@ -97,6 +97,14 @@ function listen(uid) {
       LIVE.lists = Object.fromEntries(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
       liveChanged("lists");
     });
+    // The features the owner has switched off here. A phone with nothing saved yet waits for the server rather than
+    // showing everything for a moment.
+    sub("features", doc(db, "settings", "features"), (d) => {
+      if (!d.exists() && d.metadata.fromCache) return;
+      const x = d.exists() ? d.data() : null;
+      LIVE.off = new Set(x?.off || []); LIVE.offBy = x && { name: x.name, at: x.at };
+      liveChanged("features");
+    });
     // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
     sub("labels", collection(db, "labels"), (snap) => { LIVE.labels = rows(snap); liveChanged("labels"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
@@ -541,6 +549,8 @@ LIVE.api = {
   LIVE_N,
   // One page of reports or incidents from before a time, newest first, for the Reports tab's "Show older".
   olderThan: (name, before, n) => getDocs(query(collection(db, name), where("at", "<", before), orderBy("at", "desc"), limit(n))).then(rows),
+  // The owner's list of features switched off for everyone here.
+  setOff: (off) => setDoc(doc(db, "settings", "features"), { off, ...me() }),
   // Managers' reviews of up to 30 reports, the most one "in" query takes.
   reviewsOf: (ids) => (ids.length ? getDocs(query(collection(db, "reviews"), where("report", "in", ids))).then(rows) : Promise.resolve([])),
   // Checklist ticks from before tasks (24 and 25 October 2026), for the given business days.
