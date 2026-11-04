@@ -759,6 +759,7 @@ function openSheet(id, keepScroll) {
     <div class="h3" style="display:flex;justify-content:space-between;align-items:center;gap:8px">Spec<span class="mult" role="group" aria-label="How many">${[1, 2, 3, 4].map((n) => `<button data-mult="${n}" aria-pressed="${n === mult}">\u00d7${n}</button>`).join("")}</span></div>
     ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.${mult > 2 ? " A tin holds 2 shaken drinks, so split it across tins." : ""}</p>` : ""}
     <ul class="spec">${d.spec.map(specRow).join("")}</ul>
+    ${d.subs ? `<p class="note"><b>Out of something?</b> ${d.subs.map(esc).join(" ")}</p>` : ""}
     <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger.</p>
     <div class="h3">Method</div>${steps(d.method)}
     `}
@@ -853,7 +854,7 @@ function renderAllergens() {
     const c = D.filter((d) => alHit(d, re)).length;
     return `<button class="tile" aria-pressed="${alSel === n}" data-al="${n}"><b>${n}</b><span>${c} ${c === 1 ? "drink" : "drinks"}</span></button>`;
   }).join("");
-  if (!alSel) { $("#allist").innerHTML = `<p class="note" style="margin-top:14px">Foam on the house cards is foamer or aquafaba (chickpea water), never egg white. Check the foamer label for its own allergens.</p>`; return; }
+  if (!alSel) { $("#allist").innerHTML = `<p class="note" style="margin-top:14px">Foam on the house cards is foamer drops, never egg white. Check the foamer label for its own allergens.</p>`; return; }
   const re = ALLERGENS.find((a) => a[0] === alSel)[1];
   const rows = D.filter((d) => alHit(d, re));
   $("#allist").innerHTML = `<div class="sec">${esc(alSel)}: ${rows.length}</div>` + rows.map(rowHtml).join("");
