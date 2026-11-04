@@ -23,6 +23,8 @@ service cloud.firestore {
     function isMember() { return signedIn() && profile() != null; }
     function isManager() { return isMember() && profile().data.role in ['manager', 'owner']; }
     function isOwner() { return isMember() && profile().data.role == 'owner'; }
+    // The owner within 15 minutes of typing their PIN. Start fresh (see resets below) signs in afresh for this.
+    function freshOwner() { return isOwner() && request.time.toMillis() < request.auth.token.auth_time * 1000 + 15 * 60 * 1000; }
     // True unless uid belongs to the owner. Someone who has left counts as not the owner.
     function notOwner(uid) { let p = get(staffDoc(uid)); return p == null || p.data.role != 'owner'; }
 
@@ -170,11 +172,12 @@ service cloud.firestore {
       allow create: if isMember() && exactly(['notice', 'managers', 'uid', 'name', 'at']) && stamped()
         && incoming().notice is string && id == incoming().notice + '-' + request.auth.uid
         && incoming().managers == get(/databases/$(database)/documents/notices/$(incoming().notice)).data.get('managers', true);
+      allow delete: if freshOwner();
     }
 
     // ---------- Shift reports and closing photos ----------
     // A report is sent once, with its photos attached in the same write, then signed off once by a manager.
-    // Nobody can edit or delete a report from the app.
+    // Nobody can edit a report from the app, or delete one except when the owner starts fresh.
     match /reports/{id} {
       allow read: if isMember();
       allow create: if isMember() && exactly(['side', 'text', 'summary', 'photos', 'uid', 'name', 'at'])
@@ -184,6 +187,7 @@ service cloud.firestore {
         && stamped();
       allow update: if isManager() && !('signedBy' in resource.data)
         && changesOnly(['signedBy', 'signedByUid', 'signedAt']) && signedAs('signedBy', 'signedByUid', 'signedAt');
+      allow delete: if freshOwner();
     }
     function reportDoc(id) { return /databases/$(database)/documents/reports/$(id); }
     match /photos/{id} {
@@ -201,8 +205,8 @@ service cloud.firestore {
               && getAfter(reportDoc(incoming().report)).data.uid == request.auth.uid
               && getAfter(reportDoc(incoming().report)).data.at == request.time));
       // Drafts can be binned by whoever took them. Anything over 30 days old is cleared by a manager's app.
-      allow delete: if isMember() && ((resource.data.uid == request.auth.uid && resource.data.report == null)
-        || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
+      allow delete: if freshOwner() || (isMember() && ((resource.data.uid == request.auth.uid && resource.data.report == null)
+        || (isManager() && resource.data.at < request.time - duration.value(30, 'd'))));
     }
 
     // ---------- Tonight's checklists: tasks and procedures ----------
@@ -228,17 +232,19 @@ service cloud.firestore {
     // Ticks from before tasks (24 and 25 October 2026), kept for the record. Nothing new is written.
     match /shift/{day}/ticks/{id} {
       allow read: if isMember();
+      allow delete: if freshOwner();
     }
 
     // One record per item per night: todo (not started), doing, done, blocked or cancelled (not needed tonight). item is
     // the item's id in its list, which stays with it when a manager changes the list (see lists below). Each
     // change raises v by one and writes events/t-{day}-{list}-{item}-{v} in the same batch, so a change can't happen
     // without its event, an event can't be made up, and a phone working from an old copy (two people at once, or a late
-    // sync) is refused instead of overwriting the newer change. Nobody deletes a task.
+    // sync) is refused instead of overwriting the newer change. Nobody deletes a task, except when the owner starts fresh.
     match /shift/{day}/tasks/{id} {
       allow read: if isMember();
       allow create, update: if isMember() && nearNow(day) && stamped() && validTask(day, id)
         && existsAfter(eventDoc('t-' + day + '-' + id + '-' + string(incoming().v)));
+      allow delete: if freshOwner();
     }
     function validTask(day, id) {
       let t = incoming();
@@ -275,6 +281,7 @@ service cloud.firestore {
       allow read: if isMember();
       allow create, update: if isMember() && nearNow(day) && stamped() && validRun(list)
         && existsAfter(eventDoc('r-' + day + '-' + list + '-' + string(incoming().v)));
+      allow delete: if freshOwner();
     }
     function validRun(list) {
       let r = incoming();
@@ -365,6 +372,7 @@ service cloud.firestore {
       allow read: if isMember();
       allow create: if isMember() && stamped() && autoId(id) && newRestock() && existsAfter(eventDoc('s-' + id + '-1'));
       allow update: if isMember() && stamped() && restockMove() && existsAfter(eventDoc('s-' + id + '-' + string(incoming().v)));
+      allow delete: if freshOwner();
     }
     function newRestock() {
       let r = incoming();
@@ -409,11 +417,13 @@ service cloud.firestore {
     // One event per change to a task, a procedure, a restock, a date label or a published shift, written in the same batch
     // as the change and matching it (the status before and after, the version, who, the reason and the time; for a
     // restock, the item, amount and place; for a label, what was done and its dates; for a shift, what was done, its day,
-    // times and people, and its day, times and person before). Nobody edits or deletes an event, the owner included:
-    // a correction is a new change with its own event. Ids carry the record's version, so a retried or repeated write
-    // can't add a second event for the same change.
+    // times and people, and its day, times and person before). Nobody edits an event, the owner included: a correction is
+    // a new change with its own event. Ids carry the record's version, so a retried or repeated write can't add a second
+    // event for the same change. They're deleted only when the owner starts fresh, with what they record, and a date
+    // label's stay with the label.
     match /events/{id} {
       allow read: if isMember();
+      allow delete: if freshOwner() && resource.data.kind != 'label';
       allow create: if isMember() && stamped() && nearNow(incoming().day) && reqText(incoming().label, 200) && optText(incoming().note, 300)
         && (incoming().kind == 'task' ? taskEvent(id) : incoming().kind == 'run' ? runEvent(id) : incoming().kind == 'restock' ? restockEvent(id)
           : incoming().kind == 'label' ? labelEvent(id) : incoming().kind == 'shift' && shiftEvent(id));
@@ -503,7 +513,8 @@ service cloud.firestore {
     // out/{item} is what's off tonight and outlog is its history. Each change writes both in one batch and the
     // rules check they match: an 86 creates out/{item} pointing at its new log entry; back in stock deletes it
     // and adds the entry {that log id}-back. So the board and its history can't drift apart, the same item
-    // can't be 86'd twice, and nothing comes back that wasn't out. Log entries can never be edited or deleted.
+    // can't be 86'd twice, and nothing comes back that wasn't out. Log entries can never be edited, or deleted except
+    // with the board when the owner starts fresh.
     function outDoc(item) { return /databases/$(database)/documents/out/$(item); }
     function logDoc(id) { return /databases/$(database)/documents/outlog/$(id); }
     match /out/{item} {
@@ -512,7 +523,7 @@ service cloud.firestore {
         && reqText(incoming().itemName, 80) && slug(incoming().itemName) == item && autoId(incoming().log)
         && getAfter(logDoc(incoming().log)).data.action == 'out' && getAfter(logDoc(incoming().log)).data.item == item
         && stamped();
-      allow delete: if isMember() && existsAfter(logDoc(resource.data.log + '-back'));
+      allow delete: if freshOwner() || (isMember() && existsAfter(logDoc(resource.data.log + '-back')));
     }
     match /outlog/{id} {
       allow read: if isManager();
@@ -521,6 +532,7 @@ service cloud.firestore {
         && ((incoming().action == 'out' && getAfter(outDoc(incoming().item)).data.log == id)
           || (incoming().action == 'back' && get(outDoc(incoming().item)).data.log + '-back' == id
               && getAfter(outDoc(incoming().item)) == null));
+      allow delete: if freshOwner();
     }
 
     // ---------- Drink photos and how-to videos ----------
@@ -550,7 +562,7 @@ service cloud.firestore {
         && changesOnly(['done', 'doneBy', 'doneByUid', 'doneAt']) && incoming().done == true
         && signedAs('doneBy', 'doneByUid', 'doneAt');
       // Until it's ordered, the person who asked can cancel it and a manager can turn it down.
-      allow delete: if isMember() && resource.data.done == false && (resource.data.uid == request.auth.uid || isManager());
+      allow delete: if freshOwner() || (isMember() && resource.data.done == false && (resource.data.uid == request.auth.uid || isManager()));
     }
 
     // ---------- Old records: stock counts and par levels ----------
@@ -600,6 +612,20 @@ service cloud.firestore {
         && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay']);
     }
 
+    // ---------- Starting fresh ----------
+    // The owner's Start fresh (Managers, Team) clears the shift work for everyone, for a clean start after trying the app
+    // out: the rota, asks, shift reports with their photos and reviews, the checklists and their events, restocking, the
+    // 86 board and its log, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
+    // Accounts, the audit trail, lists, date labels, drink media, the calendar, games, incidents, training, feedback,
+    // chats and the old records stay. It needs the owner's PIN in the last 15 minutes (freshOwner), and each time is
+    // recorded here first, with how many of each it found. A record can't be changed or deleted. Every phone watches the
+    // latest, so its copies of what went are dropped.
+    match /resets/{id} {
+      allow read: if isMember();
+      allow create: if freshOwner() && autoId(id) && exactly(['counts', 'total', 'uid', 'name', 'at']) && stamped()
+        && incoming().counts is map && incoming().counts.size() <= 20 && incoming().total is int && incoming().total >= 0;
+    }
+
     // ---------- Calendar ----------
     // What managers add to the calendar: school holidays and half terms (they differ by borough, so each venue adds the
     // ones that matter to its team), events, and days the venue is shut. Everyone on the team reads them. Bank holidays
@@ -632,7 +658,7 @@ service cloud.firestore {
         && (incoming().pub == false || existsAfter(eventDoc('w-' + id + '-1')));
       allow update: if isMember() && stamped() && validShift() && incoming().v == resource.data.v + 1 && shiftMove()
         && (incoming().pub == false || incoming().act == 'published' || existsAfter(eventDoc('w-' + id + '-' + string(incoming().v))));
-      allow delete: if isManager() && (resource.data.pub == false || existsAfter(eventDoc('w-' + id + '-' + string(resource.data.v + 1))));
+      allow delete: if freshOwner() || (isManager() && (resource.data.pub == false || existsAfter(eventDoc('w-' + id + '-' + string(resource.data.v + 1)))));
     }
     function validShift() {
       let s = incoming();
@@ -781,8 +807,8 @@ service cloud.firestore {
         && incoming().data is string && incoming().data.size() <= 700000
         && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+') && incoming().at == request.time;
       // (Removing an old concern also names photos that were already cleared; deleting nothing is allowed.)
-      allow delete: if isMember() && (resource == null || !existsAfter(concernDoc(resource.data.concern))
-        || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
+      allow delete: if freshOwner() || (isMember() && (resource == null || !existsAfter(concernDoc(resource.data.concern))
+        || (isManager() && resource.data.at < request.time - duration.value(30, 'd'))));
     }
 
     // ---------- Football on the screens ----------

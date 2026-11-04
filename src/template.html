@@ -409,6 +409,9 @@ a.btn { text-decoration: none; color: inherit; }
 .calrow { display: block; width: 100%; text-align: left; padding: 9px 0; border-bottom: 1px solid var(--line); color: var(--fg); }
 .calrow .w { display: inline-block; min-width: 7.5em; color: var(--muted); }
 .two.even { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+/* Start fresh: what it would clear, one kind a line. */
+.frlist { margin: 4px 0 14px; padding-left: 20px; color: var(--muted); }
+.frlist li { margin: 3px 0; } .frlist b { color: var(--fg); }
 .prep.st-doing .box { border-color: var(--brass); color: var(--brass); }
 .prep.st-blocked .box { border-color: var(--warn); color: var(--warn); }
 .prep.st-cancelled { opacity: .62; }
@@ -2331,6 +2334,9 @@ const FEATURES = [
   { g: "Managers", k: "team", n: "Team logins", go: "msub:team", login: 1, admin: 1,
     what: "Everyone's login, with every change recorded.",
     mgr: "Add people, reset a PIN and remove someone. The owner also makes people managers." },
+  { g: "Managers", k: "fresh", n: "Start fresh", go: "msub:team", login: 1, admin: 1,
+    what: "A clean start for everyone once the venue has finished trying the app out: the shift work goes, the logins, lists and records stay.",
+    mgr: "The owner downloads what to keep, sees what it would clear, then types their PIN to clear it for everyone." },
   { g: "Managers", k: "feedback", n: "Manager feedback", go: "msub:feedback", login: 1, admin: 1, sw: 1,
     what: "Anonymous feedback between managers.",
     mgr: "Send feedback about another manager and read what's about you. The owner reads all of it." },
@@ -2479,8 +2485,9 @@ function renderTeamTop() {
       <label class="fld">Username (lower case letters and numbers)<input id="a-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
-      <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderTeamTabs();
+      <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>
+      ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderFresh(); renderTeamTabs();
 }
 // Team page sections as tabs, so nobody scrolls past the team list to find the board.
 let tpane = "board";
@@ -3806,7 +3813,72 @@ async function prepareDownload(sec) {
   if (actFile) URL.revokeObjectURL(actFile.url);
   const name = FILE[sec] || ACT_NAME[sec].toLowerCase().replace(/ /g, "-");
   actFile = { sec, n: rows.length - 1, name: `black-tap-${name}-${ukDay(Date.now())}.csv`, url: URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })) };
-  [renderAct, renderTraining, renderKpis, renderRota, renderReports].forEach((f) => f());
+  [renderAct, renderTraining, renderKpis, renderRota, renderReports, renderFresh].forEach((f) => f());
+}
+/* ---------- Start fresh (the owner) ----------
+   Clears the shift work for everyone, for a clean start once the venue has finished trying the app out (FRESH in the
+   live layer says what goes). It can't be undone, so the downloads come first, then what it would clear, then the
+   owner's PIN and the words typed in. Every phone drops its own copies when it hears of a new one. */
+const FRESH_NAME = { shifts: "Shifts on the rota", asks: "Time off, swaps and running late", reports: "Shift reports", photos: "Closing photos",
+  reviews: "Reviews of reports", events: "Changes in the activity history", restock: "Restocks", out: "On the 86 board", outlog: "86 log entries",
+  issues: "Issues", concerns: "Concerns", concernPhotos: "Concern photos", notices: "Broadcasts", seen: "Got it taps on broadcasts", feed: "Old board posts",
+  requests: "Old stock requests", checklists: "Checklist items" };
+const FRESH_WORDS = "START FRESH";
+const frF = { counts: null, total: 0, busy: false, done: 0, of: 0, words: "", msg: "" };
+const frCount = (n) => n.toLocaleString("en-GB");
+function renderFresh() {
+  const box = $("#fresh");
+  if (!box || !LIVE.owner) return;
+  const r = LIVE.reset, xs = frF.counts ? Object.entries(frF.counts).filter(([, n]) => n) : [];
+  const last = r && !r.pending ? `<p class="note">Last started fresh ${when(r.at)} by ${esc(r.name)}, clearing ${frCount(r.total)}.</p>` : "";
+  const counted = !frF.counts ? `<div class="actions"><button class="btn" id="fr-count">See what it would clear</button></div>`
+    : !frF.total ? `<p class="note">There's nothing to clear.</p>`
+    : `<div class="mini">It would clear ${frCount(frF.total)}</div><ul class="frlist">${xs.map(([k, n]) => `<li>${FRESH_NAME[k]}: <b>${frCount(n)}</b></li>`).join("")}</ul>
+      <label class="fld">Your PIN<input id="fr-pin" type="password" inputmode="numeric" maxlength="12" autocomplete="current-password"></label>
+      <label class="fld">Type ${FRESH_WORDS} to show you mean it<input id="fr-words" value="${esc(frF.words)}" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
+      <button class="btn danger wide" id="fr-go"${frF.busy ? " disabled" : ""}>Clear it for everyone</button>`;
+  box.innerHTML = `<p class="note">Clears the shift work for everyone, for a clean start once you've finished trying the app out. It can't be undone, and it's best done when nobody's on shift.</p>
+    <div class="mini">It clears</div>
+    <p class="note">The rota, time off and swap asks, shift reports with their photos, reviews and sign-offs, the checklists, restocking, the 86 board and its log, issues, concerns, broadcasts, the activity history, and the old board and stock requests.</p>
+    <div class="mini">It keeps</div>
+    <p class="note">Everyone's logins and PINs, the audit trail, the lists, date labels, drink photos and videos, the calendar, the games on the screens, incidents, training sign-offs, feedback, chats, and the old temperature, waste and stock records.</p>
+    <div class="mini">First, download what you want to keep</div>
+    <div class="actions">${dlHtml("all", "Everything in Activity", "fr-all")}${dlHtml("shifts", "The rota", "fr-rota")}</div>
+    <p class="note">Photos aren't in the spreadsheets, so save any you need from Reports first.</p>
+    ${counted}
+    ${frF.busy ? `<p class="note" id="fr-prog" role="status"><b>Clearing ${frCount(frF.done)} of ${frCount(frF.of)}…</b> Keep the app open until it's done.</p>` : ""}
+    ${frF.msg ? `<p class="note" role="status"><b>${esc(frF.msg)}</b></p>` : ""}${last}`;
+}
+async function frGo() {
+  const pin = $("#fr-pin").value.trim(), say = (msg) => { frF.msg = msg; renderFresh(); };
+  frF.words = $("#fr-words").value;
+  if (!LIVE.api.PIN.test(pin)) return say("Type your PIN.");
+  if (frF.words.trim().toUpperCase() !== FRESH_WORDS) return say(`Type ${FRESH_WORDS} to show you mean it.`);
+  if (!navigator.onLine) return say("You need signal for this.");
+  Object.assign(frF, { busy: true, done: 0, of: frF.total, msg: "" }); renderFresh();
+  try {
+    const n = await LIVE.api.startFresh(pin, (done, of) => {
+      Object.assign(frF, { done, of: Math.max(of, done) });
+      const p = $("#fr-prog b"); if (p) p.textContent = `Clearing ${frCount(frF.done)} of ${frCount(frF.of)}…`;
+    });
+    Object.assign(frF, { counts: null, words: "", msg: `Done: ${frCount(n)} cleared. Everyone's app has the fresh start.` });
+  } catch (e) {
+    frF.msg = e.code === "fresh/pin" ? e.message : frF.done ? `Stopped after ${frCount(frF.done)} of ${frCount(frF.of)}. Check your signal, then clear it again to finish.`
+      : e.code === "permission-denied" ? "Firebase refused it. The rules with Start fresh need publishing first." : "Nothing cleared. Check your signal and try again.";
+  }
+  frF.busy = false; renderFresh();
+}
+// A new start fresh: drop what this phone kept of what went (older reports, the downloads' and the KPIs' copies of
+// earlier nights). A spreadsheet already made stays, to be saved. The others are told, if it's today's news.
+let resetSeen;
+function freshHeard() {
+  const r = LIVE.reset, id = r?.id || "";
+  if (resetSeen === undefined || r?.pending) { if (!r?.pending) resetSeen = id; return; }
+  if (id === resetSeen) return;
+  resetSeen = id;
+  rpSeen.clear(); Object.assign(rpOld, { incidents: [], reviews: [], more: {} });
+  past = { day: "", ev: [] }; kpi.ev = null;
+  if (r.uid !== LIVE.uid && ms(r.at) > Date.now() - 864e5) toast(`${r.name} started the app fresh`);
 }
 /* ---------- Team chat ----------
    The team chat (everyone), private chats between two people and groups. Pinging someone (@) marks the chat for them and
@@ -4034,6 +4106,7 @@ const MINE = {
 function liveChanged(what) {
   if (what === "features") applyFeatures();
   if (what === "media") renderMedia();
+  if (what === "resets") freshHeard();
   if (what === "lists" || what === "me") applyLists();
   if (what === "notices" || what === "seen" || what === "me") renderBcast();
   if (what === "events") markEvents();
@@ -4055,10 +4128,10 @@ function liveChanged(what) {
       asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota], shifts: [renderRota, renderCal, renderDash, renderLive], lists: [renderDash, renderLive], labels: [renderDash, renderLive], restock: [renderDash, renderLive],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
-      concerns: [renderConcerns, renderDash, renderAct], fixtures: [renderCal], calendar: [renderCal], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
+      concerns: [renderConcerns, renderDash, renderAct], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderTeamTabs(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
@@ -4098,6 +4171,7 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.roe && roE) roE[t.dataset.roe] = t.value;
   if (t.dataset.calf) calF[t.dataset.calf] = t.value;
   if (t.dataset.cale) calE[t.dataset.cale] = t.value;
+  if (t.id === "fr-words") frF.words = t.value;
 });
 $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
@@ -4193,6 +4267,12 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.id === "act-more") { actMax += 50; renderActRows(); return; }
   if (b.dataset.hist) { actOpen = actOpen === b.dataset.hist ? "" : b.dataset.hist; renderActRows(); return; }
   if (b.id === "kpi-go") { loadKpis(); return; }
+  if (b.id === "fr-count") {
+    if (!navigator.onLine) return toast("You need signal for this");
+    busy(b, "Counting…", A.freshCounts().then((x) => { Object.assign(frF, { ...x, msg: "" }); renderFresh(); }).catch(() => toast("Couldn't count them. Check your signal and try again")));
+    return;
+  }
+  if (b.id === "fr-go") return frGo();
   if (b.dataset.dl) { busy(b, "Getting the full history…", prepareDownload(b.dataset.dl).catch(() => toast("Couldn't get it. Check your signal and try again"))); return; }
   if (b.dataset.cnReason) { cnF.reason = b.dataset.cnReason; renderConcerns(); return; }
   if (b.dataset.cnTo) { cnF.to = b.dataset.cnTo; renderConcerns(); return; }

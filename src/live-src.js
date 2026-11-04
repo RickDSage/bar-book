@@ -4,7 +4,7 @@
 // Every write here has a matching rule in firestore.rules and a test in test/rules.test.mjs.
 // Each person logs in with a username and a PIN. Under the hood that is a Firebase email/password account with a
 // made-up address; usernames/{username} maps the username to it. Access comes from having a staff/{uid} record.
-import { initializeApp } from "firebase/app";
+import { initializeApp, deleteApp } from "firebase/app";
 import {
   getAuth, initializeAuth, inMemoryPersistence, connectAuthEmulator, onAuthStateChanged,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, deleteUser,
@@ -12,7 +12,7 @@ import {
 import {
   initializeFirestore, persistentLocalCache, connectFirestoreEmulator, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc,
   collection, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
-  terminate, clearIndexedDbPersistence, arrayRemove,
+  terminate, clearIndexedDbPersistence, arrayRemove, getCountFromServer, getDocsFromServer,
 } from "firebase/firestore";
 
 const app = initializeApp(__CONFIG__);
@@ -105,6 +105,8 @@ function listen(uid) {
       LIVE.off = new Set(x?.off || []); LIVE.offBy = x && { name: x.name, at: x.at };
       liveChanged("features");
     });
+    // The latest time the owner started fresh. Each phone drops its copies of what went.
+    sub("resets", query(collection(db, "resets"), orderBy("at", "desc"), limit(1)), (snap) => { LIVE.reset = rows(snap)[0] || null; liveChanged("resets"); });
     // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
     sub("labels", collection(db, "labels"), (snap) => { LIVE.labels = rows(snap); liveChanged("labels"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
@@ -260,6 +262,55 @@ async function clearOldPhotos() {
     for (let i = 0; i < old.docs.length; i += 10) {
       const b = writeBatch(db); old.docs.slice(i, i + 10).forEach((d) => b.delete(d.ref)); await b.commit().catch(() => {});
     }
+  }
+}
+
+// Start fresh (the owner, Managers > Team) clears the shift work for everyone, for a clean start after trying the app
+// out: each collection in FRESH, and every business day's checklists under shift/{day} since the app began. Concerns go
+// before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
+// with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
+const FRESH = ["shifts", "asks", "reports", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
+  "notices", "seen", "feed", "requests"];
+const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
+// A date label's events stay with the label.
+const freshQuery = (d, k) => (k === "events" ? query(collection(d, k), where("kind", "in", ["task", "run", "restock", "shift"])) : collection(d, k));
+const freshDays = () => { const out = []; for (let day = FIRST_DAY; day <= addDays(shiftDay(), 1); day = addDays(day, 1)) out.push(day); return out; };
+// How many there are of each, and in all: { counts: { shifts: 12, …, checklists: 340 }, total }.
+async function freshCounts(d = db) {
+  const n = async (q) => (await getCountFromServer(q)).data().count;
+  const counts = Object.fromEntries(await Promise.all(FRESH.map(async (k) => [k, await n(freshQuery(d, k))])));
+  counts.checklists = (await Promise.all(freshDays().flatMap((day) => DAY_PARTS.map((p) => n(collection(d, "shift", day, p)))))).reduce((a, b) => a + b, 0);
+  return { counts, total: Object.values(counts).reduce((a, b) => a + b, 0) };
+}
+async function startFresh(pin, progress) {
+  const app2 = initializeApp(__CONFIG__, `fresh-${Date.now()}`), a2 = initializeAuth(app2, { persistence: inMemoryPersistence }), d2 = initializeFirestore(app2, {});
+  if (__EMU__) { connectAuthEmulator(a2, "http://127.0.0.1:9099", { disableWarnings: true }); connectFirestoreEmulator(d2, "127.0.0.1", 8080); }
+  try {
+    await signInWithEmailAndPassword(a2, auth.currentUser.email, pin).catch((e) => {
+      throw Object.assign(new Error(e.code === "auth/too-many-requests" ? "Too many wrong PINs. Wait a few minutes and try again." : "That PIN isn't right."), { code: "fresh/pin" });
+    });
+    const { counts, total } = await freshCounts(d2), uid = a2.currentUser.uid, t = (await a2.currentUser.getIdTokenResult()).claims.auth_time;
+    // The record goes first, under this sign-in: the rules check for it on every delete.
+    await setDoc(doc(d2, "resets", `${uid}-${t}`), { counts, total, uid, name: LIVE.me, at: serverTimestamp() });
+    let done = 0;
+    progress(0, total);
+    // A hundred read at a time, deleted five at a time: each delete is checked against the owner's staff record and the
+    // record above, and one batch may make only 20 such checks.
+    const clear = async (q) => {
+      for (let snap = await getDocsFromServer(query(q, limit(100))); !snap.empty; snap = await getDocsFromServer(query(q, limit(100)))) {
+        for (let i = 0; i < snap.docs.length; i += 5) {
+          const b = writeBatch(d2), xs = snap.docs.slice(i, i + 5);
+          xs.forEach((x) => b.delete(x.ref)); await b.commit();
+          done += xs.length; progress(done, total);
+        }
+      }
+    };
+    for (const k of FRESH) await clear(freshQuery(d2, k));
+    for (const day of freshDays()) for (const p of DAY_PARTS) await clear(collection(d2, "shift", day, p));
+    return done;
+  } finally {
+    await terminate(d2).catch(() => {});
+    await deleteApp(app2).catch(() => {});
   }
 }
 
@@ -566,6 +617,8 @@ LIVE.api = {
   olderThan: (name, before, n) => getDocs(query(collection(db, name), where("at", "<", before), orderBy("at", "desc"), limit(n))).then(rows),
   // The owner's list of features switched off for everyone here.
   setOff: (off) => setDoc(doc(db, "settings", "features"), { off, ...me() }),
+  // The owner's Start fresh: what it would clear, and clearing it (with the PIN typed again).
+  freshCounts: () => freshCounts(), startFresh,
   // Managers' reviews of up to 30 reports, the most one "in" query takes.
   reviewsOf: (ids) => (ids.length ? getDocs(query(collection(db, "reviews"), where("report", "in", ids))).then(rows) : Promise.resolve([])),
   // Checklist ticks from before tasks (24 and 25 October 2026), for the given business days.
@@ -615,7 +668,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null });
+  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }

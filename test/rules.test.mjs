@@ -8,7 +8,7 @@ import fs from "node:fs";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
 import {
   doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, orderBy, limit,
-  writeBatch, serverTimestamp, Timestamp, deleteField,
+  writeBatch, serverTimestamp, Timestamp, deleteField, getCountFromServer,
 } from "firebase/firestore";
 
 const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080").split(":");
@@ -1885,6 +1885,91 @@ describe("house photos and how-to videos on the drinks", () => {
   });
 });
 
+describe("starting fresh: the owner clears the shift work for everyone", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  // The app signs the owner in afresh for it. Other logins have an old sign-in (the test library's default is 1970).
+  // A sign-in's record is resets/{uid}-{auth_time}.
+  const signIn = (uid, minsAgo = 0) => {
+    const t = Math.floor(Date.now() / 1000) - minsAgo * 60;
+    return { d: env.authenticatedContext(uid, { auth_time: t }).firestore(), id: `${uid}-${t}`, t };
+  };
+  // One record of each kind it clears, written past the rules, plus the ones it leaves.
+  const WORK = [["shifts", "s1"], ["asks", "a1"], ["reports", "r1"], ["photos", "p1"], ["reviews", "v1"], ["events", "t-1"], ["restock", "x1"],
+    ["out", "lime"], ["outlog", "o1"], ["issues", "i1"], ["concerns", "c1"], ["concernPhotos", "c1-0"], ["notices", "n1"], ["seen", "n1-staff1"],
+    ["feed", "f1"], ["requests", "q1"], ["shift/2026-10-24/ticks", "k1"]];
+  const work = () => [...WORK, [`shift/${today()}/tasks`, "open-1"], [`shift/${today()}/runs`, "open"]];
+  const seedWork = () => seed(async (s) => {
+    const x = { uid: "staff1", name: "Sam Staff", at: daysAgo(1), kind: "task", done: true, pub: true, report: "r1", concern: "c1", to: "all", managers: true, status: "approved", log: "o1" };
+    for (const [c, id] of work()) await setDoc(doc(s, c, id), x);
+    await setDoc(doc(s, "events", "l-lb1-1"), { ...x, kind: "label" });
+    await setDoc(doc(s, "labels", "lb1"), { item: "Lime juice", v: 1 });
+  });
+  const record = (uid, extra = {}) => ({ counts: { shifts: 1, reports: 1, checklists: 2 }, total: 4, ...by(uid), ...extra });
+  // A record already there for a sign-in, written past the rules.
+  const seedRecord = (id, uid) => seed((s) => setDoc(doc(s, "resets", id), { ...record(uid), at: Timestamp.now() }));
+  const SAMPLE = [["reports", "r1"], ["events", "t-1"], ["outlog", "o1"], ["seen", "n1-staff1"], ["restock", "x1"], ["shift/2026-10-24/ticks", "k1"],
+    [`shift/${today()}/tasks`, "open-1"], ["photos", "p1"], ["requests", "q1"], ["concernPhotos", "c1-0"], ["out", "lime"], ["shifts", "s1"]];
+
+  test("signed in in the last 15 minutes, the owner records it and then clears each kind, five at a time", async () => {
+    await seedWork();
+    const { d, id } = signIn("owner1", 14);
+    await assertSucceeds(setDoc(doc(d, "resets", id), record("owner1")));
+    for (const [c, x] of work()) await assertSucceeds(deleteDoc(doc(d, c, x)));
+    // Five in one write, as the app does them: each delete checks the owner's staff record and this record, and one
+    // write may make 20 checks.
+    await seed(async (s) => { for (let i = 0; i < 5; i++) await setDoc(doc(s, "events", `t-${i}`), { kind: "task", at: daysAgo(1) }); });
+    const b = writeBatch(d);
+    for (let i = 0; i < 5; i++) b.delete(doc(d, "events", `t-${i}`));
+    await assertSucceeds(b.commit());
+  });
+  test("nothing goes without this sign-in's record, so an owner who has just logged in can't delete", async () => {
+    await seedWork();
+    const { d, t } = signIn("owner1");
+    for (const [c, x] of SAMPLE) await fails(deleteDoc(doc(d, c, x)), `deleting ${c}/${x} with no record`);
+    // A record from the owner's earlier sign-in doesn't count for this one.
+    await seedRecord(`owner1-${t - 60}`, "owner1");
+    for (const [c, x] of SAMPLE) await fails(deleteDoc(doc(d, c, x)), `deleting ${c}/${x} on an earlier sign-in's record`);
+  });
+  test("an older sign-in, a manager or staff can't, even with a record, and date labels keep their history", async () => {
+    await seedWork();
+    const late = signIn("owner1", 16), mgr = signIn("mgr1"), staff = signIn("staff1");
+    for (const [{ d, id }, uid, who] of [[late, "owner1", "the owner 16 minutes after signing in"], [{ d: db("owner1"), id: "owner1-0" }, "owner1", "the owner on an old sign-in"],
+      [mgr, "mgr1", "a manager"], [staff, "staff1", "staff"]]) {
+      await fails(setDoc(doc(d, "resets", id), record(uid)), `${who} recording a start fresh`);
+      await seedRecord(id, uid);
+      for (const [c, x] of SAMPLE) await fails(deleteDoc(doc(d, c, x)), `${who} deleting ${c}/${x}`);
+    }
+    const { d, id } = signIn("owner1");
+    await assertSucceeds(setDoc(doc(d, "resets", id), record("owner1")));
+    await fails(deleteDoc(doc(d, "events", "l-lb1-1")), "a date label's event going");
+    await fails(deleteDoc(doc(d, "labels", "lb1")), "a date label going without its event");
+  });
+  test("each record is this sign-in's, says what it found and who, can't be changed or deleted, and everyone on the team reads the latest", async () => {
+    const { d, id, t } = signIn("owner1"), ref = doc(d, "resets", id);
+    await fails(setDoc(doc(d, "resets", "latest"), record("owner1")), "an id the app doesn't make");
+    await fails(setDoc(doc(collection(d, "resets")), record("owner1")), "an automatic id");
+    await fails(setDoc(doc(d, "resets", `owner1-${t - 60}`), record("owner1")), "another sign-in's id");
+    await fails(setDoc(ref, record("owner1", { note: "x" })), "an extra field");
+    await fails(setDoc(ref, record("owner1", { counts: [1, 2] })), "counts that aren't a map");
+    await fails(setDoc(ref, record("owner1", { total: -1 })), "a total below nothing");
+    await fails(setDoc(ref, record("owner1", { name: "Mia Manager" })), "someone else's name");
+    await fails(setDoc(ref, record("owner1", { at: daysAgo(1) })), "a time that isn't now");
+    await assertSucceeds(setDoc(ref, record("owner1")));
+    await fails(setDoc(ref, record("owner1")), "writing it again");
+    await fails(updateDoc(ref, { total: 0 }), "changing it");
+    await fails(deleteDoc(ref), "deleting it");
+    for (const uid of ["staff1", "mgr1", "owner1"]) await assertSucceeds(getDocs(query(collection(db(uid), "resets"), orderBy("at", "desc"), limit(1))));
+    await fails(getDocs(collection(db("stranger"), "resets")), "someone not on the team");
+    await fails(getDocs(collection(db(null), "resets")), "reading them logged out");
+  });
+  test("the owner can count and list everything it clears", async () => {
+    const { d } = signIn("owner1"), qs = [...["shifts", "asks", "reports", "photos", "reviews", "restock", "out", "outlog", "issues", "concerns", "concernPhotos", "notices", "seen", "feed", "requests"]
+      .map((c) => collection(d, c)), query(collection(d, "events"), where("kind", "in", ["task", "run", "restock", "shift"])),
+      ...["tasks", "runs", "ticks"].map((p) => collection(d, "shift", today(), p))];
+    for (const q of qs) { await assertSucceeds(getCountFromServer(q)); await assertSucceeds(getDocs(query(q, limit(100)))); }
+  });
+});
+
 describe("every query the app makes works for the roles that make it", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const common = (d, uid) => [
@@ -1911,6 +1996,7 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "chatPhotos"), where("uid", "==", uid), where("day", "==", dayFromNow(-31))),
     query(collection(d, "fixtures"), where("day", ">=", dayFromNow(-1)), orderBy("day"), limit(60)),
     query(collection(d, "calendar"), where("date2", ">=", dayFromNow(-100)), limit(300)),
+    query(collection(d, "resets"), orderBy("at", "desc"), limit(1)),
     collection(d, "lists"),
     collection(d, "labels"),
     // One date label's or shift's history.
