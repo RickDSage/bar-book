@@ -108,98 +108,100 @@ test("allergen tiles include sulphites, and oat milk shows under gluten", async 
   assert.deepEqual(p.errs, []);
 });
 
-test("my pay: September's payslip comes out to the penny, tronc from August's hours", async () => {
+test("my pay: its own tab, September's payslip to the penny with tronc from August's hours", async () => {
   const p = await open({ at: "2026-09-20T12:00:00Z" });
-  await p.click("[data-tab=info]");
-  assert.match(await p.$eval("#v-info", (e) => e.innerText), /Pay day is usually the last Friday: Friday 25 September/);
-  const put = async (k, v) => { await p.fill(`[data-pay="${k}"]`, v); };
-  await put("code", "992L"); await put("worked", "200"); await put("rota", "46.39"); await put("lastHours", "82");
-  // The payslip helper: £592.95 of tronc for August's 82 hours.
-  await p.click("details.setup:has([data-pay=slipTronc]) summary");
-  await put("slipTronc", "592.95"); await put("slipHours", "82");
-  await p.click("[data-pay-slip]");
-  const out = await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " "));
-  assert.match(out, /Hours pay \(246\.4 h\) £3,131\.62 Tronc £592\.95 Gross £3,724\.57 Income tax −£579\.40 National Insurance −£166\.69 Take-home, a month £2,978\.48/);
-  // A quiet and a busy month: the same hours, tronc at £5 and £9 an hour of last month's 82.
-  await put("low", "5"); await put("high", "9");
-  assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Quiet month \(£5\.00\/h\) £2,832\.13 Busy month \(£9\.00\/h\) £3,094\.53/);
-  await p.click("[data-pay-per=year]");
-  assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Gross £44,694\.84 .*Take-home, a year £35,741\.76/);
-  await p.click("[data-pay-per=week]");
-  assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Take-home, a week £687\.34/);
-  await p.click("[data-pay-per=month]");
-  await p.click('[data-pay-tronc="6.00"]');
-  assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Tronc £492\.00/, "82 hours at £6");
-  assert.deepEqual(await p.$$eval("[data-pay-tronc]", (bs) => bs.map((b) => b.textContent)), ["£6.00", "£6.50", "£7.00", "£7.50", "£8.00", "£8.50", "£9.00"]);
-  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]");
+  await p.click("[data-tab=pay]");
+  const flat = (s) => s.replace(/\s+/g, " ").trim(), out = async () => flat(await p.$eval("#pay-out", (e) => e.innerText));
+  assert.equal(await p.$eval("#pay-h", (e) => e.textContent), "September 2026");
+  assert.match(flat(await p.$eval("#pay-sum", (e) => e.innerText)), /pay day Friday 25 September/);
+  assert.equal(await p.locator("#v-info #pay-h").count(), 0, "not in Bar info any more");
+  // Tronc starts at the £5 minimum, with whole-pound buttons.
+  assert.equal(await p.inputValue('[data-pay="tronc"]'), "5.00");
+  assert.deepEqual(await p.$$eval("[data-pay-tronc]", (bs) => bs.map((b) => b.textContent)), ["£5", "£6", "£7", "£8", "£9", "£10"]);
+  await p.click("details.setup summary");
+  await p.fill('[data-pay="code"]', "992L"); await p.fill('[data-pay="rota"]', "246.39"); await p.fill('[data-pay-th="2026-08"]', "82");
+  await p.fill('[data-pay="tronc"]', "7.2311");
+  assert.match(await out(), /Hours pay \(246\.4 h at £12\.71\) £3,131\.62 Tronc \(82 h at £7\.23\) £592\.95 Gross £3,724\.57 Income tax −£579\.40 National Insurance −£166\.69 Take-home £2,978\.48/);
+  assert.match(flat(await p.$eval("#pay-sum", (e) => e.innerText)), /£2,978\.48 Take-home Gross £3,724\.57/);
+  assert.match(await p.$eval("#pay-set", (e) => e.textContent), /^£12\.71 an hour · 992L$/);
+  await p.click('[data-pay-tronc="6"]');
+  assert.match(await out(), /Tronc \(82 h at £6\.00\) £492\.00/);
+  assert.equal(await p.$eval('[data-pay-tronc="6"]', (b) => b.getAttribute("aria-pressed")), "true");
+  await p.fill('[data-pay="tronc"]', "4");
+  assert.match(await out(), /^Tronc is at least £5 an hour\./);
+  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
   assert.equal(await p.$eval('[data-pay="code"]', (e) => e.value), "992L", "kept on this phone");
-  await put("code", "S1257L");
-  assert.match(await p.$eval("#pay-out", (e) => e.innerText), /Check the tax code/);
+  await p.click("details.setup summary"); await p.fill('[data-pay="code"]', "S1257L");
+  assert.match(await out(), /Check the tax code/);
   assert.deepEqual(p.errs, []);
 });
 
-test("my hours: shifts logged on this phone fill in My pay, with a student loan, a pension and bills", async () => {
+test("my hours: several shifts at once, a month at a time, with a student loan and a pension", async () => {
   const p = await open({ at: "2026-11-20T12:00:00Z" });
-  await p.click("[data-tab=info]");
+  await p.click("[data-tab=pay]");
   const flat = (s) => s.replace(/\s+/g, " ").trim();
   const txt = async (sel) => flat(await p.$eval(sel, (e) => e.innerText));
   const toastIs = (t) => p.waitForFunction((x) => document.querySelector("#toast").textContent === x, t);
-  const add = async (day, start, end, brk) => {
+  const add = async (days, start, end, brk) => {
     if (!(await p.$("#hf"))) await p.click("[data-hf-open]");
-    await p.fill('[data-hf="day"]', day); await p.fill('[data-hf="start"]', start); await p.fill('[data-hf="end"]', end);
+    for (const d of days) await p.click(`[data-hf-day="${d}"]`);
+    await p.fill('[data-hf="start"]', start); await p.fill('[data-hf="end"]', end);
     await p.click(`[data-hf-brk="${brk}"]`); await p.click("[data-hf-save]");
   };
-  assert.match(await txt("#pay"), /Log each shift you work and My pay adds up your hours\./);
-  await add("2026-11-03", "17:00", "02:30", 30); await toastIs("Saved: 9 h on Tue 3 Nov");
-  await add("2026-11-05", "12:00", "20:00", 0); await toastIs("Saved: 8 h on Thu 5 Nov");
-  await add("2026-10-31", "18:00", "03:00", 30); await toastIs("Saved: 8.5 h on Sat 31 Oct");
-  // Refused: one that overlaps another (the 3rd ran past midnight), one in the future, and one with no hours.
-  await add("2026-11-04", "01:00", "03:00", 0); await toastIs("That overlaps your shift on Tue 3 Nov, 17:00–02:30");
-  await add("2026-11-21", "12:00", "18:00", 0); await toastIs("Pick the day you worked: today or before");
-  await add("2026-11-19", "10:00", "10:30", 45); await toastIs("That comes to no hours. Check the times and the break");
+  assert.match(await txt("#v-pay"), /No shifts logged in November\./);
+  // Three days with the same times in one go; the form stays open with the times kept.
+  await add(["2026-11-03", "2026-11-10", "2026-11-12"], "17:00", "23:00", 30); await toastIs("Saved 3 shifts, 16.5 h");
+  assert.equal(await p.inputValue('[data-hf="start"]'), "17:00");
+  assert.equal(await p.$$eval('[data-hf-day][aria-pressed="true"]', (x) => x.length), 0, "the days are cleared");
+  assert.equal(await p.$$eval("[data-hf-day].has", (x) => x.length), 3, "logged days are marked");
+  // One that overlaps is left out and named; the others still save. Days after today can't be picked.
+  await add(["2026-11-12", "2026-11-13"], "22:00", "02:00", 0); await toastIs("Saved 4 h on Fri 13 Nov. Thu 12 Nov already has a shift then");
+  assert.equal(await p.$eval('[data-hf-day="2026-11-21"]', (b) => b.disabled), true);
+  await add([], "12:00", "18:00", 0); await toastIs("Tap the days you worked");
+  await add(["2026-11-19"], "10:00", "10:30", 45); await toastIs("That comes to no hours. Check the times and the break");
+  await p.click('[data-hf-day="2026-11-19"]');
   // The most used times are one tap away.
-  assert.deepEqual(await p.$$eval("[data-hf-times]", (x) => x.map((b) => b.textContent)), ["17:00–02:30", "12:00–20:00", "18:00–03:00"]);
+  assert.deepEqual(await p.$$eval("[data-hf-times]", (x) => x.map((b) => b.textContent)), ["17:00–23:00", "22:00–02:00"]);
   await p.click("[data-hf-cancel]");
-  const pay = await txt("#pay");
-  assert.match(pay, /November so far: 17 h from 2 shifts\. October: 8\.5 h from 1 shift\./);
-  assert.match(pay, /Thu 5 Nov · 12:00–20:00 8 h · Remove Tue 3 Nov · 17:00–02:30 9 h after a 30 min break · Remove/);
-  assert.match(pay, /Hours worked so far 17 h, from My hours/);
-  assert.match(pay, /Last month's hours 8\.5 h, from My hours/);
-  assert.equal(await p.locator('[data-pay="worked"], [data-pay="lastHours"]').count(), 0, "the log replaces the typed hours");
+  assert.match(await txt("#pay-sum"), /^4 Shifts 20\.5 Hours/);
+  assert.match(await txt("#v-pay"), /WEEK OF 2 NOV · 5\.5 H Tuesday 3 Nov 17:00–23:00 5\.5 h after a 30 min break · Remove WEEK OF 9 NOV · 15 H Tuesday 10 Nov/);
 
-  // 17 h plus 150 still on the rota at £12.71, and tronc at £6 on October's 8.5 h.
-  await p.fill('[data-pay="rota"]', "150"); await p.click('[data-pay-tronc="6.00"]');
+  // October, from the arrow: one shift that runs past midnight. Next month is as far as it goes.
+  assert.equal(await p.$eval('[data-pm="1"]', (b) => b.disabled), true);
+  await p.click('[data-pm="-1"]');
+  assert.equal(await p.$eval("#pay-h", (e) => e.textContent), "October 2026");
+  await p.click("[data-hf-open]");
+  await add(["2026-10-31"], "18:00", "03:00", 30); await toastIs("Saved 8.5 h on Sat 31 Oct");
+  await p.click("[data-hf-cancel]"); await p.click('[data-pm="1"]');
+  assert.match(await txt("#v-pay"), /Hours in October 8\.5 h, logged/);
+  assert.equal(await p.locator("[data-pay-th]").count(), 0, "the log replaces typed hours");
+
+  // Remove the 4 h one: 16.5 h logged, plus 150.5 still to work is 167 h at £12.71, and tronc at £6 on October's 8.5 h.
+  p.once("dialog", (d) => d.accept());
+  await p.click(`[data-hr-del="${await p.evaluate(() => hoursLog.find((x) => x.day === "2026-11-13").id)}"]`);
+  await p.fill('[data-pay="rota"]', "150.5"); await p.click('[data-pay-tronc="6"]');
   const out = () => txt("#pay-out");
-  assert.match(await out(), /Hours pay \(167 h\) £2,122\.57 Tronc £51\.00 Gross £2,173\.57 Income tax −£225\.00 National Insurance −£85\.97 Take-home, a month £1,862\.60/);
+  assert.match(await out(), /Hours pay \(167 h at £12\.71\) £2,122\.57 Tronc \(8\.5 h at £6\.00\) £51\.00 Gross £2,173\.57 Income tax −£225\.00 National Insurance −£85\.97 Take-home £1,862\.60/);
   // Plan 5 takes 9% over £2,083.33 a month (£3.53, so £3) and a postgraduate loan 6% over £1,750 (£22.35, so £22).
+  await p.click("details.setup summary");
   await p.click('[data-pay-loan="5"]'); await p.check('[data-pay-check="pgl"]');
-  assert.match(await out(), /Student loan \(Plan 5 and postgraduate\) −£25\.00 Take-home, a month £1,837\.60/);
-  // 5% of the hours pay over £520 is £80.13, and tax relief pays a fifth: £64.10. With tronc too: £66.14.
+  assert.match(await out(), /Student loan \(Plan 5 and postgraduate\) −£25\.00 Take-home £1,837\.60/);
+  // 5% of the hours pay over £520 is £80.13, and tax relief pays a fifth: £64.10.
   await p.fill('[data-pay="pension"]', "5");
-  assert.match(await out(), /Pension \(5% in\) −£64\.10 Take-home, a month £1,773\.50/);
-  await p.check('[data-pay-check="penTronc"]');
-  assert.match(await out(), /Pension \(5% in\) −£66\.14 Take-home, a month £1,771\.46/);
-  await p.fill('[data-pay="bills"]', "2000");
-  assert.match(await out(), /Take-home, a month £1,771\.46 Left after bills −£228\.54/);
+  assert.match(await out(), /Pension \(5%\) −£64\.10 Take-home £1,773\.50/);
+  assert.equal(await p.$eval("#pay-set", (e) => e.textContent), "£12.71 an hour · 1257L · Plan 5 · postgraduate loan · 5% pension");
   await p.fill('[data-pay="rate"]', "11");
   assert.match(await out(), /^£11\.00 an hour is under £12\.71, the legal minimum at 21 and over\./);
   await p.fill('[data-pay="rate"]', "12.71");
   assert.doesNotMatch(await out(), /legal minimum/);
 
-  // Removing a shift asks first; the log and the settings stay on this phone.
-  p.once("dialog", (d) => d.accept());
-  await p.click(`[data-hr-del="${await p.evaluate(() => hoursLog.find((x) => x.day === "2026-11-05").id)}"]`);
-  assert.match(await txt("#pay"), /November so far: 9 h from 1 shift\./);
-  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]");
-  assert.match(await txt("#pay"), /November so far: 9 h from 1 shift\. October: 8\.5 h from 1 shift\./);
+  // Everything stays on this phone.
+  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
+  assert.match(await txt("#pay-sum"), /^3 Shifts 16\.5 Hours £1,773\.50 Take-home/);
   assert.equal(await p.$eval('[data-pay-loan="5"]', (b) => b.getAttribute("aria-pressed")), "true");
-  assert.equal(await p.$eval('[data-pay-check="pgl"]', (b) => b.checked), true);
-  assert.deepEqual(await p.evaluate(() => SHARE.hours()), ["My hours for November", "My hours for November\nTue 3 Nov 17:00–02:30, 30 min break: 9 h\nIn all: 9 h from 1 shift"]);
-  // A tap on the most used times fills them in.
-  await p.click("[data-hf-open]");
-  await p.click('[data-hf-times="18:00-03:00"]');
-  assert.deepEqual([await p.inputValue('[data-hf="start"]'), await p.inputValue('[data-hf="end"]'), await p.inputValue('[data-hf="day"]')], ["18:00", "03:00", "2026-11-20"]);
+  assert.deepEqual(await p.evaluate(() => SHARE.hours()), ["My hours for November", "My hours for November\nTue 3 Nov 17:00–23:00, 30 min break: 5.5 h\nTue 10 Nov 17:00–23:00, 30 min break: 5.5 h\nThu 12 Nov 17:00–23:00, 30 min break: 5.5 h\nIn all: 16.5 h from 3 shifts"]);
   await p.setViewportSize({ width: 320, height: 700 });
+  await p.click("[data-hf-open]");
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 320, "nothing wider than a small phone");
   assert.deepEqual(p.errs, []);
 });
@@ -213,7 +215,7 @@ test("my pay: where the venue uses the rota, the rest of the month's shifts are 
     LIVE.shifts = [s("2026-11-19", "18:00", "02:00"), s("2026-11-25", "18:00", "02:00"), s("2026-11-28", "12:00", "20:30"), s("2026-11-26", "12:00", "20:00", { pub: false }),
       s("2026-11-27", "12:00", "20:00", { who: "u2" }), s("2026-12-02", "12:00", "20:00")];
   });
-  await p.click("[data-tab=info]");
+  await p.click("[data-tab=pay]");
   await p.click("[data-pay-rota]");
   assert.equal(await p.inputValue('[data-pay="rota"]'), "16.5");
   assert.equal(await p.locator("[data-pay-rota]").count(), 0, "gone once it's used");
