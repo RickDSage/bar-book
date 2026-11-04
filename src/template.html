@@ -123,7 +123,7 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .btn.danger { color: var(--warn); border-color: var(--warn); }
 
 /* Tabs */
-nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(5, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
+nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: grid; grid-template-columns: repeat(6, 1fr); background: var(--surface); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); padding-left: env(safe-area-inset-left, 0px); padding-right: env(safe-area-inset-right, 0px); }
 nav.tabs button { height: var(--tabh); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; color: var(--muted); }
 nav.tabs button svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
@@ -510,6 +510,8 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <div id="pcard"></div>
   </section>
 
+  <section class="view" id="v-make" hidden></section>
+
   <section class="view" id="v-tally" hidden>
     <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
     <div id="football"></div>
@@ -529,6 +531,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
 <nav class="tabs" aria-label="Sections of the app">
   <button data-tab="drinks" aria-current="page"><svg viewBox="0 0 24 24"><path d="M5 4h14l-6 8v6l3 2H8l3-2v-6z"/></svg>Drinks</button>
+  <button data-tab="make"><svg viewBox="0 0 24 24"><path d="M8 3h8l-1 4H9z"/><path d="M9 7h6l1.5 13a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z"/><path d="M8 12h8"/></svg>Make</button>
   <button data-tab="allergens"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>Allergens</button>
   <button data-tab="practice"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></svg>Practise</button>
   <button data-tab="tally"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l2 2 4-4M8.5 16h7"/></svg>Shift</button>
@@ -751,7 +754,7 @@ function slideTo(step) {
 }
 function openSheet(id, keepScroll) {
   const d = D[id];
-  if (!keepScroll) { ctx = listIds.includes(id) && !$("#v-drinks").hidden ? listIds.slice() : D.map((x) => x.id); mult = 1; }
+  if (!keepScroll) { ctx = listIds.includes(id) && !$("#v-drinks").hidden ? listIds.slice() : MK.ids.includes(id) && !$("#v-make").hidden ? MK.ids.slice() : D.map((x) => x.id); mult = 1; }
   if (!ctx.includes(id)) ctx = D.map((x) => x.id);
   curId = id;
   if (!keepScroll) { lastFocus = document.activeElement; recent = [id, ...recent.filter((r) => r !== id)].slice(0, 6); store.set("recent", recent); keepAwake(); }
@@ -2161,6 +2164,9 @@ const FEATURES = [
   { g: "Drinks", k: "drinks", n: "Drinks", go: "tab:drinks", tour: 1,
     what: "Every drink with its spec, glass, ice, garnish and method, and a picture guide for each step.",
     staff: "Search and filter, star favourites, scale a spec for up to 4 drinks, and swipe to the next drink. Logged in, 86 a drink that's run out." },
+  { g: "Drinks", k: "make", n: "Cocktail maker", go: "tab:make", tour: 1,
+    what: "Pick or type what you've got and see every drink you can make, closest first, with swaps. Also a random drink picker and every spec on one line.",
+    staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, spin for an alcoholic or alcohol-free drink, and open any match for the full spec." },
   { g: "Drinks", k: "allergens", n: "Allergens", go: "tab:allergens", sw: 1, tour: 1,
     what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
     staff: "Tap an allergen to see every drink with it." },
@@ -2249,7 +2255,7 @@ function featHtml() {
     owner: "You're the owner, so you can do everything here. Untick a feature to switch it off for everyone at this venue: it's hidden, and nothing saved under it is deleted.",
     manager: "You're a manager: you can do what staff can, and what's under Managers.",
     staff: "You're staff: what you can do is under You. What managers can do is there too.",
-    "": "Without a login you get the drinks, Allergens, Practise, Bar info and My pay. A manager gives you a login for the rest.",
+    "": "Without a login you get the drinks, the cocktail maker, Allergens, Practise, Bar info and My pay. A manager gives you a login for the rest.",
   }[role];
   const mine = role === "staff" ? ["You", "Managers"] : role ? ["Staff", "You"] : ["Staff", "Managers"];
   const card = (f) => {
@@ -4023,12 +4029,13 @@ function renderNotices() { renderTeamTop(); markSeen(); }
 $("#bell").addEventListener("click", () => show("notices"));
 $("#home").addEventListener("click", (e) => { e.preventDefault(); show("drinks"); });
 
-const TABS = ["drinks", "allergens", "practice", "tally", "info", "notices"];
+const TABS = ["drinks", "make", "allergens", "practice", "tally", "info", "notices"];
 function show(tab) {
   if (!TABS.includes(tab) || !tabOn(tab)) tab = "drinks";
   TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
   document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
   $("#hdr").hidden = tab !== "drinks";
+  if (tab === "make") renderMaker();
   if (tab === "allergens") renderAllergens();
   if (tab === "practice" && !pDrink) nextCard();
   if (tab === "tally") renderTally();
@@ -4038,6 +4045,7 @@ function show(tab) {
 }
 document.querySelector("nav.tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
 
+/*MAKER*/
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { if (hit) $("#offl").textContent = "Offline ready ✓"; }).catch(() => {});
