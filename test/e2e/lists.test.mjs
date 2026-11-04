@@ -26,7 +26,7 @@ test("the welcome screen's Kitchen button opens the kitchen's shift", async () =
   await p.context().close();
 });
 
-test("the kitchen has its own opening and closing lists, restocking, report and place on Live and Nights", async () => {
+test("the kitchen has its own opening and closing lists, restocking, report and place on Live and in Reports", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await kitchen(S, "kopen");
@@ -61,9 +61,9 @@ test("the kitchen has its own opening and closing lists, restocking, report and 
   await S.click("#t-copy");
   await O.waitForFunction(() => LIVE.reports[0]?.side === "kitchen" && !LIVE.reports[0].pending);
   assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Kitchen · Opening 1\/14 · Closing 0\/15 · 0 86'd · Closing manager Mia Manager$/);
-  await M.click("#msub [data-msub=nights]");
-  await M.waitForFunction(() => /Kitchen · Sam Staff/.test(document.querySelector("#mgrs").innerText));
-  assert.match(flat(await M.$eval("#mgrs", (e) => e.innerText)), /Kitchen · Sam Staff Waiting Opening 1\/14 · Closing 0\/15/);
+  await M.click("[data-tpane=reports]");
+  await M.waitForFunction(() => /Kitchen · Sam Staff/.test(document.querySelector("#reports").innerText));
+  assert.match(flat(await M.$eval("#reports", (e) => e.innerText)), /Kitchen · Sam Staff Waiting \d\d:\d\d · Opening 1\/14 · Closing 0\/15/);
 
   // A broadcast for the kitchen shows on a kitchen phone and not on a bar one.
   await M.evaluate(() => LIVE.api.pin("Chef's tasting at 4", "kitchen", true));

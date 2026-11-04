@@ -90,7 +90,7 @@ function listen(uid) {
     sub("notices", LIVE.role === "manager" ? query(collection(db, "notices"), where("managers", "==", true)) : collection(db, "notices"), (snap) => {
       LIVE.notices = rows(snap); liveChanged("notices"); watchSeen(uid);
     });
-    sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
+    sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(LIVE_N.reports)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
     watchDays();
     // Managers' versions of the lists. A list with none here is the app's standard one.
     sub("lists", collection(db, "lists"), (snap) => {
@@ -134,7 +134,7 @@ function listen(uid) {
     if (!LIVE.admin) { Object.assign(LIVE, { staff: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], training: [], requests: [] }); return; }
     // Stock requests from before restocking, kept so managers can still clear the last ones.
     sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
-    sub("incidents", query(collection(db, "incidents"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.incidents = rows(snap); liveChanged("incidents"); });
+    sub("incidents", query(collection(db, "incidents"), orderBy("at", "desc"), limit(LIVE_N.incidents)), (snap) => { LIVE.incidents = rows(snap); liveChanged("incidents"); });
     sub("reviews", query(collection(db, "reviews"), orderBy("at", "desc"), limit(200)), (snap) => { LIVE.reviews = rows(snap); liveChanged("reviews"); });
     // Anonymous feedback: the owner reads all of it, a manager only what's about them.
     sub("ratings", LIVE.owner ? query(collection(db, "ratings"), orderBy("at", "desc"), limit(100)) : query(collection(db, "ratings"), where("about", "==", uid)), (snap) => {
@@ -224,6 +224,9 @@ async function leave() {
   await clearIndexedDbPersistence(db).catch(() => {});
   location.reload();
 }
+
+// How many of the newest reports and incidents stay live. The Reports tab reads older ones a page at a time.
+const LIVE_N = { reports: 30, incidents: 50 };
 
 // Photos live in the database (Firebase Storage needs a paid plan), so they're cleared after 30 days to stay free.
 // A day's margin keeps clear of the rule's own 30-day check if this phone's clock is a little out.
@@ -535,6 +538,11 @@ LIVE.api = {
   // Managers' spreadsheet downloads: the whole of one collection, read once (the live lists keep only the latest). Waste,
   // temperatures, line cleans and stock counts are read-only old records now (Alert65 and Nory took them over).
   history: (name) => getDocs(query(collection(db, name), orderBy("at", "desc"))).then(rows),
+  LIVE_N,
+  // One page of reports or incidents from before a time, newest first, for the Reports tab's "Show older".
+  olderThan: (name, before, n) => getDocs(query(collection(db, name), where("at", "<", before), orderBy("at", "desc"), limit(n))).then(rows),
+  // Managers' reviews of up to 30 reports, the most one "in" query takes.
+  reviewsOf: (ids) => (ids.length ? getDocs(query(collection(db, "reviews"), where("report", "in", ids))).then(rows) : Promise.resolve([])),
   // Checklist ticks from before tasks (24 and 25 October 2026), for the given business days.
   ticksFor: (days) => Promise.all(days.map((day) => getDocs(collection(db, "shift", day, "ticks")).then((s) => s.docs.map((x) => ({ day, ...x.data() }))))).then((xs) => xs.flat()),
   // Team chat. A private chat's id is both uids in order, so a pair only ever has one.

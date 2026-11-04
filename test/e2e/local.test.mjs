@@ -37,6 +37,18 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   assert.deepEqual(p.errs, []);
 });
 
+test("a drink's next and previous buttons and the arrow keys move through the list, round from the end", async () => {
+  const p = await open();
+  const [first, second, last] = await p.evaluate(() => [listIds[0], listIds[1], listIds.at(-1)].map((i) => D[i].name));
+  const showing = (n) => p.waitForFunction((x) => document.querySelector("#sh-name")?.textContent === x, n);
+  await p.evaluate(() => openSheet(listIds[0]));
+  await p.click('#sheet [data-go="1"]'); await showing(second);
+  await p.click('#sheet [data-go="-1"]'); await showing(first);
+  await p.keyboard.press("ArrowLeft"); await showing(last);
+  await p.keyboard.press("ArrowRight"); await showing(first);
+  assert.deepEqual(p.errs, []);
+});
+
 test("recently opened drinks come back as shortcuts", async () => {
   const p = await open({ recent: "[3,7,12]" });
   assert.equal(await p.$$eval("#quick [data-open]", (x) => x.length), 3);
@@ -116,8 +128,9 @@ test("my pay: September's payslip comes out to the penny, tronc from August's ho
   await p.click("[data-pay-per=week]");
   assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Take-home, a week £687\.34/);
   await p.click("[data-pay-per=month]");
-  await p.click('[data-pay-tronc="1.00"]');
-  assert.match(await p.$eval("#pay-out", (e) => e.innerText), /£82\.00/);
+  await p.click('[data-pay-tronc="6.00"]');
+  assert.match(await p.$eval("#pay-out", (e) => e.innerText.replace(/\s+/g, " ")), /Tronc £492\.00/, "82 hours at £6");
+  assert.deepEqual(await p.$$eval("[data-pay-tronc]", (bs) => bs.map((b) => b.textContent)), ["£6.00", "£6.50", "£7.00", "£7.50", "£8.00", "£8.50", "£9.00"]);
   await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]");
   assert.equal(await p.$eval('[data-pay="code"]', (e) => e.value), "992L", "kept on this phone");
   await put("code", "S1257L");

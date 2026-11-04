@@ -252,7 +252,8 @@ test("restocking: asked for, given to someone, brought up and confirmed, each st
   const { O, M, S, T } = await team(browser, site, crew);
   for (const p of [M, S, T]) await shift(p, "stock");
   const tia = await T.evaluate(() => LIVE.uid);
-  const card = (p, id) => p.$eval(`[data-rs-card="${id}"]`, (e) => e.innerText.replace(/\s+/g, " ").trim());
+  // innerText only spaces the buttons apart once the card is on screen.
+  const card = async (p, id) => { await p.waitForSelector(`[data-rs-card="${id}"]`, { state: "visible" }); return p.$eval(`[data-rs-card="${id}"]`, (e) => e.innerText.replace(/\s+/g, " ").trim()); };
   const ready = (p, st) => p.waitForFunction((st) => LIVE.restock[0]?.status === st && !LIVE.restock[0].pending, st);
 
   // Asked for: what, how many, where it's going and why. The team is told.
@@ -289,7 +290,8 @@ test("restocking: asked for, given to someone, brought up and confirmed, each st
   assert.deepEqual(await T.evaluate(() => LIVE.events.filter((e) => e.kind === "restock").sort((a, b) => a.v - b.v).map((e) => [e.from, e.to, e.who, e.qty, e.name])), [
     ["new", "asked", null, 2, "Sam Staff"], ["asked", "given", "Tia Staff", null, "Mia Manager"], ["given", "doing", "Tia Staff", null, "Tia Staff"],
     ["doing", "delivered", "Tia Staff", 2, "Tia Staff"], ["delivered", "received", "Tia Staff", 1, "Sam Staff"]]);
-  await S.waitForFunction(() => document.querySelector("#tally details.setup"));
+  // Sam's own confirmation says "sending…" until the server has it, which can be after Tia's toast.
+  await S.waitForFunction(() => /confirmed by Sam Staff, \d\d:\d\d/.test(document.querySelector("#tally details.setup")?.textContent || ""));
   assert.match(flat(await S.$eval("#tally details.setup", (e) => e.textContent)), /^Done tonight \(1\).*1 bag arrived, confirmed by Sam Staff, \d\d:\d\d \(2 bags brought up by Tia Staff\)$/);
   assert.equal(await attempt(S, (id) => LIVE.api.moveRestock(LIVE.restock.find((r) => r.id === id), "received", { got: 2 }), id), "permission-denied", "confirmed once");
 

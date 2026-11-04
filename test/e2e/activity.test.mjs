@@ -74,8 +74,8 @@ test("activity, downloads and broadcasts", async () => {
   assert.match(stock.csv, /\r\n\d{4}-\d\d-\d\d,\d\d:\d\d,Limes,2,bag,Upstairs bar,,Sam Staff,Waiting,,,,Sam Staff,/);
 
   // Managers' other pages are one tap away.
-  await O.click("[data-msub=incidents]");
-  assert.deepEqual(await O.evaluate(() => ["#act", "#incs", "#mgr"].map((s) => document.querySelector(s).hidden)), [true, false, true]);
+  await O.click("[data-msub=team]");
+  assert.deepEqual(await O.evaluate(() => ["#act", "#mgr"].map((s) => document.querySelector(s).hidden)), [true, false]);
 
   // Staff get their own Activity for their side of the venue, without the managers' sections or downloads.
   await S.evaluate(() => show("notices")); await S.click("[data-tpane=activity]");

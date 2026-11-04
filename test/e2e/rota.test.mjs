@@ -131,6 +131,8 @@ test("hands up for an open shift, and a manager gives it to someone", async () =
   await waitToast(O, /^Given to Sam Staff$/);
   await S.waitForFunction(() => LIVE.shifts[0].who === LIVE.uid);
   assert.match(await rowText(S, d1, "18:00"), /18:00–02:00 You Bar Can't make it…/);
+  // Tia's phone can hear about it a moment after Sam's.
+  await T.waitForFunction(() => LIVE.shifts[0].who);
   assert.equal(await T.locator("[data-ro-act=wants]").count(), 0, "a shift with someone on it isn't up for grabs");
   const w = await T.evaluate((d) => dayName(d), d1);
   assert.deepEqual(await O.evaluate(() => LIVE.events.filter((e) => e.kind === "shift").map((e) => `${e.name}: ${roText(e)}`)),

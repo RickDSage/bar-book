@@ -75,12 +75,13 @@ test("incidents are for managers' eyes and close with what was done", async () =
   assert.equal(await S.evaluate(() => LIVE.incidents.length), 0, "staff can't read incidents, their own included");
   const id = await M.evaluate(() => LIVE.incidents[0].id);
   assert.equal(await attempt(S, (id) => LIVE.api.closeIncident(id, "Fixed"), id), "permission-denied");
-  await M.evaluate(() => show("notices")); await M.click("[data-tpane=managers]"); await M.click("[data-msub=incidents]");
+  await M.evaluate(() => show("notices")); await M.click("[data-tpane=reports]");
   await M.click("[data-inc-close]");
   assert.equal(await toastOf(M), "Say what was done about it first");
   await M.fill("[data-inct]", "Engineer booked for Tuesday"); await M.click("[data-inc-close]");
   await M.waitForFunction(() => LIVE.incidents[0].status === "closed" && !LIVE.incidents[0].pending);
-  assert.match(await M.$eval("#incs", (e) => e.textContent), /What was done: Engineer booked for Tuesday · Mia Manager/);
+  await M.click("[data-rp-show=incidents]");
+  assert.match(await M.$eval("#reports", (e) => e.textContent), /What was done: Engineer booked for Tuesday · Mia Manager/);
   assert.equal(await attempt(M, (id) => LIVE.api.closeIncident(id, "Again"), id), "permission-denied", "a closed incident stays closed");
   assert.deepEqual([M.errs, S.errs], [[], []]);
 });
