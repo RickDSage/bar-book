@@ -34,6 +34,14 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 390, "nothing wider than the screen");
   await p.evaluate(() => show("notices"));
   assert.match(await p.$eval("#team", (e) => e.innerText), /Team logins/i);
+  // Bar info: what's in the app, then the bar's own reference, then this phone's settings.
+  await p.click("[data-tab=info]");
+  assert.deepEqual(await p.$$eval("#v-info h2", (x) => x.map((h) => h.textContent)), ["What's in the app", "Measures and the law", "Technique key", "Prep and batches",
+    "Shot tray, step by step", "Feedback and ideas", "Light or dark", "Put this app on your home screen"]);
+  // All seven tabs fit a 320px phone, each name on one line.
+  await p.setViewportSize({ width: 320, height: 640 });
+  assert.equal(await p.locator("nav.tabs button:not([hidden])").count(), 7);
+  assert.ok(await p.evaluate(() => [...document.querySelectorAll("nav.tabs button:not([hidden])")].every((b) => { const r = document.createRange(); r.selectNodeContents(b.lastChild); return r.getClientRects().length === 1; })));
   assert.deepEqual(p.errs, []);
 });
 

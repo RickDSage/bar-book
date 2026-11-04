@@ -132,6 +132,8 @@ nav.tabs button { height: var(--tabh); display: flex; flex-direction: column; al
 nav.tabs button svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
 nav.tabs button[hidden] { display: none; }
+/* Seven tabs on a small phone: a size smaller, so every name stays on one line. */
+@media (max-width: 359px) { nav.tabs button { font-size: 11px; white-space: nowrap; } }
 
 /* Allergens, tally, practice, info */
 .lead { color: var(--muted); margin: 8px 0 0; max-width: 62ch; }
@@ -417,6 +419,31 @@ a.btn { text-decoration: none; color: inherit; }
 .rowk b { display: block; font-size: 17px; }
 .rowk .s { color: var(--muted); font-size: 13.5px; }
 .rowk .round:disabled { opacity: .3; }
+/* The week as a grid for managers: a row for each person, a column for each day, a tap to put someone on. */
+.rgrid { display: grid; grid-template-columns: minmax(52px, 1.3fr) repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 10px; }
+.rg-h { text-align: center; color: var(--muted); font-size: 12px; line-height: 1.2; }
+.rg-h b { display: block; color: var(--fg); font-size: 15px; }
+.rg-h.today b { color: var(--brass); }
+.rg-n { align-self: center; font-size: 12.5px; font-weight: 700; line-height: 1.2; overflow: hidden; overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+/* A cell: each shift's start over its end, under a strip in its side's colour. The times never break, so a
+   half-hour start stays whole on a small phone. */
+.rg-c { min-height: 46px; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 3px 1px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); color: var(--fg); font-size: 11px; line-height: 1.2; }
+.rg-c i { font-style: normal; color: var(--muted); }
+.rg-c.on { border-color: var(--fg); }
+.rg-c.draft { border-style: dashed; }
+.rg-c.clash { border-color: var(--warn); }
+.rg-c span, .rgkey span { border-top: 3px solid var(--brass); padding-top: 1px; }
+.rg-c b { display: block; white-space: nowrap; }
+.rg-c b + b { color: var(--muted); }
+.rg-c span.floor, .rgkey span.floor { border-color: var(--cool); }
+.rg-c span.kitchen, .rgkey span.kitchen { border-color: var(--ok); }
+.rgkey span { margin-right: 10px; }
+/* On a small phone each name goes above its row, so the days get the whole width and the times still fit. */
+@media (max-width: 379px) {
+  .rgrid { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+  .rg-corner { display: none; }
+  .rg-n { grid-column: 1 / -1; margin-top: 6px; -webkit-line-clamp: 1; }
+}
 /* The calendar: a month of days, each with dots for what's on it and a line under it in school holidays. */
 .calgrid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; margin-top: 6px; }
 .calgrid .wd { text-align: center; font-size: 12px; font-weight: 700; color: var(--muted); padding: 2px 0; }
@@ -766,7 +793,6 @@ function rowHtml(d) {
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
 }
-const byName = (n) => D.find((d) => d.name === n);
 let recent = store.get("recent", []).filter((id) => D[id]);
 const FLAVOURS = {
   "Fruity": ["Fruity"], "Sweet": ["Sweet"], "Sour": ["Sour", "Zesty", "Citrus"], "Fresh & light": ["Fresh", "Light", "Easy"],
@@ -1003,11 +1029,6 @@ $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("[data-dm-photo-del]") && confirm(`Remove the photo of ${d.name} for everyone?`)) saveMedia(d, "", null, "Photo removed");
 });
 
-function openGuide(name) {
-  lastFocus = document.activeElement; keepAwake();
-  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">${esc(name)}</span><span></span></div></div><div class="hero solo"><div><h2 id="sh-name">${esc(name)}</h2><div class="sub">Tap each step when it is done</div></div></div>${guideHtml(DATA.guides[name])}<button class="btn wide" id="sh-close2">Back to drinks</button>`;
-  showSheet(false); $("#car").addEventListener("scroll", carSync, { passive: true }); $("#sheet").scrollTop = 0; $("#sh-close").focus();
-}
 function closeSheet() { if (history.state?.sheet) history.back(); else hideSheet(); }
 function hideSheet() {
   document.querySelector(".swhint")?.remove();
@@ -2343,10 +2364,6 @@ function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
     <div class="fbbox" style="margin-top:12px"><h2 style="margin-top:0">What's in the app</h2><p>Every feature, what it's for and what you can do with it, and a tour that shows you round.</p><button class="btn pri" data-feat-open>See the features</button></div>
-    <h2>Light or dark</h2>
-    <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
-    <p class="note">Auto follows your phone. This phone only.</p>
-    <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and sends the good ones out as broadcasts.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
     <h2>Measures and the law</h2>
     <ul>
       <li>Gin, rum, vodka and whisky on their own or with one mixer go in 25 ml or 35 ml measures (or multiples). We use 25 ml and 50 ml.</li>
@@ -2365,6 +2382,10 @@ function renderInfo() {
     </dl>
     <h2>Prep and batches</h2>${prep}
     <h2>Shot tray, step by step</h2>${guideHtml(DATA.guides["Shot tray"])}
+    <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and sends the good ones out as broadcasts.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
+    <h2>Light or dark</h2>
+    <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
+    <p class="note">Auto follows your phone. This phone only.</p>
     <h2>Put this app on your home screen</h2>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
     <h3 style="font-size:18px;margin-top:14px">iPhone</h3>
@@ -2380,7 +2401,7 @@ function renderInfo() {
       <li>Tap <b>Install</b>. It now opens like an app.</li>
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>
-    <p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 25 October 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
+    <p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
     <p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p>`;
 }
 
@@ -2438,7 +2459,7 @@ const FEATURES = [
   { g: "Team", k: "rota", n: "Rota", go: "rota", login: 1, sw: 1, tour: 1,
     what: "The week's shifts once a manager publishes them, with open shifts, offers and cover.",
     staff: "See your shifts, put your hand up for an open one, take or turn down an offer, or say you can't make one.",
-    mgr: "Make a week as a draft, publish it, give shifts to people, copy last week, and download or share it." },
+    mgr: "Build a week as a draft on a grid of people and days, one tap a shift. Then publish it, give shifts to people, copy last week, and download or share it." },
   { g: "Team", k: "calendar", n: "Calendar", go: "cal", login: 1, sw: 1, tour: 1,
     what: "The next 7 days and a month at a time: bank holidays, school holidays, faith days, big games, London events, the nights that change how busy we are and the games on our screens, with your shifts and time off.",
     staff: "See the week ahead at a glance. Tap a day to see what's on it, and ask for time off from there.",
@@ -2972,14 +2993,15 @@ function roPick(uid, name) {
   const ps = roPeople().map((p) => [p.uid, p.name]);
   return uid && !ps.some(([u]) => u === uid) ? [...ps, [uid, `${name} (left the team)`]] : ps;
 }
-// The fields the add form (a "rof") and a manager's changes to one shift (a "roe", x) share.
-function roFields(a, f, x) {
-  return `<div class="two even"><label class="fld">Starts<input type="time" data-${a}="start" value="${esc(f.start)}"></label><label class="fld">Ends<input type="time" data-${a}="end" value="${esc(f.end)}"></label></div>
-    <label class="fld">Who<select data-${a}="who">${roOpts([["", "Nobody yet: an open shift"], ...roPick(x?.who, x?.whoName)], f.who)}</select></label>
-    ${f.who ? "" : `<label class="fld">Offer it to someone, who takes it or says no<select data-${a}="offer">${roOpts([["", "Nobody: anyone can put their hand up"], ...roPick(x?.offer, x?.offerName)], f.offer)}</select></label>`}
-    <label class="fld">Side<select data-${a}="side">${roOpts(Object.entries(SIDE_NAME), f.side)}</select></label>
-    <label class="fld">Note (optional)<input data-${a}="note" maxlength="60" value="${esc(f.note)}" placeholder="Close, training, football…"></label>`;
+// The fields the add form and the grid (a "rof") and a manager's changes to one shift (a "roe", x) share.
+const roTimeFields = (a, f) => `<label class="fld">Starts<input type="time" data-${a}="start" value="${esc(f.start)}"></label><label class="fld">Ends<input type="time" data-${a}="end" value="${esc(f.end)}"></label>`;
+const roSideField = (a, f) => `<label class="fld">Side<select data-${a}="side">${roOpts(Object.entries(SIDE_NAME), f.side)}</select></label>`;
+const roNoteField = (a, f) => `<label class="fld">Note (optional)<input data-${a}="note" maxlength="60" value="${esc(f.note)}" placeholder="Close, training, football…"></label>`;
+function roWhoFields(a, f, x) {
+  return `<label class="fld">Who<select data-${a}="who">${roOpts([["", "Nobody yet: an open shift"], ...roPick(x?.who, x?.whoName)], f.who)}</select></label>
+    ${f.who ? "" : `<label class="fld">Offer it to someone, who takes it or says no<select data-${a}="offer">${roOpts([["", "Nobody: anyone can put their hand up"], ...roPick(x?.offer, x?.offerName)], f.offer)}</select></label>`}`;
 }
+const roFields = (a, f, x) => `<div class="two even">${roTimeFields(a, f)}</div>${roWhoFields(a, f, x)}${roSideField(a, f)}${roNoteField(a, f)}`;
 function roEditHtml(x) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(x.week, i));
   return `<div class="mini">Change it</div><label class="fld">Day<select data-roe="day">${roOpts(days.map((d) => [d, dayName(d, { weekday: "long", day: "numeric", month: "short" })]), roE.day)}</select></label>
@@ -3024,7 +3046,7 @@ function renderRota() {
   const nav = `<div class="rowk"><button class="round" data-ro-wk="-7" aria-label="The week before"${wk <= lo ? " disabled" : ""}>‹</button>
     <div><b>Week of ${dayName(wk, { weekday: "short", day: "numeric", month: "long" })}</b><span class="s">${roWeekName(daysFrom(roThis(), wk) / 7)}</span></div>
     <button class="round" data-ro-wk="7" aria-label="The week after"${wk >= hi ? " disabled" : ""}>›</button></div>`;
-  const status = A ? (!xs.length ? `<p class="note">Nothing on this week yet. Add shifts below${last.length ? ", or start from last week's" : ""}.</p>${last.length ? `<div class="actions"><button class="btn pri" id="ro-copy">Copy last week (${nShifts(last.length)})</button></div>` : ""}`
+  const status = A ? (!xs.length ? `<p class="note">Nothing on this week yet. Put people on below${last.length ? ", or start from last week's" : ""}.</p>${last.length ? `<div class="actions"><button class="btn pri" id="ro-copy">Copy last week (${nShifts(last.length)})</button></div>` : ""}`
     : drafts.length ? `<p class="note"><span class="pill wait">Draft</span> ${drafts.length === xs.length ? "Only managers can see this week until it's published." : `${nShifts(drafts.length)} only managers can see yet.`}</p><div class="actions"><button class="btn pri" id="ro-pub">Publish ${nShifts(drafts.length)}</button></div>`
     : `<p class="note">Published. Everyone can see it, and each change is saved with who made it and when.</p>`)
     : xs.length ? "" : `<p class="note">Nothing published for this week yet.</p>`;
@@ -3039,9 +3061,10 @@ function renderRota() {
   }).join("") : "";
   const hours = A && xs.length ? roHours(xs) : "";
   const acts = xs.length ? `<div class="actions">${shareBtns("rota")}${A ? dlHtml("shifts", "Download every week as a spreadsheet", "rota") : ""}</div>` : "";
-  const foot = A ? roAddHtml(wk, xs.some((x) => x.pub)) : !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? Tap it on the <button class="linkbtn" data-roview="cal">calendar</button>, or ask in <button class="linkbtn" data-go="me">Tell the managers</button>.</p>`
+  const pub = xs.some((x) => x.pub), build = A ? roGridHtml(wk, xs, pub) + roAddHtml(wk, pub) : "";
+  const foot = A || !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? Tap it on the <button class="linkbtn" data-roview="cal">calendar</button>, or ask in <button class="linkbtn" data-go="me">Tell the managers</button>.</p>`
     : `<p class="note">Need a day off? Ask in <button class="linkbtn" data-go="me">Tell the managers</button>.</p>`;
-  box.innerHTML = roViews() + head + nav + status + you + elsewhere + chips + days + hours + acts + foot;
+  box.innerHTML = roViews() + head + nav + status + build + you + elsewhere + chips + days + hours + acts + foot;
 }
 // Each person's shifts and hours in the week, then the open shifts.
 function roHours(xs) {
@@ -3051,13 +3074,55 @@ function roHours(xs) {
   return `<div class="mini">Hours this week</div>${rows.map(([, h]) => `<div class="staffrow"><div class="n">${esc(h.name)} <span class="did">· ${nShifts(h.n)}, ${hrs(h.m)}</span></div></div>`).join("")}
     <p class="note">${nShifts(xs.length)}, ${hrs(xs.reduce((t, x) => t + shiftLen(x), 0))} in all. From start to finish, before breaks${xs.some((x) => !x.pub) ? ", drafts included" : ""}.</p>`;
 }
-function roAddHtml(wk, pub) {
+// The week as a grid: the times and side to put people on at, then a row for each person (and anyone who has left but
+// is still on a shift) and a column for each day.
+function roGridHtml(wk, xs, pub) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(wk, i)), f = { ...roF, side: roF.side || mode }, times = roTimes();
-  return `<details class="setup" id="ro-add"${roF.open ? " open" : ""}><summary>Add shifts</summary>
+  const gone = [...new Map(xs.filter((x) => x.who && !LIVE.staff.some((p) => p.uid === x.who)).map((x) => [x.who, { uid: x.who, name: `${x.whoName} (left)` }])).values()];
+  const head = `<div class="rg-corner"></div>${days.map((d) => `<div class="rg-h${d === shiftDay() ? " today" : ""}">${dayName(d, { weekday: "short" })}<b>${+d.slice(8)}</b></div>`).join("")}`;
+  const rows = [...roPeople(), ...gone].map((p) => `<div class="rg-n">${esc(p.name)}</div>${days.map((d) => roCell(p, d, xs)).join("")}`).join("");
+  return `<div class="mini">Put people on</div>
+    ${times.length ? `<div class="chips">${times.map(([s, e]) => `<button class="chip" data-ro-times="${s}-${e}" aria-pressed="${f.start === s && f.end === e}">${s}–${e}</button>`).join("")}</div>` : ""}
+    <div class="two even">${roTimeFields("rof", f)}</div>${roSideField("rof", f)}
+    <p class="note">Tap a day in someone's row to put them on${pub ? ". The week is published, so it's on their rota straight away" : ""}. Tap a draft again to take it off. A published shift opens below, to change or remove.</p>
+    <div class="rgrid">${head}${rows}</div>
+    <p class="note rgkey">${Object.entries(SIDE_NAME).map(([k, t]) => `<span class="${k}">${t}</span>`).join("")}Drafts have a dashed edge.</p>`;
+}
+// One person's day on the grid: each shift's start and end, or their time off.
+function roCell(p, d, xs) {
+  const on = xs.filter((x) => x.who === p.uid && x.day === d).sort(roOrder), off = offOn(d).find((a) => a.uid === p.uid);
+  const said = on.length ? on.map((x) => `${roTime(x)}, ${sideName(x.side)}${x.pub ? "" : ", a draft"}`).join("; ") : off ? (off.status === "approved" ? "off" : "has asked for the day off") : "not on";
+  const cls = ["rg-c", on.length && "on", on.some((x) => !x.pub) && "draft", on.length && off && "clash"].filter(Boolean).join(" ");
+  return `<button class="${cls}" data-ro-cell="${p.uid}|${d}" aria-label="${esc(`${p.name}, ${dayName(d, { weekday: "long", day: "numeric", month: "short" })}: ${said}`)}">${on.map((x) => `<span class="${x.side}"><b>${x.start}</b><b>${x.end}</b></span>`).join("")
+    || (off ? `<i>${off.status === "approved" ? "Off" : "Asked off"}</i>` : `<i aria-hidden="true">+</i>`)}</button>`;
+}
+// A tap on the grid. Nobody on: put them on at the times and side picked, warned of a clash. A draft: take it off (it's
+// only ever been the managers'). A published shift: open it below, where it's changed or removed with its history.
+function roTap(uid, day) {
+  // A time still being typed is kept (it's saved as it's typed), and the grid redraws once it's out of the way.
+  document.activeElement?.blur();
+  const wk = roWeek(), xs = weekShifts(wk), on = xs.filter((x) => x.who === uid && x.day === day);
+  const draft = on.find((x) => !x.pub);
+  if (draft) { track(LIVE.api.shift(draft, "removed"), `Taken off: ${draft.whoName}, ${dayName(day)}`, "Not saved. Check your signal and try again"); haptic(); return; }
+  if (on.length) { roOpen(on[0]); $(`[data-ro-more="${on[0].id}"]`)?.scrollIntoView({ block: "center" }); return; }
+  const p = LIVE.staff.find((s) => s.uid === uid);
+  if (!p) return toast("They're not on the team any more");
+  if (!ISO_TIME.test(roF.start) || !ISO_TIME.test(roF.end)) return toast("Pick when it starts and ends first");
+  if (roF.start === roF.end) return toast("It can't start and end at the same time");
+  const pub = xs.some((x) => x.pub), f = { week: wk, day, start: roF.start, end: roF.end, side: roF.side || mode, note: "", who: p.uid, whoName: p.name, offer: "", offerName: "" };
+  const c = roClash(p.uid, f, "");
+  if (c && !confirm(`${p.name} ${c}. Put them on anyway?`)) return;
+  track(LIVE.api.shiftsAdd([f], pub), `${p.name}: ${dayName(day)}, ${roTime(f)}${pub ? ", published" : ""}`, "Not saved. Check your signal and try again");
+  haptic();
+}
+// More ways to add: an open shift, one offered to someone, several days at once or with a note.
+function roAddHtml(wk, pub) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(wk, i)), f = { ...roF, side: roF.side || mode };
+  return `<details class="setup" id="ro-add"${roF.open ? " open" : ""}><summary>Add open shifts, offers and notes</summary>
+    <p class="note">At the times and on the side above.</p>
     <div class="mini">Day, or several days</div>
     <div class="chips">${days.map((d) => `<button class="chip" data-ro-day="${d}" aria-pressed="${roF.days.includes(d)}">${dayName(d, { weekday: "short", day: "numeric" })}</button>`).join("")}</div>
-    ${times.length ? `<div class="mini">Times used before</div><div class="chips">${times.map(([s, e]) => `<button class="chip" data-ro-times="${s}-${e}" aria-pressed="${f.start === s && f.end === e}">${s}–${e}</button>`).join("")}</div>` : ""}
-    ${roFields("rof", f, null)}
+    ${roWhoFields("rof", f, null)}${roNoteField("rof", f)}
     <p class="note">${pub ? "This week is published, so new shifts go out straight away." : "They stay a draft until you publish the week."}</p>
     <div class="actions"><button class="btn pri" id="ro-go">${pub ? "Add and publish" : "Add to the draft"}</button></div></details>`;
 }
@@ -4509,6 +4574,7 @@ $("#v-notices").addEventListener("click", (e) => {
   }
   if (b.dataset.roDay) { const d = b.dataset.roDay; roF.days = roF.days.includes(d) ? roF.days.filter((x) => x !== d) : [...roF.days, d]; renderRota(); return; }
   if (b.dataset.roTimes) { [roF.start, roF.end] = b.dataset.roTimes.split("-"); renderRota(); return; }
+  if (b.dataset.roCell) { const [uid, day] = b.dataset.roCell.split("|"); return roTap(uid, day); }
   if (b.dataset.roHist) { roLoadHist(b.dataset.roHist); return; }
   if (b.id === "ro-go") return roAdd();
   if (b.id === "ro-pub") return roPublish();

@@ -45,7 +45,7 @@ test("a manager drafts a week, copies last week's and publishes it", async () =>
   assert.match(await text(S, "#rota"), /Nothing published for this week yet\./);
   assert.match(await text(S, "#rota"), /Need a day off\? Tap it on the calendar, or ask in Tell the managers\./);
   assert.equal(await S.locator("#ro-add").count(), 0, "staff don't get the add form");
-  assert.match(await text(M, "#rota"), /Nothing on this week yet\. Add shifts below\./);
+  assert.match(await text(M, "#rota"), /Nothing on this week yet\. Put people on below\./);
   assert.equal(await M.locator("#ro-copy").count(), 0, "nothing to copy on an empty rota");
 
   // Nothing is saved until the day and the times are picked.
@@ -108,6 +108,71 @@ test("a manager drafts a week, copies last week's and publishes it", async () =>
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
+test("a manager builds a week on the grid: a tap puts someone on, a tap on a draft takes it off", async () => {
+  await resetEmulators();
+  const { M, S, T } = await team(browser, site, people);
+  // Next week, so every day is still to come.
+  await rota(M, 7);
+  const [sam, tia] = [await uidOf(M, "Sam Staff"), await uidOf(M, "Tia Staff")];
+  const cell = (uid, n) => day(M, n).then((d) => `[data-ro-cell="${uid}|${d}"]`);
+  const look = async (uid, n) => M.$eval(await cell(uid, n), (b) => `${b.className} ${b.innerText.replace(/\s+/g, " ").trim()}`);
+  assert.deepEqual(await M.$$eval(".rgrid .rg-n", (x) => x.map((e) => e.textContent)), ["Mia Manager", "Olly Owner", "Sam Staff", "Tia Staff"], "everyone on the team, by name");
+  assert.deepEqual(await M.$$eval(".rgrid .rg-h", (x) => x.map((e) => e.firstChild.textContent)), ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]);
+  await rota(S, 7);
+  assert.equal(await S.locator(".rgrid").count(), 0, "staff don't get the grid");
+
+  // Nothing is saved without the times.
+  await M.click(await cell(sam, 8));
+  assert.equal(await toastOf(M), "Pick when it starts and ends first");
+  await M.fill("[data-rof=start]", "18:00"); await M.fill("[data-rof=end]", "02:00");
+  await M.click(await cell(sam, 8));
+  await waitToast(M, /^Sam Staff: .*, 18:00–02:00$/);
+  await M.selectOption("[data-rof=side]", "floor"); await M.fill("[data-rof=start]", "17:30"); await M.fill("[data-rof=end]", "23:00");
+  for (const n of [8, 9]) await M.click(await cell(tia, n));
+  await settled(M, 3);
+  assert.equal(await look(sam, 8), "rg-c on draft 18:00 02:00");
+  assert.equal(await look(tia, 9), "rg-c on draft 17:30 23:00");
+  assert.equal(await M.$eval(`${await cell(tia, 9)} span`, (e) => e.className), "floor");
+  assert.match(await text(M, "#rota"), /17:30–23:00 Tia Staff Draft Floor/);
+  // The times used most are a tap away.
+  assert.deepEqual(await M.$$eval("[data-ro-times]", (x) => x.map((b) => b.textContent)), ["17:30–23:00", "18:00–02:00"]);
+
+  // A mistake is a tap to undo while it's a draft.
+  await M.click(await cell(tia, 9));
+  await waitToast(M, /^Taken off: Tia Staff, /);
+  await settled(M, 2);
+  assert.equal(await look(tia, 9), "rg-c +");
+
+  // Time off shows on the grid, and putting them on anyway is warned about.
+  const d11 = await day(S, 11);
+  await S.evaluate((d) => LIVE.api.ask({ kind: "off", date1: d, date2: d, note: "" }), d11);
+  await M.waitForFunction(() => LIVE.asks.length === 1);
+  assert.equal(await look(sam, 11), "rg-c Asked off");
+  const warned = new Promise((ok) => M.once("dialog", (d) => ok(d.message())));
+  await M.click("[data-ro-times='18:00-02:00']"); await M.selectOption("[data-rof=side]", "bar");
+  await M.click(await cell(sam, 11));
+  assert.match(await warned, /^Sam Staff has asked for .* off\. Put them on anyway\?$/);
+  await settled(M, 3);
+  assert.equal(await look(sam, 11), "rg-c on draft clash 18:00 02:00");
+
+  // Once the week is out, a tap on a shift opens it to change, and a tap on an empty day publishes straight away.
+  await M.click("#ro-pub");
+  await settled(S, 3);
+  assert.equal(await look(sam, 8), "rg-c on 18:00 02:00");
+  const id = await idOf(M, await day(M, 8), "18:00");
+  await M.click(await cell(sam, 8));
+  await M.waitForSelector(`[data-ro-save="${id}"]`);
+  await M.click(await cell(tia, 12));
+  await waitToast(M, /^Tia Staff: .*, 18:00–02:00, published$/);
+  await T.waitForFunction(() => LIVE.shifts.length === 4 && LIVE.shifts.every((x) => x.pub));
+  assert.equal(await M.evaluate(() => LIVE.events.filter((e) => e.kind === "shift" && e.act === "added").length), 1, "the one added after publishing has its history");
+
+  // The grid fits a 320px phone.
+  await M.setViewportSize({ width: 320, height: 640 });
+  assert.ok(await M.evaluate(() => document.documentElement.scrollWidth <= 320));
+  assert.deepEqual([M.errs, S.errs, T.errs], [[], [], []]);
+});
+
 test("hands up for an open shift, and a manager gives it to someone", async () => {
   await resetEmulators();
   const { O, M, S, T } = await team(browser, site, people);
@@ -116,7 +181,8 @@ test("hands up for an open shift, and a manager gives it to someone", async () =
   await add(O, [n], "18:00", "02:00");
   await settled(O, 1);
   await O.click("#ro-pub");
-  await settled(S, 1);
+  // Both phones have the shift before either acts on it.
+  for (const p of [S, T]) await settled(p, 1);
   const d1 = await day(S, n);
   await rota(S, n); await rota(T, n);
   assert.match(await rowText(S, d1, "18:00"), /18:00–02:00 Open shift Bar I can do it/);
@@ -185,7 +251,8 @@ test("someone who can't make their shift says so, and can take it back", async (
   await add(O, [n], "18:00", "02:00", "Sam Staff");
   await settled(O, 1);
   await O.click("#ro-pub");
-  await settled(S, 1);
+  // Both phones have the shift before either acts on it.
+  for (const p of [S, T]) await settled(p, 1);
   const d1 = await day(S, n);
   await rota(S, n); await rota(T, n);
 
