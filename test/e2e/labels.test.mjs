@@ -44,9 +44,12 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   await M.fill("#lb-life", "3");
   await M.click("#lb-go");
   await waitToast(M, /^Apple juice added\. Everyone on the bar can see it$/);
-  for (const [item, life] of [["Cranberry juice", "4"], ["Orange juice", "3"], [" apple JUICE ", "3"]]) {
+  // Each one is saved before the next, or its "added" could come back after the duplicate's message and replace it.
+  for (const [item, life] of [["Cranberry juice", "4"], ["Orange juice", "3"]]) {
     await M.fill("#lb-item", item); await M.fill("#lb-life", life); await M.click("#lb-go");
+    await waitToast(M, new RegExp(`^${item} added\\.`));
   }
+  await M.fill("#lb-item", " apple JUICE "); await M.fill("#lb-life", "3"); await M.click("#lb-go");
   assert.equal(await toastOf(M), "apple JUICE is on the list already");
   await S.waitForFunction(() => LIVE.labels.length === 3 && LIVE.labels.every((x) => !x.pending));
   // (The page isn't redrawn under someone typing, so the ideas catch up once they stop.)
