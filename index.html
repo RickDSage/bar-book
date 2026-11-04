@@ -4341,10 +4341,12 @@ const mk = {
   pane: store.get("mk.pane", "make"),
   pick: store.get("mk.pick", []).filter((p) => p.k.startsWith("~") || MK.byKey.has(p.k)),
   bar: store.get("mk.bar", []).filter((k) => k.startsWith("~") || MK.byKey.has(k)),
-  opt: { useBar: true, basics: true, kind: "all", ...store.get("mk.opt", {}) },
+  opt: { basics: true, kind: "all", ...store.get("mk.opt", {}) },
   rnd: { mode: "any", mine: false, kind: "all", last: [], cur: null, ...store.get("mk.rnd", {}), cur: null },
   qs: { q: "", kind: "all", mine: false },
   edit: null, // the pick whose ml is being set
+  cat: null, // the ingredient group open on the shelf (null: Popular)
+  fromBar: false, // showing what My bar can make
   typed: { make: "", bar: "" },
 };
 const mkSave = () => { store.set("mk.pane", mk.pane); store.set("mk.pick", mk.pick); store.set("mk.bar", mk.bar); store.set("mk.opt", mk.opt); store.set("mk.rnd", { mode: mk.rnd.mode, mine: mk.rnd.mine, kind: mk.rnd.kind, last: mk.rnd.last }); };
@@ -4395,12 +4397,10 @@ function mkHeld(picks, withBar, basics) {
   return [...m.values()];
 }
 const mkKindOk = (d, kind) => kind === "all" || mkKids(d) === kind;
+// What My bar (and the basics, if on) can make, closest first.
 function mkMatches() {
-  const picked = new Set(mk.pick.map((p) => p.k));
-  const held = mkHeld(mk.pick, mk.opt.useBar, mk.opt.basics);
-  // With picks, every drink must use at least one of them. With none, it ranks what My bar can make.
-  const anchor = picked.size ? picked : new Set(mk.opt.useBar ? mk.bar : []);
-  if (!anchor.size) return null;
+  const held = mkHeld([], true, mk.opt.basics), anchor = new Set(mk.bar);
+  if (!anchor.size) return [];
   return D.filter((d) => mkKindOk(d, mk.opt.kind)).map((d) => mkScore(d, held, anchor))
     .filter((r) => r.used > 0 && r.score >= 0.45)
     .sort((a, b) => a.miss.length - b.miss.length || b.score - a.score || b.used - a.used || a.short.length - b.short.length || (b.d.official ? 1 : 0) - (a.d.official ? 1 : 0));
@@ -4458,6 +4458,9 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .mk-q .n span{color:var(--muted);font-weight:400;font-size:13px;white-space:nowrap}
 .mk-q .s{font-size:14.5px;margin-top:2px}
 .mk-q .m{font-size:13.5px;color:var(--muted);margin-top:2px}
+.mk-cats{padding-block:8px 0}.mk-shelf{padding-block:6px 4px}.mk-shelf .chip,.mk-goes .chip{color:var(--fg)}.mk-goes .chip small{color:var(--muted);margin-left:4px}
+.mk-hl b{color:var(--brass);font-weight:700}
+.mk-own{margin:12px 0;padding:14px;border:1px solid var(--brass);border-radius:14px;background:var(--surface)}.mk-own ul{margin:6px 0 0;padding-left:18px}.mk-own li{padding:2px 0}.mk-own .m{margin:8px 0 0;font-size:14.5px}
 .mk-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 </style>`);
 const MK_ICON = `<svg viewBox="0 0 24 24"><path d="M8 3h8l-1 4H9z"/><path d="M9 7h6l1.5 13a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z"/><path d="M8 12h8"/></svg>`;
@@ -4514,28 +4517,130 @@ function mkResHtml(r) {
     <div class="ln">${esc(d.glass)} · ${esc(d.method)}</div>${bits.length ? `<div class="ln">${bits.join(" · ")}</div>` : ""}<div class="spec">${esc(mkShort(d))}</div><div class="mk-bar"><i style="width:${pc}%"></i></div></div></button>`;
 }
 const MK_KINDS = [["all", "Everything"], ["cocktail", "Cocktails"], ["zero", "Mocktails"], ["shot", "Shots"]];
+/* ---------- Make: follow an order, one ingredient at a time ----------
+   Tap (or type) an ingredient and every drink with it lists straight away. Each tap narrows the list to drinks with all of
+   them, and "Goes with" offers the next ingredient from what those drinks use. When nothing in the book has them all,
+   it shows the closest and a drink of your own built from the house ratios. */
+const MK_SHORT = { "Rum and cachaça": "Rum", "Tequila and mezcal": "Tequila", "Whisky and whiskey": "Whisky", "Aperitifs, vermouth and wine": "Aperitifs & wine",
+  "Creams, milk and foam": "Cream & milk", "Syrups and sauces": "Syrups", "Juices and purées": "Juices", "Mixers and fizz": "Mixers", "Fresh and garnish": "Fresh", "Bitters and seasoning": "Bitters" };
+const mkCatName = (c) => MK_SHORT[c] || c;
+// The chip to show for an ingredient: the generic of its kind when there is one (Smirnoff shows as Vodka).
+const mkGen = (it) => MK.items.find((x) => x.gen && x.kind === it.kind) || it;
+// The book's most used ingredients, for the shelf before anything's picked.
+const MK_POP = (() => {
+  const n = new Map();
+  for (const r of MK.reqs.values()) for (const x of new Set(r.filter((q) => q.w >= 1).map((q) => mkGen(q.it)))) n.set(x, (n.get(x) || 0) + 1);
+  return [...n].sort((a, b) => b[1] - a[1]).slice(0, 24).map(([it]) => it);
+})();
+// Drinks with every pick in them. cover: how closely (1 the same, 0.7 a flavoured cousin, like Cîroc Apple for Vodka).
+function mkOrder() {
+  const picks = mk.pick;
+  const rows = D.filter((d) => mkKindOk(d, mk.opt.kind)).map((d) => {
+    const reqs = MK.reqs.get(d.id), hit = new Set(), short = [], lack = [];
+    let has = 0, cover = 0;
+    for (const p of picks) {
+      let best = 0, at = null;
+      for (const r of reqs) { const c = mkCover(r, p.k); if (c > best) { best = c; at = r; } }
+      if (best >= 0.7) { has++; cover += best; hit.add(at); if (p.ml && at.ml && at.ml > p.ml) short.push(`${at.ml} ml ${at.it.n} (you have ${p.ml})`); } else lack.push(mkName(p.k));
+    }
+    return { d, has, cover: has ? cover / has : 0, hit, short, lack, size: reqs.filter((r) => r.w >= 1).length };
+  });
+  const by = (a, b) => b.cover - a.cover || a.short.length - b.short.length || a.size - b.size || (b.d.official ? 1 : 0) - (a.d.official ? 1 : 0);
+  const all = rows.filter((r) => r.has === picks.length).sort(by);
+  const near = all.length ? [] : rows.filter((r) => r.has && r.has === Math.max(...rows.map((x) => x.has))).sort(by);
+  // What the drinks on screen use most, apart from what's already picked.
+  const goes = new Map();
+  for (const r of all) for (const it of new Set(MK.reqs.get(r.d.id).filter((q) => q.w >= 1 && !r.hit.has(q)).map((q) => mkGen(q.it)))) {
+    if (!picks.some((p) => mkCover({ it, name: it.n }, p.k) >= 0.9)) goes.set(it, (goes.get(it) || 0) + 1);
+  }
+  return { all, near, goes: [...goes].sort((a, b) => b[1] - a[1]).slice(0, 12) };
+}
+// A drink of your own from the picks, on the house ratios. Spirits and liqueurs at 25/50 ml, citrus 25, syrup 20.
+const MK_BASE = new Set(["Vodka", "Gin", "Rum and cachaça", "Tequila and mezcal", "Whisky and whiskey", "Brandy"]);
+function mkOwn() {
+  const its = mk.pick.map((p) => ({ p, it: mkLike(p.k) })).filter((x) => x.it);
+  if (!its.length) return "";
+  const of = (f) => its.filter(({ it }) => f(it));
+  const base = of((it) => MK_BASE.has(it.cat)), mod = of((it) => /Liqueurs|Aperitifs/.test(it.cat) && it.kind !== "Sparkling wine"), fizzWine = of((it) => it.kind === "Sparkling wine");
+  const citrus = of((it) => /Lime juice|Lemon juice/.test(it.kind)), juice = of((it) => it.cat === "Juices and purées" && !/Lime juice|Lemon juice/.test(it.kind));
+  const syrup = of((it) => it.cat === "Syrups and sauces"), cream = of((it) => it.cat === "Creams, milk and foam"), mixer = of((it) => it.cat === "Mixers and fizz" || it.cat === "Beer");
+  const fresh = of((it) => it.cat === "Fresh and garnish"), bitters = of((it) => it.cat === "Bitters and seasoning"), coffee = of((it) => it.cat === "Coffee");
+  const nm = (x) => mkName(x.p.k), ml = (x, n) => x.p.ml || n;
+  const lines = [], add = (n, x) => lines.push(`${ml(x, n)} ml ${nm(x)}`);
+  let style, glassTxt, how;
+  const spirits = [...base, ...mod];
+  // Split 50 ml of spirit across what's picked: one is 50, two are 35 + 15 (or 25 + 25 for two bases), three are 25 + 15 + 10.
+  const share = (a) => (a.length === 1 ? [50] : a.length === 2 ? (base.length === 2 ? [25, 25] : [35, 15]) : [25, 15, 10, 10, 10].slice(0, a.length));
+  if (fizzWine.length && mod.length && !base.length) {
+    style = "spritz"; glassTxt = "Large wine glass, cubed ice"; how = "Build over ice: Prosecco, then the rest, top soda, gentle lift";
+    fizzWine.forEach((x) => add(75, x)); mod.forEach((x) => add(mod.length > 1 ? 25 : 50, x)); juice.forEach((x) => add(25, x)); syrup.forEach((x) => add(10, x)); lines.push("Top 25 ml soda");
+  } else if (!spirits.length) {
+    style = "mocktail"; glassTxt = "Highball, cubed ice"; how = mixer.length ? "Shake everything but the fizz, strain over ice, top up" : "Shake hard, strain over ice";
+    fresh.forEach((x) => lines.push(`A few ${nm(x).toLowerCase()}, pressed`)); juice.forEach((x) => add(juice.length > 1 ? 50 : 100, x)); citrus.forEach((x) => add(15, x));
+    if (!citrus.length && juice.length) add(15, { p: { k: "lemon juice" } });
+    (syrup.length ? syrup : [{ p: { k: "sugar syrup" } }]).forEach((x) => add(syrup.length > 1 ? 10 : 20, x)); coffee.forEach((x) => add(35, x)); cream.forEach((x) => add(25, x)); mixer.forEach((x) => lines.push(`Top ${nm(x)}`));
+  } else if (cream.length || coffee.length) {
+    style = coffee.length ? "coffee shake" : "creamy shake"; glassTxt = "Chilled coupe, no ice"; how = "Shake very hard, double strain";
+    const s = share(spirits); spirits.forEach((x, i) => add(s[i] === 50 ? 35 : s[i], x)); coffee.forEach((x) => add(25, x)); cream.forEach((x) => add(25, x)); (syrup.length || mod.length ? syrup : [{ p: { k: "sugar syrup" } }]).forEach((x) => add(syrup.length ? 10 : 15, x)); juice.forEach((x) => add(15, x));
+  } else if (mixer.length) {
+    style = "highball"; glassTxt = "Highball, cubed ice"; how = "Build over ice, top up, quick stir";
+    fresh.forEach((x) => lines.push(`A few ${nm(x).toLowerCase()}, pressed`)); share(spirits).forEach((n, i) => add(n, spirits[i])); juice.forEach((x) => add(25, x)); citrus.forEach((x) => add(15, x)); syrup.forEach((x) => add(10, x));
+    mixer.forEach((x) => lines.push(`Top ${nm(x)}`)); bitters.forEach((x) => lines.push(`2 dashes ${nm(x)}`));
+  } else if (citrus.length || juice.length) {
+    style = "sour"; glassTxt = "Rocks, cubed ice"; how = fresh.length ? "Press the fresh bits in the tin, add the rest, shake, double strain over ice" : "Shake hard, strain over fresh ice";
+    fresh.forEach((x) => lines.push(`A few ${nm(x).toLowerCase()}`)); share(spirits).forEach((n, i) => add(n, spirits[i])); juice.forEach((x) => add(juice.length > 1 ? 25 : 50, x));
+    (citrus.length ? citrus : [{ p: { k: "lime juice" } }]).forEach((x) => add(citrus.length > 1 ? 15 : 25, x)); (syrup.length ? syrup : [{ p: { k: "sugar syrup" } }]).forEach((x) => add(syrup.length > 1 ? 10 : 20, x));
+    bitters.forEach((x) => lines.push(`2 dashes ${nm(x)}`));
+  } else {
+    style = "stirred short"; glassTxt = "Rocks, one large cube"; how = "Stir with ice for 30 seconds, strain over a large cube";
+    const s = spirits.length === 1 ? [50] : share(spirits); spirits.forEach((x, i) => add(s[i], x)); syrup.forEach((x) => add(7.5, x));
+    (bitters.length ? bitters : [{ p: { k: "angostura" } }]).forEach((x) => lines.push(`2 dashes ${nm(x)}`)); fresh.forEach((x) => lines.push(`Garnish: ${nm(x).toLowerCase()}`));
+  }
+  return `<div class="mk-own"><div class="mini" style="margin-top:0">Make your own · a ${style}</div><ul>${lines.map((l) => `<li>${esc(l)}</li>`).join("")}</ul>
+    <p class="m"><b>${esc(glassTxt)}</b> · ${esc(how)}</p><p class="note" style="margin:6px 0 0">House ratios, not a book spec. Taste it and adjust before it goes out.</p></div>`;
+}
+function mkOrderRow(r) {
+  const d = r.d;
+  const spec = d.spec.map((s) => (MK.reqs.get(d.id).some((q) => q.line === s && r.hit.has(q)) ? `<b>${esc(s)}</b>` : esc(s))).join(" · ");
+  const tag = r.lack.length ? `<span class="pc" style="color:var(--warn)">No ${esc(r.lack.join(", ").toLowerCase())}</span>` : r.short.length ? `<span class="pc" style="color:var(--warn)">Short</span>` : r.cover < 1 ? `<span class="pc" style="color:var(--ok)">Close swap</span>` : "";
+  return `<button class="mk-res" data-mk-open="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}${tag}</div>
+    <div class="ln">${esc(d.glass)} · ${esc(d.method)}</div>${r.short.length ? `<div class="ln miss">Needs ${esc(r.short.join("; "))}</div>` : ""}<div class="spec mk-hl">${spec}</div></div></button>`;
+}
+function mkShelf(on) {
+  const cats = MK_CATS.map(([c]) => c);
+  const its = mk.cat ? MK.items.filter((i) => i.cat === mk.cat) : MK_POP;
+  return `<div class="chips hrow mk-cats" role="toolbar" aria-label="Ingredient groups"><button class="chip" aria-pressed="${!mk.cat}" data-mk-cat="">Popular</button>${cats.map((c) => `<button class="chip" aria-pressed="${mk.cat === c}" data-mk-cat="${esc(c)}">${esc(mkCatName(c))}</button>`).join("")}</div>
+    <div class="chips hrow mk-shelf" role="toolbar" aria-label="Ingredients">${its.map((i) => mkChip(i, on.has(i.k), "mk-pick")).join("")}</div>`;
+}
 function mkMakePane() {
   const on = new Set(mk.pick.map((p) => p.k));
   const ed = mk.edit && mk.pick.find((p) => p.k === mk.edit);
-  const picks = mk.pick.length ? `<div class="mk-picks">${mk.pick.map((p) => `<span class="mk-pk"><button data-mk-ml="${esc(p.k)}" aria-label="Set ml for ${esc(mkName(p.k))}">${p.ml ? `<span class="ml">${p.ml} ml</span>` : ""}${esc(mkName(p.k))}${p.k.startsWith("~") ? " ✎" : ""}</button><button class="x" data-mk-rm="${esc(p.k)}" aria-label="Remove ${esc(mkName(p.k))}">×</button></span>`).join("")}</div>
-    ${ed ? `<div class="mk-mls"><div class="mini">How much ${esc(mkName(ed.k))} do you want to use?</div>${[null, 10, 12.5, 15, 20, 25, 35, 50, 75, 100].map((n) => `<button class="chip" aria-pressed="${(ed.ml || null) === n}" data-mk-setml="${n ?? ""}">${n ? n + " ml" : "Any amount"}</button>`).join("")}</div>` : `<p class="note">Tap an ingredient to set the ml you want to use.</p>`}
-    <div class="mk-row2"><button class="btn" data-mk="keep">☆ Keep in My bar</button><button class="btn" data-mk="clear">Clear picks</button></div>` : "";
-  const opts = `<div class="mk-opts"><button class="chip" aria-pressed="${mk.opt.useBar}" data-mk-opt="useBar">Add My bar (${mk.bar.length})</button><button class="chip" aria-pressed="${mk.opt.basics}" data-mk-opt="basics">Bar basics</button></div>
-    <p class="note" style="margin-top:4px">Bar basics: sugar syrup, lime, lemon, soda, Angostura and salt.</p>`;
-  const res = mkMatches();
+  const picks = mk.pick.length ? `<div class="mk-picks"><span class="mini" style="margin:0;align-self:center">Order:</span>${mk.pick.map((p) => `<span class="mk-pk"><button data-mk-ml="${esc(p.k)}" aria-label="Set ml for ${esc(mkName(p.k))}">${p.ml ? `<span class="ml">${p.ml} ml</span>` : ""}${esc(mkName(p.k))}${p.k.startsWith("~") ? " ✎" : ""}</button><button class="x" data-mk-rm="${esc(p.k)}" aria-label="Remove ${esc(mkName(p.k))}">×</button></span>`).join("")}<button class="chip" data-mk="clear">Clear</button></div>
+    ${ed ? `<div class="mk-mls"><div class="mini">How much ${esc(mkName(ed.k))}?</div>${[null, 10, 12.5, 15, 20, 25, 35, 50, 75, 100].map((n) => `<button class="chip" aria-pressed="${(ed.ml || null) === n}" data-mk-setml="${n ?? ""}">${n ? n + " ml" : "Any amount"}</button>`).join("")}</div>` : ""}` : "";
+  const kinds = `<div class="chips hrow" role="toolbar" aria-label="Show">${MK_KINDS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.opt.kind === k}" data-mk-kind="${k}">${l}</button>`).join("")}</div>`;
   let out;
-  if (!res) out = `<p class="empty">Pick or type what you've got, like vodka, Aperol or lime juice.<br>Or keep your bottles in My bar and every drink you can make shows here.</p>`;
-  else {
+  if (mk.pick.length) {
+    const { all, near, goes } = mkOrder();
+    const list = all.length ? all : near;
+    MK.ids = list.map((r) => r.d.id);
+    const what = mk.pick.map((p) => mkName(p.k)).join(" + ");
+    out = (goes.length ? `<div class="mini">Goes with</div><div class="chips hrow mk-goes">${goes.map(([it, n]) => `<button class="chip" data-mk-pick="${esc(it.k)}">+ ${esc(it.n)} <small>${n}</small></button>`).join("")}</div>` : "")
+      + (all.length ? `<div class="sec">${all.length} ${all.length === 1 ? "drink" : "drinks"} with ${esc(what)}</div>${all.slice(0, 60).map(mkOrderRow).join("")}${all.length > 60 ? `<p class="note">Add another ingredient to see the rest.</p>` : ""}${all.length <= 3 ? mkOwn() : ""}`
+        : `<p class="empty" style="padding:14px 0 4px">No drink in the book has all of ${esc(what)}.</p>${mkOwn()}${near.length ? `<div class="sec">Closest in the book<span class="cnt">${near.length}</span></div>${near.slice(0, 30).map(mkOrderRow).join("")}` : ""}`)
+      + (all.length > 3 ? `<details class="mk-cat"><summary>Make your own with these<span>House ratios</span></summary>${mkOwn()}</details>` : "")
+      + `<div class="mk-row2"><button class="btn" data-mk="keep">☆ Keep in My bar</button><button class="btn" data-mk="clear">Clear and start again</button></div>`;
+  } else if (mk.fromBar && mk.bar.length) {
+    const res = mkMatches();
     MK.ids = res.map((r) => r.d.id);
     const ready = res.filter((r) => !r.miss.length), one = res.filter((r) => r.miss.length === 1), more = res.filter((r) => r.miss.length > 1).slice(0, 20);
     const block = (t, a) => a.length ? `<div class="sec">${t}<span class="cnt">${a.length}</span></div>${a.slice(0, 40).map(mkResHtml).join("")}` : "";
-    out = res.length ? block("Make it now", ready) + block("Missing one thing", one) + block("Close", more)
-      : `<p class="empty">Nothing in the book uses those. Try a generic, like “Gin”, or add the basics.</p>`;
+    out = `<div class="mk-opts"><span class="mini" style="margin:0;align-self:center">From My bar (${mk.bar.length})</span><button class="chip" aria-pressed="${mk.opt.basics}" data-mk-opt="basics">+ bar basics</button><button class="chip" data-mk="unbar">Close</button></div>`
+      + (res.length ? block("Make it now", ready) + block("Missing one thing", one) + block("Close", more) : `<p class="empty">Nothing in the book fits My bar yet.</p>`);
+  } else {
+    MK.ids = [];
+    out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>${mk.bar.length ? `<button class="btn wide" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
   }
-  return `${mkTypeBox("make", "Type anything: vodka, 50ml lime…")}${picks}${opts}
-    <div class="chips hrow" role="toolbar" aria-label="Show">${MK_KINDS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.opt.kind === k}" data-mk-kind="${k}">${l}</button>`).join("")}</div>
-    <div id="mk-out">${out}</div>
-    <div class="h3">Everything we stock and more</div><p class="note" style="margin-top:0">Tap to pick. Dashed ones mean any bottle of that kind.</p>${mkCatsHtml(on, "mk-pick")}`;
+  return `${mkTypeBox("make", "Type anything: vodka, 50ml lime…")}${mkShelf(on)}${picks}${kinds}<div id="mk-out">${out}</div>`;
 }
 function mkBarPane() {
   const on = new Set(mk.bar);
@@ -4598,8 +4703,13 @@ function renderMaker() {
   $$("#v-make details").forEach((x) => { if (open.includes(x.querySelector("summary").firstChild.textContent)) x.open = true; });
 }
 // Redraw without losing the page position or the keyboard.
+let mkShelfCat = null;
 function mkRedraw(focus) {
+  // The side-scrolling rows keep their place too, so a tap far along the shelf doesn't jump back to the start.
+  const rows = [".mk-cats", ".mk-shelf", ".mk-goes"], x = rows.map((r) => $("#v-make " + r)?.scrollLeft || 0), cat = mk.cat;
   const y = window.scrollY; renderMaker(); window.scrollTo(0, y);
+  rows.forEach((r, i) => { const el = $("#v-make " + r); if (el) el.scrollLeft = r === ".mk-shelf" && cat !== mkShelfCat ? 0 : x[i]; });
+  mkShelfCat = cat;
   if (focus) { const i = $(focus); if (i) { i.focus(); i.setSelectionRange(i.value.length, i.value.length); } }
 }
 function mkAdd(where, k, ml) {
@@ -4657,6 +4767,7 @@ $("#v-make").addEventListener("click", (e) => {
   if (ds.mkMl) { mk.edit = mk.edit === ds.mkMl ? null : ds.mkMl; return mkRedraw(); }
   if ("mkSetml" in ds) { const p = mk.pick.find((x) => x.k === mk.edit); if (p) { if (ds.mkSetml) p.ml = +ds.mkSetml; else delete p.ml; } mk.edit = null; mkSave(); return mkRedraw(); }
   if (ds.mkOpt) { mk.opt[ds.mkOpt] = !mk.opt[ds.mkOpt]; mkSave(); return mkRedraw(); }
+  if ("mkCat" in ds) { mk.cat = ds.mkCat || null; return mkRedraw(); }
   if (ds.mkKind) { mk.opt.kind = ds.mkKind; mkSave(); return mkRedraw(); }
   if (ds.mkRmode) { mk.rnd.mode = ds.mkRmode; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.mkRkind) { mk.rnd.kind = ds.mkRkind; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
@@ -4668,7 +4779,8 @@ $("#v-make").addEventListener("click", (e) => {
   if (a === "keep") { for (const p of mk.pick) if (!mk.bar.includes(p.k)) mk.bar.push(p.k); mkSave(); toast(`Kept in My bar (${mk.bar.length})`); return mkRedraw(); }
   if (a === "clear") { mk.pick = []; mk.edit = null; mkSave(); return mkRedraw(); }
   if (a === "clearbar") { if (confirm("Clear everything from My bar on this phone?")) { mk.bar = []; mkSave(); mkRedraw(); } return; }
-  if (a === "frombar") { mk.pick = []; mk.opt.useBar = true; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }
+  if (a === "unbar") { mk.fromBar = false; return mkRedraw(); }
+  if (a === "frombar") { mk.pick = []; mk.fromBar = true; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }
   // Every ingredient the book's own drinks use: what's behind the Black Tap bar.
   if (a === "bt") { const ks = new Set(mk.bar); for (const r of MK.reqs.values()) for (const x of r) ks.add(x.it.k); mk.bar = [...ks]; mkSave(); toast(`My bar has ${mk.bar.length} items`); return mkRedraw(); }
 });

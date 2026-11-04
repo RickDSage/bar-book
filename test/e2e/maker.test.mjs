@@ -27,31 +27,44 @@ test("every ingredient in every spec is in the maker's list", async () => {
   assert.deepEqual(p.errs, []);
 });
 
-test("typed bottles, typos and ml find the right drinks, ranked ready first", async () => {
+test("tapping an ingredient lists its drinks straight away, and each tap narrows them", async () => {
   const p = await open();
+  await p.click(".mk-shelf [data-mk-pick='vodka']");
+  const n1 = await p.evaluate(() => mkOrder().all.length);
+  assert.ok(n1 > 30, `every vodka drink lists (${n1})`);
+  assert.match(await out(p), /DRINKS WITH VODKA[\s\S]*Black Russian/i);
+  // "Goes with" offers the next ingredient; tapping it keeps only drinks with both.
+  await p.click(".mk-goes [data-mk-pick='cranberry juice']");
+  const both = await p.evaluate(() => mkOrder().all.map((r) => r.d.name));
+  assert.ok(both.includes("Woo Woo") && both.includes("Sea Breeze") && both.length < n1);
+  assert.match(await out(p), /DRINKS WITH VODKA \+ CRANBERRY JUICE/i);
+  // Typos and ml from the type box: El Jimador for "el jimandor", and a drink needing more than you have says so.
+  await p.click("[data-mk=clear] >> nth=0");
   await p.fill("#mk-t-make", "el jimandor blanco"); await p.press("#mk-t-make", "Enter");
-  await p.fill("#mk-t-make", "Cointreau 20ml"); await p.press("#mk-t-make", "Enter");
-  assert.deepEqual(await p.evaluate(() => mk.pick), [{ k: "el jimador blanco" }, { k: "cointreau", ml: 20 }]);
-  const text = await out(p);
-  assert.match(text, /MAKE IT NOW[\s\S]*Margarita[\s\S]*Ready/i, "a Margarita is ready with the basics on");
-  // Turning the basics off leaves the Margarita missing its lime.
-  await p.click("[data-mk-opt=basics]");
-  assert.match(await out(p), /Margarita[\s\S]*Missing Lime juice/);
-  // 10 ml of Cointreau is less than the Margarita's 20 ml, so it says so.
-  await p.click("[data-mk-opt=basics]");
-  await p.click("[data-mk-ml=cointreau]"); await p.click("[data-mk-setml='10']");
-  assert.match(await out(p), /Needs 20 ml Cointreau \(you have 10\)/);
+  await p.fill("#mk-t-make", "Cointreau 10ml"); await p.press("#mk-t-make", "Enter");
+  assert.deepEqual(await p.evaluate(() => mk.pick), [{ k: "el jimador blanco" }, { k: "cointreau", ml: 10 }]);
+  assert.match(await out(p), /Margarita[\s\S]*Needs 20 ml Cointreau \(you have 10\)/);
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 390, "nothing wider than the screen");
   assert.deepEqual(p.errs, []);
 });
 
-test("a generic pick covers every bottle of its kind, and flavours count as a swap", async () => {
+test("an order nothing in the book has gets the closest drinks and a make-your-own spec", async () => {
   const p = await open();
-  await p.evaluate(() => { mk.pick = [{ k: "vodka" }]; mk.opt.kind = "cocktail"; mkRedraw(); });
-  const r = await p.evaluate(() => Object.fromEntries(mkMatches().map((x) => [x.d.name, x])));
-  assert.equal(r["Moscow Mule"]?.swaps.length, 0, "any vodka makes a Moscow Mule as it is");
-  assert.ok(r["Moscow Mule"].miss.includes("Fever-Tree Ginger Beer"));
-  assert.ok(r["London Cosmo"].swaps.some((s) => /Vodka for Cîroc Red Berry/.test(s)), "plain vodka stands in for Cîroc Red Berry");
+  await p.evaluate(() => { mk.pick = [{ k: "vodka" }, { k: "apple juice" }, { k: "vanilla syrup" }]; mkRedraw(); });
+  const text = await out(p);
+  assert.match(text, /No drink in the book has all of Vodka \+ Apple juice \+ Vanilla syrup/);
+  assert.match(text, /MAKE YOUR OWN · A SOUR\s+50 ml Vodka\s+50 ml Apple juice\s+25 ml Lime juice\s+20 ml Vanilla syrup/i);
+  assert.match(text, /CLOSEST IN THE BOOK[\s\S]*No apple juice/i);
+  // Alcohol-free picks make a mocktail; Aperol and Prosecco make a spritz-style list from the book.
+  await p.evaluate(() => { mk.pick = [{ k: "apple juice" }, { k: "vanilla syrup" }]; mkRedraw(); });
+  assert.match(await out(p), /MAKE YOUR OWN · A MOCKTAIL/i);
+  await p.evaluate(() => { mk.pick = [{ k: "aperol" }, { k: "prosecco" }]; mkRedraw(); });
+  assert.ok((await p.evaluate(() => mkOrder().all.map((r) => r.d.name))).includes("Aperol Spritz"));
+  // A generic pick covers every bottle of its kind; flavoured cousins count as a close swap.
+  await p.evaluate(() => { mk.pick = [{ k: "vodka" }]; mkRedraw(); });
+  const r = await p.evaluate(() => Object.fromEntries(mkOrder().all.map((x) => [x.d.name, x.cover])));
+  assert.equal(r["Moscow Mule"], 1);
+  assert.equal(r["London Cosmo"], 0.7, "Cîroc Red Berry is a flavoured vodka");
   assert.deepEqual(p.errs, []);
 });
 
@@ -62,9 +75,11 @@ test("My bar is kept on the phone and drives the matches", async () => {
   await p.fill("#mk-t-bar", "prosecco"); await p.press("#mk-t-bar", "Enter");
   assert.deepEqual(await p.evaluate(() => JSON.parse(localStorage.getItem("btbar.mk.bar"))), ["aperol", "prosecco"]);
   await p.click("[data-mk=frombar] >> nth=0");
-  assert.match(await out(p), /MAKE IT NOW[\s\S]*Aperol Spritz/);
+  assert.match(await out(p), /From My bar[\s\S]*MAKE IT NOW[\s\S]*Aperol Spritz/i);
   await p.reload(); await p.click("#w-ok"); await p.click("[data-tab=make]");
-  assert.match(await out(p), /Aperol Spritz/, "still there after a reload");
+  assert.deepEqual(await p.evaluate(() => mk.bar), ["aperol", "prosecco"], "still there after a reload");
+  await p.click("[data-mk=frombar]");
+  assert.match(await out(p), /Aperol Spritz/);
   // Opening a match swipes through the other matches.
   await p.click("[data-mk-open] >> nth=0");
   assert.equal(await p.evaluate(() => ctx.length), await p.evaluate(() => MK.ids.length));
