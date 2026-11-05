@@ -1810,6 +1810,42 @@ describe("features the owner switches off for the venue", () => {
   });
 });
 
+describe("test staff: made-up people for a practice day, never logins", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const tid = () => "test-" + autoId();
+  const person = (uid, extra = {}) => ({ who: "Test Bartender 1", side: "bar", role: "staff", ...by(uid), ...extra });
+  test("managers and the owner add and remove them; only they can read them", async () => {
+    const id = tid();
+    await assertSucceeds(setDoc(doc(db("mgr1"), "teststaff", id), person("mgr1")));
+    await assertSucceeds(setDoc(doc(db("owner1"), "teststaff", tid()), person("owner1", { who: "Test Manager 1", side: "floor", role: "manager" })));
+    await assertSucceeds(getDocs(collection(db("mgr2"), "teststaff")));
+    await fails(getDocs(collection(db("staff1"), "teststaff")), "staff listing them");
+    await fails(getDoc(doc(db("staff1"), "teststaff", id)), "staff reading one");
+    await fails(setDoc(doc(db("staff1"), "teststaff", tid()), person("staff1")), "staff adding one");
+    await fails(deleteDoc(doc(db("staff1"), "teststaff", id)), "staff removing one");
+    await fails(updateDoc(doc(db("mgr1"), "teststaff", id), { who: "Someone else" }), "changing one");
+    await assertSucceeds(deleteDoc(doc(db("mgr2"), "teststaff", id)));
+  });
+  test("an id that starts test-, a name, a side, staff or manager, and who added them", async () => {
+    const add = (id, x) => setDoc(doc(db("mgr1"), "teststaff", id), x);
+    await fails(add(autoId(), person("mgr1")), "an id without test-, which could pass for a real uid");
+    await fails(add("test-short", person("mgr1")), "an id that isn't an automatic one");
+    await fails(add(tid(), person("mgr1", { who: " " })), "no name");
+    await fails(add(tid(), person("mgr1", { who: "x".repeat(41) })), "a name over 40");
+    await fails(add(tid(), person("mgr1", { side: "cellar" })), "another side");
+    await fails(add(tid(), person("mgr1", { role: "owner" })), "an owner");
+    await fails(add(tid(), person("mgr1", { name: "Olly Owner" })), "signed as someone else");
+    await fails(add(tid(), { ...person("mgr1"), username: "fake" }), "a username, as if it were a login");
+  });
+  test("a manager puts a test person on a shift, drafted or published, and takes it off", async () => {
+    const id = tid();
+    await assertSucceeds(setDoc(doc(db("mgr1"), "teststaff", id), person("mgr1")));
+    const x = await shiftBatch(db("mgr1"), "mgr1", "added", { f: { who: id, whoName: "Test Bartender 1", note: "Test" } });
+    await assertSucceeds(x.b.commit());
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "shifts", x.id)));
+  });
+});
+
 describe("the calendar: school holidays, events and days the venue is shut", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const ref = (uid, id = "half-term") => doc(db(uid), "calendar", id);
