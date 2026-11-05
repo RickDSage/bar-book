@@ -682,6 +682,19 @@ service cloud.firestore {
         && incoming().v == (resource == null ? 1 : resource.data.v + 1);
       allow delete: if freshOwner();
     }
+    // ---------- Sales and covers ----------
+    // What each night took, typed in by a manager from the till's end-of-day report: covers, and net sales (without
+    // VAT) for wet and dry, in pence. Managers and the owner only. One record per business night (id = the day), for
+    // any night in the last 400 days so past nights can be put in; a manager can correct it later, signed.
+    match /nights/{day} {
+      allow read: if isManager();
+      allow create, update: if isManager() && isDay(day) && dayOf(day) < request.time + duration.value(1, 'd')
+        && dayOf(day) > request.time - duration.value(400, 'd') && stamped()
+        && exactly(['day', 'covers', 'wet', 'dry', 'note', 'uid', 'name', 'at']) && incoming().day == day
+        && optInt(incoming().covers, 5000) && optInt(incoming().wet, 100000000) && optInt(incoming().dry, 100000000) && optText(incoming().note, 300);
+      allow delete: if freshOwner();
+    }
+
     // "I've read it": one per person per night, id {day}-{uid}, for the version they read. Managers see everyone's;
     // staff only their own.
     match /briefReads/{id} {

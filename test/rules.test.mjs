@@ -1960,6 +1960,33 @@ describe("manager close and handover", () => {
   });
 });
 
+describe("sales and covers", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const nt = (uid, extra = {}, day = today()) => ({ day, covers: 180, wet: 420000, dry: 310050, note: "", ...by(uid), ...extra });
+  const ref = (uid, day = today()) => doc(db(uid), "nights", day);
+  test("managers put in a night's figures, past nights too, and correct them; staff can't see or write them", async () => {
+    await fails(setDoc(ref("staff1"), nt("staff1")), "staff writing them");
+    await assertSucceeds(setDoc(ref("mgr1"), nt("mgr1")));
+    await assertSucceeds(setDoc(ref("mgr2"), nt("mgr2", { covers: 190 })));
+    const past = plusDays(today(), -90);
+    await assertSucceeds(setDoc(ref("owner1", past), nt("owner1", {}, past)));
+    for (const uid of ["mgr1", "owner1"]) await assertSucceeds(getDoc(ref(uid)));
+    await fails(getDoc(ref("staff1")), "staff reading them");
+    await fails(getDocs(collection(db("staff1"), "nights")), "staff listing them");
+    await fails(deleteDoc(ref("mgr1")), "deleting them");
+  });
+  test("checked: the day, whole numbers in pence, no more than a year back, signed", async () => {
+    await fails(setDoc(ref("mgr1", plusDays(today(), 3)), nt("mgr1", {}, plusDays(today(), 3))), "a night that hasn't happened");
+    await fails(setDoc(ref("mgr1", plusDays(today(), -420)), nt("mgr1", {}, plusDays(today(), -420))), "over 400 days back");
+    await fails(setDoc(ref("mgr1"), nt("mgr1", { day: plusDays(today(), -1) })), "a day that isn't its id");
+    await fails(setDoc(ref("mgr1"), nt("mgr1", { wet: 4200.5 })), "pounds, not pence");
+    await fails(setDoc(ref("mgr1"), nt("mgr1", { dry: -1 })), "below nothing");
+    await fails(setDoc(ref("mgr1"), nt("mgr1", { covers: "180" })), "covers as text");
+    await fails(setDoc(ref("mgr1"), nt("mgr1", { name: "Max Manager" })), "someone else's name");
+    await fails(setDoc(ref("mgr1"), nt("mgr1", { tips: 1 })), "an extra field");
+  });
+});
+
 describe("pre-service briefing", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const br = (uid, extra = {}, day = today()) => ({ day, covers: 180, bookings: "Party of 20 at 8", specials: "", allergies: "Table 12 coeliac", sections: "", breaks: "", focus: "", previous: "", v: 1, ...by(uid), ...extra });
