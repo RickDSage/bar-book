@@ -610,15 +610,118 @@ service cloud.firestore {
     // team reads it, only the owner changes it, and it names who changed it last.
     match /settings/{id} {
       allow read: if isMember();
-      allow create, update: if isOwner() && id == 'features' && exactly(['off', 'uid', 'name', 'at']) && stamped()
-        && incoming().off is list && incoming().off.size() <= 12
-        && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay']);
+      allow create, update: if isOwner() && stamped() && ((id == 'features' && exactly(['off', 'uid', 'name', 'at'])
+          && incoming().off is list && incoming().off.size() <= 15
+          && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover', 'briefing', 'guests']))
+        // How much (in pence) staff and managers may give a guest without asking someone above them.
+        || (id == 'comp' && exactly(['staff', 'manager', 'uid', 'name', 'at']) && optInt(incoming().staff, 100000) && optInt(incoming().manager, 100000)));
+      // The venue's own closing questions, added to the manager close: up to 10, each {id, t (text), crit}. Managers keep them.
+      allow create, update: if isManager() && stamped() && id == 'hoq' && exactly(['qs', 'uid', 'name', 'at'])
+        && incoming().qs is list && incoming().qs.size() <= 10;
+    }
+
+    // ---------- Manager close and handover ----------
+    // One record per business night, id = the day, made by the manager who closes. Managers and the owner only: it holds
+    // cash figures. Each question is answered yes, no or n/a (a no is something that wasn't right); a no needs its
+    // follow-up answers. A no on food safety, equipment or security also raises an urgent issue, id h-{day}-{question},
+    // in the same write, so the whole team sees it until someone fixes it and it can't be closed away. A no on cash
+    // stays among the managers. risks counts the no answers on those four. Once sent it can't be changed or deleted
+    // (except by Start fresh); the next manager accepts it once, saying what they'll do about any risks.
+    function hoQs() { return ['sales', 'cash', 'voids', 'tips', 'breaks', 'incidents', 'complaints', 'depts', 'food', 'faults', 'security', 'ready']; }
+    function hoNo(a, q) { return a[q] == 'no' ? 1 : 0; }
+    function hoIssue(day, q) { return existsAfter(/databases/$(database)/documents/issues/$('h-' + day + '-' + q)); }
+    // Every question answered yes, no or n/a, where those that can't be n/a aren't.
+    function hoAnswers(a) {
+      return a is map && a.keys().hasAll(hoQs()) && a.keys().hasOnly(hoQs()) && a.values().hasOnly(['yes', 'no', 'na'])
+        && a.cash != 'na' && a.depts != 'na' && a.food != 'na' && a.faults != 'na' && a.security != 'na';
+    }
+    // A no has its follow-ups; food safety, equipment and security have their issue too.
+    function hoFollowed(day, a, f) {
+      return f is map && f.keys().hasOnly(hoQs())
+        && (a.sales != 'no' || 'sales' in f) && (a.cash != 'no' || 'cash' in f)
+        && (a.voids != 'no' || 'voids' in f) && (a.tips != 'no' || 'tips' in f)
+        && (a.breaks != 'no' || 'breaks' in f) && (a.incidents != 'no' || 'incidents' in f)
+        && (a.complaints != 'no' || 'complaints' in f) && (a.depts != 'no' || 'depts' in f)
+        && (a.ready != 'no' || 'ready' in f)
+        && (a.food != 'no' || ('food' in f && hoIssue(day, 'food')))
+        && (a.faults != 'no' || ('faults' in f && hoIssue(day, 'faults')))
+        && (a.security != 'no' || ('security' in f && hoIssue(day, 'security')));
+    }
+    function validHandover(day) {
+      let h = incoming();
+      return exactly(['day', 'answers', 'follow', 'extra', 'risks', 'exceptions', 'lines', 'snap', 'note', 'owner', 'uid', 'name', 'at']) && stamped()
+        && h.day == day && nearNow(day) && hoAnswers(h.answers) && hoFollowed(day, h.answers, h.follow)
+        // The venue's own questions, answered with their text as it was asked; a critical no among them adds to risks.
+        && h.extra is map && h.extra.size() <= 10
+        && h.risks >= hoNo(h.answers, 'cash') + hoNo(h.answers, 'food') + hoNo(h.answers, 'faults') + hoNo(h.answers, 'security')
+        && h.risks <= hoNo(h.answers, 'cash') + hoNo(h.answers, 'food') + hoNo(h.answers, 'faults') + hoNo(h.answers, 'security') + h.extra.size()
+        && h.exceptions is int && h.exceptions >= 0 && h.exceptions <= 500
+        && optText(h.lines, 8000) && h.snap is map && h.snap.size() <= 20
+        && optText(h.note, 2000) && optText(h.owner, 1000);
+    }
+    match /handovers/{day} {
+      allow read: if isManager();
+      allow create: if isManager() && validHandover(day);
+      allow update: if isManager() && !('ackBy' in resource.data)
+        && changesOnly(['ackBy', 'ackByUid', 'ackAt', 'ackNote']) && signedAs('ackBy', 'ackByUid', 'ackAt')
+        && optText(incoming().ackNote, 500) && (resource.data.risks == 0 || reqText(incoming().ackNote, 500));
+      allow delete: if freshOwner();
+    }
+
+    // ---------- Pre-service briefing ----------
+    // One per business night, id = the day: what a manager tells the team before service. Everyone on the team reads it.
+    // Managers write it and can change it; each change raises v, so a read of an older version doesn't count.
+    function optInt(n, max) { return n is int && n >= 0 && n <= max; }
+    match /briefings/{day} {
+      allow read: if isMember();
+      allow create, update: if isManager() && nearNow(day) && stamped()
+        && exactly(['day', 'covers', 'bookings', 'specials', 'allergies', 'sections', 'breaks', 'focus', 'previous', 'v', 'uid', 'name', 'at'])
+        && incoming().day == day && optInt(incoming().covers, 5000)
+        && optText(incoming().bookings, 1000) && optText(incoming().specials, 1000) && optText(incoming().allergies, 1000)
+        && optText(incoming().sections, 1000) && optText(incoming().breaks, 500) && optText(incoming().focus, 1000) && optText(incoming().previous, 1000)
+        && incoming().v == (resource == null ? 1 : resource.data.v + 1);
+      allow delete: if freshOwner();
+    }
+    // "I've read it": one per person per night, id {day}-{uid}, for the version they read. Managers see everyone's;
+    // staff only their own.
+    match /briefReads/{id} {
+      allow get: if isMember() && (isManager() || id.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}-' + request.auth.uid));
+      allow list: if isManager();
+      allow create, update: if isMember() && exactly(['day', 'v', 'uid', 'name', 'at']) && stamped()
+        && id == incoming().day + '-' + request.auth.uid
+        && incoming().v == get(/databases/$(database)/documents/briefings/$(incoming().day)).data.v;
+      allow delete: if freshOwner();
+    }
+
+    // ---------- Guest recovery ----------
+    // Anyone on the team logs something that went wrong for a guest: what kind, the table (never a name), what happened,
+    // what the guest wants and what was done, and anything given (in pence), no more than their role may give without a
+    // manager (settings/comp; nothing until the owner sets it; the owner has no limit). Needing a manager flags it. A
+    // manager closes it with what was done, anything more given (within their own limit) and whether it needs a follow-up.
+    function compLimit() {
+      let c = get(/databases/$(database)/documents/settings/comp);
+      return isOwner() ? 100000 : c == null ? 0 : c.data[profile().data.role];
+    }
+    match /guests/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && stamped()
+        && exactly(['kind', 'table', 'what', 'wants', 'done', 'comp', 'escalate', 'status', 'uid', 'name', 'at'])
+        && incoming().kind in ['wrong', 'slow', 'cold', 'missing', 'look', 'bill', 'allergy', 'seating', 'service', 'payment', 'other']
+        && optText(incoming().table, 10) && reqText(incoming().what, 500) && optText(incoming().wants, 300) && optText(incoming().done, 300)
+        && optInt(incoming().comp, 100000) && incoming().comp <= compLimit()
+        && incoming().escalate is bool && incoming().status == 'open';
+      allow update: if isManager() && resource.data.status == 'open'
+        && changesOnly(['status', 'resolution', 'extra', 'followUp', 'closedBy', 'closedByUid', 'closedAt'])
+        && incoming().status == 'closed' && reqText(incoming().resolution, 500)
+        && optInt(incoming().extra, 100000) && incoming().extra <= compLimit() && incoming().followUp is bool
+        && signedAs('closedBy', 'closedByUid', 'closedAt');
+      allow delete: if freshOwner();
     }
 
     // ---------- Starting fresh ----------
     // The owner's Start fresh (Managers, Team) clears the shift work for everyone, for a clean start after trying the app
     // out: the rota, asks, shift reports with their photos and reviews, the checklists and their events, restocking, the
-    // 86 board and its log, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
+    // 86 board and its log, manager handovers, briefings and who read them, guest issues, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
     // Accounts, the audit trail, lists, date labels, drink media, the calendar, games, incidents, training, feedback,
     // chats and the old records stay. It needs the owner's PIN in the last 15 minutes, and each time is recorded here
     // first, under the owner's uid and the time they signed in, with how many of each it found: the deletes check for
@@ -627,7 +730,7 @@ service cloud.firestore {
     match /resets/{id} {
       allow read: if isMember();
       allow create: if recentOwner() && id == resetId() && exactly(['counts', 'total', 'uid', 'name', 'at']) && stamped()
-        && incoming().counts is map && incoming().counts.size() <= 20 && incoming().total is int && incoming().total >= 0;
+        && incoming().counts is map && incoming().counts.size() <= 30 && incoming().total is int && incoming().total >= 0;
     }
 
     // ---------- Calendar ----------

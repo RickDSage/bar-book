@@ -337,6 +337,10 @@ a.btn { text-decoration: none; color: inherit; }
 .pill { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); vertical-align: 1px; }
 .pill.ok { color: var(--ok); border-color: var(--ok); } .pill.no { color: var(--warn); border-color: var(--warn); } .pill.wait { color: var(--brass); border-color: var(--brass); }
 .staffrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.hoq { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.hoq > .n { font-weight: 700; }
+.hoq.no { border-left: 3px solid var(--warn); padding-left: 10px; }
+.ho-lines { white-space: pre-wrap; font: inherit; margin: 6px 0 0; }
 .staffrow .n { font-weight: 700; }
 .staffrow .s { color: var(--muted); font-size: 14px; }
 .night .staffrow:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -611,7 +615,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <div id="hubtop"><h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p></div>
-    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="act"></div><div id="kpis"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="act"></div><div id="kpis"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
   </section>
   <section class="view info" id="v-pay" hidden></section>
   <section class="view info" id="v-info" hidden></section>
@@ -778,7 +782,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -2441,6 +2445,9 @@ const FEATURES = [
   { g: "Shift", k: "send", n: "Shift report", go: "send", login: 1, tour: 1,
     what: "Each side's report at the end of the shift, with up to 8 closing photos, sent to the managers.",
     staff: "Send your side's report.", mgr: "Sign it off, give it a thumbs up, flag it or add a note." },
+  { g: "Shift", k: "briefing", n: "Briefing", go: "brief", login: 1, sw: 1,
+    what: "Tonight's briefing before service: covers, big bookings, specials, allergies, sections, breaks and what to watch for, with what's 86'd and who's on the rota.",
+    staff: "Read it and tap I've read it.", mgr: "Post it or change it (everyone's asked to read it again), add last night's handover note in one tap, and see who on tonight hasn't read it." },
   { g: "Shift", k: "football", n: "Football", go: "football", login: 1, sw: 1,
     what: "Today's and coming games at the top of the Shift tab, so everyone knows what's on the screens.",
     staff: "See the games and kick-off times.", mgr: "Add and remove games." },
@@ -2450,6 +2457,9 @@ const FEATURES = [
   { g: "Team", k: "issues", n: "Issues and handover", go: "issues", login: 1, tour: 1,
     what: "Anything that needs fixing, from a leaking glass washer to a broken heater, listed until someone fixes it.",
     staff: "Raise one (urgent if it is), take it on, fix it, or raise it again if it's still broken.", mgr: "Give one to someone." },
+  { g: "Team", k: "guests", n: "Guest issues", go: "guests", login: 1, sw: 1,
+    what: "Something that went wrong for a guest (wrong order, slow, cold, the bill, an allergy worry), logged while it's fresh with what they wanted, what was done and anything given.",
+    staff: "Log one, give what your limit allows, or flag that it needs a manager now.", mgr: "Close each one with what was done and whether to follow up, and see what keeps happening. The owner sets how much staff and managers can give without asking." },
   { g: "Team", k: "concerns", n: "Concerns", go: "concerns", login: 1,
     what: "Something that needs cleaning, a safety hazard or anything else that's wrong, with photos, sent to the managers or the team, anonymously if you like.",
     staff: "Report one, deal with one sent to the team, and see when yours is dealt with.", mgr: "Deal with any of them, including those for managers only." },
@@ -2479,6 +2489,9 @@ const FEATURES = [
   { g: "Managers", k: "live", n: "Live", go: "live", login: 1, admin: 1, tour: 1,
     what: "Tonight as it happens: what needs you now, each side's checklists, restocks, date labels, who's doing what and the exceptions.",
     mgr: "Share tonight's summary on WhatsApp or by email." },
+  { g: "Managers", k: "handover", n: "Close and handover", go: "handover", login: 1, admin: 1, sw: 1,
+    what: "The manager's close: cash, voids, tips, breaks, incidents, complaints, food safety, equipment and security, where a no asks what happened, plus everything that went wrong tonight in every department, counted by Bar Book so it can't be ticked away. The next manager accepts it.",
+    mgr: "Send one each night (it can't be changed after), accept the last one, saying what you'll do about any risks, and share it on WhatsApp or by email. A no on food safety, equipment or security raises an urgent issue for the team." },
   { g: "Managers", k: "activity", n: "Activity", go: "activity", mgrGo: "act", login: 1,
     what: "Everything done in the app, newest first, and each item's full history.",
     staff: "See what the team has done.", mgr: "Pick a night, a person or an area, search it, and download the audit trail." },
@@ -2608,7 +2621,7 @@ const feedNew = () => [...LIVE.notices, ...LIVE.reports].filter(isNew);
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#guests", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "What needs you, tonight at a glance, and everything for the team." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -2646,7 +2659,7 @@ function renderTeamTop() {
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>
       ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderAct(); renderKpis(); renderFresh(); renderHub();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderFresh(); renderHub();
 }
 /* The Team page, which the bell opens: what's new and what needs you, tonight at a glance, then a card for each part of
    the team side of the app, in the Features page's groups and names. Each part opens on a page of its own, with Back to
@@ -2664,6 +2677,9 @@ const toSign = () => rpReports().filter((r) => !r.signedBy).length;
 const openInc = () => (LIVE.admin && isOn("incidents") ? rpIncidents().filter((x) => x.status !== "closed").length : 0);
 // Each part: its card's name and line, how many there need you (a hot count is urgent), and the slots on its page.
 const PLACES = [
+  { g: "Everyone", k: "brief", n: () => "Tonight's briefing", on: () => isOn("briefing"), slots: ["#brief"],
+    sub: () => (!LIVE.briefing ? (LIVE.admin ? "Not posted yet. Post it before service" : "Not posted yet") : brMine() ? (LIVE.admin ? `Read by ${brReadBy().length}` : "Read") : "New: read it before service"),
+    cnt: () => (LIVE.briefing && !brMine() ? 1 : 0) },
   { g: "Everyone", k: "chat", n: () => "Chat", on: () => isOn("chat"), slots: ["#chat"],
     sub: () => { const u = unreadChats(); return u.length ? `New in ${u.map(chatName).join(", ")}` : "The team, one person or a group"; }, cnt: () => unreadChats().length },
   { g: "Everyone", k: "rota", n: () => (isOn("rota") ? "Rota" : "Calendar"), on: () => isOn("rota") || calOn(), slots: ["#rota", "#cal"],
@@ -2678,6 +2694,9 @@ const PLACES = [
   { g: "Everyone", k: "issues", n: () => "Issues and handover", slots: ["#issues"],
     sub: () => { const o = openIssues(), u = o.filter((x) => x.urgent).length; return o.length ? `${o.length} open${u ? `, ${u} urgent` : ""}` : "Nothing open"; },
     cnt: () => openIssues().length, hot: () => openIssues().some((x) => x.urgent) },
+  { g: "Everyone", k: "guests", n: () => "Guest issues", on: () => isOn("guests"), slots: ["#guests"],
+    sub: () => { const o = gOpen(), e = o.filter((x) => x.escalate).length; return o.length ? `${o.length} open${e ? `, ${e} need${e === 1 ? "s" : ""} a manager` : ""}` : "Log one while it's fresh"; },
+    cnt: () => (LIVE.admin ? gOpen().length : 0), hot: () => gOpen().some((x) => x.escalate) },
   { g: "Everyone", k: "concerns", n: () => "Concerns", slots: ["#concerns"],
     sub: () => (openConcerns().length ? `${openConcerns().length} open` : "Nothing open"), cnt: () => openConcerns().length, hot: () => openConcerns().some((x) => x.reason === "hazard") },
   { g: "Everyone", k: "board", n: () => "Broadcasts", slots: ["#pins", "#pin-form", "#feed"],
@@ -2687,6 +2706,9 @@ const PLACES = [
   { g: "Everyone", k: "activity", n: () => "Activity", staff: 1, slots: ["#sact"], sub: () => "What the team has done" },
   { g: "Managers", k: "live", n: () => "Live", admin: 1, slots: ["#live"],
     sub: () => (needsYou().length ? `${needsYou().length} need${needsYou().length === 1 ? "s" : ""} you now` : "Tonight as it happens"), cnt: () => needsYou().length, hot: () => needsYou().length > 0 },
+  { g: "Managers", k: "handover", n: () => "Close and handover", admin: 1, on: () => isOn("handover"), slots: ["#mclose"],
+    sub: () => (hoToAccept() ? `Accept ${hoToAccept().name}'s handover` : hoTonight() ? "Tonight's close is sent" : "Tonight's close not sent yet"),
+    cnt: () => (hoToAccept() ? 1 : 0), hot: () => !!hoToAccept()?.risks },
   { g: "Managers", k: "requests", n: () => "Requests", admin: 1, slots: ["#requests"],
     sub: () => (toAnswer() ? `${plural(toAnswer(), "request")} to answer` : isOn("asks") ? "Time off, swaps and running late" : "Running late"), cnt: toAnswer },
   { g: "Managers", k: "act", n: () => "Activity", admin: 1, slots: ["#act"], sub: () => "Everything done in the app" },
@@ -2709,12 +2731,18 @@ function forYou() {
     const now = needsYou();
     const kinds = [...new Set(now.map((x) => (/^(Waiting|Not confirmed)/.test(x.tag) ? "Restock late" : x.tag.replace(/:.*/, ""))))];
     if (now.length) add(`${plural(now.length, "thing")} need${now.length === 1 ? "s" : ""} you tonight`, "live", kinds.map((t, i) => (i ? t.toLowerCase() : t)).join(", "), true);
+    const acc = isOn("handover") && hoToAccept();
+    if (acc) add(`Accept ${acc.uid === LIVE.uid ? "your" : `${acc.name}'s`} handover`, "handover", `${dayName(acc.day)}${acc.risks ? `, ${plural(acc.risks, "risk")}` : ""}`, acc.risks > 0);
+    const own = LIVE.owner && isOn("handover") && LIVE.handovers.find((h) => h.owner && h.id >= addDays(shiftDay(), -2));
+    if (own) add(`For the owner, from ${own.name}`, "handover", own.owner);
+    for (const x of isOn("guests") ? gOpen().filter((g) => g.escalate) : []) add(`Guest needs a manager: ${GKN[x.kind] || "Other"}${x.table ? `, table ${x.table}` : ""}`, "guests", x.what, true);
     if (openInc()) add(`${plural(openInc(), "open incident")}`, "incidents", "Close each one with what was done", true);
     if (toAnswer()) add(`${plural(toAnswer(), "request")} to answer`, "requests", [...new Set(LIVE.asks.filter((a) => waiting(a) && askOn(a)).map((a) => a.name))].join(", "));
     if (toSign()) add(`${plural(toSign(), "report")} to sign off`, "reports");
     const fill = isOn("rota") ? roToFill() : [];
     if (fill.length) add(`${plural(fill.length, "shift")} to fill in the next 7 days`, "rota", fill.slice(0, 3).map(roWhen).join(", "), fill.some((x) => x.day <= addDays(shiftDay(), 1)));
   }
+  if (isOn("briefing") && LIVE.briefing && !brMine()) add("Read tonight's briefing", "brief", `From ${LIVE.briefing.name}${LIVE.briefing.covers ? `, ${LIVE.briefing.covers} covers` : ""}`);
   for (const x of isOn("rota") ? roOffers() : []) add(`${x.name} offered you a shift`, `rota:${x.week}`, `${roWhen(x)}, ${sideName(x.side)}`);
   for (const x of openIssues().filter((i) => i.status === "taken" && i.whoUid === LIVE.uid)) add(x.setByUid === LIVE.uid ? `You're on: ${x.title}` : `${x.setBy} gave you: ${x.title}`, "issues", "Mark it fixed when it's done");
   for (const c of unreadChats()) add(`New in ${chatName(c)}`, `chat:${c.id}`, pinged(c) ? "You were pinged" : "");
@@ -3707,7 +3735,7 @@ const overdue = (k, i) => { const x = taskOf(k, i); return x?.status === "doing"
 // Something for a manager to look at: a tag (shown as a label, never as colour alone), what it is, any reason, who and
 // when, and where it's dealt with.
 const flag = (t, tag, cls, what, note, by, go) => ({ t, tag, cls, what, note, by, go });
-const goName = (go) => (go === "stock" ? "Restock board" : go.startsWith("labels") ? "Date labels" : go.startsWith("rota") ? "Rota" : "Open the list");
+const goName = (go) => (go === "stock" ? "Restock board" : go === "send" ? "Shift report" : go === "issues" ? "Issues" : go === "concerns" ? "Concerns" : go.startsWith("labels") ? "Date labels" : go.startsWith("rota") ? "Rota" : "Open the list");
 const flagHtml = (x) => `<div class="staffrow"><div class="n"><span class="pill ${x.cls}">${esc(x.tag)}</span> <span class="did">${esc(x.what)}</span></div><div class="s">${x.note ? `${esc(x.note)} · ` : ""}${esc(x.by)} · <button class="linkbtn" data-go="${x.go}">${goName(x.go)}</button></div></div>`;
 const flagText = (x) => `- ${x.tag}: ${x.what}${x.note ? ` (${x.note})` : ""}. ${x.by}`;
 // Now: what's blocked, overdue or waiting too long, longest waiting first.
@@ -3806,6 +3834,297 @@ function liveText() {
   return lines.join("\n");
 }
 SHARE.live = () => [`Black Tap Soho tonight, ${hhmm(new Date())}`, liveText()];
+
+/* ---------- Pre-service briefing ----------
+   Before service a manager tells the team tonight's covers, big bookings, specials, allergies, sections, breaks and
+   what to watch for. Bar Book adds what it already knows: what's 86'd and who's on the rota tonight. Everyone taps
+   Read it; managers see who has and who on tonight's rota hasn't. A change makes it new again for everyone. */
+const BR_F = [["covers", "Expected covers"], ["bookings", "Large bookings and events"], ["specials", "Specials and promotions"], ["allergies", "Allergies and special requests"],
+  ["sections", "Sections and who's where"], ["breaks", "Breaks"], ["focus", "Tonight's priorities"], ["previous", "From the last shift"]];
+const brF = { open: false, covers: "", bookings: "", specials: "", allergies: "", sections: "", breaks: "", focus: "", previous: "" };
+const brOn = () => !!LIVE.me && isOn("briefing");
+const brReadBy = () => LIVE.briefReads.filter((r) => r.v === LIVE.briefing?.v);
+const brMine = () => !!LIVE.briefing && (LIVE.briefing.uid === LIVE.uid || LIVE.briefReads.some((r) => r.uid === LIVE.uid && r.v === LIVE.briefing.v));
+const brTonight = () => (isOn("rota") ? LIVE.shifts.filter((x) => x.pub && x.day === shiftDay() && x.who) : []);
+function brFill() {
+  const b = LIVE.briefing || {};
+  for (const [k] of BR_F) brF[k] = k === "covers" ? (b.covers ? String(b.covers) : "") : b[k] || "";
+}
+function renderBrief() {
+  if (!brOn()) return;
+  const b = LIVE.briefing, head = `<div class="sec">Tonight's briefing</div>`;
+  const out = [...LIVE.out].sort(), on = brTonight();
+  const show = b ? `<article class="notice brief"><div class="meta"><b>${dayName(b.day, { weekday: "long", day: "numeric", month: "long" })}</b> · from ${esc(b.name)}, ${b.pending ? "sending…" : when(b.at)}${b.v > 1 ? " (changed)" : ""}</div>
+      ${b.covers ? `<p class="txt"><b>${b.covers}</b> covers expected</p>` : ""}
+      ${BR_F.filter(([k]) => k !== "covers" && b[k]).map(([k, t]) => `<div class="h3">${t}</div><p class="txt">${esc(b[k])}</p>`).join("")}
+      <div class="h3">86'd now</div><p class="txt">${out.length ? esc(out.join(", ")) : "Nothing"}</p>
+      ${on.length ? `<div class="h3">On the rota tonight</div><p class="txt">${on.map((x) => `${esc(x.whoName)} (${sideName(x.side)}, ${roTime(x)})`).join(", ")}</p>` : ""}
+      <div class="actions">${brMine() ? `<span class="pill ok">${b.uid === LIVE.uid ? "You posted it" : "You've read it"}</span>` : `<button class="btn pri" id="br-read">I've read it</button>`}</div></article>`
+    : `<p class="note">${LIVE.admin ? "Nothing posted yet tonight. Post it before service." : "Nothing posted yet tonight."}</p>`;
+  let who = "";
+  if (LIVE.admin && b) {
+    const read = brReadBy(), uids = new Set(read.map((r) => r.uid));
+    const missing = on.filter((x) => !uids.has(x.who) && x.who !== b.uid);
+    who = `<div class="h3">Read by ${read.length}</div><p class="note">${read.length ? read.map((r) => `${esc(r.name)} ${hhmm(new Date(ms(r.at)))}`).join(", ") : "Nobody yet."}</p>
+      ${missing.length ? `<p class="note"><b>On tonight and not read yet:</b> ${missing.map((x) => esc(x.whoName)).join(", ")}</p>` : ""}`;
+  }
+  const form = LIVE.admin ? `<details class="setup" id="br-form"${brF.open ? " open" : ""}><summary>${b ? "Change tonight's briefing" : "Post tonight's briefing"}</summary>
+      ${BR_F.map(([k, t]) => k === "covers" ? `<label class="fld">${t}<input data-br="covers" inputmode="numeric" maxlength="4" value="${esc(brF.covers)}"></label>`
+        : `<label class="fld">${t} (optional)<textarea data-br="${k}" rows="2" maxlength="${k === "breaks" ? 500 : 1000}">${esc(brF[k])}</textarea></label>`).join("")}
+      <div class="actions"><button class="btn" id="br-prev">Add last night's handover and urgent issues</button></div>
+      ${b ? `<p class="note">Changing it asks everyone to read it again.</p>` : ""}
+      <div class="actions"><button class="btn pri" id="br-go">${b ? "Save the change" : "Post it"}</button></div></details>` : "";
+  $("#brief").innerHTML = head + show + who + form;
+}
+function brPrev() {
+  const h = LIVE.handovers.find((x) => x.id < shiftDay()), urgent = openIssues().filter((x) => x.urgent);
+  const bits = [h?.note && `Handover (${h.name}): ${h.note}`, urgent.length && `Urgent issues: ${urgent.map((x) => x.title).join("; ")}`].filter(Boolean);
+  if (!bits.length) return toast("No handover note or urgent issues to add");
+  brF.previous = [brF.previous.trim(), ...bits].filter(Boolean).join("\n").slice(0, 1000); renderBrief();
+}
+function brSave() {
+  const covers = brF.covers.trim() === "" ? 0 : Number(brF.covers);
+  if (!Number.isInteger(covers) || covers < 0 || covers > 5000) return toast("Covers should be a whole number");
+  const x = Object.fromEntries(BR_F.map(([k]) => [k, k === "covers" ? covers : brF[k].trim()]));
+  if (!covers && BR_F.every(([k]) => k === "covers" || !x[k])) return toast("Add something to tell the team first");
+  track(LIVE.api.saveBriefing(x), LIVE.briefing ? "Briefing changed. Everyone's asked to read it again" : "Briefing posted", "Not saved. Try again");
+  brF.open = false; brF.filled = false; haptic(); renderBrief();
+}
+
+/* ---------- Guest recovery ----------
+   Something that went wrong for a guest, logged by whoever dealt with it while it's fresh: what kind, the table (never a
+   name), what happened, what the guest wants, what was done, and anything given, up to what their role may give without
+   a manager (the owner sets it; until then staff ask a manager first). "Needs a manager" puts it in front of the
+   managers straight away. A manager closes it with what was done, anything more given and whether to follow up.
+   Managers see which kinds keep happening. */
+const GK = [["wrong", "Wrong order"], ["slow", "Slow or delayed"], ["cold", "Cold food"], ["missing", "Missing item"], ["look", "Poor presentation"], ["bill", "Wrong bill"],
+  ["allergy", "Allergy or diet"], ["seating", "Seating"], ["service", "Service"], ["payment", "Payment"], ["other", "Other"]];
+const GKN = Object.fromEntries(GK);
+const gF = { open: false, kind: "", table: "", what: "", wants: "", done: "", comp: "", escalate: false };
+const gClose = {};
+const gPounds = (p) => gbp(p / 100);
+const gOn = () => !!LIVE.me && isOn("guests");
+const gOpen = () => LIVE.guests.filter((x) => x.status === "open");
+const gLimit = () => (LIVE.owner ? Infinity : LIVE.comp ? LIVE.comp[LIVE.role] || 0 : 0);
+const gLimitText = () => (gLimit() === Infinity ? "As the owner you have no limit." : gLimit() ? `You can give up to ${gPounds(gLimit())} without asking a manager.` : LIVE.admin ? "The owner hasn't set what managers can give yet, so ask the owner first." : "Ask a manager before giving anything away.");
+const toPence = (t) => { const v = String(t).trim().replace(/^£/, ""); if (!v) return 0; const n = Math.round(Number(v) * 100); return /^\d+(\.\d{1,2})?$/.test(v) ? n : NaN; };
+// Kinds that happened three times or more in the last 7 days, most first.
+function gRepeats() {
+  const from = Date.now() - 7 * 864e5, n = {};
+  for (const x of LIVE.guests) if (ms(x.at) >= from) n[x.kind] = (n[x.kind] || 0) + 1;
+  return Object.entries(n).filter(([, c]) => c >= 3).sort((a, b) => b[1] - a[1]);
+}
+function gRow(x) {
+  const closed = x.status === "closed";
+  return `<article class="notice${x.escalate && !closed ? " new" : ""}"><div class="meta"><b>${GKN[x.kind] || "Other"}</b>${x.table ? ` · table ${esc(x.table)}` : ""} · ${esc(x.name)}, ${x.pending ? "sending…" : when(x.at)}</div>
+    <div class="tags">${closed ? `<span class="pill ok">Closed</span>` : x.escalate ? `<span class="pill no">Needs a manager</span>` : `<span class="pill wait">Open</span>`}${x.comp ? `<span class="pill">Given ${gPounds(x.comp)}</span>` : ""}${x.followUp ? `<span class="pill wait">Follow up</span>` : ""}</div>
+    <p class="txt">${esc(x.what)}</p>${x.wants ? `<div class="s"><b>Guest wanted:</b> ${esc(x.wants)}</div>` : ""}${x.done ? `<div class="s"><b>Done:</b> ${esc(x.done)}</div>` : ""}
+    ${closed ? `<div class="s"><b>${esc(x.closedBy)}:</b> ${esc(x.resolution)}${x.extra ? ` (gave ${gPounds(x.extra)} more)` : ""} · ${when(x.closedAt)}</div>`
+      : LIVE.admin ? `<label class="fld">What was done in the end<input data-gc="${x.id}:res" maxlength="500" value="${esc(gClose[x.id]?.res || "")}"></label>
+        <div class="rvrow" style="grid-template-columns:1fr auto auto"><input data-gc="${x.id}:extra" inputmode="decimal" placeholder="More given (£, optional)" value="${esc(gClose[x.id]?.extra || "")}" aria-label="More given">
+        <label class="check"><input type="checkbox" data-gc="${x.id}:fu"${gClose[x.id]?.fu ? " checked" : ""}> Follow up</label><button class="btn pri" data-g-close="${x.id}">Close</button></div>` : ""}</article>`;
+}
+function renderGuests() {
+  if (!gOn()) return;
+  const open = gOpen().sort((a, b) => b.escalate - a.escalate || ms(a.at) - ms(b.at)), closed = LIVE.guests.filter((x) => x.status === "closed").slice(0, 20), rep = gRepeats();
+  const week = LIVE.guests.filter((x) => ms(x.at) >= Date.now() - 7 * 864e5), given = week.reduce((a, x) => a + (x.comp || 0) + (x.extra || 0), 0);
+  $("#guests").innerHTML = `<div class="sec">Guest issues</div>
+    <details class="setup" id="g-form"${gF.open ? " open" : ""}><summary>Log a guest issue</summary>
+      <div class="recent" style="flex-wrap:wrap">${GK.map(([k, t]) => `<button class="chip" data-g-kind="${k}" aria-pressed="${gF.kind === k}">${t}</button>`).join("")}</div>
+      <label class="fld">Table<input data-g="table" maxlength="10" value="${esc(gF.table)}" placeholder="12, bar, terrace 3"></label>
+      <label class="fld">What happened<textarea data-g="what" rows="2" maxlength="500" placeholder="Use the table number, not the guest's name">${esc(gF.what)}</textarea></label>
+      <label class="fld">What the guest wants (optional)<input data-g="wants" maxlength="300" value="${esc(gF.wants)}"></label>
+      <label class="fld">What you've done (optional)<input data-g="done" maxlength="300" value="${esc(gF.done)}" placeholder="Remade it, apologised, dessert on us"></label>
+      <label class="fld">Value of anything given, £ (optional)<input data-g="comp" inputmode="decimal" value="${esc(gF.comp)}" placeholder="0.00"></label>
+      <p class="note">${gLimitText()}</p>
+      <label class="check"><input type="checkbox" data-g="escalate"${gF.escalate ? " checked" : ""}> Needs a manager now</label>
+      <div class="actions"><button class="btn pri" id="g-go">Log it</button></div></details>
+    ${LIVE.admin && rep.length ? `<div class="h3">Keeps happening</div>${rep.map(([k, c]) => `<p class="note"><b>${GKN[k]}:</b> ${c} times in the last 7 days</p>`).join("")}` : ""}
+    ${LIVE.admin ? `<p class="note">Last 7 days: ${plural(week.length, "guest issue")}${given ? `, ${gPounds(given)} given` : ""}.</p>` : ""}
+    <div class="h3">Open (${open.length})</div>${open.map(gRow).join("") || `<p class="note">Nothing open.</p>`}
+    ${closed.length ? `<details class="setup"><summary>Recently closed (${closed.length})</summary>${closed.map(gRow).join("")}</details>` : ""}
+    ${LIVE.owner ? `<details class="setup"><summary>What people can give without asking</summary>
+      <p class="note">The most staff and managers can give a guest (in £) before asking someone above them. The owner has no limit. ${LIVE.comp ? `Set by ${esc(LIVE.comp.name)}, ${when(LIVE.comp.at)}.` : "Not set yet: until it is, nobody but you can give anything."}</p>
+      <label class="fld">Staff, £<input id="g-lim-staff" inputmode="decimal" value="${LIVE.comp ? (LIVE.comp.staff / 100).toFixed(2) : ""}"></label>
+      <label class="fld">Managers, £<input id="g-lim-mgr" inputmode="decimal" value="${LIVE.comp ? (LIVE.comp.manager / 100).toFixed(2) : ""}"></label>
+      <div class="actions"><button class="btn pri" id="g-lim-go">Save</button></div></details>` : ""}`;
+}
+function gLog() {
+  if (!gF.kind) return toast("Pick what kind of issue it is");
+  if (!gF.what.trim()) return toast("Say what happened");
+  const comp = toPence(gF.comp);
+  if (Number.isNaN(comp)) return toast("Write the value as pounds and pence, like 6.50");
+  if (comp > gLimit()) return toast(gLimit() ? `That's over your limit of ${gPounds(gLimit())}. Ask a manager` : "Ask a manager before giving anything");
+  track(LIVE.api.logGuest({ kind: gF.kind, table: gF.table.trim(), what: gF.what.trim(), wants: gF.wants.trim(), done: gF.done.trim(), comp, escalate: !!gF.escalate }),
+    gF.escalate ? "Logged, and the managers can see it needs them" : "Logged", "Not saved. Try again");
+  Object.assign(gF, { open: false, kind: "", table: "", what: "", wants: "", done: "", comp: "", escalate: false }); haptic(); renderGuests();
+}
+function gDoClose(id) {
+  const c = gClose[id] || {}, res = (c.res || "").trim(), extra = toPence(c.extra || "");
+  if (!res) return toast("Say what was done in the end");
+  if (Number.isNaN(extra)) return toast("Write the value as pounds and pence, like 6.50");
+  if (extra > gLimit()) return toast(`That's over your limit of ${gPounds(gLimit())}. Ask the owner`);
+  track(LIVE.api.closeGuest(id, res, extra, !!c.fu), "Closed", "Not saved. Someone may have just closed it");
+  delete gClose[id]; haptic();
+}
+function gSetLimits() {
+  const st = toPence(val("#g-lim-staff")), mg = toPence(val("#g-lim-mgr"));
+  if ([st, mg].some((x) => Number.isNaN(x) || x > 100000)) return toast("Write each as pounds and pence, up to £1,000");
+  track(LIVE.api.setComp(st, mg), "Limits saved", "Not saved. Try again"); haptic();
+}
+
+/* ---------- Manager close and handover ----------
+   The last thing a manager does: questions about what only a manager checks (cash, voids, tips, breaks, security), each
+   answered yes, no or n/a, where a no opens what needs saying about it; plus what Bar Book already knows went wrong
+   tonight in every department (missing reports, blocked or skipped checklist items, late restocks, overdue labels,
+   urgent issues, open concerns), counted from the live data so nobody can tick it away. A no on food safety, equipment
+   or security also raises an urgent issue for the whole team in the same write; cash stays with the managers. One per
+   night, locked once sent. The next manager reads it and accepts it, saying what they'll do about any risks. */
+const HO_Q = [
+  { k: "depts", t: "Every department's close done: bar, floor and kitchen?", f: [["what", "Which isn't done, and why?"], ["safe", "Is it safe to leave as it is?", "yn"]] },
+  { k: "sales", t: "Final sales report checked?", na: 1, f: [["what", "What hasn't been checked, and why?"]] },
+  { k: "cash", t: "Cash and card figures reconciled, nothing over or short?", risk: "managers", f: [["amount", "How much over or short (£)?"], ["till", "Which till or float?"], ["recount", "Counted again?", "yn"], ["second", "Who checked it with you?"], ["told", "Who has it gone to?"]] },
+  { k: "voids", t: "Refunds, voids and discounts looked over?", na: 1, f: [["what", "What needs looking into?"]] },
+  { k: "tips", t: "Service charge and tips recorded correctly?", na: 1, f: [["what", "What's wrong, and who's sorting it?"]] },
+  { k: "breaks", t: "Everyone got their breaks?", f: [["who", "Who missed one or had it cut short, and why?"]] },
+  { k: "incidents", t: "Every incident tonight written up?", na: 1, f: [["what", "What isn't written up yet, and who's doing it?"]] },
+  { k: "complaints", t: "Guest complaints sorted or passed on?", na: 1, f: [["what", "Which complaint is still open?"], ["wanted", "What did the guest want?"], ["done", "What was offered or done?"], ["next", "Who's following it up?"]] },
+  { k: "food", t: "Food stored safely, with no food safety problem left open?", risk: "team", short: "Food safety", area: "kitchen", f: [["what", "What's the problem?"], ["done", "What was done straight away?"], ["binned", "Was any affected food checked or thrown away?", "yn"], ["told", "Who has been told?"]] },
+  { k: "faults", t: "All equipment working, or already raised as an issue?", risk: "team", short: "Equipment", area: "other", f: [["what", "What equipment, and where?"], ["safe", "Is it safe to use?", "yn"], ["isolated", "Switched off or taped off?", "yn"], ["service", "Will it affect service tomorrow?", "yn"]] },
+  { k: "security", t: "Doors, windows, alarm and safe all secured?", risk: "team", short: "Security", area: "other", f: [["what", "What isn't secured, and why?"], ["safe", "Is it safe to leave?", "yn"], ["told", "Who has been told?"]] },
+  { k: "ready", t: "Tomorrow covered: staff, stock and prep?", f: [["what", "What's short?"]] },
+];
+const HO_A = { yes: "Yes", no: "No", na: "N/A" };
+// The form being filled in, kept on this phone so a close half done at 1am survives a reload. A new night starts afresh.
+const hoBlank = () => ({ day: shiftDay(), a: {}, f: {}, x: {}, note: "", owner: "" });
+let hoF = store.get("hodraft", null);
+if (!hoF || hoF.day !== shiftDay()) hoF = hoBlank();
+hoF.x ||= {};
+const hqF = { t: "", crit: false };
+const hoSave = () => store.set("hodraft", hoF);
+const hoOn = () => LIVE.admin && isOn("handover");
+const hoTonight = () => LIVE.handovers.find((h) => h.id === shiftDay());
+// The last handover from before tonight that nobody has accepted, from the last week.
+const hoToAccept = () => { const h = LIVE.handovers.find((x) => x.id < shiftDay()); return h && !h.ackBy && h.id >= addDays(shiftDay(), -7) ? h : null; };
+// What Bar Book knows went wrong tonight, from every department: each a flag as on Live.
+function hoAuto() {
+  const tonight = LIVE.reports.filter((r) => bday(r.at) === shiftDay());
+  const sides = Object.keys(MODE_LISTS).filter((s) => s !== "kitchen" || LIVE.reports.some((r) => r.side === s));
+  const missing = sides.filter((s) => !tonight.some((r) => r.side === s)).map((s) => flag(0, "No report", "no", `${sideName(s)} report not sent`, "", "Nobody has sent it yet", "send"));
+  const urgent = openIssues().filter((x) => x.urgent).map((x) => flag(ms(x.at), "Urgent issue", "no", x.title, x.status === "taken" ? `${x.who} is on it` : "Nobody's on it yet", x.name, "issues"));
+  const cons = openConcerns().map((x) => flag(ms(x.at), x.reason === "hazard" ? "Hazard" : "Concern", x.reason === "hazard" ? "no" : "wait", AREA[x.area] || "Other", x.note || "", x.name || "Anonymous", "concerns"));
+  return [...missing, ...needsYou(), ...exceptions(), ...urgent, ...cons];
+}
+const hoRisk = (q, a) => q.risk && a === "no";
+// The venue's own questions as answered on this phone, with each one's text as it's asked tonight.
+const hoX = () => LIVE.hoq.map((q) => ({ id: q.id, t: q.t, crit: !!q.crit, a: hoF.x[q.id]?.a || "", what: (hoF.x[q.id]?.what || "").trim(), told: (hoF.x[q.id]?.told || "").trim() }));
+const hoRisks = (a) => HO_Q.filter((q) => hoRisk(q, a[q.k])).length;
+const hoNos = (a) => HO_Q.filter((q) => a[q.k] === "no" && !q.risk).length;
+// The text of a sent handover, for sharing and for the record.
+function hoText(h) {
+  const lines = [`Manager close, night of ${dayName(h.day, { weekday: "long", day: "numeric", month: "long" })}, by ${h.name}`, ""];
+  const bad = HO_Q.filter((q) => h.answers[q.k] === "no");
+  lines.push(bad.length ? "Not right:" : "Every question answered yes or n/a.");
+  for (const q of bad) lines.push(`- ${q.t} No${q.risk ? " (risk)" : ""}`, ...q.f.map(([k, t]) => `  ${t} ${h.follow[q.k]?.[k] || ""}`));
+  for (const x of Object.values(h.extra || {}).filter((x) => x.a === "no")) lines.push(`- ${x.t} No${x.crit ? " (risk)" : ""}`, `  What happened? ${x.what}`, `  Who has been told? ${x.told}`);
+  if (h.lines) lines.push("", "Tonight's exceptions:", h.lines);
+  if (h.note) lines.push("", `For the next manager: ${h.note}`);
+  if (h.owner) lines.push("", `For the owner: ${h.owner}`);
+  if (h.ackBy) lines.push("", `Accepted by ${h.ackBy}${h.ackNote ? `: ${h.ackNote}` : ""}`);
+  return lines.join("\n");
+}
+SHARE.handover = () => { const h = hoTonight() || LIVE.handovers[0]; return h ? [`Black Tap Soho handover, ${dayName(h.day)}`, hoText(h)] : ["", ""]; };
+const hoAck = {};
+function hoCard(h, { accept = false } = {}) {
+  const bad = HO_Q.filter((q) => h.answers[q.k] === "no"), na = HO_Q.filter((q) => h.answers[q.k] === "na").length;
+  const pills = [h.risks ? `<span class="pill no">${plural(h.risks, "risk")}</span>` : "", h.exceptions ? `<span class="pill wait">${plural(h.exceptions, "exception")}</span>` : "",
+    !h.risks && !h.exceptions ? `<span class="pill ok">All clear</span>` : "", h.ackBy ? `<span class="pill ok">Accepted</span>` : `<span class="pill wait">Not accepted yet</span>`].join("");
+  const fu = (q) => q.f.map(([k, t]) => `<div class="s">${esc(t)} <b>${esc(h.follow[q.k]?.[k] || "")}</b></div>`).join("");
+  return `<article class="notice ho${h.risks ? " new" : ""}" data-ho="${h.id}"><div class="meta"><b>Night of ${dayName(h.day, { weekday: "long", day: "numeric", month: "short" })}</b> · closed by ${esc(h.name)}, ${h.pending ? "sending…" : when(h.at)}</div>
+    <div class="tags">${pills}</div>
+    ${bad.map((q) => `<div class="staffrow"><div class="n"><span class="pill ${q.risk ? "no" : "wait"}">${q.risk ? "Risk" : "No"}</span> <span class="did">${esc(q.t)}</span></div>${fu(q)}${q.risk === "team" ? `<div class="s">Raised as an urgent issue for the team.</div>` : ""}</div>`).join("")
+      || `<p class="note">Every question answered yes${na ? ` (${na} n/a)` : ""}.</p>`}
+    ${Object.values(h.extra || {}).filter((x) => x.a === "no").map((x) => `<div class="staffrow"><div class="n"><span class="pill ${x.crit ? "no" : "wait"}">${x.crit ? "Risk" : "No"}</span> <span class="did">${esc(x.t)}</span></div>
+      <div class="s">What happened? <b>${esc(x.what)}</b></div><div class="s">Who has been told? <b>${esc(x.told)}</b></div></div>`).join("")}
+    ${h.lines ? `<div class="h3">Tonight's exceptions, as Bar Book saw them</div><pre class="txt ho-lines">${esc(h.lines)}</pre>` : ""}
+    ${h.note ? `<div class="h3">For the next manager</div><p class="txt">${esc(h.note)}</p>` : ""}
+    ${h.owner ? `<div class="h3">For the owner</div><p class="txt">${esc(h.owner)}</p>` : ""}
+    ${h.ackBy ? `<p class="note">Accepted by ${esc(h.ackBy)}, ${when(h.ackAt)}${h.ackNote ? `: ${esc(h.ackNote)}` : ""}</p>`
+      : accept ? `<label class="fld">${h.risks ? "What you'll do about the risks (needed)" : "Note (optional)"}<textarea data-hoack="${h.id}" rows="2" maxlength="500">${esc(hoAck[h.id] || "")}</textarea></label>
+        <div class="actions"><button class="btn pri" data-ho-accept="${h.id}">Accept the handover</button></div>` : ""}</article>`;
+}
+function hoForm() {
+  const auto = hoAuto(), xs = hoX(), risks = hoRisks(hoF.a) + xs.filter((x) => x.crit && x.a === "no").length, nos = hoNos(hoF.a) + xs.filter((x) => !x.crit && x.a === "no").length;
+  const missing = auto.filter((x) => x.tag === "No report").map((x) => x.what.replace(" report not sent", ""));
+  const q = (x) => {
+    const a = hoF.a[x.k], opts = x.na ? ["yes", "no", "na"] : ["yes", "no"];
+    const follow = a === "no" ? x.f.map(([k, t, kind]) => kind === "yn"
+      ? `<div class="mini">${esc(t)}</div><div class="recent">${["Yes", "No"].map((v) => `<button class="chip" data-hoyn="${x.k}:${k}" data-v="${v}" aria-pressed="${hoF.f[x.k]?.[k] === v}">${v}</button>`).join("")}</div>`
+      : `<label class="fld">${esc(t)}<input data-hof="${x.k}:${k}" maxlength="200" value="${esc(hoF.f[x.k]?.[k] || "")}"></label>`).join("") : "";
+    return `<div class="hoq${a === "no" ? " no" : ""}" data-hoq="${x.k}"><div class="n">${esc(x.t)}</div>
+      ${x.k === "depts" && missing.length ? `<p class="note">Not sent yet: ${esc(missing.join(", "))}.</p>` : ""}
+      <div class="recent">${opts.map((v) => `<button class="chip" data-hoa="${x.k}" data-v="${v}" aria-pressed="${a === v}">${HO_A[v]}</button>`).join("")}</div>
+      ${a === "no" && x.risk ? `<p class="note"><b>Risk.</b> ${x.risk === "team" ? "It's raised as an urgent issue the whole team sees until someone fixes it." : "It stays with the managers and the owner."}</p>` : ""}${follow}</div>`;
+  };
+  return `<div class="h3">Tonight's close</div>
+    <p class="note">Answer each one. A no asks what happened. The next manager reads this and accepts it.</p>
+    ${HO_Q.map(q).join("")}
+    ${LIVE.hoq.map((x) => { const v = hoF.x[x.id] || {};
+      return `<div class="hoq${v.a === "no" ? " no" : ""}" data-hox="${x.id}"><div class="n">${esc(x.t)}</div>
+        <div class="recent">${["yes", "no"].map((a) => `<button class="chip" data-hoxa="${x.id}" data-v="${a}" aria-pressed="${v.a === a}">${HO_A[a]}</button>`).join("")}</div>
+        ${v.a === "no" ? `${x.crit ? `<p class="note"><b>Risk.</b> It's raised as an urgent issue the whole team sees until someone fixes it.</p>` : ""}
+          <label class="fld">What happened?<input data-hoxf="${x.id}:what" maxlength="200" value="${esc(v.what || "")}"></label>
+          <label class="fld">Who has been told?<input data-hoxf="${x.id}:told" maxlength="200" value="${esc(v.told || "")}"></label>` : ""}</div>`; }).join("")}
+    <div class="h3">What Bar Book saw tonight (${auto.length})</div>
+    <p class="note">From every department's lists, reports, restocks, labels, issues and concerns. It's saved with the handover as it stands when you send it.</p>
+    ${auto.map(flagHtml).join("") || `<p class="note">Nothing went wrong that Bar Book knows of.</p>`}
+    <label class="fld">For the next manager<textarea data-hon="note" rows="3" maxlength="2000" placeholder="Deliveries due, who's in late, what to chase">${esc(hoF.note)}</textarea></label>
+    <label class="fld">Anything the owner needs to know (optional)<textarea data-hon="owner" rows="2" maxlength="1000">${esc(hoF.owner)}</textarea></label>
+    <p class="note">${risks ? `<b>${plural(risks, "risk")}</b>, ` : ""}${plural(nos + auto.length, "exception")}. Once it's sent it can't be changed.</p>
+    <div class="actions"><button class="btn pri" id="ho-go">Send the handover</button></div>`;
+}
+function renderHandover() {
+  if (!hoOn()) return;
+  const box = $("#mclose"), mine = hoTonight(), acc = hoToAccept();
+  if (!LIVE.loaded.has("handovers")) { box.innerHTML = `<div class="sec">Close and handover</div><p class="note">Loading. It needs signal the first time.</p>`; return; }
+  const earlier = LIVE.handovers.filter((h) => h !== mine && h !== acc);
+  box.innerHTML = `<div class="sec">Close and handover</div>
+    ${acc ? `<div class="h3">Last handover: read it and accept it</div>${hoCard(acc, { accept: true })}` : ""}
+    ${mine ? `<div class="h3">Tonight's close is sent</div>${hoCard(mine)}<div class="actions">${shareBtns("handover")}</div>` : LIVE.loaded.has("tasks") && LIVE.loaded.has("events") ? hoForm() : `<p class="note">Loading tonight. It needs signal the first time.</p>`}
+    ${earlier.length ? `<details class="setup"><summary>Earlier handovers (${earlier.length})</summary>${earlier.map((h) => hoCard(h)).join("")}</details>` : ""}
+    <details class="setup" id="hq-box"><summary>Your venue's own questions (${LIVE.hoq.length} of 10)</summary>
+      <p class="note">Asked after the standard ones, every night, yes or no. A no asks what happened and who's been told. Tick "a no is a risk" to raise it as an urgent issue for the team.</p>
+      ${LIVE.hoq.map((x) => `<div class="staffrow"><div class="n">${esc(x.t)}${x.crit ? ` <span class="pill no">A no is a risk</span>` : ""}</div><div class="actions"><button class="btn" data-hq-del="${x.id}">Take it off</button></div></div>`).join("")}
+      ${LIVE.hoq.length < 10 ? `<label class="fld">New question (a yes means all's well)<input id="hq-t" maxlength="120" value="${esc(hqF.t)}" placeholder="Keg room locked?"></label>
+        <label class="check"><input type="checkbox" id="hq-crit"${hqF.crit ? " checked" : ""}> A no is a risk</label>
+        <div class="actions"><button class="btn pri" id="hq-go">Add it</button></div>` : ""}</details>`;
+}
+function sendHandover(b) {
+  const missing = HO_Q.filter((q) => !hoF.a[q.k]);
+  if (missing.length) return toast(`Answer every question first (${missing.length} to go)`);
+  const short = HO_Q.filter((q) => hoF.a[q.k] === "no" && q.f.some(([k]) => !(hoF.f[q.k]?.[k] || "").trim()));
+  if (short.length) return toast(`Fill in what's asked under each no (${short.map((q) => q.short || q.t.split(/[,:?]/)[0]).join(", ")})`);
+  const xs = hoX();
+  if (xs.some((x) => !x.a)) return toast(`Answer every question first (${xs.filter((x) => !x.a).length} to go)`);
+  if (xs.some((x) => x.a === "no" && (!x.what || !x.told))) return toast("Fill in what happened and who's been told under each no");
+  if (hoF.day !== shiftDay()) { hoF = hoBlank(); hoSave(); renderHandover(); return toast("A new night has started. Start again"); }
+  const auto = hoAuto(), a = { ...hoF.a }, follow = {};
+  for (const q of HO_Q) if (a[q.k] === "no") follow[q.k] = Object.fromEntries(q.f.map(([k]) => [k, hoF.f[q.k][k].trim()]));
+  const raise = HO_Q.filter((q) => q.risk === "team" && a[q.k] === "no").map((q) => ({ q: q.k, area: q.area,
+    title: `${q.short}: ${follow[q.k].what}`.slice(0, 120),
+    detail: q.f.slice(1).map(([k, t]) => `${t} ${follow[q.k][k]}`).join("\n").slice(0, 1000) }));
+  const snap = { missing: auto.filter((x) => x.tag === "No report").length, needs: needsYou().length, exceptions: exceptions().length,
+    urgent: openIssues().filter((x) => x.urgent).length, concerns: openConcerns().length, restocks: rsOpen().length, out: LIVE.out.size };
+  const extra = Object.fromEntries(xs.map((x) => [x.id, { t: x.t.slice(0, 200), crit: x.crit, a: x.a, what: x.what, told: x.told }]));
+  for (const x of xs) if (x.crit && x.a === "no") raise.push({ q: `x-${x.id}`, area: "other", title: `${x.t}: ${x.what}`.slice(0, 120), detail: `Who has been told? ${x.told}`.slice(0, 1000) });
+  const xr = xs.filter((x) => x.crit && x.a === "no").length, xe = xs.filter((x) => !x.crit && x.a === "no").length;
+  const h = { answers: a, follow, extra, risks: hoRisks(a) + xr, exceptions: hoNos(a) + xe + auto.length, lines: auto.map(flagText).join("\n").slice(0, 8000), snap, note: hoF.note.trim(), owner: hoF.owner.trim() };
+  if (!confirm(`Send tonight's handover${h.risks ? ` with ${plural(h.risks, "risk")}` : ""}? It can't be changed afterwards.`)) return;
+  const w = LIVE.api.sendHandover(shiftDay(), h, raise);
+  track(w, raise.length ? `Handover sent, and ${plural(raise.length, "urgent issue")} raised` : "Handover sent", "Not sent. Another manager may have closed tonight already");
+  w.then(() => { hoF = hoBlank(); hoSave(); }, () => {});
+  haptic(); renderHandover();
+}
 
 /* ---------- Closing KPIs (managers) ----------
    From the last 7 nights of events: when each list was started and finished, how long it took and what was left,
@@ -4151,7 +4470,7 @@ async function prepareDownload(sec) {
 const FRESH_NAME = { shifts: "Shifts on the rota", asks: "Time off, swaps and running late", reports: "Shift reports", photos: "Closing photos",
   reviews: "Reviews of reports", events: "Changes in the activity history", restock: "Restocks", out: "On the 86 board", outlog: "86 log entries",
   issues: "Issues", concerns: "Concerns", concernPhotos: "Concern photos", notices: "Broadcasts", seen: "Got it taps on broadcasts", feed: "Old board posts",
-  requests: "Old stock requests", checklists: "Checklist items" };
+  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", checklists: "Checklist items" };
 const FRESH_WORDS = "START FRESH";
 const frF = { counts: null, total: 0, busy: false, done: 0, of: 0, words: "", msg: "" };
 const frCount = (n) => n.toLocaleString("en-GB");
@@ -4453,14 +4772,14 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
-      asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct], tasks: [renderDash, renderLive], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota], shifts: [renderRota, renderCal, renderDash, renderLive], lists: [renderDash, renderLive], labels: [renderDash, renderLive], restock: [renderDash, renderLive],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
+      asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover], audit: [renderStaff, renderAct],
+      out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
-      concerns: [renderConcerns, renderDash, renderAct], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
+      concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"], [renderHandover, "#mclose"], [renderBrief, "#brief"], [renderGuests, "#guests"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderHub(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
@@ -4500,6 +4819,15 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.calf) calF[t.dataset.calf] = t.value;
   if (t.dataset.cale) calE[t.dataset.cale] = t.value;
   if (t.id === "fr-words") frF.words = t.value;
+  if (t.dataset.hof) { const [q, k] = t.dataset.hof.split(":"); (hoF.f[q] ||= {})[k] = t.value; hoSave(); }
+  if (t.dataset.hon) { hoF[t.dataset.hon] = t.value; hoSave(); }
+  if (t.dataset.hoack) hoAck[t.dataset.hoack] = t.value;
+  if (t.dataset.br) brF[t.dataset.br] = t.value;
+  if (t.dataset.hoxf) { const [q, k] = t.dataset.hoxf.split(":"); (hoF.x[q] ||= {})[k] = t.value; hoSave(); }
+  if (t.id === "hq-t") hqF.t = t.value;
+  if (t.id === "hq-crit") hqF.crit = t.checked;
+  if (t.dataset.g) gF[t.dataset.g] = t.type === "checkbox" ? t.checked : t.value;
+  if (t.dataset.gc) { const [id, k] = t.dataset.gc.split(":"); (gClose[id] ||= {})[k] = t.type === "checkbox" ? t.checked : t.value; }
 });
 $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
@@ -4527,6 +4855,9 @@ $("#v-notices").addEventListener("change", (e) => {
 });
 $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
+  if (e.target.id === "g-form") gF.open = e.target.open;
+  // Changing the briefing starts from what was posted.
+  if (e.target.id === "br-form") { brF.open = e.target.open; if (brF.open && LIVE.briefing && !brF.filled) { brFill(); brF.filled = true; renderBrief(); } }
   if (e.target.id === "cn-form") cnF.open = e.target.open;
   if (e.target.id === "ro-add") roF.open = e.target.open;
   if (e.target.id === "cal-add") calE.open = e.target.open;
@@ -4673,6 +5004,30 @@ $("#v-notices").addEventListener("click", (e) => {
     const x = LIVE.issues.find((i) => i.id === b.dataset.again);
     Object.assign(isF, { title: x.title, detail: "", area: x.area, urgent: false, again: x.id, open: true }); renderIssues();
     $("#is-form").scrollIntoView({ block: "start" }); return;
+  }
+  if (b.dataset.hoa) { hoF.a[b.dataset.hoa] = b.dataset.v; hoSave(); renderHandover(); return; }
+  if (b.dataset.hoyn) { const [q, k] = b.dataset.hoyn.split(":"); (hoF.f[q] ||= {})[k] = b.dataset.v; hoSave(); renderHandover(); return; }
+  if (b.id === "ho-go") { sendHandover(b); return; }
+  if (b.dataset.hoxa) { (hoF.x[b.dataset.hoxa] ||= {}).a = b.dataset.v; hoSave(); renderHandover(); return; }
+  if (b.id === "hq-go") {
+    const t = hqF.t.trim();
+    if (!t) return toast("Write the question first");
+    track(LIVE.api.saveHoq([...LIVE.hoq, { id: Math.random().toString(36).slice(2, 10), t, crit: !!hqF.crit }]), "Question added", "Not saved. Try again");
+    Object.assign(hqF, { t: "", crit: false }); haptic(); return;
+  }
+  if (b.dataset.hqDel) { if (confirm("Take this question off? Handovers already sent keep their answers.")) track(LIVE.api.saveHoq(LIVE.hoq.filter((x) => x.id !== b.dataset.hqDel)), "Question taken off", "Not saved. Try again"); return; }
+  if (b.id === "br-read") { track(LIVE.api.readBriefing(), "Marked as read", "Not saved. It may have just changed: read it again"); haptic(); return; }
+  if (b.id === "br-prev") { brPrev(); return; }
+  if (b.id === "br-go") { brSave(); return; }
+  if (b.dataset.gKind) { gF.kind = b.dataset.gKind; renderGuests(); return; }
+  if (b.id === "g-go") { gLog(); return; }
+  if (b.dataset.gClose) { gDoClose(b.dataset.gClose); return; }
+  if (b.id === "g-lim-go") { gSetLimits(); return; }
+  if (b.dataset.hoAccept) {
+    const id = b.dataset.hoAccept, h = LIVE.handovers.find((x) => x.id === id), note = (hoAck[id] || "").trim();
+    if (h.risks && !note) return toast("Say what you'll do about the risks first");
+    track(LIVE.api.acceptHandover(id, note), "Handover accepted", "Not saved. Someone may have just accepted it");
+    hoAck[id] = ""; haptic(); return;
   }
   if (b.dataset.tpane) { openPlace(b.dataset.tpane); return; }
   if (b.id === "hub-back") { openPlace(""); return; }
