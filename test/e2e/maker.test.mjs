@@ -16,7 +16,7 @@ async function open(width = 390) {
   p.on("pageerror", (e) => p.errs.push(e.message));
   await p.goto(site.url);
   await p.click("#w-ok");
-  await p.click("[data-tab=make]");
+  await p.click("nav.tabs [data-tab=drinks]"); await p.click("#subnav [data-tab=make]");
   return p;
 }
 const out = (p) => p.$eval("#mk-out", (e) => e.innerText);
@@ -76,7 +76,7 @@ test("My bar is kept on the phone and drives the matches", async () => {
   assert.deepEqual(await p.evaluate(() => JSON.parse(localStorage.getItem("btbar.mk.bar"))), ["aperol", "prosecco"]);
   await p.click("[data-mk=frombar] >> nth=0");
   assert.match(await out(p), /From My bar[\s\S]*MAKE IT NOW[\s\S]*Aperol Spritz/i);
-  await p.reload(); await p.click("#w-ok"); await p.click("[data-tab=make]");
+  await p.reload(); await p.click("#w-ok"); await p.click("nav.tabs [data-tab=drinks]"); await p.click("#subnav [data-tab=make]");
   assert.deepEqual(await p.evaluate(() => mk.bar), ["aperol", "prosecco"], "still there after a reload");
   await p.click("[data-mk=frombar]");
   assert.match(await out(p), /Aperol Spritz/);

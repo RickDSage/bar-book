@@ -12,7 +12,8 @@ const flat = (s) => s.replace(/\s+/g, " ").trim();
 const card = async (p, k) => flat(await p.$eval(`[data-feat="${k}"]`, (e) => e.innerText));
 const openFeatures = async (p) => { await p.evaluate(() => show("info")); await p.click("#v-info [data-feat-open]"); await p.waitForSelector("#feat"); };
 const closed = (p) => p.waitForFunction(() => document.querySelector("#sheet").hidden);
-const navTabs = (p) => p.$$eval("nav.tabs [data-tab]", (x) => x.filter((b) => !b.hidden).map((b) => b.dataset.tab));
+// The row under Drinks, then the bottom tabs.
+const navTabs = (p) => p.$$eval("#subnav [data-tab], nav.tabs [data-tab]", (x) => x.filter((b) => !b.hidden).map((b) => b.dataset.tab));
 // The Team page's cards, as part:name: those for everyone, or the managers'.
 const teamTabs = async (p, g = "Everyone") => { await part(p, ""); return p.$$eval(`#hub [data-g="${g}"] [data-tpane]`, (x) => x.map((b) => `${b.dataset.tpane}:${b.querySelector("b").textContent}`)); };
 // Which page is showing: a bottom tab, the Shift tab's pane, or the part of the Team page.
@@ -85,7 +86,7 @@ test("the owner switches features off for everyone, and switching them on brings
   // Before: a time-off request, an incident, and staff on the Allergens tab.
   await S.evaluate(() => Promise.all([LIVE.api.ask({ kind: "off", date1: ukDay(Date.now() + 7 * 864e5), date2: ukDay(Date.now() + 7 * 864e5), eta: "", with: "", note: "Wedding" }), LIVE.api.incident("Guest complaint", "Cold fries")]));
   await M.waitForFunction(() => LIVE.asks.length === 1 && LIVE.incidents.length === 1);
-  await S.click("[data-tab=allergens]");
+  await S.click("nav.tabs [data-tab=drinks]"); await S.click("#subnav [data-tab=allergens]");
 
   // The owner unticks two in the page, then the rest of what Black Tap leaves to Nory and Alert65.
   await openFeatures(O);
@@ -99,13 +100,13 @@ test("the owner switches features off for everyone, and switching them on brings
   await O.evaluate((o) => LIVE.api.setOff(o), off);
   for (const p of [M, S]) await switched(p, off);
 
-  // Staff: no Allergens tab (and off it if they were on it), no Chat or Rota, only Running late in Tell the managers, no My pay.
+  // Staff: no Allergens tab (and off it if they were on it), no Chat or Rota, only Running late in My requests, no My pay.
   assert.equal(await where(S), "drinks");
-  assert.deepEqual(await navTabs(S), ["drinks", "make", "practice", "tally", "info"]);
-  assert.equal(await S.evaluate(() => getComputedStyle($("nav.tabs")).gridTemplateColumns.split(" ").length), 5);
+  assert.deepEqual(await navTabs(S), ["drinks", "make", "practice", "drinks", "tally", "notices", "info"]);
+  assert.equal(await S.evaluate(() => getComputedStyle($("nav.tabs")).gridTemplateColumns.split(" ").length), 4, "Drinks, Shift, Team and Info");
   await S.evaluate(() => show("allergens"));
   assert.equal(await where(S), "drinks", "a switched-off tab can't be opened");
-  const rest = ["brief:Tonight's briefing", "status:Tonight's status", "reports:Reports", "issues:Issues and handover", "guests:Guest issues", "concerns:Concerns", "board:Broadcasts", "me:Tell the managers"];
+  const rest = ["brief:Tonight's briefing", "status:Tonight's status", "issues:Issues and handover", "guests:Guest issues", "me:My requests", "board:Broadcasts", "concerns:Concerns", "reports:Reports"];
   assert.deepEqual(await teamTabs(S), [...rest, "activity:Activity"]);
   await part(S, "me");
   assert.deepEqual(await S.$$eval("[data-mek]", (x) => x.map((b) => b.dataset.mek)), ["late"]);
@@ -125,7 +126,7 @@ test("the owner switches features off for everyone, and switching them on brings
   await part(M, "reports");
   assert.deepEqual(await M.$$eval("[data-rp-show]", (x) => x.map((b) => b.dataset.rpShow)), ["all", "bar", "floor", "kitchen", "flagged"]);
   assert.doesNotMatch(await M.$eval("#reports", (e) => e.innerText), /OPEN INCIDENTS|Cold fries/);
-  assert.deepEqual(await teamTabs(M, "Managers"), ["live:Live", "handover:Close and handover", "nights:Sales and covers", "requests:Requests", "act:Activity", "money:Money sandbox", "out:86 log", "team:Team logins"]);
+  assert.deepEqual(await teamTabs(M, "Managers"), ["live:Live", "handover:Close and handover", "requests:Requests to answer", "nights:Sales and covers", "money:Money sandbox", "out:86 log", "team:Team logins", "act:Activity"]);
   assert.doesNotMatch(await M.$eval("#foryou", (e) => e.innerText), /shifts? to fill|open incident/);
   await M.evaluate(() => show("tally"));
   assert.equal(await M.locator("#fx-add").count(), 0, "no football");
@@ -137,12 +138,12 @@ test("the owner switches features off for everyone, and switching them on brings
 
   // A phone that saw the list keeps it while it connects.
   await S.reload(); await S.click("#w-ok");
-  assert.deepEqual(await navTabs(S), ["drinks", "make", "practice", "tally", "info"]);
+  assert.deepEqual(await navTabs(S), ["drinks", "make", "practice", "drinks", "tally", "notices", "info"]);
 
   // All back on: everything saved is still there.
   await O.evaluate(() => LIVE.api.setOff([]));
   for (const p of [M, S]) await switched(p, []);
-  assert.deepEqual(await navTabs(S), ["drinks", "make", "allergens", "practice", "tally", "pay", "info"]);
+  assert.deepEqual(await navTabs(S), ["drinks", "make", "allergens", "practice", "drinks", "tally", "notices", "pay", "info"]);
   await part(M, "requests");
   await M.waitForFunction(() => /Wedding/.test($("#requests").innerText));
   await part(M, "reports");

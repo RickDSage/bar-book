@@ -131,7 +131,13 @@ nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: g
 nav.tabs button { height: var(--tabh); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; color: var(--muted); }
 nav.tabs button svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
-nav.tabs button[hidden] { display: none; }
+nav.tabs button[hidden], .subnav [hidden] { display: none; }
+nav.tabs button { position: relative; }
+nav.tabs button .dot { top: 4px; right: auto; left: calc(50% + 4px); min-width: 18px; height: 18px; font-size: 11px; }
+.subnav { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: none; }
+.subnav[hidden] { display: none; }
+.bell .dot[hidden], nav.tabs .dot[hidden] { display: none; }
+.subnav .chip[aria-current="page"] { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
 /* Seven tabs on a small phone: a size smaller, so every name stays on one line. */
 @media (max-width: 359px) { nav.tabs button { font-size: 11px; white-space: nowrap; } }
 
@@ -330,7 +336,7 @@ b.dt { color: var(--fg); font-weight: 700; }
 .mo-col .dn { background: var(--warn); border-radius: 0 0 4px 4px; }
 .mo-col .zero { position: absolute; left: -1px; right: -1px; height: 1px; background: var(--line); }
 .mo-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
-.bell .dot { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--warn); color: var(--brass-ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.bell .dot, nav.tabs .dot { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--warn); color: var(--brass-ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
 .notice { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-top: 12px; }
 .notice.new { border-color: var(--brass); }
 .notice h3 { font-family: var(--body); text-transform: none; font-size: 18px; font-weight: 700; }
@@ -430,6 +436,17 @@ a.btn { text-decoration: none; color: inherit; }
 .place small { display: block; margin-top: 3px; font-size: 13px; line-height: 1.3; color: var(--muted); }
 .place .pc { flex: none; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px; background: var(--brass); color: var(--brass-ink); font-size: 13px; font-weight: 700; display: grid; place-items: center; }
 .place.hot .pc { background: var(--warn); }
+.cat { border-top: 1px solid var(--line); padding: 4px 0 10px; }
+.cat > summary { list-style: none; display: flex; align-items: center; gap: 8px; padding: 10px 0 4px; cursor: pointer; }
+.cat > summary::-webkit-details-marker { display: none; }
+.cat > summary > span:first-child { flex: 1; min-width: 0; }
+.cat > summary b { display: block; font-size: 18px; }
+.cat > summary small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat > summary::after { content: "›"; flex: none; font-size: 22px; color: var(--muted); transition: transform .15s; }
+.cat[open] > summary::after { transform: rotate(90deg); }
+.cat[open] > summary small { display: none; }
+.cat .pc { flex: none; min-width: 24px; height: 24px; padding: 0 7px; border-radius: 12px; background: var(--brass); color: var(--brass-ink); font-size: 13px; font-weight: 700; display: grid; place-items: center; }
+.cat.hot .pc { background: var(--warn); }
 @media (max-width: 339px) { .place { padding-inline: 9px 7px; } .place b { font-size: 15px; } }
 /* Tonight on the Team page: live counts that jump to the right place */
 .dash { display: grid; grid-template-columns: repeat(auto-fill, minmax(98px, 1fr)); gap: 8px; margin-top: 12px; }
@@ -642,6 +659,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
 <main class="gut">
   <div id="bcast"></div>
+  <nav class="subnav" id="subnav" aria-label="Drinks"><button class="chip" data-tab="drinks">Menu</button><button class="chip" data-tab="make">Make one</button><button class="chip" data-tab="allergens">Allergens</button><button class="chip" data-tab="practice">Practise</button></nav>
   <section class="view" id="v-drinks"><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p></section>
 
   <section class="view" id="v-allergens" hidden>
@@ -681,12 +699,10 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
 <nav class="tabs" aria-label="Sections of the app">
   <button data-tab="drinks" aria-current="page"><svg viewBox="0 0 24 24"><path d="M5 4h14l-6 8v6l3 2H8l3-2v-6z"/></svg>Drinks</button>
-  <button data-tab="make"><svg viewBox="0 0 24 24"><path d="M8 3h8l-1 4H9z"/><path d="M9 7h6l1.5 13a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z"/><path d="M8 12h8"/></svg>Make</button>
-  <button data-tab="allergens"><svg viewBox="0 0 24 24"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>Allergens</button>
-  <button data-tab="practice"><svg viewBox="0 0 24 24"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="M8 10h8M8 14h5"/></svg>Practise</button>
   <button data-tab="tally"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l2 2 4-4M8.5 16h7"/></svg>Shift</button>
-  <button data-tab="pay"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>Pay</button>
-  <button data-tab="info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>Bar info</button>
+  <button data-tab="notices"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><span class="dot" id="team-n" hidden></span>Team</button>
+  <button data-tab="pay"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>My pay</button>
+  <button data-tab="info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>Info</button>
 </nav>
 <div id="tour" class="tour" hidden role="dialog" aria-label="Tour of the app"></div>
 
@@ -2537,16 +2553,16 @@ const FEATURES = [
     mgr: "Add school holidays for the boroughs that matter to the team, events and days we're shut, and see everyone's time off." },
   { g: "Team", k: "asks", n: "Time off and swaps", go: "me", mgrGo: "requests", login: 1, sw: 1,
     what: "Asking for time off or a shift swap, answered by a manager.",
-    staff: "Ask from Tell the managers or a day on the calendar, and see the answer there.", mgr: "Approve or decline each one. A manager's own go to another manager or the owner." },
+    staff: "Ask from My requests or a day on the calendar, and see the answer there.", mgr: "Approve or decline each one. A manager's own go to another manager or the owner." },
   { g: "Team", k: "late", n: "Running late", go: "me", mgrGo: "requests", login: 1,
     what: "Telling the managers roughly when you'll get in.",
-    staff: "Send it from Tell the managers in two taps.", mgr: "See it straight away and mark it seen." },
+    staff: "Send it from My requests in two taps.", mgr: "See it straight away and mark it seen." },
   { g: "Team", k: "reports", n: "Reports", go: "reports", login: 1, tour: 1,
     what: "Every shift report, night by night, with the ones waiting for sign-off first.",
     staff: "Read every side's reports, as far back as you like.", mgr: "Sign off, flag or comment, see each night's flags and lateness, and download every report." },
   { g: "Team", k: "incidents", n: "Incidents", go: "me", mgrGo: "incidents", login: 1, sw: 1,
     what: "Guest complaints, breakages and anything else that went wrong, written down while it's fresh. Accidents and injuries go in Alert65.",
-    staff: "Log one from Tell the managers. Only managers can read it.", mgr: "Close each one with what was done, and download them all." },
+    staff: "Log one from My requests. Only managers can read it.", mgr: "Close each one with what was done, and download them all." },
   { g: "Managers", k: "live", n: "Live", go: "live", login: 1, admin: 1, tour: 1,
     what: "Tonight as it happens: what needs you now, each side's checklists, restocks, date labels, who's doing what and the exceptions.",
     mgr: "Share tonight's summary on WhatsApp or by email." },
@@ -2584,6 +2600,7 @@ const FEATURES = [
 const SWITCHES = FEATURES.filter((f) => f.sw).map((f) => f.k);
 // Allergens and Practise are bottom tabs, so switching one off hides its tab.
 const tabOn = (t) => !["allergens", "practice", "pay"].includes(t) || isOn(t);
+const navCols = () => ($("nav.tabs").style.gridTemplateColumns = `repeat(${[...$$("nav.tabs [data-tab]")].filter((b) => !b.hidden).length}, 1fr)`);
 const fUsable = (f) => (!f.login || !!LIVE.me) && (!f.admin || LIVE.admin);
 const fGo = (f) => (LIVE.admin && f.mgrGo) || f.go;
 const lowerFirst = (t) => t[0].toLowerCase() + t.slice(1);
@@ -2641,9 +2658,9 @@ $("#sheet").addEventListener("change", (e) => {
 // A change to the switches, from this phone or the owner's: the tabs, the page on screen and the tour follow it.
 function applyFeatures() {
   store.set("off", [...LIVE.off]);
-  const bs = [...$$("nav.tabs [data-tab]")];
-  bs.forEach((b) => (b.hidden = !tabOn(b.dataset.tab)));
-  $("nav.tabs").style.gridTemplateColumns = `repeat(${bs.filter((b) => !b.hidden).length}, 1fr)`;
+  $$("#subnav [data-tab]").forEach((b) => (b.hidden = !tabOn(b.dataset.tab)));
+  $$("nav.tabs [data-tab]").forEach((b) => (b.hidden = !tabOn(b.dataset.tab)));
+  navCols();
   const cur = TABS.find((t) => !$("#v-" + t).hidden);
   if (cur && !tabOn(cur)) show("drinks");
   else if (cur === "tally") renderTally();
@@ -2677,6 +2694,7 @@ function renderBell() {
   const n = feedNew().length + unreadChats().length;
   $("#bell").hidden = false; $("#money-btn").hidden = !LIVE.admin; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
   $("#bell").setAttribute("aria-label", n ? `Team, ${n} new` : "Team");
+  $("#team-n").hidden = !n; $("#team-n").textContent = n > 9 ? "9+" : n;
 }
 /* ---------- Team feed (live) ---------- */
 const ms = (t) => (t ? t.toMillis() : Date.now());
@@ -2762,53 +2780,57 @@ const toAnswer = () => LIVE.asks.filter((a) => waiting(a) && askOn(a)).length + 
 const toSign = () => rpReports().filter((r) => !r.signedBy).length;
 const openInc = () => (LIVE.admin && isOn("incidents") ? rpIncidents().filter((x) => x.status !== "closed").length : 0);
 // Each part: its card's name and line, how many there need you (a hot count is urgent), and the slots on its page.
+// The Team page's categories: each is a pull-down list of its parts, for everyone or for managers.
+const HUB_CATS = [["tonight", "Tonight"], ["rota", "Rota and requests"], ["talk", "Messages"], ["history", "Reports and history"],
+  ["run", "Running tonight"], ["numbers", "Numbers"], ["people", "Team and records"]];
+let catOpen = store.get("cats", null);
 const PLACES = [
-  { g: "Everyone", k: "brief", n: () => "Tonight's briefing", on: () => isOn("briefing"), slots: ["#brief"],
+  { g: "Everyone", k: "brief", c: "tonight", n: () => "Tonight's briefing", on: () => isOn("briefing"), slots: ["#brief"],
     sub: () => (!LIVE.briefing ? (LIVE.admin ? "Not posted yet. Post it before service" : "Not posted yet") : brMine() ? (LIVE.admin ? `Read by ${brReadBy().length}` : "Read") : "New: read it before service"),
     cnt: () => (LIVE.briefing && !brMine() ? 1 : 0) },
-  { g: "Everyone", k: "status", n: () => "Tonight's status", slots: ["#status"],
+  { g: "Everyone", k: "status", c: "tonight", n: () => "Tonight's status", slots: ["#status"],
     sub: () => SIDES3.map(([k, t]) => `${t} ${ST_LEVEL[stOf(k)?.level]?.toLowerCase() || "not set"}`).join(" · "),
     cnt: () => stHot().length, hot: () => stHot().length > 0 },
-  { g: "Everyone", k: "chat", n: () => "Chat", on: () => isOn("chat"), slots: ["#chat"],
-    sub: () => { const u = unreadChats(); return u.length ? `New in ${u.map(chatName).join(", ")}` : "The team, one person or a group"; }, cnt: () => unreadChats().length },
-  { g: "Everyone", k: "rota", n: () => (isOn("rota") ? "Rota" : "Calendar"), on: () => isOn("rota") || calOn(), slots: ["#rota", "#cal"],
+  { g: "Everyone", k: "issues", c: "tonight", n: () => "Issues and handover", slots: ["#issues"],
+    sub: () => { const o = openIssues(), u = o.filter((x) => x.urgent).length; return o.length ? `${o.length} open${u ? `, ${u} urgent` : ""}` : "Nothing open"; },
+    cnt: () => openIssues().length, hot: () => openIssues().some((x) => x.urgent) },
+  { g: "Everyone", k: "guests", c: "tonight", n: () => "Guest issues", on: () => isOn("guests"), slots: ["#guests"],
+    sub: () => { const o = gOpen(), e = o.filter((x) => x.escalate).length; return o.length ? `${o.length} open${e ? `, ${e} need${e === 1 ? "s" : ""} a manager` : ""}` : "Log one while it's fresh"; },
+    cnt: () => (LIVE.admin ? gOpen().length : 0), hot: () => gOpen().some((x) => x.escalate) },
+  { g: "Everyone", k: "rota", c: "rota", n: () => (isOn("rota") ? "Rota" : "Calendar"), on: () => isOn("rota") || calOn(), slots: ["#rota", "#cal"],
     sub: () => {
       if (!isOn("rota")) return "The next 7 days and the month";
       if (LIVE.admin) { const n = roToFill().length; return n ? `${plural(n, "shift")} to fill in the next 7 days` : "This week's shifts and the calendar"; }
       const x = roNext(); return x ? `Your next shift: ${x.day === shiftDay() ? "today" : dayName(x.day)}, ${roTime(x)}` : "No shifts for you on the rota yet";
     },
     cnt: () => (!isOn("rota") ? 0 : LIVE.admin ? roToFill().length : roOffers().length), hot: () => isOn("rota") && LIVE.admin && roToFill().some((x) => x.day <= addDays(shiftDay(), 1)) },
-  { g: "Everyone", k: "reports", n: () => "Reports", slots: ["#reports"],
-    sub: () => (LIVE.admin && toSign() ? `${plural(toSign(), "report")} to sign off` : "Every shift report, night by night"), cnt: () => (LIVE.admin ? toSign() + openInc() : 0), hot: () => openInc() > 0 },
-  { g: "Everyone", k: "issues", n: () => "Issues and handover", slots: ["#issues"],
-    sub: () => { const o = openIssues(), u = o.filter((x) => x.urgent).length; return o.length ? `${o.length} open${u ? `, ${u} urgent` : ""}` : "Nothing open"; },
-    cnt: () => openIssues().length, hot: () => openIssues().some((x) => x.urgent) },
-  { g: "Everyone", k: "guests", n: () => "Guest issues", on: () => isOn("guests"), slots: ["#guests"],
-    sub: () => { const o = gOpen(), e = o.filter((x) => x.escalate).length; return o.length ? `${o.length} open${e ? `, ${e} need${e === 1 ? "s" : ""} a manager` : ""}` : "Log one while it's fresh"; },
-    cnt: () => (LIVE.admin ? gOpen().length : 0), hot: () => gOpen().some((x) => x.escalate) },
-  { g: "Everyone", k: "concerns", n: () => "Concerns", slots: ["#concerns"],
-    sub: () => (openConcerns().length ? `${openConcerns().length} open` : "Nothing open"), cnt: () => openConcerns().length, hot: () => openConcerns().some((x) => x.reason === "hazard") },
-  { g: "Everyone", k: "board", n: () => "Broadcasts", slots: ["#pins", "#pin-form", "#feed"],
-    sub: () => { const n = LIVE.notices.filter(forMe).length; return `${n ? `${n} up now` : "None up now"}${LIVE.admin ? ". Send one" : ""}`; } },
-  { g: "Everyone", k: "me", n: () => "Tell the managers", slots: ["#me"],
+  { g: "Everyone", k: "me", c: "rota", n: () => "My requests", slots: ["#me"],
     sub: () => { const n = LIVE.asks.filter((a) => a.uid === LIVE.uid && waiting(a) && askOn(a)).length; return n ? `${plural(n, "request")} waiting for an answer` : isOn("asks") ? "Running late, time off and swaps" : "Running late"; } },
-  { g: "Everyone", k: "activity", n: () => "Activity", staff: 1, slots: ["#sact"], sub: () => "What the team has done" },
-  { g: "Managers", k: "live", n: () => "Live", admin: 1, slots: ["#live"],
+  { g: "Everyone", k: "chat", c: "talk", n: () => "Chat", on: () => isOn("chat"), slots: ["#chat"],
+    sub: () => { const u = unreadChats(); return u.length ? `New in ${u.map(chatName).join(", ")}` : "The team, one person or a group"; }, cnt: () => unreadChats().length },
+  { g: "Everyone", k: "board", c: "talk", n: () => "Broadcasts", slots: ["#pins", "#pin-form", "#feed"],
+    sub: () => { const n = LIVE.notices.filter(forMe).length; return `${n ? `${n} up now` : "None up now"}${LIVE.admin ? ". Send one" : ""}`; } },
+  { g: "Everyone", k: "concerns", c: "talk", n: () => "Concerns", slots: ["#concerns"],
+    sub: () => (openConcerns().length ? `${openConcerns().length} open` : "Nothing open"), cnt: () => openConcerns().length, hot: () => openConcerns().some((x) => x.reason === "hazard") },
+  { g: "Everyone", k: "reports", c: "history", n: () => "Reports", slots: ["#reports"],
+    sub: () => (LIVE.admin && toSign() ? `${plural(toSign(), "report")} to sign off` : "Every shift report, night by night"), cnt: () => (LIVE.admin ? toSign() + openInc() : 0), hot: () => openInc() > 0 },
+  { g: "Everyone", k: "activity", c: "history", n: () => "Activity", staff: 1, slots: ["#sact"], sub: () => "What the team has done" },
+  { g: "Managers", k: "live", c: "run", n: () => "Live", admin: 1, slots: ["#live"],
     sub: () => (needsYou().length ? `${needsYou().length} need${needsYou().length === 1 ? "s" : ""} you now` : "Tonight as it happens"), cnt: () => needsYou().length, hot: () => needsYou().length > 0 },
-  { g: "Managers", k: "handover", n: () => "Close and handover", admin: 1, on: () => isOn("handover"), slots: ["#mclose"],
+  { g: "Managers", k: "handover", c: "run", n: () => "Close and handover", admin: 1, on: () => isOn("handover"), slots: ["#mclose"],
     sub: () => (hoToAccept() ? `Accept ${hoToAccept().name}'s handover` : hoTonight() ? "Tonight's close is sent" : "Tonight's close not sent yet"),
     cnt: () => (hoToAccept() ? 1 : 0), hot: () => !!hoToAccept()?.risks },
-  { g: "Managers", k: "nights", n: () => "Sales and covers", admin: 1, slots: ["#nights"],
-    sub: () => (ntGet(shiftDay()) ? "Tonight's numbers are in" : ntFc(shiftDay()) ? `Forecast tonight: about ${ntFc(shiftDay()).covers} covers` : "Each night's covers and sales, and the forecast") },
-  { g: "Managers", k: "requests", n: () => "Requests", admin: 1, slots: ["#requests"],
+  { g: "Managers", k: "requests", c: "run", n: () => "Requests to answer", admin: 1, slots: ["#requests"],
     sub: () => (toAnswer() ? `${plural(toAnswer(), "request")} to answer` : isOn("asks") ? "Time off, swaps and running late" : "Running late"), cnt: toAnswer },
-  { g: "Managers", k: "act", n: () => "Activity", admin: 1, slots: ["#act"], sub: () => "Everything done in the app" },
-  { g: "Managers", k: "kpis", n: () => "Closing KPIs", admin: 1, on: () => isOn("kpis"), slots: ["#kpis"], sub: () => "The last 7 nights" },
-  { g: "Managers", k: "money", n: () => "Money sandbox", admin: 1, slots: ["#money"], sub: () => "Sales, GP, labour and rent, with made-up numbers" },
-  { g: "Managers", k: "out", n: () => "86 log", admin: 1, slots: ["#outlog"], sub: () => (LIVE.out.size ? `${LIVE.out.size} 86'd now` : "Every 86 and back in stock") },
-  { g: "Managers", k: "training", n: () => "Training", admin: 1, on: () => isOn("training"), slots: ["#mtrain"], sub: () => "Sign-offs, drink by drink" },
-  { g: "Managers", k: "team", n: () => "Team logins", admin: 1, slots: ["#mgr"], sub: () => `${plural(LIVE.staff.length, "person", "people")}` },
-  { g: "Managers", k: "feedback", n: () => "Manager feedback", admin: 1, on: () => isOn("feedback"), slots: ["#fb"], sub: () => "Anonymous, between managers" },
+  { g: "Managers", k: "nights", c: "numbers", n: () => "Sales and covers", admin: 1, slots: ["#nights"],
+    sub: () => (ntGet(shiftDay()) ? "Tonight's numbers are in" : ntFc(shiftDay()) ? `Forecast tonight: about ${ntFc(shiftDay()).covers} covers` : "Each night's covers and sales, and the forecast") },
+  { g: "Managers", k: "kpis", c: "numbers", n: () => "Closing KPIs", admin: 1, on: () => isOn("kpis"), slots: ["#kpis"], sub: () => "The last 7 nights" },
+  { g: "Managers", k: "money", c: "numbers", n: () => "Money sandbox", admin: 1, slots: ["#money"], sub: () => "Sales, GP, labour and rent, with made-up numbers" },
+  { g: "Managers", k: "out", c: "numbers", n: () => "86 log", admin: 1, slots: ["#outlog"], sub: () => (LIVE.out.size ? `${LIVE.out.size} 86'd now` : "Every 86 and back in stock") },
+  { g: "Managers", k: "team", c: "people", n: () => "Team logins", admin: 1, slots: ["#mgr"], sub: () => `${plural(LIVE.staff.length, "person", "people")}` },
+  { g: "Managers", k: "training", c: "people", n: () => "Training", admin: 1, on: () => isOn("training"), slots: ["#mtrain"], sub: () => "Sign-offs, drink by drink" },
+  { g: "Managers", k: "feedback", c: "people", n: () => "Manager feedback", admin: 1, on: () => isOn("feedback"), slots: ["#fb"], sub: () => "Anonymous, between managers" },
+  { g: "Managers", k: "act", c: "people", n: () => "Activity", admin: 1, slots: ["#act"], sub: () => "Everything done in the app" },
 ];
 const placesOn = () => PLACES.filter((p) => (!p.on || p.on()) && (!p.admin || LIVE.admin) && (!p.staff || !LIVE.admin));
 // What's new since the Team page was last opened (what the bell counts), then what's waiting on this person, most
@@ -2871,8 +2893,21 @@ function renderHub() {
     const n = q.cnt?.() || 0, hot = n > 0 && !!q.hot?.();
     return `<button class="place${hot ? " hot" : ""}" data-tpane="${q.k}"><span><b>${q.n()}</b><small>${esc(q.sub())}</small></span>${n ? `<span class="pc" aria-label="${n} waiting">${n > 99 ? "99+" : n}</span>` : ""}</button>`;
   };
-  $("#hub").innerHTML = [...new Set(ps.map((q) => q.g))].map((g) => `<div class="sec">${g}</div><div class="places" data-g="${g}">${ps.filter((q) => q.g === g).map(card).join("")}</div>`).join("");
+  // A category opens by itself when something in it needs you; otherwise it stays as it was left (all open at first).
+  const cat = (g) => ([c, t]) => {
+    const xs = ps.filter((q) => q.g === g && q.c === c); if (!xs.length) return "";
+    const n = xs.reduce((a, q) => a + (q.cnt?.() || 0), 0), hot = xs.some((q) => (q.cnt?.() || 0) > 0 && q.hot?.());
+    const open = n > 0 || !catOpen || catOpen.includes(c);
+    return `<details class="cat${hot ? " hot" : ""}" data-cat="${c}"${open ? " open" : ""}><summary><span><b>${t}</b><small>${xs.map((q) => q.n()).join(" · ")}</small></span>${n ? `<span class="pc" aria-label="${n} waiting">${n > 99 ? "99+" : n}</span>` : ""}</summary>
+      <div class="places">${xs.map(card).join("")}</div></details>`;
+  };
+  $("#hub").innerHTML = [...new Set(ps.map((q) => q.g))].map((g) => `${LIVE.admin ? `<div class="sec">${g}</div>` : ""}<div data-g="${g}">${HUB_CATS.map(cat(g)).join("")}</div>`).join("");
 }
+// Opening or closing a category is remembered on this phone.
+$("#hub").addEventListener("click", (e) => {
+  if (!e.target.closest("details.cat > summary")) return;
+  setTimeout(() => { catOpen = [...document.querySelectorAll("#hub details.cat")].filter((x) => x.open).map((x) => x.dataset.cat); store.set("cats", catOpen); });
+});
 // Opens a part of the Team page ("" for the cards) at its top.
 function openPlace(k) { tpane = k; renderHub(); window.scrollTo(0, 0); }
 /* Tonight at a glance: the shift's counts, worked out from the live data, each one a shortcut to where it's dealt with.
@@ -3108,7 +3143,7 @@ function renderReports() {
     (waitingR.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}${r.pending ? " · sending…" : ""}</div><p class="txt">${esc(r.summary)}</p>${body(r)}
       ${A ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>${reviewHtml(r)}` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
     (A && isOn("incidents") ? `<div class="sec">Open incidents</div>${openI.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill wait">Open</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>
-      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-inct="${x.id}" maxlength="500" placeholder="What was done about it" value="${esc(incText[x.id] || "")}" aria-label="What was done about it"><button class="btn" data-inc-close="${x.id}">Close</button></div></div>`).join("") || `<p class="note">No open incidents. Anyone can log one in Tell the managers.</p>`}` : "");
+      <div class="rvrow" style="grid-template-columns:1fr auto"><input data-inct="${x.id}" maxlength="500" placeholder="What was done about it" value="${esc(incText[x.id] || "")}" aria-label="What was done about it"><button class="btn" data-inc-close="${x.id}">Close</button></div></div>`).join("") || `<p class="note">No open incidents. Anyone can log one in My requests.</p>`}` : "");
   // Night by night. For the last 7 nights managers also get the flags, incidents and lateness counted, as those are
   // all loaded; further back the counts could be short, so they're left off.
   const inc = rpShow === "incidents", xs = inc ? incs : reps.filter((r) => rpShow === "all" || (rpShow === "flagged" ? rpFlagged(r) : r.side === rpShow));
@@ -3315,8 +3350,8 @@ function renderRota() {
   const hours = A && xs.length ? roHours(xs) : "";
   const acts = xs.length ? `<div class="actions">${shareBtns("rota")}${A ? dlHtml("shifts", "Download every week as a spreadsheet", "rota") : ""}</div>` : "";
   const pub = xs.some((x) => x.pub), build = A ? roGridHtml(wk, xs, pub) + roAddHtml(wk, pub) : "";
-  const foot = A || !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? Tap it on the <button class="linkbtn" data-roview="cal">calendar</button>, or ask in <button class="linkbtn" data-go="me">Tell the managers</button>.</p>`
-    : `<p class="note">Need a day off? Ask in <button class="linkbtn" data-go="me">Tell the managers</button>.</p>`;
+  const foot = A || !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? Tap it on the <button class="linkbtn" data-roview="cal">calendar</button>, or ask in <button class="linkbtn" data-go="me">My requests</button>.</p>`
+    : `<p class="note">Need a day off? Ask in <button class="linkbtn" data-go="me">My requests</button>.</p>`;
   box.innerHTML = roViews() + head + nav + status + build + you + elsewhere + chips + days + hours + acts + foot;
 }
 // Each person's shifts and hours in the week, then the open shifts.
@@ -3515,7 +3550,7 @@ async function showPhotos(id) {
    A month at a time, in Rota: bank holidays in England and Wales, the days that change a bar's night, what
    managers add (school holidays and half terms, which differ by borough, events, and days the venue is shut), and each
    person's own shifts, time off and the games on the screens. Managers see everyone's time off. Tapping a day shows all
-   of it, and asking for time off from there goes to the managers like an ask from Tell the managers. */
+   of it, and asking for time off from there goes to the managers like an ask from My requests. */
 // England and Wales, from https://www.gov.uk/bank-holidays.json (fetched 4 November 2026). It runs to the end of 2028:
 // add the next years when gov.uk publishes them, and move BANK_TO on.
 const BANK_HOLS = {
@@ -3864,7 +3899,7 @@ function renderMe() {
       <p class="note">Only managers can read it. Accidents, injuries and near misses go in Alert65.</p>`,
   }[meKind]();
   const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid && askOn(a));
-  $("#me").innerHTML = `<div class="sec">Tell the managers</div>
+  $("#me").innerHTML = `<div class="sec">My requests</div>
     <div class="recent">${kinds.map(([k, t]) => `<button class="chip" data-mek="${k}" aria-pressed="${k === meKind}">${t}</button>`).join("")}</div>
     ${form}${meKind === "incident" ? "" : fld("Note (optional)", "note", 'maxlength="300"')}
     <button class="btn pri wide" id="me-go">Send to managers</button>
@@ -5793,11 +5828,14 @@ $("#bell").addEventListener("click", () => show("notices"));
 $("#money-btn").addEventListener("click", () => openAt("money"));
 $("#home").addEventListener("click", (e) => { e.preventDefault(); show("drinks"); });
 
-const TABS = ["drinks", "make", "allergens", "practice", "tally", "pay", "info", "notices"];
+const TABS = ["drinks", "make", "allergens", "practice", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "make", "allergens", "practice"];
 function show(tab) {
   if (!TABS.includes(tab) || !tabOn(tab)) tab = "drinks";
   TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
-  document.querySelectorAll("nav.tabs button").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
+  const drinky = DRINK_TABS.includes(tab);
+  $$("nav.tabs [data-tab]").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab || (drinky && b.dataset.tab === "drinks") ? "page" : "false"));
+  $$("#subnav [data-tab]").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
+  $("#subnav").hidden = !drinky;
   $("#hdr").hidden = tab !== "drinks";
   if (tab === "make") renderMaker();
   if (tab === "allergens") renderAllergens();
@@ -5808,7 +5846,7 @@ function show(tab) {
   if (tab === "notices") { tpane = ""; hubSince = feedSeen; renderNotices(); }
   store.set("tab", tab); window.scrollTo(0, 0);
 }
-document.querySelector("nav.tabs").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
+for (const n of $$("nav.tabs, #subnav")) n.addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
 
 /* ---------- Make: the cocktail maker ----------
    Pick what you have (or want to use), keep a saved "My bar", and get every drink in the book ranked by how close you are.
