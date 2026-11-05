@@ -35,7 +35,7 @@ test("temperatures, waste and stock counts are left to Alert65 and Nory; what wa
   assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["fset", "fshake", "stock", "fclose", "send"]);
   assert.deepEqual(await S.evaluate(() => ["waste", "logCheck", "addKit", "setPar", "saveCount"].filter((k) => LIVE.api[k])), []);
   await part(O, "");
-  assert.deepEqual(await O.$$eval('#hub [data-g="Managers"] [data-tpane]', (x) => x.map((b) => b.dataset.tpane)), ["live", "handover", "requests", "act", "kpis", "money", "out", "training", "team", "feedback"]);
+  assert.deepEqual(await O.$$eval('#hub [data-g="Managers"] [data-tpane]', (x) => x.map((b) => b.dataset.tpane)), ["live", "handover", "requests", "nights", "kpis", "money", "out", "team", "training", "feedback", "act"]);
   await part(O, "act");
 
   // Managers download the old records from Activity.
@@ -66,7 +66,7 @@ test("training: managers sign people off drink by drink, and staff see it in Pra
   await M.click("[data-tr-sign] >> nth=0");
   await waitToast(M, new RegExp(`^Sam Staff signed off on ${rx(first)}$`));
   await waitText(M, "#mtrain", /Sam Staff: 1 of \d+ signed off/);
-  await S.click("[data-tab=practice]");
+  await S.click("nav.tabs [data-tab=drinks]"); await S.click("#subnav [data-tab=practice]");
   await S.waitForFunction(() => /^Signed off by a manager: 1 of \d+ Signatures$/.test(document.querySelector("#p-signed")?.textContent || ""));
 
   // Nobody signs themselves off, and staff can't sign anyone off.

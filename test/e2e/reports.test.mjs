@@ -72,7 +72,7 @@ test("every report in one tab: waiting first, night by night, filters, and older
   assert.match(await text(O), /That's every incident\./);
   await O.fill('[data-inct="inc00"]', "Comped the fries"); await O.click('[data-inc-close="inc00"]');
   await O.waitForFunction(() => /What was done: Comped the fries · Olly Owner/.test(document.querySelector("#reports").innerText));
-  assert.match(await text(O), /No open incidents\. Anyone can log one in Tell the managers\./);
+  assert.match(await text(O), /No open incidents\. Anyone can log one in My requests\./);
 
   // The spreadsheet has every report, not only the ones on screen.
   await O.click("[data-rp-show=all]");

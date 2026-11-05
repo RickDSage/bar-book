@@ -1,4 +1,4 @@
-// Tell the managers, Requests, Reports and Manager feedback end to end: running late, time off, swaps, incidents,
+// My requests, Requests, Reports and Manager feedback end to end: running late, time off, swaps, incidents,
 // report reviews and anonymous feedback, and what each role can see and decide.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";

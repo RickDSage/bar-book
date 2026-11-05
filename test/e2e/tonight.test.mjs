@@ -23,7 +23,9 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 date labels to change", "Not yet bar report tonight", "Not yet floor report tonight"]);
   assert.deepEqual(await O.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), ["Everyone", "Managers"]);
   assert.deepEqual(await O.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)),
-    ["brief", "chat", "rota", "reports", "issues", "guests", "concerns", "board", "me", "live", "handover", "requests", "act", "kpis", "money", "out", "training", "team", "feedback"]);
+    ["brief", "status", "issues", "guests", "rota", "me", "chat", "board", "concerns", "reports", "live", "handover", "requests", "nights", "kpis", "money", "out", "team", "training", "feedback", "act"]);
+  // Each category is a pull-down list, named with what's in it; staff don't see the Everyone and Managers headings.
+  assert.deepEqual(await O.$$eval("#hub details.cat > summary b", (x) => x.map((e) => e.textContent)), ["Tonight", "Rota and requests", "Messages", "Reports and history", "Running tonight", "Numbers", "Team and records"]);
 
   await S.evaluate(async () => {
     const A = LIVE.api;
@@ -35,14 +37,22 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   assert.deepEqual(await forYou(O), ["Urgent: Glass washer leaking | Raised by Sam Staff. Nobody's on it yet > issues (hot)", "1 thing needs you tonight | Blocked > live (hot)",
     "1 open incident | Close each one with what was done > incidents (hot)", "1 request to answer | Sam Staff > requests", "1 report to sign off > reports"]);
   assert.deepEqual(await tiles(O), ["1/36 Bar checklists done", "1 blocked task (hot)", "1 restock open", "1 86'd right now (hot)", "0 date labels to change", "Sent bar report tonight", "Not yet floor report tonight"]);
-  assert.deepEqual((await cards(O)).filter((c) => /\(/.test(c)), ["reports: Reports | 1 report to sign off (2, hot)", "issues: Issues and handover | 1 open, 1 urgent (1, hot)",
-    "live: Live | 1 needs you now (1, hot)", "requests: Requests | 1 request to answer (1)"]);
+  assert.deepEqual((await cards(O)).filter((c) => /\(/.test(c)), ["issues: Issues and handover | 1 open, 1 urgent (1, hot)", "reports: Reports | 1 report to sign off (2, hot)",
+    "live: Live | 1 needs you now (1, hot)", "requests: Requests to answer | 1 request to answer (1)"]);
   // Staff: their own For you, the shift's tiles and the parts for everyone.
   await S.evaluate(() => show("notices"));
   assert.deepEqual(await forYou(S), ["Urgent: Glass washer leaking | Raised by you. Nobody's on it yet > issues (hot)"]);
   assert.equal((await tiles(S)).length, 7, "staff see the same shift tiles");
-  assert.deepEqual(await S.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)), ["brief", "chat", "rota", "reports", "issues", "guests", "concerns", "board", "me", "activity"]);
-  assert.deepEqual(await S.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), ["Everyone"]);
+  assert.deepEqual(await S.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)), ["brief", "status", "issues", "guests", "rota", "me", "chat", "board", "concerns", "reports", "activity"]);
+  assert.deepEqual(await S.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), []);
+  // A category closed stays closed on that phone, and opens by itself when something in it needs you.
+  await S.click('#hub details[data-cat="talk"] > summary');
+  await S.waitForFunction(() => JSON.stringify(store.get("cats")) === JSON.stringify(["tonight", "rota", "history"]));
+  await S.evaluate(() => renderHub());
+  assert.deepEqual(await S.$$eval("#hub details.cat", (x) => x.map((d) => `${d.dataset.cat}:${d.open}`)), ["tonight:true", "rota:true", "talk:false", "history:true"]);
+  await S.click('#hub details[data-cat="talk"] > summary');
+  // The Team tab carries the bell's count.
+  assert.equal(await S.$eval('nav.tabs [data-tab="notices"]', (b) => b.hidden), false);
 
   // A tile goes to the Shift tab; blocked tasks go to a manager's Live, and to the list with the blocked item for staff.
   await O.click('[data-go="stock"]');
@@ -50,7 +60,7 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   await S.click('[data-go="blocked"]');
   assert.deepEqual(await S.evaluate(() => [$("#v-tally").hidden, pane]), [false, "close"]);
   // Each row of For you, and each card, opens its part on a page of its own with Back to the cards.
-  for (const [go, k, title] of [["requests", "requests", "Requests"], ["incidents", "reports", "Reports"], ["live", "live", "Live"], ["reports", "reports", "Reports"], ["issues", "issues", "Issues and handover"]]) {
+  for (const [go, k, title] of [["requests", "requests", "Requests to answer"], ["incidents", "reports", "Reports"], ["live", "live", "Live"], ["reports", "reports", "Reports"], ["issues", "issues", "Issues and handover"]]) {
     await O.evaluate(() => show("notices"));
     await O.click(`#foryou [data-go="${go}"]`);
     assert.deepEqual(await O.evaluate(() => [tpane, $("#placebar .t").textContent, $("#hub").hidden, $("#foryou").hidden]), [k, title, true, true], `${go} opens ${k}`);
