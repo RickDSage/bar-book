@@ -611,14 +611,59 @@ service cloud.firestore {
     match /settings/{id} {
       allow read: if isMember();
       allow create, update: if isOwner() && id == 'features' && exactly(['off', 'uid', 'name', 'at']) && stamped()
-        && incoming().off is list && incoming().off.size() <= 12
-        && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay']);
+        && incoming().off is list && incoming().off.size() <= 13
+        && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover']);
+    }
+
+    // ---------- Manager close and handover ----------
+    // One record per business night, id = the day, made by the manager who closes. Managers and the owner only: it holds
+    // cash figures. Each question is answered yes, no or n/a (a no is something that wasn't right); a no needs its
+    // follow-up answers. A no on food safety, equipment or security also raises an urgent issue, id h-{day}-{question},
+    // in the same write, so the whole team sees it until someone fixes it and it can't be closed away. A no on cash
+    // stays among the managers. risks counts the no answers on those four. Once sent it can't be changed or deleted
+    // (except by Start fresh); the next manager accepts it once, saying what they'll do about any risks.
+    function hoQs() { return ['sales', 'cash', 'voids', 'tips', 'breaks', 'incidents', 'complaints', 'depts', 'food', 'faults', 'security', 'ready']; }
+    function hoNo(a, q) { return a[q] == 'no' ? 1 : 0; }
+    function hoIssue(day, q) { return existsAfter(/databases/$(database)/documents/issues/$('h-' + day + '-' + q)); }
+    // Every question answered yes, no or n/a, where those that can't be n/a aren't.
+    function hoAnswers(a) {
+      return a is map && a.keys().hasAll(hoQs()) && a.keys().hasOnly(hoQs()) && a.values().hasOnly(['yes', 'no', 'na'])
+        && a.cash != 'na' && a.depts != 'na' && a.food != 'na' && a.faults != 'na' && a.security != 'na';
+    }
+    // A no has its follow-ups; food safety, equipment and security have their issue too.
+    function hoFollowed(day, a, f) {
+      return f is map && f.keys().hasOnly(hoQs())
+        && (a.sales != 'no' || 'sales' in f) && (a.cash != 'no' || 'cash' in f)
+        && (a.voids != 'no' || 'voids' in f) && (a.tips != 'no' || 'tips' in f)
+        && (a.breaks != 'no' || 'breaks' in f) && (a.incidents != 'no' || 'incidents' in f)
+        && (a.complaints != 'no' || 'complaints' in f) && (a.depts != 'no' || 'depts' in f)
+        && (a.ready != 'no' || 'ready' in f)
+        && (a.food != 'no' || ('food' in f && hoIssue(day, 'food')))
+        && (a.faults != 'no' || ('faults' in f && hoIssue(day, 'faults')))
+        && (a.security != 'no' || ('security' in f && hoIssue(day, 'security')));
+    }
+    function validHandover(day) {
+      let h = incoming();
+      return exactly(['day', 'answers', 'follow', 'risks', 'exceptions', 'lines', 'snap', 'note', 'owner', 'uid', 'name', 'at']) && stamped()
+        && h.day == day && nearNow(day) && hoAnswers(h.answers) && hoFollowed(day, h.answers, h.follow)
+        && h.risks == hoNo(h.answers, 'cash') + hoNo(h.answers, 'food') + hoNo(h.answers, 'faults') + hoNo(h.answers, 'security')
+        && h.exceptions is int && h.exceptions >= 0 && h.exceptions <= 500
+        && optText(h.lines, 8000) && h.snap is map && h.snap.size() <= 20
+        && optText(h.note, 2000) && optText(h.owner, 1000);
+    }
+    match /handovers/{day} {
+      allow read: if isManager();
+      allow create: if isManager() && validHandover(day);
+      allow update: if isManager() && !('ackBy' in resource.data)
+        && changesOnly(['ackBy', 'ackByUid', 'ackAt', 'ackNote']) && signedAs('ackBy', 'ackByUid', 'ackAt')
+        && optText(incoming().ackNote, 500) && (resource.data.risks == 0 || reqText(incoming().ackNote, 500));
+      allow delete: if freshOwner();
     }
 
     // ---------- Starting fresh ----------
     // The owner's Start fresh (Managers, Team) clears the shift work for everyone, for a clean start after trying the app
     // out: the rota, asks, shift reports with their photos and reviews, the checklists and their events, restocking, the
-    // 86 board and its log, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
+    // 86 board and its log, manager handovers, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
     // Accounts, the audit trail, lists, date labels, drink media, the calendar, games, incidents, training, feedback,
     // chats and the old records stay. It needs the owner's PIN in the last 15 minutes, and each time is recorded here
     // first, under the owner's uid and the time they signed in, with how many of each it found: the deletes check for

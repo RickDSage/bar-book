@@ -143,7 +143,7 @@ function listen(uid) {
       LIVE.asks = rows(snap); liveChanged("asks");
     });
     watchChats(uid);
-    if (!LIVE.admin) { Object.assign(LIVE, { staff: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], training: [], requests: [] }); return; }
+    if (!LIVE.admin) { Object.assign(LIVE, { staff: [], handovers: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], training: [], requests: [] }); return; }
     // Stock requests from before restocking, kept so managers can still clear the last ones.
     sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
     sub("incidents", query(collection(db, "incidents"), orderBy("at", "desc"), limit(LIVE_N.incidents)), (snap) => { LIVE.incidents = rows(snap); liveChanged("incidents"); });
@@ -158,6 +158,8 @@ function listen(uid) {
       staffSettled = !snap.metadata.hasPendingWrites; liveChanged("staff"); syncDirectory();
     });
     sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
+    // Manager closes and handovers: the last two weeks' worth.
+    sub("handovers", query(collection(db, "handovers"), orderBy("at", "desc"), limit(14)), (snap) => { LIVE.handovers = rows(snap); liveChanged("handovers"); });
     clearOldPhotos();
   }, () => {});
 }
@@ -269,7 +271,7 @@ async function clearOldPhotos() {
 // out: each collection in FRESH, and every business day's checklists under shift/{day} since the app began. Concerns go
 // before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
 // with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
-const FRESH = ["shifts", "asks", "reports", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
+const FRESH = ["shifts", "asks", "reports", "handovers", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
   "notices", "seen", "feed", "requests"];
 const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
 // A date label's events stay with the label.
@@ -597,6 +599,16 @@ LIVE.api = {
   dropCal: (id) => deleteDoc(doc(db, "calendar", id)),
   addFixture: (x) => addDoc(collection(db, "fixtures"), { day: x.day, ko: x.ko, home: x.home, away: x.away, comp: x.comp, channel: x.channel, screen: x.screen, ...me() }),
   dropFixture: (id) => deleteDoc(doc(db, "fixtures", id)),
+  // The manager close: tonight's handover and, for each food safety, equipment or security problem, an urgent issue the
+  // whole team sees, all in one write, so the handover can't be saved without them. The id is the business day, so a
+  // second close of the same night is refused.
+  sendHandover(day, h, raise) {
+    const b = writeBatch(db);
+    for (const x of raise) b.set(doc(db, "issues", `h-${day}-${x.q}`), { title: x.title, detail: x.detail, area: x.area, urgent: true, again: null, status: "open", ...me() });
+    b.set(doc(db, "handovers", day), { day, ...h, ...me() });
+    return b.commit();
+  },
+  acceptHandover: (day, note) => updateDoc(doc(db, "handovers", day), { ackBy: LIVE.me, ackByUid: auth.currentUser.uid, ackAt: serverTimestamp(), ackNote: note }),
   raise: (x) => addDoc(collection(db, "issues"), { title: x.title, detail: x.detail, area: x.area, urgent: x.urgent, again: x.again || null, status: "open", ...me() }),
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),
   fixed: (id, fix) => updateDoc(doc(db, "issues", id), { status: "fixed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),

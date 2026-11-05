@@ -1784,7 +1784,7 @@ describe("team chat", () => {
 describe("features the owner switches off for the venue", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   // Everything the app lets the owner switch off.
-  const ALL = ["allergens", "practice", "pay", "football", "chat", "rota", "calendar", "asks", "incidents", "kpis", "training", "feedback"];
+  const ALL = ["allergens", "practice", "pay", "football", "chat", "rota", "calendar", "asks", "incidents", "kpis", "training", "feedback", "handover"];
   const ref = (uid, id = "features") => doc(db(uid), "settings", id);
   const set = (uid, off, extra = {}) => setDoc(ref(uid), { off, ...by(uid), ...extra });
   test("only the owner switches features off and on, and everyone on the team reads it", async () => {
@@ -1885,6 +1885,71 @@ describe("house photos and how-to videos on the drinks", () => {
   });
 });
 
+describe("manager close and handover", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const Q = ["sales", "cash", "voids", "tips", "breaks", "incidents", "complaints", "depts", "food", "faults", "security", "ready"];
+  const allYes = () => Object.fromEntries(Q.map((q) => [q, "yes"]));
+  const ho = (uid, extra = {}, day = today()) => ({ day, answers: allYes(), follow: {}, risks: 0, exceptions: 0, lines: "", snap: { missing: 0 }, note: "Delivery at 10", owner: "", ...by(uid), ...extra });
+  const ref = (uid, day = today()) => doc(db(uid), "handovers", day);
+  // The app's write: the handover and, for food safety, equipment or security, an urgent issue h-{day}-{q}, together.
+  const send = (uid, h, raise = [], day = today()) => {
+    const d = db(uid), b = writeBatch(d);
+    for (const q of raise) b.set(doc(d, "issues", `h-${day}-${q}`), issue(uid, { title: `Security: back door`, area: "other", urgent: true }));
+    b.set(doc(d, "handovers", day), h);
+    return b.commit();
+  };
+  const accept = (uid, note = "", extra = {}) => updateDoc(ref(uid), { ackBy: TEAM[uid].name, ackByUid: uid, ackAt: now(), ackNote: note, ...extra });
+  test("managers and the owner send one a night and read them; staff can't do either", async () => {
+    await fails(send("staff1", ho("staff1")), "staff sending one");
+    await assertSucceeds(send("mgr1", ho("mgr1")));
+    await fails(send("mgr2", ho("mgr2")), "a second one for the same night");
+    await assertSucceeds(send("owner1", ho("owner1", {}, plusDays(today(), 1)), [], plusDays(today(), 1)));
+    for (const uid of ["mgr1", "mgr2", "owner1"]) await assertSucceeds(getDoc(ref(uid)));
+    await fails(getDoc(ref("staff1")), "staff reading one (it has the cash figures)");
+    await fails(getDocs(collection(db("staff1"), "handovers")), "staff listing them");
+  });
+  test("every question is answered; a no needs its follow-ups; some can't be n/a", async () => {
+    const { cash, ...short } = allYes();
+    await fails(send("mgr1", ho("mgr1", { answers: short })), "a question left out");
+    await fails(send("mgr1", ho("mgr1", { answers: { ...allYes(), extra: "yes" } })), "a question that doesn't exist");
+    await fails(send("mgr1", ho("mgr1", { answers: { ...allYes(), sales: "maybe" } })), "an answer that isn't yes, no or n/a");
+    await fails(send("mgr1", ho("mgr1", { answers: { ...allYes(), security: "na" } })), "security n/a");
+    await fails(send("mgr1", ho("mgr1", { answers: { ...allYes(), cash: "na" } })), "cash n/a");
+    await assertSucceeds(send("mgr1", ho("mgr1", { answers: { ...allYes(), sales: "na", tips: "na" } })));
+    await fails(send("mgr2", ho("mgr2", { answers: { ...allYes(), breaks: "no" } }, plusDays(today(), 1)), [], plusDays(today(), 1)), "a no with nothing said about it");
+    await assertSucceeds(send("mgr2", ho("mgr2", { answers: { ...allYes(), breaks: "no" }, follow: { breaks: { who: "Sam, short on the floor" } } }, plusDays(today(), 1)), [], plusDays(today(), 1)));
+  });
+  test("a no on food safety, equipment or security can't be saved without its urgent issue; cash stays with managers", async () => {
+    const sec = { answers: { ...allYes(), security: "no" }, follow: { security: { what: "Back door won't lock" } }, risks: 1 };
+    await fails(send("mgr1", ho("mgr1", sec)), "a security no with no issue raised");
+    await fails(send("mgr1", ho("mgr1", { ...sec, risks: 0 }), ["security"]), "risks not counted");
+    await assertSucceeds(send("mgr1", ho("mgr1", sec), ["security"]));
+    const i = await getDoc(doc(db("staff1"), "issues", `h-${today()}-security`));
+    assert.equal(i.data().urgent, true);
+    const cash = { answers: { ...allYes(), cash: "no" }, follow: { cash: { amount: "£20 short" } }, risks: 1 };
+    await assertSucceeds(send("mgr1", ho("mgr1", cash, plusDays(today(), 1)), [], plusDays(today(), 1)));
+  });
+  test("signed by whoever sends it, for a night near now, with nothing extra", async () => {
+    await fails(send("mgr1", ho("mgr1", { name: "Max Manager" })), "someone else's name");
+    await fails(send("mgr1", ho("mgr1", { at: daysAgo(1) })), "a time that isn't now");
+    await fails(send("mgr1", ho("mgr1", { day: plusDays(today(), 1) })), "a day that isn't its id");
+    await fails(send("mgr1", ho("mgr1", {}, plusDays(today(), -5)), [], plusDays(today(), -5)), "a night long gone");
+    await fails(send("mgr1", ho("mgr1", { extra: 1 })), "an extra field");
+    await fails(send("mgr1", ho("mgr1", { note: "x".repeat(2001) })), "a note too long");
+  });
+  test("once sent it can't be changed or deleted; the next manager accepts it once, saying what they'll do about risks", async () => {
+    await send("mgr1", ho("mgr1", { answers: { ...allYes(), cash: "no" }, follow: { cash: { amount: "£20 short" } }, risks: 1 }));
+    await fails(updateDoc(ref("mgr1"), { note: "Changed" }), "changing it");
+    await fails(deleteDoc(ref("owner1")), "deleting it");
+    await fails(accept("staff1"), "staff accepting it");
+    await fails(accept("mgr2", "  "), "accepting a risk with nothing said");
+    await fails(accept("mgr2", "Recount at 10", { ackBy: "Mia Manager" }), "in someone else's name");
+    await fails(accept("mgr2", "Recount at 10", { note: "Changed" }), "changing it while accepting");
+    await assertSucceeds(accept("mgr2", "Recount at 10 with the GM"));
+    await fails(accept("owner1", "Again"), "accepting it twice");
+  });
+});
+
 describe("starting fresh: the owner clears the shift work for everyone", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   // The app signs the owner in afresh for it. Other logins have an old sign-in (the test library's default is 1970).
@@ -1896,7 +1961,7 @@ describe("starting fresh: the owner clears the shift work for everyone", () => {
   // One record of each kind it clears, written past the rules, plus the ones it leaves.
   const WORK = [["shifts", "s1"], ["asks", "a1"], ["reports", "r1"], ["photos", "p1"], ["reviews", "v1"], ["events", "t-1"], ["restock", "x1"],
     ["out", "lime"], ["outlog", "o1"], ["issues", "i1"], ["concerns", "c1"], ["concernPhotos", "c1-0"], ["notices", "n1"], ["seen", "n1-staff1"],
-    ["feed", "f1"], ["requests", "q1"], ["shift/2026-10-24/ticks", "k1"]];
+    ["feed", "f1"], ["requests", "q1"], ["handovers", "2026-10-24"], ["shift/2026-10-24/ticks", "k1"]];
   const work = () => [...WORK, [`shift/${today()}/tasks`, "open-1"], [`shift/${today()}/runs`, "open"]];
   const seedWork = () => seed(async (s) => {
     const x = { uid: "staff1", name: "Sam Staff", at: daysAgo(1), kind: "task", done: true, pub: true, report: "r1", concern: "c1", to: "all", managers: true, status: "approved", log: "o1" };
@@ -1963,7 +2028,7 @@ describe("starting fresh: the owner clears the shift work for everyone", () => {
     await fails(getDocs(collection(db(null), "resets")), "reading them logged out");
   });
   test("the owner can count and list everything it clears", async () => {
-    const { d } = signIn("owner1"), qs = [...["shifts", "asks", "reports", "photos", "reviews", "restock", "out", "outlog", "issues", "concerns", "concernPhotos", "notices", "seen", "feed", "requests"]
+    const { d } = signIn("owner1"), qs = [...["shifts", "asks", "reports", "photos", "reviews", "restock", "out", "outlog", "issues", "concerns", "concernPhotos", "notices", "seen", "feed", "requests", "handovers"]
       .map((c) => collection(d, c)), query(collection(d, "events"), where("kind", "in", ["task", "run", "restock", "shift"])),
       ...["tasks", "runs", "ticks"].map((p) => collection(d, "shift", today(), p))];
     for (const q of qs) { await assertSucceeds(getCountFromServer(q)); await assertSucceeds(getDocs(query(q, limit(100)))); }
@@ -2025,6 +2090,7 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "concernPhotos"), where("at", "<", daysAgo(31)), limit(100)),
     // The rota with its drafts, from four weeks back.
     query(collection(d, "shifts"), where("week", ">=", plusDays(mondayOf(today()), -28))),
+    query(collection(d, "handovers"), orderBy("at", "desc"), limit(14)),
   ];
   test("staff", async () => {
     const d = db("staff1");

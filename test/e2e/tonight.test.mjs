@@ -23,7 +23,7 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 date labels to change", "Not yet bar report tonight", "Not yet floor report tonight"]);
   assert.deepEqual(await O.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), ["Everyone", "Managers"]);
   assert.deepEqual(await O.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)),
-    ["chat", "rota", "reports", "issues", "concerns", "board", "me", "live", "requests", "act", "kpis", "out", "training", "team", "feedback"]);
+    ["chat", "rota", "reports", "issues", "concerns", "board", "me", "live", "handover", "requests", "act", "kpis", "out", "training", "team", "feedback"]);
 
   await S.evaluate(async () => {
     const A = LIVE.api;
