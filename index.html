@@ -286,6 +286,39 @@ b.dt { color: var(--fg); font-weight: 700; }
 .bell { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg); }
 .bell svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 #money-btn { width: 34px; }
+#money { --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; }
+:root[data-theme="light"] #money { --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; }
+.mo-sum { position: sticky; top: 0; z-index: 3; background: var(--bg); padding: 10px 0 2px; margin-top: 8px; border-bottom: 1px solid var(--line); }
+.mo-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; color: var(--muted); font-size: 14px; }
+.mo-head b { font-size: 22px; color: var(--fg); white-space: nowrap; }
+.mo-head b.neg { color: var(--warn); }
+.mo-bar { position: relative; display: flex; gap: 2px; height: 22px; margin-top: 6px; }
+.mo-seg { border: 0; padding: 0; min-width: 4px; border-radius: 4px; cursor: pointer; }
+.mo-sales { position: absolute; top: -4px; bottom: -4px; width: 2px; background: var(--fg); }
+.mo-key { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 6px; font-size: 13px; color: var(--fg); }
+.mo-key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+.s-cost { background: var(--s1); } .s-labour { background: var(--s2); } .s-rent { background: var(--s3); } .s-otherCost { background: var(--s4); } .s-left { background: var(--s5); }
+.mo-sl { margin-top: 12px; }
+.mo-day { display: flex; gap: 2px; height: 110px; margin-top: 18px; }
+.mo-hr { position: relative; flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; border: 0; padding: 0; background: none; cursor: pointer; }
+.mo-hr span:not(.n) { display: block; min-height: 2px; }
+.mo-hr span:not(.n):last-child { border-radius: 4px 4px 0 0; }
+.mo-hr .n { position: absolute; top: -17px; left: -6px; right: -6px; text-align: center; font-size: 12px; color: var(--fg); }
+.d-bar { background: var(--s1); } .d-floor { background: var(--s2); } .d-kitchen { background: var(--s3); } .d-mgr { background: var(--s4); }
+.mo-shift { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 14px; color: var(--muted); }
+.mo-shift.off select { opacity: .5; }
+.mo-shift select { flex: 1; min-width: 0; font: inherit; font-size: 15px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 6px 4px; }
+.mo-shift .btn { flex: 0 0 auto; min-height: 36px; padding: 4px 10px; }
+.mo-sl .top { display: flex; justify-content: space-between; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+.mo-sl .top input { flex: 0 0 7.5em; width: 7.5em; text-align: right; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; }
+.mo-sl input[type=range] { display: block; width: 100%; height: 34px; margin: 2px 0 0; accent-color: var(--brass); }
+.mo-cols { display: flex; gap: 2px; height: 120px; margin-top: 8px; }
+.mo-col { position: relative; flex: 1; border: 0; padding: 0; background: none; cursor: pointer; }
+.mo-col .up, .mo-col .dn { position: absolute; left: 0; right: 0; }
+.mo-col .up { background: var(--s5); border-radius: 4px 4px 0 0; }
+.mo-col .dn { background: var(--warn); border-radius: 0 0 4px 4px; }
+.mo-col .zero { position: absolute; left: -1px; right: -1px; height: 1px; background: var(--line); }
+.mo-axis { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 4px; }
 .bell .dot { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--warn); color: var(--brass-ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
 .notice { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-top: 12px; }
 .notice.new { border-color: var(--brass); }
@@ -4392,10 +4425,33 @@ const MO_LABEL = Object.fromEntries(MO_F.flatMap(([, fs]) => fs).map(([k, t]) =>
 // Price a drink: what the bottle or keg cost, its size, the serve and the price on the menu.
 const MO_P = [["pCost", "What the bottle or keg costs you, excluding VAT, £"], ["pSize", "Its size, ml"], ["pServe", "One serve, ml"], ["pPrice", "Selling price, including VAT, £"], ["pTarget", "The GP you aim for, %"]];
 const MO_SERVES = [["25", "25 ml"], ["50", "50 ml"], ["125", "Small wine"], ["175", "Medium wine"], ["250", "Large wine"], ["284", "Half"], ["568", "Pint"]];
+const MO_R = { wet: [0, 80000, 500], dry: [0, 50000, 500], vat: [0, 20, 1], guests: [0, 8000, 50], wetCost: [0, 30000, 100], dryCost: [0, 20000, 100],
+  hours: [0, 1500, 10], rate: [10, 25, 0.25], oncost: [0, 30, 1], salaries: [0, 10000, 100], rent: [0, 15000, 100], other: [0, 12000, 100],
+  rise: [-20, 30, 1], xShifts: [0, 30, 1], xHours: [2, 12, 0.5], xSales: [0, 10000, 100], goal: [0, 30000, 500], growth: [-10, 10, 0.5], ahead: [1, 52, 1],
+  pCost: [0, 300, 1], pSize: [0, 50000, 50], pServe: [0, 1000, 5], pPrice: [0, 20, 0.05], pTarget: [40, 90, 1] };
+const MO_MONTH = ["wet", "dry", "guests", "wetCost", "dryCost", "hours", "salaries", "rent", "other", "xShifts", "xSales", "goal"];
+const moRange = (k) => { const [a, b, st] = MO_R[k]; return [a, moF.per === "month" && MO_MONTH.includes(k) ? b * 5 : b, st]; };
+// One figure: its name, the number (tap to type) and a slider under it.
+const moSl = ([k, t]) => { const [a, b, st] = moRange(k), v = moNum(moF[k], MO_NEG.includes(k));
+  return `<div class="mo-sl"><label class="top"><span>${t}</span><input data-mo="${k}" inputmode="decimal" value="${esc(moF[k])}"></label>
+    <input type="range" data-mo-r="${k}" min="${a}" max="${b}" step="${st}" value="${Number.isNaN(v) ? a : v}" aria-label="${esc(t)}"></div>`; };
+// The day plan: made-up shifts for one day, each switched on or off, drawn as how many are working each hour. With "Use
+// it for labour" on, the hourly hours come from it (bar, floor and kitchen; managers are on salary) times the days.
+const MO_SIDES = [["bar", "Bar"], ["floor", "Floor"], ["kitchen", "Kitchen"], ["mgr", "Managers"]];
+const MO_TIMES = Array.from({ length: 48 }, (_, i) => { const m = (360 + i * 30) % 1440; return `${String(Math.floor(m / 60)).padStart(2, "0")}:${m % 60 ? "30" : "00"}`; });
+const MO_DAY_EG = [["bar", "12:00", "18:00"], ["bar", "17:00", "00:00"], ["bar", "18:00", "02:00"], ["floor", "11:30", "17:00"], ["floor", "17:00", "23:00"], ["floor", "18:00", "00:00"],
+  ["kitchen", "11:00", "17:00"], ["kitchen", "16:00", "23:00"], ["kitchen", "17:00", "22:00"], ["mgr", "11:00", "19:00"], ["mgr", "17:00", "02:00"]].map(([side, a, b], i) => ({ id: `e${i}`, side, a, b, on: true }));
+// Minutes from 6am, so a shift that ends after midnight still ends after it starts.
+const moMin = (t) => { const [h, m] = t.split(":").map(Number); return (h * 60 + m - 360 + 1440) % 1440; };
+const moLen = (x) => { const a = moMin(x.a), b = moMin(x.b); return (b > a ? b - a : b + 1440 - a) / 60; };
+const moDays = () => (moF.per === "month" ? 365 / 12 : 7);
+const moDayHoursOf = (f) => (f.day || []).filter((x) => x.on && x.side !== "mgr").reduce((a, x) => a + moLen(x), 0);
+const moDayHours = () => (moF.day || []).filter((x) => x.on && x.side !== "mgr").reduce((a, x) => a + moLen(x), 0);
 const MO_PER = { week: ["A week", 52], month: ["A month", 12] };
-const MO_BLANK = { ...Object.fromEntries([...MO_KEYS, ...MO_P.map(([k]) => k)].map((k) => [k, ""])), vat: "20", what: "0", per: "week", pTarget: "70", xHours: "8", ahead: "12", cmp: "" };
+const MO_BLANK0 = { day: [], dayOn: false };
+const MO_BLANK = { ...MO_BLANK0, ...Object.fromEntries([...MO_KEYS, ...MO_P.map(([k]) => k)].map((k) => [k, ""])), vat: "20", what: "0", per: "week", pTarget: "70", xHours: "8", ahead: "12", cmp: "" };
 // Made-up numbers for a week at a busy London bar, so there's something to change. Not Black Tap's.
-const MO_EXAMPLE = { guests: "1800", wet: "24000", dry: "12000", vat: "20", wetCost: "5000", dryCost: "3000", hours: "480", rate: "13.50", oncost: "15", salaries: "2400",
+const MO_EXAMPLE = { day: MO_DAY_EG, dayOn: false, guests: "1800", wet: "24000", dry: "12000", vat: "20", wetCost: "5000", dryCost: "3000", hours: "480", rate: "13.50", oncost: "15", salaries: "2400",
   rent: "3500", other: "2200", goal: "8000", rise: "0", xShifts: "0", xHours: "8", xSales: "0", growth: "1", ahead: "12", what: "0", per: "week", pCost: "120", pSize: "50000", pServe: "568", pPrice: "6.50", pTarget: "70" };
 let moF = { ...MO_BLANK, ...store.get("money", {}) }, moSaved = store.get("moneysaved", []), moName = "";
 const moSave = () => store.set("money", moF);
@@ -4413,7 +4469,8 @@ function moSums(f = moF) {
   const wetNet = (n.wet * x * p) / vat, dryNet = (n.dry * x * p) / vat, net = wetNet + dryNet;
   const wetGp = wetNet - n.wetCost * x, dryGp = dryNet - n.dryCost * x, gp = wetGp + dryGp;
   const on = 1 + n.oncost / 100, extra = n.xShifts * n.xHours * n.rate * on;
-  const labour = n.hours * n.rate * on + n.salaries + extra, fixed = n.rent + n.other;
+  const hours = f.dayOn ? moDayHoursOf(f) * (f.per === "month" ? 365 / 12 : 7) : n.hours;
+  const labour = hours * n.rate * on + n.salaries + extra, fixed = n.rent + n.other;
   const left = gp - labour - fixed, gpRate = net > 0 ? gp / net : 0;
   // The forecast: sales and the stock they use grow (or fall) each period; labour and fixed costs stay as they are.
   const g = 1 + n.growth / 100, ahead = Array.from({ length: Math.floor(n.ahead) }, (_, i) => { const k = g ** (i + 1); return { net: net * k, left: gp * k - labour - fixed }; });
@@ -4426,6 +4483,7 @@ function moOut() {
   const box = $("#mo-out");
   if (!box) return;
   const s = moSums();
+  moSum(s);
   if (s.bad.length) { box.innerHTML = `<p class="note">Check ${s.bad.map((k) => MO_LABEL[k]).join(", ")}: each should be a number, 0 or more.</p>`; return; }
   if (!s.net) { box.innerHTML = `<p class="note">Put in some sales, or tap Fill with example numbers, to see the sums.</p>`; return; }
   box.innerHTML = `<div class="h3">Sales</div>
@@ -4451,6 +4509,60 @@ function moOut() {
     ${moAhead(s)}
     ${moCompare(s)}`;
 }
+const MO_SEG = [["cost", "Stock"], ["labour", "Labour"], ["rent", "Rent"], ["otherCost", "Other costs"], ["left", "What's left"]];
+function moSum(s) {
+  const box = $("#mo-sum");
+  if (!box) return;
+  if (s.bad.length || !s.net) { box.innerHTML = `<div class="mo-head"><span>What's left</span><b>–</b></div><p class="note" style="margin:4px 0 0">Move the sliders, or tap Fill with example numbers.</p>`; return; }
+  const v = { cost: s.cost, labour: s.labour, rent: s.rent, otherCost: s.fixed - s.rent, left: Math.max(s.left, 0) };
+  const whole = Math.max(s.net, s.cost + s.labour + s.fixed), segs = MO_SEG.filter(([k]) => v[k] > 0);
+  box.innerHTML = `<div class="mo-head"><span>${s.left < 0 ? "Loss" : "What's left"}</span><b class="${s.left < 0 ? "neg" : ""}">${moGbp(s.left)} · ${moPct(s.left, s.net)}</b></div>
+    <div class="mo-bar" role="img" aria-label="Where net sales of ${moGbp(s.net)} go: ${segs.map(([k, t]) => `${t} ${moPct(v[k], s.net)}`).join(", ")}">
+      ${segs.map(([k, t]) => `<button class="mo-seg s-${k}" style="flex:${v[k] / whole}" data-mo-tip="${esc(`${t}: ${moGbp(v[k])}, ${moPct(v[k], s.net)} of net sales`)}" aria-label="${esc(t)}"></button>`).join("")}
+      ${s.left < 0 ? `<i class="mo-sales" style="left:${(s.net / whole) * 100}%"></i>` : ""}</div>
+    <div class="mo-key">${segs.map(([k, t]) => `<span><i class="s-${k}"></i>${t} ${moPct(v[k], s.net)}</span>`).join("")}</div>
+    <p class="note mo-tip" id="mo-tip">${s.left < 0 ? `Costs are more than net sales of ${moGbp(s.net)} (the line). ` : ""}Net sales ${moGbp(s.net)} · GP ${moPct(s.gp, s.net)}</p>`;
+}
+// How many are working each hour, by side, from the first start to the last finish of the shifts switched on.
+function moDayChart() {
+  const on = (moF.day || []).filter((x) => x.on);
+  if (!on.length) return `<p class="note">No shifts switched on.</p>`;
+  const from = Math.floor(Math.min(...on.map((x) => moMin(x.a))) / 60), to = Math.ceil(Math.max(...on.map((x) => moMin(x.a) + moLen(x) * 60)) / 60);
+  const hrs = Array.from({ length: to - from }, (_, i) => from + i), at = (x, h) => { const a = moMin(x.a), b = a + moLen(x) * 60, m = h * 60 + 30; return a <= m && m < b; };
+  const cols = hrs.map((h) => Object.fromEntries(MO_SIDES.map(([k]) => [k, on.filter((x) => x.side === k && at(x, h)).length])));
+  const tot = cols.map((c) => Object.values(c).reduce((a, b) => a + b, 0)), top = Math.max(...tot, 1), peak = tot.indexOf(Math.max(...tot));
+  const clock = (h) => MO_TIMES[(h * 2) % 48];
+  return `<div class="mo-day" role="img" aria-label="People working each hour, most ${top} at ${clock(hrs[peak])}">
+    ${hrs.map((h, i) => `<button class="mo-hr" data-mo-dtip="${esc(`${clock(h)} to ${clock(h + 1)}: ${plural(tot[i], "person", "people")} working (${MO_SIDES.filter(([k]) => cols[i][k]).map(([k, t]) => `${t.toLowerCase()} ${cols[i][k]}`).join(", ") || "nobody"})`)}" aria-label="${clock(h)}">
+      <span class="n">${i === peak ? tot[i] : ""}</span>${MO_SIDES.map(([k]) => cols[i][k] ? `<span class="d-${k}" style="height:${(cols[i][k] / top) * 100}%"></span>` : "").join("")}</button>`).join("")}</div>
+    <div class="mo-axis"><span>${clock(from)}</span><span>${clock(Math.round((from + to) / 2))}</span><span>${clock(to)}</span></div>
+    <div class="mo-key">${MO_SIDES.map(([k, t]) => `<span><i class="d-${k}"></i>${t}</span>`).join("")}</div>
+    <p class="note" id="mo-dtip">Busiest: ${plural(tot[peak], "person", "people")} at ${clock(hrs[peak])}. Tap an hour for who's on.</p>`;
+}
+function moDayHtml() {
+  const opts = (v) => MO_TIMES.map((t) => `<option${t === v ? " selected" : ""}>${t}</option>`).join(""), hrs = moDayHours();
+  return `<div class="h3" id="mo-s-day">The day plan</div>
+    <p class="note">Made-up shifts for one day. Switch them on and off to see how many are working each hour.</p>
+    <div id="mo-dchart">${moDayChart()}</div>
+    ${(moF.day || []).map((x) => `<div class="mo-shift${x.on ? "" : " off"}"><label class="check"><input type="checkbox" data-mo-on="${x.id}"${x.on ? " checked" : ""} aria-label="On or off"></label>
+      <select data-mo-side="${x.id}" aria-label="Side">${MO_SIDES.map(([k, t]) => `<option value="${k}"${k === x.side ? " selected" : ""}>${k === "mgr" ? "Mgr" : t}</option>`).join("")}</select>
+      <select data-mo-a="${x.id}" aria-label="Starts">${opts(x.a)}</select><span>to</span><select data-mo-b="${x.id}" aria-label="Finishes">${opts(x.b)}</select>
+      <button class="btn" data-mo-rm="${x.id}" aria-label="Take this shift off">✕</button></div>`).join("")}
+    <div class="actions"><button class="btn" id="mo-add">Add a shift</button>${(moF.day || []).length ? "" : `<button class="btn" id="mo-day-eg">Fill with an example day</button>`}</div>
+    <p class="note">${hrs ? `${hrs.toFixed(1)} hours a day on bar, floor and kitchen, about ${Math.round(hrs * moDays()).toLocaleString("en-GB")} a ${moF.per === "month" ? "month" : "week"}.` : "No hourly shifts switched on."}</p>
+    <label class="check"><input type="checkbox" id="mo-day-use"${moF.dayOn ? " checked" : ""}> Use it for the labour: hourly hours come from this day, ${moF.per === "month" ? "every day of the month" : "7 days a week"}</label>`;
+}
+// The forecast as columns: what's left each period, above or below 0. Tap one for its figures.
+function moCols(s) {
+  if (!s.ahead.length) return "";
+  const per = moF.per === "month" ? "Month" : "Week", top = Math.max(...s.ahead.map((r) => Math.max(r.left, 0)), 0), bot = Math.max(...s.ahead.map((r) => Math.max(-r.left, 0)), 0), span = top + bot || 1;
+  let run = 0;
+  return `<div class="mo-cols" role="img" aria-label="What's left each ${per.toLowerCase()} for the next ${s.ahead.length}">
+    ${s.ahead.map((r, i) => { run += r.left; return `<button class="mo-col" data-mo-tip="${esc(`${per} ${i + 1}: ${moGbp(r.left)} left, ${moGbp(r.net)} net sales, running total ${moGbp(run)}`)}" aria-label="${per} ${i + 1}">
+      <span class="up" style="height:${(Math.max(r.left, 0) / span) * 100}%;bottom:${(bot / span) * 100}%"></span><span class="zero" style="bottom:${(bot / span) * 100}%"></span><span class="dn" style="height:${(Math.max(-r.left, 0) / span) * 100}%;bottom:${((bot - Math.max(-r.left, 0)) / span) * 100}%"></span></button>`; }).join("")}</div>
+    <div class="mo-axis"><span>${per} 1</span><span>${per} ${s.ahead.length}</span></div>
+    <p class="note" id="mo-ftip">Tap a column for its figures. Running total after ${s.ahead.length}: ${moGbp(s.ahead.reduce((a, r) => a + r.left, 0))}.</p>`;
+}
 // Per guest, when footfall is in: what each one spends and makes, and how many it takes to break even or hit the target.
 function moHeads(s) {
   if (!s.guests) return "";
@@ -4467,8 +4579,8 @@ function moAhead(s) {
   if (!s.ahead.length) return "";
   const per = moF.per === "month" ? "Month" : "Week";
   let run = 0;
-  return `<div class="h3">Forecast</div><table class="mo-cmp"><tr><th>${per}</th><th>Net sales</th><th>What's left</th><th>Running total</th></tr>
-    ${s.ahead.map((r, i) => `<tr><td>${i + 1}</td><td>${moGbp(r.net)}</td><td>${moGbp(r.left)}</td><td>${moGbp((run += r.left))}</td></tr>`).join("")}</table>
+  return `<div class="h3">Forecast: what's left each ${per.toLowerCase()}</div>${moCols(s)}<details class="setup"><summary>As a table</summary><table class="mo-cmp"><tr><th>${per}</th><th>Net sales</th><th>What's left</th><th>Running total</th></tr>
+    ${s.ahead.map((r, i) => `<tr><td>${i + 1}</td><td>${moGbp(r.net)}</td><td>${moGbp(r.left)}</td><td>${moGbp((run += r.left))}</td></tr>`).join("")}</table></details>
     <p class="note">A guess from the numbers above, not a prediction: it doesn't know about the weather, the football or the calendar.</p>`;
 }
 // Side by side with a saved version, on the figures that matter most.
@@ -4496,20 +4608,23 @@ function moDrink() {
     ${n.pPrice ? moRow("GP at that price", `${moGbp(gp)} · ${moPct(gp, net)}`, `${moGbp(net)} after VAT`) : ""}
     ${moRow(`Price for a ${n.pTarget || 0}% GP`, at == null ? "–" : moGbp(at), at == null ? "The GP should be between 0 and 100%" : "Including VAT")}`;
 }
-const MO_JUMP = [["mo-s-in", "Your numbers"], ["mo-out", "Results"], ["mo-s-what", "What if"], ["mo-saves", "Saved"], ["mo-s-drink", "Price a drink"]];
+const MO_JUMP = [["mo-s-in", "Your numbers"], ["mo-s-day", "Day plan"], ["mo-out", "Results"], ["mo-s-what", "What if"], ["mo-saves", "Saved"], ["mo-s-drink", "Price a drink"]];
 function renderMoney() {
   $("#money-btn").hidden = !LIVE.admin;
   if (!LIVE.admin) return;
-  const w = Number(moF.what), fld = ([k, t]) => `<label class="fld">${t}<input data-mo="${k}" inputmode="decimal" value="${esc(moF[k])}"></label>`;
+  const w = Number(moF.what), fld = moSl;
   $("#money").innerHTML = `<div class="sec">Money sandbox</div>
     <p class="note">For trying out the sums with made-up numbers. What you put in stays on this phone: it isn't shared with the team, saved to Bar Book or read from the till.</p>
     <div class="recent mo-jump" style="flex-wrap:wrap">${MO_JUMP.map(([id, t]) => `<button class="chip" data-mo-jump="${id}">${t}</button>`).join("")}</div>
     <div class="actions"><button class="btn" id="mo-eg">Fill with example numbers</button><button class="btn" id="mo-clear">Clear</button></div>
+    <div class="mo-sum" id="mo-sum"></div>
+    <p class="note">Slide to change a figure, or tap the number to type it.</p>
     <div class="h3" id="mo-s-in">The period</div>
     <div class="recent">${Object.entries(MO_PER).map(([k, [t]]) => `<button class="chip" data-mo-per="${k}" aria-pressed="${moF.per === k}">${t}</button>`).join("")}</div>
-    ${MO_F.map(([h, fs]) => `<div class="h3">${h}</div>${fs.map(fld).join("")}`).join("")}
+    ${MO_F.map(([h, fs]) => `<div class="h3">${h}</div>${fs.map((x) => (x[0] === "hours" && moF.dayOn ? `<p class="note mo-from">Hourly hours: ${Math.round(moDayHours() * moDays()).toLocaleString("en-GB")}, from the day plan below</p>` : fld(x))).join("")}`).join("")}
+    <div id="mo-dayplan">${moDayHtml()}</div>
     <div class="h3" id="mo-s-what">What if sales or footfall change?</div>
-    <label class="fld"><span id="mo-wt">${w > 0 ? "+" : ""}${w}% sales and guests</span><input type="range" data-mo="what" min="-50" max="50" step="5" value="${w}"></label>
+    <div class="mo-sl"><div class="top"><span id="mo-wt">${w > 0 ? "+" : ""}${w}% sales and guests</span></div><input type="range" data-mo="what" min="-50" max="50" step="5" value="${w}" aria-label="Sales and guests change"></div>
     <p class="note">Sales, guests and the stock they use go up or down together; labour, rent and other costs stay the same.</p>
     <div id="mo-out"></div>
     <details class="setup" id="mo-saves"${moSaved.length ? " open" : ""}><summary>Saved versions (${moSaved.length} of 10)</summary>
@@ -4525,19 +4640,24 @@ function renderMoney() {
   moOut(); moDrink();
 }
 function moClick(b) {
-  if (b.id === "mo-eg" || b.id === "mo-clear") { moF = { ...(b.id === "mo-eg" ? MO_EXAMPLE : MO_BLANK), cmp: moF.cmp }; moSave(); renderMoney(); return; }
+  if (b.id === "mo-eg" || b.id === "mo-clear") { moF = { ...(b.id === "mo-eg" ? MO_EXAMPLE : MO_BLANK), cmp: moF.cmp }; moF.day = moF.day.map((x) => ({ ...x })); moSave(); renderMoney(); return; }
+  if (b.dataset.moDtip) { $("#mo-dtip").textContent = b.dataset.moDtip; return; }
+  if (b.id === "mo-add") { const last = moF.day.at(-1); moF.day = [...moF.day, { id: Math.random().toString(36).slice(2, 8), side: last?.side || "bar", a: last?.a || "17:00", b: last?.b || "23:00", on: true }]; moSave(); renderMoney(); return; }
+  if (b.id === "mo-day-eg") { moF.day = MO_DAY_EG.map((x) => ({ ...x })); moSave(); renderMoney(); return; }
+  if (b.dataset.moRm) { moF.day = moF.day.filter((x) => x.id !== b.dataset.moRm); moSave(); renderMoney(); return; }
+  if (b.dataset.moTip) { const tip = b.closest(".mo-sum") ? $("#mo-tip") : $("#mo-ftip"); if (tip) tip.textContent = b.dataset.moTip; return; }
   if (b.dataset.moJump) { $("#" + b.dataset.moJump).scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   if (b.dataset.moPer) { moF.per = b.dataset.moPer; moSave(); renderMoney(); return; }
   if (b.dataset.moServe) { moF.pServe = b.dataset.moServe; moSave(); renderMoney(); return; }
   if (b.id === "mo-keep") {
     const name = moName.trim();
     if (!name) return toast("Give it a name first");
-    const { cmp, ...f } = moF;
+    const { cmp, ...f } = JSON.parse(JSON.stringify(moF));
     moSaved = [...moSaved.filter((x) => x.name !== name), { name, f }].slice(-10);
     store.set("moneysaved", moSaved); moName = ""; toast(`Saved as “${name}”`); renderMoney(); return;
   }
   const i = Number(b.dataset.moLoad ?? b.dataset.moCmp ?? b.dataset.moDel), x = moSaved[i];
-  if (b.dataset.moLoad) { moF = { ...MO_BLANK, ...x.f, cmp: moF.cmp === x.name ? "" : moF.cmp }; moSave(); toast(`Loaded “${x.name}”`); renderMoney(); return; }
+  if (b.dataset.moLoad) { moF = { ...MO_BLANK, ...x.f, cmp: moF.cmp === x.name ? "" : moF.cmp }; moF.day = moF.day.map((d) => ({ ...d })); moSave(); toast(`Loaded “${x.name}”`); renderMoney(); return; }
   if (b.dataset.moCmp) { moF.cmp = moF.cmp === x.name ? "" : x.name; moSave(); renderMoney(); return; }
   if (b.dataset.moDel && confirm(`Delete “${x.name}”?`)) {
     moSaved = moSaved.filter((_, j) => j !== i); store.set("moneysaved", moSaved);
@@ -5170,6 +5290,8 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.br) brF[t.dataset.br] = t.value;
   if (t.dataset.hoxf) { const [q, k] = t.dataset.hoxf.split(":"); (hoF.x[q] ||= {})[k] = t.value; hoSave(); }
   if (t.id === "hq-t") hqF.t = t.value;
+  if (t.dataset.moR) { const k = t.dataset.moR; moF[k] = t.value; const f = $(`[data-mo="${k}"]`); if (f) f.value = t.value; moSave(); moOut(); moDrink(); }
+  if (t.dataset.mo && t.dataset.mo !== "what") { const r = $(`[data-mo-r="${t.dataset.mo}"]`), v = moNum(t.value, MO_NEG.includes(t.dataset.mo)); if (r && !Number.isNaN(v)) r.value = v; }
   if (t.dataset.mo) { moF[t.dataset.mo] = t.value; moSave(); if (t.dataset.mo === "what") $("#mo-wt").textContent = `${Number(t.value) > 0 ? "+" : ""}${t.value}% sales and guests`; moOut(); moDrink(); }
   if (t.id === "mo-name") moName = t.value;
   if (t.id === "hq-crit") hqF.crit = t.checked;
@@ -5178,6 +5300,12 @@ $("#v-notices").addEventListener("input", (e) => {
 });
 $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
+  const sh = (id) => moF.day.find((x) => x.id === id);
+  if (t.dataset.moOn) { sh(t.dataset.moOn).on = t.checked; moSave(); renderMoney(); return; }
+  if (t.dataset.moSide) { sh(t.dataset.moSide).side = t.value; moSave(); renderMoney(); return; }
+  if (t.dataset.moA) { sh(t.dataset.moA).a = t.value; moSave(); renderMoney(); return; }
+  if (t.dataset.moB) { sh(t.dataset.moB).b = t.value; moSave(); renderMoney(); return; }
+  if (t.id === "mo-day-use") { moF.dayOn = t.checked; moSave(); renderMoney(); return; }
   if (t.dataset.tmSel) { if (t.checked) tm.sel.add(t.dataset.tmSel); else tm.sel.delete(t.dataset.tmSel); renderStaff(); return; }
   if (t.id === "tt-pub") tt.pub = t.checked;
   if (t.dataset.f) meF[t.dataset.f] = t.value;
@@ -5365,7 +5493,7 @@ $("#v-notices").addEventListener("click", (e) => {
     Object.assign(hqF, { t: "", crit: false }); haptic(); return;
   }
   if (b.dataset.hqDel) { if (confirm("Take this question off? Handovers already sent keep their answers.")) track(LIVE.api.saveHoq(LIVE.hoq.filter((x) => x.id !== b.dataset.hqDel)), "Question taken off", "Not saved. Try again"); return; }
-  if (b.id === "mo-eg" || b.id === "mo-clear" || b.id === "mo-keep" || b.dataset.moPer || b.dataset.moJump || b.dataset.moServe || b.dataset.moLoad || b.dataset.moCmp || b.dataset.moDel) { moClick(b); return; }
+  if (b.id === "mo-eg" || b.id === "mo-clear" || b.id === "mo-keep" || b.dataset.moPer || b.dataset.moDtip || b.id === "mo-add" || b.id === "mo-day-eg" || b.dataset.moRm || b.dataset.moTip || b.dataset.moJump || b.dataset.moServe || b.dataset.moLoad || b.dataset.moCmp || b.dataset.moDel) { moClick(b); return; }
   if (b.id === "br-read") { track(LIVE.api.readBriefing(), "Marked as read", "Not saved. It may have just changed: read it again"); haptic(); return; }
   if (b.id === "br-prev") { brPrev(); return; }
   if (b.id === "br-go") { brSave(); return; }
