@@ -376,6 +376,14 @@ a.btn { text-decoration: none; color: inherit; }
 .pill { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); vertical-align: 1px; }
 .pill.ok { color: var(--ok); border-color: var(--ok); } .pill.no { color: var(--warn); border-color: var(--warn); } .pill.wait { color: var(--brass); border-color: var(--brass); }
 .staffrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.tmrow { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: start; }
+.tmrow input[type=checkbox] { width: 22px; height: 22px; margin: 2px 0 0; accent-color: var(--brass); }
+.tmbar { position: sticky; top: 0; z-index: 2; background: var(--bg); padding: 8px 0; border-bottom: 1px solid var(--brass); }
+.tmbar .actions { margin-top: 6px; }
+.creds { margin: 8px 0 0; padding-left: 20px; }
+.perms { width: 100%; border-collapse: collapse; font-size: 14px; margin-top: 8px; }
+.perms th, .perms td { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: center; }
+.perms td:first-child { text-align: left; }
 .hoq { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .hoq > .n { font-weight: 700; }
 .hoq.no { border-left: 3px solid var(--warn); padding-left: 10px; }
@@ -821,7 +829,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -2693,13 +2701,32 @@ function renderTeamTop() {
     <p class="note">Bar, floor and kitchen follow the side each phone is set to in Shift.</p>
     ${LIVE.owner ? `<label class="check"><input type="checkbox" id="p-mgrs" checked> Managers can see it</label>` : ""}
     <div class="actions"><button class="btn pri" id="p-go">Send</button></div></details>`;
-  if (LIVE.admin) $("#mgr").innerHTML = `<details class="setup" id="staff-box" open><summary>Team members</summary><div id="staff-list"></div>
+  if (LIVE.admin) $("#mgr").innerHTML = `<details class="setup" id="staff-box" open><summary>Team members</summary>
+      <label class="fld">Find someone<input id="tm-q" type="search" placeholder="A name or username" autocomplete="off" value="${esc(tm.q)}"></label>
+      <div id="staff-list"></div>
       <h3 style="font-size:18px;margin-top:16px">Add a person</h3>
       <label class="fld">Name<input id="a-name" maxlength="40"></label>
-      <label class="fld">Username (lower case letters and numbers)<input id="a-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
+      <label class="fld">Username (made from the name, change it if you like)<input id="a-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
       <label class="fld">PIN (made up for you, change it if you like)<input id="a-pin" inputmode="numeric" maxlength="12" value="${newPin()}"></label>
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
-      <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>
+      <button class="btn pri wide" id="a-go">Add person</button>
+      <details class="setup" id="many-box"><summary>Add several at once</summary>
+        <p class="note">One name per line. Each gets a username made from their name and a PIN of their own, listed above once they're added.${LIVE.owner ? " Put <b>, manager</b> after a name to make them a manager." : ""}</p>
+        <label class="fld">Names<textarea id="a-many" rows="5" placeholder="Alex Smith\nJo Brown${LIVE.owner ? ", manager" : ""}"></textarea></label>
+        <button class="btn pri wide" id="a-many-go">Add them all</button></details>
+      <details class="setup" id="perm-box"><summary>Who can do what</summary>${PERMS}</details>
+      <div id="audit-list"></div></details>
+      <details class="setup" id="test-box"${LIVE.tests.length ? " open" : ""}><summary>Test staff for a practice day</summary>
+        <p class="note">Made-up people to stage a restaurant day. They aren't logins: nobody can sign in as them, and they can't be given tasks or chats. They go on the rota with a Test tag, show in Team members under Test, and clear in one tap.</p>
+        <div class="mini">Add a test team</div>
+        <div class="two even">${TT_SIDES.map(([k, t]) => `<label class="fld">${t}<input type="number" inputmode="numeric" min="0" max="20" id="tt-n-${k}" value="${TT_N[k]}"></label>`).join("")}</div>
+        <button class="btn pri wide" id="tt-fill">Add the test team</button>
+        <div class="mini">Or one person</div>
+        <label class="fld">Name<input id="tt-name" maxlength="40" placeholder="Test Bartender"></label>
+        <div class="two even"><label class="fld">Side<select id="tt-side">${Object.entries(SIDE_NAME).map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select></label>
+        <label class="fld">Role<select id="tt-role"><option value="staff">Staff</option><option value="manager">Manager</option></select></label></div>
+        <button class="btn wide" id="tt-add">Add test person</button>
+        <div id="tests"></div></details>
       ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
   renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub();
 }
@@ -2870,13 +2897,140 @@ function go(where) {
 const ROLE = { owner: "Owner", manager: "Manager", staff: "Staff" };
 const AUDIT = { setup: "owner account set up", add: "added", reset: "new PIN", remove: "removed", role: "role changed" };
 const isOwnerUid = (uid) => LIVE.staff.some((p) => p.uid === uid && p.role === "owner");
+/* Team members: everyone, with the test staff, found by name and picked by role. Tick people to change several at once:
+   make them managers or staff (the owner), give them new PINs, or remove them. Someone the person logged in can't
+   change (themselves, the owner, and for a manager, other managers) has no tick box. */
+const tm = { q: "", show: "all", sel: new Set() };
+const TM_SHOW = [["all", "Everyone"], ["manager", "Managers"], ["staff", "Staff"], ["test", "Test"]];
+const tmCan = (p) => p.test || (p.uid !== LIVE.uid && p.role !== "owner" && (LIVE.owner || p.role === "staff"));
+const tmAll = () => [...LIVE.staff, ...LIVE.tests];
+function tmShown() {
+  const q = tm.q.trim().toLowerCase();
+  const fits = (p) => (tm.show === "all" ? true : tm.show === "test" ? p.test : !p.test && (tm.show === "manager" ? p.role !== "staff" : p.role === "staff"));
+  return tmAll().filter((p) => fits(p) && (!q || p.name.toLowerCase().includes(q) || (p.username || "").includes(q)));
+}
+const tmSel = () => tmAll().filter((p) => tm.sel.has(p.uid) && tmCan(p));
+const tmRow = (p) => {
+  const btns = p.test ? `<button class="btn danger" data-tt-drop="${p.uid}">Remove</button>`
+    : !tmCan(p) ? "" : `${LIVE.owner ? `<button class="btn" data-role="${p.uid}">${p.role === "manager" ? "Make staff" : "Make manager"}</button>` : ""}<button class="btn" data-reset="${p.uid}">Reset PIN</button><button class="btn danger" data-remove="${p.uid}">Remove</button>`;
+  return `<div class="staffrow tmrow">${tmCan(p) ? `<input type="checkbox" data-tm-sel="${p.uid}"${tm.sel.has(p.uid) ? " checked" : ""} aria-label="Select ${esc(p.name)}">` : "<span></span>"}
+    <div><div class="n">${esc(p.name)}${p.uid === LIVE.uid ? " (you)" : ""}${p.test ? ` <span class="pill">Test</span>` : ""}</div>
+    <div class="s">${p.test ? `${SIDE_NAME[p.side]} · ${ROLE[p.role]} · not a login` : `${esc(p.username)} · ${ROLE[p.role]}`}</div>${btns ? `<div class="actions">${btns}</div>` : ""}</div></div>`;
+};
 function renderStaff() {
   const box = $("#staff-list"); if (!box) return;
-  box.innerHTML = (staffMsg ? `<div class="confirm" style="border-color:var(--brass)">${staffMsg}</div>` : "") + LIVE.staff.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}${p.uid === LIVE.uid ? " (you)" : ""}</div><div class="s">${esc(p.username)} · ${ROLE[p.role]}</div>
-    ${p.uid === LIVE.uid || p.role === "owner" || (!LIVE.owner && p.role !== "staff") ? "" : `<div class="actions">${LIVE.owner ? `<button class="btn" data-role="${p.uid}">${p.role === "manager" ? "Make staff" : "Make manager"}</button>` : ""}<button class="btn" data-reset="${p.uid}">Reset PIN</button><button class="btn danger" data-remove="${p.uid}">Remove</button></div>`}</div>`).join("");
+  // Someone who has gone (removed here or elsewhere) drops out of the selection.
+  tm.sel = new Set(tmSel().map((p) => p.uid));
+  const n = (r) => LIVE.staff.filter((p) => p.role === r).length, sel = tmSel(), shown = tmShown(), canShown = shown.filter(tmCan);
+  const real = sel.filter((p) => !p.test);
+  const sum = [plural(LIVE.staff.length, "person", "people"), `${n("manager") + n("owner")} managing`, `${n("staff")} staff`, LIVE.tests.length && `${LIVE.tests.length} test`].filter(Boolean).join(" · ");
+  const bar = sel.length ? `<div class="tmbar"><b>${sel.length} selected</b><div class="actions">
+      ${LIVE.owner && real.some((p) => p.role === "staff") ? `<button class="btn" id="tm-mgr">Make manager</button>` : ""}
+      ${LIVE.owner && real.some((p) => p.role === "manager") ? `<button class="btn" id="tm-staff">Make staff</button>` : ""}
+      ${real.length ? `<button class="btn" id="tm-pins">New PINs</button>` : ""}
+      <button class="btn danger" id="tm-remove">Remove</button><button class="btn" id="tm-none">Clear</button></div></div>` : "";
+  box.innerHTML = (staffMsg ? `<div class="confirm" style="border-color:var(--brass)">${staffMsg}</div>` : "")
+    + `<p class="note">${sum}</p><div class="chips" role="toolbar" aria-label="Show">${TM_SHOW.filter(([k]) => k !== "test" || LIVE.tests.length).map(([k, t]) => `<button class="chip" data-tm-show="${k}" aria-pressed="${k === tm.show}">${t}</button>`).join("")}</div>`
+    + bar + (canShown.length > 1 && canShown.some((p) => !tm.sel.has(p.uid)) ? `<button class="linkbtn" id="tm-all">Select all ${canShown.length} shown</button>` : "")
+    + (shown.map(tmRow).join("") || `<p class="note">Nobody${tm.q.trim() ? ` matches “${esc(tm.q.trim())}”` : " to show"}.</p>`);
   // A PIN reset writes two entries (the new account and the old one); show it once.
   const log = LIVE.audit.filter((x) => x.action !== "reset" || x.id.endsWith("-in")).slice(0, 15);
   $("#audit-list").innerHTML = log.length ? `<h3 style="font-size:18px;margin-top:18px">Account changes</h3>${log.map((x) => `<div class="staffrow"><div class="n">${esc(x.targetName)} · ${x.action === "role" ? `now ${ROLE[x.role]}` : AUDIT[x.action]}</div><div class="s">${esc(x.username)} · ${ROLE[x.role]} · by ${esc(x.name)}, ${when(x.at)}</div></div>`).join("")}` : "";
+  renderTests();
+}
+// What each role can do, as the rules allow it. A role is the permission: everything a manager can do, every manager can.
+const PERMS = `<table class="perms"><tr><th></th><th>Staff</th><th>Manager</th><th>Owner</th></tr>${[
+  ["Drinks, specs, checklists, shift reports", 1, 1, 1], ["Chat, issues, concerns, incidents", 1, 1, 1], ["Time off and swaps, hands up for shifts", 1, 1, 1],
+  ["Sign off reports, close incidents", 0, 1, 1], ["Build and publish the rota", 0, 1, 1], ["Broadcasts, briefing, close and handover", 0, 1, 1],
+  ["Add, reset and remove staff, test staff", 0, 1, 1], ["Add and remove managers, change roles", 0, 0, 1], ["Features on and off, comp limits", 0, 0, 1],
+  ["All anonymous feedback, Start fresh", 0, 0, 1]].map(([t, ...c]) => `<tr><td>${t}</td>${c.map((y) => `<td>${y ? "✓" : "–"}</td>`).join("")}</tr>`).join("")}</table>
+  <p class="note">Managers see the feedback about themselves only. To give someone more, make them a manager; to take it away, make them staff. Both take effect on their phone straight away.</p>`;
+/* A username from a name: the first name, then with the surname's first letter, then numbered, skipping any taken. */
+function makeUser(name, taken) {
+  const w = name.toLowerCase().normalize("NFD").replace(/[^a-z0-9 ]/g, " ").trim().split(/\s+/).filter(Boolean);
+  const first = (w[0] || "").slice(0, 15), base = first.length >= 2 ? first : "user", alt = w.length > 1 ? `${base}.${w[w.length - 1][0]}` : base;
+  for (const u of [base, alt]) if (!taken.has(u)) return u;
+  for (let i = 2; ; i++) if (!taken.has(alt + i)) return alt + i;
+}
+const usernames = () => new Set(LIVE.staff.map((p) => p.username));
+let aUserTyped = false;
+// Several people from a list, one at a time (each needs a login of its own). A taken username moves to the next one free.
+async function addMany(lines) {
+  const taken = usernames(), done = [], failed = [];
+  for (const line of lines) {
+    const [nm, r = ""] = line.split(","), name = nm.trim().slice(0, 40), role = LIVE.owner && /^\s*manager\s*$/i.test(r) ? "manager" : "staff", pin = newPin();
+    let u = makeUser(name, taken), ok = false;
+    for (let i = 0; i < 4 && !ok; i++) {
+      try { await LIVE.api.addPerson(name, u, pin, role); ok = true; }
+      catch (x) { if (x.message !== "That username is taken") break; taken.add(u); u = makeUser(name, taken); }
+    }
+    taken.add(u); (ok ? done : failed).push({ name, u, pin, role });
+  }
+  staffMsg = (done.length ? `Added ${done.length}. Tell each of them their username and PIN; the PINs aren't shown again.<ul class="creds">${done.map((x) => `<li>${esc(x.name)}${x.role === "manager" ? " (manager)" : ""}: username <b>${esc(x.u)}</b>, PIN <b>${x.pin}</b></li>`).join("")}</ul>` : "")
+    + (failed.length ? `<p><b>Not added:</b> ${failed.map((x) => esc(x.name)).join(", ")}. Check your signal and add them again.</p>` : "");
+  return failed.length;
+}
+// One change to each ticked person, in turn. Returns the people it worked for and the ones it didn't.
+async function tmEach(ps, fn) {
+  const ok = [], bad = [];
+  for (const p of ps) { try { ok.push({ p, r: await fn(p) }); } catch { bad.push(p); } }
+  return { ok, bad };
+}
+const tmBad = (bad) => (bad.length ? `<p><b>Not done for:</b> ${bad.map((p) => esc(p.name)).join(", ")}. Check your signal and try again.</p>` : "");
+
+/* ---------- Test staff ----------
+   A practice team, by side, for staging a restaurant day: one tap adds them, another puts them all on the rota for a
+   day at each side's usual hours, and one clears them and their shifts. Shifts stay drafts (only managers see them)
+   unless published, which shows them in the briefing and to the whole team, with a Test tag. */
+const TT_SIDES = [["bar", "Bar"], ["floor", "Floor"], ["kitchen", "Kitchen"], ["manager", "Managers"]];
+const TT_N = { bar: 3, floor: 4, kitchen: 3, manager: 1 };
+const TT_NAME = { bar: "Test Bartender", floor: "Test Server", kitchen: "Test Chef", manager: "Test Manager" };
+const TT_HOURS = { bar: ["16:00", "00:00"], floor: ["17:00", "23:00"], kitchen: ["11:00", "22:00"], manager: ["15:00", "00:00"] };
+const tt = { day: "", pub: false };
+const ttDays = () => Array.from({ length: 7 }, (_, i) => addDays(shiftDay(), i));
+function renderTests() {
+  const box = $("#tests"); if (!box) return;
+  const xs = LIVE.tests, day = ttDays().includes(tt.day) ? tt.day : shiftDay(), on = LIVE.shifts.filter((x) => isTestUid(x.who));
+  if (!xs.length) { box.innerHTML = ""; return; }
+  const bySide = Object.entries(SIDE_NAME).map(([k, t]) => [t, xs.filter((p) => p.side === k)]).filter(([, ps]) => ps.length);
+  box.innerHTML = `<div class="mini">The test team: ${xs.length}</div>${bySide.map(([t, ps]) => `<p class="note"><b>${t}:</b> ${ps.map((p) => esc(p.name) + (p.role === "manager" ? " (manager)" : "")).join(", ")}</p>`).join("")}
+    ${isOn("rota") ? `<div class="mini">Put them all on the rota</div>
+    <div class="chips">${ttDays().map((d) => `<button class="chip" data-tt-day="${d}" aria-pressed="${d === day}">${d === shiftDay() ? "Today" : dayName(d, { weekday: "short", day: "numeric" })}</button>`).join("")}</div>
+    <p class="note">Bar ${TT_HOURS.bar.join("–")}, floor ${TT_HOURS.floor.join("–")}, kitchen ${TT_HOURS.kitchen.join("–")}, managers ${TT_HOURS.manager.join("–")}. Change any of them on the rota after.</p>
+    <label class="check"><input type="checkbox" id="tt-pub"${tt.pub ? " checked" : ""}> Publish them, so they show in the briefing and the whole team sees them</label>
+    <div class="actions"><button class="btn pri" id="tt-day">Put them on ${day === shiftDay() ? "today" : dayName(day)}</button></div>` : `<p class="note">Switch the rota on in Features to put them on shifts.</p>`}
+    <div class="actions"><button class="btn danger" id="tt-clear">Remove all test staff${on.length ? ` and their ${nShifts(on.length)}` : ""}</button></div>`;
+}
+async function ttAdd(ps) {
+  if (!ps.length) return toast("Say how many");
+  if (LIVE.tests.length + ps.length > 60) return toast("That's more than 60 test staff. Remove some first");
+  await LIVE.api.addTests(ps);
+  toast(`${plural(ps.length, "test person", "test people")} added`);
+}
+function ttFill() {
+  const ps = [];
+  for (const [k] of TT_SIDES) {
+    const n = Math.max(0, Math.min(20, Math.floor(+$(`#tt-n-${k}`).value || 0)));
+    const had = LIVE.tests.filter((p) => p.name.startsWith(TT_NAME[k] + " ")).length;
+    for (let i = 1; i <= n; i++) ps.push({ name: `${TT_NAME[k]} ${had + i}`, side: k === "manager" ? "floor" : k, role: k === "manager" ? "manager" : "staff" });
+  }
+  return ttAdd(ps);
+}
+function ttDay() {
+  const day = ttDays().includes(tt.day) ? tt.day : shiftDay(), on = new Set(LIVE.shifts.filter((x) => x.day === day).map((x) => x.who));
+  const ps = LIVE.tests.filter((p) => !on.has(p.uid));
+  if (!ps.length) return toast("They're all on the rota that day already");
+  const fs = ps.map((p) => {
+    const [start, end] = TT_HOURS[p.role === "manager" ? "manager" : p.side];
+    return { week: weekOf(day), day, start, end, side: p.side, note: "Test", who: p.uid, whoName: p.name, offer: "", offerName: "" };
+  });
+  track(LIVE.api.shiftsAdd(fs, tt.pub), `${nShifts(fs.length)} for the test team${tt.pub ? ", published" : " as a draft"}. See the rota`, "Not all of it was saved. Check your signal and try again");
+}
+// Test people and every shift they're on, published ones with their history.
+async function ttRemove(ids) {
+  const set = new Set(ids);
+  await Promise.all(LIVE.shifts.filter((x) => set.has(x.who)).map((x) => LIVE.api.shift(x, "removed")));
+  await LIVE.api.removeTests(ids);
 }
 // Managers can take down posts and notices, except the owner's.
 const canTakeDown = (x) => x.uid === LIVE.uid || LIVE.owner || (LIVE.admin && !isOwnerUid(x.uid));
@@ -3015,7 +3169,11 @@ function roClash(uid, s, id) {
   const off = offOn(s.day).find((o) => o.uid === uid);
   return other ? `is on ${roWhen(other)} too` : off ? (off.status === "approved" ? `is off on ${dayName(s.day)}` : `has asked for ${dayName(s.day)} off`) : "";
 }
-const roPeople = () => [...LIVE.staff].sort((a, b) => a.name.localeCompare(b.name));
+// The team and the test staff (made-up people for a practice day, never logins), as the rota puts people on shifts.
+const roPeople = () => [...LIVE.staff, ...LIVE.tests].sort((a, b) => a.name.localeCompare(b.name));
+const roFind = (uid) => LIVE.staff.find((s) => s.uid === uid) || LIVE.tests.find((s) => s.uid === uid);
+// A test person's id starts test- (a real uid never has a dash), so every phone can tell, even staff who can't read them.
+const isTestUid = (uid) => typeof uid === "string" && uid.startsWith("test-");
 // The week shown, the filter, the shift whose ⋯ is open, a manager's changes to it, its history and the add form, kept
 // apart from the page so a teammate's change redrawing it loses nothing.
 let roWk = "", roSide = "", roM = "", roE = null, roH = null;
@@ -3042,9 +3200,9 @@ function roRow(x) {
   const A = LIVE.admin, me = LIVE.uid, mine = x.who === me, offered = !x.who && x.offer === me, open = !x.who || !!x.cover;
   const live = x.pub && roSpan(x)[1] > roNow(), hands = Object.entries(x.wants), clash = A && x.who ? roClash(x.who, x, x.id) : "";
   const pills = [!x.pub && `<span class="pill wait">Draft</span>`, !x.who && `<span class="pill no">Open shift</span>`, x.cover && `<span class="pill no">Needs cover</span>`,
-    !x.who && x.offer && `<span class="pill wait">Offered to ${offered ? "you" : esc(x.offerName)}</span>`, `<span class="pill">${sideName(x.side)}</span>`].filter(Boolean).join(" ");
+    !x.who && x.offer && `<span class="pill wait">Offered to ${offered ? "you" : esc(x.offerName)}</span>`, `<span class="pill">${sideName(x.side)}</span>`, isTestUid(x.who) && `<span class="pill">Test</span>`].filter(Boolean).join(" ");
   const line = [x.note && esc(x.note), x.cover && `${mine ? "You" : esc(x.whoName)} can't make it: ${esc(x.cover)}`, hands.length && `Hands up: ${esc(hands.map(([, n]) => n).join(", "))}`,
-    clash && `<b class="late">${esc(x.whoName)} ${esc(clash)}</b>`, A && x.who && !LIVE.staff.some((p) => p.uid === x.who) && `${esc(x.whoName)} has left the team`, x.pending && "Saving…"].filter(Boolean).join(" · ");
+    clash && `<b class="late">${esc(x.whoName)} ${esc(clash)}</b>`, A && x.who && !roFind(x.who) && `${esc(x.whoName)} ${isTestUid(x.who) ? "was a test person" : "has left the team"}`, x.pending && "Saving…"].filter(Boolean).join(" · ");
   const b = (act, t, c = "") => `<button class="btn${c}" data-ro="${x.id}" data-ro-act="${act}">${t}</button>`;
   // Managers give it to someone with a hand up. Anyone: takes or turns down a shift offered to them, says they can't
   // make their own (or can after all). Staff put a hand up for one that's open or needs cover.
@@ -3060,8 +3218,8 @@ function roRow(x) {
 }
 const roOpts = (xs, cur) => xs.map(([v, t]) => `<option value="${esc(v)}"${v === cur ? " selected" : ""}>${esc(t)}</option>`).join("");
 // The team to pick from, keeping someone who has left on the shift they're still on until a manager changes it.
-function roPick(uid, name) {
-  const ps = roPeople().map((p) => [p.uid, p.name]);
+function roPick(uid, name, tests = true) {
+  const ps = roPeople().filter((p) => tests || !p.test).map((p) => [p.uid, p.test ? `${p.name} (test)` : p.name]);
   return uid && !ps.some(([u]) => u === uid) ? [...ps, [uid, `${name} (left the team)`]] : ps;
 }
 // The fields the add form and the grid (a "rof") and a manager's changes to one shift (a "roe", x) share.
@@ -3070,7 +3228,7 @@ const roSideField = (a, f) => `<label class="fld">Side<select data-${a}="side">$
 const roNoteField = (a, f) => `<label class="fld">Note (optional)<input data-${a}="note" maxlength="60" value="${esc(f.note)}" placeholder="Close, training, football…"></label>`;
 function roWhoFields(a, f, x) {
   return `<label class="fld">Who<select data-${a}="who">${roOpts([["", "Nobody yet: an open shift"], ...roPick(x?.who, x?.whoName)], f.who)}</select></label>
-    ${f.who ? "" : `<label class="fld">Offer it to someone, who takes it or says no<select data-${a}="offer">${roOpts([["", "Nobody: anyone can put their hand up"], ...roPick(x?.offer, x?.offerName)], f.offer)}</select></label>`}`;
+    ${f.who ? "" : `<label class="fld">Offer it to someone, who takes it or says no<select data-${a}="offer">${roOpts([["", "Nobody: anyone can put their hand up"], ...roPick(x?.offer, x?.offerName, false)], f.offer)}</select></label>`}`;
 }
 const roFields = (a, f, x) => `<div class="two even">${roTimeFields(a, f)}</div>${roWhoFields(a, f, x)}${roSideField(a, f)}${roNoteField(a, f)}`;
 function roEditHtml(x) {
@@ -3149,9 +3307,9 @@ function roHours(xs) {
 // is still on a shift) and a column for each day.
 function roGridHtml(wk, xs, pub) {
   const days = Array.from({ length: 7 }, (_, i) => addDays(wk, i)), f = { ...roF, side: roF.side || mode }, times = roTimes();
-  const gone = [...new Map(xs.filter((x) => x.who && !LIVE.staff.some((p) => p.uid === x.who)).map((x) => [x.who, { uid: x.who, name: `${x.whoName} (left)` }])).values()];
+  const gone = [...new Map(xs.filter((x) => x.who && !roFind(x.who)).map((x) => [x.who, { uid: x.who, name: `${x.whoName} (left)` }])).values()];
   const head = `<div class="rg-corner"></div>${days.map((d) => `<div class="rg-h${d === shiftDay() ? " today" : ""}">${dayName(d, { weekday: "short" })}<b>${+d.slice(8)}</b></div>`).join("")}`;
-  const rows = [...roPeople(), ...gone].map((p) => `<div class="rg-n">${esc(p.name)}</div>${days.map((d) => roCell(p, d, xs)).join("")}`).join("");
+  const rows = [...roPeople(), ...gone].map((p) => `<div class="rg-n">${esc(p.name)}${p.test ? " (test)" : ""}</div>${days.map((d) => roCell(p, d, xs)).join("")}`).join("");
   return `<div class="mini">Put people on</div>
     ${times.length ? `<div class="chips">${times.map(([s, e]) => `<button class="chip" data-ro-times="${s}-${e}" aria-pressed="${f.start === s && f.end === e}">${s}–${e}</button>`).join("")}</div>` : ""}
     <div class="two even">${roTimeFields("rof", f)}</div>${roSideField("rof", f)}
@@ -3176,7 +3334,7 @@ function roTap(uid, day) {
   const draft = on.find((x) => !x.pub);
   if (draft) { track(LIVE.api.shift(draft, "removed"), `Taken off: ${draft.whoName}, ${dayName(day)}`, "Not saved. Check your signal and try again"); haptic(); return; }
   if (on.length) { roOpen(on[0]); $(`[data-ro-more="${on[0].id}"]`)?.scrollIntoView({ block: "center" }); return; }
-  const p = LIVE.staff.find((s) => s.uid === uid);
+  const p = roFind(uid);
   if (!p) return toast("They're not on the team any more");
   if (!ISO_TIME.test(roF.start) || !ISO_TIME.test(roF.end)) return toast("Pick when it starts and ends first");
   if (roF.start === roF.end) return toast("It can't start and end at the same time");
@@ -3199,7 +3357,7 @@ function roAddHtml(wk, pub) {
 }
 function roAdd() {
   const wk = roWeek(), pub = weekShifts(wk).some((x) => x.pub), days = roF.days.filter((d) => weekOf(d) === wk).sort();
-  const p = LIVE.staff.find((s) => s.uid === roF.who), o = !p && LIVE.staff.find((s) => s.uid === roF.offer);
+  const p = roFind(roF.who), o = !p && LIVE.staff.find((s) => s.uid === roF.offer);
   if (!days.length) return toast("Pick the day or days");
   if (!ISO_TIME.test(roF.start) || !ISO_TIME.test(roF.end)) return toast("Pick when it starts and ends");
   if (roF.start === roF.end) return toast("It can't start and end at the same time");
@@ -3217,7 +3375,7 @@ function roCopy() {
   const wk = roWeek(), from = weekShifts(addDays(wk, -7));
   if (!from.length || weekShifts(wk).length) return;
   const fs = from.map((x) => {
-    const p = LIVE.staff.find((s) => s.uid === x.who);
+    const p = roFind(x.who);
     return { week: wk, day: addDays(x.day, 7), start: x.start, end: x.end, side: x.side, note: x.note, who: p ? p.uid : "", whoName: p ? p.name : "", offer: "", offerName: "" };
   });
   track(LIVE.api.shiftsAdd(fs, false), `Copied ${nShifts(fs.length)} into a draft. Check them, then publish`, "Not all of it was copied. Check the week and try again");
@@ -3268,7 +3426,7 @@ function roSave(x) {
   if (x.v !== roE.v) { roM = ""; roOpen(x); return toast(`${x.name} has just changed it. Check it and try again`); }
   if (!ISO_TIME.test(roE.start) || !ISO_TIME.test(roE.end)) return toast("Pick when it starts and ends");
   if (roE.start === roE.end) return toast("It can't start and end at the same time");
-  const who = roE.who, same = who === x.who, p = LIVE.staff.find((s) => s.uid === who), o = LIVE.staff.find((s) => s.uid === roE.offer);
+  const who = roE.who, same = who === x.who, p = roFind(who), o = LIVE.staff.find((s) => s.uid === roE.offer);
   // Someone keeps their cover request and the hands up for it only while they stay on the shift; an open shift keeps
   // its hands up; only an open shift is offered.
   const f = { day: roE.day, start: roE.start, end: roE.end, side: roE.side, note: roE.note.trim().slice(0, 60), who, whoName: who ? p?.name || x.whoName : "",
@@ -4774,7 +4932,7 @@ async function prepareDownload(sec) {
 const FRESH_NAME = { shifts: "Shifts on the rota", asks: "Time off, swaps and running late", reports: "Shift reports", photos: "Closing photos",
   reviews: "Reviews of reports", events: "Changes in the activity history", restock: "Restocks", out: "On the 86 board", outlog: "86 log entries",
   issues: "Issues", concerns: "Concerns", concernPhotos: "Concern photos", notices: "Broadcasts", seen: "Got it taps on broadcasts", feed: "Old board posts",
-  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", checklists: "Checklist items" };
+  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", teststaff: "Test staff", checklists: "Checklist items" };
 const FRESH_WORDS = "START FRESH";
 const frF = { counts: null, total: 0, busy: false, done: 0, of: 0, words: "", msg: "" };
 const frCount = (n) => n.toLocaleString("en-GB");
@@ -5076,9 +5234,9 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], tests: [renderStaff, renderRota], requests: [renderRequests, renderAct],
       asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
+      out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief, renderTests], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
       concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
@@ -5118,6 +5276,9 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.id === "cn-note") cnF.note = t.value;
   if (t.dataset.cnFixt) cnText[t.dataset.cnFixt] = t.value;
   if (t.id === "af-q") { af.q = t.value; actMax = 50; renderActRows(); }
+  if (t.id === "tm-q") { tm.q = t.value; renderStaff(); }
+  if (t.id === "a-user") aUserTyped = !!t.value;
+  if (t.id === "a-name" && !aUserTyped) $("#a-user").value = t.value.trim() ? makeUser(t.value, usernames()) : "";
   if (t.dataset.rof) roF[t.dataset.rof] = t.value;
   if (t.dataset.roe && roE) roE[t.dataset.roe] = t.value;
   if (t.dataset.calf) calF[t.dataset.calf] = t.value;
@@ -5145,6 +5306,8 @@ $("#v-notices").addEventListener("change", (e) => {
   if (t.dataset.moA) { sh(t.dataset.moA).a = t.value; moSave(); renderMoney(); return; }
   if (t.dataset.moB) { sh(t.dataset.moB).b = t.value; moSave(); renderMoney(); return; }
   if (t.id === "mo-day-use") { moF.dayOn = t.checked; moSave(); renderMoney(); return; }
+  if (t.dataset.tmSel) { if (t.checked) tm.sel.add(t.dataset.tmSel); else tm.sel.delete(t.dataset.tmSel); renderStaff(); return; }
+  if (t.id === "tt-pub") tt.pub = t.checked;
   if (t.dataset.f) meF[t.dataset.f] = t.value;
   if (t.id === "cn-area") cnF.area = t.value;
   if (t.id === "cn-anon") cnF.anon = t.checked;
@@ -5346,6 +5509,60 @@ $("#v-notices").addEventListener("click", (e) => {
   }
   if (b.dataset.tpane) { openPlace(b.dataset.tpane); return; }
   if (b.id === "hub-back") { openPlace(""); return; }
+  if (b.dataset.tmShow) { tm.show = b.dataset.tmShow; renderStaff(); return; }
+  if (b.id === "tm-all") { tmShown().filter(tmCan).forEach((p) => tm.sel.add(p.uid)); renderStaff(); return; }
+  if (b.id === "tm-none") { tm.sel.clear(); renderStaff(); return; }
+  if (b.id === "tm-mgr" || b.id === "tm-staff") {
+    const to = b.id === "tm-mgr" ? "manager" : "staff", ps = tmSel().filter((p) => !p.test && p.role !== to);
+    if (!confirm(`Make ${ps.map((p) => p.name).join(", ")} ${to === "manager" ? "managers" : "staff"}? It takes effect on their phones straight away.`)) return;
+    busy(b, "…", tmEach(ps, (p) => A.setRole(p, to)).then(({ ok, bad }) => {
+      staffMsg = (ok.length ? `${ok.map((x) => esc(x.p.name)).join(", ")} ${ok.length === 1 ? "is" : "are"} now ${to === "manager" ? (ok.length === 1 ? "a manager" : "managers") : "staff"}.` : "") + tmBad(bad);
+      tm.sel.clear(); renderStaff();
+    })); return;
+  }
+  if (b.id === "tm-pins") {
+    const ps = tmSel().filter((p) => !p.test);
+    if (!confirm(`Give ${ps.map((p) => p.name).join(", ")} new PINs? Their old ones stop working and they're logged out.`)) return;
+    busy(b, "…", tmEach(ps, (p) => { const pin = newPin(); return A.resetPin(p, pin).then(() => pin); }).then(({ ok, bad }) => {
+      staffMsg = (ok.length ? `New PINs. Tell each of them; they aren't shown again.<ul class="creds">${ok.map(({ p, r }) => `<li>${esc(p.name)}: username <b>${esc(p.username)}</b>, PIN <b>${r}</b></li>`).join("")}</ul>` : "") + tmBad(bad);
+      tm.sel.clear(); renderStaff();
+    })); return;
+  }
+  if (b.id === "tm-remove") {
+    const ps = tmSel(), real = ps.filter((p) => !p.test), tests = ps.filter((p) => p.test);
+    if (!confirm(`Remove ${ps.map((p) => p.name).join(", ")}?${real.length ? " Real logins are logged out straight away; what they wrote keeps their name." : ""}${tests.length ? " Test staff go with their shifts." : ""}`)) return;
+    busy(b, "Removing…", Promise.all([tmEach(real, (p) => A.remove(p)), tests.length ? ttRemove(tests.map((p) => p.uid)).then(() => ({ ok: tests.map((p) => ({ p })), bad: [] }), () => ({ ok: [], bad: tests })) : { ok: [], bad: [] }])
+      .then(([x, y]) => {
+        const ok = [...x.ok, ...y.ok], bad = [...x.bad, ...y.bad];
+        staffMsg = (ok.length ? `Removed ${ok.map((z) => esc(z.p.name)).join(", ")}.` : "") + tmBad(bad);
+        tm.sel.clear(); renderStaff();
+      })); return;
+  }
+  if (b.id === "a-many-go") {
+    const lines = $("#a-many").value.split("\n").map((l) => l.trim()).filter((l) => l.split(",")[0].trim());
+    if (!lines.length) return toast("Add a name on each line");
+    if (lines.length > 30) return toast("30 at a time at most");
+    busy(b, `Adding ${lines.length}…`, addMany(lines).then((bad) => { $("#a-many").value = ""; renderStaff(); $("#staff-list").scrollIntoView({ block: "start" }); if (!bad) haptic(); }));
+    return;
+  }
+  if (b.id === "tt-fill") { busy(b, "Adding…", ttFill().catch(() => toast("Not added. Check your signal"))); return; }
+  if (b.id === "tt-add") {
+    const name = val("#tt-name"); if (!name) return toast("Give them a name");
+    busy(b, "Adding…", ttAdd([{ name: name.slice(0, 40), side: $("#tt-side").value, role: $("#tt-role").value }]).then(() => { $("#tt-name").value = ""; }, () => toast("Not added. Check your signal")));
+    return;
+  }
+  if (b.dataset.ttDay) { tt.day = b.dataset.ttDay; renderTests(); return; }
+  if (b.id === "tt-day") { ttDay(); haptic(); return; }
+  if (b.dataset.ttDrop) {
+    const p = LIVE.tests.find((x) => x.uid === b.dataset.ttDrop); if (!p) return;
+    busy(b, "…", ttRemove([p.uid]).then(() => toast(`${p.name} removed`), () => toast("Not removed. Check your signal")));
+    return;
+  }
+  if (b.id === "tt-clear") {
+    if (!confirm(`Remove all ${LIVE.tests.length} test staff and every shift they're on?`)) return;
+    busy(b, "Removing…", ttRemove(LIVE.tests.map((p) => p.uid)).then(() => { tm.sel.clear(); toast("Test staff removed"); }, () => toast("Not all removed. Try again")));
+    return;
+  }
   const person = (id) => LIVE.staff.find((p) => p.uid === id);
   if (b.id === "l-go") {
     const u = val("#l-user").toLowerCase(), pin = val("#l-pin");
@@ -5367,7 +5584,7 @@ $("#v-notices").addEventListener("click", (e) => {
     if (!name || !A.USER.test(u) || !A.PIN.test(pin)) return toast("Fill in every box. Username: lower case letters and numbers. PIN: 6 to 12 digits");
     busy(b, "Adding…", A.addPerson(name, u, pin, role).then(() => {
       staffMsg = `Added ${esc(name)}. Tell them: username <b>${esc(u)}</b>, PIN <b>${pin}</b>. The PIN isn't shown again.`;
-      renderTeamTop();
+      aUserTyped = false; renderTeamTop();
     }).catch((x) => toast(x.message === "That username is taken" ? x.message : "Could not add them. Check your signal")));
   } else if (b.dataset.reset) {
     const p = person(b.dataset.reset), pin = newPin();
