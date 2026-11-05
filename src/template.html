@@ -615,7 +615,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <div id="hubtop"><h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p></div>
-    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="act"></div><div id="kpis"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="act"></div><div id="kpis"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
   </section>
   <section class="view info" id="v-pay" hidden></section>
   <section class="view info" id="v-info" hidden></section>
@@ -708,7 +708,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], briefing: null, briefReads: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -2371,6 +2371,9 @@ const FEATURES = [
   { g: "Shift", k: "send", n: "Shift report", go: "send", login: 1, tour: 1,
     what: "Each side's report at the end of the shift, with up to 8 closing photos, sent to the managers.",
     staff: "Send your side's report.", mgr: "Sign it off, give it a thumbs up, flag it or add a note." },
+  { g: "Shift", k: "briefing", n: "Briefing", go: "brief", login: 1, sw: 1,
+    what: "Tonight's briefing before service: covers, big bookings, specials, allergies, sections, breaks and what to watch for, with what's 86'd and who's on the rota.",
+    staff: "Read it and tap I've read it.", mgr: "Post it or change it (everyone's asked to read it again), add last night's handover note in one tap, and see who on tonight hasn't read it." },
   { g: "Shift", k: "football", n: "Football", go: "football", login: 1, sw: 1,
     what: "Today's and coming games at the top of the Shift tab, so everyone knows what's on the screens.",
     staff: "See the games and kick-off times.", mgr: "Add and remove games." },
@@ -2541,7 +2544,7 @@ const feedNew = () => [...LIVE.notices, ...LIVE.reports].filter(isNew);
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "What needs you, tonight at a glance, and everything for the team." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -2579,7 +2582,7 @@ function renderTeamTop() {
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>
       ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderAct(); renderKpis(); renderFresh(); renderHub();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderBrief(); renderAct(); renderKpis(); renderFresh(); renderHub();
 }
 /* The Team page, which the bell opens: what's new and what needs you, tonight at a glance, then a card for each part of
    the team side of the app, in the Features page's groups and names. Each part opens on a page of its own, with Back to
@@ -2597,6 +2600,9 @@ const toSign = () => rpReports().filter((r) => !r.signedBy).length;
 const openInc = () => (LIVE.admin && isOn("incidents") ? rpIncidents().filter((x) => x.status !== "closed").length : 0);
 // Each part: its card's name and line, how many there need you (a hot count is urgent), and the slots on its page.
 const PLACES = [
+  { g: "Everyone", k: "brief", n: () => "Tonight's briefing", on: () => isOn("briefing"), slots: ["#brief"],
+    sub: () => (!LIVE.briefing ? (LIVE.admin ? "Not posted yet. Post it before service" : "Not posted yet") : brMine() ? (LIVE.admin ? `Read by ${brReadBy().length}` : "Read") : "New: read it before service"),
+    cnt: () => (LIVE.briefing && !brMine() ? 1 : 0) },
   { g: "Everyone", k: "chat", n: () => "Chat", on: () => isOn("chat"), slots: ["#chat"],
     sub: () => { const u = unreadChats(); return u.length ? `New in ${u.map(chatName).join(", ")}` : "The team, one person or a group"; }, cnt: () => unreadChats().length },
   { g: "Everyone", k: "rota", n: () => (isOn("rota") ? "Rota" : "Calendar"), on: () => isOn("rota") || calOn(), slots: ["#rota", "#cal"],
@@ -2655,6 +2661,7 @@ function forYou() {
     const fill = isOn("rota") ? roToFill() : [];
     if (fill.length) add(`${plural(fill.length, "shift")} to fill in the next 7 days`, "rota", fill.slice(0, 3).map(roWhen).join(", "), fill.some((x) => x.day <= addDays(shiftDay(), 1)));
   }
+  if (isOn("briefing") && LIVE.briefing && !brMine()) add("Read tonight's briefing", "brief", `From ${LIVE.briefing.name}${LIVE.briefing.covers ? `, ${LIVE.briefing.covers} covers` : ""}`);
   for (const x of isOn("rota") ? roOffers() : []) add(`${x.name} offered you a shift`, `rota:${x.week}`, `${roWhen(x)}, ${sideName(x.side)}`);
   for (const x of openIssues().filter((i) => i.status === "taken" && i.whoUid === LIVE.uid)) add(x.setByUid === LIVE.uid ? `You're on: ${x.title}` : `${x.setBy} gave you: ${x.title}`, "issues", "Mark it fixed when it's done");
   for (const c of unreadChats()) add(`New in ${chatName(c)}`, `chat:${c.id}`, pinged(c) ? "You were pinged" : "");
@@ -3747,6 +3754,62 @@ function liveText() {
 }
 SHARE.live = () => [`Black Tap Soho tonight, ${hhmm(new Date())}`, liveText()];
 
+/* ---------- Pre-service briefing ----------
+   Before service a manager tells the team tonight's covers, big bookings, specials, allergies, sections, breaks and
+   what to watch for. Bar Book adds what it already knows: what's 86'd and who's on the rota tonight. Everyone taps
+   Read it; managers see who has and who on tonight's rota hasn't. A change makes it new again for everyone. */
+const BR_F = [["covers", "Expected covers"], ["bookings", "Large bookings and events"], ["specials", "Specials and promotions"], ["allergies", "Allergies and special requests"],
+  ["sections", "Sections and who's where"], ["breaks", "Breaks"], ["focus", "Tonight's priorities"], ["previous", "From the last shift"]];
+const brF = { open: false, covers: "", bookings: "", specials: "", allergies: "", sections: "", breaks: "", focus: "", previous: "" };
+const brOn = () => !!LIVE.me && isOn("briefing");
+const brReadBy = () => LIVE.briefReads.filter((r) => r.v === LIVE.briefing?.v);
+const brMine = () => !!LIVE.briefing && (LIVE.briefing.uid === LIVE.uid || LIVE.briefReads.some((r) => r.uid === LIVE.uid && r.v === LIVE.briefing.v));
+const brTonight = () => (isOn("rota") ? LIVE.shifts.filter((x) => x.pub && x.day === shiftDay() && x.who) : []);
+function brFill() {
+  const b = LIVE.briefing || {};
+  for (const [k] of BR_F) brF[k] = k === "covers" ? (b.covers ? String(b.covers) : "") : b[k] || "";
+}
+function renderBrief() {
+  if (!brOn()) return;
+  const b = LIVE.briefing, head = `<div class="sec">Tonight's briefing</div>`;
+  const out = [...LIVE.out].sort(), on = brTonight();
+  const show = b ? `<article class="notice brief"><div class="meta"><b>${dayName(b.day, { weekday: "long", day: "numeric", month: "long" })}</b> · from ${esc(b.name)}, ${b.pending ? "sending…" : when(b.at)}${b.v > 1 ? " (changed)" : ""}</div>
+      ${b.covers ? `<p class="txt"><b>${b.covers}</b> covers expected</p>` : ""}
+      ${BR_F.filter(([k]) => k !== "covers" && b[k]).map(([k, t]) => `<div class="h3">${t}</div><p class="txt">${esc(b[k])}</p>`).join("")}
+      <div class="h3">86'd now</div><p class="txt">${out.length ? esc(out.join(", ")) : "Nothing"}</p>
+      ${on.length ? `<div class="h3">On the rota tonight</div><p class="txt">${on.map((x) => `${esc(x.whoName)} (${sideName(x.side)}, ${roTime(x)})`).join(", ")}</p>` : ""}
+      <div class="actions">${brMine() ? `<span class="pill ok">${b.uid === LIVE.uid ? "You posted it" : "You've read it"}</span>` : `<button class="btn pri" id="br-read">I've read it</button>`}</div></article>`
+    : `<p class="note">${LIVE.admin ? "Nothing posted yet tonight. Post it before service." : "Nothing posted yet tonight."}</p>`;
+  let who = "";
+  if (LIVE.admin && b) {
+    const read = brReadBy(), uids = new Set(read.map((r) => r.uid));
+    const missing = on.filter((x) => !uids.has(x.who) && x.who !== b.uid);
+    who = `<div class="h3">Read by ${read.length}</div><p class="note">${read.length ? read.map((r) => `${esc(r.name)} ${hhmm(new Date(ms(r.at)))}`).join(", ") : "Nobody yet."}</p>
+      ${missing.length ? `<p class="note"><b>On tonight and not read yet:</b> ${missing.map((x) => esc(x.whoName)).join(", ")}</p>` : ""}`;
+  }
+  const form = LIVE.admin ? `<details class="setup" id="br-form"${brF.open ? " open" : ""}><summary>${b ? "Change tonight's briefing" : "Post tonight's briefing"}</summary>
+      ${BR_F.map(([k, t]) => k === "covers" ? `<label class="fld">${t}<input data-br="covers" inputmode="numeric" maxlength="4" value="${esc(brF.covers)}"></label>`
+        : `<label class="fld">${t} (optional)<textarea data-br="${k}" rows="2" maxlength="${k === "breaks" ? 500 : 1000}">${esc(brF[k])}</textarea></label>`).join("")}
+      <div class="actions"><button class="btn" id="br-prev">Add last night's handover and urgent issues</button></div>
+      ${b ? `<p class="note">Changing it asks everyone to read it again.</p>` : ""}
+      <div class="actions"><button class="btn pri" id="br-go">${b ? "Save the change" : "Post it"}</button></div></details>` : "";
+  $("#brief").innerHTML = head + show + who + form;
+}
+function brPrev() {
+  const h = LIVE.handovers.find((x) => x.id < shiftDay()), urgent = openIssues().filter((x) => x.urgent);
+  const bits = [h?.note && `Handover (${h.name}): ${h.note}`, urgent.length && `Urgent issues: ${urgent.map((x) => x.title).join("; ")}`].filter(Boolean);
+  if (!bits.length) return toast("No handover note or urgent issues to add");
+  brF.previous = [brF.previous.trim(), ...bits].filter(Boolean).join("\n").slice(0, 1000); renderBrief();
+}
+function brSave() {
+  const covers = brF.covers.trim() === "" ? 0 : Number(brF.covers);
+  if (!Number.isInteger(covers) || covers < 0 || covers > 5000) return toast("Covers should be a whole number");
+  const x = Object.fromEntries(BR_F.map(([k]) => [k, k === "covers" ? covers : brF[k].trim()]));
+  if (!covers && BR_F.every(([k]) => k === "covers" || !x[k])) return toast("Add something to tell the team first");
+  track(LIVE.api.saveBriefing(x), LIVE.briefing ? "Briefing changed. Everyone's asked to read it again" : "Briefing posted", "Not saved. Try again");
+  brF.open = false; brF.filled = false; haptic(); renderBrief();
+}
+
 /* ---------- Manager close and handover ----------
    The last thing a manager does: questions about what only a manager checks (cash, voids, tips, breaks, security), each
    answered yes, no or n/a, where a no opens what needs saying about it; plus what Bar Book already knows went wrong
@@ -4219,7 +4282,7 @@ async function prepareDownload(sec) {
 const FRESH_NAME = { shifts: "Shifts on the rota", asks: "Time off, swaps and running late", reports: "Shift reports", photos: "Closing photos",
   reviews: "Reviews of reports", events: "Changes in the activity history", restock: "Restocks", out: "On the 86 board", outlog: "86 log entries",
   issues: "Issues", concerns: "Concerns", concernPhotos: "Concern photos", notices: "Broadcasts", seen: "Got it taps on broadcasts", feed: "Old board posts",
-  requests: "Old stock requests", handovers: "Manager handovers", checklists: "Checklist items" };
+  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", checklists: "Checklist items" };
 const FRESH_WORDS = "START FRESH";
 const frF = { counts: null, total: 0, busy: false, done: 0, of: 0, words: "", msg: "" };
 const frCount = (n) => n.toLocaleString("en-GB");
@@ -4521,14 +4584,14 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
       asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
+      out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
       concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"], [renderHandover, "#mclose"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"], [renderHandover, "#mclose"], [renderBrief, "#brief"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderHub(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
@@ -4571,6 +4634,7 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.hof) { const [q, k] = t.dataset.hof.split(":"); (hoF.f[q] ||= {})[k] = t.value; hoSave(); }
   if (t.dataset.hon) { hoF[t.dataset.hon] = t.value; hoSave(); }
   if (t.dataset.hoack) hoAck[t.dataset.hoack] = t.value;
+  if (t.dataset.br) brF[t.dataset.br] = t.value;
 });
 $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
@@ -4598,6 +4662,8 @@ $("#v-notices").addEventListener("change", (e) => {
 });
 $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
+  // Changing the briefing starts from what was posted.
+  if (e.target.id === "br-form") { brF.open = e.target.open; if (brF.open && LIVE.briefing && !brF.filled) { brFill(); brF.filled = true; renderBrief(); } }
   if (e.target.id === "cn-form") cnF.open = e.target.open;
   if (e.target.id === "ro-add") roF.open = e.target.open;
   if (e.target.id === "cal-add") calE.open = e.target.open;
@@ -4748,6 +4814,9 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.dataset.hoa) { hoF.a[b.dataset.hoa] = b.dataset.v; hoSave(); renderHandover(); return; }
   if (b.dataset.hoyn) { const [q, k] = b.dataset.hoyn.split(":"); (hoF.f[q] ||= {})[k] = b.dataset.v; hoSave(); renderHandover(); return; }
   if (b.id === "ho-go") { sendHandover(b); return; }
+  if (b.id === "br-read") { track(LIVE.api.readBriefing(), "Marked as read", "Not saved. It may have just changed: read it again"); haptic(); return; }
+  if (b.id === "br-prev") { brPrev(); return; }
+  if (b.id === "br-go") { brSave(); return; }
   if (b.dataset.hoAccept) {
     const id = b.dataset.hoAccept, h = LIVE.handovers.find((x) => x.id === id), note = (hoAck[id] || "").trim();
     if (h.risks && !note) return toast("Say what you'll do about the risks first");

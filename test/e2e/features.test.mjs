@@ -29,7 +29,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   // Staff: from Bar info, what they can do and what managers can, with no switches.
   await openFeatures(S);
   assert.match(flat(await S.$eval("#feat", (e) => e.innerText)), /^WHAT'S IN BAR BOOK The drinks, the shift and the team in one app\. .* You're staff: what you can do is under You\. .* Take the tour \(14 steps\) DRINKS /);
-  assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 30);
+  assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 31);
   assert.match(await card(S, "fresh"), /^Start fresh Managers only A clean start for everyone once the venue has finished trying the app out: .* Managers: The owner downloads what to keep, sees what it would clear, then types their PIN to clear it for everyone\.$/);
   assert.match(await card(S, "lists"), /^Checklists Opening and closing .* You: Tick items off, start one, or mark one blocked and say why\. Managers: The same, and give an item to someone and change what's on each list\. Open$/);
   assert.match(await card(S, "live"), /^Live Managers only Tonight as it happens: .* Managers: Share tonight's summary on WhatsApp or by email\.$/);
@@ -60,7 +60,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   await openFeatures(O);
   assert.match(flat(await O.$eval("#feat", (e) => e.innerText)), /You're the owner, so you can do everything here\. Untick a feature to switch it off for everyone at this venue/);
   assert.deepEqual(await O.$$eval("[data-feat-sw]", (x) => x.map((b) => `${b.dataset.featSw}:${b.checked}`)),
-    ["allergens", "practice", "pay", "football", "chat", "rota", "calendar", "asks", "incidents", "handover", "kpis", "training", "feedback"].map((k) => `${k}:true`));
+    ["allergens", "practice", "pay", "briefing", "football", "chat", "rota", "calendar", "asks", "incidents", "handover", "kpis", "training", "feedback"].map((k) => `${k}:true`));
   await O.click('[data-feat-go="pay"]'); await closed(O);
   assert.equal(await where(O), "pay", "My pay is its own tab");
 
@@ -105,7 +105,7 @@ test("the owner switches features off for everyone, and switching them on brings
   assert.equal(await S.evaluate(() => getComputedStyle($("nav.tabs")).gridTemplateColumns.split(" ").length), 5);
   await S.evaluate(() => show("allergens"));
   assert.equal(await where(S), "drinks", "a switched-off tab can't be opened");
-  const rest = ["reports:Reports", "issues:Issues and handover", "concerns:Concerns", "board:Broadcasts", "me:Tell the managers"];
+  const rest = ["brief:Tonight's briefing", "reports:Reports", "issues:Issues and handover", "concerns:Concerns", "board:Broadcasts", "me:Tell the managers"];
   assert.deepEqual(await teamTabs(S), [...rest, "activity:Activity"]);
   await part(S, "me");
   assert.deepEqual(await S.$$eval("[data-mek]", (x) => x.map((b) => b.dataset.mek)), ["late"]);

@@ -611,8 +611,8 @@ service cloud.firestore {
     match /settings/{id} {
       allow read: if isMember();
       allow create, update: if isOwner() && id == 'features' && exactly(['off', 'uid', 'name', 'at']) && stamped()
-        && incoming().off is list && incoming().off.size() <= 13
-        && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover']);
+        && incoming().off is list && incoming().off.size() <= 14
+        && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover', 'briefing']);
     }
 
     // ---------- Manager close and handover ----------
@@ -660,10 +660,35 @@ service cloud.firestore {
       allow delete: if freshOwner();
     }
 
+    // ---------- Pre-service briefing ----------
+    // One per business night, id = the day: what a manager tells the team before service. Everyone on the team reads it.
+    // Managers write it and can change it; each change raises v, so a read of an older version doesn't count.
+    function optInt(n, max) { return n is int && n >= 0 && n <= max; }
+    match /briefings/{day} {
+      allow read: if isMember();
+      allow create, update: if isManager() && nearNow(day) && stamped()
+        && exactly(['day', 'covers', 'bookings', 'specials', 'allergies', 'sections', 'breaks', 'focus', 'previous', 'v', 'uid', 'name', 'at'])
+        && incoming().day == day && optInt(incoming().covers, 5000)
+        && optText(incoming().bookings, 1000) && optText(incoming().specials, 1000) && optText(incoming().allergies, 1000)
+        && optText(incoming().sections, 1000) && optText(incoming().breaks, 500) && optText(incoming().focus, 1000) && optText(incoming().previous, 1000)
+        && incoming().v == (resource == null ? 1 : resource.data.v + 1);
+      allow delete: if freshOwner();
+    }
+    // "I've read it": one per person per night, id {day}-{uid}, for the version they read. Managers see everyone's;
+    // staff only their own.
+    match /briefReads/{id} {
+      allow get: if isMember() && (isManager() || id.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}-' + request.auth.uid));
+      allow list: if isManager();
+      allow create, update: if isMember() && exactly(['day', 'v', 'uid', 'name', 'at']) && stamped()
+        && id == incoming().day + '-' + request.auth.uid
+        && incoming().v == get(/databases/$(database)/documents/briefings/$(incoming().day)).data.v;
+      allow delete: if freshOwner();
+    }
+
     // ---------- Starting fresh ----------
     // The owner's Start fresh (Managers, Team) clears the shift work for everyone, for a clean start after trying the app
     // out: the rota, asks, shift reports with their photos and reviews, the checklists and their events, restocking, the
-    // 86 board and its log, manager handovers, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
+    // 86 board and its log, manager handovers, briefings and who read them, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
     // Accounts, the audit trail, lists, date labels, drink media, the calendar, games, incidents, training, feedback,
     // chats and the old records stay. It needs the owner's PIN in the last 15 minutes, and each time is recorded here
     // first, under the owner's uid and the time they signed in, with how many of each it found: the deletes check for

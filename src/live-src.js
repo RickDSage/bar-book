@@ -271,7 +271,7 @@ async function clearOldPhotos() {
 // out: each collection in FRESH, and every business day's checklists under shift/{day} since the app began. Concerns go
 // before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
 // with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
-const FRESH = ["shifts", "asks", "reports", "handovers", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
+const FRESH = ["shifts", "asks", "reports", "handovers", "briefReads", "briefings", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
   "notices", "seen", "feed", "requests"];
 const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
 // A date label's events stay with the label.
@@ -331,6 +331,10 @@ function watchDays() {
   subDay("runs", () => collection(db, "shift", shiftDay(), "runs"), (snap) => { LIVE.runs = byId(snap); liveChanged("runs"); });
   subDay("events", () => query(collection(db, "events"), where("day", "==", shiftDay()), limit(2000)), (snap) => { LIVE.events = rows(snap); liveChanged("events"); });
   watchRota();
+  // Tonight's briefing, and who has read it: managers everyone's, staff their own.
+  subDay("briefing", () => doc(db, "briefings", shiftDay()), (d) => { LIVE.briefing = d.exists() ? { ...d.data({ serverTimestamps: "estimate" }), id: d.id, pending: d.metadata.hasPendingWrites } : null; liveChanged("briefing"); });
+  subDay("briefReads", () => (LIVE.admin ? query(collection(db, "briefReads"), where("day", "==", shiftDay())) : doc(db, "briefReads", `${shiftDay()}-${auth.currentUser.uid}`)),
+    (x) => { LIVE.briefReads = x.docs ? rows(x) : x.exists() ? [{ ...x.data(), id: x.id }] : []; liveChanged("briefReads"); });
 }
 // The rota. Managers get every shift from four weeks back, drafts included. Everyone else gets the published shifts
 // from last week to the week after next, a week at a time: a query the rules can check, with no index to set up.
@@ -608,6 +612,9 @@ LIVE.api = {
     b.set(doc(db, "handovers", day), { day, ...h, ...me() });
     return b.commit();
   },
+  // Tonight's briefing, new or changed: the whole of it each time, one version up.
+  saveBriefing: (b) => setDoc(doc(db, "briefings", shiftDay()), { day: shiftDay(), covers: b.covers, bookings: b.bookings, specials: b.specials, allergies: b.allergies, sections: b.sections, breaks: b.breaks, focus: b.focus, previous: b.previous, v: (LIVE.briefing?.v || 0) + 1, ...me() }),
+  readBriefing: () => setDoc(doc(db, "briefReads", `${shiftDay()}-${auth.currentUser.uid}`), { day: shiftDay(), v: LIVE.briefing.v, ...me() }),
   acceptHandover: (day, note) => updateDoc(doc(db, "handovers", day), { ackBy: LIVE.me, ackByUid: auth.currentUser.uid, ackAt: serverTimestamp(), ackNote: note }),
   raise: (x) => addDoc(collection(db, "issues"), { title: x.title, detail: x.detail, area: x.area, urgent: x.urgent, again: x.again || null, status: "open", ...me() }),
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),

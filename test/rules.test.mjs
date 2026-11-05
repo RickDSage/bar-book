@@ -1784,7 +1784,7 @@ describe("team chat", () => {
 describe("features the owner switches off for the venue", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   // Everything the app lets the owner switch off.
-  const ALL = ["allergens", "practice", "pay", "football", "chat", "rota", "calendar", "asks", "incidents", "kpis", "training", "feedback", "handover"];
+  const ALL = ["allergens", "practice", "pay", "football", "chat", "rota", "calendar", "asks", "incidents", "kpis", "training", "feedback", "handover", "briefing"];
   const ref = (uid, id = "features") => doc(db(uid), "settings", id);
   const set = (uid, off, extra = {}) => setDoc(ref(uid), { off, ...by(uid), ...extra });
   test("only the owner switches features off and on, and everyone on the team reads it", async () => {
@@ -1950,6 +1950,45 @@ describe("manager close and handover", () => {
   });
 });
 
+describe("pre-service briefing", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const br = (uid, extra = {}, day = today()) => ({ day, covers: 180, bookings: "Party of 20 at 8", specials: "", allergies: "Table 12 coeliac", sections: "", breaks: "", focus: "", previous: "", v: 1, ...by(uid), ...extra });
+  const ref = (uid, day = today()) => doc(db(uid), "briefings", day);
+  const read = (uid, v = 1, extra = {}) => setDoc(doc(db(uid), "briefReads", `${today()}-${uid}`), { day: today(), v, ...by(uid), ...extra });
+  test("managers post and change it, a version at a time; everyone reads it; staff can't write it", async () => {
+    await fails(setDoc(ref("staff1"), br("staff1")), "staff posting it");
+    await fails(setDoc(ref("mgr1"), br("mgr1", { v: 2 })), "a new one not at version 1");
+    await assertSucceeds(setDoc(ref("mgr1"), br("mgr1")));
+    await fails(setDoc(ref("mgr2"), br("mgr2", { v: 1 })), "a change that doesn't raise the version");
+    await assertSucceeds(setDoc(ref("mgr2"), br("mgr2", { v: 2, covers: 200 })));
+    for (const uid of ["staff1", "mgr1", "owner1"]) await assertSucceeds(getDoc(ref(uid)));
+    await fails(getDoc(ref("stranger")), "someone not on the team");
+    await fails(deleteDoc(ref("mgr1")), "deleting it");
+  });
+  test("checked like everything else: its day, its fields, signed by whoever saves it", async () => {
+    await fails(setDoc(ref("mgr1"), br("mgr1", { day: plusDays(today(), 1) })), "a day that isn't its id");
+    await fails(setDoc(ref("mgr1", plusDays(today(), -5)), br("mgr1", {}, plusDays(today(), -5))), "a night long gone");
+    await fails(setDoc(ref("mgr1"), br("mgr1", { covers: -1 })), "covers below nothing");
+    await fails(setDoc(ref("mgr1"), br("mgr1", { covers: "180" })), "covers as text");
+    await fails(setDoc(ref("mgr1"), br("mgr1", { focus: "x".repeat(1001) })), "too long");
+    await fails(setDoc(ref("mgr1"), br("mgr1", { name: "Max Manager" })), "someone else's name");
+    await fails(setDoc(ref("mgr1"), br("mgr1", { extra: 1 })), "an extra field");
+  });
+  test("each person marks the version they read; staff see only their own, managers everyone's", async () => {
+    await seed((s) => setDoc(doc(s, "briefings", today()), { ...br("mgr1"), v: 2, at: Timestamp.now() }));
+    await fails(read("staff1", 1), "an old version");
+    await assertSucceeds(read("staff1", 2));
+    await fails(setDoc(doc(db("staff1"), "briefReads", `${today()}-staff2`), { day: today(), v: 2, ...by("staff1") }), "marking it for someone else");
+    await assertSucceeds(read("staff2", 2));
+    await assertSucceeds(getDoc(doc(db("staff1"), "briefReads", `${today()}-staff1`)));
+    await assertSucceeds(getDoc(doc(db("staff1"), "briefReads", `${plusDays(today(), 1)}-staff1`)));
+    await fails(getDoc(doc(db("staff1"), "briefReads", `${today()}-staff2`)), "staff reading someone else's");
+    await fails(getDocs(query(collection(db("staff1"), "briefReads"), where("day", "==", today()))), "staff listing them");
+    await assertSucceeds(getDocs(query(collection(db("mgr1"), "briefReads"), where("day", "==", today()))));
+    await fails(setDoc(doc(db("staff1"), "briefReads", `${plusDays(today(), 1)}-staff1`), { day: plusDays(today(), 1), v: 1, ...by("staff1") }), "a night with no briefing");
+  });
+});
+
 describe("starting fresh: the owner clears the shift work for everyone", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   // The app signs the owner in afresh for it. Other logins have an old sign-in (the test library's default is 1970).
@@ -1961,7 +2000,7 @@ describe("starting fresh: the owner clears the shift work for everyone", () => {
   // One record of each kind it clears, written past the rules, plus the ones it leaves.
   const WORK = [["shifts", "s1"], ["asks", "a1"], ["reports", "r1"], ["photos", "p1"], ["reviews", "v1"], ["events", "t-1"], ["restock", "x1"],
     ["out", "lime"], ["outlog", "o1"], ["issues", "i1"], ["concerns", "c1"], ["concernPhotos", "c1-0"], ["notices", "n1"], ["seen", "n1-staff1"],
-    ["feed", "f1"], ["requests", "q1"], ["handovers", "2026-10-24"], ["shift/2026-10-24/ticks", "k1"]];
+    ["feed", "f1"], ["requests", "q1"], ["handovers", "2026-10-24"], ["briefings", "2026-10-24"], ["briefReads", "2026-10-24-staff1"], ["shift/2026-10-24/ticks", "k1"]];
   const work = () => [...WORK, [`shift/${today()}/tasks`, "open-1"], [`shift/${today()}/runs`, "open"]];
   const seedWork = () => seed(async (s) => {
     const x = { uid: "staff1", name: "Sam Staff", at: daysAgo(1), kind: "task", done: true, pub: true, report: "r1", concern: "c1", to: "all", managers: true, status: "approved", log: "o1" };
@@ -2028,7 +2067,7 @@ describe("starting fresh: the owner clears the shift work for everyone", () => {
     await fails(getDocs(collection(db(null), "resets")), "reading them logged out");
   });
   test("the owner can count and list everything it clears", async () => {
-    const { d } = signIn("owner1"), qs = [...["shifts", "asks", "reports", "photos", "reviews", "restock", "out", "outlog", "issues", "concerns", "concernPhotos", "notices", "seen", "feed", "requests", "handovers"]
+    const { d } = signIn("owner1"), qs = [...["shifts", "asks", "reports", "photos", "reviews", "restock", "out", "outlog", "issues", "concerns", "concernPhotos", "notices", "seen", "feed", "requests", "handovers", "briefings", "briefReads"]
       .map((c) => collection(d, c)), query(collection(d, "events"), where("kind", "in", ["task", "run", "restock", "shift"])),
       ...["tasks", "runs", "ticks"].map((p) => collection(d, "shift", today(), p))];
     for (const q of qs) { await assertSucceeds(getCountFromServer(q)); await assertSucceeds(getDocs(query(q, limit(100)))); }
@@ -2091,6 +2130,7 @@ describe("every query the app makes works for the roles that make it", () => {
     // The rota with its drafts, from four weeks back.
     query(collection(d, "shifts"), where("week", ">=", plusDays(mondayOf(today()), -28))),
     query(collection(d, "handovers"), orderBy("at", "desc"), limit(14)),
+    query(collection(d, "briefReads"), where("day", "==", today())),
   ];
   test("staff", async () => {
     const d = db("staff1");
