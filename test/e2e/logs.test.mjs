@@ -35,7 +35,7 @@ test("temperatures, waste and stock counts are left to Alert65 and Nory; what wa
   assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.dataset.pane)), ["fset", "fshake", "stock", "fclose", "send"]);
   assert.deepEqual(await S.evaluate(() => ["waste", "logCheck", "addKit", "setPar", "saveCount"].filter((k) => LIVE.api[k])), []);
   await part(O, "");
-  assert.deepEqual(await O.$$eval('#hub [data-g="Managers"] [data-tpane]', (x) => x.map((b) => b.dataset.tpane)), ["live", "handover", "requests", "act", "kpis", "out", "training", "team", "feedback"]);
+  assert.deepEqual(await O.$$eval('#hub [data-g="Managers"] [data-tpane]', (x) => x.map((b) => b.dataset.tpane)), ["live", "handover", "requests", "act", "kpis", "money", "out", "training", "team", "feedback"]);
   await part(O, "act");
 
   // Managers download the old records from Activity.
