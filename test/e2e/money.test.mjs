@@ -16,13 +16,18 @@ test("a manager tries out sales, GP, labour and rent with made-up numbers; staff
   const { M, S } = await team(browser, site, people);
   await part(S, "");
   assert.equal(await S.$('#hub [data-tpane="money"]'), null);
+  assert.ok(await S.$eval("#money-btn", (e) => e.hidden), "no £ beside the bell for staff");
 
-  await part(M, "money");
+  // The £ beside the bell opens it.
+  await M.click("#money-btn");
+  await M.waitForFunction(() => !$("#money").hidden && /Money sandbox/.test($("#placebar").textContent));
   assert.match(await out(M), /Put in some sales/);
   await M.click("#mo-eg");
   // £24,000 wet and £12,000 dry with VAT at 20% is £30,000 net; £8,000 of stock leaves £22,000 GP.
   // 480 hours at £13.50 plus 15% is £7,452, plus £2,400 salaries. Break-even is (£9,852 + £5,700) / 73.3%.
-  assert.deepEqual(await rows(M), ["Gross sales (with VAT): £36,000.00", "Net sales (without VAT): £30,000.00", "Wet GP: £15,000.00 · 75.0%", "Dry GP: £7,000.00 · 70.0%",
+  assert.deepEqual(await rows(M), ["Gross sales (with VAT): £36,000.00", "Net sales (without VAT): £30,000.00",
+    // 1,800 guests: £20 a head with VAT, £16.67 without.
+    "Spend per head: £20.00", "GP per guest: £12.22", "Labour per guest: £5.47", "Guests to break even: 1,273", "Guests to make £8,000.00: 1,927", "Wet GP: £15,000.00 · 75.0%", "Dry GP: £7,000.00 · 70.0%",
     "Overall GP: £22,000.00 · 73.3%", "Labour: £9,852.00 · 32.8%", "Rent: £3,500.00 · 11.7%", "Prime cost (stock and labour): 59.5%",
     "After stock, labour, rent and other costs: £6,448.00 · 21.5%", "Break-even net sales: £21,207.27", "Net sales to make £8,000.00: £32,116.36",
     "Net sales: £1,560,000.00", "What's left: £335,296.00"]);
@@ -46,11 +51,11 @@ test("a manager tries out sales, GP, labour and rent with made-up numbers; staff
   await M.fill('[data-mo="rise"]', "5");
   assert.ok((await rows(M)).includes("Overall GP: £23,500.00 · 74.6%"));
   await M.fill('[data-mo="rise"]', "0");
-  assert.match(await out(M), /Wet 66\.7%, dry 33\.3%.*About £25,448\.73 with VAT/);
+  assert.match(await out(M), /Wet 66\.7%, dry 33\.3%.*£16\.67 without VAT: wet £11\.11, dry £5\.56.*About £25,448\.73 with VAT/);
 
   // What if sales drop by a fifth: sales and stock fall, labour and rent don't.
   await M.$eval('[data-mo="what"]', (e) => { e.value = "-20"; e.dispatchEvent(new Event("input", { bubbles: true })); });
-  assert.match(await M.$eval("#mo-wt", (e) => e.textContent), /^-20% sales$/);
+  assert.match(await M.$eval("#mo-wt", (e) => e.textContent), /^-20% sales and guests$/);
   const r = await rows(M);
   assert.ok(r.includes("Net sales (without VAT): £24,000.00") && r.includes("Labour: £9,852.00 · 41.0%") && r.includes("After stock, labour, rent and other costs: £2,048.00 · 8.5%"), r.join("; "));
 

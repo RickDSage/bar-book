@@ -285,6 +285,7 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 b.dt { color: var(--fg); font-weight: 700; }
 .bell { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg); }
 .bell svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#money-btn { width: 34px; }
 .bell .dot { position: absolute; top: 4px; right: 2px; min-width: 20px; height: 20px; padding: 0 5px; border-radius: 10px; background: var(--warn); color: var(--brass-ink); font-size: 12px; font-weight: 700; display: grid; place-items: center; }
 .notice { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-top: 12px; }
 .notice.new { border-color: var(--brass); }
@@ -578,7 +579,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button><button class="btn pri" id="w-kitchen" data-start="kitchen">Kitchen</button></div>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell" id="money-btn" hidden aria-label="Money sandbox"><svg viewBox="0 0 24 24"><path d="M15.5 6.5A3.5 3.5 0 0 0 9 8.3c0 2.2 1 3.7 1 5.7a4 4 0 0 1-2 3.5h9"/><path d="M7 12h7"/></svg></button><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <header class="gut" id="hdr">
   <div id="hdr-drinks">
@@ -2431,7 +2432,7 @@ const FEATURES = [
     mgr: "Read them, download them and share them." },
   { g: "Managers", k: "money", n: "Money sandbox", go: "money", login: 1, admin: 1,
     what: "A practice page for the sums behind a week or a month: wet and dry sales, VAT, gross profit, labour, rent and what's left, with what-ifs for sales, a price rise and extra shifts on the rota, a forecast, a profit target, pricing a drink, and saved versions to compare.",
-    mgr: "Try out made-up numbers. They stay on your phone and nobody else sees them." },
+    mgr: "Try out made-up numbers, footfall included. Open it from the £ beside the bell. What you put in stays on your phone and nobody else sees it." },
   { g: "Managers", k: "out", n: "86 log", go: "out", login: 1, admin: 1,
     what: "Every 86 and back in stock, and what runs out most.", mgr: "Read the last 100 changes." },
   { g: "Managers", k: "training", n: "Training", go: "tab:practice", mgrGo: "training", login: 1, sw: 1, tour: "mgr",
@@ -2542,7 +2543,7 @@ $("#tour").addEventListener("click", (e) => { const b = e.target.closest("[data-
 /* ---------- Tabs ---------- */
 function renderBell() {
   const n = feedNew().length + unreadChats().length;
-  $("#bell").hidden = false; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
+  $("#bell").hidden = false; $("#money-btn").hidden = !LIVE.admin; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
   $("#bell").setAttribute("aria-label", n ? `Team, ${n} new` : "Team");
 }
 /* ---------- Team feed (live) ---------- */
@@ -4144,7 +4145,7 @@ const personRow = (p) => `<div class="staffrow"><div class="n">${esc(p.name)} <s
    stays on this phone (store "money" and "moneysaved"): nothing is saved to the team, nothing is read from the till,
    and the menu still has no prices. */
 const MO_F = [
-  ["Sales, including VAT", [["wet", "Wet sales (drinks), £"], ["dry", "Dry sales (food), £"], ["vat", "VAT rate, %"]]],
+  ["Sales, including VAT", [["wet", "Wet sales (drinks), £"], ["dry", "Dry sales (food), £"], ["vat", "VAT rate, %"], ["guests", "Guests through the door (footfall)"]]],
   ["What the stock cost, excluding VAT", [["wetCost", "Wet cost of sales, £"], ["dryCost", "Dry cost of sales, £"]]],
   ["Labour", [["hours", "Hourly staff: hours worked"], ["rate", "Average hourly rate, £"], ["oncost", "On top of wages (employer NI, holiday, pension), %"], ["salaries", "Salaried managers for the period, £"]]],
   ["Fixed costs for the period", [["rent", "Rent, £"], ["other", "Everything else (business rates, utilities, insurance, repairs), £"]]],
@@ -4162,7 +4163,7 @@ const MO_SERVES = [["25", "25 ml"], ["50", "50 ml"], ["125", "Small wine"], ["17
 const MO_PER = { week: ["A week", 52], month: ["A month", 12] };
 const MO_BLANK = { ...Object.fromEntries([...MO_KEYS, ...MO_P.map(([k]) => k)].map((k) => [k, ""])), vat: "20", what: "0", per: "week", pTarget: "70", xHours: "8", ahead: "12", cmp: "" };
 // Made-up numbers for a week at a busy London bar, so there's something to change. Not Black Tap's.
-const MO_EXAMPLE = { wet: "24000", dry: "12000", vat: "20", wetCost: "5000", dryCost: "3000", hours: "480", rate: "13.50", oncost: "15", salaries: "2400",
+const MO_EXAMPLE = { guests: "1800", wet: "24000", dry: "12000", vat: "20", wetCost: "5000", dryCost: "3000", hours: "480", rate: "13.50", oncost: "15", salaries: "2400",
   rent: "3500", other: "2200", goal: "8000", rise: "0", xShifts: "0", xHours: "8", xSales: "0", growth: "1", ahead: "12", what: "0", per: "week", pCost: "120", pSize: "50000", pServe: "568", pPrice: "6.50", pTarget: "70" };
 let moF = { ...MO_BLANK, ...store.get("money", {}) }, moSaved = store.get("moneysaved", []), moName = "";
 const moSave = () => store.set("money", moF);
@@ -4186,7 +4187,7 @@ function moSums(f = moF) {
   const g = 1 + n.growth / 100, ahead = Array.from({ length: Math.floor(n.ahead) }, (_, i) => { const k = g ** (i + 1); return { net: net * k, left: gp * k - labour - fixed }; });
   return { bad: [], gross: base * x * p, net, wetNet, dryNet, wetGp, dryGp, gp, labour, extra, xShifts: n.xShifts, rent: n.rent, fixed, left, gpRate, vat, goal: n.goal,
     cost: (n.wetCost + n.dryCost) * x, even: gpRate > 0 ? (labour + fixed) / gpRate : null, need: gpRate > 0 && n.goal ? (labour + fixed + n.goal) / gpRate : null,
-    pays: gpRate > 0 ? extra / gpRate : null, ahead, year: MO_PER[f.per]?.[1] || 52 };
+    pays: gpRate > 0 ? extra / gpRate : null, ahead, guests: n.guests * (1 + Number(f.what || 0) / 100), year: MO_PER[f.per]?.[1] || 52 };
 }
 const moRow = (t, v, sub = "") => `<div class="mo-row"><span>${t}${sub ? `<br><span class="note">${sub}</span>` : ""}</span><b>${v}</b></div>`;
 function moOut() {
@@ -4198,6 +4199,7 @@ function moOut() {
   box.innerHTML = `<div class="h3">Sales</div>
     ${moRow("Gross sales (with VAT)", moGbp(s.gross))}
     ${moRow("Net sales (without VAT)", moGbp(s.net), `Wet ${moPct(s.wetNet, s.net)}, dry ${moPct(s.dryNet, s.net)}`)}
+    ${moHeads(s)}
     <div class="h3">Gross profit</div>
     ${moRow("Wet GP", `${moGbp(s.wetGp)} · ${moPct(s.wetGp, s.wetNet)}`)}
     ${moRow("Dry GP", `${moGbp(s.dryGp)} · ${moPct(s.dryGp, s.dryNet)}`)}
@@ -4216,6 +4218,17 @@ function moOut() {
     ${moRow("What's left", moGbp(s.left * s.year))}
     ${moAhead(s)}
     ${moCompare(s)}`;
+}
+// Per guest, when footfall is in: what each one spends and makes, and how many it takes to break even or hit the target.
+function moHeads(s) {
+  if (!s.guests) return "";
+  const per = s.net / s.guests, gp = s.gp / s.guests, n = (v) => (v == null || gp <= 0 ? "–" : Math.ceil(v / per).toLocaleString("en-GB"));
+  return `<div class="h3">Per guest</div>
+    ${moRow("Spend per head", moGbp(s.gross / s.guests), `${moGbp(per)} without VAT: wet ${moGbp(s.wetNet / s.guests)}, dry ${moGbp(s.dryNet / s.guests)}`)}
+    ${moRow("GP per guest", moGbp(gp))}
+    ${moRow("Labour per guest", moGbp(s.labour / s.guests))}
+    ${moRow("Guests to break even", n(s.even), "At this spend per head")}
+    ${s.goal ? moRow(`Guests to make ${moGbp(s.goal)}`, n(s.need)) : ""}`;
 }
 // The next periods, each with its sales, what's left and the running total.
 function moAhead(s) {
@@ -4251,25 +4264,28 @@ function moDrink() {
     ${n.pPrice ? moRow("GP at that price", `${moGbp(gp)} · ${moPct(gp, net)}`, `${moGbp(net)} after VAT`) : ""}
     ${moRow(`Price for a ${n.pTarget || 0}% GP`, at == null ? "–" : moGbp(at), at == null ? "The GP should be between 0 and 100%" : "Including VAT")}`;
 }
+const MO_JUMP = [["mo-s-in", "Your numbers"], ["mo-out", "Results"], ["mo-s-what", "What if"], ["mo-saves", "Saved"], ["mo-s-drink", "Price a drink"]];
 function renderMoney() {
+  $("#money-btn").hidden = !LIVE.admin;
   if (!LIVE.admin) return;
   const w = Number(moF.what), fld = ([k, t]) => `<label class="fld">${t}<input data-mo="${k}" inputmode="decimal" value="${esc(moF[k])}"></label>`;
   $("#money").innerHTML = `<div class="sec">Money sandbox</div>
     <p class="note">For trying out the sums with made-up numbers. What you put in stays on this phone: it isn't shared with the team, saved to Bar Book or read from the till.</p>
+    <div class="recent mo-jump" style="flex-wrap:wrap">${MO_JUMP.map(([id, t]) => `<button class="chip" data-mo-jump="${id}">${t}</button>`).join("")}</div>
     <div class="actions"><button class="btn" id="mo-eg">Fill with example numbers</button><button class="btn" id="mo-clear">Clear</button></div>
-    <div class="h3">The period</div>
+    <div class="h3" id="mo-s-in">The period</div>
     <div class="recent">${Object.entries(MO_PER).map(([k, [t]]) => `<button class="chip" data-mo-per="${k}" aria-pressed="${moF.per === k}">${t}</button>`).join("")}</div>
     ${MO_F.map(([h, fs]) => `<div class="h3">${h}</div>${fs.map(fld).join("")}`).join("")}
-    <div class="h3">What if sales change?</div>
-    <label class="fld"><span id="mo-wt">${w > 0 ? "+" : ""}${w}% sales</span><input type="range" data-mo="what" min="-50" max="50" step="5" value="${w}"></label>
-    <p class="note">Sales and the stock they use go up or down together; labour, rent and other costs stay the same.</p>
+    <div class="h3" id="mo-s-what">What if sales or footfall change?</div>
+    <label class="fld"><span id="mo-wt">${w > 0 ? "+" : ""}${w}% sales and guests</span><input type="range" data-mo="what" min="-50" max="50" step="5" value="${w}"></label>
+    <p class="note">Sales, guests and the stock they use go up or down together; labour, rent and other costs stay the same.</p>
     <div id="mo-out"></div>
     <details class="setup" id="mo-saves"${moSaved.length ? " open" : ""}><summary>Saved versions (${moSaved.length} of 10)</summary>
       <p class="note">Save these numbers under a name, then change them and compare, for example “Now” against “Happy hour 5 to 7”.</p>
       ${moSaved.map((x, i) => `<div class="staffrow"><div class="n">${esc(x.name)}</div><div class="actions"><button class="btn" data-mo-load="${i}">Load</button><button class="btn" data-mo-cmp="${i}" aria-pressed="${moF.cmp === x.name}">${moF.cmp === x.name ? "Comparing" : "Compare"}</button><button class="btn" data-mo-del="${i}">Delete</button></div></div>`).join("")}
       ${moSaved.length < 10 ? `<label class="fld">Name<input id="mo-name" maxlength="40" value="${esc(moName)}" placeholder="Happy hour 5 to 7"></label><div class="actions"><button class="btn pri" id="mo-keep">Save these numbers</button></div>` : ""}
     </details>
-    <div class="h3">Price a drink</div>
+    <div class="h3" id="mo-s-drink">Price a drink</div>
     ${MO_P.slice(0, 2).map(fld).join("")}${fld(MO_P[2])}
     <div class="recent" style="flex-wrap:wrap">${MO_SERVES.map(([ml, t]) => `<button class="chip" data-mo-serve="${ml}" aria-pressed="${moF.pServe === ml}">${t}</button>`).join("")}</div>
     ${MO_P.slice(3).map(fld).join("")}
@@ -4278,6 +4294,7 @@ function renderMoney() {
 }
 function moClick(b) {
   if (b.id === "mo-eg" || b.id === "mo-clear") { moF = { ...(b.id === "mo-eg" ? MO_EXAMPLE : MO_BLANK), cmp: moF.cmp }; moSave(); renderMoney(); return; }
+  if (b.dataset.moJump) { $("#" + b.dataset.moJump).scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   if (b.dataset.moPer) { moF.per = b.dataset.moPer; moSave(); renderMoney(); return; }
   if (b.dataset.moServe) { moF.pServe = b.dataset.moServe; moSave(); renderMoney(); return; }
   if (b.id === "mo-keep") {
@@ -4918,7 +4935,7 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.br) brF[t.dataset.br] = t.value;
   if (t.dataset.hoxf) { const [q, k] = t.dataset.hoxf.split(":"); (hoF.x[q] ||= {})[k] = t.value; hoSave(); }
   if (t.id === "hq-t") hqF.t = t.value;
-  if (t.dataset.mo) { moF[t.dataset.mo] = t.value; moSave(); if (t.dataset.mo === "what") $("#mo-wt").textContent = `${Number(t.value) > 0 ? "+" : ""}${t.value}% sales`; moOut(); moDrink(); }
+  if (t.dataset.mo) { moF[t.dataset.mo] = t.value; moSave(); if (t.dataset.mo === "what") $("#mo-wt").textContent = `${Number(t.value) > 0 ? "+" : ""}${t.value}% sales and guests`; moOut(); moDrink(); }
   if (t.id === "mo-name") moName = t.value;
   if (t.id === "hq-crit") hqF.crit = t.checked;
   if (t.dataset.g) gF[t.dataset.g] = t.type === "checkbox" ? t.checked : t.value;
@@ -5111,7 +5128,7 @@ $("#v-notices").addEventListener("click", (e) => {
     Object.assign(hqF, { t: "", crit: false }); haptic(); return;
   }
   if (b.dataset.hqDel) { if (confirm("Take this question off? Handovers already sent keep their answers.")) track(LIVE.api.saveHoq(LIVE.hoq.filter((x) => x.id !== b.dataset.hqDel)), "Question taken off", "Not saved. Try again"); return; }
-  if (b.id === "mo-eg" || b.id === "mo-clear" || b.id === "mo-keep" || b.dataset.moPer || b.dataset.moServe || b.dataset.moLoad || b.dataset.moCmp || b.dataset.moDel) { moClick(b); return; }
+  if (b.id === "mo-eg" || b.id === "mo-clear" || b.id === "mo-keep" || b.dataset.moPer || b.dataset.moJump || b.dataset.moServe || b.dataset.moLoad || b.dataset.moCmp || b.dataset.moDel) { moClick(b); return; }
   if (b.id === "br-read") { track(LIVE.api.readBriefing(), "Marked as read", "Not saved. It may have just changed: read it again"); haptic(); return; }
   if (b.id === "br-prev") { brPrev(); return; }
   if (b.id === "br-go") { brSave(); return; }
@@ -5184,6 +5201,7 @@ $("#v-notices").addEventListener("click", (e) => {
 });
 function renderNotices() { renderTeamTop(); markSeen(); }
 $("#bell").addEventListener("click", () => show("notices"));
+$("#money-btn").addEventListener("click", () => openAt("money"));
 $("#home").addEventListener("click", (e) => { e.preventDefault(); show("drinks"); });
 
 const TABS = ["drinks", "make", "allergens", "practice", "tally", "pay", "info", "notices"];
