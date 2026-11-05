@@ -682,6 +682,25 @@ service cloud.firestore {
         && incoming().v == (resource == null ? 1 : resource.data.v + 1);
       allow delete: if freshOwner();
     }
+    // ---------- Tonight's status ----------
+    // How each department is doing right now (calm, busy or slammed, with a few words), one record per department per
+    // night, id {day}-{side}, which anyone on the team sets for any department, signed. And bottlenecks: one-tap
+    // reports of what's holding service up, kept so managers can see what keeps happening, by day and hour.
+    match /status/{id} {
+      allow read: if isMember();
+      allow create, update: if isMember() && nearNow(incoming().day) && stamped()
+        && exactly(['day', 'side', 'level', 'note', 'uid', 'name', 'at']) && id == incoming().day + '-' + incoming().side
+        && incoming().side in ['bar', 'floor', 'kitchen'] && incoming().level in ['calm', 'busy', 'slammed'] && optText(incoming().note, 140);
+      allow delete: if freshOwner();
+    }
+    match /blocks/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && autoId(id) && nearNow(incoming().day) && stamped()
+        && exactly(['day', 'side', 'kind', 'note', 'uid', 'name', 'at']) && incoming().side in ['bar', 'floor', 'kitchen']
+        && incoming().kind in ['queue', 'tickets', 'shakes', 'glass', 'staff', 'equipment', 'stock', 'other'] && optText(incoming().note, 140);
+      allow delete: if freshOwner();
+    }
+
     // ---------- Sales and covers ----------
     // What each night took, typed in by a manager from the till's end-of-day report: covers, and net sales (without
     // VAT) for wet and dry, in pence. Managers and the owner only. One record per business night (id = the day), for

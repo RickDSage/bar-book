@@ -164,6 +164,8 @@ function listen(uid) {
     sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
     // Manager closes and handovers: the last two weeks' worth.
     sub("handovers", query(collection(db, "handovers"), orderBy("at", "desc"), limit(14)), (snap) => { LIVE.handovers = rows(snap); liveChanged("handovers"); });
+    // Bottlenecks: the last 400 reports, for four weeks of patterns (tonight's come to everyone below).
+    sub("blockHist", query(collection(db, "blocks"), orderBy("at", "desc"), limit(400)), (snap) => { LIVE.blockHist = rows(snap); liveChanged("blocks"); });
     // Sales and covers: the last 120 nights, enough for the forecast and four months of history.
     sub("nights", query(collection(db, "nights"), orderBy("day", "desc"), limit(120)), (snap) => { LIVE.nights = rows(snap); LIVE.loaded.add("nights"); liveChanged("nights"); });
     clearOldPhotos();
@@ -277,7 +279,7 @@ async function clearOldPhotos() {
 // out: each collection in FRESH, and every business day's checklists under shift/{day} since the app began. Concerns go
 // before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
 // with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
-const FRESH = ["shifts", "asks", "reports", "handovers", "nights", "briefReads", "briefings", "guests", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
+const FRESH = ["shifts", "asks", "reports", "handovers", "nights", "status", "blocks", "briefReads", "briefings", "guests", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
   "notices", "seen", "feed", "requests"];
 const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
 // A date label's events stay with the label.
@@ -338,6 +340,8 @@ function watchDays() {
   subDay("events", () => query(collection(db, "events"), where("day", "==", shiftDay()), limit(2000)), (snap) => { LIVE.events = rows(snap); liveChanged("events"); });
   watchRota();
   // Tonight's briefing, and who has read it: managers everyone's, staff their own.
+  subDay("blocks", () => query(collection(db, "blocks"), where("day", "==", shiftDay())), (snap) => { LIVE.blocks = rows(snap); liveChanged("blocks"); });
+  subDay("status", () => query(collection(db, "status"), where("day", "==", shiftDay())), (snap) => { LIVE.status = rows(snap); liveChanged("status"); });
   subDay("briefing", () => doc(db, "briefings", shiftDay()), (d) => { LIVE.briefing = d.exists() ? { ...d.data({ serverTimestamps: "estimate" }), id: d.id, pending: d.metadata.hasPendingWrites } : null; liveChanged("briefing"); });
   subDay("briefReads", () => (LIVE.admin ? query(collection(db, "briefReads"), where("day", "==", shiftDay())) : doc(db, "briefReads", `${shiftDay()}-${auth.currentUser.uid}`)),
     (x) => { LIVE.briefReads = x.docs ? rows(x) : x.exists() ? [{ ...x.data(), id: x.id }] : []; liveChanged("briefReads"); });
@@ -623,6 +627,8 @@ LIVE.api = {
   readBriefing: () => setDoc(doc(db, "briefReads", `${shiftDay()}-${auth.currentUser.uid}`), { day: shiftDay(), v: LIVE.briefing.v, ...me() }),
   logGuest: (g) => addDoc(collection(db, "guests"), { kind: g.kind, table: g.table, what: g.what, wants: g.wants, done: g.done, comp: g.comp, escalate: g.escalate, status: "open", ...me() }),
   closeGuest: (id, resolution, extra, followUp) => updateDoc(doc(db, "guests", id), { status: "closed", resolution, extra, followUp, closedBy: LIVE.me, closedByUid: auth.currentUser.uid, closedAt: serverTimestamp() }),
+  setStatus: (side, level, note) => setDoc(doc(db, "status", `${shiftDay()}-${side}`), { day: shiftDay(), side, level, note, ...me() }),
+  addBlock: (side, kind, note) => addDoc(collection(db, "blocks"), { day: shiftDay(), side, kind, note, ...me() }),
   saveNight: (day, n) => setDoc(doc(db, "nights", day), { day, covers: n.covers, wet: n.wet, dry: n.dry, note: n.note, ...me() }),
   saveHoq: (qs) => setDoc(doc(db, "settings", "hoq"), { qs, ...me() }),
   setComp: (staff, manager) => setDoc(doc(db, "settings", "comp"), { staff, manager, ...me() }),

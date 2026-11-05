@@ -1960,6 +1960,29 @@ describe("manager close and handover", () => {
   });
 });
 
+describe("tonight's status and bottlenecks", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const st = (uid, extra = {}) => ({ day: today(), side: "bar", level: "busy", note: "", ...by(uid), ...extra });
+  const bk = (uid, extra = {}) => ({ day: today(), side: "bar", kind: "queue", note: "", ...by(uid), ...extra });
+  test("anyone on the team sets a department's status and reports a hold-up; everyone reads them", async () => {
+    await assertSucceeds(setDoc(doc(db("staff1"), "status", `${today()}-bar`), st("staff1")));
+    await assertSucceeds(setDoc(doc(db("staff2"), "status", `${today()}-bar`), st("staff2", { level: "slammed", note: "Two parties of 12" })));
+    await assertSucceeds(addDoc(collection(db("staff1"), "blocks"), bk("staff1")));
+    for (const uid of ["staff2", "mgr1"]) await assertSucceeds(getDocs(query(collection(db(uid), "blocks"), where("day", "==", today()))));
+    await fails(getDoc(doc(db("stranger"), "status", `${today()}-bar`)), "someone not on the team");
+    await fails(deleteDoc(doc(db("mgr1"), "status", `${today()}-bar`)), "deleting a status");
+  });
+  test("checked: its id, the department, the level or kind, the night, signed", async () => {
+    await fails(setDoc(doc(db("staff1"), "status", `${today()}-floor`), st("staff1")), "an id that isn't its day and department");
+    await fails(setDoc(doc(db("staff1"), "status", `${today()}-cellar`), st("staff1", { side: "cellar" })), "a department that isn't one");
+    await fails(setDoc(doc(db("staff1"), "status", `${today()}-bar`), st("staff1", { level: "chaos" })), "a level that isn't one");
+    await fails(setDoc(doc(db("staff1"), "status", `${plusDays(today(), -5)}-bar`), st("staff1", { day: plusDays(today(), -5) })), "a night long gone");
+    await fails(addDoc(collection(db("staff1"), "blocks"), bk("staff1", { kind: "boredom" })), "a kind that isn't one");
+    await fails(addDoc(collection(db("staff1"), "blocks"), bk("staff1", { note: "x".repeat(141) })), "too long");
+    await fails(addDoc(collection(db("staff1"), "blocks"), bk("staff1", { name: "Max Manager" })), "someone else's name");
+  });
+});
+
 describe("sales and covers", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const nt = (uid, extra = {}, day = today()) => ({ day, covers: 180, wet: 420000, dry: 310050, note: "", ...by(uid), ...extra });

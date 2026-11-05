@@ -299,6 +299,17 @@ b.dt { color: var(--fg); font-weight: 700; }
 .mo-key i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
 .s-cost { background: var(--s1); } .s-labour { background: var(--s2); } .s-rent { background: var(--s3); } .s-otherCost { background: var(--s4); } .s-left { background: var(--s5); }
 .mo-sl { margin-top: 12px; }
+.st-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+.st-card { border: 1px solid var(--line); border-radius: 12px; padding: 8px 10px; background: var(--surface); font-size: 14px; }
+.st-card b { display: block; font-size: 18px; margin: 2px 0; }
+.st-card.lv-calm { border-color: var(--ok); } .st-card.lv-busy { border-color: var(--brass); } .st-card.lv-slammed { border-color: var(--warn); border-width: 2px; }
+.st-card.lv-slammed b { color: var(--warn); }
+.st-blocks { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.st-blocks .btn { min-height: 52px; white-space: normal; text-align: left; }
+.st-row { display: grid; grid-template-columns: minmax(0, 11em) 1fr 2.5em; gap: 8px; align-items: center; font-size: 14px; padding: 3px 0; }
+.st-row b { text-align: right; }
+.st-bar { height: 10px; background: var(--line); border-radius: 5px; overflow: hidden; }
+.st-bar i { display: block; height: 100%; background: var(--brass); border-radius: 5px; }
 .mo-day { display: flex; gap: 2px; height: 110px; margin-top: 18px; }
 .mo-hr { position: relative; flex: 1; display: flex; flex-direction: column-reverse; gap: 2px; border: 0; padding: 0; background: none; cursor: pointer; }
 .mo-hr span:not(.n) { display: block; min-height: 2px; }
@@ -654,7 +665,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <div id="hubtop"><h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p></div>
-    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="nights"></div><div id="act"></div><div id="kpis"></div><div id="money"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="status"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="nights"></div><div id="act"></div><div id="kpis"></div><div id="money"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
   </section>
   <section class="view info" id="v-pay" hidden></section>
   <section class="view info" id="v-info" hidden></section>
@@ -747,7 +758,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], status: [], blocks: [], blockHist: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -2410,6 +2421,9 @@ const FEATURES = [
   { g: "Shift", k: "send", n: "Shift report", go: "send", login: 1, tour: 1,
     what: "Each side's report at the end of the shift, with up to 8 closing photos, sent to the managers.",
     staff: "Send your side's report.", mgr: "Sign it off, give it a thumbs up, flag it or add a note." },
+  { g: "Shift", k: "status", n: "Tonight's status", go: "status", login: 1,
+    what: "How the bar, floor and kitchen are doing right now (calm, busy or slammed), and one-tap reports of what's holding service up: a queue, a ticket backlog, the shakes station, glassware, short-staffed, equipment or a run-out.",
+    staff: "Set your department's status and tap what's holding you up.", mgr: "See every department at a glance, and what keeps holding service up over the last four weeks, by kind, hour and weekday." },
   { g: "Shift", k: "briefing", n: "Briefing", go: "brief", login: 1, sw: 1,
     what: "Tonight's briefing before service: covers, big bookings, specials, allergies, sections, breaks and what to watch for, with what's 86'd and who's on the rota.",
     staff: "Read it and tap I've read it.", mgr: "Post it or change it (everyone's asked to read it again), add last night's handover note in one tap, and see who on tonight hasn't read it." },
@@ -2592,7 +2606,7 @@ const feedNew = () => [...LIVE.notices, ...LIVE.reports].filter(isNew);
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#guests", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#nights", "#act", "#kpis", "#money", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#status", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#guests", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#nights", "#act", "#kpis", "#money", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "What needs you, tonight at a glance, and everything for the team." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -2630,7 +2644,7 @@ function renderTeamTop() {
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>
       ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderNights(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderNights(); renderStatus(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub();
 }
 /* The Team page, which the bell opens: what's new and what needs you, tonight at a glance, then a card for each part of
    the team side of the app, in the Features page's groups and names. Each part opens on a page of its own, with Back to
@@ -2651,6 +2665,9 @@ const PLACES = [
   { g: "Everyone", k: "brief", n: () => "Tonight's briefing", on: () => isOn("briefing"), slots: ["#brief"],
     sub: () => (!LIVE.briefing ? (LIVE.admin ? "Not posted yet. Post it before service" : "Not posted yet") : brMine() ? (LIVE.admin ? `Read by ${brReadBy().length}` : "Read") : "New: read it before service"),
     cnt: () => (LIVE.briefing && !brMine() ? 1 : 0) },
+  { g: "Everyone", k: "status", n: () => "Tonight's status", slots: ["#status"],
+    sub: () => SIDES3.map(([k, t]) => `${t} ${ST_LEVEL[stOf(k)?.level]?.toLowerCase() || "not set"}`).join(" · "),
+    cnt: () => stHot().length, hot: () => stHot().length > 0 },
   { g: "Everyone", k: "chat", n: () => "Chat", on: () => isOn("chat"), slots: ["#chat"],
     sub: () => { const u = unreadChats(); return u.length ? `New in ${u.map(chatName).join(", ")}` : "The team, one person or a group"; }, cnt: () => unreadChats().length },
   { g: "Everyone", k: "rota", n: () => (isOn("rota") ? "Rota" : "Calendar"), on: () => isOn("rota") || calOn(), slots: ["#rota", "#cal"],
@@ -2709,6 +2726,7 @@ function forYou() {
     if (acc) add(`Accept ${acc.uid === LIVE.uid ? "your" : `${acc.name}'s`} handover`, "handover", `${dayName(acc.day)}${acc.risks ? `, ${plural(acc.risks, "risk")}` : ""}`, acc.risks > 0);
     const own = LIVE.owner && isOn("handover") && LIVE.handovers.find((h) => h.owner && h.id >= addDays(shiftDay(), -2));
     if (own) add(`For the owner, from ${own.name}`, "handover", own.owner);
+    for (const t of stHot()) add(t, "status", "Tonight's status", true);
     if (LIVE.loaded.has("nights") && hoTonight() && !ntGet(shiftDay())) add("Put in tonight's covers and sales", "nights", "From the till's end-of-day report, for the forecast");
     for (const x of isOn("guests") ? gOpen().filter((g) => g.escalate) : []) add(`Guest needs a manager: ${GKN[x.kind] || "Other"}${x.table ? `, table ${x.table}` : ""}`, "guests", x.what, true);
     if (openInc()) add(`${plural(openInc(), "open incident")}`, "incidents", "Close each one with what was done", true);
@@ -4441,6 +4459,57 @@ function moClick(b) {
   }
 }
 
+/* Tonight's status: each department's level with a few words, and bottleneck reports, for everyone. Managers also see
+   the last four weeks of bottlenecks by kind, hour and weekday, from the 400 most recent. */
+const SIDES3 = [["bar", "Bar"], ["floor", "Floor"], ["kitchen", "Kitchen"]];
+const ST_LEVEL = { calm: "Calm", busy: "Busy", slammed: "Slammed" };
+const BK = [["queue", "Queue at the bar"], ["tickets", "Ticket backlog"], ["shakes", "Shakes station swamped"], ["glass", "Out of clean glasses"],
+  ["staff", "Short-staffed"], ["equipment", "Equipment problem"], ["stock", "Run out of something"], ["other", "Something else"]];
+const BKN = Object.fromEntries(BK);
+let stF = { side: store.get("stside", "bar"), level: "", note: "", bnote: "" };
+const stOf = (side) => LIVE.status.find((x) => x.side === side);
+// What a manager should hear about: a department slammed, or the same hold-up three times in the last hour.
+function stHot() {
+  const out = SIDES3.filter(([k]) => stOf(k)?.level === "slammed").map(([k, t]) => `${t} is slammed${stOf(k).note ? `: ${stOf(k).note}` : ""}`);
+  const hour = LIVE.blocks.filter((x) => ms(x.at) > Date.now() - 36e5), by = {};
+  for (const x of hour) by[x.kind] = (by[x.kind] || 0) + 1;
+  for (const [k, n] of Object.entries(by)) if (n >= 3) out.push(`${BKN[k]}: reported ${n} times in the last hour`);
+  return out;
+}
+const stBar = (n, top) => `<span class="st-bar"><i style="width:${top ? (n / top) * 100 : 0}%"></i></span>`;
+// The last four weeks: what holds service up, at what time, on which night.
+function stPatterns() {
+  const xs = LIVE.blockHist.filter((x) => ms(x.at) > Date.now() - 28 * 864e5);
+  if (!xs.length) return `<p class="note">Nothing reported in the last four weeks yet.</p>`;
+  const count = (f) => { const m = new Map(); for (const x of xs) { const k = f(x); m.set(k, (m.get(k) || 0) + 1); } return [...m.entries()].sort((a, b) => b[1] - a[1]); };
+  const kinds = count((x) => x.kind), hours = count((x) => hhmm(new Date(ms(x.at))).slice(0, 2)), days = count((x) => dayName(x.day, { weekday: "long" })), sides = count((x) => x.side);
+  const rows = (list, name, n = 5) => list.slice(0, n).map(([k, c]) => `<div class="st-row"><span>${name(k)}</span>${stBar(c, list[0][1])}<b>${c}</b></div>`).join("");
+  return `<p class="note">${plural(xs.length, "report")} in the last four weeks.</p>
+    <div class="mini">What</div>${rows(kinds, (k) => BKN[k] || k)}
+    <div class="mini">Which department</div>${rows(sides, (k) => SIDES3.find(([s]) => s === k)?.[1] || k, 3)}
+    <div class="mini">Busiest hours for hold-ups</div>${rows(hours, (h) => `${h}:00 to ${String((+h + 1) % 24).padStart(2, "0")}:00`)}
+    <div class="mini">Which night</div>${rows(days, (d) => d, 7)}`;
+}
+function renderStatus() {
+  if (!LIVE.me) return;
+  const tonight = [...LIVE.blocks].sort((a, b) => ms(b.at) - ms(a.at));
+  $("#status").innerHTML = `<div class="sec">Tonight's status</div>
+    <div class="st-grid">${SIDES3.map(([k, t]) => { const x = stOf(k); return `<div class="st-card lv-${x?.level || "none"}"><div class="mini">${t}</div><b>${x ? ST_LEVEL[x.level] : "Not set"}</b>
+      ${x?.note ? `<div class="did">${esc(x.note)}</div>` : ""}${x ? `<div class="did">${esc(x.name)}, ${x.pending ? "saving…" : when(x.at)}</div>` : ""}</div>`; }).join("")}</div>
+    <div class="h3">Which department are you?</div>
+    <div class="recent">${SIDES3.map(([k, t]) => `<button class="chip" data-st-side="${k}" aria-pressed="${stF.side === k}">${t}</button>`).join("")}</div>
+    <div class="h3">How is it right now?</div>
+    <div class="recent">${Object.entries(ST_LEVEL).map(([k, t]) => `<button class="chip" data-st-level="${k}" aria-pressed="${stF.level === k}">${t}</button>`).join("")}</div>
+    <label class="fld">A few words (optional)<input data-st="note" maxlength="140" value="${esc(stF.note)}" placeholder="Two big tables just sat down"></label>
+    <div class="actions"><button class="btn pri" id="st-go">Update ${SIDES3.find(([k]) => k === stF.side)[1].toLowerCase()}</button></div>
+    <div class="h3">What's holding you up?</div>
+    <p class="note">One tap reports it for the ${SIDES3.find(([k]) => k === stF.side)[1].toLowerCase()}. Add a few words first if it helps.</p>
+    <label class="fld">A few words (optional)<input data-st="bnote" maxlength="140" value="${esc(stF.bnote)}" placeholder="Pint glasses, washer's slow"></label>
+    <div class="st-blocks">${BK.map(([k, t]) => `<button class="btn" data-bk="${k}">${t}</button>`).join("")}</div>
+    ${tonight.length ? `<div class="h3">Reported tonight (${tonight.length})</div>${tonight.slice(0, 30).map((x) => `<div class="staffrow"><div class="n">${hhmm(new Date(ms(x.at)))} · ${BKN[x.kind]} · ${SIDES3.find(([k]) => k === x.side)?.[1] || ""}
+      <div class="did">${x.note ? `${esc(x.note)}, ` : ""}${esc(x.name)}${x.pending ? ", sending…" : ""}</div></div></div>`).join("")}` : ""}
+    ${LIVE.admin ? `<details class="setup"><summary>Patterns: the last four weeks</summary>${stPatterns()}</details>` : ""}`;
+}
 /* Sales and covers (managers): each night's covers and net sales, typed in from the till's end-of-day report, and a
    forecast built from them. No till link and no AI: the forecast for a night is a weighted average of the same weekday
    over the last six weeks that have figures (the newest counts most), and needs at least two of them. Sales per labour
@@ -4782,7 +4851,7 @@ async function prepareDownload(sec) {
    Clears the shift work for everyone, for a clean start once the venue has finished trying the app out (FRESH in the
    live layer says what goes). It can't be undone, so the downloads come first, then what it would clear, then the
    owner's PIN and the words typed in. Every phone drops its own copies when it hears of a new one. */
-const FRESH_NAME = { nights: "Nights' sales and covers", shifts: "Shifts on the rota", asks: "Time off, swaps and running late", reports: "Shift reports", photos: "Closing photos",
+const FRESH_NAME = { status: "Department statuses", blocks: "Bottleneck reports", nights: "Nights' sales and covers", shifts: "Shifts on the rota", asks: "Time off, swaps and running late", reports: "Shift reports", photos: "Closing photos",
   reviews: "Reviews of reports", events: "Changes in the activity history", restock: "Restocks", out: "On the 86 board", outlog: "86 log entries",
   issues: "Issues", concerns: "Concerns", concernPhotos: "Concern photos", notices: "Broadcasts", seen: "Got it taps on broadcasts", feed: "Old board posts",
   requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", checklists: "Checklist items" };
@@ -5087,7 +5156,7 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], nights: [renderNights, renderBrief], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], nights: [renderNights, renderBrief], status: [renderStatus], blocks: [renderStatus], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
       asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
@@ -5141,6 +5210,7 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.hoxf) { const [q, k] = t.dataset.hoxf.split(":"); (hoF.x[q] ||= {})[k] = t.value; hoSave(); }
   if (t.id === "hq-t") hqF.t = t.value;
   if (t.dataset.nt) ntF[t.dataset.nt] = t.value;
+  if (t.dataset.st) stF[t.dataset.st] = t.value;
   if (t.dataset.moR) { const k = t.dataset.moR; moF[k] = t.value; const f = $(`[data-mo="${k}"]`); if (f) f.value = t.value; moSave(); moOut(); moDrink(); }
   if (t.dataset.mo && t.dataset.mo !== "what") { const r = $(`[data-mo-r="${t.dataset.mo}"]`), v = moNum(t.value, MO_NEG.includes(t.dataset.mo)); if (r && !Number.isNaN(v)) r.value = v; }
   if (t.dataset.mo) { moF[t.dataset.mo] = t.value; moSave(); if (t.dataset.mo === "what") $("#mo-wt").textContent = `${Number(t.value) > 0 ? "+" : ""}${t.value}% sales and guests`; moOut(); moDrink(); }
@@ -5344,6 +5414,17 @@ $("#v-notices").addEventListener("click", (e) => {
   }
   if (b.dataset.hqDel) { if (confirm("Take this question off? Handovers already sent keep their answers.")) track(LIVE.api.saveHoq(LIVE.hoq.filter((x) => x.id !== b.dataset.hqDel)), "Question taken off", "Not saved. Try again"); return; }
   if (b.id === "nt-go") { ntSave(); return; }
+  if (b.dataset.stSide) { stF.side = b.dataset.stSide; store.set("stside", stF.side); renderStatus(); return; }
+  if (b.dataset.stLevel) { stF.level = b.dataset.stLevel; renderStatus(); return; }
+  if (b.id === "st-go") {
+    if (!stF.level) return toast("Pick calm, busy or slammed first");
+    track(LIVE.api.setStatus(stF.side, stF.level, stF.note.trim()), "Updated", "Not saved. Try again");
+    Object.assign(stF, { level: "", note: "" }); haptic(); return;
+  }
+  if (b.dataset.bk) {
+    track(LIVE.api.addBlock(stF.side, b.dataset.bk, stF.bnote.trim()), "Reported", "Not sent. Try again");
+    stF.bnote = ""; haptic(); return;
+  }
   if (b.dataset.ntEdit) { ntPick(b.dataset.ntEdit); $("#nt-form").scrollIntoView({ behavior: "smooth" }); return; }
   if (b.id === "mo-eg" || b.id === "mo-clear" || b.id === "mo-keep" || b.dataset.moPer || b.dataset.moDtip || b.id === "mo-add" || b.id === "mo-day-eg" || b.dataset.moRm || b.dataset.moTip || b.dataset.moJump || b.dataset.moServe || b.dataset.moLoad || b.dataset.moCmp || b.dataset.moDel) { moClick(b); return; }
   if (b.id === "br-read") { track(LIVE.api.readBriefing(), "Marked as read", "Not saved. It may have just changed: read it again"); haptic(); return; }
