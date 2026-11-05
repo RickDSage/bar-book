@@ -186,6 +186,11 @@ nav.tabs button[hidden] { display: none; }
 .payrt { float: right; font-weight: 600; font-variant-numeric: tabular-nums; }
 .fld .logv { display: block; margin-top: 4px; padding: 10px 0; font-size: 17px; color: var(--fg); }
 .note.warnline { color: var(--warn); font-weight: 700; }
+.mo-row { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 15px; }
+.mo-row b { white-space: nowrap; text-align: right; }
+.mo-cmp { width: 100%; border-collapse: collapse; font-size: 15px; }
+.mo-cmp td, .mo-cmp th { padding: 6px 4px; border-bottom: 1px solid var(--line); text-align: right; }
+.mo-cmp td:first-child, .mo-cmp th:first-child { text-align: left; }
 .fld { display: block; margin-top: 10px; font-size: 14px; color: var(--muted); }
 .fld input, .fld textarea, .fld select { display: block; width: 100%; margin-top: 4px; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; -webkit-appearance: none; appearance: none; }
 textarea.copybox { width: 100%; min-height: 160px; margin-top: 10px; background: var(--surface); color: var(--fg); border: 1px solid var(--line); border-radius: 10px; padding: 10px; font: 14px/1.4 var(--body); }
@@ -615,7 +620,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <div id="hubtop"><h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p></div>
-    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="act"></div><div id="kpis"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="act"></div><div id="kpis"></div><div id="money"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
   </section>
   <section class="view info" id="v-pay" hidden></section>
   <section class="view info" id="v-info" hidden></section>
@@ -2424,6 +2429,9 @@ const FEATURES = [
   { g: "Managers", k: "kpis", n: "Closing KPIs", go: "kpis", login: 1, admin: 1, sw: 1, tour: 1,
     what: "The last 7 nights worked out from every tap: when each list was started and finished, what was blocked or taken back, and how long restocks took, by night and by person.",
     mgr: "Read them, download them and share them." },
+  { g: "Managers", k: "money", n: "Money sandbox", go: "money", login: 1, admin: 1,
+    what: "A practice page for the sums behind a week or a month: wet and dry sales, VAT, gross profit, labour, rent and what's left, with what-ifs for sales, a price rise and extra shifts on the rota, a forecast, a profit target, pricing a drink, and saved versions to compare.",
+    mgr: "Try out made-up numbers. They stay on your phone and nobody else sees them." },
   { g: "Managers", k: "out", n: "86 log", go: "out", login: 1, admin: 1,
     what: "Every 86 and back in stock, and what runs out most.", mgr: "Read the last 100 changes." },
   { g: "Managers", k: "training", n: "Training", go: "tab:practice", mgrGo: "training", login: 1, sw: 1, tour: "mgr",
@@ -2547,7 +2555,7 @@ const feedNew = () => [...LIVE.notices, ...LIVE.reports].filter(isNew);
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#guests", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#act", "#kpis", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
+const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#guests", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#act", "#kpis", "#money", "#outlog", "#mtrain", "#mgr", "#fb", "#me"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "What needs you, tonight at a glance, and everything for the team." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -2585,7 +2593,7 @@ function renderTeamTop() {
       ${LIVE.owner ? `<label class="fld">Role<select id="a-role"><option value="staff">Staff</option><option value="manager">Manager (signs off, adds and removes staff)</option></select></label>` : ""}
       <button class="btn pri wide" id="a-go">Add person</button><div id="audit-list"></div></details>
       ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderFresh(); renderHub();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub();
 }
 /* The Team page, which the bell opens: what's new and what needs you, tonight at a glance, then a card for each part of
    the team side of the app, in the Features page's groups and names. Each part opens on a page of its own, with Back to
@@ -2639,6 +2647,7 @@ const PLACES = [
     sub: () => (toAnswer() ? `${plural(toAnswer(), "request")} to answer` : isOn("asks") ? "Time off, swaps and running late" : "Running late"), cnt: toAnswer },
   { g: "Managers", k: "act", n: () => "Activity", admin: 1, slots: ["#act"], sub: () => "Everything done in the app" },
   { g: "Managers", k: "kpis", n: () => "Closing KPIs", admin: 1, on: () => isOn("kpis"), slots: ["#kpis"], sub: () => "The last 7 nights" },
+  { g: "Managers", k: "money", n: () => "Money sandbox", admin: 1, slots: ["#money"], sub: () => "Sales, GP, labour and rent, with made-up numbers" },
   { g: "Managers", k: "out", n: () => "86 log", admin: 1, slots: ["#outlog"], sub: () => (LIVE.out.size ? `${LIVE.out.size} 86'd now` : "Every 86 and back in stock") },
   { g: "Managers", k: "training", n: () => "Training", admin: 1, on: () => isOn("training"), slots: ["#mtrain"], sub: () => "Sign-offs, drink by drink" },
   { g: "Managers", k: "team", n: () => "Team logins", admin: 1, slots: ["#mgr"], sub: () => `${plural(LIVE.staff.length, "person", "people")}` },
@@ -4130,6 +4139,164 @@ const personRow = (p) => `<div class="staffrow"><div class="n">${esc(p.name)} <s
   p.work.length && `start to done ${dur(avg(p.work))} on average, longest ${dur(Math.max(...p.work))} (${p.work.length} item${p.work.length > 1 ? "s" : ""})`,
   p.fetched && `${p.fetched} restock${p.fetched > 1 ? "s" : ""} brought up${p.fetch.length ? `, ${dur(avg(p.fetch))} on average from taking it on` : ""}`,
   p.confirmed && `${p.confirmed} confirmed arrived`, p.blocked && `${p.blocked} blocked`, p.gap >= 6e4 && `longest gap between changes ${dur(p.gap)}`].filter(Boolean).join(" · "))}</div></div>`;
+/* Money sandbox: a practice page for owners and managers to try out the sums behind a bar's week or month (wet and dry
+   sales, gross profit, labour, rent), price a drink, and save versions to compare, with made-up numbers. Everything
+   stays on this phone (store "money" and "moneysaved"): nothing is saved to the team, nothing is read from the till,
+   and the menu still has no prices. */
+const MO_F = [
+  ["Sales, including VAT", [["wet", "Wet sales (drinks), £"], ["dry", "Dry sales (food), £"], ["vat", "VAT rate, %"]]],
+  ["What the stock cost, excluding VAT", [["wetCost", "Wet cost of sales, £"], ["dryCost", "Dry cost of sales, £"]]],
+  ["Labour", [["hours", "Hourly staff: hours worked"], ["rate", "Average hourly rate, £"], ["oncost", "On top of wages (employer NI, holiday, pension), %"], ["salaries", "Salaried managers for the period, £"]]],
+  ["Fixed costs for the period", [["rent", "Rent, £"], ["other", "Everything else (business rates, utilities, insurance, repairs), £"]]],
+  ["Levers to try", [["rise", "Price rise across the menu, % (the same number of drinks and plates sold)"], ["xShifts", "Extra shifts on the rota in the period"], ["xHours", "Hours in each extra shift"],
+    ["xSales", "Extra sales you think they'd bring in, including VAT, £"]]],
+  ["A target and a forecast", [["goal", "Profit you'd like to make in the period, £"], ["growth", "Sales growth each period, % (a minus for a drop)"], ["ahead", "Periods to forecast (up to 52)"]]],
+];
+// Figures that may go below 0: a price cut, or sales falling.
+const MO_NEG = ["rise", "growth"];
+const MO_KEYS = MO_F.flatMap(([, fs]) => fs.map(([k]) => k));
+const MO_LABEL = Object.fromEntries(MO_F.flatMap(([, fs]) => fs).map(([k, t]) => [k, t.replace(/, [£%]$/, "")]));
+// Price a drink: what the bottle or keg cost, its size, the serve and the price on the menu.
+const MO_P = [["pCost", "What the bottle or keg costs you, excluding VAT, £"], ["pSize", "Its size, ml"], ["pServe", "One serve, ml"], ["pPrice", "Selling price, including VAT, £"], ["pTarget", "The GP you aim for, %"]];
+const MO_SERVES = [["25", "25 ml"], ["50", "50 ml"], ["125", "Small wine"], ["175", "Medium wine"], ["250", "Large wine"], ["284", "Half"], ["568", "Pint"]];
+const MO_PER = { week: ["A week", 52], month: ["A month", 12] };
+const MO_BLANK = { ...Object.fromEntries([...MO_KEYS, ...MO_P.map(([k]) => k)].map((k) => [k, ""])), vat: "20", what: "0", per: "week", pTarget: "70", xHours: "8", ahead: "12", cmp: "" };
+// Made-up numbers for a week at a busy London bar, so there's something to change. Not Black Tap's.
+const MO_EXAMPLE = { wet: "24000", dry: "12000", vat: "20", wetCost: "5000", dryCost: "3000", hours: "480", rate: "13.50", oncost: "15", salaries: "2400",
+  rent: "3500", other: "2200", goal: "8000", rise: "0", xShifts: "0", xHours: "8", xSales: "0", growth: "1", ahead: "12", what: "0", per: "week", pCost: "120", pSize: "50000", pServe: "568", pPrice: "6.50", pTarget: "70" };
+let moF = { ...MO_BLANK, ...store.get("money", {}) }, moSaved = store.get("moneysaved", []), moName = "";
+const moSave = () => store.set("money", moF);
+// A figure as a number: blank is 0, and anything that isn't a number of 0 or more is NaN.
+const moNum = (v, neg) => { const s = String(v ?? "").trim().replace(/[£,%\s]/g, "").replace("−", "-"); if (!s) return 0; const n = Number(s); return Number.isFinite(n) && (n >= 0 || (neg && n > -90)) ? n : NaN; };
+const moPct = (a, b) => (b > 0 ? `${a < 0 ? "−" : ""}${Math.abs((a / b) * 100).toFixed(1)}%` : "–");
+const moGbp = (n) => (n < 0 ? "−" : "") + gbp(Math.abs(n));
+// The sums for one version (f). Sales and the stock they use move with "what if sales change"; labour and fixed costs don't.
+function moSums(f = moF) {
+  const n = Object.fromEntries(MO_KEYS.map((k) => [k, moNum(f[k], MO_NEG.includes(k))]));
+  const bad = MO_KEYS.filter((k) => Number.isNaN(n[k]) || (k === "ahead" && n.ahead > 52));
+  if (bad.length) return { bad };
+  // x: how much is sold (the what-if, plus the extra shifts' sales, spread like the rest); p: the price rise.
+  const base = n.wet + n.dry, x = 1 + Number(f.what || 0) / 100 + (base > 0 ? n.xSales / base : 0), p = 1 + n.rise / 100, vat = 1 + n.vat / 100;
+  const wetNet = (n.wet * x * p) / vat, dryNet = (n.dry * x * p) / vat, net = wetNet + dryNet;
+  const wetGp = wetNet - n.wetCost * x, dryGp = dryNet - n.dryCost * x, gp = wetGp + dryGp;
+  const on = 1 + n.oncost / 100, extra = n.xShifts * n.xHours * n.rate * on;
+  const labour = n.hours * n.rate * on + n.salaries + extra, fixed = n.rent + n.other;
+  const left = gp - labour - fixed, gpRate = net > 0 ? gp / net : 0;
+  // The forecast: sales and the stock they use grow (or fall) each period; labour and fixed costs stay as they are.
+  const g = 1 + n.growth / 100, ahead = Array.from({ length: Math.floor(n.ahead) }, (_, i) => { const k = g ** (i + 1); return { net: net * k, left: gp * k - labour - fixed }; });
+  return { bad: [], gross: base * x * p, net, wetNet, dryNet, wetGp, dryGp, gp, labour, extra, xShifts: n.xShifts, rent: n.rent, fixed, left, gpRate, vat, goal: n.goal,
+    cost: (n.wetCost + n.dryCost) * x, even: gpRate > 0 ? (labour + fixed) / gpRate : null, need: gpRate > 0 && n.goal ? (labour + fixed + n.goal) / gpRate : null,
+    pays: gpRate > 0 ? extra / gpRate : null, ahead, year: MO_PER[f.per]?.[1] || 52 };
+}
+const moRow = (t, v, sub = "") => `<div class="mo-row"><span>${t}${sub ? `<br><span class="note">${sub}</span>` : ""}</span><b>${v}</b></div>`;
+function moOut() {
+  const box = $("#mo-out");
+  if (!box) return;
+  const s = moSums();
+  if (s.bad.length) { box.innerHTML = `<p class="note">Check ${s.bad.map((k) => MO_LABEL[k]).join(", ")}: each should be a number, 0 or more.</p>`; return; }
+  if (!s.net) { box.innerHTML = `<p class="note">Put in some sales, or tap Fill with example numbers, to see the sums.</p>`; return; }
+  box.innerHTML = `<div class="h3">Sales</div>
+    ${moRow("Gross sales (with VAT)", moGbp(s.gross))}
+    ${moRow("Net sales (without VAT)", moGbp(s.net), `Wet ${moPct(s.wetNet, s.net)}, dry ${moPct(s.dryNet, s.net)}`)}
+    <div class="h3">Gross profit</div>
+    ${moRow("Wet GP", `${moGbp(s.wetGp)} · ${moPct(s.wetGp, s.wetNet)}`)}
+    ${moRow("Dry GP", `${moGbp(s.dryGp)} · ${moPct(s.dryGp, s.dryNet)}`)}
+    ${moRow("Overall GP", `${moGbp(s.gp)} · ${moPct(s.gp, s.net)}`)}
+    <div class="h3">Costs, as a share of net sales</div>
+    ${moRow("Labour", `${moGbp(s.labour)} · ${moPct(s.labour, s.net)}`)}
+    ${moRow("Rent", `${moGbp(s.rent)} · ${moPct(s.rent, s.net)}`)}
+    ${moRow("Prime cost (stock and labour)", moPct(s.cost + s.labour, s.net))}
+    ${s.extra ? moRow(`The ${plural(s.xShifts, "extra shift")}`, moGbp(s.extra), s.pays == null ? "" : `In the labour above. To pay for ${s.xShifts === 1 ? "itself" : "themselves"} ${s.xShifts === 1 ? "it needs" : "they need"} about ${moGbp(s.pays * s.vat)} more sales with VAT, at this GP`) : ""}
+    <div class="h3">What's left</div>
+    ${moRow("After stock, labour, rent and other costs", `${moGbp(s.left)} · ${moPct(s.left, s.net)}`, "Before tax, loan repayments and anything not put in above")}
+    ${moRow("Break-even net sales", s.even == null ? "–" : moGbp(s.even), s.even == null ? "Needs a GP above 0" : `About ${moGbp(s.even * s.vat)} with VAT, at this GP and these costs`)}
+    ${s.goal ? moRow(`Net sales to make ${moGbp(s.goal)}`, s.need == null ? "–" : moGbp(s.need), s.need == null ? "Needs a GP above 0" : `About ${moGbp(s.need * s.vat)} with VAT, ${moPct(s.need - s.net, s.net)} ${s.need >= s.net ? "more" : "less"} than now`) : ""}
+    <div class="h3">A year at this rate</div>
+    ${moRow("Net sales", moGbp(s.net * s.year), `${s.year} ${moF.per === "month" ? "months" : "weeks"} like this one`)}
+    ${moRow("What's left", moGbp(s.left * s.year))}
+    ${moAhead(s)}
+    ${moCompare(s)}`;
+}
+// The next periods, each with its sales, what's left and the running total.
+function moAhead(s) {
+  if (!s.ahead.length) return "";
+  const per = moF.per === "month" ? "Month" : "Week";
+  let run = 0;
+  return `<div class="h3">Forecast</div><table class="mo-cmp"><tr><th>${per}</th><th>Net sales</th><th>What's left</th><th>Running total</th></tr>
+    ${s.ahead.map((r, i) => `<tr><td>${i + 1}</td><td>${moGbp(r.net)}</td><td>${moGbp(r.left)}</td><td>${moGbp((run += r.left))}</td></tr>`).join("")}</table>
+    <p class="note">A guess from the numbers above, not a prediction: it doesn't know about the weather, the football or the calendar.</p>`;
+}
+// Side by side with a saved version, on the figures that matter most.
+function moCompare(s) {
+  const o = moSaved.find((x) => x.name === moF.cmp);
+  if (!o) return "";
+  const t = moSums(o.f);
+  if (t.bad.length || !t.net) return `<p class="note">“${esc(o.name)}” has no sales or a figure that isn't a number, so there's nothing to compare.</p>`;
+  const r = (k, a, b) => `<tr><td>${k}</td><td>${a}</td><td>${b}</td></tr>`;
+  return `<div class="h3">Now against “${esc(o.name)}”</div><table class="mo-cmp"><tr><th></th><th>Now</th><th>${esc(o.name)}</th></tr>
+    ${r("Net sales", moGbp(s.net), moGbp(t.net))}${r("GP", moPct(s.gp, s.net), moPct(t.gp, t.net))}${r("Labour", moPct(s.labour, s.net), moPct(t.labour, t.net))}
+    ${r("Rent", moPct(s.rent, s.net), moPct(t.rent, t.net))}${r("What's left", moGbp(s.left), moGbp(t.left))}${r("Break-even", s.even == null ? "–" : moGbp(s.even), t.even == null ? "–" : moGbp(t.even))}</table>`;
+}
+// One drink: cost per serve, its GP at the menu price, and the price that would hit the target GP.
+function moDrink() {
+  const box = $("#mo-drink");
+  if (!box) return;
+  const n = Object.fromEntries(MO_P.map(([k]) => [k, moNum(moF[k])])), vat = 1 + (moNum(moF.vat) || 0) / 100;
+  const bad = MO_P.filter(([k]) => Number.isNaN(n[k]));
+  if (bad.length) { box.innerHTML = `<p class="note">Check ${bad.map(([, t]) => t.replace(/, (£|%|ml)$/, "")).join(", ")}: each should be a number, 0 or more.</p>`; return; }
+  if (!n.pCost || !n.pSize || !n.pServe) { box.innerHTML = `<p class="note">Put in the cost, the size and the serve to see what one serve costs.</p>`; return; }
+  const cost = (n.pCost * n.pServe) / n.pSize, net = n.pPrice / vat, gp = net - cost, serves = n.pSize / n.pServe;
+  const at = n.pTarget > 0 && n.pTarget < 100 ? (cost / (1 - n.pTarget / 100)) * vat : null;
+  box.innerHTML = `${moRow("One serve costs", moGbp(cost), `About ${Math.floor(serves)} serves from it, before wastage`)}
+    ${n.pPrice ? moRow("GP at that price", `${moGbp(gp)} · ${moPct(gp, net)}`, `${moGbp(net)} after VAT`) : ""}
+    ${moRow(`Price for a ${n.pTarget || 0}% GP`, at == null ? "–" : moGbp(at), at == null ? "The GP should be between 0 and 100%" : "Including VAT")}`;
+}
+function renderMoney() {
+  if (!LIVE.admin) return;
+  const w = Number(moF.what), fld = ([k, t]) => `<label class="fld">${t}<input data-mo="${k}" inputmode="decimal" value="${esc(moF[k])}"></label>`;
+  $("#money").innerHTML = `<div class="sec">Money sandbox</div>
+    <p class="note">For trying out the sums with made-up numbers. What you put in stays on this phone: it isn't shared with the team, saved to Bar Book or read from the till.</p>
+    <div class="actions"><button class="btn" id="mo-eg">Fill with example numbers</button><button class="btn" id="mo-clear">Clear</button></div>
+    <div class="h3">The period</div>
+    <div class="recent">${Object.entries(MO_PER).map(([k, [t]]) => `<button class="chip" data-mo-per="${k}" aria-pressed="${moF.per === k}">${t}</button>`).join("")}</div>
+    ${MO_F.map(([h, fs]) => `<div class="h3">${h}</div>${fs.map(fld).join("")}`).join("")}
+    <div class="h3">What if sales change?</div>
+    <label class="fld"><span id="mo-wt">${w > 0 ? "+" : ""}${w}% sales</span><input type="range" data-mo="what" min="-50" max="50" step="5" value="${w}"></label>
+    <p class="note">Sales and the stock they use go up or down together; labour, rent and other costs stay the same.</p>
+    <div id="mo-out"></div>
+    <details class="setup" id="mo-saves"${moSaved.length ? " open" : ""}><summary>Saved versions (${moSaved.length} of 10)</summary>
+      <p class="note">Save these numbers under a name, then change them and compare, for example “Now” against “Happy hour 5 to 7”.</p>
+      ${moSaved.map((x, i) => `<div class="staffrow"><div class="n">${esc(x.name)}</div><div class="actions"><button class="btn" data-mo-load="${i}">Load</button><button class="btn" data-mo-cmp="${i}" aria-pressed="${moF.cmp === x.name}">${moF.cmp === x.name ? "Comparing" : "Compare"}</button><button class="btn" data-mo-del="${i}">Delete</button></div></div>`).join("")}
+      ${moSaved.length < 10 ? `<label class="fld">Name<input id="mo-name" maxlength="40" value="${esc(moName)}" placeholder="Happy hour 5 to 7"></label><div class="actions"><button class="btn pri" id="mo-keep">Save these numbers</button></div>` : ""}
+    </details>
+    <div class="h3">Price a drink</div>
+    ${MO_P.slice(0, 2).map(fld).join("")}${fld(MO_P[2])}
+    <div class="recent" style="flex-wrap:wrap">${MO_SERVES.map(([ml, t]) => `<button class="chip" data-mo-serve="${ml}" aria-pressed="${moF.pServe === ml}">${t}</button>`).join("")}</div>
+    ${MO_P.slice(3).map(fld).join("")}
+    <div id="mo-drink"></div>`;
+  moOut(); moDrink();
+}
+function moClick(b) {
+  if (b.id === "mo-eg" || b.id === "mo-clear") { moF = { ...(b.id === "mo-eg" ? MO_EXAMPLE : MO_BLANK), cmp: moF.cmp }; moSave(); renderMoney(); return; }
+  if (b.dataset.moPer) { moF.per = b.dataset.moPer; moSave(); renderMoney(); return; }
+  if (b.dataset.moServe) { moF.pServe = b.dataset.moServe; moSave(); renderMoney(); return; }
+  if (b.id === "mo-keep") {
+    const name = moName.trim();
+    if (!name) return toast("Give it a name first");
+    const { cmp, ...f } = moF;
+    moSaved = [...moSaved.filter((x) => x.name !== name), { name, f }].slice(-10);
+    store.set("moneysaved", moSaved); moName = ""; toast(`Saved as “${name}”`); renderMoney(); return;
+  }
+  const i = Number(b.dataset.moLoad ?? b.dataset.moCmp ?? b.dataset.moDel), x = moSaved[i];
+  if (b.dataset.moLoad) { moF = { ...MO_BLANK, ...x.f, cmp: moF.cmp === x.name ? "" : moF.cmp }; moSave(); toast(`Loaded “${x.name}”`); renderMoney(); return; }
+  if (b.dataset.moCmp) { moF.cmp = moF.cmp === x.name ? "" : x.name; moSave(); renderMoney(); return; }
+  if (b.dataset.moDel && confirm(`Delete “${x.name}”?`)) {
+    moSaved = moSaved.filter((_, j) => j !== i); store.set("moneysaved", moSaved);
+    if (moF.cmp === x.name) { moF.cmp = ""; moSave(); }
+    renderMoney();
+  }
+}
+
 function renderKpis() {
   if (!LIVE.admin) return;
   const head = `<div class="sec">Closing KPIs</div>`;
@@ -4751,6 +4918,8 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.br) brF[t.dataset.br] = t.value;
   if (t.dataset.hoxf) { const [q, k] = t.dataset.hoxf.split(":"); (hoF.x[q] ||= {})[k] = t.value; hoSave(); }
   if (t.id === "hq-t") hqF.t = t.value;
+  if (t.dataset.mo) { moF[t.dataset.mo] = t.value; moSave(); if (t.dataset.mo === "what") $("#mo-wt").textContent = `${Number(t.value) > 0 ? "+" : ""}${t.value}% sales`; moOut(); moDrink(); }
+  if (t.id === "mo-name") moName = t.value;
   if (t.id === "hq-crit") hqF.crit = t.checked;
   if (t.dataset.g) gF[t.dataset.g] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.gc) { const [id, k] = t.dataset.gc.split(":"); (gClose[id] ||= {})[k] = t.type === "checkbox" ? t.checked : t.value; }
@@ -4942,6 +5111,7 @@ $("#v-notices").addEventListener("click", (e) => {
     Object.assign(hqF, { t: "", crit: false }); haptic(); return;
   }
   if (b.dataset.hqDel) { if (confirm("Take this question off? Handovers already sent keep their answers.")) track(LIVE.api.saveHoq(LIVE.hoq.filter((x) => x.id !== b.dataset.hqDel)), "Question taken off", "Not saved. Try again"); return; }
+  if (b.id === "mo-eg" || b.id === "mo-clear" || b.id === "mo-keep" || b.dataset.moPer || b.dataset.moServe || b.dataset.moLoad || b.dataset.moCmp || b.dataset.moDel) { moClick(b); return; }
   if (b.id === "br-read") { track(LIVE.api.readBriefing(), "Marked as read", "Not saved. It may have just changed: read it again"); haptic(); return; }
   if (b.id === "br-prev") { brPrev(); return; }
   if (b.id === "br-go") { brSave(); return; }
