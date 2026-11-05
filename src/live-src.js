@@ -105,6 +105,9 @@ function listen(uid) {
       LIVE.off = new Set(x?.off || []); LIVE.offBy = x && { name: x.name, at: x.at };
       liveChanged("features");
     });
+    // Guest issues: the latest 100 (a month or more at a venue this size), and what each role may give a guest.
+    sub("guests", query(collection(db, "guests"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.guests = rows(snap); liveChanged("guests"); });
+    sub("comp", doc(db, "settings", "comp"), (d) => { LIVE.comp = d.exists() ? d.data() : null; liveChanged("comp"); });
     // The latest time the owner started fresh. Each phone drops its copies of what went.
     sub("resets", query(collection(db, "resets"), orderBy("at", "desc"), limit(1)), (snap) => { LIVE.reset = rows(snap)[0] || null; liveChanged("resets"); });
     // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
@@ -271,7 +274,7 @@ async function clearOldPhotos() {
 // out: each collection in FRESH, and every business day's checklists under shift/{day} since the app began. Concerns go
 // before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
 // with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
-const FRESH = ["shifts", "asks", "reports", "handovers", "briefReads", "briefings", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
+const FRESH = ["shifts", "asks", "reports", "handovers", "briefReads", "briefings", "guests", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
   "notices", "seen", "feed", "requests"];
 const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
 // A date label's events stay with the label.
@@ -615,6 +618,9 @@ LIVE.api = {
   // Tonight's briefing, new or changed: the whole of it each time, one version up.
   saveBriefing: (b) => setDoc(doc(db, "briefings", shiftDay()), { day: shiftDay(), covers: b.covers, bookings: b.bookings, specials: b.specials, allergies: b.allergies, sections: b.sections, breaks: b.breaks, focus: b.focus, previous: b.previous, v: (LIVE.briefing?.v || 0) + 1, ...me() }),
   readBriefing: () => setDoc(doc(db, "briefReads", `${shiftDay()}-${auth.currentUser.uid}`), { day: shiftDay(), v: LIVE.briefing.v, ...me() }),
+  logGuest: (g) => addDoc(collection(db, "guests"), { kind: g.kind, table: g.table, what: g.what, wants: g.wants, done: g.done, comp: g.comp, escalate: g.escalate, status: "open", ...me() }),
+  closeGuest: (id, resolution, extra, followUp) => updateDoc(doc(db, "guests", id), { status: "closed", resolution, extra, followUp, closedBy: LIVE.me, closedByUid: auth.currentUser.uid, closedAt: serverTimestamp() }),
+  setComp: (staff, manager) => setDoc(doc(db, "settings", "comp"), { staff, manager, ...me() }),
   acceptHandover: (day, note) => updateDoc(doc(db, "handovers", day), { ackBy: LIVE.me, ackByUid: auth.currentUser.uid, ackAt: serverTimestamp(), ackNote: note }),
   raise: (x) => addDoc(collection(db, "issues"), { title: x.title, detail: x.detail, area: x.area, urgent: x.urgent, again: x.again || null, status: "open", ...me() }),
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),

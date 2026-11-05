@@ -23,7 +23,7 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 date labels to change", "Not yet bar report tonight", "Not yet floor report tonight"]);
   assert.deepEqual(await O.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), ["Everyone", "Managers"]);
   assert.deepEqual(await O.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)),
-    ["brief", "chat", "rota", "reports", "issues", "concerns", "board", "me", "live", "handover", "requests", "act", "kpis", "out", "training", "team", "feedback"]);
+    ["brief", "chat", "rota", "reports", "issues", "guests", "concerns", "board", "me", "live", "handover", "requests", "act", "kpis", "out", "training", "team", "feedback"]);
 
   await S.evaluate(async () => {
     const A = LIVE.api;
@@ -41,7 +41,7 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   await S.evaluate(() => show("notices"));
   assert.deepEqual(await forYou(S), ["Urgent: Glass washer leaking | Raised by you. Nobody's on it yet > issues (hot)"]);
   assert.equal((await tiles(S)).length, 7, "staff see the same shift tiles");
-  assert.deepEqual(await S.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)), ["brief", "chat", "rota", "reports", "issues", "concerns", "board", "me", "activity"]);
+  assert.deepEqual(await S.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)), ["brief", "chat", "rota", "reports", "issues", "guests", "concerns", "board", "me", "activity"]);
   assert.deepEqual(await S.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), ["Everyone"]);
 
   // A tile goes to the Shift tab; blocked tasks go to a manager's Live, and to the list with the blocked item for staff.
