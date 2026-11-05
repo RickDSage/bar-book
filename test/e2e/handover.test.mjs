@@ -93,3 +93,37 @@ test("the next manager accepts the last handover, saying what they'll do about i
   assert.equal(await M.$('#hub [data-tpane="handover"]'), null);
   assert.deepEqual([...O.errs, ...M.errs], []);
 });
+
+test("a manager adds the venue's own question; a no on it asks what happened and, if it's a risk, raises an urgent issue", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  await part(M, "handover");
+  await M.click("#hq-box summary");
+  await M.click("#hq-go");
+  await waitToast(M, /^Write the question first$/);
+  await M.fill("#hq-t", "Keg room locked?");
+  await M.check("#hq-crit");
+  await M.click("#hq-go");
+  await waitToast(M, /^Question added$/);
+  await M.waitForSelector('[data-hoxa][data-v="no"]');
+  assert.equal(await attempt(S, () => LIVE.api.saveHoq([{ id: "abc", t: "Mine", crit: false }])), "permission-denied");
+
+  for (const q of QS) await M.click(`[data-hoa="${q}"][data-v="yes"]`);
+  await M.click("#ho-go");
+  await waitToast(M, /^Answer every question first \(1 to go\)$/);
+  await M.click('[data-hoxa][data-v="no"]');
+  await M.click("#ho-go");
+  await waitToast(M, /^Fill in what happened and who's been told under each no$/);
+  const id = await M.$eval("[data-hoxa]", (e) => e.dataset.hoxa);
+  await M.fill(`[data-hoxf="${id}:what"]`, "Padlock missing");
+  await M.fill(`[data-hoxf="${id}:told"]`, "GM");
+  await M.click("#ho-go");
+  await waitToast(M, /^Handover sent, and 1 urgent issue raised$/);
+  await M.waitForFunction(() => LIVE.handovers[0] && !LIVE.handovers[0].pending);
+  const h = await M.evaluate(() => LIVE.handovers[0]);
+  assert.equal(h.risks, 1);
+  assert.deepEqual(h.extra[id], { t: "Keg room locked?", crit: true, a: "no", what: "Padlock missing", told: "GM" });
+  assert.match(await text(M), /Keg room locked\?.*Padlock missing/s);
+  await S.waitForFunction(() => LIVE.issues.some((x) => x.urgent && x.title === "Keg room locked?: Padlock missing"));
+  assert.deepEqual([...M.errs, ...S.errs], []);
+});

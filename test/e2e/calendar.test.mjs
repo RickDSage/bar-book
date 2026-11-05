@@ -216,8 +216,8 @@ test("the next 7 days show what's on, the games on our screens and your shifts, 
   assert.match((await cell(S, d1)).say, /20:00 Arsenal v Chelsea/);
   assert.match(await text(S, "#cal .calkey"), /Holiday or big day School holidays Event or closed Game on You're on Time off/);
 
-  // Built in, whatever the year: faith days, big games, London events and the days worked out from the calendar.
-  const items = (ds) => S.evaluate((ds) => ds.map((d) => calItems(d).map((i) => `${i.k}: ${i.t}`).join(" | ")), ds);
+  // Built in, whatever the year (the events added above are left out, as they can land on these days): faith days, big games, London events and the days worked out from the calendar.
+  const items = (ds) => S.evaluate((ds) => ds.map((d) => calItems(d).filter((i) => i.k !== "event").map((i) => `${i.k}: ${i.t}`).join(" | ")), ds);
   assert.deepEqual(await items(["2026-11-08", "2026-11-14", "2026-11-26", "2026-11-27", "2027-02-09", "2027-02-14", "2027-03-28", "2027-08-29", "2027-08-30", "2027-12-24", "2028-07-09"]), [
     "day: Remembrance Sunday | faith: Diwali", "london: Lord Mayor's Show", "day: Thanksgiving (US)", "day: Black Friday", "day: Pancake Day",
     "day: Valentine's Day | sport: Six Nations: England v France | sport: Super Bowl", "day: Easter Sunday", "london: Notting Hill Carnival",
@@ -234,21 +234,21 @@ test("the owner can switch the calendar off, and with the rota off the calendar 
   const { O, M, S } = await team(browser, site, people);
   await O.evaluate(() => LIVE.api.setOff(["rota"]));
   for (const p of [M, S]) await switched(p, ["rota"]);
-  const rest = ["reports:Reports", "issues:Issues and handover", "concerns:Concerns", "board:Broadcasts", "me:Tell the managers"];
-  assert.deepEqual(await teamTabs(S), ["chat:Chat", "rota:Calendar", ...rest, "activity:Activity"]);
+  const rest = ["reports:Reports", "issues:Issues and handover", "guests:Guest issues", "concerns:Concerns", "board:Broadcasts", "me:Tell the managers"];
+  assert.deepEqual(await teamTabs(S), ["brief:Tonight's briefing", "chat:Chat", "rota:Calendar", ...rest, "activity:Activity"]);
   await part(S, "rota");
   assert.ok(await S.evaluate(() => !$("#cal").hidden && $("#rota").hidden));
   assert.deepEqual(await S.$$eval("#cal [data-roview]", (x) => x.map((b) => b.textContent)), ["Next 7 days", "Month"], "no Shifts without the rota");
   assert.match(await text(S, "#cal"), /^Next 7 days Month NEXT 7 DAYS .* TODAY /, "the next 7 days first");
   await S.click('[data-roview="cal"]');
   assert.doesNotMatch(await text(S, "#cal .calkey"), /You're on/, "no shifts in the key");
-  assert.deepEqual(await teamTabs(M), ["chat:Chat", "rota:Calendar", ...rest]);
+  assert.deepEqual(await teamTabs(M), ["brief:Tonight's briefing", "chat:Chat", "rota:Calendar", ...rest]);
 
   // Calendar off too: its card goes, and managers keep Requests.
   await O.evaluate(() => LIVE.api.setOff(["rota", "calendar"]));
   for (const p of [M, S]) await switched(p, ["rota", "calendar"]);
-  assert.deepEqual(await teamTabs(S), ["chat:Chat", ...rest, "activity:Activity"]);
-  assert.deepEqual(await teamTabs(M), ["chat:Chat", ...rest]);
+  assert.deepEqual(await teamTabs(S), ["brief:Tonight's briefing", "chat:Chat", ...rest, "activity:Activity"]);
+  assert.deepEqual(await teamTabs(M), ["brief:Tonight's briefing", "chat:Chat", ...rest]);
   assert.equal(await M.locator('#hub [data-tpane="requests"]').count(), 1);
   await part(S, "me"); await S.click('[data-mek="off"]');
   assert.equal(await S.locator('#me [data-go="cal"]').count(), 0);

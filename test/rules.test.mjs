@@ -1889,7 +1889,7 @@ describe("manager close and handover", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const Q = ["sales", "cash", "voids", "tips", "breaks", "incidents", "complaints", "depts", "food", "faults", "security", "ready"];
   const allYes = () => Object.fromEntries(Q.map((q) => [q, "yes"]));
-  const ho = (uid, extra = {}, day = today()) => ({ day, answers: allYes(), follow: {}, risks: 0, exceptions: 0, lines: "", snap: { missing: 0 }, note: "Delivery at 10", owner: "", ...by(uid), ...extra });
+  const ho = (uid, extra = {}, day = today()) => ({ day, answers: allYes(), follow: {}, extra: {}, risks: 0, exceptions: 0, lines: "", snap: { missing: 0 }, note: "Delivery at 10", owner: "", ...by(uid), ...extra });
   const ref = (uid, day = today()) => doc(db(uid), "handovers", day);
   // The app's write: the handover and, for food safety, equipment or security, an urgent issue h-{day}-{q}, together.
   const send = (uid, h, raise = [], day = today()) => {
@@ -1936,6 +1936,16 @@ describe("manager close and handover", () => {
     await fails(send("mgr1", ho("mgr1", {}, plusDays(today(), -5)), [], plusDays(today(), -5)), "a night long gone");
     await fails(send("mgr1", ho("mgr1", { extra: 1 })), "an extra field");
     await fails(send("mgr1", ho("mgr1", { note: "x".repeat(2001) })), "a note too long");
+  });
+  test("the venue's own questions: managers keep up to 10, and a critical no among them counts as a risk", async () => {
+    const qs = (n) => Array.from({ length: n }, (_, i) => ({ id: `q${i}`, t: `Question ${i}`, crit: i === 0 }));
+    await fails(setDoc(doc(db("staff1"), "settings", "hoq"), { qs: qs(1), ...by("staff1") }), "staff adding questions");
+    await fails(setDoc(doc(db("mgr1"), "settings", "hoq"), { qs: qs(11), ...by("mgr1") }), "more than 10");
+    await assertSucceeds(setDoc(doc(db("mgr1"), "settings", "hoq"), { qs: qs(2), ...by("mgr1") }));
+    await assertSucceeds(getDoc(doc(db("staff1"), "settings", "hoq")));
+    const extra = { q0: { t: "Question 0", crit: true, a: "no", what: "Keg room left open", told: "GM" } };
+    await fails(send("mgr1", ho("mgr1", { extra, risks: 2 })), "more risks than there could be");
+    await assertSucceeds(send("mgr1", ho("mgr1", { extra, risks: 1 })));
   });
   test("once sent it can't be changed or deleted; the next manager accepts it once, saying what they'll do about risks", async () => {
     await send("mgr1", ho("mgr1", { answers: { ...allYes(), cash: "no" }, follow: { cash: { amount: "£20 short" } }, risks: 1 }));

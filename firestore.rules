@@ -615,6 +615,9 @@ service cloud.firestore {
           && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover', 'briefing', 'guests']))
         // How much (in pence) staff and managers may give a guest without asking someone above them.
         || (id == 'comp' && exactly(['staff', 'manager', 'uid', 'name', 'at']) && optInt(incoming().staff, 100000) && optInt(incoming().manager, 100000)));
+      // The venue's own closing questions, added to the manager close: up to 10, each {id, t (text), crit}. Managers keep them.
+      allow create, update: if isManager() && stamped() && id == 'hoq' && exactly(['qs', 'uid', 'name', 'at'])
+        && incoming().qs is list && incoming().qs.size() <= 10;
     }
 
     // ---------- Manager close and handover ----------
@@ -646,9 +649,12 @@ service cloud.firestore {
     }
     function validHandover(day) {
       let h = incoming();
-      return exactly(['day', 'answers', 'follow', 'risks', 'exceptions', 'lines', 'snap', 'note', 'owner', 'uid', 'name', 'at']) && stamped()
+      return exactly(['day', 'answers', 'follow', 'extra', 'risks', 'exceptions', 'lines', 'snap', 'note', 'owner', 'uid', 'name', 'at']) && stamped()
         && h.day == day && nearNow(day) && hoAnswers(h.answers) && hoFollowed(day, h.answers, h.follow)
-        && h.risks == hoNo(h.answers, 'cash') + hoNo(h.answers, 'food') + hoNo(h.answers, 'faults') + hoNo(h.answers, 'security')
+        // The venue's own questions, answered with their text as it was asked; a critical no among them adds to risks.
+        && h.extra is map && h.extra.size() <= 10
+        && h.risks >= hoNo(h.answers, 'cash') + hoNo(h.answers, 'food') + hoNo(h.answers, 'faults') + hoNo(h.answers, 'security')
+        && h.risks <= hoNo(h.answers, 'cash') + hoNo(h.answers, 'food') + hoNo(h.answers, 'faults') + hoNo(h.answers, 'security') + h.extra.size()
         && h.exceptions is int && h.exceptions >= 0 && h.exceptions <= 500
         && optText(h.lines, 8000) && h.snap is map && h.snap.size() <= 20
         && optText(h.note, 2000) && optText(h.owner, 1000);
@@ -724,7 +730,7 @@ service cloud.firestore {
     match /resets/{id} {
       allow read: if isMember();
       allow create: if recentOwner() && id == resetId() && exactly(['counts', 'total', 'uid', 'name', 'at']) && stamped()
-        && incoming().counts is map && incoming().counts.size() <= 20 && incoming().total is int && incoming().total >= 0;
+        && incoming().counts is map && incoming().counts.size() <= 30 && incoming().total is int && incoming().total >= 0;
     }
 
     // ---------- Calendar ----------

@@ -107,6 +107,7 @@ function listen(uid) {
     });
     // Guest issues: the latest 100 (a month or more at a venue this size), and what each role may give a guest.
     sub("guests", query(collection(db, "guests"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.guests = rows(snap); liveChanged("guests"); });
+    sub("hoq", doc(db, "settings", "hoq"), (d) => { LIVE.hoq = d.exists() ? d.data().qs : []; liveChanged("hoq"); });
     sub("comp", doc(db, "settings", "comp"), (d) => { LIVE.comp = d.exists() ? d.data() : null; liveChanged("comp"); });
     // The latest time the owner started fresh. Each phone drops its copies of what went.
     sub("resets", query(collection(db, "resets"), orderBy("at", "desc"), limit(1)), (snap) => { LIVE.reset = rows(snap)[0] || null; liveChanged("resets"); });
@@ -620,6 +621,7 @@ LIVE.api = {
   readBriefing: () => setDoc(doc(db, "briefReads", `${shiftDay()}-${auth.currentUser.uid}`), { day: shiftDay(), v: LIVE.briefing.v, ...me() }),
   logGuest: (g) => addDoc(collection(db, "guests"), { kind: g.kind, table: g.table, what: g.what, wants: g.wants, done: g.done, comp: g.comp, escalate: g.escalate, status: "open", ...me() }),
   closeGuest: (id, resolution, extra, followUp) => updateDoc(doc(db, "guests", id), { status: "closed", resolution, extra, followUp, closedBy: LIVE.me, closedByUid: auth.currentUser.uid, closedAt: serverTimestamp() }),
+  saveHoq: (qs) => setDoc(doc(db, "settings", "hoq"), { qs, ...me() }),
   setComp: (staff, manager) => setDoc(doc(db, "settings", "comp"), { staff, manager, ...me() }),
   acceptHandover: (day, note) => updateDoc(doc(db, "handovers", day), { ackBy: LIVE.me, ackByUid: auth.currentUser.uid, ackAt: serverTimestamp(), ackNote: note }),
   raise: (x) => addDoc(collection(db, "issues"), { title: x.title, detail: x.detail, area: x.area, urgent: x.urgent, again: x.again || null, status: "open", ...me() }),

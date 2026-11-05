@@ -708,7 +708,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], briefing: null, briefReads: [], guests: [], comp: null, outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -3922,9 +3922,11 @@ const HO_Q = [
 ];
 const HO_A = { yes: "Yes", no: "No", na: "N/A" };
 // The form being filled in, kept on this phone so a close half done at 1am survives a reload. A new night starts afresh.
-const hoBlank = () => ({ day: shiftDay(), a: {}, f: {}, note: "", owner: "" });
+const hoBlank = () => ({ day: shiftDay(), a: {}, f: {}, x: {}, note: "", owner: "" });
 let hoF = store.get("hodraft", null);
 if (!hoF || hoF.day !== shiftDay()) hoF = hoBlank();
+hoF.x ||= {};
+const hqF = { t: "", crit: false };
 const hoSave = () => store.set("hodraft", hoF);
 const hoOn = () => LIVE.admin && isOn("handover");
 const hoTonight = () => LIVE.handovers.find((h) => h.id === shiftDay());
@@ -3940,6 +3942,8 @@ function hoAuto() {
   return [...missing, ...needsYou(), ...exceptions(), ...urgent, ...cons];
 }
 const hoRisk = (q, a) => q.risk && a === "no";
+// The venue's own questions as answered on this phone, with each one's text as it's asked tonight.
+const hoX = () => LIVE.hoq.map((q) => ({ id: q.id, t: q.t, crit: !!q.crit, a: hoF.x[q.id]?.a || "", what: (hoF.x[q.id]?.what || "").trim(), told: (hoF.x[q.id]?.told || "").trim() }));
 const hoRisks = (a) => HO_Q.filter((q) => hoRisk(q, a[q.k])).length;
 const hoNos = (a) => HO_Q.filter((q) => a[q.k] === "no" && !q.risk).length;
 // The text of a sent handover, for sharing and for the record.
@@ -3948,6 +3952,7 @@ function hoText(h) {
   const bad = HO_Q.filter((q) => h.answers[q.k] === "no");
   lines.push(bad.length ? "Not right:" : "Every question answered yes or n/a.");
   for (const q of bad) lines.push(`- ${q.t} No${q.risk ? " (risk)" : ""}`, ...q.f.map(([k, t]) => `  ${t} ${h.follow[q.k]?.[k] || ""}`));
+  for (const x of Object.values(h.extra || {}).filter((x) => x.a === "no")) lines.push(`- ${x.t} No${x.crit ? " (risk)" : ""}`, `  What happened? ${x.what}`, `  Who has been told? ${x.told}`);
   if (h.lines) lines.push("", "Tonight's exceptions:", h.lines);
   if (h.note) lines.push("", `For the next manager: ${h.note}`);
   if (h.owner) lines.push("", `For the owner: ${h.owner}`);
@@ -3965,6 +3970,8 @@ function hoCard(h, { accept = false } = {}) {
     <div class="tags">${pills}</div>
     ${bad.map((q) => `<div class="staffrow"><div class="n"><span class="pill ${q.risk ? "no" : "wait"}">${q.risk ? "Risk" : "No"}</span> <span class="did">${esc(q.t)}</span></div>${fu(q)}${q.risk === "team" ? `<div class="s">Raised as an urgent issue for the team.</div>` : ""}</div>`).join("")
       || `<p class="note">Every question answered yes${na ? ` (${na} n/a)` : ""}.</p>`}
+    ${Object.values(h.extra || {}).filter((x) => x.a === "no").map((x) => `<div class="staffrow"><div class="n"><span class="pill ${x.crit ? "no" : "wait"}">${x.crit ? "Risk" : "No"}</span> <span class="did">${esc(x.t)}</span></div>
+      <div class="s">What happened? <b>${esc(x.what)}</b></div><div class="s">Who has been told? <b>${esc(x.told)}</b></div></div>`).join("")}
     ${h.lines ? `<div class="h3">Tonight's exceptions, as Bar Book saw them</div><pre class="txt ho-lines">${esc(h.lines)}</pre>` : ""}
     ${h.note ? `<div class="h3">For the next manager</div><p class="txt">${esc(h.note)}</p>` : ""}
     ${h.owner ? `<div class="h3">For the owner</div><p class="txt">${esc(h.owner)}</p>` : ""}
@@ -3973,7 +3980,7 @@ function hoCard(h, { accept = false } = {}) {
         <div class="actions"><button class="btn pri" data-ho-accept="${h.id}">Accept the handover</button></div>` : ""}</article>`;
 }
 function hoForm() {
-  const auto = hoAuto(), risks = hoRisks(hoF.a), nos = hoNos(hoF.a);
+  const auto = hoAuto(), xs = hoX(), risks = hoRisks(hoF.a) + xs.filter((x) => x.crit && x.a === "no").length, nos = hoNos(hoF.a) + xs.filter((x) => !x.crit && x.a === "no").length;
   const missing = auto.filter((x) => x.tag === "No report").map((x) => x.what.replace(" report not sent", ""));
   const q = (x) => {
     const a = hoF.a[x.k], opts = x.na ? ["yes", "no", "na"] : ["yes", "no"];
@@ -3988,6 +3995,12 @@ function hoForm() {
   return `<div class="h3">Tonight's close</div>
     <p class="note">Answer each one. A no asks what happened. The next manager reads this and accepts it.</p>
     ${HO_Q.map(q).join("")}
+    ${LIVE.hoq.map((x) => { const v = hoF.x[x.id] || {};
+      return `<div class="hoq${v.a === "no" ? " no" : ""}" data-hox="${x.id}"><div class="n">${esc(x.t)}</div>
+        <div class="recent">${["yes", "no"].map((a) => `<button class="chip" data-hoxa="${x.id}" data-v="${a}" aria-pressed="${v.a === a}">${HO_A[a]}</button>`).join("")}</div>
+        ${v.a === "no" ? `${x.crit ? `<p class="note"><b>Risk.</b> It's raised as an urgent issue the whole team sees until someone fixes it.</p>` : ""}
+          <label class="fld">What happened?<input data-hoxf="${x.id}:what" maxlength="200" value="${esc(v.what || "")}"></label>
+          <label class="fld">Who has been told?<input data-hoxf="${x.id}:told" maxlength="200" value="${esc(v.told || "")}"></label>` : ""}</div>`; }).join("")}
     <div class="h3">What Bar Book saw tonight (${auto.length})</div>
     <p class="note">From every department's lists, reports, restocks, labels, issues and concerns. It's saved with the handover as it stands when you send it.</p>
     ${auto.map(flagHtml).join("") || `<p class="note">Nothing went wrong that Bar Book knows of.</p>`}
@@ -4004,13 +4017,22 @@ function renderHandover() {
   box.innerHTML = `<div class="sec">Close and handover</div>
     ${acc ? `<div class="h3">Last handover: read it and accept it</div>${hoCard(acc, { accept: true })}` : ""}
     ${mine ? `<div class="h3">Tonight's close is sent</div>${hoCard(mine)}<div class="actions">${shareBtns("handover")}</div>` : LIVE.loaded.has("tasks") && LIVE.loaded.has("events") ? hoForm() : `<p class="note">Loading tonight. It needs signal the first time.</p>`}
-    ${earlier.length ? `<details class="setup"><summary>Earlier handovers (${earlier.length})</summary>${earlier.map((h) => hoCard(h)).join("")}</details>` : ""}`;
+    ${earlier.length ? `<details class="setup"><summary>Earlier handovers (${earlier.length})</summary>${earlier.map((h) => hoCard(h)).join("")}</details>` : ""}
+    <details class="setup" id="hq-box"><summary>Your venue's own questions (${LIVE.hoq.length} of 10)</summary>
+      <p class="note">Asked after the standard ones, every night, yes or no. A no asks what happened and who's been told. Tick "a no is a risk" to raise it as an urgent issue for the team.</p>
+      ${LIVE.hoq.map((x) => `<div class="staffrow"><div class="n">${esc(x.t)}${x.crit ? ` <span class="pill no">A no is a risk</span>` : ""}</div><div class="actions"><button class="btn" data-hq-del="${x.id}">Take it off</button></div></div>`).join("")}
+      ${LIVE.hoq.length < 10 ? `<label class="fld">New question (a yes means all's well)<input id="hq-t" maxlength="120" value="${esc(hqF.t)}" placeholder="Keg room locked?"></label>
+        <label class="check"><input type="checkbox" id="hq-crit"${hqF.crit ? " checked" : ""}> A no is a risk</label>
+        <div class="actions"><button class="btn pri" id="hq-go">Add it</button></div>` : ""}</details>`;
 }
 function sendHandover(b) {
   const missing = HO_Q.filter((q) => !hoF.a[q.k]);
   if (missing.length) return toast(`Answer every question first (${missing.length} to go)`);
   const short = HO_Q.filter((q) => hoF.a[q.k] === "no" && q.f.some(([k]) => !(hoF.f[q.k]?.[k] || "").trim()));
   if (short.length) return toast(`Fill in what's asked under each no (${short.map((q) => q.short || q.t.split(/[,:?]/)[0]).join(", ")})`);
+  const xs = hoX();
+  if (xs.some((x) => !x.a)) return toast(`Answer every question first (${xs.filter((x) => !x.a).length} to go)`);
+  if (xs.some((x) => x.a === "no" && (!x.what || !x.told))) return toast("Fill in what happened and who's been told under each no");
   if (hoF.day !== shiftDay()) { hoF = hoBlank(); hoSave(); renderHandover(); return toast("A new night has started. Start again"); }
   const auto = hoAuto(), a = { ...hoF.a }, follow = {};
   for (const q of HO_Q) if (a[q.k] === "no") follow[q.k] = Object.fromEntries(q.f.map(([k]) => [k, hoF.f[q.k][k].trim()]));
@@ -4019,7 +4041,10 @@ function sendHandover(b) {
     detail: q.f.slice(1).map(([k, t]) => `${t} ${follow[q.k][k]}`).join("\n").slice(0, 1000) }));
   const snap = { missing: auto.filter((x) => x.tag === "No report").length, needs: needsYou().length, exceptions: exceptions().length,
     urgent: openIssues().filter((x) => x.urgent).length, concerns: openConcerns().length, restocks: rsOpen().length, out: LIVE.out.size };
-  const h = { answers: a, follow, risks: hoRisks(a), exceptions: hoNos(a) + auto.length, lines: auto.map(flagText).join("\n").slice(0, 8000), snap, note: hoF.note.trim(), owner: hoF.owner.trim() };
+  const extra = Object.fromEntries(xs.map((x) => [x.id, { t: x.t.slice(0, 200), crit: x.crit, a: x.a, what: x.what, told: x.told }]));
+  for (const x of xs) if (x.crit && x.a === "no") raise.push({ q: `x-${x.id}`, area: "other", title: `${x.t}: ${x.what}`.slice(0, 120), detail: `Who has been told? ${x.told}`.slice(0, 1000) });
+  const xr = xs.filter((x) => x.crit && x.a === "no").length, xe = xs.filter((x) => !x.crit && x.a === "no").length;
+  const h = { answers: a, follow, extra, risks: hoRisks(a) + xr, exceptions: hoNos(a) + xe + auto.length, lines: auto.map(flagText).join("\n").slice(0, 8000), snap, note: hoF.note.trim(), owner: hoF.owner.trim() };
   if (!confirm(`Send tonight's handover${h.risks ? ` with ${plural(h.risks, "risk")}` : ""}? It can't be changed afterwards.`)) return;
   const w = LIVE.api.sendHandover(shiftDay(), h, raise);
   track(w, raise.length ? `Handover sent, and ${plural(raise.length, "urgent issue")} raised` : "Handover sent", "Not sent. Another manager may have closed tonight already");
@@ -4673,7 +4698,7 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], requests: [renderRequests, renderAct],
       asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct],
@@ -4724,6 +4749,9 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.hon) { hoF[t.dataset.hon] = t.value; hoSave(); }
   if (t.dataset.hoack) hoAck[t.dataset.hoack] = t.value;
   if (t.dataset.br) brF[t.dataset.br] = t.value;
+  if (t.dataset.hoxf) { const [q, k] = t.dataset.hoxf.split(":"); (hoF.x[q] ||= {})[k] = t.value; hoSave(); }
+  if (t.id === "hq-t") hqF.t = t.value;
+  if (t.id === "hq-crit") hqF.crit = t.checked;
   if (t.dataset.g) gF[t.dataset.g] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.gc) { const [id, k] = t.dataset.gc.split(":"); (gClose[id] ||= {})[k] = t.type === "checkbox" ? t.checked : t.value; }
 });
@@ -4906,6 +4934,14 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.dataset.hoa) { hoF.a[b.dataset.hoa] = b.dataset.v; hoSave(); renderHandover(); return; }
   if (b.dataset.hoyn) { const [q, k] = b.dataset.hoyn.split(":"); (hoF.f[q] ||= {})[k] = b.dataset.v; hoSave(); renderHandover(); return; }
   if (b.id === "ho-go") { sendHandover(b); return; }
+  if (b.dataset.hoxa) { (hoF.x[b.dataset.hoxa] ||= {}).a = b.dataset.v; hoSave(); renderHandover(); return; }
+  if (b.id === "hq-go") {
+    const t = hqF.t.trim();
+    if (!t) return toast("Write the question first");
+    track(LIVE.api.saveHoq([...LIVE.hoq, { id: Math.random().toString(36).slice(2, 10), t, crit: !!hqF.crit }]), "Question added", "Not saved. Try again");
+    Object.assign(hqF, { t: "", crit: false }); haptic(); return;
+  }
+  if (b.dataset.hqDel) { if (confirm("Take this question off? Handovers already sent keep their answers.")) track(LIVE.api.saveHoq(LIVE.hoq.filter((x) => x.id !== b.dataset.hqDel)), "Question taken off", "Not saved. Try again"); return; }
   if (b.id === "br-read") { track(LIVE.api.readBriefing(), "Marked as read", "Not saved. It may have just changed: read it again"); haptic(); return; }
   if (b.id === "br-prev") { brPrev(); return; }
   if (b.id === "br-go") { brSave(); return; }
