@@ -122,6 +122,19 @@ service cloud.firestore {
       allow delete: if isManager() && getAfter(staffDoc(resource.data.uid)) == null;
     }
 
+    // ---------- Test staff ----------
+    // Made-up people for trying the app out: a practice team on the rota, by side, to stage a restaurant day. They're
+    // never logins (no Auth account, no staff or username record), so they can't sign in or be given anything a
+    // teammate is. Managers add and remove them; they can't be edited, only removed and added again. The id starts
+    // test- (a real uid never has a dash), so any phone can tell a test person on a shift without reading these.
+    match /teststaff/{id} {
+      allow read: if isManager();
+      allow create: if isManager() && id.matches('test-[A-Za-z0-9]{20}') && exactly(['who', 'side', 'role', 'uid', 'name', 'at'])
+        && reqText(incoming().who, 40) && incoming().side in ['bar', 'floor', 'kitchen'] && incoming().role in ['staff', 'manager']
+        && stamped();
+      allow delete: if isManager();
+    }
+
     // ---------- Audit of account changes ----------
     // {uid}-in when an account joins (setup, add, PIN reset), {uid}-out when it leaves (removal, PIN reset),
     // and an automatic ID for a role change. Each entry must match a change made in the same write.
