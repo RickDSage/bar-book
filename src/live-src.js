@@ -147,7 +147,7 @@ function listen(uid) {
       LIVE.asks = rows(snap); liveChanged("asks");
     });
     watchChats(uid);
-    if (!LIVE.admin) { Object.assign(LIVE, { staff: [], handovers: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], training: [], requests: [] }); return; }
+    if (!LIVE.admin) { Object.assign(LIVE, { staff: [], tests: [], handovers: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], training: [], requests: [] }); return; }
     // Stock requests from before restocking, kept so managers can still clear the last ones.
     sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
     sub("incidents", query(collection(db, "incidents"), orderBy("at", "desc"), limit(LIVE_N.incidents)), (snap) => { LIVE.incidents = rows(snap); liveChanged("incidents"); });
@@ -162,6 +162,11 @@ function listen(uid) {
       staffSettled = !snap.metadata.hasPendingWrites; liveChanged("staff"); syncDirectory();
     });
     sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
+    // Test staff: made-up people for a practice day, never logins. uid is the record's id, as with the real team.
+    sub("tests", collection(db, "teststaff"), (snap) => {
+      LIVE.tests = snap.docs.filter(plain).map((x) => ({ name: x.data().who, side: x.data().side, role: x.data().role, uid: x.id, test: true })).sort((a, b) => a.name.localeCompare(b.name));
+      liveChanged("tests");
+    });
     // Manager closes and handovers: the last two weeks' worth.
     sub("handovers", query(collection(db, "handovers"), orderBy("at", "desc"), limit(14)), (snap) => { LIVE.handovers = rows(snap); liveChanged("handovers"); });
     clearOldPhotos();
@@ -276,7 +281,7 @@ async function clearOldPhotos() {
 // before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
 // with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
 const FRESH = ["shifts", "asks", "reports", "handovers", "briefReads", "briefings", "guests", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
-  "notices", "seen", "feed", "requests"];
+  "notices", "seen", "feed", "requests", "teststaff"];
 const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
 // A date label's events stay with the label.
 const freshQuery = (d, k) => (k === "events" ? query(collection(d, k), where("kind", "in", ["task", "run", "restock", "shift"])) : collection(d, k));
@@ -436,6 +441,12 @@ LIVE.api = {
     audit(b, person.uid + "-out", "remove", person);
     return b.commit();
   },
+  // Test staff: ps is [{name, side, role}]. Ids start test- so every phone can tell them apart from the real team.
+  addTests: (ps) => inBatches(ps, 20, (b, p) => {
+    const id = "test-" + doc(collection(db, "teststaff")).id;
+    b.set(doc(db, "teststaff", id), { who: p.name, side: p.side, role: p.role, ...me() });
+  }),
+  removeTests: (ids) => inBatches(ids, 20, (b, id) => b.delete(doc(db, "teststaff", id))),
   setRole(person, role) {
     const b = writeBatch(db);
     b.update(doc(db, "staff", person.uid), { role });
@@ -694,7 +705,7 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
   training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
