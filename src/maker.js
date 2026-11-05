@@ -68,7 +68,7 @@ const MK_CATS = [
     ["Pimm's No.1", "Pimm's", "pimms", "pimm s"], ["Dry white wine", "White wine", "white wine"], ["Red wine", "Red wine"],
     ["Prosecco", "Sparkling wine", "sparkling wine", "fizz"], ["Champagne", "Sparkling wine"], ["Cava", "Sparkling wine"]]],
   ["Beer", "Beer", [
-    ["Lager", "Lager"], ["Stella Artois", "Lager", "stella"], ["Budweiser", "Lager", "bud"], ["Corona", "Lager"], ["Camden Hells", "Lager", "camden"], ["Guinness", "Stout", "stout"]]],
+    ["Lager", "Lager"], ["Stella Artois", "Lager", "stella"], ["Budweiser", "Lager", "bud"], ["Corona", "Lager"], ["Camden Hells", "Lager", "camden"], ["Guinness", "Stout", "stout"], ["Cider", "Cider", "apple cider"]]],
   ["Creams, milk and foam", null, [
     ["Double cream", "Cream", "cream", "whipping cream"], ["Single cream", "Cream"], ["Milk", "Milk", "whole milk"], ["Oat milk", "Milk", "oatly"],
     ["Coco Real", "Coconut cream", "cream of coconut", "coconut cream", "coconut syrup"], ["Coconut milk", "Coconut cream"],
@@ -89,7 +89,7 @@ const MK_CATS = [
   ["Mixers and fizz", null, [
     ["Soda water", "Soda", "soda", "club soda", "sparkling water"], ["Fever-Tree Indian Tonic", "Tonic", "indian tonic", "tonic", "tonic water"], ["Fever-Tree Light Tonic", "Tonic", "light tonic", "slimline tonic"],
     ["Fever-Tree Ginger Ale", "Ginger ale", "ginger ale"], ["Fever-Tree Ginger Beer", "Ginger beer", "ginger beer"], ["Lemonade", "Lemonade", "house lemonade", "sprite", "7up"],
-    ["Coca-Cola", "Cola", "cola", "coke", "coca cola"], ["Diet Coke", "Cola", "coke zero", "pepsi"], ["Red Bull", "Energy drink", "energy drink"]]],
+    ["Coca-Cola", "Cola", "cola", "coke", "coca cola"], ["Diet Coke", "Cola", "coke zero", "pepsi"], ["Red Bull", "Energy drink", "energy drink"], ["Iced tea", "Iced tea", "house iced tea"], ["Water", "Water", "hot water"]]],
   ["Coffee", null, [["Fresh espresso", "Espresso", "espresso", "coffee"], ["Hot Americano", "Hot coffee", "americano", "filter coffee"]]],
   ["Fresh and garnish", null, [
     ["Mint", "Mint", "mint leaves", "mint sprig"], ["Basil", "Basil", "basil leaves"], ["Limes", "Lime", "lime wedge", "lime wedges", "lime", "1 lime"], ["Lemons", "Lemon", "lemon wedge", "lemon"],
@@ -107,7 +107,7 @@ const MK_FAM = {
   "Cherry liqueur": "Cherry", "Maraschino": "Cherry", "Raspberry liqueur": "Berry", "Cassis": "Berry", "Blackberry liqueur": "Berry",
   "White cacao": "Cacao", "Dark cacao": "Cacao", "Yellow Chartreuse": "Herbal", "Green Chartreuse": "Herbal", "Bénédictine": "Herbal", "Drambuie": "Herbal", "Galliano": "Herbal",
   "Absinthe": "Anise", "Sambuca": "Anise", "Pastis": "Anise", "Aperol": "Bitter aperitif", "Campari": "Bitter aperitif", "Sarti Rosa": "Bitter aperitif", "Amaro": "Bitter aperitif", "Fernet": "Bitter aperitif", "White wine": "Wine", "Red wine": "Wine",
-  "Sweet vermouth": "Vermouth", "Bianco vermouth": "Vermouth", "Dry vermouth": "Vermouth", "Lillet": "Vermouth", "Lager": "Beer", "Stout": "Beer",
+  "Sweet vermouth": "Vermouth", "Bianco vermouth": "Vermouth", "Dry vermouth": "Vermouth", "Lillet": "Vermouth", "Lager": "Beer", "Stout": "Beer", "Cider": "Beer",
   "Cream": "Dairy", "Milk": "Dairy", "Ice cream": "Dairy", "Sugar syrup": "Sweet", "Sugar": "Sweet", "Honey": "Sweet", "Agave syrup": "Sweet",
   "Elderflower": "Elderflower", "Elderflower liqueur": "Elderflower", "Marshmallow liqueur": "Marshmallow", "Marshmallow syrup": "Marshmallow",
   "Lime juice": "Citrus", "Lemon juice": "Citrus", "Tonic": "Tonic", "Lemonade": "Lemony fizz", "Soda": "Fizz", "Ginger ale": "Ginger", "Ginger beer": "Ginger", "Ginger syrup": "Ginger",
@@ -125,7 +125,7 @@ for (const [cat, fam, list] of MK_CATS) for (const [n, kind, ...al] of list) {
 const MK_ALIAS = MK.items.flatMap((it) => it.al.map((a) => [a, it])).sort((a, b) => b[0].length - a[0].length);
 const mkFind = (text) => { const t = " " + mkNorm(text) + " "; const hit = MK_ALIAS.find(([a]) => t.includes(" " + a + " ")); return hit ? hit[1] : null; };
 // The bar basics most bars always have. On by default, so a guest's two bottles still find a Daiquiri.
-const MK_BASICS = ["Sugar syrup", "Lime juice", "Lemon juice", "Soda water", "Limes", "Angostura", "Salt"].map(mkNorm);
+const MK_BASICS = ["Sugar syrup", "Lime juice", "Lemon juice", "Soda water", "Water", "Limes", "Angostura", "Salt"].map(mkNorm);
 const MK_MINOR = /^(?:\d+ )?(?:dash|dashes|drops?|bar spoon|pinch|half pinch|splash)\b|rinse|lime wedge|cut into|slices|^half a passion/i;
 // One spec line to the ingredients it needs: [{ it, ml, w, line }].
 function mkParse(line) {

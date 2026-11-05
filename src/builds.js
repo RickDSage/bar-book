@@ -235,7 +235,6 @@ const SUBS = [
   [/crème de mûre/, "No crème de mûre? Use Chambord."],
   [/crème de cassis/, "No crème de cassis? Use Chambord."],
   [/Velvet Falernum/, "No falernum? Use the same of Giffard Orgeat and add 1 dash Angostura."],
-  [/Bacardí Carta Oro/, "No Carta Oro? Use Captain Morgan White."],
   [/Wray & Nephew/, "No overproof rum? Use Captain Morgan White."],
   [/apricot brandy/, "No apricot brandy? Use Archers."],
   [/Fernet-Branca/, "No Fernet? Use Jägermeister."],
@@ -264,6 +263,13 @@ const SUBS = [
   [/pink gin/, "No pink gin? Use Tanqueray and add 10 ml Chambord."],
   [/sambuca/, "No sambuca? Use NV Absinthe, 10 ml only."],
   [/butterscotch schnapps/, "No butterscotch schnapps? Use Monin Butterscotch or salted caramel sauce."],
+  [/Galliano/, "No Galliano? Use Monin Vanilla, half the amount, and a dash of NV Absinthe."],
+  [/St-Germain/, "No St-Germain? Use half the amount of elderflower cordial."],
+  [/Southern Comfort/, "No Southern Comfort? Use Bulleit Bourbon and a dash of Archers."],
+  [/sloe gin/, "No sloe gin? Use Chambord."],
+  [/white crème de cacao/, "No crème de cacao? Use Kahlúa (the layer will be darker)."],
+  [/lime cordial/, "No lime cordial? Use 15 ml lime juice and 10 ml sugar syrup."],
+  [/Bacardí Carta Oro/, "No Carta Oro? Use Captain Morgan White."],
 ];
 const subsFor = (spec) => { const out = SUBS.filter(([re]) => spec.some((l) => re.test(l))).map(([, t]) => t); return out.length ? out : undefined; };
 function fixDrink(d) {
