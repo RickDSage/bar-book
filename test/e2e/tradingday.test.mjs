@@ -210,6 +210,8 @@ test("a month in: what each phone reads when it opens, and what a day at a 25-pe
   // for over 30 minutes between them). The night's own changes come on top: the first test puts those at about 200 a phone.
   const day = 12 * 3 * staff.n + 3 * 6 * mgr.n + 15 * 200;
   t.diagnostic(`a day at a 25-person venue: about ${day} reads of the free 50,000`);
+  // A manager's new phone used to take everyone off the chat directory and put them back (52 writes, read by every phone).
+  assert.ok((Object.fromEntries(mgr.top).directory || 0) <= 27, "the directory is read once, not wiped and rebuilt");
   assert.ok(mgr.n < 900, `a manager's phone reads ${mgr.n} on opening`);
   assert.ok(staff.n < 560, `a staff phone reads ${staff.n} on opening`);
   assert.ok(day < 38000, `a day comes to ${day}`);

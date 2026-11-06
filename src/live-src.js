@@ -203,9 +203,7 @@ function listen(uid) {
     later("outlog", () => sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); }));
     sub("staff", collection(db, "staff"), (snap) => {
       LIVE.staff = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
-      // Only the server's whole list counts: a phone's cache can hold just some of the team (a manager's new phone holds
-      // only their own record), and syncing against that removed everyone else from the directory and added them back.
-      staffSettled = !snap.metadata.hasPendingWrites && !snap.metadata.fromCache; liveChanged("staff"); syncDirectory();
+      staffSettled = !snap.metadata.hasPendingWrites; liveChanged("staff"); syncDirectory();
     });
     sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
     // Test staff: made-up people for a practice day, never logins. uid is the record's id, as with the real team.
@@ -242,7 +240,7 @@ const byName = (a, b) => a.name.localeCompare(b.name);
 function watchChats(uid) {
   sub("directory", collection(db, "directory"), (snap) => {
     LIVE.directory = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort(byName);
-    dirSettled = !snap.metadata.hasPendingWrites && !snap.metadata.fromCache; liveChanged("directory"); syncDirectory();
+    dirSettled = !snap.metadata.hasPendingWrites; liveChanged("directory"); syncDirectory();
   });
   const ch = { mine: [], team: [] };
   const merge = () => { LIVE.chats = [...ch.team, ...ch.mine].sort((a, b) => ms(b.lastAt) - ms(a.lastAt)); liveChanged("chats"); };
@@ -267,7 +265,16 @@ function syncDirectory() {
     const h = have.get(p.uid);
     if (!h || h.name !== p.name || h.role !== p.role) once(`${p.uid}:${p.name}:${p.role}`, () => setDoc(doc(db, "directory", p.uid), { name: p.name, role: p.role }));
   }
-  if (LIVE.admin) for (const h of LIVE.directory) if (!want.some((p) => p.uid === h.uid)) once(`${h.uid}:gone`, () => deleteDoc(doc(db, "directory", h.uid)));
+  // Someone who has left comes off, but only once the server agrees how many are on the team: a manager's new phone
+  // can hold just its own staff record in its cache at first, and taking everyone else off then wiped the directory.
+  const gone = LIVE.admin ? LIVE.directory.filter((h) => !want.some((p) => p.uid === h.uid) && !triedDir.has(`${h.uid}:gone`)) : [];
+  if (gone.length) {
+    const n = LIVE.staff.length;
+    getCountFromServer(collection(db, "staff")).then((c) => {
+      if (c.data().count !== n || LIVE.staff.length !== n) return;
+      for (const h of gone) once(`${h.uid}:gone`, () => deleteDoc(doc(db, "directory", h.uid)));
+    }, () => {});
+  }
 }
 // Chat photos are cleared by whoever sent them, 30 days on (Firebase Storage needs a paid plan). Each launch checks the
 // week of business days just past that, one query per day (two equality filters need no index made in the console).
