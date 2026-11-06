@@ -1374,6 +1374,35 @@ describe("how was your shift", () => {
   });
 });
 
+describe("tonight's quiz", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const qz = (uid, extra = {}) => ({ day: today(), right: "1111111000", ...by(uid), ...extra });
+  const ref = (uid, who = uid, day = today()) => doc(db(uid), "quiz", `${day}-${who}`);
+  const week = (uid) => getDocs(query(collection(db(uid), "quiz"), where("day", ">=", dayFromNow(-7))));
+  test("one result each a night, from the first go, which nothing changes; managers read everyone's, staff their own", async () => {
+    await assertSucceeds(setDoc(ref("staff1"), qz("staff1")));
+    await assertFails(setDoc(ref("staff1"), qz("staff1", { right: "1111111111" })));
+    await assertFails(updateDoc(ref("staff1"), { right: "1111111111" }));
+    await assertSucceeds(getDoc(ref("staff1")));
+    await assertSucceeds(getDoc(ref("staff2")));
+    await assertFails(getDoc(ref("staff2", "staff1")));
+    await assertFails(week("staff1"));
+    for (const uid of ["mgr1", "owner1"]) { await assertSucceeds(getDoc(ref(uid, "staff1"))); await assertSucceeds(week(uid)); }
+    for (const uid of ["staff1", "mgr1", "owner1"]) await assertFails(deleteDoc(ref(uid, "staff1")));
+  });
+  test("a 1 or 0 for each of the 10 questions, for a night close to today, in their own name and record", async () => {
+    for (const bad of [{ right: "111111100" }, { right: "11111110001" }, { right: "111111100x" }, { right: 7 }, { right: ["1"] }, { score: 7 }, { name: "Tia Staff" }, { at: daysAgo(1) }, { extra: 1 }]) {
+      await assertFails(setDoc(ref("staff1"), qz("staff1", bad)));
+    }
+    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), qz("staff1", { day: dayFromNow(-3) })));
+    await assertFails(setDoc(ref("staff1", "staff2"), qz("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-1)), qz("staff1")));
+    await assertFails(setDoc(ref("mgr1", "staff1"), qz("mgr1")));
+    // A quiz started before 6am and finished after counts for the night it started.
+    await assertSucceeds(setDoc(ref("staff1", "staff1", dayFromNow(-1)), qz("staff1", { day: dayFromNow(-1) })));
+  });
+});
+
 describe("new starters", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const ob = (uid, extra = {}) => ({ who: "staff1", whoName: "Sam Staff", start: today(), done: {}, ...by(uid), ...extra });
@@ -2326,7 +2355,8 @@ describe("starting fresh: the owner clears the shift work for everyone", () => {
   // One record of each kind it clears, written past the rules, plus the ones it leaves.
   const WORK = [["shifts", "s1"], ["asks", "a1"], ["reports", "r1"], ["photos", "p1"], ["reviews", "v1"], ["events", "t-1"], ["restock", "x1"],
     ["out", "lime"], ["outlog", "o1"], ["issues", "i1"], ["concerns", "c1"], ["concernPhotos", "c1-0"], ["notices", "n1"], ["seen", "n1-staff1"],
-    ["feed", "f1"], ["requests", "q1"], ["handovers", "2026-10-24"], ["briefings", "2026-10-24"], ["briefReads", "2026-10-24-staff1"], ["guests", "g1"], ["shift/2026-10-24/ticks", "k1"]];
+    ["feed", "f1"], ["requests", "q1"], ["handovers", "2026-10-24"], ["briefings", "2026-10-24"], ["briefReads", "2026-10-24-staff1"], ["guests", "g1"], ["shift/2026-10-24/ticks", "k1"],
+    ["quiz", "2026-10-24-staff1"]];
   const work = () => [...WORK, [`shift/${today()}/tasks`, "open-1"], [`shift/${today()}/runs`, "open"]];
   const seedWork = () => seed(async (s) => {
     const x = { uid: "staff1", name: "Sam Staff", at: daysAgo(1), kind: "task", done: true, pub: true, report: "r1", concern: "c1", to: "all", managers: true, status: "approved", log: "o1" };
@@ -2465,6 +2495,7 @@ describe("every query the app makes works for the roles that make it", () => {
     collection(d, "avail"),
     collection(d, "onboard"),
     query(collection(d, "pulse"), where("day", ">=", dayFromNow(-14))),
+    query(collection(d, "quiz"), where("day", ">=", dayFromNow(-7))),
   ];
   test("staff", async () => {
     const d = db("staff1");

@@ -338,7 +338,7 @@ async function clearOldPhotos() {
 // before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
 // with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
 const FRESH = ["shifts", "asks", "reports", "handovers", "nights", "status", "blocks", "briefReads", "briefings", "guests", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
-  "notices", "seen", "feed", "requests", "teststaff", "shouts", "pulse"];
+  "notices", "seen", "feed", "requests", "teststaff", "shouts", "pulse", "quiz"];
 const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
 // A date label's events stay with the label.
 const freshQuery = (d, k) => (k === "events" ? query(collection(d, k), where("kind", "in", ["task", "run", "restock", "shift"])) : collection(d, k));
@@ -406,6 +406,9 @@ function watchDays() {
   // How was your shift: managers read the last 14 nights, everyone else their own answer tonight.
   subDay("pulse", () => (LIVE.admin ? query(collection(db, "pulse"), where("day", ">=", addDays(shiftDay(), -14))) : doc(db, "pulse", `${shiftDay()}-${auth.currentUser.uid}`)),
     (x) => { LIVE.pulse = listOf(x); liveChanged("pulse"); });
+  // Tonight's quiz: managers read the last 7 nights' results, everyone else their own tonight.
+  subDay("quiz", () => (LIVE.admin ? query(collection(db, "quiz"), where("day", ">=", addDays(shiftDay(), -7))) : doc(db, "quiz", `${shiftDay()}-${auth.currentUser.uid}`)),
+    (x) => { LIVE.quiz = listOf(x); liveChanged("quiz"); });
 }
 // The rota. Managers get every shift from last week on, drafts included (older weeks are in the rota download). Everyone else gets the published shifts
 // from last week to the week after next, a week at a time: a query the rules can check, with no index to set up.
@@ -713,6 +716,9 @@ LIVE.api = {
   shout: (p, text) => addDoc(collection(db, "shouts"), { to: p.uid, toName: p.name, text, ...me() }),
   dropShout: (id) => deleteDoc(doc(db, "shouts", id)),
   pulse: (score, note) => setDoc(doc(db, "pulse", `${shiftDay()}-${auth.currentUser.uid}`), { day: shiftDay(), score, note, ...me() }),
+  // The first go at tonight's quiz: "1" or "0" for each question. Only a first write is allowed, so another phone's go
+  // can't replace it.
+  saveQuiz: (day, right) => setDoc(doc(db, "quiz", `${day}-${auth.currentUser.uid}`), { day, right, ...me() }),
   saveOnboardList: (list) => setDoc(doc(db, "settings", "onboard"), { list, ...me() }),
   startOnboard: (p, start) => setDoc(doc(db, "onboard", p.uid), { who: p.uid, whoName: p.name, start, done: {}, ...me() }),
   // One tick on its own, so two managers ticking at once don't undo each other's.
@@ -791,7 +797,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], onboard: [], onboardList: null });
+  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], quiz: [], onboard: [], onboardList: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }
