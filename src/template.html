@@ -192,6 +192,9 @@ nav.tabs button .dot { top: 4px; right: auto; left: calc(50% + 4px); min-width: 
 .total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; }
 .total b { font-family: var(--display); font-size: 40px; color: var(--brass); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* Adding photos: the camera, or the phone's own photos. */
+.addph { display: grid; gap: 8px; margin-top: 8px; }
+.addph label { cursor: pointer; }
 .confirm { margin-top: 10px; padding: 12px; border: 1px solid var(--warn); border-radius: 10px; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 700; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-top: 14px; text-align: center; }
@@ -743,9 +746,11 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <div id="football"></div>
     <div id="tally"></div>
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
+    <input id="ph-pick" type="file" accept="image/*" multiple hidden>
     <input id="dm-in" type="file" accept="image/*" hidden>
     <input id="cn-in" type="file" accept="image/*" hidden>
     <input id="send-in" type="file" accept="image/*" multiple hidden>
+    <input id="send-cam" type="file" accept="image/*" capture="environment" hidden>
     <input id="ch-in" type="file" accept="image/*" hidden>
   </section>
 
@@ -903,7 +908,8 @@ function renderSend(m = sndMsg()) {
     ${m.parts.filter((x) => x.lines.length || !x.opt).map((x) => `<label class="check sendpart"><input type="checkbox" data-send-part="${x.id}"${snd.pick.has(x.id) && x.lines.length ? " checked" : ""}${x.lines.length ? "" : " disabled"}><span>${esc(x.label)}</span><span class="s">${!x.lines.length ? "Nothing" : x.one ? "" : partItems(x)}</span></label>`).join("")}
     <div class="sec">Photos${ph ? ` (${ph})` : ""}</div>
     ${ph ? `<div class="sendph">${snd.photos.map((x, i) => `<figure><img src="${x.data}" alt="${esc(x.note || `Photo ${i + 1}`)}"><button class="phx" data-send-unphoto="${i}" aria-label="Take photo ${i + 1} out">×</button></figure>`).join("")}</div>` : ""}
-    ${ph < SEND_MAX ? `<label class="btn" for="send-in" style="cursor:pointer;margin-top:8px">${snd.busy ? "Adding…" : ph ? "Add another photo" : "Add a photo"}</label>` : `<p class="note">${SEND_MAX} photos is the most.</p>`}
+    ${ph >= SEND_MAX ? `<p class="note">${SEND_MAX} photos is the most.</p>` : snd.busy ? `<p class="note" role="status">Adding…</p>`
+      : `<div class="addph"><label class="btn" for="send-cam">Take a photo</label><label class="btn" for="send-in">Choose from your photos</label></div>`}
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
     ${files ? `<div class="actions"><button class="btn" data-send-copy>Copy the words</button><button class="btn pri" data-send-sheet>Send with photos</button></div>
       <ol class="sendhow"><li>Tap Copy the words, then Send with photos.</li><li>Pick WhatsApp, then the chat.</li><li>Press and hold the caption box, tap Paste, then send.</li></ol>` : ""}
@@ -957,7 +963,8 @@ document.addEventListener("change", (e) => {
   if (x) { if (x.checked) snd.pick.add(x.dataset.sendPart); else snd.pick.delete(x.dataset.sendPart); sendPreview(); }
 });
 document.addEventListener("input", (e) => { if (snd && e.target.id === "send-note") { snd.note = e.target.value; sendPreview(); } });
-$("#send-in").addEventListener("change", async (e) => {
+// The camera, or several of the phone's photos at once.
+async function addSendPhotos(e) {
   const fs = [...e.target.files], s = snd; e.target.value = "";
   if (!s || !fs.length) return;
   s.busy = true; renderSend();
@@ -966,7 +973,9 @@ $("#send-in").addEventListener("change", async (e) => {
     try { const data = await shrink(f); if (snd !== s) return; s.photos.push({ data, note: "" }); } catch { toast("That photo couldn't be read. Try another"); }
   }
   s.busy = false; if (snd === s) { sndFiles(); renderSend(); }
-});
+}
+$("#send-in").addEventListener("change", addSendPhotos);
+$("#send-cam").addEventListener("change", addSendPhotos);
 // Lines the messages share.
 const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
 const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}: ${lower(RS[r.status])}${r.who ? ` (${r.who})` : ""}${rsLate(r) ? `, ${lower(rsLateText(r))}` : ""}`;
@@ -2094,12 +2103,14 @@ function labelsReport(side) {
   const xs = labelsDue([side]);
   return xs.length ? `Date labels:\n${xs.map((x) => `- ${LB_DUE[labelDue(x)][0]}: ${x.item} (use by ${dayName(x.useBy)}, ${opener(x)})`).join("\n")}` : "Date labels: nothing due";
 }
-/* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
+/* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
-    <p class="note">The close, or anything you worked on. Sent with your report, not saved on your phone.</p>
+    <p class="note">The close, or anything you worked on. Take them here or choose from your photos: they go with your report.</p>
     ${LIVE.myPhotos.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
-    ${LIVE.myPhotos.length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>` : `<label class="btn pri wide" for="ph-in" style="cursor:pointer">${photoBusy ? "Adding photo…" : "Take a photo"}</label>`}`;
+    ${LIVE.myPhotos.length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
+      : photoBusy ? `<p class="note" role="status">Adding…</p>`
+      : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
 }
 let photoBusy = false;
 // Phone photos are several MB; shrink to a JPEG under about 450 KB (600,000 characters of text) so each fits in one
@@ -2170,17 +2181,24 @@ function renderTally() {
   const enter = lastPane !== mode + pane; lastPane = mode + pane;
   $("#tally").innerHTML = tabs + `<div class="pane${enter ? " enter" : ""}">${body}</div>`;
 }
-// The camera input lives outside #tally. A teammate's change re-draws the list, and if the input were redrawn while the
-// camera was open, the photo would be lost without a word.
-$("#ph-in").addEventListener("change", async (e) => {
-  const f = e.target.files[0]; e.target.value = "";
-  if (!f || !LIVE.me) return;
-  if (LIVE.myPhotos.length >= LIVE.api.MAX_PHOTOS) return toast(`${LIVE.api.MAX_PHOTOS} photos is the most for one report`);
+// The photo inputs live outside #tally. A teammate's change re-draws the list, and if an input were redrawn while the
+// camera or the phone's photos were open, the photos would be lost without a word. Several chosen at once go in as far
+// as there's room.
+async function addClosingPhotos(e) {
+  const fs = [...e.target.files]; e.target.value = "";
+  if (!fs.length || !LIVE.me) return;
+  const room = LIVE.api.MAX_PHOTOS - LIVE.myPhotos.length;
+  if (fs.length > room) toast(`${LIVE.api.MAX_PHOTOS} photos is the most for one report`);
+  if (room <= 0) return;
   photoBusy = true; renderTally();
-  try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try again"); else { track(LIVE.api.addPhoto(data), null, "Photo not saved. Try again"); haptic(); } }
-  catch { toast("Couldn't read that photo"); }
+  for (const f of fs.slice(0, room)) {
+    try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try again"); else { track(LIVE.api.addPhoto(data), null, "Photo not saved. Try again"); haptic(); } }
+    catch { toast("Couldn't read that photo"); }
+  }
   photoBusy = false; renderTally();
-});
+}
+$("#ph-in").addEventListener("change", addClosingPhotos);
+$("#ph-pick").addEventListener("change", addClosingPhotos);
 // A task's id is its list and its position: close-10.
 const taskKey = (id) => { const j = id.lastIndexOf("-"); return [id.slice(0, j), +id.slice(j + 1)]; };
 $("#tally").addEventListener("change", async (e) => {

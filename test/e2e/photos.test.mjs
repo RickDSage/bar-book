@@ -1,5 +1,5 @@
-// Closing photos end to end: shrinking a phone photo, notes, deleting, sending with a report, the 8-photo cap,
-// who can change what once it's sent, and the 30-day clear-out.
+// Closing photos end to end: shrinking a phone photo, notes, deleting, sending with a report, choosing several from the
+// phone's photos, the 8-photo cap, who can change what once it's sent, and the 30-day clear-out.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -87,13 +87,21 @@ test("a phone photo is shrunk, noted, sent with the report and locked once sent"
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
-test("eight photos is the most for one report", async () => {
+test("photos chosen from the phone go in several at once, and eight is the most for one report", async () => {
   await resetEmulators();
   const { S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=close]");
-  for (let n = 1; n <= 8; n++) await addPhoto(S, small, n);
+  // Take a photo opens the camera; Choose from your photos opens the phone's photos, several at a time.
+  await S.waitForSelector("#tally .addph");
+  assert.deepEqual(await S.$$eval("#tally .addph label", (x) => x.map((l) => [l.htmlFor, l.textContent])), [["ph-in", "Take a photo"], ["ph-pick", "Choose from your photos"]]);
+  assert.deepEqual(await S.evaluate(() => [document.querySelector("#ph-in").getAttribute("capture"), document.querySelector("#ph-pick").multiple, document.querySelector("#ph-pick").hasAttribute("capture")]), ["environment", true, false]);
+  await addPhoto(S, small, 1);
+  // Nine chosen with one already taken: seven go in, and it says why the other two didn't.
+  await S.setInputFiles("#ph-pick", Array.from({ length: 9 }, (_, i) => ({ name: `IMG_${i}.jpg`, mimeType: "image/jpeg", buffer: fs.readFileSync(small) })));
+  await S.waitForFunction(() => LIVE.myPhotos.length === 8, null, { timeout: 20000 });
+  assert.equal(await S.$eval("#toast", (e) => e.textContent), "8 photos is the most for one report");
   await S.waitForFunction(() => /8 photos is the most for one report/.test(document.querySelector("#tally").innerText));
-  assert.equal(await S.locator('label[for="ph-in"]').count(), 0, "no button for a ninth");
+  assert.equal(await S.locator("#tally .addph").count(), 0, "no buttons for a ninth");
   await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
   await S.waitForFunction(() => LIVE.myPhotos.length === 0 && LIVE.reports.length === 1 && !LIVE.reports[0].pending);
   assert.equal(await S.evaluate(() => LIVE.reports[0].photos), 8);
