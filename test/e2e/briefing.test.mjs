@@ -40,7 +40,7 @@ test("a manager posts the briefing, staff read it, and a change makes it new aga
   await M.click("#br-go");
   await waitToast(M, /^Briefing posted$/);
   await M.waitForFunction(() => LIVE.briefing && !LIVE.briefing.pending);
-  assert.match(await text(M), /180 covers expected.*Table 12 coeliac.*Ice machine slow.*86'd now.*Limes.*You posted it.*Read by 0/s);
+  assert.match(await text(M), /Expected covers: 180.*Table 12 coeliac.*Ice machine slow.*86'd now.*Limes.*You posted it.*Read by 0/s);
 
   // Staff: on For you until they've read it.
   await part(S, "");

@@ -43,7 +43,7 @@ test("a manager drafts a week, copies last week's and publishes it", async () =>
   const { O, M, S } = await team(browser, site, people);
   await rota(M); await rota(S);
   assert.match(await text(S, "#rota"), /Nothing published for this week yet\./);
-  assert.match(await text(S, "#rota"), /Need a day off\? Tap it on the calendar, or ask in My requests\./);
+  assert.match(await text(S, "#rota"), /Need a day off\? Tap it on the calendar or ask in My requests\./);
   assert.equal(await S.locator("#ro-add").count(), 0, "staff don't get the add form");
   assert.match(await text(M, "#rota"), /Nothing on this week yet\. Put people on below\./);
   assert.equal(await M.locator("#ro-copy").count(), 0, "nothing to copy on an empty rota");

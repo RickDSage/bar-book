@@ -37,7 +37,7 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   // Bar info: what's in the app, then the bar's own reference, then this phone's settings.
   await p.click("[data-tab=info]");
   assert.deepEqual(await p.$$eval("#v-info h2", (x) => x.map((h) => h.textContent)), ["What's in the app", "Measures and the law", "Technique key", "Prep and batches",
-    "Shot tray, step by step", "Feedback and ideas", "Light or dark", "Put this app on your home screen"]);
+    "Shot tray, step by step", "Feedback and ideas", "Language", "Light or dark", "Put this app on your home screen"]);
   // The tabs fit a 320px phone, each name on one line: Drinks, Shift, Team, My pay and Info, with Make one, Allergens
   // and Practise in the row under Drinks.
   await p.setViewportSize({ width: 320, height: 640 });

@@ -43,6 +43,20 @@
   --game: #6a3fb0;
   --shadow: rgba(60,40,10,.18);
 }
+/* Black and gold: the owner's pick. Black, with gold for headings, tabs and buttons (gold on black is 9:1). */
+:root[data-theme="gold"] {
+  --bg: #0a0a0a;
+  --surface: #151412;
+  --line: #3b331f;
+  --fg: #f7f1e3;
+  --muted: #b9ae94;
+  --brass: #d4af37;
+  --brass-ink: #0a0a0a;
+}
+:root[data-theme="gold"] h2 { color: var(--brass); }
+/* English that stays English (drink names, specs, allergens) still reads left to right in Arabic or Urdu. */
+[translate="no"] { unicode-bidi: isolate; }
+:root[dir="rtl"] [translate="no"]:not(.fld) { direction: ltr; }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
@@ -632,9 +646,9 @@ a.btn { text-decoration: none; color: inherit; }
 const LIGHT = matchMedia("(prefers-color-scheme: light)");
 function applyTheme() {
   let t = "auto"; try { t = JSON.parse(localStorage.getItem("btbar.theme")) || "auto"; } catch {}
-  const light = t === "light" || (t === "auto" && LIGHT.matches);
-  document.documentElement.dataset.theme = light ? "light" : "dark";
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", light ? "#f6f1e6" : "#15130f");
+  const light = t === "light" || (t === "auto" && LIGHT.matches), theme = t === "gold" ? "gold" : light ? "light" : "dark";
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", { light: "#f6f1e6", dark: "#15130f", gold: "#0a0a0a" }[theme]);
 }
 applyTheme(); LIGHT.addEventListener("change", applyTheme);
 </script>
@@ -642,6 +656,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
   <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
+  <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (Bar info shows how)</li></ul>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in Bar info.</p>
@@ -773,7 +788,7 @@ let sec = store.get("sec", "All");
 if (!CHIPS.includes(sec)) sec = "All";
 const inSec = (d) => sec === "All" || (sec === CHIPS[1] ? fav.has(d.name) : CATS[sec].includes(d.section));
 function renderChips() {
-  $("#secs").innerHTML = CHIPS.map((s) => `<button class="chip" aria-pressed="${s === sec}" data-sec="${esc(s)}">${esc(s)}${s === CHIPS[1] && fav.size ? ` (${fav.size})` : ""}</button>`).join("");
+  $("#secs").innerHTML = CHIPS.map((s) => `<button class="chip" aria-pressed="${s === sec}" data-sec="${esc(s)}">${esc(s)}${s === CHIPS[1] && fav.size ? `<span> (${fav.size})</span>` : ""}</button>`).join("");
 }
 $("#secs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-sec]"); if (!b) return;
@@ -794,8 +809,8 @@ function setOut(name, on) {
   track(LIVE.api.set86(name, on), null, "86 list not updated. Someone may have just changed it");
 }
 function rowHtml(d) {
-  if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
-  return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n">${esc(d.name)}</div><div class="s">${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
+  if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
+  return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
 }
 let recent = store.get("recent", []).filter((id) => D[id]);
 const FLAVOURS = {
@@ -822,7 +837,7 @@ function renderList() {
   const words = q.split(/\s+/).filter(Boolean);
   renderQuick(!q);
   let rows = D.filter((d) => inSec(d) && words.every((w) => d._h.includes(w)) && (q ? true : flavHit(d)));
-  $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}${q ? ` matching “${$("#q").value.trim()}”` : ""}`;
+  $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}`;
   listIds = rows.map((d) => d.id);
   if (!rows.length && sec === CHIPS[1] && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here.</p>`; return; }
   if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search.</p>`; return; }
@@ -852,14 +867,14 @@ function specRow(line) {
 function steps(method) {
   const parts = method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i).map((s) => s.replace(/\.$/, "").trim()).filter(Boolean);
   const cap = (s) => s[0].toUpperCase() + s.slice(1);
-  return parts.length > 1 ? `<ol class="steps">${parts.map((p) => `<li>${esc(cap(p))}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0">${esc(method)}</p>`;
+  return parts.length > 1 ? `<ol class="steps" translate="no">${parts.map((p) => `<li>${esc(cap(p))}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0" translate="no">${esc(method)}</p>`;
 }
 function guideHtml(g, nextName) {
   const chip = (i) => `<li><b>${i.ml != null ? `${i.ml} ml` : ""}</b><span>${esc(i.item)}${i.hint || i.note ? `<em>${esc([i.hint, i.note].filter(Boolean).join(", "))}</em>` : ""}</span></li>`;
   return `<p class="need"><b>You need:</b> ${g.tools.map(esc).join(", ")}</p>
     <div class="cprog"><b id="cnum">Step 1 of ${g.steps.length}</b><span class="dots" aria-hidden="true">${g.steps.map((_, i) => `<i class="${i ? "" : "on"}"></i>`).join("")}<i></i></span></div>
-    <div class="car" id="car">${g.steps.map((st) => `<div class="step"><div class="pic" aria-hidden="true">${DATA.scenes[st.sv]}</div><div class="body"><span class="tick">Tap when done</span><h4><span>${st.n}</span>${esc(st.title)}</h4><p>${esc(st.text)}</p>${st.items.length ? `<ul class="ing">${st.items.map(chip).join("")}</ul>` : ""}</div></div>`).join("")}
-      <div class="fin"><span class="big">\u2713</span><h4>Ready to serve</h4><p class="note" style="margin:0">Check the garnish and the glass, then send it.</p>${nextName ? `<button class="btn pri" data-go="1">Next drink: ${esc(nextName)} \u203a</button>` : ""}<button class="btn" data-cs="0">Back to step 1</button></div></div>
+    <div class="car" id="car">${g.steps.map((st) => `<div class="step"><div class="pic" aria-hidden="true">${DATA.scenes[st.sv]}</div><div class="body"><span class="tick">Tap when done</span><h4><span>${st.n}</span>${esc(st.title)}</h4><p>${esc(st.text)}</p>${st.items.length ? `<ul class="ing" translate="no">${st.items.map(chip).join("")}</ul>` : ""}</div></div>`).join("")}
+      <div class="fin"><span class="big">\u2713</span><h4>Ready to serve</h4><p class="note" style="margin:0">Check the garnish and the glass, then send it.</p>${nextName ? `<button class="btn pri" data-go="1"><span>Next drink:</span> <span translate="no">${esc(nextName)}</span> \u203a</button>` : ""}<button class="btn" data-cs="0">Back to step 1</button></div></div>
     <div class="cnav"><button class="btn" data-cs="-1" disabled>\u2039 Back</button><button class="btn pri" data-cs="1">Next step \u203a</button></div>`;
 }
 // One line that says how the drink is made, built from its guide.
@@ -872,7 +887,7 @@ function howHtml(d) {
     if (a && acts[acts.length - 1] !== a && !(a === "Shake" && acts.includes("Dry shake"))) acts.push(a);
   }
   const flow = acts.length ? acts : ["Pour"];
-  return `<div class="how"><span class="lab">How to make it</span><div class="flow">${flow.map(esc).join(" <i>\u2192</i> ")}</div><div class="into">Into <b>${esc(d.glass)}</b> \u00b7 ${esc(d.ice)} \u00b7 garnish <b>${esc(d.garnish)}</b></div></div>`;
+  return `<div class="how"><span class="lab">How to make it</span><div class="flow" translate="no">${flow.map(esc).join(" <i>\u2192</i> ")}</div><div class="into"><span>Glass:</span> <b translate="no">${esc(d.glass)}</b> \u00b7 <span>Ice:</span> <span translate="no">${esc(d.ice)}</span> \u00b7 <span>Garnish:</span> <b translate="no">${esc(d.garnish)}</b></div></div>`;
 }
 function carIndex(car) { return Math.round(car.scrollLeft / (car.clientWidth + 12)); }
 function carGo(i) { const car = $("#car"); if (!car) return; const n = car.children.length; i = Math.max(0, Math.min(n - 1, i)); car.scrollTo({ left: i * (car.clientWidth + 12), behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" }); }
@@ -893,7 +908,7 @@ function tryInstead(d) {
     .map((x) => [x, (x._b === d._b && d._b !== "other" ? 3 : 0) + x.tags.filter((t) => d.tags.includes(t)).length + (x.section === d.section ? 0.5 : 0) + (x.official ? 0.25 : 0)])
     .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([x]) => x);
   if (!picks.length) return "";
-  return `<div class="h3">${isOut(d.name) ? "Offer instead" : "Similar drinks"}</div><div class="recent">${picks.map((x) => `<button class="chip" data-open="${x.id}">${esc(x.name)}</button>`).join("")}</div>`;
+  return `<div class="h3">${isOut(d.name) ? "Offer instead" : "Similar drinks"}</div><div class="recent">${picks.map((x) => `<button class="chip" data-open="${x.id}" translate="no">${esc(x.name)}</button>`).join("")}</div>`;
 }
 let lastFocus = null, view = store.get("view", "spec"), curId = null;
 let ctx = null;
@@ -926,21 +941,21 @@ function openSheet(id, keepScroll) {
   if (!keepScroll) { lastFocus = document.activeElement; recent = [id, ...recent.filter((r) => r !== id)].slice(0, 6); store.set("recent", recent); keepAwake(); }
   const al = d.allergens && d.allergens !== "None" ? d.allergens : "";
   $("#sheet").innerHTML = `
-    <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">${esc(d.name)}</span><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></div>
+    <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t" translate="no">${esc(d.name)}</span><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></div>
       <div class="seg" role="group" aria-label="View"><button data-view="spec" aria-pressed="${view === "spec"}">Spec</button><button data-view="steps" aria-pressed="${view === "steps"}">Step by step</button></div></div>
-    <div class="sw${view === "steps" ? " compact" : ""}" id="sw">
-    <div class="hero"><span class="g" id="sh-g" aria-hidden="true">${heroArt(d)}</span><div><h2 id="sh-name">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div></div></div>
-    <div class="badges">
+    <div class="sw${view === "steps" ? " compact" : ""}" id="sw" dir="ltr">
+    <div class="hero"><span class="g" id="sh-g" aria-hidden="true">${heroArt(d)}</span><div><h2 id="sh-name" translate="no">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div></div></div>
+    <div class="badges" translate="no">
       ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
     </div>
     ${outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
-    ${al ? `<div class="allergy"><b>Allergens:</b> ${esc(al)}</div>` : ""}
+    ${al ? `<div class="allergy"><b>Allergens:</b> <span translate="no">${esc(al)}</span></div>` : ""}
     ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
-    <dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl>
+    <dl class="facts"><div><dt>Glass</dt><dd translate="no">${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd translate="no">${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd translate="no">${esc(d.garnish)}</dd></div></dl>
     <div class="h3" style="display:flex;justify-content:space-between;align-items:center;gap:8px">Spec<span class="mult" role="group" aria-label="How many">${[1, 2, 3, 4].map((n) => `<button data-mult="${n}" aria-pressed="${n === mult}">\u00d7${n}</button>`).join("")}</span></div>
     ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.${mult > 2 ? " A tin holds 2 shaken drinks, so split it across tins." : ""}</p>` : ""}
-    <ul class="spec">${d.spec.map(specRow).join("")}</ul>
+    <ul class="spec" translate="no">${d.spec.map(specRow).join("")}</ul>
     ${d.subs ? `<p class="note"><b>Out of something?</b> ${d.subs.map(esc).join(" ")}</p>` : ""}
     <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger.</p>
     <div class="h3">Method</div>${steps(d.method)}
@@ -1091,12 +1106,12 @@ let alSel = null;
 function renderAllergens() {
   $("#algrid").innerHTML = ALLERGENS.map(([n, re]) => {
     const c = D.filter((d) => alHit(d, re)).length;
-    return `<button class="tile" aria-pressed="${alSel === n}" data-al="${n}"><b>${n}</b><span>${c} ${c === 1 ? "drink" : "drinks"}</span></button>`;
+    return `<button class="tile" aria-pressed="${alSel === n}" data-al="${n}"><b translate="no">${n}</b><span>${c} ${c === 1 ? "drink" : "drinks"}</span></button>`;
   }).join("");
   if (!alSel) { $("#allist").innerHTML = `<p class="note" style="margin-top:14px">Foam on the house cards is foamer drops, never egg white. Check the foamer label for its own allergens.</p>`; return; }
   const re = ALLERGENS.find((a) => a[0] === alSel)[1];
   const rows = D.filter((d) => alHit(d, re));
-  $("#allist").innerHTML = `<div class="sec">${esc(alSel)}: ${rows.length}</div>` + rows.map(rowHtml).join("");
+  $("#allist").innerHTML = `<div class="sec" translate="no">${esc(alSel)}: ${rows.length}</div>` + rows.map(rowHtml).join("");
 }
 $("#algrid").addEventListener("click", (e) => { const b = e.target.closest("[data-al]"); if (!b) return; alSel = alSel === b.dataset.al ? null : b.dataset.al; renderAllergens(); });
 
@@ -1119,9 +1134,9 @@ function renderPractice() {
   const mine = new Set(LIVE.me ? LIVE.training.filter((t) => t.trainee === LIVE.uid).map((t) => t.drinkName) : []), inPool = D.filter(POOLS[pool]);
   $("#ppool").innerHTML = Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}</button>`).join("");
   const d = pDrink;
-  $("#pcard").innerHTML = `${LIVE.me && isOn("training") ? `<p class="note" id="p-signed">Signed off by a manager: ${inPool.filter((x) => mine.has(x.name)).length} of ${inPool.length}${pool === "Everything" ? " drinks" : ` ${pool}`}</p>` : ""}<div class="card"><span class="g" aria-hidden="true">${glass(d)}</span><h2>${esc(d.name)}</h2>${mine.has(d.name) ? `<span class="pill ok">Signed off</span>` : ""}<p class="lead" style="margin:6px auto 0">What goes in, which glass, which ice, what garnish?</p>
-    ${pShown ? `<div style="text-align:left;margin-top:14px"><dl class="facts"><div><dt>Glass</dt><dd>${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd>${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd>${esc(d.garnish)}</dd></div></dl><ul class="spec" style="margin-top:10px">${d.spec.map(specRow).join("")}</ul><p style="margin:10px 0 0">${esc(d.method)}</p></div>
-      <div class="actions" style="justify-content:center"><button class="btn danger" data-p="miss">Missed it</button><button class="btn pri" data-p="got">Got it</button></div>`
+  $("#pcard").innerHTML = `${LIVE.me && isOn("training") ? `<p class="note" id="p-signed">Signed off by a manager: ${inPool.filter((x) => mine.has(x.name)).length} of ${inPool.length}${pool === "Everything" ? " drinks" : ` ${pool}`}</p>` : ""}<div class="card"><span class="g" aria-hidden="true">${glass(d)}</span><h2 translate="no">${esc(d.name)}</h2>${mine.has(d.name) ? `<span class="pill ok">Signed off</span>` : ""}<p class="lead" style="margin:6px auto 0">What goes in, which glass, which ice, what garnish?</p>
+    ${pShown ? `<div style="text-align:left;margin-top:14px"><dl class="facts"><div><dt>Glass</dt><dd translate="no">${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd translate="no">${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd translate="no">${esc(d.garnish)}</dd></div></dl><ul class="spec" translate="no" style="margin-top:10px">${d.spec.map(specRow).join("")}</ul><p style="margin:10px 0 0" translate="no">${esc(d.method)}</p></div>
+      <div class="actions" style="justify-content:center"><button class="btn danger" data-p="miss">Missed it</button><button class="btn pri" data-p="got">Got it right</button></div>`
       : `<button class="btn pri wide" data-p="show">Show the spec</button>`}
   </div><p class="score">${pScore.got} right, ${pScore.miss} to practise this session</p>`;
 }
@@ -1195,7 +1210,7 @@ Object.assign(LISTS, {
     "Shake machine off (back button)",
     "Ice cream drip tray cleaned",
   ] },
-  fclose: { title: "Floor close", short: "Close", items: [
+  fclose: { title: "Floor close", short: "Closing", items: [
     "Outside furniture brought in: chairs, tables and umbrellas",
     "Napkin dispensers replenished",
     "Ketchup and mustard put away",
@@ -1312,9 +1327,9 @@ function tallyText() {
 SHARE.shift = () => [`Black Tap Soho ${mode} shift, ${stamp(new Date())}`, tallyText()];
 // The floor's date labels are all at the milkshake station, so they're on its Shakes page; the bar and kitchen have a page for them.
 const PANES = {
-  bar: [["open", "Open"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Close"], ["send", "Send"]],
-  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["fclose", "Close"], ["send", "Send"]],
-  kitchen: [["kopen", "Open"], ["labels", "Labels"], ["stock", "Stock"], ["kclose", "Close"], ["send", "Send"]],
+  bar: [["open", "Opening"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Send"]],
+  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["fclose", "Closing"], ["send", "Send"]],
+  kitchen: [["kopen", "Opening"], ["labels", "Labels"], ["stock", "Stock"], ["kclose", "Closing"], ["send", "Send"]],
 };
 const labelPane = (side) => (side === "floor" ? "fshake" : "labels");
 // Each side's last list is its close.
@@ -1562,7 +1577,7 @@ function handoverHtml() {
   return `<article class="notice" id="handover"><div class="meta">Last handover · <b>${esc(r.name)}</b> · ${when(r.at)}</div>
     <p class="txt">${note && note !== "None" ? esc(note) : "No note left."}</p>
     ${left.length ? `<p class="note">Left from that shift:<br>${left.map(esc).join("<br>")}</p>` : ""}
-    <details><summary>Full report</summary><pre>${esc(r.text)}</pre></details></article>`;
+    <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>`;
 }
 // Before sign-off: every item still open tonight, and any list that's all done but not finished. Each one jumps to it.
 function stillToDoHtml() {
@@ -1687,7 +1702,7 @@ function labelDue(x) {
   const d = daysFrom(shiftDay(), x.useBy);
   return d < 0 ? "overdue" : d === 0 ? "today" : d === 1 ? "tomorrow" : "open";
 }
-const LB_DUE = { overdue: ["Overdue", "no"], today: ["Due today", "wait"], tomorrow: ["Due tomorrow", "wait"], open: ["Open", "ok"], none: ["Not open", ""] };
+const LB_DUE = { overdue: ["Overdue", "no"], today: ["Due today", "wait"], tomorrow: ["Due tomorrow", "wait"], open: ["Opened", "ok"], none: ["Not opened", ""] };
 const LB_ORDER = Object.keys(LB_DUE);
 // One side's labels, the most urgent and soonest first. Managers also see the ones that need no label, at the end.
 const sideLabels = (side) => LIVE.labels.filter((x) => x.side === side && (x.on || LIVE.admin))
@@ -2116,6 +2131,66 @@ document.addEventListener("click", (e) => {
   $$("[data-theme-pick]").forEach((b) => b.setAttribute("aria-pressed", b === t));
 });
 
+/* ---------- Language ----------
+   Each phone picks its language on the welcome screen or in Info. The app's fixed words (tabs, headings, buttons, the
+   Team page's sections, the checklists) come translated from I18N (src/i18n.json: the languages, then each English
+   phrase with its translations in the same order, "" where there isn't one yet). Whatever is
+   on screen is matched whole against the English, so a word that isn't in the list stays in English, and so do drink
+   names, specs and allergens, which are never in it. Names and what people type are never touched. */
+/*I18N*/
+const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
+let lang = store.get("lang", "");
+const TR = new Map();
+function trBuild() {
+  TR.clear(); const i = LANGS.findIndex(([c]) => c === lang); if (i < 0) return;
+  for (const [en, xs] of Object.entries(I18N.words)) if (xs[i]) TR.set(en, xs[i]);
+}
+// A phrase with numbers in it ("3 of 21 done") is listed with {1}, {2}… for the numbers ("{1} of {2} done"), and the
+// numbers go back in wherever the translation puts them.
+const TR_NUM = /\d+(?:[.,:]\d+)*/g;
+function trLook(k) {
+  const t = TR.get(k); if (t || !/\d/.test(k)) return t;
+  const ns = k.match(TR_NUM); let i = 0;
+  return TR.get(k.replace(TR_NUM, () => `{${++i}}`))?.replace(/\{(\d)\}/g, (_, j) => ns[j - 1]);
+}
+// The English each translated text node or attribute came from, so switching back or to another language works.
+const trWas = new WeakMap();
+function trNode(n) {
+  const was = trWas.get(n) ?? n.textContent, k = was.trim(), t = trLook(k);
+  if (t) { if (!trWas.has(n)) trWas.set(n, was); const v = was.replace(k, t); if (n.textContent !== v) n.textContent = v; }
+  else if (trWas.has(n)) { n.textContent = was; trWas.delete(n); }
+}
+function trAttr(el, a) {
+  const key = "data-en-" + a, was = el.getAttribute(key) ?? el.getAttribute(a), t = trLook(was.trim());
+  if (t) { el.setAttribute(key, was); if (el.getAttribute(a) !== t) el.setAttribute(a, t); }
+  else if (el.hasAttribute(key)) { el.setAttribute(a, was); el.removeAttribute(key); }
+}
+const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no]";
+function trTree(root) {
+  if (root.nodeType === 3) { if (!root.parentElement?.closest(TR_SKIP)) trNode(root); return; }
+  if (root.nodeType !== 1 || root.closest(TR_SKIP)) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentElement.closest(TR_SKIP) ? 2 : 1) });
+  for (let n; (n = w.nextNode());) trNode(n);
+  for (const el of [root, ...root.querySelectorAll("[placeholder],[aria-label]")]) for (const a of ["placeholder", "aria-label"]) if (el.hasAttribute(a) && !el.closest("[translate=no]")) trAttr(el, a);
+}
+// Everything drawn later is translated as it lands.
+const trObs = new MutationObserver((ms) => {
+  if (!TR.size) return;
+  trObs.disconnect();
+  for (const m of ms) if (m.type === "characterData") { trWas.delete(m.target); trTree(m.target); } else m.addedNodes.forEach(trTree);
+  trWatch();
+});
+const trWatch = () => trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
+function setLang(c) {
+  lang = c; store.set("lang", c); trBuild();
+  document.documentElement.lang = c || "en-GB"; document.documentElement.dir = LANG_RTL.has(c) ? "rtl" : "ltr";
+  trObs.disconnect(); trTree(document.body); trWatch();
+  $$("select[data-lang]").forEach((s) => (s.value = c));
+}
+// The list to pick from: English first, then each language in its own words, with the English name after it.
+const langOptions = () => `<option value="">English</option>${LANGS.map(([c, own, en]) => `<option value="${c}"${c === lang ? " selected" : ""}>${own} (${en})</option>`).join("")}`;
+document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); haptic(); } });
+
 /* ---------- My pay ----------
    Its own tab: the shifts this person worked and what a month of them comes to, kept on this phone only. Nobody else
    sees it, not even managers. Hours are paid at the hourly rate. Tronc (service charge) is paid on the month before's
@@ -2238,7 +2313,7 @@ function hfHtml() {
   const times = hfTimes(), n = hf.days.size;
   return `<div class="notice" id="hf">
       <div class="mini" style="margin-top:0">Tap each day you worked</div>${hfCal()}
-      <div class="two even"><label class="fld">Started<input type="time" data-hf="start" value="${esc(hf.start)}"></label><label class="fld">Finished<input type="time" data-hf="end" value="${esc(hf.end)}"></label></div>
+      <div class="two even"><label class="fld">Start time<input type="time" data-hf="start" value="${esc(hf.start)}"></label><label class="fld">End time<input type="time" data-hf="end" value="${esc(hf.end)}"></label></div>
       ${times.length ? `<div class="recent" style="margin-top:8px">${times.map(([a, b]) => `<button class="chip" data-hf-times="${esc(a)}-${esc(b)}" aria-pressed="${a === hf.start && b === hf.end}">${esc(a)}–${esc(b)}</button>`).join("")}</div>` : ""}
       <div class="mini">Unpaid break</div>
       <div class="recent">${BREAKS.map((b) => `<button class="chip" data-hf-brk="${b}" aria-pressed="${b === hf.brk}">${b ? `${b} min` : "None"}</button>`).join("")}</div>
@@ -2387,8 +2462,11 @@ function renderInfo() {
     <h2>Prep and batches</h2>${prep}
     <h2>Shot tray, step by step</h2>${guideHtml(DATA.guides["Shot tray"])}
     <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. The manager reads every one and sends the good ones out as broadcasts.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
+    <h2>Language</h2>
+    <label class="fld" translate="no">This phone's language<select data-lang>${langOptions()}</select></label>
+    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Use Send feedback above.</p>
     <h2>Light or dark</h2>
-    <div class="seg" style="grid-template-columns:repeat(3,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
+    <div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. This phone only.</p>
     <h2>Put this app on your home screen</h2>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
@@ -2542,7 +2620,7 @@ function featHtml() {
   const card = (f) => {
     const off = !isOn(f.k), can = fUsable(f), why = off ? "Off here" : can ? "" : f.admin ? "Managers only" : "Needs a team login";
     const mgr = f.mgr && f.staff ? `The same, and ${lowerFirst(f.mgr)}` : f.mgr || (f.staff ? "The same." : "");
-    const acts = (!off && can ? `<button class="btn" data-feat-go="${f.k}">Open</button>` : "") +
+    const acts = (!off && can ? `<button class="btn" data-feat-go="${f.k}">Open it</button>` : "") +
       (LIVE.owner && f.sw ? `<label class="check"><input type="checkbox" data-feat-sw="${f.k}"${off ? "" : " checked"}> On for everyone here</label>` : "");
     return `<article class="notice feat${off ? " off" : ""}" data-feat="${f.k}"><div class="fh"><b>${f.n}</b>${why ? ` <span class="pill${off ? " no" : ""}">${why}</span>` : ""}</div>
       <p class="txt">${f.what}</p>${f.staff ? `<p class="s"><b>${mine[0]}:</b> ${f.staff}</p>` : ""}${mgr ? `<p class="s"><b>${mine[1]}:</b> ${mgr}</p>` : ""}
@@ -3064,7 +3142,7 @@ function renderReports() {
   const shows = [...RP_SHOW, ...(A ? RP_ADMIN.filter(([k]) => k !== "incidents" || isOn("incidents")) : [])];
   if (!shows.some(([k]) => k === rpShow)) rpShow = "all";
   const waitingR = reps.filter((r) => !r.signedBy), openI = incs.filter((x) => x.status !== "closed");
-  const body = (r) => `<details><summary>Show the report</summary><pre>${esc(r.text)}</pre></details>${r.photos ? `<div data-photos-of="${r.id}">${shownPhotos[r.id] || `<button class="btn" data-photos="${r.id}">Show ${r.photos} photo${r.photos > 1 ? "s" : ""}</button>`}</div>` : ""}`;
+  const body = (r) => `<details><summary>Show the report</summary><pre translate="no">${esc(r.text)}</pre></details>${r.photos ? `<div data-photos-of="${r.id}">${shownPhotos[r.id] || `<button class="btn" data-photos="${r.id}">Show ${r.photos} photo${r.photos > 1 ? "s" : ""}</button>`}</div>` : ""}`;
   const top = `<div class="sec">Waiting for sign-off</div>` +
     (waitingR.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}${r.pending ? " · sending…" : ""}</div><p class="txt">${esc(r.summary)}</p>${body(r)}
       ${A ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>${reviewHtml(r)}` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
@@ -3276,8 +3354,8 @@ function renderRota() {
   const hours = A && xs.length ? roHours(xs) : "";
   const acts = xs.length ? `<div class="actions">${shareBtns("rota")}${A ? dlHtml("shifts", "Download every week as a spreadsheet", "rota") : ""}</div>` : "";
   const pub = xs.some((x) => x.pub), build = A ? roGridHtml(wk, xs, pub) + roAddHtml(wk, pub) : "";
-  const foot = A || !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? Tap it on the <button class="linkbtn" data-roview="cal">calendar</button>, or ask in <button class="linkbtn" data-go="me">My requests</button>.</p>`
-    : `<p class="note">Need a day off? Ask in <button class="linkbtn" data-go="me">My requests</button>.</p>`;
+  const foot = A || !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? <button class="linkbtn" data-roview="cal">Tap it on the calendar</button> or <button class="linkbtn" data-go="me">ask in My requests</button>.</p>`
+    : `<p class="note">Need a day off? <button class="linkbtn" data-go="me">Ask in My requests</button>.</p>`;
   box.innerHTML = roViews() + head + nav + status + build + you + elsewhere + chips + days + hours + acts + foot;
 }
 // Each person's shifts and hours in the week, then the open shifts.
@@ -3818,9 +3896,9 @@ function renderMe() {
   const form = {
     late: () => `<p class="note">Roughly when will you get here? Managers see it straight away.</p>
       <div class="recent">${[10, 15, 20, 30, 45, 60].map((m) => `<button class="chip" data-eta="${m}">+${m} min</button>`).join("")}</div>${fld("Arriving at", "eta", 'type="time"')}`,
-    off: () => fld("From", "date1", from) + fld("To", "date2", from) + (calOn() ? `<p class="note">Or <button class="linkbtn" data-go="cal">pick the days on the calendar</button>, with the bank and school holidays on it.</p>` : ""),
+    off: () => fld("From", "date1", from) + fld("To", "date2", from) + (calOn() ? `<p class="note">The calendar has the bank and school holidays on it. <button class="linkbtn" data-go="cal">Pick the days there</button></p>` : ""),
     swap: () => fld("Shift date", "date1", from) + fld("Swapping with", "with", 'maxlength="40" placeholder="Their name"'),
-    incident: () => `<label class="fld">What kind<select data-f="ikind"><option value="">Choose…</option>${INCIDENTS.map((k) => `<option${k === meF.ikind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
+    incident: () => `<label class="fld">What kind<select data-f="ikind"><option value="">Choose…</option>${INCIDENTS.map((k) => `<option value="${k}"${k === meF.ikind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
       <label class="fld">What happened<textarea data-f="itext" rows="4" maxlength="1000" placeholder="What happened, where, and what was done. Use table numbers, not guests' names or contact details.">${esc(meF.itext)}</textarea></label>
       <p class="note">Only managers can read it. Accidents, injuries and near misses go in Alert65.</p>`,
   }[meKind]();
@@ -4041,7 +4119,7 @@ function renderBrief() {
   const b = LIVE.briefing, head = `<div class="sec">Tonight's briefing</div>`;
   const out = [...LIVE.out].sort(), on = brTonight();
   const show = b ? `<article class="notice brief"><div class="meta"><b>${dayName(b.day, { weekday: "long", day: "numeric", month: "long" })}</b> · from ${esc(b.name)}, ${b.pending ? "sending…" : when(b.at)}${b.v > 1 ? " (changed)" : ""}</div>
-      ${b.covers ? `<p class="txt"><b>${b.covers}</b> covers expected</p>` : ""}
+      ${b.covers ? `<p class="txt">Expected covers: <b>${b.covers}</b></p>` : ""}
       ${BR_F.filter(([k]) => k !== "covers" && b[k]).map(([k, t]) => `<div class="h3">${t}</div><p class="txt">${esc(b[k])}</p>`).join("")}
       <div class="h3">86'd now</div><p class="txt">${out.length ? esc(out.join(", ")) : "Nothing"}</p>
       ${on.length ? `<div class="h3">On the rota tonight</div><p class="txt">${on.map((x) => `${esc(x.whoName)} (${sideName(x.side)}, ${roTime(x)})`).join(", ")}</p>` : ""}
@@ -4233,7 +4311,7 @@ function hoCard(h, { accept = false } = {}) {
       || `<p class="note">Every question answered yes${na ? ` (${na} n/a)` : ""}.</p>`}
     ${Object.values(h.extra || {}).filter((x) => x.a === "no").map((x) => `<div class="staffrow"><div class="n"><span class="pill ${x.crit ? "no" : "wait"}">${x.crit ? "Risk" : "No"}</span> <span class="did">${esc(x.t)}</span></div>
       <div class="s">What happened? <b>${esc(x.what)}</b></div><div class="s">Who has been told? <b>${esc(x.told)}</b></div></div>`).join("")}
-    ${h.lines ? `<div class="h3">Tonight's exceptions, as Bar Book saw them</div><pre class="txt ho-lines">${esc(h.lines)}</pre>` : ""}
+    ${h.lines ? `<div class="h3">Tonight's exceptions, as Bar Book saw them</div><pre class="txt ho-lines" translate="no">${esc(h.lines)}</pre>` : ""}
     ${h.note ? `<div class="h3">For the next manager</div><p class="txt">${esc(h.note)}</p>` : ""}
     ${h.owner ? `<div class="h3">For the owner</div><p class="txt">${esc(h.owner)}</p>` : ""}
     ${h.ackBy ? `<p class="note">Accepted by ${esc(h.ackBy)}, ${when(h.ackAt)}${h.ackNote ? `: ${esc(h.ackNote)}` : ""}</p>`
@@ -5784,6 +5862,7 @@ tick(); setInterval(tick, 10000);
 renderChips(); renderList();
 {
   const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
+  $("#w-lang").innerHTML = langOptions();
   w.addEventListener("click", (e) => {
     const b = e.target.closest("[data-start]"); if (!b) return;
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
@@ -5792,5 +5871,6 @@ renderChips(); renderList();
   });
 }
 applyFeatures();
+setLang(lang);
 show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 </script>

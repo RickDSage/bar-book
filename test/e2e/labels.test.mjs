@@ -28,7 +28,7 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   await resetEmulators();
   const { O, M, S, T } = await team(browser, site, people);
   await labels(M); await labels(S);
-  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.firstChild.textContent)), ["Open", "Labels", "Stock", "Close", "Send"]);
+  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.firstChild.textContent)), ["Opening", "Labels", "Stock", "Closing", "Send"]);
   assert.match(await text(S, "#tally"), /Nothing here yet\. A manager adds what needs a date label\./);
   assert.equal(await S.locator("#lb-add").count(), 0, "staff don't get the add form");
   assert.equal(await attempt(S, () => LIVE.api.label(null, "added", { item: "Apple juice", side: "bar", life: 3, on: true })), "permission-denied");
@@ -55,7 +55,7 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   // (The page isn't redrawn under someone typing, so the ideas catch up once they stop.)
   await M.evaluate(() => { document.activeElement.blur(); renderTally(); });
   assert.deepEqual(await M.$$eval("[data-lb-idea]", (x) => x.map((b) => b.dataset.lbIdea)), ["Pineapple juice", "Tomato juice", "Lime juice", "Lemon juice", "Sugar syrup"]);
-  assert.equal(await rowText(S, "Apple juice"), "Apple juice Not open Keeps 3 days once opened Opened one");
+  assert.equal(await rowText(S, "Apple juice"), "Apple juice Not opened Keeps 3 days once opened Opened one");
 
   // Opening one: today plus its days, saved with who opened it.
   const d3 = await day(S, 3);
@@ -66,7 +66,7 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   await settled(M, "Apple juice", 2);
   const a = await lb(M, "Apple juice");
   assert.deepEqual([a.state, a.openedOn, a.useBy, a.openedBy], ["open", await day(M, 0), d3, "Sam Staff"]);
-  assert.equal(await rowText(M, "Apple juice"), `Apple juice Open Use by ${await dn(M, d3)} · opened today by Sam Staff Changed it Binned…`);
+  assert.equal(await rowText(M, "Apple juice"), `Apple juice Opened Use by ${await dn(M, d3)} · opened today by Sam Staff Changed it Binned…`);
 
   // The pack's own date is sooner: it can be brought forward, never past its days.
   await labels(T);
@@ -82,7 +82,7 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   assert.deepEqual(await lb(S, "Cranberry juice").then((x) => [x.useBy, x.openedBy]), [d1, "Tia Staff"]);
   assert.match(await rowText(S, "Cranberry juice"), /^Cranberry juice Due tomorrow Use by .* · opened today by Tia Staff Changed it Binned…$/);
 
-  // The day before, the bar's Open and Close pages say so, and so does the Labels tab.
+  // The day before, the bar's Opening and Closing pages say so, and so does the Labels tab.
   await S.click(".ptabs [data-pane=open]");
   assert.equal(await text(S, ".lbdue"), "Date labels: 1 due tomorrow Cranberry juice ›");
   assert.equal(await S.$eval(".ptabs [data-pane=labels] small", (e) => e.textContent), "1 due");
@@ -209,7 +209,7 @@ test("managers change an item, move it to another side, switch its label off or 
   await settled(S, "Salted caramel", 2);
   assert.match(await text(S, "#tally"), /Nothing here yet/);
   await labels(S, "floor");
-  assert.match(await text(S, "#tally"), /Date labels .* Salted caramel Not open Keeps 10 days once opened ⋯ Opened one .*Station checklist/i);
+  assert.match(await text(S, "#tally"), /Date labels .* Salted caramel Not opened Keeps 10 days once opened ⋯ Opened one .*Station checklist/i);
 
   // Switched off: no label needed, so the team doesn't see it; managers still do.
   await labels(M, "floor");
