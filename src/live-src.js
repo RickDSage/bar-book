@@ -109,6 +109,12 @@ function listen(uid) {
     sub("guests", query(collection(db, "guests"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.guests = rows(snap); liveChanged("guests"); });
     sub("hoq", doc(db, "settings", "hoq"), (d) => { LIVE.hoq = d.exists() ? d.data().qs : []; liveChanged("hoq"); });
     sub("comp", doc(db, "settings", "comp"), (d) => { LIVE.comp = d.exists() ? d.data() : null; liveChanged("comp"); });
+    // Who to call: the venue's own numbers, kept by managers.
+    sub("contacts", doc(db, "settings", "contacts"), (d) => { LIVE.contacts = d.exists() ? d.data().list : []; liveChanged("contacts"); });
+    // Refusals: the last 100 days, for tonight's list and the managers' log.
+    sub("refusals", query(collection(db, "refusals"), where("day", ">=", ukDay(Date.now() - 100 * 864e5)), limit(1000)), (snap) => { LIVE.refusals = rows(snap); liveChanged("refusals"); });
+    // Certificates: managers keep everyone's, staff see their own.
+    sub("certs", LIVE.admin ? query(collection(db, "certs"), limit(1000)) : query(collection(db, "certs"), where("who", "==", uid)), (snap) => { LIVE.certs = rows(snap); liveChanged("certs"); });
     // The latest time the owner started fresh. Each phone drops its copies of what went.
     sub("resets", query(collection(db, "resets"), orderBy("at", "desc"), limit(1)), (snap) => { LIVE.reset = rows(snap)[0] || null; liveChanged("resets"); });
     // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
@@ -643,6 +649,12 @@ LIVE.api = {
   saveNight: (day, n) => setDoc(doc(db, "nights", day), { day, covers: n.covers, wet: n.wet, dry: n.dry, note: n.note, ...me() }),
   saveHoq: (qs) => setDoc(doc(db, "settings", "hoq"), { qs, ...me() }),
   setComp: (staff, manager) => setDoc(doc(db, "settings", "comp"), { staff, manager, ...me() }),
+  saveContacts: (list) => setDoc(doc(db, "settings", "contacts"), { list, ...me() }),
+  refuse: (reason, what, note) => addDoc(collection(db, "refusals"), { day: shiftDay(), reason, what, note, ...me() }),
+  dropRefusal: (id) => deleteDoc(doc(db, "refusals", id)),
+  // c: { who, whoName, kind, label, done, ends, note }. A new one when id is empty.
+  saveCert: (id, c) => (id ? setDoc(doc(db, "certs", id), { ...c, ...me() }) : addDoc(collection(db, "certs"), { ...c, ...me() })),
+  dropCert: (id) => deleteDoc(doc(db, "certs", id)),
   acceptHandover: (day, note) => updateDoc(doc(db, "handovers", day), { ackBy: LIVE.me, ackByUid: auth.currentUser.uid, ackAt: serverTimestamp(), ackNote: note }),
   raise: (x) => addDoc(collection(db, "issues"), { title: x.title, detail: x.detail, area: x.area, urgent: x.urgent, again: x.again || null, status: "open", ...me() }),
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),
@@ -715,7 +727,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null });
+  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null, contacts: [], refusals: [], certs: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }

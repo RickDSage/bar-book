@@ -624,13 +624,17 @@ service cloud.firestore {
     match /settings/{id} {
       allow read: if isMember();
       allow create, update: if isOwner() && stamped() && ((id == 'features' && exactly(['off', 'uid', 'name', 'at'])
-          && incoming().off is list && incoming().off.size() <= 15
-          && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover', 'briefing', 'guests']))
+          && incoming().off is list && incoming().off.size() <= 17
+          && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover', 'briefing', 'guests', 'refusals', 'certs']))
         // How much (in pence) staff and managers may give a guest without asking someone above them.
         || (id == 'comp' && exactly(['staff', 'manager', 'uid', 'name', 'at']) && optInt(incoming().staff, 100000) && optInt(incoming().manager, 100000)));
       // The venue's own closing questions, added to the manager close: up to 10, each {id, t (text), crit}. Managers keep them.
       allow create, update: if isManager() && stamped() && id == 'hoq' && exactly(['qs', 'uid', 'name', 'at'])
         && incoming().qs is list && incoming().qs.size() <= 10;
+      // Who to call: the venue's own numbers (the DPS, maintenance, the glass washer engineer…), up to 20, each
+      // {t (what for), n (who), p (number)}. Managers keep them; everyone on the team reads them.
+      allow create, update: if isManager() && stamped() && id == 'contacts' && exactly(['list', 'uid', 'name', 'at'])
+        && incoming().list is list && incoming().list.size() <= 20;
     }
 
     // ---------- Manager close and handover ----------
@@ -894,6 +898,37 @@ service cloud.firestore {
         && incoming().trainee is string && incoming().trainee != request.auth.uid && reqText(incoming().drinkName, 80)
         && id == incoming().trainee + '-' + slug(incoming().drinkName)
         && get(staffDoc(incoming().trainee)).data.name == incoming().traineeName && stamped();
+      allow delete: if isManager();
+    }
+
+    // ---------- Refusals (Challenge 25) ----------
+    // Anyone on the team logs a refusal: why, what they asked for and a few words, never a name. The whole team reads
+    // them, so a guest turned away at the bar isn't served on the floor, and managers can show the log to the licensing
+    // authority or the police. A refusal can't be changed; only the owner deletes one (say, a test).
+    match /refusals/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && exactly(['day', 'reason', 'what', 'note', 'uid', 'name', 'at']) && stamped()
+        && nearNow(incoming().day) && incoming().reason in ['noid', 'badid', 'under18', 'drunk', 'proxy', 'other']
+        && optText(incoming().what, 80) && optText(incoming().note, 300);
+      allow delete: if isOwner();
+    }
+
+    // ---------- Certificates ----------
+    // Each person's training and legal dates, kept by managers: personal licence, food hygiene, first aid and so on,
+    // and the day someone's permission to work in the UK ends, so their right to work is checked again in time. Dates
+    // and a short note only, never copies of documents. Staff see their own; managers see and keep everyone's.
+    function validCert() {
+      let c = incoming();
+      return exactly(['who', 'whoName', 'kind', 'label', 'done', 'ends', 'note', 'uid', 'name', 'at']) && stamped()
+        && c.who is string && get(staffDoc(c.who)).data.name == c.whoName
+        && c.kind in ['plic', 'food', 'allergy', 'faw', 'efaw', 'fire', 'age', 'rtw', 'other']
+        && optText(c.label, 60) && (c.kind != 'other' || reqText(c.label, 60))
+        && (c.done == '' || isDay(c.done)) && (c.ends == '' || isDay(c.ends)) && (c.kind != 'rtw' || isDay(c.ends))
+        && optText(c.note, 200);
+    }
+    match /certs/{id} {
+      allow read: if isManager() || (isMember() && resource.data.who == request.auth.uid);
+      allow create, update: if isManager() && validCert();
       allow delete: if isManager();
     }
 

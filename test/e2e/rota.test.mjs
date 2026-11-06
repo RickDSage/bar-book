@@ -158,7 +158,8 @@ test("a manager builds a week on the grid: a tap puts someone on, a tap on a dra
   // Once the week is out, a tap on a shift opens it to change, and a tap on an empty day publishes straight away.
   await M.click("#ro-pub");
   await settled(S, 3);
-  assert.equal(await look(sam, 8), "rg-c on 18:00 02:00");
+  // The grid redraws as each shift comes back published, so wait for the cell to settle rather than read it once.
+  await M.waitForFunction(([sel, want]) => { const b = document.querySelector(sel); return `${b.className} ${b.innerText.replace(/\s+/g, " ").trim()}` === want; }, [await cell(sam, 8), "rg-c on 18:00 02:00"]);
   const id = await idOf(M, await day(M, 8), "18:00");
   await M.click(await cell(sam, 8));
   await M.waitForSelector(`[data-ro-save="${id}"]`);
