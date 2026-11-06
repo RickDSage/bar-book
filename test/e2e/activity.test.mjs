@@ -23,7 +23,7 @@ test("activity, downloads and broadcasts", async () => {
   const { O, M, S } = await team(browser, site, people);
   const drink = await S.evaluate(() => D[0].name);
   await S.evaluate(async (d) => {
-    await LIVE.api.set86(d, true);
+    await LIVE.api.set86(d, "out");
     await LIVE.api.setTask("open", 0, itemText("open", 0), "done");
     await LIVE.api.setRun("open", LISTS.open.title, "started", 0, shown("open").length);
     await LIVE.api.askRestock({ item: "Limes", qty: 2, unit: "bag", dest: "up", detail: "" });

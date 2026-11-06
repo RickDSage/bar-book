@@ -526,28 +526,43 @@ service cloud.firestore {
     }
 
     // ---------- 86 board ----------
-    // out/{item} is what's off tonight and outlog is its history. Each change writes both in one batch and the
-    // rules check they match: an 86 creates out/{item} pointing at its new log entry; back in stock deletes it
-    // and adds the entry {that log id}-back. So the board and its history can't drift apart, the same item
-    // can't be 86'd twice, and nothing comes back that wasn't out. Log entries can never be edited, or deleted except
-    // with the board when the owner starts fresh.
+    // out/{item} is what's out or running low tonight, and outlog is its history. Each change writes both in one batch
+    // and the rules check they match: an 86 (or "running low") creates out/{item} pointing at its new log entry; moving
+    // between low and out rewrites it pointing at another new entry; back in stock deletes it and adds the entry
+    // {that log id}-back. A manager checks an entry by adding {that log id}-checked, and the board records who. So the
+    // board and its history can't drift apart, the same item can't be on it twice, and nothing comes back that wasn't
+    // out. Log entries can never be edited, or deleted except with the board when the owner starts fresh.
+    // Entries from before levels existed have no level and count as out.
     function outDoc(item) { return /databases/$(database)/documents/out/$(item); }
     function logDoc(id) { return /databases/$(database)/documents/outlog/$(id); }
+    function outFields() { return ['itemName', 'log', 'level', 'side', 'checkedBy', 'checkedUid', 'checkedAt', 'uid', 'name', 'at']; }
+    function outEntry(item) {
+      return exactly(outFields()) && reqText(incoming().itemName, 80) && slug(incoming().itemName) == item
+        && incoming().level in ['out', 'low'] && incoming().side in ['bar', 'floor', 'kitchen']
+        && incoming().checkedBy == null && incoming().checkedUid == null && incoming().checkedAt == null
+        && autoId(incoming().log) && getAfter(logDoc(incoming().log)).data.action == incoming().level
+        && getAfter(logDoc(incoming().log)).data.item == item && stamped();
+    }
     match /out/{item} {
       allow read: if isMember();
-      allow create: if isMember() && exactly(['itemName', 'log', 'uid', 'name', 'at'])
-        && reqText(incoming().itemName, 80) && slug(incoming().itemName) == item && autoId(incoming().log)
-        && getAfter(logDoc(incoming().log)).data.action == 'out' && getAfter(logDoc(incoming().log)).data.item == item
-        && stamped();
+      allow create: if isMember() && outEntry(item);
+      allow update: if (isMember() && outEntry(item) && incoming().itemName == resource.data.itemName
+          && incoming().level != resource.data.get('level', 'out'))
+        || (isManager() && resource.data.get('checkedUid', null) == null && changesOnly(['checkedBy', 'checkedUid', 'checkedAt'])
+          && signedAs('checkedBy', 'checkedUid', 'checkedAt') && existsAfter(logDoc(resource.data.log + '-checked')));
       allow delete: if freshOwner() || (isMember() && existsAfter(logDoc(resource.data.log + '-back')));
     }
     match /outlog/{id} {
       allow read: if isManager();
-      allow create: if isMember() && exactly(['item', 'itemName', 'action', 'uid', 'name', 'at']) && stamped()
+      allow create: if isMember() && exactly(['item', 'itemName', 'action', 'side', 'uid', 'name', 'at']) && stamped()
         && reqText(incoming().itemName, 80) && incoming().item == slug(incoming().itemName)
-        && ((incoming().action == 'out' && getAfter(outDoc(incoming().item)).data.log == id)
+        && incoming().side in ['bar', 'floor', 'kitchen']
+        && ((incoming().action in ['out', 'low'] && getAfter(outDoc(incoming().item)).data.log == id
+              && getAfter(outDoc(incoming().item)).data.level == incoming().action)
           || (incoming().action == 'back' && get(outDoc(incoming().item)).data.log + '-back' == id
-              && getAfter(outDoc(incoming().item)) == null));
+              && getAfter(outDoc(incoming().item)) == null)
+          || (incoming().action == 'checked' && isManager() && get(outDoc(incoming().item)).data.log + '-checked' == id
+              && getAfter(outDoc(incoming().item)).data.checkedUid == request.auth.uid));
       allow delete: if freshOwner();
     }
 

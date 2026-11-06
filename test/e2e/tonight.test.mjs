@@ -29,7 +29,7 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
 
   await S.evaluate(async () => {
     const A = LIVE.api;
-    await Promise.all([A.setTask("close", 0, itemText("close", 0), "done"), A.setTask("close", 1, itemText("close", 1), "blocked", { note: "No hot water" }), A.set86("Limes", true),
+    await Promise.all([A.setTask("close", 0, itemText("close", 0), "done"), A.setTask("close", 1, itemText("close", 1), "blocked", { note: "No hot water" }), A.set86("Limes", "out"),
       A.askRestock({ item: "Blue roll", qty: 1, unit: "each", dest: "up", detail: "" }), A.ask({ kind: "late", eta: "18:00", note: "" }),
       A.incident("Breakage or damage", "Glass washer door cracked"), A.raise({ title: "Glass washer leaking", detail: "", area: "bar", urgent: true, again: null }), A.sendReport("bar", "Bar report", "Bar · test")]);
   });

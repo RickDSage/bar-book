@@ -994,20 +994,22 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], status: [], blocks: [], blockHist: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], onboard: [], onboardList: null, off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), low: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], status: [], blocks: [], blockHist: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], onboard: [], onboardList: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
 // The 86 board is shared by everyone logged in. Logged out, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
-function setOut(name, on) {
+const isLow = (n) => LIVE.low.has(n);
+// level is "out", "low", or null for back in stock. The department is the side this phone is on.
+function setOut(name, level) {
   if (!LIVE.me) return toast("Log in on the Team page to 86 a drink");
-  track(LIVE.api.set86(name, on), null, "86 list not updated. Someone may have just changed it");
+  track(LIVE.api.set86(name, level, LIVE.outInfo.get(name)?.side || mode), null, "86 list not updated. Someone may have just changed it");
 }
 function rowHtml(d) {
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
-  return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
+  return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${isLow(d.name) ? `<b style="color:var(--warn)">Running low</b> · ` : ""}${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
 }
 let recent = store.get("recent", []).filter((id) => D[id]);
 const FLAVOURS = {
@@ -1159,7 +1161,8 @@ function openSheet(id, keepScroll) {
     <div class="badges" translate="no">
       ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
     </div>
-    ${outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
+    ${outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" data-sh86="" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
+    ${isLow(d.name) ? `<div class="outbar on"><span><b>Running low.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Sell something else first.</span><button class="btn" data-sh86="out" data-name="${esc(d.name)}">Now out</button><button class="btn" data-sh86="" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
     ${al ? `<div class="allergy"><b>Allergens:</b> <span translate="no">${esc(al)}</span></div>` : ""}
     ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
@@ -1176,7 +1179,7 @@ function openSheet(id, keepScroll) {
     ${d.pairsWith ? `<div class="pair"><b>Sell it with:</b> ${esc(d.pairsWith)}</div>` : ""}
     ${navHtml(id)}
     <div id="dmedit">${mediaEditHtml(d)}</div>
-    ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
+    ${LIVE.outInfo.has(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-sh86="out" data-name="${esc(d.name)}">Ran out? 86 this drink</button><button class="link86" data-sh86="low" data-name="${esc(d.name)}">Running low? Tell the team</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
     <div class="actions">${sendBtn("drink", "Send this drink", String(id))}</div>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
@@ -1277,7 +1280,7 @@ $("#sheet").addEventListener("click", (e) => {
   const cs = e.target.closest("[data-cs]"); if (cs) { const car = $("#car"); haptic(); carGo(cs.dataset.cs === "0" ? 0 : carIndex(car) + +cs.dataset.cs); return; }
   const mb = e.target.closest("[data-mult]"); if (mb) { const y = $("#sheet").scrollTop; mult = +mb.dataset.mult; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
   const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderChips(); renderList(); return; }
-  const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name, on = !outNow().has(n); setOut(n, on); toast(on ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
+  const o86 = e.target.closest("[data-sh86]"); if (o86) { const n = o86.dataset.name, lv = o86.dataset.sh86 || null; setOut(n, lv); toast(`${n} ${lv ? OUT_ACT[lv] : OUT_ACT.back}`); openSheet(curId, true); renderList(); return; }
   const st = e.target.closest(".step"); if (st) {
     st.classList.toggle("done"); st.querySelector(".tick").textContent = st.classList.contains("done") ? "Done \u2713" : "Tap when done"; haptic();
     const car = st.closest(".car"); if (car && st.classList.contains("done")) setTimeout(() => carGo([...car.children].indexOf(st) + 1), 220); else carSync();
@@ -1535,7 +1538,7 @@ function tallyText() {
     };
     return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
-  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}${LIVE.low.size ? `\nRunning low: ${[...LIVE.low].join(", ")}` : ""}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
 // The shift for the managers' WhatsApp group or email, so nobody needs the app to know where it stands: how each list
 // ended, then everything still open (not done, blocked, 86'd, labels, restocks, issues, guest issues), the handover
@@ -1548,6 +1551,7 @@ SHARE.shift = () => {
   const lbs = LIVE.loaded.has("labels") ? labelsDue([mode]) : [];
   const head = lists.map((k) => { const p = progress(k), b = blockedTasks([k]).length; return `${p.n === p.of ? "\u2705" : "\u26a0\ufe0f"} ${LISTS[k].title}: ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${isLocked(k) ? ", finished" : ""}`; });
   head.push(`86'd: ${out.length ? out.join(", ") : "nothing"}`);
+  if (LIVE.low.size) head.push(`Running low: ${[...LIVE.low].sort().join(", ")}`);
   if (closer) head.push(`Closing manager: ${closer}`);
   return { what: `${sideName(mode)} shift`, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head, parts: [
     // Each list's own tick box. A list nobody started is left out unless ticked: its summary line says enough.
@@ -1555,6 +1559,7 @@ SHARE.shift = () => {
     { id: "blocked", label: "Blocked", lines: items(lists, ["blocked"]) },
     { id: "skip", label: "Not needed tonight", lines: items(lists, ["cancelled"]) },
     { id: "out", label: "86'd", lines: out.map((n) => `${n}${outBy(n) ? `, by ${outBy(n)}` : ""}`) },
+    { id: "low", label: "Running low", lines: [...LIVE.low].sort().map((n) => `${n}${outBy(n) ? `, by ${outBy(n)}` : ""}`) },
     { id: "labels", label: "Date labels due", lines: lbs.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
     { id: "restock", label: "Restocks still open", lines: rsOpen().filter((r) => DEST_SIDE[r.dest] === mode).map(rsLine) },
     { id: "issues", label: "Issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
@@ -2114,7 +2119,7 @@ async function shrink(file) {
 }
 function paneBadge(k) {
   if (LISTS[k]) { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
-  if (k === "stock") return [outNow().size && `${outNow().size} out`, rsOpen().length && `${rsOpen().length} up`].filter(Boolean).join(" \u00b7 ");
+  if (k === "stock") return [outNow().size && `${outNow().size} out`, LIVE.low.size && `${LIVE.low.size} low`, rsOpen().length && `${rsOpen().length} up`].filter(Boolean).join(" \u00b7 ");
   if (k === "labels") { const n = labelsDue([mode]).length; return n ? `${n} due` : ""; }
   return "";
 }
@@ -2129,7 +2134,6 @@ function renderTally() {
   freshNight();
   if (!$("#football").contains(document.activeElement)) renderFootball();
   $("#shift-day").textContent = new Date(Date.now() - 6 * 36e5).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: UK });
-  const outList = [...outNow()].sort();
   $("#shift-title").textContent = `${sideName(mode)} shift`;
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
   const tabs = `<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
@@ -2141,10 +2145,7 @@ function renderTally() {
     fclose: () => `${labelsDueHtml("floor")}${listPane("fclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     kopen: () => `${handoverHtml()}${labelsDueHtml("kitchen")}${listPane("kopen")}${nextBtn("labels", "Next: date labels")}`,
     kclose: () => `${labelsDueHtml("kitchen")}${listPane("kclose")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
-    stock: () => `<div class="sec">86'd tonight</div>
-      <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
-      ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
-      ${outList.length ? `<div class="actions">${sendBtn("out", "Send the 86 list")}</div>` : ""}
+    stock: () => `${board86Html()}
       ${restockHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
     close: () => `${labelsDueHtml("bar")}${listPane("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     send: () => {
@@ -2196,8 +2197,10 @@ $("#tally").addEventListener("change", async (e) => {
   if (t.dataset.lbDate != null && lbo) { if (ISO_DAY.test(t.value)) { lbo.date = t.value; t.closest(".lbo").querySelector(".lbdate b").textContent = dayName(t.value); } return; }
   if (t.id === "lb-on") { lbF.on = t.checked; return; }
   if (t.dataset.lbe && lbe) { lbe[t.dataset.lbe] = t.type === "checkbox" ? t.checked : t.value; return; }
+  if (t.id === "s-86-other") { s86.text = t.value; return; }
   if (t.id !== "s-86" || !t.value) return;
-  const n = t.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
+  if (t.value === OTHER) { s86.other = true; renderTally(); $("#s-86-other")?.focus(); return; }
+  add86(t.value);
 });
 keepOpen($("#tally"), (e) => { if (e.target.id === "lb-add") lbF.open = e.target.open; });
 $("#tally").addEventListener("input", (e) => {
@@ -2285,7 +2288,11 @@ $("#tally").addEventListener("click", async (e) => {
     haptic(); Object.assign(rsF, { item: "", other: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
   }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
-  const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
+  const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, null); renderTally(); renderList(); return; }
+  const lv = e.target.closest("[data-lvl86]"); if (lv) { s86.level = lv.dataset.lvl86; renderTally(); return; }
+  const o8 = e.target.closest("[data-o86]"); if (o8) { setOut(o8.dataset.name, o8.dataset.o86); renderTally(); renderList(); return; }
+  const c86 = e.target.closest("[data-check86]"); if (c86) { track(LIVE.api.check86(c86.dataset.check86), `${c86.dataset.check86} checked`, "Not saved. Someone may have just changed it"); return; }
+  if (e.target.id === "s-86-add") { add86(s86.text); return; }
 });
 
 /* ---------- Football on the screens ----------
@@ -3057,14 +3064,39 @@ SHARE.issues = () => {
     ] };
 };
 SHARE.out = () => {
-  const out = [...outNow()].sort(); if (!out.length) return null;
+  const out = [...outNow()].sort(), low = [...LIVE.low].sort(); if (!out.length && !low.length) return null;
   return { what: "The 86 list", title: `Black Tap Soho 86 list \u00b7 ${dayName(shiftDay())} \u00b7 ${hhmm(new Date())}`,
-    head: [`\ud83d\udeab ${plural(out.length, "thing")} out tonight`],
+    head: [`\ud83d\udeab ${plural(out.length, "thing")} out tonight${low.length ? `, ${low.length} running low` : ""}`],
     parts: [
       { id: "out", label: "86'd", lines: out.map((n) => `${n}${outBy(n) ? `, by ${outBy(n)}` : ""}`) },
+      { id: "low", label: "Running low", lines: low.map((n) => `${n}${outBy(n) ? `, by ${outBy(n)}` : ""}`) },
       { id: "offer", label: "Offer instead", lines: out.flatMap((n) => { const d = D.find((x) => x.name === n), xs = d ? similarTo(d).slice(0, 2) : []; return xs.length ? [`${n}: ${xs.map((x) => x.name).join(" or ")}`] : []; }) },
     ] };
 };
+/* ---------- 86 board ----------
+   Out or running low, which department, who and when, and a manager's check. Pick the level, then the item: choosing
+   one puts it straight on the board. Anything not in the lists can be written in. */
+const OUT_ACT = { out: "86'd", low: "marked low", back: "back in stock", checked: "checked" };
+const s86 = { level: "out", other: false, text: "" };
+function board86Html() {
+  const on = [...LIVE.outInfo.values()].sort((a, b) => (a.level === b.level ? a.itemName.localeCompare(b.itemName) : a.level === "out" ? -1 : 1));
+  const row = (o) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(o.itemName)} <span class="pill ${o.level === "out" ? "no" : "wait"}">${o.level === "out" ? "86'd" : "Low"}</span>
+      <div class="s">${o.side === mode ? "" : `${sideName(o.side)} · `}${o.level === "out" ? "86'd" : "Marked low"} by ${outBy(o.itemName)}${o.checkedBy ? ` · Checked by ${esc(o.checkedBy)}` : ""}</div></div>
+    <div class="actions" style="margin:0;flex-direction:column;align-items:stretch">${o.level === "low" ? `<button class="btn" data-o86="out" data-name="${esc(o.itemName)}">Now out</button>` : ""}<button class="btn" data-back="${esc(o.itemName)}">Back in stock</button>${LIVE.admin && !o.checkedBy ? `<button class="btn" data-check86="${esc(o.itemName)}">Confirm</button>` : ""}</div></div>`;
+  return `<div class="sec">86 board</div>
+    <div class="seg" role="group" aria-label="Out or running low"><button data-lvl86="out" aria-pressed="${s86.level === "out"}">Out (86 it)</button><button data-lvl86="low" aria-pressed="${s86.level === "low"}">Running low</button></div>
+    <label class="fld">${s86.level === "out" ? "Ran out of something?" : "Running low on something?"}<select id="s-86"><option value="">Choose…</option><option${s86.other ? " selected" : ""}>${OTHER}</option>${stockOptions((x) => LIVE.outInfo.has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !LIVE.outInfo.has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
+    ${s86.other ? `<label class="fld">What is it<input id="s-86-other" maxlength="80" value="${esc(s86.text)}"></label><div class="actions"><button class="btn pri" id="s-86-add">${s86.level === "out" ? "86 it" : "Mark low"}</button></div>` : ""}
+    ${on.length ? on.map(row).join("") : `<p class="note">Nothing 86'd or running low.</p>`}
+    ${on.length ? `<div class="actions">${sendBtn("out", "Send the 86 list")}</div>` : ""}`;
+}
+function add86(name) {
+  name = name.trim();
+  if (!name) return toast("Write what it is in the box");
+  if (LIVE.outInfo.has(name)) return toast(`${name} is already on the board`);
+  setOut(name, s86.level); haptic(); toast(`${name} ${OUT_ACT[s86.level]}`);
+  Object.assign(s86, { other: false, text: "" }); renderList(); renderTally();
+}
 const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 // What's waiting on a manager.
 const toAnswer = () => LIVE.asks.filter((a) => waiting(a) && askOn(a)).length + LIVE.requests.filter((r) => !r.done).length;
@@ -4358,7 +4390,7 @@ function renderOutlog() {
   const top = Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 5);
   $("#outlog").innerHTML = `<div class="sec">86 log</div>
     ${top.length ? `<h3 style="font-size:18px;margin-top:10px">Runs out most</h3>${top.map(([n, c]) => `<div class="staffrow"><div class="n">${esc(n)}</div><div class="s">86'd ${c} time${c > 1 ? "s" : ""}</div></div>`).join("")}<h3 style="font-size:18px;margin-top:16px">Latest</h3>` : ""}
-    ${LIVE.outlog.map((x) => `<div class="staffrow"><div class="n">${esc(x.itemName)} ${x.action === "out" ? "<span style=\"color:var(--warn)\">86'd</span>" : "back in stock"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">Nothing 86'd yet.</p>`}
+    ${LIVE.outlog.map((x) => `<div class="staffrow"><div class="n">${esc(x.itemName)} ${x.action === "out" ? "<span style=\"color:var(--warn)\">86'd</span>" : OUT_ACT[x.action] || ""}</div><div class="s">${x.side ? `${sideName(x.side)} · ` : ""}${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">Nothing 86'd yet.</p>`}
     <p class="note">Last 100 changes. The log can't be edited or deleted.</p>`;
 }
 /* ---------- Managers: training ---------- */
@@ -5889,7 +5921,7 @@ function events(x) {
   x.events.forEach((e) => add(SEC[e.kind], e.at, e.name, evText(e), evDetail(e), { ev: e, area: e.area, list: e.list }));
   // Ticks from before tasks.
   x.ticks.forEach((t) => add("checks", t.at, t.name, `ticked: ${itemText(t.list, t.item)}`, LISTS[t.list]?.title, { area: listSide(t.list), list: t.list }));
-  x.outlog.forEach((o) => add("86", o.at, o.name, o.action === "out" ? `86'd ${o.itemName}` : `put ${o.itemName} back in stock`));
+  x.outlog.forEach((o) => add("86", o.at, o.name, { out: `86'd ${o.itemName}`, low: `marked ${o.itemName} running low`, checked: `checked ${o.itemName} on the 86 board` }[o.action] || `put ${o.itemName} back in stock`));
   x.requests.forEach((r) => { add("requests", r.at, r.name, `asked for ${r.item}`, r.note); if (r.done) add("requests", r.doneAt, r.doneBy, `ordered ${r.item}`, `Asked for by ${r.name}`); });
   x.asks.forEach((a) => { add("asks", a.at, a.name, askText(a), a.note); if (a.by) add("asks", a.byAt, a.by, `${DECIDED[a.status]} ${a.name}'s request`, askText(a)); });
   x.issues.forEach((i) => {
@@ -5935,7 +5967,7 @@ function liveData() {
   return {
     feed: LIVE.feed, notices: LIVE.notices.filter(forMe), requests: LIVE.requests, issues: LIVE.issues, reviews: LIVE.reviews, incidents: LIVE.incidents, audit: LIVE.audit,
     events: staff ? evs.filter((e) => e.area === mode) : evs, ticks: [],
-    outlog: staff ? [...LIVE.outInfo.values()].map((o) => ({ ...o, action: "out" })) : LIVE.outlog,
+    outlog: staff ? [...LIVE.outInfo.values()].map((o) => ({ ...o, action: o.level })) : LIVE.outlog,
     asks: staff ? [] : LIVE.asks,
     reports: staff ? LIVE.reports.filter((r) => r.side === mode) : LIVE.reports,
     training: staff ? [] : LIVE.training, concerns: LIVE.concerns.filter(cnForMe),
@@ -6037,7 +6069,7 @@ const TABLES = {
   shifts: (x) => [["Week", "Day", "Starts", "Ends", "Hours", "Side", "Who", "Note", "Published", "Offered to", "Can't make it because", "Hands up"],
     ...[...x.shifts].sort((a, b) => roSpan(a)[0] - roSpan(b)[0] || roOrder(a, b)).map((s) => [s.week, s.day, s.start, s.end, +(shiftLen(s) / 60).toFixed(2), sideName(s.side), s.whoName || "Open shift", s.note,
       s.pub ? "Yes" : "No, a draft", s.offerName, s.cover, Object.values(s.wants).join(", ")])],
-  86: (x) => [["Date", "Time", "Item", "Change", "By"], ...x.outlog.map((o) => [...dt(o.at), o.itemName, o.action === "out" ? "86'd" : "Back in stock", o.name])],
+  86: (x) => [["Date", "Time", "Item", "Change", "By"], ...x.outlog.map((o) => [...dt(o.at), o.itemName, { out: "86'd", low: "Running low", checked: "Checked by a manager" }[o.action] || "Back in stock", o.name])],
   stock: (x) => [["Night", "Asked at", "Item", "Asked for", "Unit", "Where", "Detail", "Asked by", "Status", "Who has it", "Brought up", "Received", "Last change by", "Last change on", "Last change at", "Reason"],
     ...x.restock.map((r) => [r.day, dt(r.askedAt)[1], r.item, r.qty, r.unit, DEST[r.dest], r.detail, r.askedBy, RS[r.status], r.who, r.moved, r.got, r.name, ...dt(r.at), r.note])],
   requests: (x) => [["Date", "Time", "Item", "Note", "Asked by", "Status", "Ordered by", "Ordered on", "Ordered at"], ...x.requests.map((r) => [...dt(r.at), r.item, r.note, r.name, r.done ? "Ordered" : "Waiting", r.doneBy, ...dt(r.doneAt)])],

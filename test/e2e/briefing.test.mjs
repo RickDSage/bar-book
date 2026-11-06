@@ -20,7 +20,7 @@ test("a manager posts the briefing, staff read it, and a change makes it new aga
   const QS = ["depts", "sales", "cash", "voids", "tips", "breaks", "incidents", "complaints", "food", "faults", "security", "ready"];
   await adminWrite(`handovers/${day}`, { day: { stringValue: day }, answers: { mapValue: { fields: Object.fromEntries(QS.map((q) => [q, { stringValue: "yes" }])) } }, follow: { mapValue: { fields: {} } }, exceptions: { integerValue: "0" }, lines: { stringValue: "" }, note: { stringValue: "Ice machine slow" }, owner: { stringValue: "" }, risks: { integerValue: "0" },
     uid: { stringValue: mia }, name: { stringValue: "Mia Manager" }, at: { timestampValue: new Date(Date.now() - 8 * 36e5).toISOString() } });
-  await M.evaluate(() => LIVE.api.set86("Limes", true));
+  await M.evaluate(() => LIVE.api.set86("Limes", "out"));
 
   await part(S, "brief");
   assert.match(await text(S), /Nothing posted yet tonight\./);

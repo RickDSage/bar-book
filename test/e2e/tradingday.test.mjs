@@ -65,7 +65,7 @@ test("a pretend trading day: briefing, checklists, test team, 86, restock, issue
   assert.match(await forYou(M), /slammed/i);
 
   // Ben 86s a drink; the floor sees it straight away, and it comes back later.
-  await B.evaluate(() => LIVE.api.set86("London Cosmo", true));
+  await B.evaluate(() => LIVE.api.set86("London Cosmo", "out"));
   await F.waitForFunction(() => LIVE.out.has("London Cosmo"));
   await K.waitForFunction(() => LIVE.out.has("London Cosmo"));
 
@@ -101,7 +101,7 @@ test("a pretend trading day: briefing, checklists, test team, 86, restock, issue
   await M.waitForFunction(() => LIVE.asks.some((a) => a.kind === "late" && !a.pending));
 
   // 11pm: the drink is back, every side sends its report, Mia signs them off and puts in the night's figures.
-  await B.evaluate(() => LIVE.api.set86("London Cosmo", false));
+  await B.evaluate(() => LIVE.api.set86("London Cosmo", null));
   await F.waitForFunction(() => !LIVE.out.has("London Cosmo"));
   for (const [p, side] of [[B, "bar"], [F, "floor"], [K, "kitchen"]]) await p.evaluate((s) => LIVE.api.sendReport(s, `${s} closed down clean`, `${s}: all good`), side);
   await M.waitForFunction(() => LIVE.reports.filter((r) => !r.pending).length === 3);

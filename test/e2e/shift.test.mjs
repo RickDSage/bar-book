@@ -17,7 +17,7 @@ test("the 86 board is shared, says who did it, and keeps a log managers can read
   await S.selectOption("#s-86", "Guinness");
   await O.waitForFunction(() => LIVE.out.has("Guinness"));
   await S.waitForSelector('[data-back="Guinness"]');
-  assert.match(await S.$eval('[data-back="Guinness"]', (e) => e.parentElement.innerText), /86'd by Sam Staff/);
+  assert.match(await S.$eval('[data-back="Guinness"]', (e) => e.closest(".tally-row").innerText), /86'd by Sam Staff/);
 
   await O.evaluate(() => openSheet(D.find((d) => d.name === "Negroni").id));
   await O.click("#sh-86");
@@ -33,8 +33,45 @@ test("the 86 board is shared, says who did it, and keeps a log managers can read
   assert.deepEqual(await O.evaluate(() => LIVE.outlog.map((x) => `${x.itemName} ${x.action} ${x.name}`).reverse()),
     ["Guinness out Sam Staff", "Negroni out Olly Owner", "Guinness back Sam Staff"]);
   assert.equal(await S.evaluate(() => LIVE.outlog.length), 0, "staff don't get the log");
-  assert.equal(await attempt(S, () => LIVE.api.set86("Limes", false)), "It isn't on the 86 list");
-  assert.equal(await attempt(M, () => LIVE.api.set86("Negroni", true)), "permission-denied", "an 86 already on the board can't be overwritten");
+  assert.equal(await attempt(S, () => LIVE.api.set86("Limes", null)), "It isn't on the 86 list");
+  assert.equal(await attempt(M, () => LIVE.api.set86("Negroni", "out")), "It's already 86'd");
+  assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
+});
+
+test("running low, written-in items, the floor's department and a manager's check", async () => {
+  await resetEmulators();
+  const { O, M, S } = await team(browser, site, people);
+  await S.click("[data-tab=tally]"); await S.click("[data-mode=floor]"); await S.click(".ptabs [data-pane=stock]");
+  await S.click("[data-lvl86=low]");
+  await S.selectOption("#s-86", "Other (write it in)");
+  await S.fill("#s-86-other", "Oreo crumb");
+  await S.click("#s-86-add");
+  await M.waitForFunction(() => LIVE.low.has("Oreo crumb") && !LIVE.out.has("Oreo crumb"));
+  assert.deepEqual(await M.evaluate(() => { const o = LIVE.outInfo.get("Oreo crumb"); return [o.level, o.side, o.name, o.checkedBy]; }), ["low", "floor", "Sam Staff", null]);
+  // Staff see it as low on the floor, and the bar sees which department it is.
+  await S.waitForSelector('[data-o86="out"][data-name="Oreo crumb"]');
+  assert.equal(await S.locator("[data-check86]").count(), 0, "staff can't confirm");
+  await M.click("[data-tab=tally]"); await M.click("[data-mode=bar]"); await M.click(".ptabs [data-pane=stock]");
+  await M.waitForSelector('[data-check86="Oreo crumb"]');
+  assert.match(await M.$eval('[data-check86="Oreo crumb"]', (e) => e.closest(".tally-row").innerText), /Low[\s\S]*Floor · Marked low by Sam Staff/);
+  await M.click('[data-check86="Oreo crumb"]');
+  await S.waitForFunction(() => LIVE.outInfo.get("Oreo crumb")?.checkedBy === "Mia Manager");
+  await S.waitForFunction(() => /Checked by Mia Manager/.test(document.querySelector("#tally").textContent));
+  // Now out: the check is cleared, because the new state hasn't been checked.
+  await S.click('[data-o86="out"][data-name="Oreo crumb"]');
+  await M.waitForFunction(() => LIVE.out.has("Oreo crumb") && !LIVE.low.has("Oreo crumb") && LIVE.outInfo.get("Oreo crumb").checkedBy === null);
+  // A drink marked low shows on the menu and on its page.
+  await M.evaluate(() => openSheet(D.find((d) => d.name === "Negroni").id));
+  await M.click('[data-sh86="low"]');
+  await S.waitForFunction(() => LIVE.low.has("Negroni"));
+  await S.evaluate(() => openSheet(D.find((d) => d.name === "Negroni").id));
+  assert.match(await S.$eval(".outbar", (e) => e.innerText), /Running low\. By Mia Manager/);
+  await S.evaluate(() => closeSheet());
+  await part(O, "out");
+  await O.waitForFunction(() => LIVE.outlog.length === 4);
+  assert.deepEqual(await O.evaluate(() => LIVE.outlog.map((x) => `${x.itemName} ${x.action} ${x.side} ${x.name}`).reverse()),
+    ["Oreo crumb low floor Sam Staff", "Oreo crumb checked floor Mia Manager", "Oreo crumb out floor Sam Staff", "Negroni low bar Mia Manager"]);
+  assert.match(await O.$eval("#outlog", (e) => e.innerText), /Oreo crumb checked[\s\S]*Floor · Mia Manager/);
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 

@@ -103,16 +103,23 @@ function roleBatch(d, actor, uid, role) {
 }
 
 // ---------- The app's other writes ----------
-function out86(d, uid, itemName) {
+// out86 also moves an item between "out" and "low", as the app does: the board is rewritten pointing at a new log entry.
+function out86(d, uid, itemName, level = "out", side = "bar") {
   const item = slug(itemName), b = writeBatch(d), log = doc(collection(d, "outlog"));
-  b.set(doc(d, "out", item), { itemName, log: log.id, ...by(uid) });
-  b.set(log, { item, itemName, action: "out", ...by(uid) });
+  b.set(doc(d, "out", item), { itemName, log: log.id, level, side, checkedBy: null, checkedUid: null, checkedAt: null, ...by(uid) });
+  b.set(log, { item, itemName, action: level, side, ...by(uid) });
   return { b, log: log.id };
 }
-function back86(d, uid, itemName, log) {
+function back86(d, uid, itemName, log, side = "bar") {
   const item = slug(itemName), b = writeBatch(d);
   b.delete(doc(d, "out", item));
-  b.set(doc(d, "outlog", log + "-back"), { item, itemName, action: "back", ...by(uid) });
+  b.set(doc(d, "outlog", log + "-back"), { item, itemName, action: "back", side, ...by(uid) });
+  return b;
+}
+function check86(d, uid, itemName, log, side = "bar") {
+  const item = slug(itemName), b = writeBatch(d), who = by(uid);
+  b.update(doc(d, "out", item), { checkedBy: who.name, checkedUid: uid, checkedAt: who.at });
+  b.set(doc(d, "outlog", log + "-checked"), { item, itemName, action: "checked", side, ...who });
   return b;
 }
 const report = (uid, extra = {}) => ({ side: "bar", text: "Opening checklist: 15 of 15 done", summary: "Bar · Opening 15/15", photos: 0, ...by(uid), ...extra });
@@ -999,11 +1006,52 @@ describe("86 board and its history", () => {
   });
   test("the board can't change without its log entry, and a log entry can't be made up", async () => {
     const d = db("staff1");
-    await assertFails(setDoc(doc(d, "out", "gin"), { itemName: "Gin", log: autoId(), ...by("staff1") }));
-    await assertFails(setDoc(doc(d, "outlog", autoId()), { item: "gin", itemName: "Gin", action: "out", ...by("staff1") }));
+    await assertFails(setDoc(doc(d, "out", "gin"), { itemName: "Gin", log: autoId(), level: "out", side: "bar", checkedBy: null, checkedUid: null, checkedAt: null, ...by("staff1") }));
+    await assertFails(setDoc(doc(d, "outlog", autoId()), { item: "gin", itemName: "Gin", action: "out", side: "bar", ...by("staff1") }));
     const { b, log } = out86(d, "staff1", "Gin"); await b.commit();
     await assertFails(deleteDoc(doc(d, "out", "gin")));
-    await assertFails(setDoc(doc(d, "outlog", log + "-back"), { item: "gin", itemName: "Gin", action: "back", ...by("staff1") }));
+    await assertFails(setDoc(doc(d, "outlog", log + "-back"), { item: "gin", itemName: "Gin", action: "back", side: "bar", ...by("staff1") }));
+  });
+  test("low and out: an item moves between them with a new log entry each time, and only in a real change", async () => {
+    const { b, log } = out86(db("staff1"), "staff1", "Limes", "low", "floor"); await assertSucceeds(b.commit());
+    await assertFails(out86(db("staff2"), "staff2", "Limes", "low", "floor").b.commit());
+    const moved = out86(db("staff2"), "staff2", "Limes", "out", "bar"); await assertSucceeds(moved.b.commit());
+    assert.deepEqual((await getDoc(doc(db("staff1"), "out", "limes"))).data().level, "out");
+    await assertFails(back86(db("staff1"), "staff1", "Limes", log).commit());
+    await assertSucceeds(back86(db("staff1"), "staff1", "Limes", moved.log).commit());
+    // Levels and departments are only these, and the log entry must say the same level as the board.
+    await assertFails(out86(db("staff1"), "staff1", "Mint", "gone").b.commit());
+    await assertFails(out86(db("staff1"), "staff1", "Mint", "out", "cellar").b.commit());
+    const d = db("staff1"), b2 = writeBatch(d), log2 = doc(collection(d, "outlog"));
+    b2.set(doc(d, "out", "mint"), { itemName: "Mint", log: log2.id, level: "low", side: "bar", checkedBy: null, checkedUid: null, checkedAt: null, ...by("staff1") });
+    b2.set(log2, { item: "mint", itemName: "Mint", action: "out", side: "bar", ...by("staff1") });
+    await assertFails(b2.commit());
+  });
+  test("a manager checks an 86 once, under their own name; staff can't, and a change of level clears it", async () => {
+    const { b, log } = out86(db("staff1"), "staff1", "Guinness"); await b.commit();
+    await assertFails(check86(db("staff2"), "staff2", "Guinness", log).commit());
+    // Not without the log entry, and not under someone else's name.
+    await assertFails(updateDoc(doc(db("mgr1"), "out", "guinness"), { checkedBy: "Mia Manager", checkedUid: "mgr1", checkedAt: now() }));
+    const m = db("mgr1"), forged = writeBatch(m);
+    forged.update(doc(m, "out", "guinness"), { checkedBy: "Olly Owner", checkedUid: "mgr1", checkedAt: now() });
+    forged.set(doc(m, "outlog", log + "-checked"), { item: "guinness", itemName: "Guinness", action: "checked", side: "bar", ...by("mgr1") });
+    await assertFails(forged.commit());
+    await assertSucceeds(check86(db("mgr1"), "mgr1", "Guinness", log).commit());
+    assert.equal((await getDoc(doc(db("staff1"), "out", "guinness"))).data().checkedUid, "mgr1");
+    await assertFails(check86(db("owner1"), "owner1", "Guinness", log).commit());
+    const low = out86(db("staff1"), "staff1", "Guinness", "low"); await assertSucceeds(low.b.commit());
+    assert.equal((await getDoc(doc(db("staff1"), "out", "guinness"))).data().checkedUid, null);
+    await assertSucceeds(back86(db("staff1"), "staff1", "Guinness", low.log).commit());
+  });
+  test("an 86 saved before levels existed still counts as out and can come back or be checked", async () => {
+    const log = autoId();
+    await env.withSecurityRulesDisabled(async (ctx) => {
+      await setDoc(doc(ctx.firestore(), "out", "lemons"), { itemName: "Lemons", log, uid: "staff1", name: "Sam Staff", at: new Date() });
+      await setDoc(doc(ctx.firestore(), "outlog", log), { item: "lemons", itemName: "Lemons", action: "out", uid: "staff1", name: "Sam Staff", at: new Date() });
+    });
+    await assertFails(out86(db("staff1"), "staff1", "Lemons", "out").b.commit());
+    await assertSucceeds(check86(db("mgr1"), "mgr1", "Lemons", log).commit());
+    await assertSucceeds(back86(db("staff1"), "staff1", "Lemons", log).commit());
   });
   test("an item can't be 86'd twice, or come back when it isn't out", async () => {
     const { b, log } = out86(db("staff1"), "staff1", "Limes"); await b.commit();
@@ -1013,12 +1061,12 @@ describe("86 board and its history", () => {
   });
   test("the item's record id must match its name, and the name can't be forged", async () => {
     const d = db("staff1"), b = writeBatch(d), log = doc(collection(d, "outlog"));
-    b.set(doc(d, "out", "rum"), { itemName: "Gin", log: log.id, ...by("staff1") });
-    b.set(log, { item: "rum", itemName: "Gin", action: "out", ...by("staff1") });
+    b.set(doc(d, "out", "rum"), { itemName: "Gin", log: log.id, level: "out", side: "bar", checkedBy: null, checkedUid: null, checkedAt: null, ...by("staff1") });
+    b.set(log, { item: "rum", itemName: "Gin", action: "out", side: "bar", ...by("staff1") });
     await assertFails(b.commit());
     const b2 = writeBatch(d), log2 = doc(collection(d, "outlog"));
-    b2.set(doc(d, "out", "gin"), { itemName: "Gin", log: log2.id, uid: "staff1", name: "Mia Manager", at: now() });
-    b2.set(log2, { item: "gin", itemName: "Gin", action: "out", uid: "staff1", name: "Mia Manager", at: now() });
+    b2.set(doc(d, "out", "gin"), { itemName: "Gin", log: log2.id, level: "out", side: "bar", checkedBy: null, checkedUid: null, checkedAt: null, uid: "staff1", name: "Mia Manager", at: now() });
+    b2.set(log2, { item: "gin", itemName: "Gin", action: "out", side: "bar", uid: "staff1", name: "Mia Manager", at: now() });
     await assertFails(b2.commit());
   });
   test("nobody, the owner included, can edit or delete the log; staff can't read it", async () => {

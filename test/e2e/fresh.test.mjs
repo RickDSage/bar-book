@@ -33,7 +33,7 @@ test("the owner sees what it clears and keeps, needs their PIN, and every phone 
   await S.waitForFunction(() => LIVE.notices.length === 1 && LIVE.shifts.length === 1);
   await S.evaluate(async (d7) => {
     const A = LIVE.api;
-    await Promise.all([A.setTask("close", 0, itemText("close", 0), "done"), A.set86("Limes", true), A.askRestock({ item: "Blue roll", qty: 1, unit: "each", dest: "up", detail: "" }),
+    await Promise.all([A.setTask("close", 0, itemText("close", 0), "done"), A.set86("Limes", "out"), A.askRestock({ item: "Blue roll", qty: 1, unit: "each", dest: "up", detail: "" }),
       A.ask({ kind: "off", date1: d7, date2: d7, note: "Wedding" }), A.raise({ title: "Glass washer leaking", detail: "", area: "bar", urgent: false, again: null }),
       A.sendReport("bar", "Bar report", "Bar · test"), A.reportConcern({ reason: "cleaning", area: "toilets", note: "Sink blocked", to: "all", anon: false }, []),
       A.incident("Breakage or damage", "Glass washer door cracked"), A.gotIt(LIVE.notices[0])]);

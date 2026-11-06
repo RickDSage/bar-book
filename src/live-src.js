@@ -101,8 +101,10 @@ function listen(uid) {
     if (d.metadata.hasPendingWrites) return;
     sub("feed", query(collection(db, "feed"), orderBy("at", "desc"), limit(40)), (snap) => { LIVE.feed = rows(snap); liveChanged("feed"); });
     sub("out", collection(db, "out"), (snap) => {
-      LIVE.outInfo = new Map(snap.docs.map((x) => [x.data().itemName, x.data({ serverTimestamps: "estimate" })]));
-      LIVE.out = new Set(LIVE.outInfo.keys());
+      // Entries from before levels existed count as out on the bar.
+      LIVE.outInfo = new Map(snap.docs.map((x) => { const o = x.data({ serverTimestamps: "estimate" }); return [o.itemName, { level: "out", side: "bar", checkedBy: null, ...o }]; }));
+      LIVE.out = new Set([...LIVE.outInfo].filter(([, o]) => o.level === "out").map(([n]) => n));
+      LIVE.low = new Set([...LIVE.outInfo].filter(([, o]) => o.level === "low").map(([n]) => n));
       liveChanged("out");
     });
     // Broadcasts. The owner can leave managers out of one, so a manager's phone asks only for the ones they may read.
@@ -650,19 +652,28 @@ LIVE.api = {
   // Each photo's data, or null where it has been cleared after 30 days.
   concernPhotos: (c) => Promise.all(Array.from({ length: c.photos }, (_, n) => getDoc(doc(db, "concernPhotos", `${c.id}-${n}`)).then((x) => (x.exists() ? x.data().data : null)))),
   signOff: (id) => updateDoc(doc(db, "reports", id), { signedBy: LIVE.me, signedByUid: auth.currentUser.uid, signedAt: serverTimestamp() }),
-  // The board and its log change in one write. Back in stock writes "{the 86's log id}-back", so the two always match.
-  set86(name, on) {
-    const item = slug(name), ref = doc(db, "out", item), b = writeBatch(db);
-    if (on) {
+  // The board and its log change in one write. level is "out", "low", or null for back in stock. Moving between low
+  // and out rewrites the board pointing at a new log entry; back in stock writes "{the board's log id}-back".
+  set86(name, level, side = "bar") {
+    const item = slug(name), ref = doc(db, "out", item), b = writeBatch(db), now = LIVE.outInfo.get(name);
+    if (level) {
+      if (now?.level === level) return Promise.reject(new Error(`It's already ${level === "out" ? "86'd" : "marked low"}`));
       const log = doc(collection(db, "outlog"));
-      b.set(ref, { itemName: name, log: log.id, ...me() });
-      b.set(log, { item, itemName: name, action: "out", ...me() });
+      b.set(ref, { itemName: name, log: log.id, level, side, checkedBy: null, checkedUid: null, checkedAt: null, ...me() });
+      b.set(log, { item, itemName: name, action: level, side, ...me() });
     } else {
-      const now = LIVE.outInfo.get(name);
       if (!now) return Promise.reject(new Error("It isn't on the 86 list"));
       b.delete(ref);
-      b.set(doc(db, "outlog", now.log + "-back"), { item, itemName: name, action: "back", ...me() });
+      b.set(doc(db, "outlog", now.log + "-back"), { item, itemName: name, action: "back", side: now.side, ...me() });
     }
+    return b.commit();
+  },
+  // A manager confirms an entry is right: the board records who, and the log gets "{log id}-checked".
+  check86(name) {
+    const now = LIVE.outInfo.get(name), b = writeBatch(db), who = me();
+    if (!now) return Promise.reject(new Error("It isn't on the 86 list"));
+    b.update(doc(db, "out", slug(name)), { checkedBy: who.name, checkedUid: who.uid, checkedAt: who.at });
+    b.set(doc(db, "outlog", now.log + "-checked"), { item: slug(name), itemName: name, action: "checked", side: now.side, ...who });
     return b.commit();
   },
   // Only the fields each kind needs, so nothing left over from another form goes with it.
@@ -790,7 +801,7 @@ LIVE.api = {
   USER, PIN, MAX_PHOTOS, CODE_MIN,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), low: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
   training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], onboard: [], onboardList: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
