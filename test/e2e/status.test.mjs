@@ -40,3 +40,30 @@ test("staff set their department's status and report hold-ups; managers see it, 
   assert.match(await text(M), /4 reports in the last four weeks\. WHAT Out of clean glasses 3 Equipment problem 1/i);
   assert.deepEqual([...M.errs, ...S.errs], []);
 });
+
+test("Live: every department's status, one place to report, and what's out, urgent or waiting for a manager", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  await part(S, "status");
+  await S.click('[data-st-side="bar"]'); await S.click('[data-st-level="slammed"]'); await S.fill('[data-st="note"]', "Queue three deep"); await S.click("#st-go");
+  await waitToast(S, /^Updated$/);
+  await S.evaluate(() => LIVE.api.raise({ title: "Ice machine leaking", detail: "", area: "bar", urgent: true, again: null }));
+  await S.evaluate(() => LIVE.api.set86("Limes", "low", "bar"));
+  await part(M, "live");
+  const live = () => M.$eval("#live", (e) => e.innerText.replace(/\s+/g, " "));
+  await M.waitForFunction(() => /Bar Slammed Queue three deep/i.test($("#live").innerText.replace(/\s+/g, " ")) && /Limes/.test($("#live").innerText) && /Ice machine leaking/.test($("#live").innerText));
+  const t = await live();
+  assert.match(t, /Urgent issue Ice machine leaking/i);
+  assert.match(t, /Service Bar is slammed: Queue three deep/i);
+  assert.match(t, /86 board Limes Low Bar Sam Staff, .* Confirm/i);
+  assert.deepEqual(await M.$$eval("#live .actions [data-go]", (x) => x.map((b) => b.dataset.go)).then((x) => x.filter((g) => ["status", "issues"].includes(g))), ["status", "issues"]);
+  await M.click('#live [data-check86="Limes"]');
+  await M.waitForFunction(() => /Checked by Mia Manager/.test($("#live").innerText));
+  // The summary for WhatsApp says how each department is and what's low.
+  const share = await M.evaluate(() => SHARE.live());
+  assert.ok(share.head.includes("Running low: Limes"), share.head.join("|"));
+  assert.ok(share.head.includes("Bar: Slammed · Floor: not set · Kitchen: not set"), share.head.join("|"));
+  await M.click('#live .actions [data-go="status"]');
+  await M.waitForSelector("#status [data-bk]");
+  assert.deepEqual([M.errs, S.errs], [[], []]);
+});

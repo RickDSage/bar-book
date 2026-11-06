@@ -3182,7 +3182,8 @@ function forYou() {
   for (const x of urgent) add(`Urgent: ${x.title}`, "issues", `Raised by ${x.uid === LIVE.uid ? "you" : x.name}. Nobody's on it yet`, true);
   for (const x of hazards) add(`Safety hazard: ${AREA[x.area] || "Other"}`, "concerns", x.note || "", true);
   if (LIVE.admin) {
-    const now = needsYou();
+    // Urgent issues and service hold-ups have their own lines here.
+    const now = needsYou().filter((x) => x.tag !== "Urgent issue" && x.tag !== "Service");
     const kinds = [...new Set(now.map((x) => (/^(Waiting|Not confirmed)/.test(x.tag) ? "Restock late" : x.tag.replace(/:.*/, ""))))];
     if (now.length) add(`${plural(now.length, "thing")} need${now.length === 1 ? "s" : ""} you tonight`, "live", kinds.map((t, i) => (i ? t.toLowerCase() : t)).join(", "), true);
     const acc = isOn("handover") && hoToAccept();
@@ -4454,7 +4455,7 @@ const overdue = (k, i) => { const x = taskOf(k, i); return x?.status === "doing"
 // Something for a manager to look at: a tag (shown as a label, never as colour alone), what it is, any reason, who and
 // when, and where it's dealt with.
 const flag = (t, tag, cls, what, note, by, go) => ({ t, tag, cls, what, note, by, go });
-const goName = (go) => (go === "stock" ? "Restock board" : go === "send" ? "Shift report" : go === "issues" ? "Issues" : go === "concerns" ? "Concerns" : go.startsWith("labels") ? "Date labels" : go.startsWith("rota") ? "Rota" : "Open the list");
+const goName = (go) => (go === "stock" ? "Restock board" : go === "status" ? "Tonight's status" : go === "guests" ? "Guest issues" : go === "out86" ? "86 board" : go === "send" ? "Shift report" : go === "issues" ? "Issues" : go === "concerns" ? "Concerns" : go.startsWith("labels") ? "Date labels" : go.startsWith("rota") ? "Rota" : "Open the list");
 const flagHtml = (x) => `<div class="staffrow"><div class="n"><span class="pill ${x.cls}">${esc(x.tag)}</span> <span class="did">${esc(x.what)}</span></div><div class="s">${x.note ? `${esc(x.note)} · ` : ""}${esc(x.by)} · <button class="linkbtn" data-go="${x.go}">${goName(x.go)}</button></div></div>`;
 const flagText = (x) => `- ${x.tag}: ${x.what}${x.note ? ` (${x.note})` : ""}. ${x.by}`;
 // Now: what's blocked, overdue or waiting too long, longest waiting first.
@@ -4477,6 +4478,10 @@ function needsYou() {
     const n = Object.keys(x.wants).length;
     xs.push(flag(roSpan(x)[0] * 6e4, x.cover ? "Can't make it" : "Open shift", "no", `${roWhen(x)} (${sideName(x.side)})`, x.cover ? `${x.whoName}: ${x.cover}` : "", n ? `${n} hand${n === 1 ? "" : "s"} up` : "No hands up yet", `rota:${x.week}`));
   }
+  // Urgent issues, guest issues waiting for a manager, and a department slammed or held up three times in an hour.
+  for (const x of openIssues().filter((i) => i.urgent)) xs.push(flag(ms(x.at), "Urgent issue", "no", x.title, x.status === "taken" && x.who ? `${x.who} is on it` : "Nobody on it yet", `${x.name}, ${at(x)}`, "issues"));
+  for (const x of isOn("guests") ? gOpen().filter((g) => g.escalate) : []) xs.push(flag(ms(x.at), "Guest needs a manager", "no", `${GKN[x.kind] || "Other"}${x.table ? `, table ${x.table}` : ""}`, x.what, `${x.name}, ${at(x)}`, "guests"));
+  for (const t of stHot()) xs.push(flag(Date.now(), "Service", "no", t, "", "Tonight's status", "status"));
   return xs.sort((a, b) => a.t - b.t);
 }
 // Tonight's exceptions, newest first: these stay listed after they're dealt with, as the night's record.
@@ -4525,7 +4530,10 @@ function renderLive() {
   const open = rsOpen().sort((a, b) => ms(a.askedAt) - ms(b.askedAt)), who = whoRows(), R = LIVE.events.filter((e) => e.kind === "restock");
   $("#live").innerHTML = `${head}<p class="note">${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}. This changes as the team taps, on every phone. Overdue means in progress for over ${TASK_LATE} minutes; a restock is late after ${RS_LATE}.</p>
     <div class="actions">${sendBtn("live", "Send tonight's summary")}</div>
-    <div class="h3">Needs you now</div>${needsYou().map(flagHtml).join("") || `<p class="note">Nothing blocked, overdue or waiting too long.</p>`}
+    <div class="st-grid">${SIDES3.map(([k, t]) => { const x = stOf(k); return `<button class="st-card lv-${x?.level || "none"}" data-go="status"><div class="mini">${t}</div><b>${x ? ST_LEVEL[x.level] : "Not set"}</b>${x?.note ? `<div class="did">${esc(x.note)}</div>` : ""}</button>`; }).join("")}</div>
+    <div class="actions"><button class="btn" data-go="status">Report a hold-up</button><button class="btn" data-go="issues">Raise an issue</button>${isOn("guests") ? `<button class="btn" data-go="guests">Guest issue</button>` : ""}</div>
+    <div class="h3">Needs you now</div>${needsYou().map(flagHtml).join("") || `<p class="note">Nothing blocked, overdue, urgent or waiting too long.</p>`}
+    <div class="h3">86 board</div>${live86()}
     <div class="h3">Opening and closing</div>${ALL_LISTS.map(procRow).join("")}
     <div class="h3">Restocking</div>${open.map(rsRow).join("") || `<p class="note">Nothing waiting to come up.</p>`}
     <p class="note">Tonight: ${R.filter((e) => e.from === "new").length} asked for, ${R.filter((e) => e.to === "delivered").length} brought up, ${R.filter((e) => e.to === "received").length} confirmed arrived.</p>
@@ -4535,12 +4543,19 @@ function renderLive() {
     <div class="h3">Latest</div>${LIVE.events.slice(0, 12).map(evRow).join("") || `<p class="note">No changes yet tonight.</p>`}
     <div class="actions"><button class="btn" data-tpane="act">All activity</button></div>`;
 }
+// What's out or low, by department, and a Confirm for anything no manager has checked yet.
+function live86() {
+  const xs = [...LIVE.outInfo.values()].sort((a, b) => (a.level === b.level ? a.itemName.localeCompare(b.itemName) : a.level === "out" ? -1 : 1));
+  return xs.map((o) => `<div class="staffrow"><div class="n">${esc(o.itemName)} <span class="pill ${o.level === "out" ? "no" : "wait"}">${o.level === "out" ? "86'd" : "Low"}</span> <span class="did">${sideName(o.side)}</span></div>
+    <div class="s">${outBy(o.itemName)} · ${o.checkedBy ? `Checked by ${esc(o.checkedBy)}` : `<button class="linkbtn" data-check86="${esc(o.itemName)}">Confirm</button>`}</div></div>`).join("") || `<p class="note">Nothing 86'd or running low.</p>`;
+}
 const lbLiveRow = (x) => `<div class="staffrow"><div class="n">${esc(x.item)} <span class="pill ${LB_DUE[labelDue(x)][1]}">${LB_DUE[labelDue(x)][0]}</span> <span class="did">${sideName(x.side)}</span></div>
   <div class="s">Use by ${dayName(x.useBy)} · ${esc(opener(x))} · <button class="linkbtn" data-go="labels:${x.side}">Date labels</button></div></div>`;
 SHARE.live = () => {
   const now = needsYou(), out = [...LIVE.out].sort(), fl = (x) => flagText(x).slice(2);
   return { what: "Tonight's summary", title: `Black Tap Soho tonight \u00b7 ${dayName(shiftDay())} \u00b7 ${hhmm(new Date())}`,
-    head: [now.length ? `\u26a0\ufe0f ${plural(now.length, "thing needs", "things need")} a manager` : "\u2705 Nothing needs a manager", `86'd: ${out.length ? out.join(", ") : "nothing"}`],
+    head: [now.length ? `\u26a0\ufe0f ${plural(now.length, "thing needs", "things need")} a manager` : "\u2705 Nothing needs a manager", `86'd: ${out.length ? out.join(", ") : "nothing"}`,
+      ...(LIVE.low.size ? [`Running low: ${[...LIVE.low].sort().join(", ")}`] : []), ...(LIVE.status.length ? [SIDES3.map(([k, t]) => `${t}: ${stOf(k) ? ST_LEVEL[stOf(k).level] : "not set"}`).join(" \u00b7 ")] : [])],
     parts: [
       { id: "needs", label: "Needs a manager", lines: now.map(fl) },
       { id: "lists", label: "Checklists", lines: ALL_LISTS.map((k) => { const p = progress(k), r = runOf(k), b = blockedTasks([k]).length; return `${LISTS[k].title}: ${RUN[r?.status || "todo"]}, ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${r ? `. ${runText(k)}` : ""}`; }) },
@@ -5285,9 +5300,9 @@ function hoAuto() {
   const tonight = LIVE.reports.filter((r) => bday(r.at) === shiftDay());
   const sides = Object.keys(MODE_LISTS).filter((s) => s !== "kitchen" || LIVE.reports.some((r) => r.side === s));
   const missing = sides.filter((s) => !tonight.some((r) => r.side === s)).map((s) => flag(0, "No report", "no", `${sideName(s)} report not sent`, "", "Nobody has sent it yet", "send"));
-  const urgent = openIssues().filter((x) => x.urgent).map((x) => flag(ms(x.at), "Urgent issue", "no", x.title, x.status === "taken" ? `${x.who} is on it` : "Nobody's on it yet", x.name, "issues"));
   const cons = openConcerns().map((x) => flag(ms(x.at), x.reason === "hazard" ? "Hazard" : "Concern", x.reason === "hazard" ? "no" : "wait", AREA[x.area] || "Other", x.note || "", x.name || "Anonymous", "concerns"));
-  return [...missing, ...needsYou(), ...exceptions(), ...urgent, ...cons];
+  // needsYou already has urgent issues, escalated guest issues and service hold-ups.
+  return [...missing, ...needsYou(), ...exceptions(), ...cons];
 }
 const hoRisk = (q, a) => q.risk && a === "no";
 // The venue's own questions as answered on this phone, with each one's text as it's asked tonight.
@@ -6438,9 +6453,9 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], nights: [renderNights, renderBrief], status: [renderStatus], blocks: [renderStatus], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota, renderAvail, renderOnboard], tests: [renderStaff, renderRota], requests: [renderRequests, renderAct],
-      asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover], audit: [renderStaff, renderAct],
-      out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief, renderTests], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], nights: [renderNights, renderBrief], status: [renderStatus, renderLive], blocks: [renderStatus, renderLive], hoq: [renderHandover], guests: [renderGuests, renderLive], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota, renderAvail, renderOnboard], tests: [renderStaff, renderRota], requests: [renderRequests, renderAct],
+      asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover, renderLive], audit: [renderStaff, renderAct],
+      out: [renderDash, renderAct, renderBrief, renderLive], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief, renderTests], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
       seen: [renderPins], photos: [], training: [renderTraining, renderAct], contacts: [renderCall], refusals: [renderRefusals], certs: [renderCerts, renderRota], avail: [renderAvail, renderRota], shouts: [renderShouts], pulse: [renderPulses], onboard: [renderOnboard], onboardList: [renderOnboard],
       concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat, renderShouts], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
@@ -6584,6 +6599,7 @@ $("#v-notices").addEventListener("click", (e) => {
   const A = LIVE.api, b = e.target.closest("button");
   if (!b) return;
   if (b.dataset.go) return go(b.dataset.go);
+  if (b.dataset.check86) return track(A.check86(b.dataset.check86), `${b.dataset.check86} checked`, "Not saved. Someone may have just changed it");
   if (b.dataset.clEg) { clF.t = b.dataset.clEg; renderCall(); return; }
   if (b.id === "cl-add") return clAdd(A);
   if (b.dataset.clDrop) { const c = LIVE.contacts[+b.dataset.clDrop]; if (c && confirm(`Remove ${c.t} (${c.p}) for everyone?`)) track(A.saveContacts(LIVE.contacts.filter((x) => x !== c)), "Removed"); return; }
