@@ -51,12 +51,14 @@ async function download(p, id) {
     return { name: a.download, lines: (await (await fetch(a.href)).text()).replace(/^\ufeff/, "").split("\r\n") };
   }, id);
 }
-// The address a WhatsApp or Email button opens, filled in as it's tapped. Opening it is stopped.
+// The box's Send button opens the Send page; its WhatsApp or Email address is filled in as it's tapped. Opening it is stopped.
 async function shared(p, box, via) {
   await p.evaluate(() => { if (!window.noOpen) { window.noOpen = true; addEventListener("click", (e) => { if (e.target.closest("a[data-share]")) e.preventDefault(); }, true); } });
-  const a = `${box} [data-share][data-via=${via}]`;
+  await p.click(`${box} [data-send]`);
+  const a = `#send [data-share][data-via=${via}]`;
   await p.click(a);
   const u = new URL(await p.getAttribute(a, "href"));
+  await p.evaluate(() => closeSheet());
   return via === "wa" ? { host: u.host, text: u.searchParams.get("text") } : { scheme: u.protocol, subject: u.searchParams.get("subject"), body: u.searchParams.get("body") };
 }
 
@@ -360,10 +362,11 @@ test("managers follow the night live, filter its history, read and download the 
   assert.match(before.lists[1], /^Closing checklist In progress Bar 1 of 21 done · 1 in progress · 1 blocked · 1 overdue · Started by Sam Staff, \d\d:\d\d$/);
   const lw = await shared(M, "#live", "wa");
   assert.equal(lw.host, "wa.me");
-  assert.match(lw.text, /^Black Tap Soho, \w{3} \d{1,2} \w{3}, at \d\d:\d\d\n/);
-  assert.match(lw.text, /\nClosing checklist: In progress, 1 of 21 done, 1 blocked\. Started by Sam Staff, \d\d:\d\d\n/);
-  assert.match(lw.text, /\nNeeds a manager:\n- Overdue: 3[5-7] min: .+ \(Closing checklist\)\. Started by Tia Staff, \d\d:\d\d\n- Blocked: .+ \(Closing checklist\) \(No hot water\)\. Sam Staff, \d\d:\d\d\n/);
-  assert.match(lw.text, /\nRestocking open: 1\n- 2 bags of Limes for the upstairs bar: Waiting\n/);
+  // Summary first, then each part with how many are in it. WhatsApp shows *this* in bold.
+  assert.match(lw.text, /^\*Black Tap Soho tonight · \w{3} \d{1,2} \w{3} · \d\d:\d\d\*\n\u26a0\ufe0f 2 things need a manager\n86'd: .+\n\n/);
+  assert.match(lw.text, /\n\*Needs a manager \(2\)\*\n• Overdue: 3[5-7] min: .+ \(Closing checklist\)\. Started by Tia Staff, \d\d:\d\d\n• Blocked: .+ \(Closing checklist\) \(No hot water\)\. Sam Staff, \d\d:\d\d\n/);
+  assert.match(lw.text, /\n• Closing checklist: In progress, 1 of 21 done, 1 blocked\. Started by Sam Staff, \d\d:\d\d\n/);
+  assert.match(lw.text, /\n\*Restocking open \(1\)\*\n• 2 bags of Limes for the upstairs bar: waiting(\n|$)/);
 
   // A reload shows the same night: it's all saved, not held on the phone.
   await M.reload(); await M.click("#w-ok");
@@ -429,15 +432,20 @@ test("managers follow the night live, filter its history, read and download the 
 
   // WhatsApp and Email carry the same text. Figures for each person stay in Bar Book and the spreadsheet.
   const kw = await shared(M, "#kpis", "wa"), km = await shared(M, "#kpis", "mail");
-  assert.deepEqual([km.scheme, km.subject], ["mailto:", "Black Tap Soho closing KPIs"]);
-  assert.equal(kw.text, km.body);
-  assert.match(km.body, /^Black Tap Soho closing KPIs, the 7 nights to .+\n\nClosing checklist: started on 2 nights and finished on 1, /);
+  assert.equal(km.scheme, "mailto:");
+  assert.match(km.subject, /^Black Tap Soho closing KPIs · the 7 nights to \w{3} \d{1,2} \w{3}$/);
+  assert.equal(kw.text.replace(/\*/g, ""), km.body, "the same words, without WhatsApp's bold marks");
+  assert.match(km.body, /^Black Tap Soho closing KPIs · the 7 nights to .+\nClosing checklist: started on 2 nights and finished on 1, /);
+  assert.match(km.body, /\n\nNight by night \(\d+\)\n• /);
   assert.doesNotMatch(km.body, /Mia Manager|Sam Staff|Tia Staff/);
   await shift(S, "send");
   const sm = await shared(S, "#tally", "mail");
-  assert.match(sm.subject, /^Black Tap Soho bar shift, /);
-  assert.match(sm.body, /\nClosing checklist: 1 of 21 done\nStarted by Sam Staff, \d\d:\d\d\nNot done:\n/);
-  assert.match(sm.body, new RegExp(`\\nBlocked:\\n- ${rx(L[3])} \\(No hot water\\)\\n`));
+  assert.match(sm.subject, /^Black Tap Soho · Bar shift · \w{3} \d{1,2} \w{3}$/);
+  assert.match(sm.body, /\n\u26a0\ufe0f Closing checklist: 1 of 21 done, 1 blocked\n86'd: .+\n/);
+  // The opening list wasn't started, so its items stay out unless ticked.
+  assert.match(sm.body, /\n\nClosing checklist: not done \(\d+\)\n• /);
+  assert.doesNotMatch(sm.body, /Opening checklist: not done/);
+  assert.match(sm.body, new RegExp(`\\nBlocked \\(1\\)\\n• ${rx(L[3])}: No hot water · Closing\\n`));
 
   // Light and dark, on a phone and on a desktop: nothing runs off the side.
   for (const scheme of ["light", "dark"]) for (const width of [390, 1280]) {

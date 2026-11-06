@@ -210,7 +210,7 @@ test("my hours: several shifts at once, a month at a time, with a student loan a
   await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
   assert.match(await txt("#pay-sum"), /^3 Shifts 16\.5 Hours £1,773\.50 Take-home/);
   assert.equal(await p.$eval('[data-pay-loan="5"]', (b) => b.getAttribute("aria-pressed")), "true");
-  assert.deepEqual(await p.evaluate(() => SHARE.hours()), ["My hours for November", "My hours for November\nTue 3 Nov 17:00–23:00, 30 min break: 5.5 h\nTue 10 Nov 17:00–23:00, 30 min break: 5.5 h\nThu 12 Nov 17:00–23:00, 30 min break: 5.5 h\nIn all: 16.5 h from 3 shifts"]);
+  assert.equal(await p.evaluate(() => shareText("hours", false)), "My hours for November\nIn all: 16.5 h from 3 shifts\n\nShifts (3)\n• Tue 3 Nov 17:00–23:00, 30 min break: 5.5 h\n• Tue 10 Nov 17:00–23:00, 30 min break: 5.5 h\n• Thu 12 Nov 17:00–23:00, 30 min break: 5.5 h");
   await p.setViewportSize({ width: 320, height: 700 });
   await p.click("[data-hf-open]");
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 320, "nothing wider than a small phone");
