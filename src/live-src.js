@@ -39,7 +39,17 @@ const unsubAll = () => { Object.keys(subs).forEach(unsub); if (stop) { stop(); s
 // A listen the rules refuse (account not confirmed by the server yet) is dropped and retried on the next staff snapshot.
 function sub(k, ref, fn, failed) {
   if (subs[k]) return;
-  subs[k] = onSnapshot(ref, (snap) => { LIVE.loaded.add(k); fn(snap); }, () => { delete subs[k]; failed?.(); });
+  let first = true;
+  subs[k] = onSnapshot(ref, (snap) => { if (!snap.metadata.fromCache) { tally(k, snap, first); first = false; } LIVE.loaded.add(k); fn(snap); }, () => { delete subs[k]; failed?.(); });
+}
+// Documents this phone has read from the server since it opened, as Firebase bills them on the free plan's 50,000 a
+// day: everything in a listener's first answer from the server, then each document that changes. A listener that was
+// off for over 30 minutes is billed in full again, which a phone coming back to the app counts as a first answer too.
+// Reads for downloads and older history (getDocs) aren't counted here.
+const READS = { n: 0, by: {} };
+function tally(k, snap, first) {
+  const n = !snap.docs ? 1 : first ? Math.max(snap.size, 1) : snap.docChanges().length;
+  READS.n += n; READS.by[k] = (READS.by[k] || 0) + n;
 }
 // Something just written on this phone has no server time yet, so its "at" is null and it sorts as newest. (Firestore's
 // own estimate is rounded down to the second, which can put it below something written a moment earlier.)
@@ -64,7 +74,9 @@ function listen(uid) {
   unsubAll();
   // Removal or a role change by a manager takes effect straight away.
   let seen = false;
+  let firstMe = true;
   stop = onSnapshot(doc(db, "staff", uid), { includeMetadataChanges: true }, (d) => {
+    if (!d.metadata.fromCache && firstMe) { tally("me", d, true); firstMe = false; }
     // Only a record this phone has seen going away logs it out (removal, or a PIN reset). A record that isn't there yet
     // means a first launch with no signal, or first-time setup still saving, perhaps in another tab: wait for it.
     if (!d.exists()) { if (seen && !d.metadata.fromCache) leave(); return; }
@@ -397,6 +409,7 @@ function audit(b, id, action, person, actor = { uid: auth.currentUser.uid, name:
 const staffRecord = (p) => ({ name: p.name, username: p.username, role: p.role });
 
 LIVE.api = {
+  reads: () => ({ n: READS.n, by: { ...READS.by } }),
   async login(username, pin) {
     const u = await getDoc(doc(db, "usernames", username));
     if (!u.exists()) err("Wrong username or PIN");
