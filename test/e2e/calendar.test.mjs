@@ -235,20 +235,22 @@ test("the owner can switch the calendar off, and with the rota off the calendar 
   await O.evaluate(() => LIVE.api.setOff(["rota"]));
   for (const p of [M, S]) await switched(p, ["rota"]);
   const top = ["brief:Tonight's briefing", "status:Tonight's status", "issues:Issues and handover", "guests:Guest issues"], rest = ["me:My requests", "chat:Chat", "send:WhatsApp and email", "board:Broadcasts", "concerns:Concerns", "reports:Reports"];
-  assert.deepEqual(await teamTabs(S), [...top, "rota:Calendar", ...rest, "activity:Activity"]);
+  // Safety and the law comes last for everyone; managers keep everyone's certificates, staff see their own.
+  const lawS = ["call:Who to call", "refusals:Refusals", "certs:My certificates"], lawM = ["call:Who to call", "refusals:Refusals", "certs:Certificates"];
+  assert.deepEqual(await teamTabs(S), [...top, "rota:Calendar", ...rest, "activity:Activity", ...lawS]);
   await part(S, "rota");
   assert.ok(await S.evaluate(() => !$("#cal").hidden && $("#rota").hidden));
   assert.deepEqual(await S.$$eval("#cal [data-roview]", (x) => x.map((b) => b.textContent)), ["Next 7 days", "Month"], "no Shifts without the rota");
   assert.match(await text(S, "#cal"), /^Next 7 days Month NEXT 7 DAYS .* TODAY /, "the next 7 days first");
   await S.click('[data-roview="cal"]');
   assert.doesNotMatch(await text(S, "#cal .calkey"), /You're on/, "no shifts in the key");
-  assert.deepEqual(await teamTabs(M), [...top, "rota:Calendar", ...rest]);
+  assert.deepEqual(await teamTabs(M), [...top, "rota:Calendar", ...rest, ...lawM]);
 
   // Calendar off too: its card goes, and managers keep Requests.
   await O.evaluate(() => LIVE.api.setOff(["rota", "calendar"]));
   for (const p of [M, S]) await switched(p, ["rota", "calendar"]);
-  assert.deepEqual(await teamTabs(S), [...top, ...rest, "activity:Activity"]);
-  assert.deepEqual(await teamTabs(M), [...top, ...rest]);
+  assert.deepEqual(await teamTabs(S), [...top, ...rest, "activity:Activity", ...lawS]);
+  assert.deepEqual(await teamTabs(M), [...top, ...rest, ...lawM]);
   assert.equal(await M.locator('#hub [data-tpane="requests"]').count(), 1);
   await part(S, "me"); await S.click('[data-mek="off"]');
   assert.equal(await S.locator('#me [data-go="cal"]').count(), 0);
