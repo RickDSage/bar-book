@@ -624,8 +624,8 @@ service cloud.firestore {
     match /settings/{id} {
       allow read: if isMember();
       allow create, update: if isOwner() && stamped() && ((id == 'features' && exactly(['off', 'uid', 'name', 'at'])
-          && incoming().off is list && incoming().off.size() <= 17
-          && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover', 'briefing', 'guests', 'refusals', 'certs']))
+          && incoming().off is list && incoming().off.size() <= 20
+          && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover', 'briefing', 'guests', 'refusals', 'certs', 'shouts', 'pulse', 'onboard']))
         // How much (in pence) staff and managers may give a guest without asking someone above them.
         || (id == 'comp' && exactly(['staff', 'manager', 'uid', 'name', 'at']) && optInt(incoming().staff, 100000) && optInt(incoming().manager, 100000)));
       // The venue's own closing questions, added to the manager close: up to 10, each {id, t (text), crit}. Managers keep them.
@@ -635,6 +635,9 @@ service cloud.firestore {
       // {t (what for), n (who), p (number)}. Managers keep them; everyone on the team reads them.
       allow create, update: if isManager() && stamped() && id == 'contacts' && exactly(['list', 'uid', 'name', 'at'])
         && incoming().list is list && incoming().list.size() <= 20;
+      // New starters: the venue's own checklist for someone's first weeks, up to 30 things. Managers keep it.
+      allow create, update: if isManager() && stamped() && id == 'onboard' && exactly(['list', 'uid', 'name', 'at'])
+        && incoming().list is list && incoming().list.size() > 0 && incoming().list.size() <= 30;
     }
 
     // ---------- Manager close and handover ----------
@@ -929,6 +932,56 @@ service cloud.firestore {
     match /certs/{id} {
       allow read: if isManager() || (isMember() && resource.data.who == request.auth.uid);
       allow create, update: if isManager() && validCert();
+      allow delete: if isManager();
+    }
+
+    // ---------- Availability ----------
+    // When each person can work, one record each, id = their uid: a day for each weekday from Monday, each "" (any
+    // time), "no" or "HH:MM-HH:MM" (only between those times), and a note. Only the person writes theirs; managers read
+    // everyone's for the rota.
+    function avDay(v) { return v is string && v.matches('(no|([01][0-9]|2[0-3]):[0-5][0-9]-([01][0-9]|2[0-3]):[0-5][0-9])?'); }
+    match /avail/{uid} {
+      allow get: if isMember() && (isManager() || uid == request.auth.uid);
+      allow list: if isManager();
+      allow create, update: if isMember() && uid == request.auth.uid && exactly(['days', 'note', 'uid', 'name', 'at']) && stamped()
+        && incoming().days is list && incoming().days.size() == 7
+        && avDay(incoming().days[0]) && avDay(incoming().days[1]) && avDay(incoming().days[2]) && avDay(incoming().days[3])
+        && avDay(incoming().days[4]) && avDay(incoming().days[5]) && avDay(incoming().days[6])
+        && optText(incoming().note, 120);
+    }
+
+    // ---------- Shout-outs ----------
+    // Anyone on the team thanks someone else on it, saying what they did. Everyone reads them. Nobody changes one; whoever
+    // wrote it or a manager takes it down.
+    match /shouts/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && exactly(['to', 'toName', 'text', 'uid', 'name', 'at']) && stamped()
+        && incoming().to is string && incoming().to != request.auth.uid && get(staffDoc(incoming().to)).data.name == incoming().toName
+        && reqText(incoming().text, 200);
+      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
+    }
+
+    // ---------- How was your shift ----------
+    // One answer per person per business night, id = {day}-{uid}: a score from 1 (rough) to 5 (great) and a few words.
+    // They can change it that night. Managers read everyone's; each person their own. Only Start fresh deletes them.
+    match /pulse/{id} {
+      allow get: if isMember() && (isManager() || id.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}-' + request.auth.uid));
+      allow list: if isManager();
+      allow create, update: if isMember() && exactly(['day', 'score', 'note', 'uid', 'name', 'at']) && stamped()
+        && id == incoming().day + '-' + request.auth.uid && nearNow(incoming().day)
+        && incoming().score is int && incoming().score >= 1 && incoming().score <= 5 && optText(incoming().note, 200);
+      allow delete: if freshOwner();
+    }
+
+    // ---------- New starters ----------
+    // Each new person's checklist, id = their uid: their first day, and what's done ({the thing: {day, by}}), ticked by
+    // managers, who read everyone's. The new person reads their own.
+    match /onboard/{who} {
+      allow get: if isMember() && (isManager() || who == request.auth.uid);
+      allow list: if isManager();
+      allow create, update: if isManager() && exactly(['who', 'whoName', 'start', 'done', 'uid', 'name', 'at']) && stamped()
+        && incoming().who == who && get(staffDoc(who)).data.name == incoming().whoName
+        && isDay(incoming().start) && incoming().done is map && incoming().done.size() <= 40;
       allow delete: if isManager();
     }
 

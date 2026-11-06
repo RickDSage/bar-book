@@ -81,7 +81,8 @@ test("the Send page reads in the phone's language, and the message goes in Engli
 // The quick messages, written from the rota. The rota is put straight on the phone: these only read it.
 async function onRota(p, admin = false) {
   await p.evaluate((admin) => {
-    Object.assign(LIVE, { me: "Sam Staff", uid: "u1", admin, staff: [{ uid: "u1", name: "Sam Staff" }, { uid: "u2", name: "Tia Staff" }] }); LIVE.loaded.add("shifts");
+    const team = [{ uid: "u1", name: "Sam Staff" }, { uid: "u2", name: "Tia Staff" }];
+    Object.assign(LIVE, { me: "Sam Staff", uid: "u1", admin, staff: team, directory: team }); LIVE.loaded.add("shifts");
     const s = (id, day, start, end, side, who, whoName, x = {}) => ({ id, pub: true, day, week: weekOf(day), start, end, side, who, whoName, wants: {}, ...x });
     LIVE.shifts = [s("a", "2026-11-20", "18:00", "02:00", "bar", "u1", "Sam Staff"), s("b", "2026-11-22", "12:00", "20:00", "floor", "u1", "Sam Staff"),
       s("c", "2026-11-21", "18:00", "02:00", "bar", "u2", "Tia Staff"), s("d", "2026-11-21", "18:00", "23:00", "bar", "", ""),

@@ -12,7 +12,7 @@ import {
 import {
   initializeFirestore, persistentLocalCache, connectFirestoreEmulator, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc,
   collection, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
-  terminate, clearIndexedDbPersistence, arrayRemove, getCountFromServer, getDocsFromServer,
+  terminate, clearIndexedDbPersistence, arrayRemove, getCountFromServer, getDocsFromServer, FieldPath, deleteField,
 } from "firebase/firestore";
 
 const app = initializeApp(__CONFIG__);
@@ -48,6 +48,8 @@ function sub(k, ref, fn, failed) {
 // record's own fields so that a field called id can't take its place.
 const plain = (x) => /^[A-Za-z0-9-]+$/.test(x.id);
 const rows = (snap) => snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id, pending: x.metadata.hasPendingWrites })).sort((a, b) => ms(b.at) - ms(a.at));
+// A query's records, or one record's as a list of it or of nothing.
+const listOf = (x) => (x.docs ? rows(x) : x.exists() && plain(x) ? [{ ...x.data(), id: x.id, pending: x.metadata.hasPendingWrites }] : []);
 const me = () => ({ uid: auth.currentUser.uid, name: LIVE.me, at: serverTimestamp() });
 const SHIFT_KEYS = ["week", "day", "start", "end", "side", "note", "who", "whoName", "offer", "offerName", "cover", "wants", "pub"];
 // A published shift's event: what was done, the shift after it (or as it was, when it's removed), and its day, times,
@@ -115,6 +117,14 @@ function listen(uid) {
     sub("refusals", query(collection(db, "refusals"), where("day", ">=", ukDay(Date.now() - 100 * 864e5)), limit(1000)), (snap) => { LIVE.refusals = rows(snap); liveChanged("refusals"); });
     // Certificates: managers keep everyone's, staff see their own.
     sub("certs", LIVE.admin ? query(collection(db, "certs"), limit(1000)) : query(collection(db, "certs"), where("who", "==", uid)), (snap) => { LIVE.certs = rows(snap); liveChanged("certs"); });
+    // Availability: managers read everyone's for the rota, staff their own.
+    sub("avail", LIVE.admin ? collection(db, "avail") : doc(db, "avail", uid), (x) => { LIVE.avail = listOf(x); liveChanged("avail"); });
+    // Shout-outs: the latest 50.
+    sub("shouts", query(collection(db, "shouts"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.shouts = rows(snap); liveChanged("shouts"); });
+    // New starters: the venue's checklist (none saved means the standard one), and each new person's ticks: managers
+    // read everyone's, staff their own.
+    sub("onboardList", doc(db, "settings", "onboard"), (d) => { LIVE.onboardList = d.exists() ? d.data().list : null; liveChanged("onboardList"); });
+    sub("onboard", LIVE.admin ? collection(db, "onboard") : doc(db, "onboard", uid), (x) => { LIVE.onboard = listOf(x); liveChanged("onboard"); });
     // The latest time the owner started fresh. Each phone drops its copies of what went.
     sub("resets", query(collection(db, "resets"), orderBy("at", "desc"), limit(1)), (snap) => { LIVE.reset = rows(snap)[0] || null; liveChanged("resets"); });
     // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
@@ -291,7 +301,7 @@ async function clearOldPhotos() {
 // before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
 // with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
 const FRESH = ["shifts", "asks", "reports", "handovers", "nights", "status", "blocks", "briefReads", "briefings", "guests", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
-  "notices", "seen", "feed", "requests", "teststaff"];
+  "notices", "seen", "feed", "requests", "teststaff", "shouts", "pulse"];
 const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
 // A date label's events stay with the label.
 const freshQuery = (d, k) => (k === "events" ? query(collection(d, k), where("kind", "in", ["task", "run", "restock", "shift"])) : collection(d, k));
@@ -355,7 +365,10 @@ function watchDays() {
   subDay("status", () => query(collection(db, "status"), where("day", "==", shiftDay())), (snap) => { LIVE.status = rows(snap); liveChanged("status"); });
   subDay("briefing", () => doc(db, "briefings", shiftDay()), (d) => { LIVE.briefing = d.exists() ? { ...d.data({ serverTimestamps: "estimate" }), id: d.id, pending: d.metadata.hasPendingWrites } : null; liveChanged("briefing"); });
   subDay("briefReads", () => (LIVE.admin ? query(collection(db, "briefReads"), where("day", "==", shiftDay())) : doc(db, "briefReads", `${shiftDay()}-${auth.currentUser.uid}`)),
-    (x) => { LIVE.briefReads = x.docs ? rows(x) : x.exists() ? [{ ...x.data(), id: x.id }] : []; liveChanged("briefReads"); });
+    (x) => { LIVE.briefReads = listOf(x); liveChanged("briefReads"); });
+  // How was your shift: managers read the last 14 nights, everyone else their own answer tonight.
+  subDay("pulse", () => (LIVE.admin ? query(collection(db, "pulse"), where("day", ">=", addDays(shiftDay(), -14))) : doc(db, "pulse", `${shiftDay()}-${auth.currentUser.uid}`)),
+    (x) => { LIVE.pulse = listOf(x); liveChanged("pulse"); });
 }
 // The rota. Managers get every shift from four weeks back, drafts included. Everyone else gets the published shifts
 // from last week to the week after next, a week at a time: a query the rules can check, with no index to set up.
@@ -655,6 +668,16 @@ LIVE.api = {
   // c: { who, whoName, kind, label, done, ends, note }. A new one when id is empty.
   saveCert: (id, c) => (id ? setDoc(doc(db, "certs", id), { ...c, ...me() }) : addDoc(collection(db, "certs"), { ...c, ...me() })),
   dropCert: (id) => deleteDoc(doc(db, "certs", id)),
+  saveAvail: (days, note) => setDoc(doc(db, "avail", auth.currentUser.uid), { days, note, ...me() }),
+  shout: (p, text) => addDoc(collection(db, "shouts"), { to: p.uid, toName: p.name, text, ...me() }),
+  dropShout: (id) => deleteDoc(doc(db, "shouts", id)),
+  pulse: (score, note) => setDoc(doc(db, "pulse", `${shiftDay()}-${auth.currentUser.uid}`), { day: shiftDay(), score, note, ...me() }),
+  saveOnboardList: (list) => setDoc(doc(db, "settings", "onboard"), { list, ...me() }),
+  startOnboard: (p, start) => setDoc(doc(db, "onboard", p.uid), { who: p.uid, whoName: p.name, start, done: {}, ...me() }),
+  // One tick on its own, so two managers ticking at once don't undo each other's.
+  tickOnboard: (who, item, on) => updateDoc(doc(db, "onboard", who), new FieldPath("done", item), on ? { day: shiftDay(), by: LIVE.me } : deleteField(),
+    "uid", auth.currentUser.uid, "name", LIVE.me, "at", serverTimestamp()),
+  dropOnboard: (who) => deleteDoc(doc(db, "onboard", who)),
   acceptHandover: (day, note) => updateDoc(doc(db, "handovers", day), { ackBy: LIVE.me, ackByUid: auth.currentUser.uid, ackAt: serverTimestamp(), ackNote: note }),
   raise: (x) => addDoc(collection(db, "issues"), { title: x.title, detail: x.detail, area: x.area, urgent: x.urgent, again: x.again || null, status: "open", ...me() }),
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),
@@ -727,7 +750,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null, contacts: [], refusals: [], certs: [] });
+  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], onboard: [], onboardList: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; listen(u.uid); return; }

@@ -466,6 +466,18 @@ a.btn { text-decoration: none; color: inherit; }
 .c25 { margin-top: 10px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .c25 p { margin: 6px 0 0; }
 .c25 p:first-of-type { margin-top: 0; }
+/* How was your shift: one tap at the end of a shift, then a few words if they like. */
+.pucard { margin-top: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; }
+.pu { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.pu button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 66px; padding: 8px 2px; border: 1px solid var(--line); border-radius: 10px; color: var(--fg); font-size: 12px; line-height: 1.2; }
+.pu button span { font-size: 26px; line-height: 1; }
+.pu button[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); font-weight: 700; }
+/* Availability: a row for each day of the week. */
+.avrow { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+/* New starters: each thing to show them, ticked off by a manager with the day and who. */
+.obi { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; font-size: 16px; }
+.obi small { display: block; font-size: 13px; color: var(--muted); }
+.obi.done > span:first-child { color: var(--ok); font-weight: 700; }
 .places { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 10px; }
 .place { display: flex; align-items: flex-start; gap: 6px; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px 10px 12px; min-height: 76px; color: var(--fg); }
 .place.hot { border-color: var(--warn); }
@@ -551,6 +563,7 @@ a.btn { text-decoration: none; color: inherit; }
 .rg-c.on { border-color: var(--fg); }
 .rg-c.draft { border-style: dashed; }
 .rg-c.clash { border-color: var(--warn); }
+.rg-c.cant i { color: var(--warn); }
 .rg-c span, .rgkey span { border-top: 3px solid var(--brass); padding-top: 1px; }
 .rg-c b { display: block; white-space: nowrap; }
 .rg-c b + b { color: var(--muted); }
@@ -732,7 +745,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <div id="hubtop"><h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p></div>
-    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="status"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="nights"></div><div id="act"></div><div id="kpis"></div><div id="money"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div><div id="sendhub"></div><div id="call"></div><div id="refusals"></div><div id="certs"></div>
+    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="pulse"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="status"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="nights"></div><div id="act"></div><div id="kpis"></div><div id="money"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div><div id="sendhub"></div><div id="call"></div><div id="refusals"></div><div id="certs"></div><div id="avail"></div><div id="shouts"></div><div id="pulses"></div><div id="onboard"></div><div id="myob"></div>
   </section>
   <section class="view info" id="v-pay" hidden></section>
   <section class="view info" id="v-info" hidden></section>
@@ -867,7 +880,8 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = fal
    nothing itself: WhatsApp and Email open the person's own app with the words written in, and they pick who it goes
    to. Messages are in English, the venue's working language, whatever language the phone shows. */
 const SHARE = {};
-const sendBtn = (k, label, o) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}>${label}</button>`;
+// A note given here starts the Send page's note, for the person to change.
+const sendBtn = (k, label, o, note) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}${note ? ` data-send-note="${esc(note)}"` : ""}>${label}</button>`;
 // A line starting with a space belongs to the item above it.
 const partItems = (p) => p.lines.filter((l) => !/^\s/.test(l)).length;
 const subLine = (t) => `   ◦ ${t}`;
@@ -887,10 +901,10 @@ const shareText = (k, wa = true, o) => { const m = SHARE[k](o); return m ? msgTe
 let snd = null;
 // A builder can offer one choice (how late, which shift, who): SHARE[k](value) builds the message for it.
 const sndMsg = () => snd && SHARE[snd.k](snd.opt);
-function openSend(k, o) {
+function openSend(k, o, note = "") {
   const m = SHARE[k](o); if (!m) return toast("Nothing to send yet");
   lastFocus = document.activeElement;
-  snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note: "", photos: [], files: null, withPhotos: true };
+  snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, withPhotos: true };
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Send</span><span></span></div></div><div id="send"></div>`;
   renderSend(m); showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus();
   if (m.photos) m.photos().then(async (ps) => {
@@ -928,7 +942,7 @@ function printMsg(text, photos) {
   window.print();
 }
 document.addEventListener("click", (e) => {
-  const o = e.target.closest("[data-send]"); if (o) { haptic(); openSend(o.dataset.send, o.dataset.sendO); return; }
+  const o = e.target.closest("[data-send]"); if (o) { haptic(); openSend(o.dataset.send, o.dataset.sendO, o.dataset.sendNote); return; }
   if (!snd || !e.target.closest("#send")) return;
   const op = e.target.closest("[data-send-opt]");
   if (op) { snd.opt = op.dataset.sendOpt; const m = sndMsg(); if (m) { snd.pick = pickOf(m); renderSend(m); } return; }
@@ -989,7 +1003,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], status: [], blocks: [], blockHist: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, contacts: [], refusals: [], certs: [], off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], status: [], blocks: [], blockHist: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], onboard: [], onboardList: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -2137,7 +2151,7 @@ function renderTally() {
       <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${m === closer}">${esc(m)}</button>`).join("") || `<span class="note">No managers on the team yet.</span>`}</div></div>
       <label class="fld">Note for handover<textarea id="s-note" rows="3" maxlength="1000" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
       <button class="btn pri wide" id="t-copy">${left ? `Send with ${left} not done` : "Send to managers for sign-off"}</button>
-      <div class="actions">${sendBtn("shift", "Send everything on WhatsApp or email")}</div>
+      <div class="actions">${sendBtn("shift", "Send everything on WhatsApp or email")}</div>${puHtml()}
       <details class="setup"><summary>Preview the report</summary><textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea></details>
       <p class="note">The note and closing manager start empty again at 6am.</p>`;
     },
@@ -3311,7 +3325,73 @@ const I18N = {
 "Each refusal": ["كل حالة رفض", "Յուրաքանչյուր մերժում", "প্রতিটি প্রত্যাখ্যান", "Всеки отказ", "每一次拒售", "Chaque refus", "દરેક ઇનકાર", "हर इनकार", "Ogni vendita rifiutata", "Kiekvienas atsisakymas", "हरेक अस्वीकार", "Każda odmowa", "Cada recusa", "ਹਰ ਇਨਕਾਰ", "Fiecare refuz", "Cada venta denegada", "ஒவ்வொரு மறுப்பும்", "Her ret", "Кожна відмова", "ہر انکار", "Từng lần từ chối", "Pob gwrthodiad"],
 "Due": ["المستحقة", "Ժամկետը մոտ է", "মেয়াদ শেষের পথে", "Изтичащи", "即将到期", "À renouveler", "પૂરા થવાના", "खत्म होने वाले", "In scadenza", "Baigiasi", "म्याद सकिन लागेका", "Do odnowienia", "A expirar", "ਖਤਮ ਹੋਣ ਵਾਲੇ", "Expiră curând", "Por caducar", "காலாவதியாகவுள்ளவை", "Süresi dolanlar", "Спливають", "ختم ہونے والے", "Sắp hết hạn", "Yn ddyledus"],
 "Everyone's": ["للجميع", "Բոլորինը", "সবারগুলো", "На всички", "所有人的", "Ceux de tout le monde", "બધાના", "सबके", "Quelli di tutti", "Visų", "सबैका", "Wszystkich", "Os de todos", "ਸਾਰਿਆਂ ਦੇ", "Ale tuturor", "Los de todos", "அனைவருடையவை", "Herkesinkiler", "Усіх", "سب کے", "Của mọi người", "Rhai pawb"],
-"Right to work dates aren't included: they stay in Bar Book.": ["تواريخ الحق في العمل غير مضمّنة: تبقى في Bar Book.", "Աշխատելու իրավունքի ամսաթվերը ներառված չեն՝ դրանք մնում են Bar Book-ում։", "কাজের অধিকারের তারিখ এতে নেই: সেগুলো Bar Book-এই থাকে।", "Датите за право на работа не са включени: те остават в Bar Book.", "不含工作许可日期：这些只保存在 Bar Book 里。", "Les dates d'autorisation de travail ne sont pas incluses : elles restent dans Bar Book.", "કામ કરવાના અધિકારની તારીખો સામેલ નથી: તે Bar Book માં જ રહે છે.", "काम के अधिकार की तारीखें शामिल नहीं हैं: वे Bar Book में ही रहती हैं।", "Le date dei permessi di lavoro non sono incluse: restano in Bar Book.", "Teisės dirbti datos neįtrauktos: jos lieka Bar Book.", "काम गर्ने अधिकारका मितिहरू समावेश छैनन्: ती Bar Book मै रहन्छन्।", "Daty prawa do pracy nie są dołączone: zostają w Bar Book.", "As datas de autorização de trabalho não vão incluídas: ficam no Bar Book.", "ਕੰਮ ਕਰਨ ਦੇ ਹੱਕ ਦੀਆਂ ਤਾਰੀਖ਼ਾਂ ਸ਼ਾਮਲ ਨਹੀਂ: ਉਹ Bar Book ਵਿੱਚ ਹੀ ਰਹਿੰਦੀਆਂ ਹਨ।", "Datele privind dreptul de a lucra nu sunt incluse: rămân în Bar Book.", "Las fechas de permisos de trabajo no se incluyen: se quedan en Bar Book.", "வேலை செய்யும் உரிமைத் தேதிகள் சேர்க்கப்படவில்லை: அவை Bar Book-இலேயே இருக்கும்.", "Çalışma izni tarihleri dahil değil: Bar Book'ta kalır.", "Дати права на роботу не включено: вони залишаються в Bar Book.", "کام کے حق کی تاریخیں شامل نہیں: وہ Bar Book میں ہی رہتی ہیں۔", "Không kèm ngày quyền làm việc: chúng chỉ lưu trong Bar Book.", "Dydy dyddiadau hawl i weithio ddim wedi'u cynnwys: maen nhw'n aros yn Bar Book."]
+"Right to work dates aren't included: they stay in Bar Book.": ["تواريخ الحق في العمل غير مضمّنة: تبقى في Bar Book.", "Աշխատելու իրավունքի ամսաթվերը ներառված չեն՝ դրանք մնում են Bar Book-ում։", "কাজের অধিকারের তারিখ এতে নেই: সেগুলো Bar Book-এই থাকে।", "Датите за право на работа не са включени: те остават в Bar Book.", "不含工作许可日期：这些只保存在 Bar Book 里。", "Les dates d'autorisation de travail ne sont pas incluses : elles restent dans Bar Book.", "કામ કરવાના અધિકારની તારીખો સામેલ નથી: તે Bar Book માં જ રહે છે.", "काम के अधिकार की तारीखें शामिल नहीं हैं: वे Bar Book में ही रहती हैं।", "Le date dei permessi di lavoro non sono incluse: restano in Bar Book.", "Teisės dirbti datos neįtrauktos: jos lieka Bar Book.", "काम गर्ने अधिकारका मितिहरू समावेश छैनन्: ती Bar Book मै रहन्छन्।", "Daty prawa do pracy nie są dołączone: zostają w Bar Book.", "As datas de autorização de trabalho não vão incluídas: ficam no Bar Book.", "ਕੰਮ ਕਰਨ ਦੇ ਹੱਕ ਦੀਆਂ ਤਾਰੀਖ਼ਾਂ ਸ਼ਾਮਲ ਨਹੀਂ: ਉਹ Bar Book ਵਿੱਚ ਹੀ ਰਹਿੰਦੀਆਂ ਹਨ।", "Datele privind dreptul de a lucra nu sunt incluse: rămân în Bar Book.", "Las fechas de permisos de trabajo no se incluyen: se quedan en Bar Book.", "வேலை செய்யும் உரிமைத் தேதிகள் சேர்க்கப்படவில்லை: அவை Bar Book-இலேயே இருக்கும்.", "Çalışma izni tarihleri dahil değil: Bar Book'ta kalır.", "Дати права на роботу не включено: вони залишаються в Bar Book.", "کام کے حق کی تاریخیں شامل نہیں: وہ Bar Book میں ہی رہتی ہیں۔", "Không kèm ngày quyền làm việc: chúng chỉ lưu trong Bar Book.", "Dydy dyddiadau hawl i weithio ddim wedi'u cynnwys: maen nhw'n aros yn Bar Book."],
+"My availability": ["أوقات عملي المتاحة", "Իմ ազատ ժամերը", "আমার সুবিধামতো সময়", "Кога съм на разположение", "我的可上班时间", "Mes disponibilités", "મારી ઉપલબ્ધતા", "मेरी उपलब्धता", "Le mie disponibilità", "Mano galimas darbo laikas", "मेरो उपलब्धता", "Moja dyspozycyjność", "A minha disponibilidade", "ਮੇਰੀ ਉਪਲਬਧਤਾ", "Disponibilitatea mea", "Mi disponibilidad", "என் கிடைக்கும் நேரம்", "Müsaitliğim", "Коли я можу працювати", "کام کے لیے میرا وقت", "Thời gian tôi có thể làm", "Pryd dw i ar gael"],
+"When you can work each week, for the rota": ["متى يمكنك العمل كل أسبوع، لجدول المناوبات", "Երբ կարող ես աշխատել ամեն շաբաթ, գրաֆիկի համար", "প্রতি সপ্তাহে আপনি কখন কাজ করতে পারেন, রোটার জন্য", "Кога можеш да работиш всяка седмица, за графика", "你每周什么时候能上班，用于排班", "Quand vous pouvez travailler chaque semaine, pour le planning", "દર અઠવાડિયે તમે ક્યારે કામ કરી શકો, રોટા માટે", "हर हफ़्ते आप कब काम कर सकते हैं, रोटा के लिए", "Quando puoi lavorare ogni settimana, per i turni", "Kada galite dirbti kiekvieną savaitę, grafikui", "हरेक हप्ता तपाईं कहिले काम गर्न सक्नुहुन्छ, रोटाका लागि", "Kiedy możesz pracować w każdym tygodniu, do grafiku", "Quando pode trabalhar cada semana, para a escala", "ਹਰ ਹਫ਼ਤੇ ਤੁਸੀਂ ਕਦੋਂ ਕੰਮ ਕਰ ਸਕਦੇ ਹੋ, ਰੋਟਾ ਲਈ", "Când poți lucra în fiecare săptămână, pentru program", "Cuándo puedes trabajar cada semana, para los turnos", "ஒவ்வொரு வாரமும் நீங்கள் எப்போது வேலை செய்யலாம், ரோட்டாவுக்காக", "Her hafta ne zaman çalışabileceğin, vardiya planı için", "Коли ви можете працювати щотижня, для графіка", "ہر ہفتے آپ کب کام کر سکتے ہیں، روٹا کے لیے", "Mỗi tuần bạn có thể làm khi nào, để xếp lịch", "Pryd gallwch chi weithio bob wythnos, ar gyfer y rota"],
+"Saved. Change it when your week changes": ["تم الحفظ. غيّره عندما يتغير أسبوعك", "Պահպանված է։ Փոխիր, երբ շաբաթդ փոխվի", "সেভ হয়েছে। আপনার সপ্তাহ বদলালে এটা বদলে দিন", "Запазено. Промени го, когато седмицата ти се промени", "已保存。你的安排有变时再修改", "Enregistré. Modifiez-le quand votre semaine change", "સાચવ્યું. તમારું અઠવાડિયું બદલાય ત્યારે તેને બદલો", "सेव हो गया। आपका हफ़्ता बदले तो इसे बदल दें", "Salvato. Cambialo quando cambia la tua settimana", "Išsaugota. Pakeiskite, kai pasikeis jūsų savaitė", "सेभ भयो। तपाईंको हप्ता बदलिँदा यसलाई बदल्नुहोस्", "Zapisano. Zmień, gdy zmieni się twój tydzień", "Guardado. Altere quando a sua semana mudar", "ਸੇਵ ਹੋ ਗਿਆ। ਤੁਹਾਡਾ ਹਫ਼ਤਾ ਬਦਲੇ ਤਾਂ ਇਸਨੂੰ ਬਦਲ ਦਿਓ", "Salvat. Schimbă-l când ți se schimbă săptămâna", "Guardado. Cámbialo cuando cambie tu semana", "சேமிக்கப்பட்டது. உங்கள் வாரம் மாறும்போது இதை மாற்றுங்கள்", "Kaydedildi. Haftan değişince bunu da değiştir", "Збережено. Змініть, коли зміниться ваш тиждень", "محفوظ ہو گیا۔ جب آپ کا ہفتہ بدلے تو اسے بدل دیں", "Đã lưu. Hãy đổi khi lịch tuần của bạn thay đổi", "Wedi'i gadw. Newidiwch e pan fydd eich wythnos yn newid"],
+"Shout-outs": ["شكر وتقدير", "Շնորհակալություններ", "প্রশংসা", "Благодарности", "表扬", "Remerciements", "શાબાશી", "शाबाशी", "Complimenti", "Padėkos", "स्याबासी", "Pochwały", "Elogios", "ਸ਼ਾਬਾਸ਼", "Aprecieri", "Reconocimientos", "பாராட்டுகள்", "Takdirler", "Подяки", "شاباش", "Lời khen", "Diolchiadau"],
+"My first weeks": ["أسابيعي الأولى", "Իմ առաջին շաբաթները", "আমার প্রথম কয়েক সপ্তাহ", "Първите ми седмици", "我的入职头几周", "Mes premières semaines", "મારાં પહેલાં અઠવાડિયાં", "मेरे पहले कुछ हफ़्ते", "Le mie prime settimane", "Mano pirmosios savaitės", "मेरा पहिलो केही हप्ता", "Moje pierwsze tygodnie", "As minhas primeiras semanas", "ਮੇਰੇ ਪਹਿਲੇ ਕੁਝ ਹਫ਼ਤੇ", "Primele mele săptămâni", "Mis primeras semanas", "என் முதல் சில வாரங்கள்", "İlk haftalarım", "Мої перші тижні", "میرے پہلے چند ہفتے", "Những tuần đầu của tôi", "Fy wythnosau cyntaf"],
+"{1} waiting": ["{1} بالانتظار", "{1} սպասում է", "{1}টি অপেক্ষায়", "{1} чакат", "{1} 项待处理", "{1} en attente", "{1} બાકી", "{1} बाकी", "{1} in attesa", "Laukia: {1}", "{1} बाँकी", "Czeka: {1}", "{1} em espera", "{1} ਬਾਕੀ", "{1} în așteptare", "{1} pendientes", "{1} காத்திருக்கின்றன", "{1} bekliyor", "Очікує: {1}", "{1} باقی", "{1} đang chờ", "{1} yn aros"],
+"How was your shift?": ["كيف كانت مناوبتك؟", "Ինչպե՞ս անցավ հերթափոխդ", "আপনার শিফট কেমন গেল?", "Как мина смяната ти?", "这个班上得怎么样？", "Comment s'est passé votre service ?", "તમારી શિફ્ટ કેવી રહી?", "आपकी शिफ़्ट कैसी रही?", "Com'è andato il turno?", "Kaip praėjo jūsų pamaina?", "तपाईंको सिफ्ट कस्तो रह्यो?", "Jak minęła zmiana?", "Como correu o seu turno?", "ਤੁਹਾਡੀ ਸ਼ਿਫਟ ਕਿਵੇਂ ਰਹੀ?", "Cum a fost tura?", "¿Qué tal el turno?", "உங்கள் ஷிஃப்ட் எப்படி இருந்தது?", "Vardiyan nasıl geçti?", "Як минула ваша зміна?", "آپ کی شفٹ کیسی رہی؟", "Ca làm của bạn thế nào?", "Sut aeth eich shifft?"],
+"Rough": ["صعبة جدًا", "Ծանր", "খুব খারাপ", "Тежко", "很糟", "Difficile", "ખૂબ ખરાબ", "बहुत बुरी", "Pesante", "Sunki", "धेरै गाह्रो", "Ciężko", "Difícil", "ਬਹੁਤ ਔਖੀ", "Grea", "Duro", "மிகக் கடினம்", "Zor", "Важко", "بہت مشکل", "Rất tệ", "Anodd"],
+"Not great": ["ليست جيدة", "Այնքան էլ լավ չէր", "তেমন ভালো না", "Не особено", "不太好", "Pas terrible", "ખાસ સારી નહીં", "ख़ास अच्छी नहीं", "Non granché", "Nelabai gera", "त्यति राम्रो होइन", "Słabo", "Não muito bem", "ਬਹੁਤੀ ਵਧੀਆ ਨਹੀਂ", "Nu prea bună", "No muy bien", "அவ்வளவு நல்லா இல்லை", "Pek iyi değil", "Не дуже", "کچھ خاص نہیں", "Không ổn lắm", "Ddim yn wych"],
+"OK": ["مقبولة", "Նորմալ", "মোটামুটি", "Нормално", "一般", "Correct", "ઠીક", "ठीक-ठाक", "Così così", "Normali", "ठिकै", "W porządku", "Razoável", "ਠੀਕ-ਠਾਕ", "Așa și așa", "Normal", "பரவாயில்லை", "İdare eder", "Нормально", "ٹھیک ٹھاک", "Bình thường", "Iawn"],
+"Good": ["جيدة", "Լավ", "ভালো", "Добре", "不错", "Bien", "સારી", "अच्छी", "Bene", "Gera", "राम्रो", "Dobrze", "Bem", "ਵਧੀਆ", "Bună", "Bien", "நல்லது", "İyi", "Добре", "اچھی", "Tốt", "Da"],
+"Great": ["رائعة", "Հիանալի", "দারুণ", "Супер", "很棒", "Super", "ખૂબ સરસ", "बहुत बढ़िया", "Benissimo", "Puiki", "एकदम राम्रो", "Super", "Ótimo", "ਬਹੁਤ ਵਧੀਆ", "Super", "Genial", "அருமை", "Harika", "Чудово", "زبردست", "Rất tốt", "Gwych"],
+"One tap. Only managers see it, with your name.": ["نقرة واحدة. يراها المديرون فقط، مع اسمك.", "Մեկ հպում։ Միայն մենեջերներն են տեսնում, քո անունով։", "একটা ট্যাপ। শুধু ম্যানেজাররা দেখেন, আপনার নামসহ।", "Едно докосване. Виждат го само мениджърите, с името ти.", "点一下就行。只有经理能看到，会显示你的名字。", "Un seul appui. Seuls les responsables le voient, avec votre nom.", "એક ટેપ. ફક્ત મેનેજરો જ જુએ છે, તમારા નામ સાથે.", "बस एक टैप। सिर्फ़ मैनेजर देखते हैं, आपके नाम के साथ।", "Un tocco. Lo vedono solo i manager, con il tuo nome.", "Vienas palietimas. Mato tik vadovai, su jūsų vardu.", "एक ट्याप। म्यानेजरहरूले मात्र तपाईंको नामसहित देख्नुहुन्छ।", "Jedno stuknięcie. Widzą to tylko kierownicy, z twoim imieniem.", "Um toque. Só os gerentes veem, com o seu nome.", "ਬੱਸ ਇੱਕ ਟੈਪ। ਸਿਰਫ਼ ਮੈਨੇਜਰ ਵੇਖਦੇ ਹਨ, ਤੁਹਾਡੇ ਨਾਮ ਨਾਲ।", "O singură atingere. O văd doar managerii, cu numele tău.", "Un toque. Solo lo ven los encargados, con tu nombre.", "ஒரே தட்டல். மேலாளர்கள் மட்டுமே உங்கள் பெயருடன் பார்ப்பார்கள்.", "Tek dokunuş. Sadece müdürler görür, adınla birlikte.", "Один дотик. Бачать лише менеджери, з вашим іменем.", "بس ایک ٹیپ۔ صرف مینیجرز دیکھتے ہیں، آپ کے نام کے ساتھ۔", "Chỉ một chạm. Chỉ quản lý thấy, kèm tên bạn.", "Un tap. Dim ond y rheolwyr sy'n ei weld, gyda'ch enw."],
+"Not tonight": ["ليس الليلة", "Ոչ այսօր", "আজ রাতে না", "Не тази вечер", "今晚先不", "Pas ce soir", "આજે રાત્રે નહીં", "आज रात नहीं", "Non stasera", "Ne šįvakar", "आज राति होइन", "Nie dziś", "Hoje não", "ਅੱਜ ਰਾਤ ਨਹੀਂ", "Nu în seara asta", "Esta noche no", "இன்று இரவு வேண்டாம்", "Bu akşam değil", "Не сьогодні", "آج رات نہیں", "Tối nay bỏ qua", "Ddim heno"],
+"Anything to add? (optional)": ["هل تريد إضافة شيء؟ (اختياري)", "Ուզո՞ւմ ես ինչ-որ բան ավելացնել (ըստ ցանկության)", "কিছু যোগ করবেন? (ঐচ্ছিক)", "Нещо да добавиш? (по желание)", "还有什么要补充吗？（选填）", "Quelque chose à ajouter ? (facultatif)", "કંઈ ઉમેરવું છે? (વૈકલ્પિક)", "कुछ जोड़ना है? (वैकल्पिक)", "Qualcosa da aggiungere? (facoltativo)", "Norite ką nors pridurti? (neprivaloma)", "केही थप्नु छ? (ऐच्छिक)", "Coś do dodania? (opcjonalnie)", "Algo a acrescentar? (opcional)", "ਕੁਝ ਹੋਰ ਜੋੜਨਾ ਹੈ? (ਵਿਕਲਪਿਕ)", "Vrei să adaugi ceva? (opțional)", "¿Algo que añadir? (opcional)", "ஏதாவது சேர்க்க வேண்டுமா? (விருப்பத்தேர்வு)", "Eklemek istediğin bir şey var mı? (isteğe bağlı)", "Хочете щось додати? (необов'язково)", "کچھ اور کہنا ہے؟ (اختیاری)", "Muốn nói thêm gì không? (không bắt buộc)", "Unrhyw beth i'w ychwanegu? (dewisol)"],
+"What made it good or hard": ["ما الذي جعلها جيدة أو صعبة", "Ինչն էր այն լավ կամ ծանր դարձնում", "কী কারণে ভালো বা কঠিন ছিল", "Какво я направи добра или тежка", "是什么让它顺利或辛苦", "Ce qui l'a rendu bon ou difficile", "શાના કારણે સારી કે મુશ્કેલ રહી", "किस वजह से अच्छी या मुश्किल रही", "Cosa l'ha reso bello o pesante", "Kas ją padarė gerą ar sunkią", "केले राम्रो वा गाह्रो बनायो", "Co sprawiło, że była dobra albo ciężka", "O que o tornou bom ou difícil", "ਕਿਸ ਕਰਕੇ ਵਧੀਆ ਜਾਂ ਔਖੀ ਰਹੀ", "Ce a făcut-o bună sau grea", "Qué lo hizo bueno o duro", "எது அதை நல்லதாக அல்லது கடினமாக்கியது", "Onu iyi ya da zor yapan neydi", "Що зробило її доброю чи важкою", "کس وجہ سے اچھی یا مشکل رہی", "Điều gì làm ca này tốt hay vất vả", "Beth wnaeth hi'n dda neu'n anodd"],
+"Thanks. Only managers see it": ["شكرًا. يراها المديرون فقط", "Շնորհակալություն։ Միայն մենեջերներն են տեսնում", "ধন্যবাদ। শুধু ম্যানেজাররা দেখেন", "Благодаря. Виждат го само мениджърите", "谢谢。只有经理能看到", "Merci. Seuls les responsables le voient", "આભાર. ફક્ત મેનેજરો જ જુએ છે", "धन्यवाद। सिर्फ़ मैनेजर देखते हैं", "Grazie. Lo vedono solo i manager", "Ačiū. Mato tik vadovai", "धन्यवाद। म्यानेजरहरूले मात्र देख्नुहुन्छ", "Dzięki. Widzą to tylko kierownicy", "Obrigado. Só os gerentes veem", "ਧੰਨਵਾਦ। ਸਿਰਫ਼ ਮੈਨੇਜਰ ਵੇਖਦੇ ਹਨ", "Mulțumim. O văd doar managerii", "Gracias. Solo lo ven los encargados", "நன்றி. மேலாளர்கள் மட்டுமே பார்ப்பார்கள்", "Teşekkürler. Sadece müdürler görür", "Дякуємо. Бачать лише менеджери", "شکریہ۔ صرف مینیجرز دیکھتے ہیں", "Cảm ơn. Chỉ quản lý thấy", "Diolch. Dim ond y rheolwyr sy'n ei weld"],
+"Changed": ["تم التغيير", "Փոխված է", "বদলানো হয়েছে", "Променено", "已更改", "Modifié", "બદલ્યું", "बदल दिया", "Modificato", "Pakeista", "बदलियो", "Zmieniono", "Alterado", "ਬਦਲ ਦਿੱਤਾ", "Modificat", "Cambiado", "மாற்றப்பட்டது", "Değiştirildi", "Змінено", "تبدیل ہو گیا", "Đã đổi", "Wedi newid"],
+"Sent. Only managers see it": ["أُرسلت. يراها المديرون فقط", "Ուղարկված է։ Միայն մենեջերներն են տեսնում", "পাঠানো হয়েছে। শুধু ম্যানেজাররা দেখেন", "Изпратено. Виждат го само мениджърите", "已发送。只有经理能看到", "Envoyé. Seuls les responsables le voient", "મોકલ્યું. ફક્ત મેનેજરો જ જુએ છે", "भेज दिया। सिर्फ़ मैनेजर देखते हैं", "Inviato. Lo vedono solo i manager", "Išsiųsta. Mato tik vadovai", "पठाइयो। म्यानेजरहरूले मात्र देख्नुहुन्छ", "Wysłano. Widzą to tylko kierownicy", "Enviado. Só os gerentes veem", "ਭੇਜ ਦਿੱਤਾ। ਸਿਰਫ਼ ਮੈਨੇਜਰ ਵੇਖਦੇ ਹਨ", "Trimis. Îl văd doar managerii", "Enviado. Solo lo ven los encargados", "அனுப்பப்பட்டது. மேலாளர்கள் மட்டுமே பார்ப்பார்கள்", "Gönderildi. Sadece müdürler görür", "Надіслано. Бачать лише менеджери", "بھیج دیا گیا۔ صرف مینیجرز دیکھتے ہیں", "Đã gửi. Chỉ quản lý thấy", "Wedi'i anfon. Dim ond y rheolwyr sy'n ei weld"],
+"When I can work": ["متى أستطيع العمل", "Երբ կարող եմ աշխատել", "আমি কখন কাজ করতে পারি", "Кога мога да работя", "我什么时候能上班", "Quand je peux travailler", "હું ક્યારે કામ કરી શકું", "मेरे काम के दिन और समय", "Quando posso lavorare", "Kada galiu dirbti", "म कहिले काम गर्न सक्छु", "Kiedy mogę pracować", "Quando posso trabalhar", "ਮੇਰੇ ਕੰਮ ਦੇ ਦਿਨ ਅਤੇ ਸਮਾਂ", "Când pot lucra", "Cuándo puedo trabajar", "நான் எப்போது வேலை செய்யலாம்", "Ne zaman çalışabilirim", "Коли я можу працювати", "کام کے لیے میرا وقت", "Khi nào tôi có thể làm", "Pryd galla i weithio"],
+"Your usual week, for the rota. Managers see it when they put people on shifts. For one particular day off, ask in My requests.": ["أسبوعك المعتاد، لجدول المناوبات. يراه المديرون عندما يوزعون المناوبات. ليوم إجازة بعينه، اطلبه من «طلباتي».", "Քո սովորական շաբաթը՝ գրաֆիկի համար։ Մենեջերները տեսնում են այն, երբ մարդկանց հերթափոխերի են դնում։ Կոնկրետ մեկ հանգստյան օրվա համար դիմիր «Իմ հարցումները» բաժնում։", "রোটার জন্য আপনার সাধারণ সপ্তাহ। ম্যানেজাররা শিফট দেওয়ার সময় এটা দেখেন। নির্দিষ্ট একদিনের ছুটির জন্য আমার অনুরোধ-এ চেয়ে নিন।", "Обичайната ти седмица, за графика. Мениджърите я виждат, когато разпределят смените. За един конкретен почивен ден поискай в „Моите молби“.", "你平常一周的安排，用于排班。经理排班时会看到。如果某一天要请假，请在“我的申请”里提出。", "Votre semaine habituelle, pour le planning. Les responsables la voient quand ils font les plannings. Pour un jour de congé précis, demandez dans Mes demandes.", "રોટા માટે તમારું સામાન્ય અઠવાડિયું. મેનેજરો લોકોને શિફ્ટ આપે ત્યારે તે જુએ છે. કોઈ એક ચોક્કસ દિવસની રજા માટે, મારી વિનંતીઓમાં માગો.", "रोटा के लिए आपका आम हफ़्ता। मैनेजर शिफ़्ट लगाते समय इसे देखते हैं। किसी एक ख़ास दिन की छुट्टी के लिए मेरे अनुरोध में माँगें।", "La tua settimana tipo, per i turni. I manager la vedono quando assegnano i turni. Per un giorno libero preciso, chiedilo in Le mie richieste.", "Jūsų įprasta savaitė, grafikui. Vadovai ją mato, kai skiria pamainas. Konkrečios laisvos dienos prašykite skiltyje „Mano prašymai“.", "रोटाका लागि तपाईंको सामान्य हप्ता। म्यानेजरहरूले सिफ्ट दिँदा यो हेर्नुहुन्छ। कुनै एक खास दिनको बिदाका लागि मेरा अनुरोधहरूमा माग्नुहोस्।", "Twój zwykły tydzień, do grafiku. Kierownicy widzą go, gdy ustalają zmiany. O konkretny wolny dzień poproś w Moje prośby.", "A sua semana habitual, para a escala. Os gerentes veem-na quando atribuem os turnos. Para um dia de folga específico, peça em Os meus pedidos.", "ਰੋਟਾ ਲਈ ਤੁਹਾਡਾ ਆਮ ਹਫ਼ਤਾ। ਮੈਨੇਜਰ ਸ਼ਿਫਟਾਂ ਲਗਾਉਂਦੇ ਸਮੇਂ ਇਸਨੂੰ ਵੇਖਦੇ ਹਨ। ਕਿਸੇ ਇੱਕ ਖ਼ਾਸ ਦਿਨ ਦੀ ਛੁੱਟੀ ਲਈ, ਮੇਰੀਆਂ ਬੇਨਤੀਆਂ ਵਿੱਚ ਮੰਗੋ।", "Săptămâna ta obișnuită, pentru program. Managerii o văd când pun oamenii pe ture. Pentru o anumită zi liberă, cere în Cererile mele.", "Tu semana habitual, para los turnos. Los encargados la ven cuando ponen a la gente en los turnos. Para un día libre concreto, pídelo en Mis solicitudes.", "ரோட்டாவுக்கான உங்கள் வழக்கமான வாரம். மேலாளர்கள் ஷிஃப்ட் போடும்போது இதைப் பார்ப்பார்கள். ஒரு குறிப்பிட்ட நாள் விடுப்புக்கு, என் கோரிக்கைகளில் கேளுங்கள்.", "Vardiya planı için her zamanki haftan. Müdürler vardiya dağıtırken bunu görür. Belirli bir gün izin için Taleplerim'den iste.", "Ваш звичайний тиждень, для графіка. Менеджери бачать його, коли ставлять людей на зміни. Про конкретний вихідний попросіть у розділі «Мої запити».", "روٹا کے لیے آپ کا عام ہفتہ۔ مینیجرز شفٹیں لگاتے وقت اسے دیکھتے ہیں۔ کسی ایک خاص دن کی چھٹی کے لیے میری درخواستیں میں مانگیں۔", "Tuần thường lệ của bạn, để xếp lịch. Quản lý sẽ xem khi xếp ca. Muốn nghỉ một ngày cụ thể, hãy xin trong Yêu cầu của tôi.", "Eich wythnos arferol, ar gyfer y rota. Mae'r rheolwyr yn ei gweld wrth roi pobl ar shifftiau. Am un diwrnod i ffwrdd penodol, gofynnwch yn Fy ngheisiadau."],
+"Monday": ["الاثنين", "Երկուշաբթի", "সোমবার", "Понеделник", "星期一", "Lundi", "સોમવાર", "सोमवार", "Lunedì", "Pirmadienis", "सोमबार", "Poniedziałek", "Segunda-feira", "ਸੋਮਵਾਰ", "Luni", "Lunes", "திங்கள்", "Pazartesi", "Понеділок", "پیر", "Thứ Hai", "Dydd Llun"],
+"Tuesday": ["الثلاثاء", "Երեքշաբթի", "মঙ্গলবার", "Вторник", "星期二", "Mardi", "મંગળવાર", "मंगलवार", "Martedì", "Antradienis", "मंगलबार", "Wtorek", "Terça-feira", "ਮੰਗਲਵਾਰ", "Marți", "Martes", "செவ்வாய்", "Salı", "Вівторок", "منگل", "Thứ Ba", "Dydd Mawrth"],
+"Wednesday": ["الأربعاء", "Չորեքշաբթի", "বুধবার", "Сряда", "星期三", "Mercredi", "બુધવાર", "बुधवार", "Mercoledì", "Trečiadienis", "बुधबार", "Środa", "Quarta-feira", "ਬੁੱਧਵਾਰ", "Miercuri", "Miércoles", "புதன்", "Çarşamba", "Середа", "بدھ", "Thứ Tư", "Dydd Mercher"],
+"Thursday": ["الخميس", "Հինգշաբթի", "বৃহস্পতিবার", "Четвъртък", "星期四", "Jeudi", "ગુરુવાર", "गुरुवार", "Giovedì", "Ketvirtadienis", "बिहीबार", "Czwartek", "Quinta-feira", "ਵੀਰਵਾਰ", "Joi", "Jueves", "வியாழன்", "Perşembe", "Четвер", "جمعرات", "Thứ Năm", "Dydd Iau"],
+"Friday": ["الجمعة", "Ուրբաթ", "শুক্রবার", "Петък", "星期五", "Vendredi", "શુક્રવાર", "शुक्रवार", "Venerdì", "Penktadienis", "शुक्रबार", "Piątek", "Sexta-feira", "ਸ਼ੁੱਕਰਵਾਰ", "Vineri", "Viernes", "வெள்ளி", "Cuma", "П'ятниця", "جمعہ", "Thứ Sáu", "Dydd Gwener"],
+"Saturday": ["السبت", "Շաբաթ", "শনিবার", "Събота", "星期六", "Samedi", "શનિવાર", "शनिवार", "Sabato", "Šeštadienis", "शनिबार", "Sobota", "Sábado", "ਸ਼ਨਿੱਚਰਵਾਰ", "Sâmbătă", "Sábado", "சனி", "Cumartesi", "Субота", "ہفتہ", "Thứ Bảy", "Dydd Sadwrn"],
+"Sunday": ["الأحد", "Կիրակի", "রবিবার", "Неделя", "星期日", "Dimanche", "રવિવાર", "रविवार", "Domenica", "Sekmadienis", "आइतबार", "Niedziela", "Domingo", "ਐਤਵਾਰ", "Duminică", "Domingo", "ஞாயிறு", "Pazar", "Неділя", "اتوار", "Chủ Nhật", "Dydd Sul"],
+"Any time": ["أي وقت", "Ցանկացած ժամի", "যেকোনো সময়", "По всяко време", "任何时间", "N'importe quand", "ગમે ત્યારે", "कभी भी", "Sempre", "Bet kada", "जुनसुकै बेला", "O każdej porze", "A qualquer hora", "ਕਿਸੇ ਵੇਲੇ ਵੀ", "Oricând", "Cualquier hora", "எந்த நேரமும்", "Her saat", "Будь-коли", "کسی بھی وقت", "Lúc nào cũng được", "Unrhyw bryd"],
+"Can't work": ["لا أستطيع العمل", "Չեմ կարող", "কাজ করতে পারব না", "Не мога", "不能上班", "Indisponible", "કામ નહીં કરી શકું", "उपलब्ध नहीं", "Non posso", "Negaliu dirbti", "काम गर्न सक्दिनँ", "Nie mogę", "Não posso", "ਉਪਲਬਧ ਨਹੀਂ", "Nu pot", "No puedo", "வேலை செய்ய முடியாது", "Çalışamam", "Не можу", "دستیاب نہیں", "Không làm được", "Methu gweithio"],
+"Only between…": ["فقط بين…", "Միայն որոշ ժամեր…", "শুধু নির্দিষ্ট সময়…", "Само между…", "仅限时段…", "Seulement entre…", "ફક્ત અમુક સમયે…", "सिर्फ़ तय समय में…", "Solo tra…", "Tik tarp…", "निश्चित समयमा मात्र…", "Tylko między…", "Só entre…", "ਸਿਰਫ਼ ਤੈਅ ਸਮੇਂ…", "Doar între…", "Solo entre…", "குறிப்பிட்ட நேரத்தில் மட்டும்…", "Sadece şu saatler…", "Лише між…", "صرف مخصوص وقت…", "Chỉ trong khung giờ…", "Dim ond rhwng…"],
+"Until": ["حتى", "Մինչև", "পর্যন্ত", "До", "到", "Jusqu'à", "સુધી", "तक", "Fino alle", "Iki", "सम्म", "Do", "Até", "ਤੱਕ", "Până la", "Hasta", "வரை", "Bitiş", "До", "تک", "Đến", "Tan"],
+"Anything else (optional)": ["أي شيء آخر (اختياري)", "Այլ բան (ըստ ցանկության)", "আর কিছু (ঐচ্ছিক)", "Нещо друго (по желание)", "其他（选填）", "Autre chose (facultatif)", "બીજું કંઈ (વૈકલ્પિક)", "कुछ और (वैकल्पिक)", "Altro (facoltativo)", "Kita (neprivaloma)", "अरू केही (ऐच्छिक)", "Coś jeszcze (opcjonalnie)", "Mais alguma coisa (opcional)", "ਹੋਰ ਕੁਝ (ਵਿਕਲਪਿਕ)", "Altceva (opțional)", "Algo más (opcional)", "வேறு ஏதாவது (விருப்பத்தேர்வு)", "Başka bir şey (isteğe bağlı)", "Щось іще (необов'язково)", "کچھ اور (اختیاری)", "Điều khác (không bắt buộc)", "Unrhyw beth arall (dewisol)"],
+"Uni on Tuesdays until December": ["الجامعة أيام الثلاثاء حتى ديسمبر", "Համալսարան երեքշաբթի օրերին՝ մինչև դեկտեմբեր", "ডিসেম্বর পর্যন্ত মঙ্গলবারে ইউনিভার্সিটি", "Университет във вторниците до декември", "12月前每周二要上课", "Fac le mardi jusqu'en décembre", "ડિસેમ્બર સુધી મંગળવારે યુનિવર્સિટી", "दिसंबर तक मंगलवार को यूनिवर्सिटी", "Università il martedì fino a dicembre", "Universitetas antradieniais iki gruodžio", "डिसेम्बरसम्म मंगलबार युनिभर्सिटी", "Uczelnia we wtorki do grudnia", "Faculdade às terças até dezembro", "ਦਸੰਬਰ ਤੱਕ ਮੰਗਲਵਾਰ ਨੂੰ ਯੂਨੀਵਰਸਿਟੀ", "Facultate marțea până în decembrie", "Uni los martes hasta diciembre", "டிசம்பர் வரை செவ்வாய்க்கிழமைகளில் பல்கலைக்கழகம்", "Aralık'a kadar salıları okul", "Університет по вівторках до грудня", "دسمبر تک منگل کو یونیورسٹی", "Học đại học thứ Ba đến hết tháng 12", "Prifysgol ar ddydd Mawrth tan fis Rhagfyr"],
+"Saved": ["تم الحفظ", "Պահպանված է", "সেভ হয়েছে", "Запазено", "已保存", "Enregistré", "સાચવ્યું", "सेव हो गया", "Salvato", "Išsaugota", "सेभ भयो", "Zapisano", "Guardado", "ਸੇਵ ਹੋ ਗਿਆ", "Salvat", "Guardado", "சேமிக்கப்பட்டது", "Kaydedildi", "Збережено", "محفوظ ہو گیا", "Đã lưu", "Wedi'i gadw"],
+"Saved. The managers see it when they make the rota": ["تم الحفظ. يراه المديرون عندما يعدّون جدول المناوبات", "Պահպանված է։ Մենեջերները կտեսնեն, երբ գրաֆիկ կազմեն", "সেভ হয়েছে। ম্যানেজাররা রোটা বানানোর সময় দেখবেন", "Запазено. Мениджърите ще го видят, когато правят графика", "已保存。经理排班时会看到", "Enregistré. Les responsables le verront en faisant le planning", "સાચવ્યું. મેનેજરો રોટા બનાવતી વખતે જોશે", "सेव हो गया। मैनेजर रोटा बनाते समय इसे देखेंगे", "Salvato. I manager lo vedranno quando fanno i turni", "Išsaugota. Vadovai matys, kai sudarinės grafiką", "सेभ भयो। म्यानेजरहरूले रोटा बनाउँदा देख्नुहुन्छ", "Zapisano. Kierownicy zobaczą to przy układaniu grafiku", "Guardado. Os gerentes vão ver quando fizerem a escala", "ਸੇਵ ਹੋ ਗਿਆ। ਮੈਨੇਜਰ ਰੋਟਾ ਬਣਾਉਂਦੇ ਸਮੇਂ ਵੇਖਣਗੇ", "Salvat. Managerii îl vor vedea când fac programul", "Guardado. Los encargados lo verán al hacer los turnos", "சேமிக்கப்பட்டது. மேலாளர்கள் ரோட்டா போடும்போது பார்ப்பார்கள்", "Kaydedildi. Müdürler vardiya planını yaparken görecek", "Збережено. Менеджери побачать це, коли складатимуть графік", "محفوظ ہو گیا۔ مینیجرز روٹا بناتے وقت دیکھیں گے", "Đã lưu. Quản lý sẽ thấy khi xếp lịch", "Wedi'i gadw. Bydd y rheolwyr yn ei weld wrth wneud y rota"],
+"Give a shout-out": ["اشكر زميلًا", "Շնորհակալություն հայտնիր", "কাউকে প্রশংসা করুন", "Благодари на някого", "表扬一下", "Dire bravo à quelqu'un", "કોઈને શાબાશી આપો", "किसी को शाबाशी दें", "Fai i complimenti a qualcuno", "Padėkokite kolegai", "कसैलाई स्याबासी दिनुहोस्", "Pochwal kogoś", "Elogiar alguém", "ਕਿਸੇ ਨੂੰ ਸ਼ਾਬਾਸ਼ ਦਿਓ", "Laudă pe cineva", "Reconoce a alguien", "ஒருவரைப் பாராட்டுங்கள்", "Birini takdir et", "Подякуйте комусь", "کسی کو شاباش دیں", "Khen một người", "Diolch i rywun"],
+"Who it's for": ["لمن", "Ում համար", "কার জন্য", "За кого", "给谁", "Pour qui", "કોના માટે", "किसके लिए", "Per chi", "Kam", "कसका लागि", "Dla kogo", "Para quem", "ਕਿਸ ਲਈ", "Pentru cine", "Para quién", "யாருக்கு", "Kime", "Кому", "کس کے لیے", "Dành cho ai", "I bwy"],
+"Pick someone": ["اختر شخصًا", "Ընտրիր մեկին", "কাউকে বেছে নিন", "Избери някого", "选择一个人", "Choisissez quelqu'un", "કોઈને પસંદ કરો", "किसी को चुनें", "Scegli qualcuno", "Pasirinkite žmogų", "कसैलाई छान्नुहोस्", "Wybierz osobę", "Escolha alguém", "ਕਿਸੇ ਨੂੰ ਚੁਣੋ", "Alege pe cineva", "Elige a alguien", "ஒருவரைத் தேர்ந்தெடுங்கள்", "Birini seç", "Виберіть людину", "کسی کو چنیں", "Chọn một người", "Dewiswch rywun"],
+"Post it": ["انشرها", "Հրապարակել", "পোস্ট করুন", "Публикувай", "发布", "Publier", "પોસ્ટ કરો", "पोस्ट करें", "Pubblica", "Paskelbti", "पोस्ट गर्नुहोस्", "Opublikuj", "Publicar", "ਪੋਸਟ ਕਰੋ", "Publică", "Publicar", "பதிவிடு", "Paylaş", "Опублікувати", "پوسٹ کریں", "Đăng", "Postio"],
+"The whole team sees it, and they get a pop-up.": ["يراها الفريق كله، ويصلهم إشعار.", "Ամբողջ թիմը տեսնում է այն և ծանուցում է ստանում։", "পুরো টিম এটা দেখবে, আর সবাই একটা নোটিফিকেশন পাবে।", "Целият екип го вижда и получава известие.", "整个团队都能看到，并会收到弹窗提醒。", "Toute l'équipe le voit et reçoit une notification.", "આખી ટીમ તે જુએ છે, અને બધાને સૂચના મળે છે.", "पूरी टीम इसे देखती है, और सबको सूचना मिलती है।", "Lo vede tutta la squadra, e arriva una notifica.", "Mato visa komanda ir gauna pranešimą.", "पूरै टोलीले देख्छ, र सबैलाई सूचना आउँछ।", "Widzi to cały zespół i każdy dostaje powiadomienie.", "Toda a equipa vê, e recebe uma notificação.", "ਸਾਰੀ ਟੀਮ ਇਸਨੂੰ ਵੇਖਦੀ ਹੈ, ਅਤੇ ਸਭ ਨੂੰ ਸੂਚਨਾ ਮਿਲਦੀ ਹੈ।", "Toată echipa o vede și primește o notificare.", "Lo ve todo el equipo, y les llega un aviso.", "முழுக் குழுவும் இதைப் பார்க்கும், அனைவருக்கும் அறிவிப்பு வரும்.", "Tüm ekip görür ve bir bildirim alır.", "Бачить уся команда, і всім приходить сповіщення.", "پوری ٹیم اسے دیکھتی ہے، اور سب کو اطلاع ملتی ہے۔", "Cả đội đều thấy và nhận được thông báo.", "Mae'r tîm cyfan yn ei weld, ac maen nhw'n cael hysbysiad."],
+"Latest": ["الأحدث", "Վերջինները", "সর্বশেষ", "Последни", "最新", "Les plus récents", "તાજેતરનાં", "ताज़ा", "Più recenti", "Naujausi", "पछिल्ला", "Najnowsze", "Mais recentes", "ਤਾਜ਼ਾ", "Cele mai recente", "Lo último", "சமீபத்தியவை", "En yeniler", "Останні", "تازہ ترین", "Mới nhất", "Diweddaraf"],
+"from you": ["منك", "քեզնից", "আপনার কাছ থেকে", "от теб", "来自你", "de votre part", "તમારા તરફથી", "आपकी ओर से", "da te", "nuo jūsų", "तपाईंबाट", "od ciebie", "de si", "ਤੁਹਾਡੇ ਵੱਲੋਂ", "de la tine", "de tu parte", "உங்களிடமிருந்து", "senden", "від вас", "آپ کی طرف سے", "từ bạn", "gennych chi"],
+"Take it down": ["احذفها", "Հեռացնել", "সরিয়ে দিন", "Свали го", "撤下", "Retirer", "હટાવો", "हटाएँ", "Rimuovi", "Pašalinti", "हटाउनुहोस्", "Usuń", "Retirar", "ਹਟਾਓ", "Retrage", "Quitar", "நீக்கு", "Kaldır", "Прибрати", "ہٹائیں", "Gỡ xuống", "Tynnu i lawr"],
+"Pick who it's for": ["اختر لمن هي", "Ընտրիր, թե ում համար է", "কার জন্য, বেছে নিন", "Избери за кого е", "请选择给谁", "Choisissez pour qui", "કોના માટે છે તે પસંદ કરો", "चुनें कि यह किसके लिए है", "Scegli per chi è", "Pasirinkite, kam tai skirta", "कसका लागि हो छान्नुहोस्", "Wybierz, dla kogo", "Escolha para quem é", "ਚੁਣੋ ਕਿ ਇਹ ਕਿਸ ਲਈ ਹੈ", "Alege pentru cine e", "Elige para quién es", "யாருக்கு என்று தேர்ந்தெடுங்கள்", "Kimin için olduğunu seç", "Виберіть, для кого це", "چنیں کہ یہ کس کے لیے ہے", "Chọn người nhận", "Dewiswch i bwy mae e"],
+"Say what they did": ["اكتب ما تم إنجازه", "Գրիր, թե ինչ արեց", "কী করেছে লিখুন", "Напиши за какво", "写一下对方做了什么", "Dites ce qui a été fait", "શું કર્યું તે લખો", "लिखें कि क्या किया", "Scrivi cosa ha fatto", "Parašykite, ką padarė", "के गर्नुभयो लेख्नुहोस्", "Napisz, za co", "Diga o que fez", "ਲਿਖੋ ਕਿ ਕੀ ਕੀਤਾ", "Scrie ce a făcut", "Di qué hizo", "என்ன செய்தார் என்று எழுதுங்கள்", "Ne yaptığını yaz", "Напишіть, за що", "لکھیں کہ کیا کیا", "Hãy viết họ đã làm gì", "Dywedwch beth wnaethon nhw"],
+"Posted. The team can see it": ["تم النشر. يمكن للفريق رؤيتها", "Հրապարակված է։ Թիմը կարող է տեսնել", "পোস্ট হয়েছে। টিম এটা দেখতে পাবে", "Публикувано. Екипът може да го види", "已发布。团队都能看到", "Publié. L'équipe peut le voir", "પોસ્ટ થયું. ટીમ તે જોઈ શકે છે", "पोस्ट हो गया। टीम इसे देख सकती है", "Pubblicato. La squadra può vederlo", "Paskelbta. Komanda gali matyti", "पोस्ट भयो। टोलीले देख्न सक्छ", "Opublikowano. Zespół to widzi", "Publicado. A equipa pode ver", "ਪੋਸਟ ਹੋ ਗਿਆ। ਟੀਮ ਇਸਨੂੰ ਵੇਖ ਸਕਦੀ ਹੈ", "Publicat. Echipa îl poate vedea", "Publicado. El equipo ya lo puede ver", "பதிவிடப்பட்டது. குழு இதைப் பார்க்கலாம்", "Paylaşıldı. Ekip görebilir", "Опубліковано. Команда бачить це", "پوسٹ ہو گیا۔ ٹیم اسے دیکھ سکتی ہے", "Đã đăng. Cả đội có thể xem", "Wedi'i bostio. Gall y tîm ei weld"],
+"Taken down": ["تم الحذف", "Հեռացված է", "সরিয়ে দেওয়া হয়েছে", "Свалено", "已撤下", "Retiré", "હટાવ્યું", "हटा दिया", "Rimosso", "Pašalinta", "हटाइयो", "Usunięto", "Retirado", "ਹਟਾ ਦਿੱਤਾ", "Retras", "Quitado", "நீக்கப்பட்டது", "Kaldırıldı", "Прибрано", "ہٹا دیا گیا", "Đã gỡ", "Wedi'i dynnu i lawr"],
+"sending…": ["جارٍ الإرسال…", "ուղարկվում է…", "পাঠানো হচ্ছে…", "изпраща се…", "发送中…", "envoi…", "મોકલાઈ રહ્યું છે…", "भेजा जा रहा है…", "invio in corso…", "siunčiama…", "पठाउँदै…", "wysyłanie…", "a enviar…", "ਭੇਜਿਆ ਜਾ ਰਿਹਾ ਹੈ…", "se trimite…", "enviando…", "அனுப்பப்படுகிறது…", "gönderiliyor…", "надсилається…", "بھیجا جا رہا ہے…", "đang gửi…", "yn anfon…"],
+"What you'll be shown and trained on in your first weeks. A manager ticks each one off with you.": ["ما ستتعرّف عليه وتتدرّب عليه في أسابيعك الأولى. يؤشّر المدير على كل بند معك.", "Այն, ինչ քեզ ցույց կտան և կսովորեցնեն առաջին շաբաթներին։ Մենեջերը յուրաքանչյուրը նշում է քեզ հետ։", "প্রথম কয়েক সপ্তাহে আপনাকে যা দেখানো ও শেখানো হবে। একজন ম্যানেজার আপনার সাথে প্রতিটিতে টিক দেবেন।", "Какво ще ти покажат и на какво ще те обучат през първите седмици. Мениджър отмята всяко с теб.", "你入职头几周会学到和接受培训的内容。经理会和你一起逐项打勾。", "Ce qu'on vous montrera et vous apprendra pendant vos premières semaines. Un responsable coche chaque point avec vous.", "પહેલાં અઠવાડિયાંમાં તમને શું બતાવાશે અને શીખવાશે. મેનેજર તમારી સાથે દરેક પર ટિક કરે છે.", "पहले कुछ हफ़्तों में आपको क्या दिखाया और सिखाया जाएगा। मैनेजर आपके साथ हर एक पर टिक करते हैं।", "Cosa ti mostreranno e su cosa ti formeranno nelle prime settimane. Un manager spunta ogni voce con te.", "Ką jums parodys ir ko išmokys per pirmąsias savaites. Vadovas kiekvieną punktą pažymi kartu su jumis.", "पहिलो केही हप्तामा तपाईंलाई के देखाइन्छ र सिकाइन्छ। म्यानेजरले तपाईंसँगै हरेकमा टिक लगाउनुहुन्छ।", "Co ci pokażą i czego cię nauczą w pierwszych tygodniach. Kierownik odhacza każdy punkt razem z tobą.", "O que lhe vão mostrar e ensinar nas primeiras semanas. Um gerente marca cada ponto consigo.", "ਪਹਿਲੇ ਕੁਝ ਹਫ਼ਤਿਆਂ ਵਿੱਚ ਤੁਹਾਨੂੰ ਕੀ ਦਿਖਾਇਆ ਅਤੇ ਸਿਖਾਇਆ ਜਾਵੇਗਾ। ਮੈਨੇਜਰ ਤੁਹਾਡੇ ਨਾਲ ਹਰ ਇੱਕ 'ਤੇ ਟਿੱਕ ਕਰਦਾ ਹੈ।", "Ce ți se va arăta și ce vei învăța în primele săptămâni. Un manager bifează fiecare punct împreună cu tine.", "Lo que te enseñarán y en lo que te formarán en tus primeras semanas. Un encargado marca cada punto contigo.", "முதல் சில வாரங்களில் உங்களுக்குக் காட்டப்படுவதும் கற்றுக்கொடுக்கப்படுவதும். ஒரு மேலாளர் உங்களுடன் ஒவ்வொன்றையும் டிக் செய்வார்.", "İlk haftalarında sana gösterilecek ve öğretilecek şeyler. Bir müdür her birini seninle birlikte işaretler.", "Що вам покажуть і чого навчать у перші тижні. Менеджер відмічає кожен пункт разом із вами.", "پہلے چند ہفتوں میں آپ کو کیا دکھایا اور سکھایا جائے گا۔ مینیجر آپ کے ساتھ ہر ایک پر ٹک کرتا ہے۔", "Những gì bạn sẽ được hướng dẫn và đào tạo trong những tuần đầu. Quản lý sẽ cùng bạn đánh dấu từng mục.", "Beth fydd yn cael ei ddangos i chi a'r hyfforddiant gewch chi yn eich wythnosau cyntaf. Mae rheolwr yn ticio pob un gyda chi."],
+"Started": ["تاريخ البدء", "Սկիզբ", "শুরু", "Начало", "开始于", "Début", "શરૂઆત", "शुरुआत", "Inizio", "Pradžia", "सुरु", "Początek", "Início", "ਸ਼ੁਰੂਆਤ", "Început", "Inicio", "தொடக்கம்", "Başlangıç", "Початок", "آغاز", "Bắt đầu", "Dechrau"],
+"Right to work checked before the first shift": ["التحقق من الحق في العمل قبل أول مناوبة", "Աշխատելու իրավունքը ստուգված է առաջին հերթափոխից առաջ", "প্রথম শিফটের আগে কাজের অধিকার যাচাই", "Правото на работа проверено преди първата смяна", "第一个班之前核查工作许可", "Autorisation de travail vérifiée avant le premier service", "પહેલી શિફ્ટ પહેલાં કામ કરવાનો અધિકાર તપાસ્યો", "पहली शिफ़्ट से पहले काम का अधिकार जाँचा गया", "Permesso di lavoro verificato prima del primo turno", "Teisė dirbti patikrinta prieš pirmą pamainą", "पहिलो सिफ्टअघि काम गर्ने अधिकार जाँचियो", "Prawo do pracy sprawdzone przed pierwszą zmianą", "Autorização de trabalho verificada antes do primeiro turno", "ਪਹਿਲੀ ਸ਼ਿਫਟ ਤੋਂ ਪਹਿਲਾਂ ਕੰਮ ਕਰਨ ਦਾ ਹੱਕ ਜਾਂਚਿਆ", "Dreptul de a lucra verificat înainte de prima tură", "Permiso de trabajo comprobado antes del primer turno", "முதல் ஷிஃப்ட்டுக்கு முன் வேலை செய்யும் உரிமை சரிபார்க்கப்பட்டது", "Çalışma izni ilk vardiyadan önce kontrol edildi", "Право на роботу перевірено до першої зміни", "پہلی شفٹ سے پہلے کام کا حق چیک کیا گیا", "Đã kiểm tra quyền làm việc trước ca đầu tiên", "Hawl i weithio wedi'i gwirio cyn y shifft gyntaf"],
+"Written statement of terms given on day one": ["تسليم بيان شروط العمل المكتوب في اليوم الأول", "Աշխատանքի պայմանների գրավոր հայտարարությունը տրված է առաջին օրը", "প্রথম দিনেই চাকরির শর্তের লিখিত বিবরণ দেওয়া", "Писмено изложение на условията, дадено в първия ден", "第一天交给书面雇用条款", "Conditions de travail écrites remises le premier jour", "પહેલા દિવસે નોકરીની શરતોનું લેખિત નિવેદન આપ્યું", "पहले ही दिन नौकरी की शर्तों का लिखित विवरण दिया गया", "Dichiarazione scritta delle condizioni consegnata il primo giorno", "Rašytinis darbo sąlygų aprašas įteiktas pirmą dieną", "पहिलो दिनमै कामका सर्तहरूको लिखित विवरण दिइयो", "Pisemne warunki zatrudnienia przekazane pierwszego dnia", "Declaração escrita das condições entregue no primeiro dia", "ਪਹਿਲੇ ਦਿਨ ਨੌਕਰੀ ਦੀਆਂ ਸ਼ਰਤਾਂ ਦਾ ਲਿਖਤੀ ਬਿਆਨ ਦਿੱਤਾ", "Declarația scrisă a condițiilor de muncă, dată din prima zi", "Condiciones de trabajo por escrito entregadas el primer día", "முதல் நாளிலேயே வேலை நிபந்தனைகளின் எழுத்து அறிக்கை வழங்கப்பட்டது", "Yazılı çalışma koşulları ilk gün verildi", "Письмові умови роботи видано в перший день", "پہلے ہی دن ملازمت کی شرائط کا تحریری بیان دیا گیا", "Đã đưa văn bản điều khoản làm việc ngay ngày đầu", "Datganiad ysgrifenedig o'r telerau wedi'i roi ar y diwrnod cyntaf"],
+"P45 or HMRC starter checklist, bank details and NI number": ["نموذج P45 أو قائمة HMRC للموظف الجديد، والتفاصيل البنكية ورقم NI", "P45 կամ HMRC-ի նոր աշխատողի ցուցակը, բանկային տվյալներ և NI համար", "P45 বা HMRC স্টার্টার চেকলিস্ট, ব্যাংকের তথ্য ও NI নম্বর", "P45 или стартов въпросник на HMRC, банкови данни и NI номер", "P45 或 HMRC 新员工清单、银行信息和 NI 号码", "P45 ou formulaire d'embauche HMRC, coordonnées bancaires et numéro NI", "P45 અથવા HMRC સ્ટાર્ટર ચેકલિસ્ટ, બેંક વિગતો અને NI નંબર", "P45 या HMRC स्टार्टर चेकलिस्ट, बैंक विवरण और NI नंबर", "P45 o modulo HMRC per i nuovi assunti, coordinate bancarie e numero NI", "P45 arba HMRC naujo darbuotojo anketa, banko duomenys ir NI numeris", "P45 वा HMRC स्टार्टर चेकलिस्ट, बैंक विवरण र NI नम्बर", "P45 lub formularz HMRC dla nowego pracownika, dane bankowe i numer NI", "P45 ou lista de início da HMRC, dados bancários e número NI", "P45 ਜਾਂ HMRC ਸਟਾਰਟਰ ਚੈੱਕਲਿਸਟ, ਬੈਂਕ ਵੇਰਵੇ ਅਤੇ NI ਨੰਬਰ", "P45 sau formularul HMRC pentru angajați noi, date bancare și numărul NI", "P45 o formulario de inicio de HMRC, datos bancarios y número NI", "P45 அல்லது HMRC ஸ்டார்ட்டர் சரிபார்ப்புப் பட்டியல், வங்கி விவரங்கள் மற்றும் NI எண்", "P45 veya HMRC işe başlama formu, banka bilgileri ve NI numarası", "P45 або анкета HMRC для нового працівника, банківські реквізити та номер NI", "P45 یا HMRC اسٹارٹر چیک لسٹ، بینک تفصیلات اور NI نمبر", "P45 hoặc bảng khai HMRC cho nhân viên mới, thông tin ngân hàng và số NI", "P45 neu restr wirio dechreuwr HMRC, manylion banc a rhif NI"],
+"Fire safety: alarms, exits, assembly point and extinguishers": ["السلامة من الحريق: الإنذارات والمخارج ونقطة التجمع وطفايات الحريق", "Հրդեհային անվտանգություն՝ ազդանշաններ, ելքեր, հավաքատեղի և կրակմարիչներ", "অগ্নি নিরাপত্তা: অ্যালার্ম, বের হওয়ার পথ, জমায়েতের জায়গা ও অগ্নিনির্বাপক", "Пожарна безопасност: аларми, изходи, сборен пункт и пожарогасители", "消防安全：警报、出口、集合点和灭火器", "Sécurité incendie : alarmes, sorties, point de rassemblement et extincteurs", "આગ સલામતી: એલાર્મ, બહાર નીકળવાના રસ્તા, એકઠા થવાની જગ્યા અને અગ્નિશામક", "आग से सुरक्षा: अलार्म, निकास, इकट्ठा होने की जगह और अग्निशामक", "Sicurezza antincendio: allarmi, uscite, punto di raccolta ed estintori", "Priešgaisrinė sauga: signalizacija, išėjimai, susirinkimo vieta ir gesintuvai", "आगलागी सुरक्षा: अलार्म, निकास, भेला हुने ठाउँ र आगो निभाउने यन्त्र", "Ochrona przeciwpożarowa: alarmy, wyjścia, miejsce zbiórki i gaśnice", "Segurança contra incêndios: alarmes, saídas, ponto de encontro e extintores", "ਅੱਗ ਤੋਂ ਸੁਰੱਖਿਆ: ਅਲਾਰਮ, ਬਾਹਰ ਨਿਕਲਣ ਦੇ ਰਸਤੇ, ਇਕੱਠੇ ਹੋਣ ਦੀ ਥਾਂ ਅਤੇ ਅੱਗ ਬੁਝਾਊ ਯੰਤਰ", "Siguranța la incendiu: alarme, ieșiri, punctul de adunare și stingătoare", "Seguridad contra incendios: alarmas, salidas, punto de reunión y extintores", "தீ பாதுகாப்பு: அலாரங்கள், வெளியேறும் வழிகள், கூடும் இடம் மற்றும் தீயணைப்பான்கள்", "Yangın güvenliği: alarmlar, çıkışlar, toplanma noktası ve yangın söndürücüler", "Пожежна безпека: сигналізація, виходи, місце збору та вогнегасники", "آگ سے حفاظت: الارم، باہر نکلنے کے راستے، جمع ہونے کی جگہ اور آگ بجھانے کے آلات", "An toàn cháy nổ: chuông báo, lối thoát, điểm tập trung và bình chữa cháy", "Diogelwch tân: larymau, allanfeydd, man ymgynnull a diffoddwyr tân"],
+"First aid: the kit, the first aiders and the accident book": ["الإسعافات الأولية: الحقيبة والمسعفون وسجل الحوادث", "Առաջին օգնություն՝ դեղատուփը, առաջին օգնություն ցուցաբերողները և պատահարների մատյանը", "প্রাথমিক চিকিৎসা: কিট, প্রাথমিক চিকিৎসাকারীরা ও দুর্ঘটনার খাতা", "Първа помощ: аптечката, хората за първа помощ и дневникът за инциденти", "急救：急救箱、急救员和事故记录簿", "Premiers secours : la trousse, les secouristes et le registre des accidents", "પ્રાથમિક સારવાર: કિટ, પ્રાથમિક સારવાર આપનારા અને અકસ્માત ચોપડો", "प्राथमिक चिकित्सा: किट, फ़र्स्ट एडर और दुर्घटना रजिस्टर", "Primo soccorso: la cassetta, gli addetti e il registro infortuni", "Pirmoji pagalba: vaistinėlė, pirmosios pagalbos teikėjai ir nelaimingų atsitikimų žurnalas", "प्राथमिक उपचार: किट, प्राथमिक उपचार गर्नेहरू र दुर्घटना रजिस्टर", "Pierwsza pomoc: apteczka, osoby od pierwszej pomocy i rejestr wypadków", "Primeiros socorros: o kit, os socorristas e o livro de acidentes", "ਮੁੱਢਲੀ ਸਹਾਇਤਾ: ਕਿੱਟ, ਮੁੱਢਲੀ ਸਹਾਇਤਾ ਦੇਣ ਵਾਲੇ ਅਤੇ ਹਾਦਸਾ ਰਜਿਸਟਰ", "Prim ajutor: trusa, cei care acordă prim ajutor și registrul de accidente", "Primeros auxilios: el botiquín, los socorristas y el libro de accidentes", "முதலுதவி: பெட்டி, முதலுதவி செய்பவர்கள் மற்றும் விபத்துப் பதிவேடு", "İlk yardım: çanta, ilk yardımcılar ve kaza defteri", "Перша допомога: аптечка, відповідальні за першу допомогу та журнал нещасних випадків", "ابتدائی طبی امداد: کٹ، فرسٹ ایڈرز اور حادثات کا رجسٹر", "Sơ cứu: hộp sơ cứu, người sơ cứu và sổ ghi tai nạn", "Cymorth cyntaf: y pecyn, y swyddogion cymorth cyntaf a'r llyfr damweiniau"],
+"Hazards: wet floors, broken glass, hot water and chemicals": ["المخاطر: الأرضيات المبللة والزجاج المكسور والماء الساخن والمواد الكيميائية", "Վտանգներ՝ թաց հատակ, կոտրված ապակի, տաք ջուր և քիմիկատներ", "ঝুঁকি: ভেজা মেঝে, ভাঙা কাচ, গরম জল ও রাসায়নিক", "Опасности: мокър под, счупено стъкло, гореща вода и химикали", "危险：湿滑地面、碎玻璃、热水和化学品", "Dangers : sols mouillés, verre brisé, eau chaude et produits chimiques", "જોખમો: ભીની ફરસ, તૂટેલો કાચ, ગરમ પાણી અને રસાયણો", "ख़तरे: गीला फ़र्श, टूटा काँच, गर्म पानी और केमिकल", "Pericoli: pavimenti bagnati, vetri rotti, acqua calda e prodotti chimici", "Pavojai: šlapios grindys, sudužęs stiklas, karštas vanduo ir chemikalai", "खतरा: भिजेको भुइँ, फुटेको सिसा, तातो पानी र रसायन", "Zagrożenia: mokra podłoga, potłuczone szkło, gorąca woda i chemia", "Perigos: chão molhado, vidros partidos, água quente e produtos químicos", "ਖ਼ਤਰੇ: ਗਿੱਲਾ ਫ਼ਰਸ਼, ਟੁੱਟਿਆ ਕੱਚ, ਗਰਮ ਪਾਣੀ ਅਤੇ ਕੈਮੀਕਲ", "Pericole: podele ude, sticlă spartă, apă fierbinte și substanțe chimice", "Riesgos: suelos mojados, cristales rotos, agua caliente y productos químicos", "ஆபத்துகள்: ஈரமான தரை, உடைந்த கண்ணாடி, சூடான நீர் மற்றும் ரசாயனங்கள்", "Tehlikeler: ıslak zemin, kırık cam, sıcak su ve kimyasallar", "Небезпеки: мокра підлога, бите скло, гаряча вода та хімікати", "خطرات: گیلا فرش، ٹوٹا شیشہ، گرم پانی اور کیمیکل", "Nguy hiểm: sàn ướt, kính vỡ, nước nóng và hóa chất", "Peryglon: lloriau gwlyb, gwydr wedi torri, dŵr poeth a chemegau"],
+"Reporting accidents and near misses, and raising a concern": ["الإبلاغ عن الحوادث والحوادث الوشيكة، وتقديم بلاغ", "Պատահարների և գրեթե պատահարների մասին հաղորդելը, և մտահոգություն հայտնելը", "দুর্ঘটনা ও প্রায়-দুর্ঘটনার খবর দেওয়া, আর উদ্বেগ জানানো", "Съобщаване за инциденти и опасни ситуации, и подаване на сигнал", "报告事故和险情，以及反馈隐患", "Signaler les accidents et les presque-accidents, et faire un signalement", "અકસ્માત અને લગભગ થયેલા અકસ્માતની જાણ કરવી, અને ચિંતા જણાવવી", "दुर्घटनाओं और बाल-बाल बचने की घटनाओं की रिपोर्ट, और चिंता उठाना", "Segnalare infortuni e quasi incidenti, e fare una segnalazione", "Pranešimas apie nelaimingus atsitikimus ir vos neįvykusius incidentus, ir pranešimo pateikimas", "दुर्घटना र झन्डै भएका दुर्घटनाको रिपोर्ट, र चिन्ता उठाउने", "Zgłaszanie wypadków i zdarzeń potencjalnie wypadkowych oraz zgłoszeń", "Comunicar acidentes e quase acidentes, e fazer uma participação", "ਹਾਦਸਿਆਂ ਅਤੇ ਬਾਲ-ਬਾਲ ਬਚਣ ਦੀਆਂ ਘਟਨਾਵਾਂ ਦੀ ਰਿਪੋਰਟ, ਅਤੇ ਚਿੰਤਾ ਜ਼ਾਹਰ ਕਰਨਾ", "Raportarea accidentelor și a incidentelor evitate la limită, și o sesizare", "Avisar de accidentes y casi accidentes, y comunicar una preocupación", "விபத்துகளையும் தவிர்க்கப்பட்ட விபத்துகளையும் புகாரளித்தல், மற்றும் கவலையைத் தெரிவித்தல்", "Kazaları ve ramak kala olayları bildirmek, ve bir sorun bildirmek", "Повідомлення про нещасні випадки й небезпечні ситуації, та подання сигналу", "حادثات اور بال بال بچنے کے واقعات کی رپورٹ، اور خدشہ ظاہر کرنا", "Báo cáo tai nạn và sự cố suýt xảy ra, và nêu phản ánh", "Rhoi gwybod am ddamweiniau a damweiniau a fu bron â digwydd, a chodi pryder"],
+"Challenge 25: what ID to take, and logging a refusal": ["سياسة Challenge 25: أي هوية تُقبل، وتسجيل حالة الرفض", "Challenge 25՝ որ փաստաթուղթն ընդունել, և մերժումը գրանցելը", "Challenge 25: কোন আইডি নেবেন, আর প্রত্যাখ্যান লিখে রাখা", "Challenge 25: какъв документ да приемеш и записване на отказ", "Challenge 25：可以接受哪些证件，以及如何记录拒售", "Challenge 25 : quelles pièces d'identité accepter, et noter un refus", "Challenge 25: કયું ID સ્વીકારવું, અને ઇનકાર નોંધવો", "Challenge 25: कौन-सी आईडी लें, और इनकार दर्ज करना", "Challenge 25: quali documenti accettare, e registrare una vendita rifiutata", "Challenge 25: kokius dokumentus priimti, ir atsisakymo registravimas", "Challenge 25: कुन आईडी लिने, र अस्वीकार दर्ता गर्ने", "Challenge 25: jaki dokument przyjąć, i zapisywanie odmowy", "Challenge 25: que documentos aceitar, e registar uma recusa", "Challenge 25: ਕਿਹੜੀ ਆਈਡੀ ਲੈਣੀ ਹੈ, ਅਤੇ ਇਨਕਾਰ ਦਰਜ ਕਰਨਾ", "Challenge 25: ce act de identitate accepți și notarea unui refuz", "Challenge 25: qué documentos aceptar, y apuntar una venta denegada", "Challenge 25: எந்த அடையாள அட்டையை ஏற்பது, மறுப்பைப் பதிவு செய்வது", "Challenge 25: hangi kimlik kabul edilir, ve reddin kaydedilmesi", "Challenge 25: які документи приймати, і як записати відмову", "Challenge 25: کون سی شناخت قبول کریں، اور انکار درج کرنا", "Challenge 25: nhận giấy tờ nào, và ghi lại lần từ chối", "Challenge 25: pa ID i'w dderbyn, a chofnodi gwrthodiad"],
+"Allergens: the allergen menu and how to answer a guest": ["مسببات الحساسية: قائمة مسببات الحساسية وكيف تجيب الضيف", "Ալերգեններ՝ ալերգենների մենյուն և ինչպես պատասխանել հյուրին", "অ্যালার্জেন: অ্যালার্জেন মেনু আর অতিথিকে কীভাবে উত্তর দেবেন", "Алергени: менюто с алергени и как да отговориш на гост", "过敏原：过敏原菜单，以及如何回答客人", "Allergènes : la carte des allergènes et comment répondre à un client", "એલર્જન: એલર્જન મેનુ અને મહેમાનને કેવી રીતે જવાબ આપવો", "एलर्जेन: एलर्जेन मेन्यू और मेहमान को कैसे जवाब दें", "Allergeni: il menu allergeni e come rispondere a un cliente", "Alergenai: alergenų meniu ir kaip atsakyti svečiui", "एलर्जेन: एलर्जेन मेनु र पाहुनालाई कसरी जवाफ दिने", "Alergeny: karta alergenów i jak odpowiedzieć gościowi", "Alergénios: a carta de alergénios e como responder a um cliente", "ਐਲਰਜਨ: ਐਲਰਜਨ ਮੀਨੂ ਅਤੇ ਮਹਿਮਾਨ ਨੂੰ ਕਿਵੇਂ ਜਵਾਬ ਦੇਣਾ", "Alergeni: meniul de alergeni și cum îi răspunzi unui client", "Alérgenos: la carta de alérgenos y cómo responder a un cliente", "ஒவ்வாமைகள்: ஒவ்வாமை மெனு மற்றும் விருந்தினருக்கு எப்படிப் பதில் சொல்வது", "Alerjenler: alerjen menüsü ve misafire nasıl cevap verilir", "Алергени: меню алергенів і як відповідати гостю", "الرجن: الرجن مینو اور مہمان کو کیسے جواب دیں", "Chất gây dị ứng: thực đơn dị ứng và cách trả lời khách", "Alergenau: y fwydlen alergenau a sut i ateb gwestai"],
+"Food hygiene: handwashing, ice and garnishes": ["النظافة الغذائية: غسل اليدين والثلج والزينة", "Սննդի հիգիենա՝ ձեռքերի լվացում, սառույց և զարդարանքներ", "খাদ্য স্বাস্থ্যবিধি: হাত ধোয়া, বরফ ও গার্নিশ", "Хигиена на храните: миене на ръце, лед и гарнитури", "食品卫生：洗手、冰块和装饰物", "Hygiène alimentaire : lavage des mains, glace et garnitures", "ખોરાકની સ્વચ્છતા: હાથ ધોવા, બરફ અને ગાર્નિશ", "खाद्य स्वच्छता: हाथ धोना, बर्फ़ और गार्निश", "Igiene alimentare: lavaggio delle mani, ghiaccio e guarnizioni", "Maisto higiena: rankų plovimas, ledas ir papuošimai", "खाद्य सरसफाइ: हात धुने, बरफ र गार्निस", "Higiena żywności: mycie rąk, lód i dekoracje", "Higiene alimentar: lavagem das mãos, gelo e guarnições", "ਖ਼ੁਰਾਕ ਸਫ਼ਾਈ: ਹੱਥ ਧੋਣਾ, ਬਰਫ਼ ਅਤੇ ਗਾਰਨਿਸ਼", "Igiena alimentelor: spălatul pe mâini, gheața și garniturile", "Higiene alimentaria: lavado de manos, hielo y decoraciones", "உணவுச் சுகாதாரம்: கை கழுவுதல், பனிக்கட்டி மற்றும் அலங்காரங்கள்", "Gıda hijyeni: el yıkama, buz ve süslemeler", "Харчова гігієна: миття рук, лід і прикраси", "کھانے کی صفائی: ہاتھ دھونا، برف اور گارنش", "Vệ sinh thực phẩm: rửa tay, đá và đồ trang trí", "Hylendid bwyd: golchi dwylo, iâ a garnisiau"],
+"Cellar: lifting kegs and changing gas safely": ["القبو: رفع البراميل وتغيير الغاز بأمان", "Նկուղ՝ տակառներ բարձրացնելը և գազը ապահով փոխելը", "সেলার: নিরাপদে কেগ তোলা ও গ্যাস বদলানো", "Мазе: вдигане на бурета и безопасна смяна на газ", "酒窖：安全搬运酒桶和更换气瓶", "Cave : soulever les fûts et changer le gaz en toute sécurité", "સેલર: કેગ ઉપાડવા અને ગેસ સુરક્ષિત રીતે બદલવો", "सेलर: केग उठाना और गैस सुरक्षित तरीके से बदलना", "Cantina: sollevare i fusti e cambiare il gas in sicurezza", "Rūsys: statinių kėlimas ir saugus dujų keitimas", "सेलर: केग उठाउने र ग्यास सुरक्षित रूपमा फेर्ने", "Piwnica: podnoszenie beczek i bezpieczna wymiana gazu", "Cave: levantar barris e trocar o gás em segurança", "ਸੈਲਰ: ਕੈਗ ਚੁੱਕਣਾ ਅਤੇ ਗੈਸ ਸੁਰੱਖਿਅਤ ਢੰਗ ਨਾਲ ਬਦਲਣਾ", "Pivnița: ridicarea butoaielor și schimbarea gazului în siguranță", "Bodega: levantar barriles y cambiar el gas con seguridad", "செல்லர்: கெக்குகளைத் தூக்குவது மற்றும் வாயுவைப் பாதுகாப்பாக மாற்றுவது", "Mahzen: fıçı kaldırma ve gazı güvenle değiştirme", "Льох: підіймання кег і безпечна заміна газу", "سیلر: کیگ اٹھانا اور گیس محفوظ طریقے سے بدلنا", "Hầm chứa: nâng thùng keg và thay bình khí an toàn", "Seler: codi casgenni a newid nwy yn ddiogel"],
+"Till, payments and the opening and closing checklists": ["الصندوق والمدفوعات وقوائم الافتتاح والإغلاق", "Դրամարկղ, վճարումներ և բացման ու փակման ցուցակները", "টিল, পেমেন্ট আর খোলা ও বন্ধের চেকলিস্ট", "Каса, плащания и списъците за отваряне и затваряне", "收银机、收款，以及开店和收店清单", "Caisse, paiements et les listes d'ouverture et de fermeture", "ટિલ, ચુકવણી અને ખોલવા-બંધ કરવાની ચેકલિસ્ટ", "टिल, भुगतान और ओपनिंग व क्लोज़िंग चेकलिस्ट", "Cassa, pagamenti e le checklist di apertura e chiusura", "Kasa, mokėjimai ir atidarymo bei uždarymo sąrašai", "टिल, भुक्तानी र खोल्ने तथा बन्द गर्ने चेकलिस्ट", "Kasa, płatności i listy otwarcia i zamknięcia", "Caixa, pagamentos e as listas de abertura e fecho", "ਟਿੱਲ, ਭੁਗਤਾਨ ਅਤੇ ਖੋਲ੍ਹਣ ਤੇ ਬੰਦ ਕਰਨ ਦੀਆਂ ਚੈੱਕਲਿਸਟਾਂ", "Casa, plățile și listele de deschidere și închidere", "Caja, cobros y las listas de apertura y cierre", "டில், பணம் செலுத்துதல் மற்றும் திறப்பு, மூடல் சரிபார்ப்புப் பட்டியல்கள்", "Kasa, ödemeler ve açılış ile kapanış listeleri", "Каса, оплати та чеклисти відкриття й закриття", "ٹِل، ادائیگیاں اور اوپننگ و کلوزنگ چیک لسٹیں", "Máy thu ngân, thanh toán và danh sách mở, đóng cửa", "Til, taliadau a'r rhestrau agor a chau"],
+"Drinks specs and pours: Practise, then sign-offs": ["مواصفات المشروبات والصبّ: «تدرّب»، ثم الاعتماد", "Ըմպելիքների բաղադրատոմսեր և լցնում՝ «Վարժվել», հետո հաստատումներ", "পানীয়ের স্পেক ও ঢালা: অনুশীলন, তারপর সাইন-অফ", "Рецепти и наливане: Упражнения, после одобрения", "饮品配方和倒酒：先练习，再签核", "Recettes et dosages des boissons : S'entraîner, puis validations", "ડ્રિંક સ્પેક અને પોર: અભ્યાસ, પછી મંજૂરી", "ड्रिंक स्पेक और पोर: अभ्यास, फिर मंज़ूरी", "Ricette e dosi dei drink: Esercitati, poi le approvazioni", "Gėrimų receptai ir pylimas: Treniruotis, tada patvirtinimai", "पेय स्पेक र पोर: अभ्यास, त्यसपछि स्वीकृति", "Receptury i nalewanie: Ćwicz, potem zatwierdzenia", "Receitas e doses das bebidas: Praticar, depois as aprovações", "ਡਰਿੰਕ ਸਪੈਕ ਅਤੇ ਪੋਰ: ਅਭਿਆਸ, ਫਿਰ ਮਨਜ਼ੂਰੀ", "Rețetele și dozarea băuturilor: Exersează, apoi aprobările", "Recetas y medidas de las bebidas: Practicar, luego las aprobaciones", "பான விவரங்கள் மற்றும் ஊற்றுதல்: பயிற்சி, பிறகு ஒப்புதல்கள்", "İçecek tarifleri ve dolumlar: Alıştırma, sonra onaylar", "Рецептури й наливання: Практика, потім підтвердження", "ڈرنک اسپیک اور پور: مشق، پھر منظوری", "Công thức đồ uống và rót: Luyện tập, rồi ký duyệt", "Manylebau diodydd a thywallt: Ymarfer, yna cymeradwyo"],
+"Uniform, breaks, staff food and tronc": ["الزي والاستراحات ووجبات الموظفين و tronc (رسوم الخدمة)", "Համազգեստ, ընդմիջումներ, աշխատակիցների սնունդ և tronc", "ইউনিফর্ম, বিরতি, স্টাফ খাবার ও tronc", "Униформа, почивки, храна за персонала и tronc", "制服、休息、员工餐和 tronc（服务费）", "Tenue, pauses, repas du personnel et tronc", "યુનિફોર્મ, વિરામ, સ્ટાફ ભોજન અને tronc", "यूनिफ़ॉर्म, ब्रेक, स्टाफ़ खाना और tronc", "Divisa, pause, pasti del personale e tronc", "Uniforma, pertraukos, personalo maistas ir tronc", "युनिफर्म, ब्रेक, स्टाफको खाना र tronc", "Strój, przerwy, posiłki dla personelu i tronc", "Farda, pausas, refeições do pessoal e tronc", "ਵਰਦੀ, ਬ੍ਰੇਕ, ਸਟਾਫ਼ ਦਾ ਖਾਣਾ ਅਤੇ tronc", "Uniforma, pauzele, masa personalului și tronc", "Uniforme, descansos, comida del personal y tronc", "சீருடை, இடைவேளைகள், ஊழியர் உணவு மற்றும் tronc", "Üniforma, molalar, personel yemeği ve tronc", "Уніформа, перерви, харчування персоналу і tronc", "یونیفارم، وقفے، اسٹاف کا کھانا اور tronc", "Đồng phục, giờ nghỉ, bữa ăn nhân viên và tronc", "Gwisg, egwyliau, bwyd staff a tronc"],
+"Bar Book: the rota, availability and requests": ["Bar Book: جدول المناوبات وأوقات العمل المتاحة والطلبات", "Bar Book՝ գրաֆիկը, ազատ ժամերը և հարցումները", "Bar Book: রোটা, সুবিধামতো সময় ও অনুরোধ", "Bar Book: графикът, кога можеш да работиш и молбите", "Bar Book：排班、可上班时间和申请", "Bar Book : le planning, les disponibilités et les demandes", "Bar Book: રોટા, ઉપલબ્ધતા અને વિનંતીઓ", "Bar Book: रोटा, उपलब्धता और अनुरोध", "Bar Book: i turni, le disponibilità e le richieste", "Bar Book: grafikas, galimas darbo laikas ir prašymai", "Bar Book: रोटा, उपलब्धता र अनुरोधहरू", "Bar Book: grafik, dyspozycyjność i prośby", "Bar Book: a escala, a disponibilidade e os pedidos", "Bar Book: ਰੋਟਾ, ਉਪਲਬਧਤਾ ਅਤੇ ਬੇਨਤੀਆਂ", "Bar Book: programul, disponibilitatea și cererile", "Bar Book: los turnos, la disponibilidad y las solicitudes", "Bar Book: ரோட்டா, கிடைக்கும் நேரம் மற்றும் கோரிக்கைகள்", "Bar Book: vardiya planı, müsaitlik ve talepler", "Bar Book: графік, коли можна працювати, і запити", "Bar Book: روٹا، کام کا وقت اور درخواستیں", "Bar Book: lịch làm, thời gian có thể làm và yêu cầu", "Bar Book: y rota, pryd rydych ar gael a cheisiadau"]
 }
 };
 const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
@@ -3724,10 +3804,17 @@ const FEATURES = [
   { g: "Team", k: "chat", n: "Chat", go: "chat", login: 1, sw: 1, tour: 1,
     what: "Messages to the whole team, one person or a group. Ping someone with @.",
     staff: "Message anyone on the team." },
+  { g: "Team", k: "shouts", n: "Shout-outs", go: "shouts", login: 1, sw: 1,
+    what: "Thanking someone in front of the whole team for something they did.",
+    staff: "Give anyone a shout-out. Everyone sees it, and the person thanked gets a pop-up.", mgr: "Take one down, and send one on WhatsApp." },
+  { g: "Team", k: "pulse", n: "How was your shift?", go: "pulse", login: 1, sw: 1,
+    what: "One tap at the end of each shift, from rough to great, and a few words if you like. Only managers see the answers.",
+    staff: "Answer on the Team page or where you send the shift report, from an hour before your shift ends.",
+    mgr: "See each night's score, who has had a run of bad shifts and what people said, and send the last 7 nights without names." },
   { g: "Team", k: "rota", n: "Rota", go: "rota", login: 1, sw: 1, tour: 1,
-    what: "The week's shifts once a manager publishes them, with open shifts, offers and cover.",
-    staff: "See your shifts, put your hand up for an open one, take or turn down an offer, or say you can't make one.",
-    mgr: "Build a week as a draft on a grid of people and days, one tap a shift. Then publish it, give shifts to people, copy last week, and download or share it." },
+    what: "The week's shifts once a manager publishes them, with open shifts, offers and cover, and when each person can work.",
+    staff: "See your shifts, put your hand up for an open one, take or turn down an offer, say you can't make one, and say when you can work each week.",
+    mgr: "Build a week as a draft on a grid of people and days, one tap a shift, with who can't work which day. Then publish it, give shifts to people, copy last week, and download or share it." },
   { g: "Team", k: "calendar", n: "Calendar", go: "cal", login: 1, sw: 1, tour: 1,
     what: "The next 7 days and a month at a time: bank holidays, school holidays, faith days, big games, London events, the nights that change how busy we are and the games on our screens, with your shifts and time off.",
     staff: "See the week ahead at a glance. Tap a day to see what's on it, and ask for time off from there.",
@@ -3776,6 +3863,9 @@ const FEATURES = [
     staff: "See your own.", mgr: "Add and change them. Anything running out in the next 30 days shows under For you." },
   { g: "Managers", k: "out", n: "86 log", go: "out", login: 1, admin: 1,
     what: "Every 86 and back in stock, and what runs out most.", mgr: "Read the last 100 changes." },
+  { g: "Managers", k: "onboard", n: "New starters", go: "myob", mgrGo: "onboard", login: 1, sw: 1,
+    what: "A checklist for each new person's first weeks: what the law needs on day one, safety, allergens, Challenge 25, the cellar and the till, each ticked off with the day and who did it.",
+    staff: "See yours in My first weeks while you're new.", mgr: "Start one for someone new, tick things off, change the checklist, and send someone's on." },
   { g: "Managers", k: "training", n: "Training", go: "tab:practice", mgrGo: "training", login: 1, sw: 1, tour: "mgr",
     what: "Signing people off drink by drink once they've made it to spec in front of a manager.",
     staff: "See your sign-offs in Practise.", mgr: "Sign someone off or undo it, and download every sign-off." },
@@ -3896,11 +3986,13 @@ const ms = (t) => (t ? t.toMillis() : Date.now());
 const when = (t) => `<b class="dt">${stamp(new Date(ms(t)))}</b>`;
 let feedSeen = store.get("feedSeen", 0);
 const isNew = (x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen;
-const feedNew = () => [...LIVE.notices, ...LIVE.reports].filter(isNew);
+// Shout-outs to this person count as new too.
+const shToMe = () => (isOn("shouts") ? LIVE.shouts.filter((x) => x.to === LIVE.uid) : []);
+const feedNew = () => [...LIVE.notices, ...LIVE.reports, ...shToMe()].filter(isNew);
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#status", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#guests", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#nights", "#act", "#kpis", "#money", "#outlog", "#mtrain", "#mgr", "#fb", "#me", "#call", "#refusals", "#certs"];
+const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#status", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#guests", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#nights", "#act", "#kpis", "#money", "#outlog", "#mtrain", "#mgr", "#fb", "#me", "#call", "#refusals", "#certs", "#pulse", "#avail", "#shouts", "#pulses", "#onboard", "#myob"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "What needs you, tonight at a glance, and everything for the team." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -3957,7 +4049,7 @@ function renderTeamTop() {
         <button class="btn wide" id="tt-add">Add test person</button>
         <div id="tests"></div></details>
       ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderNights(); renderStatus(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub(); renderSendHub(); renderCall(); renderRefusals(); renderCerts();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderNights(); renderStatus(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub(); renderSendHub(); renderCall(); renderRefusals(); renderCerts(); renderAvail(); renderShouts(); renderPulse(); renderPulses(); renderOnboard();
 }
 /* The Team page, which the bell opens: what's new and what needs you, tonight at a glance, then a card for each part of
    the team side of the app, in the Features page's groups and names. Each part opens on a page of its own, with Back to
@@ -4019,6 +4111,8 @@ const PLACES = [
     cnt: () => (!isOn("rota") ? 0 : LIVE.admin ? roToFill().length : roOffers().length), hot: () => isOn("rota") && LIVE.admin && roToFill().some((x) => x.day <= addDays(shiftDay(), 1)) },
   { g: "Everyone", k: "me", c: "rota", n: () => "My requests", slots: ["#me"],
     sub: () => { const n = LIVE.asks.filter((a) => a.uid === LIVE.uid && waiting(a) && askOn(a)).length; return n ? `${plural(n, "request")} waiting for an answer` : isOn("asks") ? "Running late, time off and swaps" : "Running late"; } },
+  { g: "Everyone", k: "avail", c: "rota", n: () => (LIVE.admin ? "Availability" : "My availability"), on: () => isOn("rota"), slots: ["#avail"],
+    sub: () => (LIVE.admin ? `${avSaid().length} of ${LIVE.staff.length} have said when they can work` : avOf(LIVE.uid) ? "Saved. Change it when your week changes" : "When you can work each week, for the rota") },
   { g: "Everyone", k: "chat", c: "talk", n: () => "Chat", on: () => isOn("chat"), slots: ["#chat"],
     sub: () => { const u = unreadChats(); return u.length ? `New in ${u.map(chatName).join(", ")}` : "The team, one person or a group"; }, cnt: () => unreadChats().length },
   { g: "Everyone", k: "send", c: "talk", n: () => "WhatsApp and email", slots: ["#sendhub"], sub: () => "Running late, off sick, cover, the rota and more, ready to send" },
@@ -4026,6 +4120,8 @@ const PLACES = [
     sub: () => { const n = LIVE.notices.filter(forMe).length; return `${n ? `${n} up now` : "None up now"}${LIVE.admin ? ". Send one" : ""}`; } },
   { g: "Everyone", k: "concerns", c: "talk", n: () => "Concerns", slots: ["#concerns"],
     sub: () => (openConcerns().length ? `${openConcerns().length} open` : "Nothing open"), cnt: () => openConcerns().length, hot: () => openConcerns().some((x) => x.reason === "hazard") },
+  { g: "Everyone", k: "shouts", c: "talk", n: () => "Shout-outs", on: () => isOn("shouts"), slots: ["#shouts"],
+    sub: () => { const x = LIVE.shouts[0]; return x ? `Latest: ${x.name} to ${x.toName}` : "Thank someone in front of the team"; }, cnt: () => shNew().length },
   { g: "Everyone", k: "reports", c: "history", n: () => "Reports", slots: ["#reports"],
     sub: () => (LIVE.admin && toSign() ? `${plural(toSign(), "report")} to sign off` : "Every shift report, night by night"), cnt: () => (LIVE.admin ? toSign() + openInc() : 0), hot: () => openInc() > 0 },
   { g: "Everyone", k: "activity", c: "history", n: () => "Activity", staff: 1, slots: ["#sact"], sub: () => "What the team has done" },
@@ -4035,6 +4131,8 @@ const PLACES = [
   { g: "Everyone", k: "certs", c: "law", n: () => (LIVE.admin ? "Certificates" : "My certificates"), on: () => isOn("certs"), slots: ["#certs"],
     sub: () => (LIVE.admin ? (ctDue().length ? `Due in the next 30 days: ${ctDue().length}` : "Licences, training and right to work") : "Licences and training, kept by your manager"),
     cnt: () => ctDue().length, hot: () => ctDue().some((c) => ctLeft(c) < 0) },
+  { g: "Everyone", k: "myob", c: "people", n: () => "My first weeks", staff: 1, on: () => isOn("onboard") && !!obMine(), slots: ["#myob"],
+    sub: () => `${obDone(obMine())} of ${obList().length} done` },
   { g: "Managers", k: "live", c: "run", n: () => "Live", admin: 1, slots: ["#live"],
     sub: () => (needsYou().length ? `${needsYou().length} need${needsYou().length === 1 ? "s" : ""} you now` : "Tonight as it happens"), cnt: () => needsYou().length, hot: () => needsYou().length > 0 },
   { g: "Managers", k: "handover", c: "run", n: () => "Close and handover", admin: 1, on: () => isOn("handover"), slots: ["#mclose"],
@@ -4048,7 +4146,11 @@ const PLACES = [
   { g: "Managers", k: "money", c: "numbers", n: () => "Money sandbox", admin: 1, slots: ["#money"], sub: () => "Sales, GP, labour and rent, with made-up numbers" },
   { g: "Managers", k: "out", c: "numbers", n: () => "86 log", admin: 1, slots: ["#outlog"], sub: () => (LIVE.out.size ? `${LIVE.out.size} 86'd now` : "Every 86 and back in stock") },
   { g: "Managers", k: "team", c: "people", n: () => "Team logins", admin: 1, slots: ["#mgr"], sub: () => `${plural(LIVE.staff.length, "person", "people")}` },
+  { g: "Managers", k: "onboard", c: "people", n: () => "New starters", admin: 1, on: () => isOn("onboard"), slots: ["#onboard"],
+    sub: () => { const n = obActive().length; return n ? `${plural(n, "person", "people")} in their first weeks` : "A checklist for each new person's first weeks"; } },
   { g: "Managers", k: "training", c: "people", n: () => "Training", admin: 1, on: () => isOn("training"), slots: ["#mtrain"], sub: () => "Sign-offs, drink by drink" },
+  { g: "Managers", k: "pulse", c: "people", n: () => "Shift feedback", admin: 1, on: () => isOn("pulse"), slots: ["#pulses"],
+    sub: () => { const xs = puLast(7); return xs.length ? `Last 7 nights: ${puAvg(xs)} out of 5` : "How each shift went, as the team says"; }, cnt: () => puBad().length },
   { g: "Managers", k: "feedback", c: "people", n: () => "Manager feedback", admin: 1, on: () => isOn("feedback"), slots: ["#fb"], sub: () => "Anonymous, between managers" },
   { g: "Managers", k: "act", c: "people", n: () => "Activity", admin: 1, slots: ["#act"], sub: () => "Everything done in the app" },
 ];
@@ -4075,6 +4177,8 @@ function forYou() {
     if (openInc()) add(`${plural(openInc(), "open incident")}`, "incidents", "Close each one with what was done", true);
     if (toAnswer()) add(`${plural(toAnswer(), "request")} to answer`, "requests", [...new Set(LIVE.asks.filter((a) => waiting(a) && askOn(a)).map((a) => a.name))].join(", "));
     if (toSign()) add(`${plural(toSign(), "report")} to sign off`, "reports");
+    const bad = puBad();
+    if (bad.length) add(`${plural(bad.length, "person", "people")} had a bad shift`, "pulse", bad.map((x) => `${x.name}${x.note ? `: ${x.note}` : ""}`).join(". "));
     const due = ctDue();
     if (due.length) add(`${plural(due.length, "certificate")} due`, "certs", due.slice(0, 3).map((c) => `${c.whoName}: ${ctName(c)}`).join(", "), due.some((c) => ctLeft(c) < 0));
     const fill = isOn("rota") ? roToFill() : [];
@@ -4084,6 +4188,7 @@ function forYou() {
   for (const x of isOn("rota") ? roOffers() : []) add(`${x.name} offered you a shift`, `rota:${x.week}`, `${roWhen(x)}, ${sideName(x.side)}`);
   for (const x of openIssues().filter((i) => i.status === "taken" && i.whoUid === LIVE.uid)) add(x.setByUid === LIVE.uid ? `You're on: ${x.title}` : `${x.setBy} gave you: ${x.title}`, "issues", "Mark it fixed when it's done");
   for (const c of unreadChats()) add(`New in ${chatName(c)}`, `chat:${c.id}`, pinged(c) ? "You were pinged" : "");
+  for (const x of shNew()) add(`${x.name} gave you a shout-out`, "shouts", x.text);
   const reps = LIVE.reports.filter((r) => r.uid !== LIVE.uid && ms(r.at) > hubSince);
   if (reps.length && !LIVE.admin) add(`${plural(reps.length, "new report")}`, "reports", reps.map((r) => `${sideName(r.side)}, from ${r.name}`).join(". "));
   return xs;
@@ -4095,11 +4200,11 @@ function renderForYou() {
 }
 function renderHub() {
   const ps = placesOn(), all = PLACES.flatMap((p) => p.slots);
-  if (!LIVE.me) { tpane = ""; ["#placebar", "#foryou", "#hub"].forEach((x) => ($(x).innerHTML = "")); $("#hubtop").hidden = false; all.forEach((x) => ($(x).hidden = false)); return; }
+  if (!LIVE.me) { tpane = ""; ["#placebar", "#foryou", "#pulse", "#hub"].forEach((x) => ($(x).innerHTML = "")); $("#hubtop").hidden = false; all.forEach((x) => ($(x).hidden = false)); return; }
   const p = ps.find((x) => x.k === tpane);
   if (!p) tpane = "";
   $("#hubtop").hidden = !!p;
-  ["#team", "#foryou", "#dash", "#hub"].forEach((x) => ($(x).hidden = !!p));
+  ["#team", "#foryou", "#pulse", "#dash", "#hub"].forEach((x) => ($(x).hidden = !!p));
   $("#placebar").hidden = !p;
   for (const q of PLACES) q.slots.forEach((x) => ($(x).hidden = q !== p));
   if (p) {
@@ -4111,7 +4216,7 @@ function renderHub() {
     if (p.k === "send") renderSendHub();
     return;
   }
-  renderForYou();
+  renderForYou(); renderPulse();
   const card = (q) => {
     const n = q.cnt?.() || 0, hot = n > 0 && !!q.hot?.();
     return `<button class="place${hot ? " hot" : ""}" data-tpane="${q.k}"><span><b>${q.n()}</b><small>${esc(q.sub())}</small></span>${n ? `<span class="pc" aria-label="${n} waiting">${n > 99 ? "99+" : n}</span>` : ""}</button>`;
@@ -4121,7 +4226,7 @@ function renderHub() {
     const xs = ps.filter((q) => q.g === g && q.c === c); if (!xs.length) return "";
     const n = xs.reduce((a, q) => a + (q.cnt?.() || 0), 0), hot = xs.some((q) => (q.cnt?.() || 0) > 0 && q.hot?.());
     const open = n > 0 || !catOpen || catOpen.includes(c);
-    return `<details class="cat${hot ? " hot" : ""}" data-cat="${c}"${open ? " open" : ""}><summary><span><b>${t}</b><small>${xs.map((q) => q.n()).join(" · ")}</small></span>${n ? `<span class="pc" aria-label="${n} waiting">${n > 99 ? "99+" : n}</span>` : ""}</summary>
+    return `<details class="cat${hot ? " hot" : ""}" data-cat="${c}"${open ? " open" : ""}><summary><span><b>${t}</b><small>${xs.map((q) => `<span>${q.n()}</span>`).join(" · ")}</small></span>${n ? `<span class="pc" aria-label="${n} waiting">${n > 99 ? "99+" : n}</span>` : ""}</summary>
       <div class="places">${xs.map(card).join("")}</div></details>`;
   };
   $("#hub").innerHTML = [...new Set(ps.map((q) => q.g))].map((g) => `${LIVE.admin ? `<div class="sec">${g}</div>` : ""}<div data-g="${g}">${HUB_CATS.map(cat(g)).join("")}</div>`).join("");
@@ -4462,6 +4567,7 @@ function roClash(uid, s, id) {
   const off = offOn(s.day).find((o) => o.uid === uid);
   if (other) return `is on ${roWhen(other)} too`;
   if (off) return off.status === "approved" ? `is off on ${dayName(s.day)}` : `has asked for ${dayName(s.day)} off`;
+  const av = avClash(uid, s); if (av) return av;
   // Adults are entitled to 11 hours off between working days (gov.uk, rest breaks at work).
   const [near, gap] = mine.map((x) => [x, roSpan(x)[1] <= a ? a - roSpan(x)[1] : roSpan(x)[0] - b]).filter(([, g]) => g >= 0 && g < 660).sort((p, q) => p[1] - q[1])[0] || [];
   return near ? `would have only ${hrs(gap)} off ${roSpan(near)[1] <= a ? "after" : "before"} ${roWhen(near)} (the law gives adults 11 h between shifts)` : "";
@@ -4622,15 +4728,17 @@ function roGridHtml(wk, xs, pub) {
     <div class="two even">${roTimeFields("rof", f)}</div>${roSideField("rof", f)}
     <p class="note">Tap a day in someone's row to put them on${pub ? ". The week is published, so it's on their rota straight away" : ""}. Tap a draft again to take it off. A published shift opens below, to change or remove.</p>
     <div class="rgrid">${head}${rows}</div>
-    <p class="note rgkey">${Object.entries(SIDE_NAME).map(([k, t]) => `<span class="${k}">${t}</span>`).join("")}Drafts have a dashed edge.${days.some((d) => roCover(d, xs)) ? " A day marked ! has nobody on with a personal licence or first aid: it says which under the day below." : ""}</p>`;
+    <p class="note rgkey">${Object.entries(SIDE_NAME).map(([k, t]) => `<span class="${k}">${t}</span>`).join("")}Drafts have a dashed edge.${LIVE.avail.length ? " Can't, or two grey times: what someone has said they can work." : ""}${days.some((d) => roCover(d, xs)) ? " A day marked ! has nobody on with a personal licence or first aid: it says which under the day below." : ""}</p>`;
 }
 // One person's day on the grid: each shift's start and end, or their time off.
 function roCell(p, d, xs) {
   const on = xs.filter((x) => x.who === p.uid && x.day === d).sort(roOrder), off = offOn(d).find((a) => a.uid === p.uid);
-  const said = on.length ? on.map((x) => `${roTime(x)}, ${sideName(x.side)}${x.pub ? "" : ", a draft"}`).join("; ") : off ? (off.status === "approved" ? "off" : "has asked for the day off") : "not on";
-  const cls = ["rg-c", on.length && "on", on.some((x) => !x.pub) && "draft", on.length && off && "clash"].filter(Boolean).join(" ");
+  const av = avOf(p.uid)?.days?.[avIdx(d)] || "", win = av && av !== "no" ? av.split("-") : null;
+  const said = on.length ? on.map((x) => `${roTime(x)}, ${sideName(x.side)}${x.pub ? "" : ", a draft"}`).join("; ") : off ? (off.status === "approved" ? "off" : "has asked for the day off")
+    : av === "no" ? "has said they can't work that day" : win ? `can only work ${avText(av)}` : "not on";
+  const cls = ["rg-c", on.length && "on", on.some((x) => !x.pub) && "draft", on.length && (off || avClash(p.uid, on[0])) && "clash", !on.length && !off && av === "no" && "cant"].filter(Boolean).join(" ");
   return `<button class="${cls}" data-ro-cell="${p.uid}|${d}" aria-label="${esc(`${p.name}, ${dayName(d, { weekday: "long", day: "numeric", month: "short" })}: ${said}`)}">${on.map((x) => `<span class="${x.side}"><b>${x.start}</b><b>${x.end}</b></span>`).join("")
-    || (off ? `<i>${off.status === "approved" ? "Off" : "Asked off"}</i>` : `<i aria-hidden="true">+</i>`)}</button>`;
+    || (off ? `<i>${off.status === "approved" ? "Off" : "Asked off"}</i>` : av === "no" ? `<i>Can't</i>` : win ? `<i>${win[0]}</i><i>${win[1]}</i>` : `<i aria-hidden="true">+</i>`)}</button>`;
 }
 // A tap on the grid. Nobody on: put them on at the times and side picked, warned of a clash. A draft: take it off (it's
 // only ever been the managers'). A published shift: open it below, where it's changed or removed with its history.
@@ -4692,7 +4800,7 @@ function roPublish() {
   const wk = roWeek(), xs = weekShifts(wk).filter((x) => !x.pub);
   if (!xs.length) return;
   const clashes = xs.filter((x) => x.who && roClash(x.who, x, x.id)).length;
-  if (!confirm(`Publish ${nShifts(xs.length)} for the week of ${dayName(wk)}? Everyone can see the week then, and each change after that is saved with who made it.${clashes ? ` ${clashes} of them clash with time off, another shift or the 11 hours between shifts, as marked on the rota.` : ""}`)) return;
+  if (!confirm(`Publish ${nShifts(xs.length)} for the week of ${dayName(wk)}? Everyone can see the week then, and each change after that is saved with who made it.${clashes ? ` ${clashes} of them clash with time off, availability, another shift or the 11 hours between shifts, as marked on the rota.` : ""}`)) return;
   track(LIVE.api.publish(xs), `Published. Everyone can see the week of ${dayName(wk)}`, "Not all of it was published. Check your signal and publish again");
   haptic();
 }
@@ -5513,7 +5621,7 @@ SHARE.readbrief = () => {
     parts: [{ id: "yet", label: "Still to read it", lines: yet }] };
 };
 SHARE.shout = (o) => {
-  const ppl = LIVE.staff.filter((x) => x.uid !== LIVE.uid).map((x) => [x.uid, x.name]); if (!ppl.length) return null;
+  const ppl = LIVE.directory.filter((x) => x.uid !== LIVE.uid).map((x) => [x.uid, x.name]); if (!ppl.length) return null;
   const [, name] = ppl.find(([u]) => u === o) || ppl[0];
   return { what: "Shout-out", title: `Shout-out to ${name} \ud83d\udc4f`, choose: { label: "Who", v: (ppl.find(([u]) => u === o) || ppl[0])[0], opts: ppl },
     head: [], parts: [], noteHead: null, noteLabel: "What they did", notePh: "Kept the bar moving on a slammed Friday and helped everyone close" };
@@ -5536,12 +5644,15 @@ const SEND_LIST = [
   ["Managers", "rota", "The rota", "The week by day or by person, for the team group"],
   ["Managers", "theirweek", "Someone's shifts", "One person's week, to send to them"],
   ["Managers", "cover", "Shifts that need cover", "Open shifts in the next 7 days"],
+  ["Managers", "avask", "Availability", "Ask who hasn't said when they can work"],
   ["Managers", "readbrief", "Briefing reminder", "Who on tonight still has to read it"],
   ["Managers", "pin", "A broadcast", "For anyone not on the app, with who hasn't read it"],
   ["Managers", "shout", "Shout-out", "Thank someone in front of the team"],
   ["Managers", "whatson", "What's on", "The big nights and the games on our screens, next 7 days"],
   ["Managers", "refusals", "Refusals log", "A month's refusals, for the licensing authority or the police"],
   ["Managers", "certs", "Certificates", "What's due, and everyone's, without right to work dates"],
+  ["Managers", "onboard", "New starter checklist", "Someone's first weeks: what's done and still to do"],
+  ["Managers", "pulse", "Shift feedback", "The last 7 nights, without names"],
   ["Managers", "live", "Tonight's summary", "What needs a manager, the checklists and restocks"],
   ["Managers", "handover", "The handover", "Tonight's close, for the next manager and the owner"],
 ];
@@ -5728,6 +5839,264 @@ SHARE.certs = () => {
     parts: [{ id: "due", label: "Due", lines: due.map(line) },
       { id: "all", label: "Everyone's", lines: [...cs].sort((a, b) => a.whoName.localeCompare(b.whoName) || ctName(a).localeCompare(ctName(b))).map(line), off: due.length > 0 }],
     tip: "Right to work dates aren't included: they stay in Bar Book." };
+};
+/* ---------- Availability ----------
+   When each person can work, week by week: any time, not at all, or only between two times, and a note. Managers see
+   everyone's as they make the rota: the grid shows who can't work a day, and putting someone on outside their
+   availability warns, as time off does. A particular day off is asked for in My requests. */
+const AV_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const AV_WIN = /^(([01]\d|2[0-3]):[0-5]\d)-(([01]\d|2[0-3]):[0-5]\d)$/;
+// This person's form while they change it; until then it's what they saved.
+let avF = null;
+const avOf = (uid) => LIVE.avail.find((x) => x.id === uid);
+const avSaid = () => LIVE.staff.filter((p) => avOf(p.uid));
+// Monday is 0.
+const avIdx = (day) => (new Date(Date.parse(day)).getUTCDay() + 6) % 7;
+const avText = (v) => (!v ? "Any time" : v === "no" ? "Can't work" : v.replace("-", "–"));
+function avWeek(a) {
+  const no = AV_DAYS.filter((_, i) => a.days[i] === "no").map((d) => d.slice(0, 3)), win = AV_DAYS.map((d, i) => [d.slice(0, 3), a.days[i]]).filter(([, v]) => v && v !== "no");
+  return [no.length && `Can't work ${no.join(", ")}`, ...win.map(([d, v]) => `${d} ${avText(v)}`)].filter(Boolean).join(" · ") || "Any time";
+}
+// Why someone's availability rules shift s out, or "".
+function avClash(uid, s) {
+  const i = avIdx(s.day), v = avOf(uid)?.days?.[i]; if (!v) return "";
+  if (v === "no") return `has said they can't work ${AV_DAYS[i]}s`;
+  const [f, t] = v.split("-").map(toMin), a = toMin(s.start), b = a + shiftLen(s);
+  return a >= f && b <= (t > f ? t : t + 1440) ? "" : `can only work ${avText(v)} on ${AV_DAYS[i]}s`;
+}
+function renderAvail() {
+  const box = $("#avail"); if (!box) return;
+  if (!LIVE.me || !isOn("rota")) { box.innerHTML = ""; return; }
+  if (!LIVE.loaded.has("avail")) { box.innerHTML = `<p class="note">Loading. It needs signal the first time.</p>`; return; }
+  const mine = avOf(LIVE.uid);
+  if (!avF?.dirty) avF = { days: [...(mine?.days || Array(7).fill(""))], note: mine?.note || "", dirty: false };
+  const row = (d, i) => {
+    const v = avF.days[i], win = v && v !== "no", [f, t] = win ? v.split("-") : ["", ""];
+    return `<div class="avrow"><b>${d}</b><div class="recent">${[["any", "Any time", !v], ["no", "Can't work", v === "no"], ["win", "Only between…", win]].map(([k, n, on]) => `<button class="chip" data-av-day="${i}" data-av="${k}" aria-pressed="${on}">${n}</button>`).join("")}</div>
+      ${win ? `<div class="two even"><label class="fld">From<input type="time" data-av-from="${i}" value="${esc(f)}"></label><label class="fld">Until<input type="time" data-av-to="${i}" value="${esc(t)}"></label></div>` : ""}</div>`;
+  };
+  let team = "";
+  if (LIVE.admin) {
+    const ppl = [...LIVE.staff].sort((a, b) => a.name.localeCompare(b.name)), yet = ppl.filter((p) => !avOf(p.uid));
+    team = `<div class="h3">The team</div>
+      <p class="note">What each person has said. Putting someone on outside it warns you, and the rota grid shows the days they can't work.</p>
+      ${ppl.filter((p) => avOf(p.uid)).map((p) => { const a = avOf(p.uid); return `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${esc(avWeek(a))}</div>${a.note ? `<div class="s" translate="no">${esc(a.note)}</div>` : ""}</div>`; }).join("")}
+      ${yet.length ? `<p class="note">Not said yet: ${esc(yet.map((p) => p.name).join(", "))}.</p><div class="actions">${sendBtn("avask", "Ask them on WhatsApp")}</div>` : ""}`;
+  }
+  box.innerHTML = `<div class="sec">${LIVE.admin ? "My availability" : "When I can work"}</div>
+    <p class="note">Your usual week, for the rota. Managers see it when they put people on shifts. For one particular day off, ask in My requests.</p>
+    ${AV_DAYS.map(row).join("")}
+    <label class="fld">Anything else (optional)<input data-av-note maxlength="120" value="${esc(avF.note)}" placeholder="Uni on Tuesdays until December"></label>
+    <div class="actions"><button class="btn pri" id="av-save">Save</button></div>
+    ${mine ? `<p class="note">Saved ${when(mine.at)}.</p>` : ""}${team}`;
+}
+function avSave(A) {
+  const bad = AV_DAYS.find((_, i) => { const v = avF.days[i]; return v && v !== "no" && (!AV_WIN.test(v) || v.split("-")[0] === v.split("-")[1]); });
+  if (bad) return toast(`Put in both times for ${bad}`);
+  track(A.saveAvail([...avF.days], avF.note.trim()), "Saved. The managers see it when they make the rota");
+  avF = null; haptic(); renderAvail();
+}
+SHARE.avask = () => {
+  if (!LIVE.admin || !isOn("rota")) return null;
+  const yet = LIVE.staff.filter((p) => !avOf(p.uid)).map((p) => p.name).sort();
+  return { what: "Availability", title: "When can you work?",
+    head: ["Put your usual week in Bar Book, so the rota fits it: Team, then My availability. It takes a minute, and you can change it any time."],
+    parts: [{ id: "yet", label: "Still to do it", lines: yet }] };
+};
+
+/* ---------- Shout-outs ----------
+   Anyone thanks anyone else in front of the team, saying what they did. Everyone sees the latest 50 and gets a pop-up;
+   the person thanked sees it under For you and on the bell. Whoever wrote one, or a manager, can take it down or send
+   it on WhatsApp. */
+const shF = { to: "", text: "" };
+const shNew = () => shToMe().filter((x) => ms(x.at) > hubSince);
+function shRow(x) {
+  const mine = x.uid === LIVE.uid;
+  return `<article class="notice${x.to === LIVE.uid && ms(x.at) > hubSince ? " new" : ""}"><div class="meta"><span aria-hidden="true">👏</span> <b>${esc(x.to === LIVE.uid ? "You" : x.toName)}</b> · ${mine ? "<span>from you</span>" : `from ${esc(x.name)}`} · ${x.pending ? "<span>sending…</span>" : when(x.at)}</div>
+    <p class="txt" translate="no">${esc(x.text)}</p>
+    ${mine || LIVE.admin ? `<div class="actions">${x.to === LIVE.uid ? "" : sendBtn("shout", "Send on WhatsApp", x.to, x.text)}<button class="btn" data-sh-drop="${x.id}">Take it down</button></div>` : ""}</article>`;
+}
+function renderShouts() {
+  const box = $("#shouts"); if (!box) return;
+  if (!LIVE.me || !isOn("shouts")) { box.innerHTML = ""; return; }
+  const ppl = LIVE.directory.filter((p) => p.uid !== LIVE.uid);
+  box.innerHTML = `<div class="sec">Give a shout-out</div>
+    <label class="fld">Who it's for<select data-sh="to"><option value="">Pick someone</option>${ppl.map((p) => `<option value="${p.uid}"${shF.to === p.uid ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+    <label class="fld">What they did<textarea data-sh="text" rows="2" maxlength="200" placeholder="Kept the bar moving on a slammed Friday and helped everyone close">${esc(shF.text)}</textarea></label>
+    <div class="actions"><button class="btn pri" id="sh-go">Post it</button></div>
+    <p class="note">The whole team sees it, and they get a pop-up.</p>
+    <div class="sec">Latest</div>
+    ${LIVE.shouts.map(shRow).join("") || `<p class="note">None yet.</p>`}`;
+}
+function shPost(A) {
+  const p = LIVE.directory.find((x) => x.uid === shF.to);
+  if (!p) return toast("Pick who it's for");
+  if (!shF.text.trim()) return toast("Say what they did");
+  track(A.shout(p, shF.text.trim()), "Posted. The team can see it");
+  Object.assign(shF, { to: "", text: "" }); haptic(); renderShouts();
+}
+
+/* ---------- How was your shift? ----------
+   One tap at the end of a shift, from rough to great, then a few words if they like. Managers see the answers with the
+   names, to catch a bad night or someone having a hard time early; what they send on has no names. It's asked from an
+   hour before someone's shift on tonight's rota ends, or after 9pm when nobody is on tonight's rota, until the day rolls
+   over at 6am, on the Team page and where the shift report is sent. Not tonight puts it away until then. */
+const PU = { 1: ["😣", "Rough"], 2: ["😕", "Not great"], 3: ["😐", "OK"], 4: ["🙂", "Good"], 5: ["😄", "Great"] };
+let puSkip = store.get("puSkip", ""), puJust = false, puNote = "";
+const puMine = () => LIVE.pulse.find((x) => x.uid === LIVE.uid && x.day === shiftDay());
+const puLast = (n) => LIVE.pulse.filter((x) => x.day > addDays(shiftDay(), -n));
+const puAvg = (xs) => (xs.reduce((t, x) => t + x.score, 0) / xs.length).toFixed(1);
+// Tonight's and last night's bad shifts, for the managers.
+const puBad = () => (LIVE.admin && isOn("pulse") ? LIVE.pulse.filter((x) => x.score <= 2 && x.uid !== LIVE.uid && x.day >= addDays(shiftDay(), -1)) : []);
+function puDue() {
+  if (!LIVE.me || !isOn("pulse") || !LIVE.loaded.has("pulse") || puSkip === shiftDay() || puMine()) return false;
+  const on = isOn("rota") ? LIVE.shifts.filter((x) => x.pub && x.day === shiftDay()) : [];
+  if (on.length) return on.some((x) => x.who === LIVE.uid && roSpan(x)[1] - 60 <= roNow());
+  const h = +hhmm(new Date()).slice(0, 2); return h >= 21 || h < 6;
+}
+function puHtml() {
+  const m = puMine();
+  if (!(puJust && m) && !puDue()) return "";
+  return `<div class="pucard"><b>How was your shift?</b>
+    <div class="pu">${Object.entries(PU).map(([k, [e, t]]) => `<button data-pu="${k}" aria-pressed="${m?.score === +k}"><span aria-hidden="true">${e}</span>${t}</button>`).join("")}</div>
+    ${m ? `<label class="fld">Anything to add? (optional)<input id="pu-note" maxlength="200" value="${esc(puNote)}" placeholder="What made it good or hard"></label>
+      <div class="actions"><button class="btn pri" id="pu-save">Send it</button><button class="btn" id="pu-done">Done</button></div>`
+      : `<p class="note">One tap. Only managers see it, with your name. <button class="linkbtn" id="pu-skip">Not tonight</button></p>`}</div>`;
+}
+function renderPulse() { const box = $("#pulse"); if (box) box.innerHTML = tpane ? "" : puHtml(); }
+// Redraws the card wherever it is: the Team page and the Shift tab's Send pane.
+function puRedraw() { renderPulse(); if (!$("#v-tally").hidden && pane === "send") renderTally(); }
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pu], #pu-skip, #pu-save, #pu-done"); if (!b || !LIVE.api) return;
+  if (b.dataset.pu) {
+    const m = puMine();
+    track(LIVE.api.pulse(+b.dataset.pu, m ? m.note : ""), m ? "Changed" : "Thanks. Only managers see it");
+    puJust = true; haptic();
+  } else if (b.id === "pu-skip") { puSkip = shiftDay(); store.set("puSkip", puSkip); }
+  else if (b.id === "pu-save") { const m = puMine(); if (m) track(LIVE.api.pulse(m.score, puNote.trim()), "Sent. Only managers see it"); puJust = false; puNote = ""; }
+  else { puJust = false; puNote = ""; }
+  puRedraw();
+});
+document.addEventListener("input", (e) => { if (e.target.id === "pu-note") puNote = e.target.value; });
+function renderPulses() {
+  const box = $("#pulses"); if (!box) return;
+  if (!LIVE.admin || !isOn("pulse")) { box.innerHTML = ""; return; }
+  const days = Array.from({ length: 14 }, (_, i) => addDays(shiftDay(), -i)), xs = puLast(14);
+  const by = new Map(); for (const x of xs.filter((y) => y.score <= 2)) by.set(x.uid, [x.name, (by.get(x.uid)?.[1] || 0) + 1]);
+  const low = [...by.values()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]);
+  const said = xs.filter((x) => x.note).sort((a, b) => b.day.localeCompare(a.day) || ms(b.at) - ms(a.at));
+  box.innerHTML = `<div class="sec">Shift feedback</div>
+    <p class="note">How each shift went, from 1 (rough) to 5 (great), as the team answered at the end of it. Only managers see the names.</p>
+    ${low.length ? `<div class="h3">Check in with</div>${low.map(([n, k]) => `<p class="note warnline">${esc(n)}: ${k} bad shifts in the last 14 days</p>`).join("")}` : ""}
+    <div class="h3">Night by night</div>
+    ${days.map((d) => { const ys = xs.filter((x) => x.day === d); return ys.length ? `<div class="staffrow"><div class="n">${dayName(d)} · <b>${puAvg(ys)}</b> <span class="did">· ${plural(ys.length, "answer")}</span></div>
+      <div class="s">${Object.entries(PU).map(([k, [e]]) => `${e} ${ys.filter((y) => y.score === +k).length}`).join(" · ")}</div></div>` : ""; }).join("") || `<p class="note">No answers yet. The team is asked at the end of each shift.</p>`}
+    ${said.length ? `<div class="h3">What they said</div>${said.map((x) => `<div class="staffrow"><div class="n">${esc(x.name)} · ${dayName(x.day)} · ${PU[x.score][0]} ${PU[x.score][1]}</div><div class="s" translate="no">${esc(x.note)}</div></div>`).join("")}` : ""}
+    ${puLast(7).length ? `<div class="actions">${sendBtn("pulse", "Send the last 7 nights")}</div>` : ""}`;
+}
+// To send: the numbers and what was said, without names.
+SHARE.pulse = () => {
+  const xs = LIVE.admin && isOn("pulse") ? puLast(7) : []; if (!xs.length) return null;
+  const days = [...new Set(xs.map((x) => x.day))].sort();
+  return { what: "Shift feedback", title: "Shift feedback · Black Tap Soho · last 7 nights",
+    head: [`${puAvg(xs)} out of 5, from ${plural(xs.length, "answer")}`],
+    parts: [{ id: "nights", label: "Night by night", lines: days.map((d) => { const ys = xs.filter((x) => x.day === d); return `${dayName(d)}: ${puAvg(ys)} (${plural(ys.length, "answer")})`; }) },
+      { id: "said", label: "What they said", lines: xs.filter((x) => x.note).sort((a, b) => a.day.localeCompare(b.day)).map((x) => `${PU[x.score][1]}: ${x.note}`) }],
+    tip: "Names aren't included: they stay in Bar Book." };
+};
+
+/* ---------- New starters ----------
+   A checklist for each new person's first weeks, ticked off by a manager, which saves the day and who did it: the
+   standard one below or the venue's own. Some of it is the law from day one: the written statement of terms on the first
+   day (gov.uk), right to work checked before they start (Home Office), fire safety training when first employed
+   (Regulatory Reform (Fire Safety) Order 2005, article 21) and health and safety induction: hazards, emergency
+   procedures, first aid and who to ask (HSE). HMRC needs their P45 or starter checklist by the first payday. The new
+   person sees their own in My first weeks. */
+const OB_STD = [
+  "Right to work checked before the first shift",
+  "Written statement of terms given on day one",
+  "P45 or HMRC starter checklist, bank details and NI number",
+  "Fire safety: alarms, exits, assembly point and extinguishers",
+  "First aid: the kit, the first aiders and the accident book",
+  "Hazards: wet floors, broken glass, hot water and chemicals",
+  "Reporting accidents and near misses, and raising a concern",
+  "Challenge 25: what ID to take, and logging a refusal",
+  "Allergens: the allergen menu and how to answer a guest",
+  "Food hygiene: handwashing, ice and garnishes",
+  "Cellar: lifting kegs and changing gas safely",
+  "Till, payments and the opening and closing checklists",
+  "Drinks specs and pours: Practise, then sign-offs",
+  "Uniform, breaks, staff food and tronc",
+  "Bar Book: the rota, availability and requests",
+];
+const obF = { who: "", start: "", text: null, open: false, edit: false };
+const obList = () => LIVE.onboardList || OB_STD;
+const obMine = () => LIVE.onboard.find((o) => o.id === LIVE.uid);
+const obDone = (o) => obList().filter((t) => o.done[t]).length;
+// Those still on the team, and those of them with something left to do.
+const obNow = () => LIVE.onboard.filter((o) => LIVE.staff.some((p) => p.uid === o.id)).sort((a, b) => b.start.localeCompare(a.start));
+const obActive = () => obNow().filter((o) => obDone(o) < obList().length);
+function obItem(o, t, i) {
+  const d = o.done[t], by = d ? `<small>${dayName(d.day)}, ${esc(d.by)}</small>` : "";
+  return LIVE.admin ? `<label class="check obi"><input type="checkbox" data-ob="${o.id}" data-ob-i="${i}"${d ? " checked" : ""}><span>${esc(t)}${by}</span></label>`
+    : `<div class="obi${d ? " done" : ""}"><span aria-hidden="true">${d ? "✓" : "○"}</span><span>${esc(t)}${by}</span></div>`;
+}
+function obCard(o) {
+  const L = obList();
+  return `<div class="h3">${esc(o.whoName)}</div><p class="note">Started ${dayName(o.start)} · ${obDone(o)} of ${L.length} done</p>
+    ${L.map((t, i) => obItem(o, t, i)).join("")}
+    <div class="actions">${sendBtn("onboard", "Send their checklist", o.id)}<button class="btn" data-ob-drop="${o.id}">Remove</button></div>`;
+}
+function renderOnboard() {
+  const box = $("#onboard"), own = $("#myob"); if (!box || !own) return;
+  box.innerHTML = own.innerHTML = "";
+  if (!LIVE.me || !isOn("onboard")) return;
+  const L = obList();
+  if (!LIVE.admin) {
+    const o = obMine(); if (!o) return;
+    own.innerHTML = `<div class="sec">My first weeks</div>
+      <p class="note">What you'll be shown and trained on in your first weeks. A manager ticks each one off with you.</p>
+      <p class="note"><b>${obDone(o)} of ${L.length} done</b> · <span>Started</span> ${dayName(o.start)}</p>${L.map((t, i) => obItem(o, t, i)).join("")}`;
+    return;
+  }
+  const now = obNow(), active = obActive(), done = now.filter((o) => !active.includes(o)), ppl = LIVE.staff.filter((p) => !LIVE.onboard.some((o) => o.id === p.uid)).sort((a, b) => a.name.localeCompare(b.name));
+  box.innerHTML = `<div class="sec">New starters</div>
+    <p class="note">A checklist for each new person's first weeks. Tick each thing off as it's done: it saves the day and who did it. Some of it is the law from day one: the written statement of terms, the right to work check before they start, and fire safety and health and safety training.</p>
+    ${active.map(obCard).join("") || `<p class="note">Nobody in their first weeks.</p>`}
+    <details class="setup" id="ob-add"${obF.open ? " open" : ""}><summary>Add a new starter</summary>
+      <label class="fld">Who<select data-obf="who"><option value="">Pick someone</option>${ppl.map((p) => `<option value="${p.uid}"${obF.who === p.uid ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+      <label class="fld">First day<input type="date" data-obf="start" value="${esc(obF.start || shiftDay())}"></label>
+      <p class="note">Someone new needs their login first, in Team logins.</p>
+      <div class="actions"><button class="btn pri" id="ob-go">Start their checklist</button></div></details>
+    ${done.length ? `<details class="setup"><summary>Finished (${done.length})</summary>${done.map(obCard).join("")}</details>` : ""}
+    <details class="setup" id="ob-list"${obF.edit ? " open" : ""}><summary>Change the checklist</summary>
+      <p class="note">One thing per line, up to 30. A tick stays with anything whose words don't change.</p>
+      <label class="fld">The checklist<textarea data-obf="text" rows="12">${esc(obF.text ?? L.join("\n"))}</textarea></label>
+      <div class="actions"><button class="btn pri" id="ob-save">Save the checklist</button><button class="btn" id="ob-std">Start from the standard one</button></div></details>`;
+}
+function obStart(A) {
+  const p = LIVE.staff.find((x) => x.uid === obF.who);
+  if (!p) return toast("Pick who it's for");
+  if (!/^\d{4}-\d\d-\d\d$/.test(obF.start || shiftDay())) return toast("Pick their first day");
+  track(A.startOnboard(p, obF.start || shiftDay()), `Started. ${p.name} can see it in My first weeks`);
+  Object.assign(obF, { who: "", start: "", open: false }); haptic(); renderOnboard();
+}
+function obSaveList(A) {
+  const xs = [...new Set((obF.text ?? obList().join("\n")).split("\n").map((t) => t.trim()).filter(Boolean))];
+  if (!xs.length) return toast("Put in at least one thing");
+  if (xs.length > 30) return toast(`That's ${xs.length}. Keep it to 30`);
+  const long = xs.find((t) => t.length > 80); if (long) return toast(`Keep each one to 80 letters: "${long.slice(0, 30)}…"`);
+  track(A.saveOnboardList(xs), "Saved. Every new starter's checklist has changed");
+  Object.assign(obF, { text: null, edit: false }); haptic(); renderOnboard();
+}
+SHARE.onboard = (o) => {
+  const xs = LIVE.admin && isOn("onboard") ? obNow() : []; if (!xs.length) return null;
+  const x = xs.find((y) => y.id === o) || xs[0], L = obList();
+  return { what: "New starter checklist", title: `${x.whoName}'s first weeks · Black Tap Soho`,
+    choose: { label: "Who", v: x.id, opts: xs.map((y) => [y.id, y.whoName]) },
+    head: [`Started ${dayName(x.start)}: ${obDone(x)} of ${L.length} done`],
+    parts: [{ id: "todo", label: "Still to do", lines: L.filter((t) => !x.done[t]) },
+      { id: "done", label: "Done", lines: L.filter((t) => x.done[t]).map((t) => `${t} (${dayName(x.done[t].day)}, ${x.done[t].by})`) }] };
 };
 const gLimit = () => (LIVE.owner ? Infinity : LIVE.comp ? LIVE.comp[LIVE.role] || 0 : 0);
 const gLimitText = () => (gLimit() === Infinity ? "As the owner you have no limit." : gLimit() ? `You can give up to ${gPounds(gLimit())} without asking a manager.` : LIVE.admin ? "The owner hasn't set what managers can give yet, so ask the owner first." : "Ask a manager before giving anything away.");
@@ -6684,7 +7053,7 @@ async function prepareDownload(sec) {
 const FRESH_NAME = { status: "Department statuses", blocks: "Bottleneck reports", nights: "Nights' sales and covers", shifts: "Shifts on the rota", asks: "Time off, swaps and running late", reports: "Shift reports", photos: "Closing photos",
   reviews: "Reviews of reports", events: "Changes in the activity history", restock: "Restocks", out: "On the 86 board", outlog: "86 log entries",
   issues: "Issues", concerns: "Concerns", concernPhotos: "Concern photos", notices: "Broadcasts", seen: "Got it taps on broadcasts", feed: "Old board posts",
-  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", teststaff: "Test staff", checklists: "Checklist items" };
+  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", teststaff: "Test staff", shouts: "Shout-outs", pulse: "Shift feedback answers", checklists: "Checklist items" };
 const FRESH_WORDS = "START FRESH";
 const frF = { counts: null, total: 0, busy: false, done: 0, of: 0, words: "", msg: "" };
 const frCount = (n) => n.toLocaleString("en-GB");
@@ -6701,9 +7070,9 @@ function renderFresh() {
       <button class="btn danger wide" id="fr-go"${frF.busy ? " disabled" : ""}>Clear it for everyone</button>`;
   box.innerHTML = `<p class="note">Clears the shift work for everyone, for a clean start once you've finished trying the app out. It can't be undone, and it's best done when nobody's on shift.</p>
     <div class="mini">It clears</div>
-    <p class="note">The rota, time off and swap asks, shift reports with their photos, reviews and sign-offs, the checklists, restocking, the 86 board and its log, issues, concerns, broadcasts, the activity history, and the old board and stock requests.</p>
+    <p class="note">The rota, time off and swap asks, shift reports with their photos, reviews and sign-offs, the checklists, restocking, the 86 board and its log, issues, concerns, broadcasts, shout-outs, shift feedback, the activity history, and the old board and stock requests.</p>
     <div class="mini">It keeps</div>
-    <p class="note">Everyone's logins and PINs, the audit trail, the lists, date labels, drink photos and videos, the calendar, the games on the screens, incidents, training sign-offs, feedback, chats, and the old temperature, waste and stock records.</p>
+    <p class="note">Everyone's logins and PINs, the audit trail, the lists, date labels, drink photos and videos, the calendar, the games on the screens, incidents, training sign-offs, manager feedback, chats, availability, new starter checklists, certificates, refusals, and the old temperature, waste and stock records.</p>
     <div class="mini">First, download what you want to keep</div>
     <div class="actions">${dlHtml("all", "Everything in Activity", "fr-all")}${dlHtml("shifts", "The rota", "fr-rota")}</div>
     <p class="note">Photos aren't in the spreadsheets, so save any you need from Reports first.</p>
@@ -6959,6 +7328,7 @@ const TOAST = {
   events: eventToast,
   shifts: (x) => (isOn("rota") ? roOutToast(x) : ""),
   refusals: (x) => (isOn("refusals") && x.day === shiftDay() ? `${x.name} refused someone: ${RF_SAY[x.reason]}` : ""),
+  shouts: (x) => (!isOn("shouts") ? "" : x.to === LIVE.uid ? `${x.name} gave you a shout-out` : `${x.name} gave ${x.toName} a shout-out`),
 };
 const MINE = {
   reports: (x) => (x.signedBy ? `${x.signedBy} signed off your shift report` : ""),
@@ -6987,19 +7357,19 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], nights: [renderNights, renderBrief], status: [renderStatus], blocks: [renderStatus], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], tests: [renderStaff, renderRota], requests: [renderRequests, renderAct],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], nights: [renderNights, renderBrief], status: [renderStatus], blocks: [renderStatus], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota, renderAvail, renderOnboard], tests: [renderStaff, renderRota], requests: [renderRequests, renderAct],
       asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief, renderTests], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
-      seen: [renderPins], photos: [], training: [renderTraining, renderAct], contacts: [renderCall], refusals: [renderRefusals], certs: [renderCerts, renderRota],
-      concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
+      seen: [renderPins], photos: [], training: [renderTraining, renderAct], contacts: [renderCall], refusals: [renderRefusals], certs: [renderCerts, renderRota], avail: [renderAvail, renderRota], shouts: [renderShouts], pulse: [renderPulses], onboard: [renderOnboard], onboardList: [renderOnboard],
+      concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat, renderShouts], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"], [renderHandover, "#mclose"], [renderBrief, "#brief"], [renderGuests, "#guests"], [renderCall, "#call"], [renderRefusals, "#refusals"], [renderCerts, "#certs"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"], [renderHandover, "#mclose"], [renderBrief, "#brief"], [renderGuests, "#guests"], [renderCall, "#call"], [renderRefusals, "#refusals"], [renderCerts, "#certs"], [renderAvail, "#avail"], [renderShouts, "#shouts"], [renderOnboard, "#onboard"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderHub(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports", "directory"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports", "directory", "pulse"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
@@ -7012,7 +7382,7 @@ setInterval(() => {
   if (!$("#v-notices").hidden) { renderDash(); if (tpane === "live") renderLive(); renderHub(); }
 }, 60000);
 function markSeen() {
-  const all = [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].map((x) => ms(x.at));
+  const all = [...LIVE.feed, ...LIVE.notices, ...LIVE.reports, ...LIVE.shouts].map((x) => ms(x.at));
   if (all.length) { feedSeen = Math.max(feedSeen, ...all); store.set("feedSeen", feedSeen); }
   renderBell();
 }
@@ -7048,6 +7418,10 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.cl) clF[t.dataset.cl] = t.value;
   if (t.dataset.rf) rfF[t.dataset.rf] = t.value;
   if (t.dataset.ct) { ctF[t.dataset.ct] = t.value; ctF.open = true; }
+  if (avF && (t.dataset.avFrom || t.dataset.avTo)) { const i = +(t.dataset.avFrom || t.dataset.avTo), [f, u] = avF.days[i].split("-"); avF.days[i] = t.dataset.avFrom ? `${t.value}-${u}` : `${f}-${t.value}`; avF.dirty = true; }
+  if (avF && t.dataset.avNote !== undefined) { avF.note = t.value; avF.dirty = true; }
+  if (t.dataset.sh) shF[t.dataset.sh] = t.value;
+  if (t.dataset.obf) obF[t.dataset.obf] = t.value;
   if (t.dataset.moR) { const k = t.dataset.moR; moF[k] = t.value; const f = $(`[data-mo="${k}"]`); if (f) f.value = t.value; moSave(); moOut(); moDrink(); }
   if (t.dataset.mo && t.dataset.mo !== "what") { const r = $(`[data-mo-r="${t.dataset.mo}"]`), v = moNum(t.value, MO_NEG.includes(t.dataset.mo)); if (r && !Number.isNaN(v)) r.value = v; }
   if (t.dataset.mo) { moF[t.dataset.mo] = t.value; moSave(); if (t.dataset.mo === "what") $("#mo-wt").textContent = `${Number(t.value) > 0 ? "+" : ""}${t.value}% sales and guests`; moOut(); moDrink(); }
@@ -7084,6 +7458,15 @@ $("#v-notices").addEventListener("change", (e) => {
   // The calendar's days: a last day before the first moves up to it, and the page shows the new days.
   if (t.dataset.calf && t.type === "date") { calF[t.dataset.calf] = t.value; if (calF.date1 && calF.date2 < calF.date1) calF.date2 = calF.date1; renderCal(); }
   if (t.dataset.cale && t.type === "date") { calE[t.dataset.cale] = t.value; if (calE.date1 && calE.date2 < calE.date1) calE.date2 = calE.date1; renderCal(); }
+  if (t.dataset.sh) shF[t.dataset.sh] = t.value;
+  if (t.dataset.obf) obF[t.dataset.obf] = t.value;
+  // A new starter's checklist: one tick at a time, with the day and who.
+  if (t.dataset.ob) {
+    const o = LIVE.onboard.find((x) => x.id === t.dataset.ob), item = obList()[+t.dataset.obI];
+    // Out of the way, so the list redraws with who ticked it and when.
+    if (o && item) { track(LIVE.api.tickOnboard(o.id, item, t.checked), "", "Not saved. Check the signal and try again"); haptic(); t.blur(); }
+    return;
+  }
   if (t.dataset.give && t.value) {
     const p = LIVE.staff.find((x) => x.uid === t.value);
     track(LIVE.api.take(t.dataset.give, p), `Given to ${p.name}`, "Not updated. It may have just been fixed");
@@ -7099,6 +7482,8 @@ $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "cal-add") calE.open = e.target.open;
   if (e.target.id === "cl-form") clF.open = e.target.open;
   if (e.target.id === "ct-box") ctF.open = e.target.open;
+  if (e.target.id === "ob-add") obF.open = e.target.open;
+  if (e.target.id === "ob-list") obF.edit = e.target.open;
 }, true);
 function sendMe(A) {
   const f = meF, sent = () => { haptic(); Object.keys(meF).filter((k) => !k.startsWith("fb")).forEach((k) => (meF[k] = "")); renderMe(); };
@@ -7134,6 +7519,18 @@ $("#v-notices").addEventListener("click", (e) => {
     renderCerts(); $("#ct-box")?.scrollIntoView({ block: "start" }); return;
   }
   if (b.dataset.ctDrop) { const c = LIVE.certs.find((x) => x.id === b.dataset.ctDrop); if (c && confirm(`Remove ${ctName(c)} for ${c.whoName}?`)) track(A.dropCert(c.id), "Removed"); return; }
+  if (b.dataset.avDay && avF) {
+    const i = +b.dataset.avDay, v = avF.days[i];
+    avF.days[i] = b.dataset.av === "any" ? "" : b.dataset.av === "no" ? "no" : v && v !== "no" ? v : "17:00-23:00";
+    avF.dirty = true; renderAvail(); return;
+  }
+  if (b.id === "av-save") return avSave(A);
+  if (b.id === "sh-go") return shPost(A);
+  if (b.dataset.shDrop) { if (confirm("Take this shout-out down for everyone?")) track(A.dropShout(b.dataset.shDrop), "Taken down"); return; }
+  if (b.id === "ob-go") return obStart(A);
+  if (b.id === "ob-save") return obSaveList(A);
+  if (b.id === "ob-std") { Object.assign(obF, { text: OB_STD.join("\n"), edit: true }); renderOnboard(); return; }
+  if (b.dataset.obDrop) { const o = LIVE.onboard.find((x) => x.id === b.dataset.obDrop); if (o && confirm(`Remove ${o.whoName}'s checklist? Its ticks go with it.`)) track(A.dropOnboard(o.id), "Removed"); return; }
   if (b.dataset.roWk) { roWk = addDays(roWeek(), +b.dataset.roWk); Object.assign(roF, { days: [] }); roM = ""; roE = null; renderRota(); return; }
   if (b.dataset.roGoto) { roWk = b.dataset.roGoto; roF.days = []; renderRota(); return; }
   if (b.dataset.roSide !== undefined) { roSide = b.dataset.roSide; renderRota(); return; }

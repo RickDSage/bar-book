@@ -30,7 +30,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   // Staff: from Bar info, what they can do and what managers can, with no switches.
   await openFeatures(S);
   assert.match(flat(await S.$eval("#feat", (e) => e.innerText)), /^WHAT'S IN BAR BOOK The drinks, the shift and the team in one app\. .* You're staff: what you can do is under You\. .* Take the tour \(14 steps\) DRINKS /);
-  assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 39);
+  assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 42);
   assert.match(await card(S, "fresh"), /^Start fresh Managers only A clean start for everyone once the venue has finished trying the app out: .* Managers: The owner downloads what to keep, sees what it would clear, then types their PIN to clear it for everyone\.$/);
   assert.match(await card(S, "lists"), /^Checklists Opening and closing .* You: Tick items off, start one, or mark one blocked and say why\. Managers: The same, and give an item to someone and change what's on each list\. Open it$/);
   assert.match(await card(S, "live"), /^Live Managers only Tonight as it happens: .* Managers: Share tonight's summary on WhatsApp or by email\.$/);
@@ -61,7 +61,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   await openFeatures(O);
   assert.match(flat(await O.$eval("#feat", (e) => e.innerText)), /You're the owner, so you can do everything here\. Untick a feature to switch it off for everyone at this venue/);
   assert.deepEqual(await O.$$eval("[data-feat-sw]", (x) => x.map((b) => `${b.dataset.featSw}:${b.checked}`)),
-    ["allergens", "practice", "pay", "briefing", "football", "guests", "chat", "rota", "calendar", "asks", "refusals", "incidents", "handover", "kpis", "certs", "training", "feedback"].map((k) => `${k}:true`));
+    ["allergens", "practice", "pay", "briefing", "football", "guests", "chat", "shouts", "pulse", "rota", "calendar", "asks", "refusals", "incidents", "handover", "kpis", "certs", "onboard", "training", "feedback"].map((k) => `${k}:true`));
   await O.click('[data-feat-go="pay"]'); await closed(O);
   assert.equal(await where(O), "pay", "My pay is its own tab");
 
@@ -106,7 +106,7 @@ test("the owner switches features off for everyone, and switching them on brings
   assert.equal(await S.evaluate(() => getComputedStyle($("nav.tabs")).gridTemplateColumns.split(" ").length), 4, "Drinks, Shift, Team and Info");
   await S.evaluate(() => show("allergens"));
   assert.equal(await where(S), "drinks", "a switched-off tab can't be opened");
-  const rest = ["brief:Tonight's briefing", "status:Tonight's status", "issues:Issues and handover", "guests:Guest issues", "me:My requests", "send:WhatsApp and email", "board:Broadcasts", "concerns:Concerns", "reports:Reports"];
+  const rest = ["brief:Tonight's briefing", "status:Tonight's status", "issues:Issues and handover", "guests:Guest issues", "me:My requests", "send:WhatsApp and email", "board:Broadcasts", "concerns:Concerns", "shouts:Shout-outs", "reports:Reports"];
   assert.deepEqual(await teamTabs(S), [...rest, "activity:Activity", "call:Who to call", "refusals:Refusals", "certs:My certificates"]);
   await part(S, "me");
   assert.deepEqual(await S.$$eval("[data-mek]", (x) => x.map((b) => b.dataset.mek)), ["late"]);
@@ -126,7 +126,7 @@ test("the owner switches features off for everyone, and switching them on brings
   await part(M, "reports");
   assert.deepEqual(await M.$$eval("[data-rp-show]", (x) => x.map((b) => b.dataset.rpShow)), ["all", "bar", "floor", "kitchen", "flagged"]);
   assert.doesNotMatch(await M.$eval("#reports", (e) => e.innerText), /OPEN INCIDENTS|Cold fries/);
-  assert.deepEqual(await teamTabs(M, "Managers"), ["live:Live", "handover:Close and handover", "requests:Requests to answer", "nights:Sales and covers", "money:Money sandbox", "out:86 log", "team:Team logins", "act:Activity"]);
+  assert.deepEqual(await teamTabs(M, "Managers"), ["live:Live", "handover:Close and handover", "requests:Requests to answer", "nights:Sales and covers", "money:Money sandbox", "out:86 log", "team:Team logins", "onboard:New starters", "pulse:Shift feedback", "act:Activity"]);
   assert.doesNotMatch(await M.$eval("#foryou", (e) => e.innerText), /shifts? to fill|open incident/);
   await M.evaluate(() => show("tally"));
   assert.equal(await M.locator("#fx-add").count(), 0, "no football");
