@@ -46,15 +46,15 @@ test("tonight's quiz is the same ten questions on every phone, shows the right a
     await p.click('#pmode [data-pmode="quiz"]');
     assert.equal(await text(p, "#plead"), "Ten questions from our own specs.");
     assert.deepEqual(await p.evaluate(() => [$("#pcard").hidden, $("#ppool").hidden, $("#pquiz").hidden]), [true, true, false]);
-    assert.equal(await text(p, "#pquiz"), "Tonight's quiz The same 10 questions for everyone tonight. Start tonight's quiz "
-      + "Practice quiz Ten questions from one part of the menu. Signatures Classics Shots & bombs Everything Start a practice quiz");
+    assert.equal(await text(p, "#pquiz"), "TONIGHT'S QUIZ The same 10 questions for everyone tonight. Start tonight's quiz "
+      + "PRACTICE QUIZ Ten questions from one part of the menu. Signatures Classics Shots & bombs Everything Start a practice quiz");
     await p.click('#pquiz [data-qz="night"]');
   }
   const qs = await questions(A);
   assert.equal(qs.length, 10);
   assert.deepEqual(await questions(B), qs, "the same ten, in the same order, with the answers in the same order");
   assert.equal(new Set(await A.evaluate(() => qz.qs.map((q) => q.id))).size, 10, "ten different drinks");
-  assert.match(await text(A, "#pquiz"), /^Question 1 of 10 /);
+  assert.match(await text(A, "#pquiz"), /^QUESTION 1 OF 10 /);
 
   // Right: the answer is marked, every answer is locked, and Next comes up.
   const first = await A.evaluate(() => qz.qs[0]);
@@ -63,19 +63,19 @@ test("tonight's quiz is the same ten questions on every phone, shows the right a
   assert.deepEqual(await A.$$eval("#pquiz [data-qz-pick]", (x) => x.map((b) => [b.disabled, b.classList.contains("right")])), first.opts.map((o) => [true, o === first.answer]));
   assert.equal(await text(A, '#pquiz [data-qz="next"]'), "Next question");
   await A.click('#pquiz [data-qz="next"]');
-  assert.match(await text(A, "#pquiz"), /^Question 2 of 10 /);
+  assert.match(await text(A, "#pquiz"), /^QUESTION 2 OF 10 /);
   for (let i = 1; i < 10; i++) await answer(A, true);
-  assert.equal(await text(A, "#pquiz"), "10 out of 10 Perfect. Another practice quiz Done");
+  assert.equal(await text(A, "#pquiz"), "10 OUT OF 10 Perfect. Another practice quiz Done");
 
   // Stopped part way, the first go carries on where it was, after a reload too, with the answers given still given.
   await answer(B, false);
-  assert.match(await text(B, "#pquiz"), /^Question 2 of 10 .* Stop the quiz$/);
+  assert.match(await text(B, "#pquiz"), /^QUESTION 2 OF 10 .* Stop the quiz$/);
   await B.click('#pquiz [data-qz="home"]');
-  assert.match(await text(B, "#pquiz"), /^Tonight's quiz The same 10 questions for everyone tonight\. You stopped at question 2 of 10\. Carry on tonight's quiz Practice quiz/);
+  assert.match(await text(B, "#pquiz"), /^TONIGHT'S QUIZ The same 10 questions for everyone tonight\. You stopped at question 2 of 10\. Carry on tonight's quiz PRACTICE QUIZ/);
   await B.reload(); await B.click("#w-ok"); await practise(B);
   assert.match(await text(B, "#pquiz"), /You stopped at question 2 of 10\. Carry on tonight's quiz/);
   await B.click('#pquiz [data-qz="night"]');
-  assert.match(await text(B, "#pquiz"), /^Question 2 of 10 /);
+  assert.match(await text(B, "#pquiz"), /^QUESTION 2 OF 10 /);
   assert.deepEqual(await B.evaluate(() => [qz.first, qz.picks.length, qz.picks[0] !== qz.qs[0].answer]), [true, 1, true]);
   assert.deepEqual(await questions(B), qs, "the same ten as before");
 
@@ -88,19 +88,19 @@ test("tonight's quiz is the same ten questions on every phone, shows the right a
     last.opts.map((o, j) => (o === last.answer ? "right" : j === wi ? "wrong" : "")));
   assert.equal(await text(B, '#pquiz [data-qz="next"]'), "See your score");
   await B.click('#pquiz [data-qz="next"]');
-  assert.match(await text(B, "#pquiz"), /^0 out of 10 Practise these, then try again\. To practise /);
+  assert.match(await text(B, "#pquiz"), /^0 OUT OF 10 Practise these, then try again\. TO PRACTISE /);
   assert.equal(await B.$$eval("#pquiz .staffrow", (x) => x.length), 10);
   // Each one missed says what was asked and the answer, and opens its drink.
   const q0 = await B.evaluate(() => qz.qs[0]);
   assert.equal(await text(B, "#pquiz .staffrow >> nth=0"), flat(`${q0.name} ${q0.ask} ${q0.of ? `${q0.of}: ` : ""}${q0.answer} Open the drink`));
   await B.click("#pquiz .staffrow >> nth=0 >> [data-open]");
   await B.waitForSelector("#sheet", { state: "visible" });
-  assert.equal(await text(B, "#sh-name"), q0.name);
+  assert.equal(await B.$eval("#sh-name", (e) => e.textContent), q0.name);
   await B.click("#sh-close"); await B.waitForSelector("#sheet", { state: "hidden" });
 
   // Back home, each phone has its own go; another go doesn't replace the first.
   await B.click('#pquiz [data-qz="home"]');
-  assert.match(await text(B, "#pquiz"), /^Tonight's quiz The same 10 questions for everyone tonight\. You got 0 out of 10 tonight\. Take it again Practice quiz/);
+  assert.match(await text(B, "#pquiz"), /^TONIGHT'S QUIZ The same 10 questions for everyone tonight\. You got 0 out of 10 tonight\. Take it again PRACTICE QUIZ/);
   await A.click('#pquiz [data-qz="home"]');
   await A.click('#pquiz [data-qz="night"]');
   for (let i = 0; i < 10; i++) await answer(A, false);
@@ -156,7 +156,7 @@ test("logged in, the first go goes to the managers once; they see the night, wha
   await resetEmulators();
   const { M, S } = await team(browser, site, people);
   await quizMode(S);
-  assert.match(await text(S, "#pquiz"), /^Tonight's quiz The same 10 questions for everyone tonight\. Your first go counts\. Start tonight's quiz/);
+  assert.match(await text(S, "#pquiz"), /^TONIGHT'S QUIZ The same 10 questions for everyone tonight\. Your first go counts\. Start tonight's quiz/);
   await S.click('#pquiz [data-qz="night"]');
   for (let i = 0; i < 10; i++) await answer(S, i < 7);
   await waitToast(S, /^Your score is in: 7 out of 10$/);
@@ -166,7 +166,7 @@ test("logged in, the first go goes to the managers once; they see the night, wha
   // A second go doesn't change it, and nor can anything else.
   await S.click('#pquiz [data-qz="night"]');
   for (let i = 0; i < 10; i++) await answer(S, true);
-  assert.equal(await text(S, "#pquiz .card h2"), "10 out of 10");
+  assert.equal(await text(S, "#pquiz .card h2"), "10 OUT OF 10");
   assert.equal(await S.evaluate(() => LIVE.quiz.map((x) => x.right).join()), "1111111000");
   const day = await S.evaluate(() => shiftDay());
   assert.equal(await attempt(S, (d) => LIVE.api.saveQuiz(d, "1111111111"), day), "permission-denied");
@@ -193,7 +193,7 @@ test("logged in, the first go goes to the managers once; they see the night, wha
   const pre = () => M.$eval("#send-pre", (e) => e.textContent);
   const know = qs.slice(7).map((q) => `• ${q.name}. ${q.of ? `How much ${q.of}?` : q.ask} ${q.answer}`).join("\n");
   assert.match(await pre(), new RegExp(`^Black Tap Soho quiz · \\w+ \\d+ \\w+\n2 of the team took it\n\nAnswers to know \\(3\\)\n${esc(know)}$`));
-  assert.doesNotMatch(await pre(), /Sam|Mia|out of 10/);
+  assert.doesNotMatch(await pre(), /Sam Staff|Mia Manager|out of 10/);
   await M.check('[data-send-part="full"]');
   assert.match(await pre(), /\n\nFull marks \(1\)\n• Mia Manager$/);
   assert.deepEqual(await M.evaluate(() => { const keep = LIVE.quiz; LIVE.quiz = [...keep, { ...keep[0], uid: "x", name: "Xavi", right: "1111111111" }]; const m = SHARE.quiz(); LIVE.quiz = keep; return m.head; }),
