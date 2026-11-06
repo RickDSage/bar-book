@@ -30,6 +30,7 @@ const stubShare = (p) => p.evaluate(() => {
 });
 const preview = (p) => p.$eval("#send-pre", (e) => e.textContent);
 const actions = (p) => p.$$eval("#send .actions .btn", (x) => x.map((b) => b.textContent));
+const addButtons = (p) => p.$$eval("#send .addph label", (x) => x.map((l) => [l.htmlFor, l.textContent]));
 const photosReady = (p, n) => p.waitForFunction((n) => snd?.photos.length === n && snd.files?.length === n, n, { timeout: 20000 });
 
 test("photos added to an issue: copy the words, then the share sheet gets the photos on their own", async () => {
@@ -44,18 +45,22 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   assert.match(await preview(S), /^Urgent: Glass washer leaking · Black Tap Soho\nBar, raised .+\nNobody on it yet\n\nMore detail\nWater under the machine$/);
   assert.equal(await S.getAttribute("#send-note", "placeholder"), "When can you come?");
   // No photos yet: WhatsApp is the main button and there's nothing to send through the share sheet but the words.
-  assert.equal(await S.$eval('label[for="send-in"]', (e) => e.textContent), "Add a photo");
   assert.deepEqual(await actions(S), ["WhatsApp", "Email", "Other apps…", "Copy", "Print"]);
+  // Photos come from the camera, or several at once from the phone's photos.
+  assert.deepEqual(await addButtons(S), [["send-cam", "Take a photo"], ["send-in", "Choose from your photos"]]);
+  assert.deepEqual(await S.evaluate(() => [document.querySelector("#send-cam").getAttribute("capture"), document.querySelector("#send-in").multiple]), ["environment", true]);
 
   await S.setInputFiles("#send-in", [jpeg(1), jpeg(2)]);
   await photosReady(S, 2);
-  assert.equal(await S.$$eval("#send .sendph img", (x) => x.length), 2);
-  assert.equal(await S.$eval('label[for="send-in"]', (e) => e.textContent), "Add another photo");
+  await S.setInputFiles("#send-cam", jpeg(3));
+  await photosReady(S, 3);
+  assert.equal(await S.$$eval("#send .sendph img", (x) => x.length), 3);
+  assert.equal((await addButtons(S)).length, 2, "both buttons stay for more");
   assert.deepEqual(await actions(S), ["Copy the words", "Send with photos", "WhatsApp, words only", "Email", "Print"]);
   assert.deepEqual(await S.$$eval("#send .sendhow li", (x) => x.map((l) => l.textContent)),
     ["Tap Copy the words, then Send with photos.", "Pick WhatsApp, then the chat.", "Press and hold the caption box, tap Paste, then send."]);
   await S.click('[data-send-unphoto="1"]');
-  await photosReady(S, 1);
+  await photosReady(S, 2);
 
   await S.fill("#send-note", "Can you come before 5?");
   // Two taps: Safari opens the share sheet only from a fresh tap, and copying first could use it up.
@@ -65,7 +70,7 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   assert.equal(await S.$eval("#toast", (e) => e.textContent), "Copied. Now tap Send with photos");
   await S.click("#send [data-send-sheet]");
   await S.waitForFunction(() => window.shared);
-  assert.deepEqual(await S.evaluate(() => window.shared), { text: undefined, files: [["photo-1.jpg", "image/jpeg", true]] });
+  assert.deepEqual(await S.evaluate(() => window.shared), { text: undefined, files: [["photo-1.jpg", "image/jpeg", true], ["photo-2.jpg", "image/jpeg", true]] });
   // WhatsApp on its own still takes the words.
   await S.click("#send [data-share][data-via=wa]");
   assert.match(new URL(await S.getAttribute("#send [data-share][data-via=wa]", "href")).searchParams.get("text"), /^\*Urgent: Glass washer leaking/);
@@ -73,7 +78,7 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   // Ten is the most; the rest are left out and it says so.
   await S.setInputFiles("#send-in", Array.from({ length: 11 }, (_, i) => jpeg(i + 3)));
   await photosReady(S, 10);
-  assert.equal(await S.locator('label[for="send-in"]').count(), 0, "no button for an eleventh");
+  assert.deepEqual(await addButtons(S), [], "no buttons for an eleventh");
   assert.match(await S.$eval("#send", (e) => e.textContent), /10 photos is the most\./);
   // Photos added here are only for this message.
   await S.click("#sh-close"); await S.waitForSelector("#sheet", { state: "hidden" });
