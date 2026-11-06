@@ -60,8 +60,12 @@
 /* Send: the summary, a tick box for each part, and the message as it will look. */
 .sendsum { margin-top: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 16px; line-height: 1.5; }
 .sendpart .s { margin-inline-start: auto; color: var(--muted); font-size: 14px; }
-.sendph { display: flex; gap: 8px; overflow-x: auto; margin-top: 8px; }
-.sendph img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; flex: none; }
+.sendph { display: flex; gap: 8px; overflow-x: auto; margin-top: 8px; padding-top: 6px; }
+.sendph figure { position: relative; margin: 0; flex: none; }
+.sendph img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; display: block; }
+.sendph .phx { position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--bg); background: var(--fg); color: var(--bg); font-size: 16px; line-height: 1; padding: 0; }
+.sendhow { margin: 8px 0 0; padding-left: 22px; font-size: 15px; color: var(--muted); }
+.sendhow li { margin: 2px 0; }
 .sendpre { white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.5 var(--body); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 8px 0 0; }
 #print { display: none; }
 @media print {
@@ -739,6 +743,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
     <input id="dm-in" type="file" accept="image/*" hidden>
     <input id="cn-in" type="file" accept="image/*" hidden>
+    <input id="send-in" type="file" accept="image/*" multiple hidden>
     <input id="ch-in" type="file" accept="image/*" hidden>
   </section>
 
@@ -903,31 +908,69 @@ let snd = null;
 const sndMsg = () => snd && SHARE[snd.k](snd.opt);
 function openSend(k, o, note = "") {
   const m = SHARE[k](o); if (!m) return toast("Nothing to send yet");
-  lastFocus = document.activeElement;
-  snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, withPhotos: true };
+  if ($("#sheet").hidden) lastFocus = document.activeElement;
+  document.querySelector(".swhint")?.remove();
+  // From a drink, Back goes back to the drink.
+  const s = snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, busy: false, drink: k === "drink" ? +o : null };
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Send</span><span></span></div></div><div id="send"></div>`;
   renderSend(m); showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus();
-  if (m.photos) m.photos().then(async (ps) => {
-    if (snd?.k !== k || !ps.length) return;
-    snd.photos = ps; renderSend();
-    // Made ready now: the share sheet has to open straight from the tap.
-    try { snd.files = await Promise.all(ps.map(async (x, i) => new File([await (await fetch(x.data)).blob()], `photo-${i + 1}.jpg`, { type: "image/jpeg" }))); } catch {}
+  if (m.photos) m.photos().then((ps) => {
+    if (snd !== s || !ps.length) return;
+    s.photos = [...ps, ...s.photos].slice(0, SEND_MAX); sndFiles(); renderSend();
   }).catch(() => {});
 }
 const canFiles = () => { try { return !!navigator.canShare?.({ files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] }); } catch { return false; } };
+/* Photos on the Send page: the message's own (tonight's closing photos, a concern's, a drink's house photo, the rota as
+   a picture) and any the person adds here from the camera or their photos. Added ones are only for this message:
+   nothing is saved. The share sheet takes the photos on their own: given words as well, an iPhone keeps the words and
+   drops the photos (WebKit bug 251500). So the words are copied first, with their own tap, for pasting in as the
+   caption: Safari lets the share sheet open only from a fresh tap, and sharing uses that tap up. */
+const SEND_MAX = 10;
+let sndGen = 0;
+// The photos as files for the share sheet, made ready as they change: it has to open straight from the tap.
+async function sndFiles() {
+  const s = snd, n = ++sndGen; s.files = null;
+  try {
+    const fs = await Promise.all(s.photos.map(async (x, i) => { const b = await photoBlob(x); return new File([b], `${x.file || `photo-${i + 1}`}.${b.type === "image/png" ? "png" : "jpg"}`, { type: b.type || "image/jpeg" }); }));
+    if (n === sndGen && snd === s) s.files = fs;
+  } catch { if (n === sndGen && snd === s) { s.files = []; toast("The photos couldn't be got ready, so only the words will go"); } }
+}
+// Words that fit a width, a line at a time.
+function fitLines(g, text, w) {
+  const out = [];
+  for (const word of text.split(/\s+/)) { const l = out.length ? `${out[out.length - 1]} ${word}` : word; if (out.length && g.measureText(l).width <= w) out[out.length - 1] = l; else out.push(word); }
+  return out;
+}
+// A photo with a note carries it in a strip along the bottom, so it still says what it shows in WhatsApp.
+async function photoBlob(x) {
+  if (!x.note) return (await fetch(x.data)).blob();
+  const img = new Image(); img.src = x.data; await img.decode();
+  const w = img.naturalWidth, h = img.naturalHeight, fs = Math.max(18, Math.round(w / 26)), pad = Math.round(fs * 0.75);
+  const c = document.createElement("canvas"), g = c.getContext("2d"), font = `600 ${fs}px -apple-system, system-ui, "Segoe UI", Roboto, sans-serif`;
+  g.font = font;
+  const ls = fitLines(g, x.note, w - pad * 2).slice(0, 3), band = Math.round(ls.length * fs * 1.3 + pad * 1.5);
+  c.width = w; c.height = h + band;
+  g.drawImage(img, 0, 0); g.fillStyle = "#111"; g.fillRect(0, h, w, band);
+  g.font = font; g.fillStyle = "#fff"; g.textBaseline = "top";
+  ls.forEach((l, i) => g.fillText(l, pad, h + pad * 0.75 + i * fs * 1.3));
+  return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("No picture"))), "image/jpeg", 0.85));
+}
 function renderSend(m = sndMsg()) {
   const box = $("#send"); if (!box || !m) return;
-  const ph = snd.photos.length, files = ph && snd.withPhotos && canFiles(), c = m.choose;
-  box.innerHTML = `<h2 id="sh-name" style="margin-top:12px">${esc(m.what)}</h2>
+  const ph = snd.photos.length, files = ph && canFiles(), c = m.choose;
+  box.innerHTML = `<h2 id="sh-name" style="margin-top:12px"${snd.k === "drink" ? ' translate="no"' : ""}>${esc(m.what)}</h2>
     ${c ? `<div class="mini">${esc(c.label)}</div><div class="recent">${c.opts.map(([v, t]) => `<button class="chip" data-send-opt="${esc(v)}" aria-pressed="${v === c.v}">${esc(t)}</button>`).join("")}</div>` : ""}
     ${m.head.length ? `<div class="sendsum" translate="no">${m.head.map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
-    ${m.parts.length || ph ? `<div class="sec">What goes in</div>` : ""}
+    ${m.parts.length ? `<div class="sec">What goes in</div>` : ""}
     ${m.parts.filter((x) => x.lines.length || !x.opt).map((x) => `<label class="check sendpart"><input type="checkbox" data-send-part="${x.id}"${snd.pick.has(x.id) && x.lines.length ? " checked" : ""}${x.lines.length ? "" : " disabled"}><span>${esc(x.label)}</span><span class="s">${!x.lines.length ? "Nothing" : x.one ? "" : partItems(x)}</span></label>`).join("")}
-    ${ph ? `<label class="check sendpart"><input type="checkbox" data-send-photos${snd.withPhotos ? " checked" : ""}><span>Photos</span><span class="s">${ph}</span></label>
-      <div class="sendph">${snd.photos.map((x) => `<img src="${x.data}" alt="${esc(x.note || "Photo")}">`).join("")}</div>` : ""}
+    <div class="sec">Photos${ph ? ` (${ph})` : ""}</div>
+    ${ph ? `<div class="sendph">${snd.photos.map((x, i) => `<figure><img src="${x.data}" alt="${esc(x.note || `Photo ${i + 1}`)}"><button class="phx" data-send-unphoto="${i}" aria-label="Take photo ${i + 1} out">×</button></figure>`).join("")}</div>` : ""}
+    ${ph < SEND_MAX ? `<label class="btn" for="send-in" style="cursor:pointer;margin-top:8px">${snd.busy ? "Adding…" : ph ? "Add another photo" : "Add a photo"}</label>` : `<p class="note">${SEND_MAX} photos is the most.</p>`}
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
-    <div class="actions"><a class="btn pri" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share ? `<button class="btn" data-send-sheet>${files ? "Send with photos" : "Other apps…"}</button>` : ""}<button class="btn" data-send-copy>Copy</button><button class="btn" data-send-print>Print</button></div>
-    ${ph ? `<p class="note">${files ? "WhatsApp and Email take the words. For the photos too, tap Send with photos and pick WhatsApp. The words are copied as well: paste them in if they don't show." : "WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF."}</p>` : ""}
+    ${files ? `<div class="actions"><button class="btn" data-send-copy>Copy the words</button><button class="btn pri" data-send-sheet>Send with photos</button></div>
+      <ol class="sendhow"><li>Tap Copy the words, then Send with photos.</li><li>Pick WhatsApp, then the chat.</li><li>Press and hold the caption box, tap Paste, then send.</li></ol>` : ""}
+    <div class="actions"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-print>Print</button></div>
+    ${ph && !files ? `<p class="note">WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF.</p>` : ""}
     ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
     <p class="note">It goes in English, so everyone can read it.</p>
     <div class="sec">How it will look</div>
@@ -955,22 +998,37 @@ document.addEventListener("click", (e) => {
     return;
   }
   const text = msgText(m, snd.pick, snd.note);
-  if (e.target.closest("[data-send-copy]")) { navigator.clipboard?.writeText(text).then(() => toast("Copied. Paste it anywhere"), () => toast("Couldn't copy. Press and hold the message to copy it")); return; }
-  if (e.target.closest("[data-send-sheet]")) {
-    const files = snd.withPhotos && snd.files?.length && navigator.canShare?.({ files: snd.files }) ? snd.files : null;
-    if (files) navigator.clipboard?.writeText(text).catch(() => {});
-    navigator.share(files ? { title: m.title, text, files } : { title: m.title, text }).catch(() => {});
+  if (e.target.closest("[data-send-copy]")) {
+    const next = snd.photos.length && canFiles() ? "Copied. Now tap Send with photos" : "Copied. Paste it anywhere";
+    navigator.clipboard?.writeText(text).then(() => toast(next), () => toast("Couldn't copy. Press and hold the message to copy it"));
     return;
   }
-  if (e.target.closest("[data-send-print]")) printMsg(msgText(m, snd.pick, snd.note, false), snd.withPhotos ? snd.photos : []);
+  if (e.target.closest("[data-send-sheet]")) {
+    if (snd.photos.length && !snd.files) return toast("Getting the photos ready. Tap again in a moment");
+    const files = snd.files?.length && navigator.canShare?.({ files: snd.files }) ? snd.files : null;
+    navigator.share(files ? { files } : { title: m.title, text }).catch(() => {});
+    return;
+  }
+  const ux = e.target.closest("[data-send-unphoto]");
+  if (ux) { snd.photos.splice(+ux.dataset.sendUnphoto, 1); sndFiles(); renderSend(m); return; }
+  if (e.target.closest("[data-send-print]")) printMsg(msgText(m, snd.pick, snd.note, false), snd.photos);
 });
 document.addEventListener("change", (e) => {
   if (!snd) return;
   const x = e.target.closest("[data-send-part]");
   if (x) { if (x.checked) snd.pick.add(x.dataset.sendPart); else snd.pick.delete(x.dataset.sendPart); sendPreview(); }
-  else if (e.target.matches("[data-send-photos]")) { snd.withPhotos = e.target.checked; renderSend(); }
 });
 document.addEventListener("input", (e) => { if (snd && e.target.id === "send-note") { snd.note = e.target.value; sendPreview(); } });
+$("#send-in").addEventListener("change", async (e) => {
+  const fs = [...e.target.files], s = snd; e.target.value = "";
+  if (!s || !fs.length) return;
+  s.busy = true; renderSend();
+  for (const f of fs) {
+    if (s.photos.length >= SEND_MAX) { toast(`${SEND_MAX} photos is the most`); break; }
+    try { const data = await shrink(f); if (snd !== s) return; s.photos.push({ data, note: "" }); } catch { toast("That photo couldn't be read. Try another"); }
+  }
+  s.busy = false; if (snd === s) { sndFiles(); renderSend(); }
+});
 // Lines the messages share.
 const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
 const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}: ${lower(RS[r.status])}${r.who ? ` (${r.who})` : ""}${rsLate(r) ? `, ${lower(rsLateText(r))}` : ""}`;
@@ -1070,10 +1128,22 @@ function specRow(line) {
   const [q, rest] = m ? [m[1], m[2]] : ["", line];
   return `<li><span class="q">${esc(scaleQ(q))}</span><span>${esc(rest)}</span></li>`;
 }
+// The method a step a line, as on the drink.
+const methodLines = (method) => method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i)
+  .map((s) => s.replace(/\.$/, "").trim()).filter(Boolean).map((s) => s[0].toUpperCase() + s.slice(1));
+SHARE.drink = (id) => {
+  const d = D[+id]; if (!d) return null;
+  const m = mediaOf(d), al = d.allergens && d.allergens !== "None" ? d.allergens : "";
+  return { what: d.name, title: `${d.name} · Black Tap Soho`,
+    head: [`Glass: ${d.glass}`, `Ice: ${d.ice}`, `Garnish: ${d.garnish}`, ...(al ? [`Allergens: ${al}`] : [])],
+    parts: [{ id: "spec", label: "Spec", lines: d.spec }, { id: "method", label: "Method", lines: methodLines(d.method) },
+      { id: "subs", label: "Out of something?", one: true, lines: d.subs ? [d.subs.join(" ")] : [], off: true, opt: true }],
+    photos: m?.photo ? async () => [{ data: m.photo, note: d.name, file: d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") }] : null,
+    tip: "Jigger everything. 12.5 ml is half a 25 ml jigger." };
+};
 function steps(method) {
-  const parts = method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i).map((s) => s.replace(/\.$/, "").trim()).filter(Boolean);
-  const cap = (s) => s[0].toUpperCase() + s.slice(1);
-  return parts.length > 1 ? `<ol class="steps" translate="no">${parts.map((p) => `<li>${esc(cap(p))}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0" translate="no">${esc(method)}</p>`;
+  const parts = methodLines(method);
+  return parts.length > 1 ? `<ol class="steps" translate="no">${parts.map((p) => `<li>${esc(p)}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0" translate="no">${esc(method)}</p>`;
 }
 function guideHtml(g, nextName) {
   const chip = (i) => `<li><b>${i.ml != null ? `${i.ml} ml` : ""}</b><span>${esc(i.item)}${i.hint || i.note ? `<em>${esc([i.hint, i.note].filter(Boolean).join(", "))}</em>` : ""}</span></li>`;
@@ -1175,6 +1245,7 @@ function openSheet(id, keepScroll) {
     <div id="dmedit">${mediaEditHtml(d)}</div>
     ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
+    <div class="actions">${sendBtn("drink", "Send this drink", String(id))}</div>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
   if (LIVE.me) LIVE.api?.watchMedia(d.name);
@@ -1266,6 +1337,7 @@ function hideSheet() {
   LIVE.api?.watchMedia(null);
 }
 $("#sheet").addEventListener("click", (e) => {
+  if (e.target.closest("#sh-close") && snd?.drink != null) { const id = snd.drink; snd = null; openSheet(id, true); $("#sheet").scrollTop = 0; return; }
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
   const op = e.target.closest("[data-open]"); if (op) { mult = 1; openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
   const gb = e.target.closest("[data-go]"); if (gb) { slideTo(+gb.dataset.go); return; }
@@ -3033,7 +3105,7 @@ const I18N = {
 "Withdraw": ["سحب", "Հետ կանչել", "প্রত্যাহার করুন", "Оттегли", "撤回", "Retirer", "પાછું ખેંચો", "वापस लें", "Ritira", "Atšaukti", "फिर्ता लिनुहोस्", "Wycofaj", "Retirar", "ਵਾਪਸ ਲਓ", "Retrage", "Retirar", "திரும்பப் பெறு", "Geri çek", "Відкликати", "واپس لیں", "Rút lại", "Tynnu'n ôl"],
 "Say what it is": ["قل ما هو", "Ասա, թե ինչ է", "এটা কী বলুন", "Кажи какво е", "说明是什么", "Dites ce que c'est", "તે શું છે તે કહો", "बताएँ कि यह क्या है", "Di' cos'è", "Parašykite, kas tai", "यो के हो भन्नुहोस्", "Napisz, co to jest", "Diga o que é", "ਦੱਸੋ ਇਹ ਕੀ ਹੈ", "Spune ce este", "Di qué es", "இது என்ன என்று சொல்லுங்கள்", "Ne olduğunu yaz", "Напишіть, що це", "بتائیں یہ کیا ہے", "Nói rõ là gì", "Dywedwch beth yw e"],
 "Add a photo ({1} of {2})": ["أضف صورة ({1} من {2})", "Ավելացնել լուսանկար ({1}/{2})", "ছবি যোগ করুন ({1} / {2})", "Добави снимка ({1} от {2})", "添加照片（{1}/{2}）", "Ajouter une photo ({1} sur {2})", "ફોટો ઉમેરો ({1} / {2})", "फोटो जोड़ें ({1} / {2})", "Aggiungi una foto ({1} di {2})", "Pridėti nuotrauką ({1} iš {2})", "फोटो थप्नुहोस् ({1} / {2})", "Dodaj zdjęcie ({1} z {2})", "Adicionar foto ({1} de {2})", "ਫੋਟੋ ਜੋੜੋ ({1} / {2})", "Adaugă o fotografie ({1} din {2})", "Añadir foto ({1} de {2})", "புகைப்படம் சேர் ({1} / {2})", "Fotoğraf ekle ({1}/{2})", "Додати фото ({1} з {2})", "تصویر شامل کریں ({1} از {2})", "Thêm ảnh ({1}/{2})", "Ychwanegu llun ({1} o {2})"],
-"{1} photos is the most.": ["الحد الأقصى {1} صور.", "Առավելագույնը {1} լուսանկար։", "সর্বোচ্চ {1}টি ছবি।", "Най-много {1} снимки.", "最多{1}张照片。", "{1} photos maximum.", "વધુમાં વધુ {1} ફોટા.", "ज़्यादा से ज़्यादा {1} फोटो।", "Massimo {1} foto.", "Daugiausia {1} nuotr.", "बढीमा {1} फोटो।", "Maksymalnie {1} zdjęcia.", "No máximo {1} fotos.", "ਵੱਧ ਤੋਂ ਵੱਧ {1} ਫੋਟੋਆਂ।", "Maximum {1} fotografii.", "Máximo {1} fotos.", "அதிகபட்சம் {1} புகைப்படங்கள்.", "En fazla {1} fotoğraf.", "Не більше {1} фото.", "زیادہ سے زیادہ {1} تصاویر۔", "Tối đa {1} ảnh.", "{1} llun yw'r mwyaf."],
+"{1} photos is the most.": ["الحد الأقصى {1} صور.", "Առավելագույնը {1} լուսանկար։", "সর্বোচ্চ {1}টি ছবি।", "Най-много {1} снимки.", "最多{1}张照片。", "{1} photos maximum.", "વધુમાં વધુ {1} ફોટા.", "ज़्यादा से ज़्यादा {1} फोटो।", "Massimo {1} foto.", "Daugiausia {1} nuotr.", "बढीमा {1} फोटो।", "Limit zdjęć: {1}.", "No máximo {1} fotos.", "ਵੱਧ ਤੋਂ ਵੱਧ {1} ਫੋਟੋਆਂ।", "Maximum {1} fotografii.", "Máximo {1} fotos.", "அதிகபட்சம் {1} புகைப்படங்கள்.", "En fazla {1} fotoğraf.", "Не більше {1} фото.", "زیادہ سے زیادہ {1} تصاویر۔", "Tối đa {1} ảnh.", "{1} llun yw'r mwyaf."],
 "Send anonymously: your name isn't saved, so nobody can see it was you": ["أرسل دون اسم: لا يُحفظ اسمك، فلا يعرف أحد أنه أنت", "Ուղարկել անանուն. անունդ չի պահվում, ոչ ոք չի իմանա, որ դու ես", "নাম ছাড়া পাঠান: আপনার নাম সেভ হয় না, তাই কেউ জানবে না এটা আপনি", "Изпрати анонимно: името ти не се записва, никой няма да разбере, че си ти", "匿名发送：不保存你的名字，谁也看不出是你", "Envoyer anonymement : votre nom n'est pas enregistré, personne ne saura que c'est vous", "નામ વગર મોકલો: તમારું નામ સચવાતું નથી, કોઈને ખબર નહીં પડે કે તમે છો", "बिना नाम भेजें: आपका नाम सेव नहीं होता, कोई नहीं जान पाएगा कि यह आप थे", "Invia in forma anonima: il tuo nome non viene salvato, nessuno saprà che sei stato tu", "Siųsti anonimiškai: jūsų vardas neišsaugomas, niekas nesužinos, kad tai jūs", "बेनामी पठाउनुहोस्: तपाईंको नाम सेभ हुँदैन, कसैले थाहा पाउँदैन कि यो तपाईं हो", "Wyślij anonimowo: twoje imię nie jest zapisywane, nikt nie zobaczy, że to ty", "Enviar anonimamente: o seu nome não fica guardado, ninguém vê que foi você", "ਬਿਨਾਂ ਨਾਮ ਭੇਜੋ: ਤੁਹਾਡਾ ਨਾਮ ਸੇਵ ਨਹੀਂ ਹੁੰਦਾ, ਕੋਈ ਨਹੀਂ ਜਾਣੇਗਾ ਕਿ ਇਹ ਤੁਸੀਂ ਸੀ", "Trimite anonim: numele tău nu se salvează, nimeni nu vede că ai fost tu", "Enviar de forma anónima: tu nombre no se guarda, nadie verá que fuiste tú", "அநாமதேயமாக அனுப்பு: உங்கள் பெயர் சேமிக்கப்படாது, அது நீங்கள் என்று யாருக்கும் தெரியாது", "Anonim gönder: adın kaydedilmez, kimse senin olduğunu göremez", "Надіслати анонімно: ваше ім'я не зберігається, ніхто не побачить, що це ви", "گمنام بھیجیں: آپ کا نام محفوظ نہیں ہوتا، کوئی نہیں جان سکتا کہ یہ آپ تھے", "Gửi ẩn danh: tên bạn không được lưu, không ai biết là bạn", "Anfon yn ddienw: dydy'ch enw ddim yn cael ei gadw, felly does neb yn gallu gweld mai chi oedd e"],
 "Urgent": ["عاجل", "Շտապ", "জরুরি", "Спешно", "紧急", "Urgent", "તાત્કાલિક", "ज़रूरी", "Urgente", "Skubu", "जरुरी", "Pilne", "Urgente", "ਜ਼ਰੂਰੀ", "Urgent", "Urgente", "அவசரம்", "Acil", "Терміново", "فوری", "Khẩn", "Brys"],
 "Nobody on it yet": ["لا أحد يعمل عليها بعد", "Դեռ ոչ ոք չի զբաղվում", "এখনও কেউ ধরেনি", "Още никой не се е заел", "还没人处理", "Personne dessus pour l'instant", "હજી કોઈ કામ નથી કરતું", "अभी किसी ने नहीं लिया", "Ancora nessuno se ne occupa", "Dar niekas nesiėmė", "अझै कसैले लिएको छैन", "Jeszcze nikt się nie zajął", "Ainda ninguém pegou", "ਹਾਲੇ ਕਿਸੇ ਨੇ ਨਹੀਂ ਲਿਆ", "Încă nu s-a ocupat nimeni", "Aún nadie se ocupa", "இன்னும் யாரும் எடுக்கவில்லை", "Henüz kimse ilgilenmiyor", "Ще ніхто не взявся", "ابھی کسی نے نہیں لیا", "Chưa ai nhận", "Neb arno eto"],
@@ -3144,7 +3216,6 @@ const I18N = {
 "Print": ["طباعة", "Տպել", "প্রিন্ট", "Печат", "打印", "Imprimer", "પ્રિન્ટ", "प्रिंट", "Stampa", "Spausdinti", "प्रिन्ट", "Drukuj", "Imprimir", "ਪ੍ਰਿੰਟ", "Tipărește", "Imprimir", "அச்சிடு", "Yazdır", "Друк", "پرنٹ", "In", "Argraffu"],
 "Send with photos": ["أرسل مع الصور", "Ուղարկել լուսանկարներով", "ছবিসহ পাঠান", "Изпрати със снимките", "连照片一起发送", "Envoyer avec les photos", "ફોટા સાથે મોકલો", "फोटो के साथ भेजें", "Invia con le foto", "Siųsti su nuotraukomis", "फोटोसहित पठाउनुहोस्", "Wyślij ze zdjęciami", "Enviar com as fotos", "ਫੋਟੋਆਂ ਨਾਲ ਭੇਜੋ", "Trimite cu fotografiile", "Enviar con las fotos", "புகைப்படங்களுடன் அனுப்பு", "Fotoğraflarla gönder", "Надіслати з фото", "تصاویر کے ساتھ بھیجیں", "Gửi kèm ảnh", "Anfon gyda'r lluniau"],
 "How it will look": ["كيف ستبدو", "Ինչպես կերևա", "যেমন দেখাবে", "Как ще изглежда", "预览", "Aperçu", "કેવું દેખાશે", "कैसा दिखेगा", "Come apparirà", "Kaip atrodys", "कस्तो देखिन्छ", "Jak to będzie wyglądać", "Como vai ficar", "ਕਿਵੇਂ ਦਿਸੇਗਾ", "Cum va arăta", "Cómo se verá", "எப்படித் தோன்றும்", "Nasıl görünecek", "Як це виглядатиме", "کیسا دکھے گا", "Xem trước", "Sut bydd yn edrych"],
-"WhatsApp and Email take the words. For the photos too, tap Send with photos and pick WhatsApp. The words are copied as well: paste them in if they don't show.": ["WhatsApp والبريد الإلكتروني يأخذان النص فقط. لإرسال الصور أيضًا، اضغط «أرسل مع الصور» واختر WhatsApp. يُنسخ النص كذلك: الصقه إن لم يظهر.", "WhatsApp-ը և էլ. փոստը վերցնում են միայն տեքստը։ Լուսանկարներն էլ ուղարկելու համար սեղմեք «Ուղարկել լուսանկարներով» և ընտրեք WhatsApp։ Տեքստը նույնպես պատճենվում է՝ տեղադրեք այն, եթե չերևա։", "WhatsApp ও ইমেল শুধু লেখা নেয়। ছবিও পাঠাতে “ছবিসহ পাঠান” চাপুন এবং WhatsApp বেছে নিন। লেখাও কপি হয়ে যায়: না দেখালে পেস্ট করুন।", "WhatsApp и имейлът вземат само текста. За да пратиш и снимките, натисни „Изпрати със снимките“ и избери WhatsApp. Текстът се копира също: постави го, ако не се появи.", "WhatsApp 和邮件只带文字。要连照片一起发，请点“连照片一起发送”，再选 WhatsApp。文字也会被复制：如果没有显示，粘贴进去即可。", "WhatsApp et l'e-mail ne prennent que le texte. Pour les photos aussi, touchez « Envoyer avec les photos » et choisissez WhatsApp. Le texte est aussi copié : collez-le s'il n'apparaît pas.", "WhatsApp અને ઇમેઇલ ફક્ત લખાણ લે છે. ફોટા પણ મોકલવા \"ફોટા સાથે મોકલો\" દબાવો અને WhatsApp પસંદ કરો. લખાણ પણ કૉપિ થાય છે: ન દેખાય તો પેસ્ટ કરો.", "WhatsApp और ईमेल सिर्फ़ टेक्स्ट लेते हैं। फोटो भी भेजने के लिए \"फोटो के साथ भेजें\" दबाएँ और WhatsApp चुनें। टेक्स्ट भी कॉपी हो जाता है: न दिखे तो पेस्ट कर दें।", "WhatsApp ed email prendono solo il testo. Per mandare anche le foto, tocca «Invia con le foto» e scegli WhatsApp. Il testo viene anche copiato: incollalo se non compare.", "WhatsApp ir el. paštas paima tik tekstą. Kad išsiųstumėte ir nuotraukas, palieskite „Siųsti su nuotraukomis“ ir pasirinkite WhatsApp. Tekstas taip pat nukopijuojamas: įklijuokite, jei jo nesimato.", "WhatsApp र इमेलले पाठ मात्र लिन्छन्। फोटो पनि पठाउन \"फोटोसहित पठाउनुहोस्\" थिच्नुहोस् र WhatsApp छान्नुहोस्। पाठ पनि कपी हुन्छ: नदेखिए पेस्ट गर्नुहोस्।", "WhatsApp i e-mail biorą tylko tekst. Żeby wysłać też zdjęcia, dotknij „Wyślij ze zdjęciami” i wybierz WhatsApp. Tekst jest też kopiowany: wklej go, jeśli się nie pojawi.", "O WhatsApp e o email levam só o texto. Para enviar também as fotos, toque em «Enviar com as fotos» e escolha WhatsApp. O texto também é copiado: cole-o se não aparecer.", "WhatsApp ਅਤੇ ਈਮੇਲ ਸਿਰਫ਼ ਲਿਖਤ ਲੈਂਦੇ ਹਨ। ਫੋਟੋਆਂ ਵੀ ਭੇਜਣ ਲਈ \"ਫੋਟੋਆਂ ਨਾਲ ਭੇਜੋ\" ਦਬਾਓ ਅਤੇ WhatsApp ਚੁਣੋ। ਲਿਖਤ ਵੀ ਕਾਪੀ ਹੋ ਜਾਂਦੀ ਹੈ: ਨਾ ਦਿਸੇ ਤਾਂ ਪੇਸਟ ਕਰੋ।", "WhatsApp și e-mailul iau doar textul. Ca să trimiți și fotografiile, apasă „Trimite cu fotografiile” și alege WhatsApp. Textul se copiază și el: lipește-l dacă nu apare.", "WhatsApp y el correo solo llevan el texto. Para enviar también las fotos, toca «Enviar con las fotos» y elige WhatsApp. El texto también se copia: pégalo si no aparece.", "WhatsApp மற்றும் மின்னஞ்சல் உரையை மட்டுமே எடுக்கும். புகைப்படங்களையும் அனுப்ப \"புகைப்படங்களுடன் அனுப்பு\" என்பதைத் தட்டி WhatsApp-ஐத் தேர்ந்தெடு. உரையும் நகலெடுக்கப்படும்: தெரியாவிட்டால் ஒட்டு.", "WhatsApp ve e-posta yalnızca metni alır. Fotoğrafları da göndermek için \"Fotoğraflarla gönder\"e dokun ve WhatsApp'ı seç. Metin de kopyalanır: görünmezse yapıştır.", "WhatsApp і ел. пошта беруть лише текст. Щоб надіслати й фото, натисніть «Надіслати з фото» і виберіть WhatsApp. Текст теж копіюється: вставте його, якщо він не з'явиться.", "WhatsApp اور ای میل صرف متن لیتے ہیں۔ تصاویر بھی بھیجنے کے لیے \"تصاویر کے ساتھ بھیجیں\" دبائیں اور WhatsApp چنیں۔ متن بھی کاپی ہو جاتا ہے: نظر نہ آئے تو پیسٹ کریں۔", "WhatsApp và email chỉ lấy phần chữ. Muốn gửi cả ảnh, chạm \"Gửi kèm ảnh\" rồi chọn WhatsApp. Phần chữ cũng được sao chép: dán vào nếu không thấy.", "Mae WhatsApp ac e-bost yn cymryd y geiriau. I anfon y lluniau hefyd, tapiwch «Anfon gyda'r lluniau» a dewis WhatsApp. Mae'r geiriau'n cael eu copïo hefyd: gludwch nhw os nad ydyn nhw'n ymddangos."],
 "WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF.": ["WhatsApp والبريد الإلكتروني يأخذان النص فقط. لإرسال الصور أيضًا، اضغط «طباعة» واحفظه بصيغة PDF.", "WhatsApp-ը և էլ. փոստը վերցնում են միայն տեքստը։ Լուսանկարների համար սեղմեք «Տպել» և պահեք որպես PDF։", "WhatsApp ও ইমেল শুধু লেখা নেয়। ছবিও পাঠাতে “প্রিন্ট” চাপুন এবং PDF হিসেবে সেভ করুন।", "WhatsApp и имейлът вземат само текста. За снимките натисни „Печат“ и го запази като PDF.", "WhatsApp 和邮件只带文字。要连照片一起发，请点“打印”，再存为 PDF。", "WhatsApp et l'e-mail ne prennent que le texte. Pour les photos aussi, touchez « Imprimer » et enregistrez-le en PDF.", "WhatsApp અને ઇમેઇલ ફક્ત લખાણ લે છે. ફોટા માટે \"પ્રિન્ટ\" દબાવો અને PDF તરીકે સેવ કરો.", "WhatsApp और ईमेल सिर्फ़ टेक्स्ट लेते हैं। फोटो के लिए \"प्रिंट\" दबाएँ और PDF के रूप में सेव करें।", "WhatsApp ed email prendono solo il testo. Per le foto, tocca «Stampa» e salvalo come PDF.", "WhatsApp ir el. paštas paima tik tekstą. Nuotraukoms palieskite „Spausdinti“ ir išsaugokite kaip PDF.", "WhatsApp र इमेलले पाठ मात्र लिन्छन्। फोटोका लागि \"प्रिन्ट\" थिचेर PDF का रूपमा सेभ गर्नुहोस्।", "WhatsApp i e-mail biorą tylko tekst. Żeby dołączyć zdjęcia, dotknij „Drukuj” i zapisz jako PDF.", "O WhatsApp e o email levam só o texto. Para as fotos, toque em «Imprimir» e guarde como PDF.", "WhatsApp ਅਤੇ ਈਮੇਲ ਸਿਰਫ਼ ਲਿਖਤ ਲੈਂਦੇ ਹਨ। ਫੋਟੋਆਂ ਲਈ \"ਪ੍ਰਿੰਟ\" ਦਬਾਓ ਅਤੇ PDF ਵਜੋਂ ਸੇਵ ਕਰੋ।", "WhatsApp și e-mailul iau doar textul. Pentru fotografii, apasă „Tipărește” și salvează ca PDF.", "WhatsApp y el correo solo llevan el texto. Para las fotos, toca «Imprimir» y guárdalo como PDF.", "WhatsApp மற்றும் மின்னஞ்சல் உரையை மட்டுமே எடுக்கும். புகைப்படங்களுக்கு \"அச்சிடு\" என்பதைத் தட்டி PDF ஆகச் சேமி.", "WhatsApp ve e-posta yalnızca metni alır. Fotoğraflar için \"Yazdır\"a dokun ve PDF olarak kaydet.", "WhatsApp і ел. пошта беруть лише текст. Для фото натисніть «Друк» і збережіть як PDF.", "WhatsApp اور ای میل صرف متن لیتے ہیں۔ تصاویر کے لیے \"پرنٹ\" دبائیں اور PDF کے طور پر محفوظ کریں۔", "WhatsApp và email chỉ lấy phần chữ. Để có cả ảnh, chạm \"In\" rồi lưu thành PDF.", "Mae WhatsApp ac e-bost yn cymryd y geiriau. I gael y lluniau hefyd, tapiwch «Argraffu» a'i gadw fel PDF."],
 "Nothing to send yet": ["لا شيء لإرساله بعد", "Ուղարկելու բան դեռ չկա", "এখনও পাঠানোর কিছু নেই", "Още няма какво да се изпрати", "暂时没有可发送的内容", "Rien à envoyer pour l'instant", "હજી મોકલવા જેવું કંઈ નથી", "अभी भेजने को कुछ नहीं है", "Ancora niente da inviare", "Kol kas nėra ką siųsti", "अहिले पठाउने केही छैन", "Na razie nie ma czego wysłać", "Ainda não há nada para enviar", "ਅਜੇ ਭੇਜਣ ਲਈ ਕੁਝ ਨਹੀਂ", "Încă nu e nimic de trimis", "Todavía no hay nada que enviar", "அனுப்ப இன்னும் எதுவும் இல்லை", "Henüz gönderilecek bir şey yok", "Поки що нічого надсилати", "ابھی بھیجنے کو کچھ نہیں", "Chưa có gì để gửi", "Dim byd i'w anfon eto"],
 "Copied. Paste it anywhere": ["تم النسخ. الصقه في أي مكان", "Պատճենվեց։ Տեղադրեք ցանկացած տեղ", "কপি হয়েছে। যেকোনো জায়গায় পেস্ট করুন", "Копирано. Постави го където искаш", "已复制，可粘贴到任何地方", "Copié. Collez-le où vous voulez", "કૉપિ થયું. ગમે ત્યાં પેસ્ટ કરો", "कॉपी हो गया। कहीं भी पेस्ट करें", "Copiato. Incollalo dove vuoi", "Nukopijuota. Įklijuokite bet kur", "कपी भयो। जहाँ पनि पेस्ट गर्नुहोस्", "Skopiowano. Wklej, gdzie chcesz", "Copiado. Cole onde quiser", "ਕਾਪੀ ਹੋ ਗਿਆ। ਕਿਤੇ ਵੀ ਪੇਸਟ ਕਰੋ", "Copiat. Lipește-l oriunde", "Copiado. Pégalo donde quieras", "நகலெடுக்கப்பட்டது. எங்கும் ஒட்டலாம்", "Kopyalandı. İstediğin yere yapıştır", "Скопійовано. Вставте будь-де", "کاپی ہو گیا۔ کہیں بھی پیسٹ کریں", "Đã sao chép. Dán vào bất cứ đâu", "Wedi'i gopïo. Gludwch e unrhyw le"],
@@ -3391,7 +3462,29 @@ const I18N = {
 "Till, payments and the opening and closing checklists": ["الصندوق والمدفوعات وقوائم الافتتاح والإغلاق", "Դրամարկղ, վճարումներ և բացման ու փակման ցուցակները", "টিল, পেমেন্ট আর খোলা ও বন্ধের চেকলিস্ট", "Каса, плащания и списъците за отваряне и затваряне", "收银机、收款，以及开店和收店清单", "Caisse, paiements et les listes d'ouverture et de fermeture", "ટિલ, ચુકવણી અને ખોલવા-બંધ કરવાની ચેકલિસ્ટ", "टिल, भुगतान और ओपनिंग व क्लोज़िंग चेकलिस्ट", "Cassa, pagamenti e le checklist di apertura e chiusura", "Kasa, mokėjimai ir atidarymo bei uždarymo sąrašai", "टिल, भुक्तानी र खोल्ने तथा बन्द गर्ने चेकलिस्ट", "Kasa, płatności i listy otwarcia i zamknięcia", "Caixa, pagamentos e as listas de abertura e fecho", "ਟਿੱਲ, ਭੁਗਤਾਨ ਅਤੇ ਖੋਲ੍ਹਣ ਤੇ ਬੰਦ ਕਰਨ ਦੀਆਂ ਚੈੱਕਲਿਸਟਾਂ", "Casa, plățile și listele de deschidere și închidere", "Caja, cobros y las listas de apertura y cierre", "டில், பணம் செலுத்துதல் மற்றும் திறப்பு, மூடல் சரிபார்ப்புப் பட்டியல்கள்", "Kasa, ödemeler ve açılış ile kapanış listeleri", "Каса, оплати та чеклисти відкриття й закриття", "ٹِل، ادائیگیاں اور اوپننگ و کلوزنگ چیک لسٹیں", "Máy thu ngân, thanh toán và danh sách mở, đóng cửa", "Til, taliadau a'r rhestrau agor a chau"],
 "Drinks specs and pours: Practise, then sign-offs": ["مواصفات المشروبات والصبّ: «تدرّب»، ثم الاعتماد", "Ըմպելիքների բաղադրատոմսեր և լցնում՝ «Վարժվել», հետո հաստատումներ", "পানীয়ের স্পেক ও ঢালা: অনুশীলন, তারপর সাইন-অফ", "Рецепти и наливане: Упражнения, после одобрения", "饮品配方和倒酒：先练习，再签核", "Recettes et dosages des boissons : S'entraîner, puis validations", "ડ્રિંક સ્પેક અને પોર: અભ્યાસ, પછી મંજૂરી", "ड्रिंक स्पेक और पोर: अभ्यास, फिर मंज़ूरी", "Ricette e dosi dei drink: Esercitati, poi le approvazioni", "Gėrimų receptai ir pylimas: Treniruotis, tada patvirtinimai", "पेय स्पेक र पोर: अभ्यास, त्यसपछि स्वीकृति", "Receptury i nalewanie: Ćwicz, potem zatwierdzenia", "Receitas e doses das bebidas: Praticar, depois as aprovações", "ਡਰਿੰਕ ਸਪੈਕ ਅਤੇ ਪੋਰ: ਅਭਿਆਸ, ਫਿਰ ਮਨਜ਼ੂਰੀ", "Rețetele și dozarea băuturilor: Exersează, apoi aprobările", "Recetas y medidas de las bebidas: Practicar, luego las aprobaciones", "பான விவரங்கள் மற்றும் ஊற்றுதல்: பயிற்சி, பிறகு ஒப்புதல்கள்", "İçecek tarifleri ve dolumlar: Alıştırma, sonra onaylar", "Рецептури й наливання: Практика, потім підтвердження", "ڈرنک اسپیک اور پور: مشق، پھر منظوری", "Công thức đồ uống và rót: Luyện tập, rồi ký duyệt", "Manylebau diodydd a thywallt: Ymarfer, yna cymeradwyo"],
 "Uniform, breaks, staff food and tronc": ["الزي والاستراحات ووجبات الموظفين و tronc (رسوم الخدمة)", "Համազգեստ, ընդմիջումներ, աշխատակիցների սնունդ և tronc", "ইউনিফর্ম, বিরতি, স্টাফ খাবার ও tronc", "Униформа, почивки, храна за персонала и tronc", "制服、休息、员工餐和 tronc（服务费）", "Tenue, pauses, repas du personnel et tronc", "યુનિફોર્મ, વિરામ, સ્ટાફ ભોજન અને tronc", "यूनिफ़ॉर्म, ब्रेक, स्टाफ़ खाना और tronc", "Divisa, pause, pasti del personale e tronc", "Uniforma, pertraukos, personalo maistas ir tronc", "युनिफर्म, ब्रेक, स्टाफको खाना र tronc", "Strój, przerwy, posiłki dla personelu i tronc", "Farda, pausas, refeições do pessoal e tronc", "ਵਰਦੀ, ਬ੍ਰੇਕ, ਸਟਾਫ਼ ਦਾ ਖਾਣਾ ਅਤੇ tronc", "Uniforma, pauzele, masa personalului și tronc", "Uniforme, descansos, comida del personal y tronc", "சீருடை, இடைவேளைகள், ஊழியர் உணவு மற்றும் tronc", "Üniforma, molalar, personel yemeği ve tronc", "Уніформа, перерви, харчування персоналу і tronc", "یونیفارم، وقفے، اسٹاف کا کھانا اور tronc", "Đồng phục, giờ nghỉ, bữa ăn nhân viên và tronc", "Gwisg, egwyliau, bwyd staff a tronc"],
-"Bar Book: the rota, availability and requests": ["Bar Book: جدول المناوبات وأوقات العمل المتاحة والطلبات", "Bar Book՝ գրաֆիկը, ազատ ժամերը և հարցումները", "Bar Book: রোটা, সুবিধামতো সময় ও অনুরোধ", "Bar Book: графикът, кога можеш да работиш и молбите", "Bar Book：排班、可上班时间和申请", "Bar Book : le planning, les disponibilités et les demandes", "Bar Book: રોટા, ઉપલબ્ધતા અને વિનંતીઓ", "Bar Book: रोटा, उपलब्धता और अनुरोध", "Bar Book: i turni, le disponibilità e le richieste", "Bar Book: grafikas, galimas darbo laikas ir prašymai", "Bar Book: रोटा, उपलब्धता र अनुरोधहरू", "Bar Book: grafik, dyspozycyjność i prośby", "Bar Book: a escala, a disponibilidade e os pedidos", "Bar Book: ਰੋਟਾ, ਉਪਲਬਧਤਾ ਅਤੇ ਬੇਨਤੀਆਂ", "Bar Book: programul, disponibilitatea și cererile", "Bar Book: los turnos, la disponibilidad y las solicitudes", "Bar Book: ரோட்டா, கிடைக்கும் நேரம் மற்றும் கோரிக்கைகள்", "Bar Book: vardiya planı, müsaitlik ve talepler", "Bar Book: графік, коли можна працювати, і запити", "Bar Book: روٹا، کام کا وقت اور درخواستیں", "Bar Book: lịch làm, thời gian có thể làm và yêu cầu", "Bar Book: y rota, pryd rydych ar gael a cheisiadau"]
+"Bar Book: the rota, availability and requests": ["Bar Book: جدول المناوبات وأوقات العمل المتاحة والطلبات", "Bar Book՝ գրաֆիկը, ազատ ժամերը և հարցումները", "Bar Book: রোটা, সুবিধামতো সময় ও অনুরোধ", "Bar Book: графикът, кога можеш да работиш и молбите", "Bar Book：排班、可上班时间和申请", "Bar Book : le planning, les disponibilités et les demandes", "Bar Book: રોટા, ઉપલબ્ધતા અને વિનંતીઓ", "Bar Book: रोटा, उपलब्धता और अनुरोध", "Bar Book: i turni, le disponibilità e le richieste", "Bar Book: grafikas, galimas darbo laikas ir prašymai", "Bar Book: रोटा, उपलब्धता र अनुरोधहरू", "Bar Book: grafik, dyspozycyjność i prośby", "Bar Book: a escala, a disponibilidade e os pedidos", "Bar Book: ਰੋਟਾ, ਉਪਲਬਧਤਾ ਅਤੇ ਬੇਨਤੀਆਂ", "Bar Book: programul, disponibilitatea și cererile", "Bar Book: los turnos, la disponibilidad y las solicitudes", "Bar Book: ரோட்டா, கிடைக்கும் நேரம் மற்றும் கோரிக்கைகள்", "Bar Book: vardiya planı, müsaitlik ve talepler", "Bar Book: графік, коли можна працювати, і запити", "Bar Book: روٹا، کام کا وقت اور درخواستیں", "Bar Book: lịch làm, thời gian có thể làm và yêu cầu", "Bar Book: y rota, pryd rydych ar gael a cheisiadau"],
+"Photos ({1})": ["الصور ({1})", "Լուսանկարներ ({1})", "ছবি ({1})", "Снимки ({1})", "照片（{1}）", "Photos ({1})", "ફોટા ({1})", "फोटो ({1})", "Foto ({1})", "Nuotraukos ({1})", "फोटो ({1})", "Zdjęcia ({1})", "Fotos ({1})", "ਫੋਟੋਆਂ ({1})", "Fotografii ({1})", "Fotos ({1})", "புகைப்படங்கள் ({1})", "Fotoğraflar ({1})", "Фото ({1})", "تصاویر ({1})", "Ảnh ({1})", "Lluniau ({1})"],
+"Add a photo": ["أضف صورة", "Ավելացնել լուսանկար", "ছবি যোগ করুন", "Добави снимка", "添加照片", "Ajouter une photo", "ફોટો ઉમેરો", "फोटो जोड़ें", "Aggiungi una foto", "Pridėti nuotrauką", "फोटो थप्नुहोस्", "Dodaj zdjęcie", "Adicionar foto", "ਫੋਟੋ ਜੋੜੋ", "Adaugă o fotografie", "Añadir foto", "புகைப்படம் சேர்", "Fotoğraf ekle", "Додати фото", "تصویر شامل کریں", "Thêm ảnh", "Ychwanegu llun"],
+"Add another photo": ["أضف صورة أخرى", "Ավելացնել ևս մեկ լուսանկար", "আরেকটি ছবি যোগ করুন", "Добави още една снимка", "再添加一张照片", "Ajouter une autre photo", "બીજો ફોટો ઉમેરો", "एक और फोटो जोड़ें", "Aggiungi un'altra foto", "Pridėti dar vieną nuotrauką", "अर्को फोटो थप्नुहोस्", "Dodaj kolejne zdjęcie", "Adicionar outra foto", "ਇੱਕ ਹੋਰ ਫੋਟੋ ਜੋੜੋ", "Adaugă încă o fotografie", "Añadir otra foto", "இன்னொரு புகைப்படம் சேர்", "Bir fotoğraf daha ekle", "Додати ще фото", "ایک اور تصویر شامل کریں", "Thêm ảnh khác", "Ychwanegu llun arall"],
+"Adding…": ["جارٍ الإضافة…", "Ավելացվում է…", "যোগ হচ্ছে…", "Добавя се…", "正在添加…", "Ajout en cours…", "ઉમેરાઈ રહ્યું છે…", "जोड़ा जा रहा है…", "Aggiunta in corso…", "Pridedama…", "थप्दै…", "Dodawanie…", "A adicionar…", "ਜੋੜਿਆ ਜਾ ਰਿਹਾ ਹੈ…", "Se adaugă…", "Añadiendo…", "சேர்க்கிறது…", "Ekleniyor…", "Додаємо…", "شامل ہو رہا ہے…", "Đang thêm…", "Wrthi'n ychwanegu…"],
+"{1} photos is the most": ["الحد الأقصى {1} صور", "Առավելագույնը {1} լուսանկար", "সর্বোচ্চ {1}টি ছবি", "Най-много {1} снимки", "最多{1}张照片", "{1} photos maximum", "વધુમાં વધુ {1} ફોટા", "ज़्यादा से ज़्यादा {1} फोटो", "Massimo {1} foto", "Daugiausia {1} nuotr.", "बढीमा {1} फोटो", "Limit zdjęć: {1}", "No máximo {1} fotos", "ਵੱਧ ਤੋਂ ਵੱਧ {1} ਫੋਟੋਆਂ", "Maximum {1} fotografii", "Máximo {1} fotos", "அதிகபட்சம் {1} புகைப்படங்கள்", "En fazla {1} fotoğraf", "Не більше {1} фото", "زیادہ سے زیادہ {1} تصاویر", "Tối đa {1} ảnh", "{1} llun yw'r mwyaf"],
+"Take photo {1} out": ["أزل الصورة {1}", "Հեռացնել լուսանկար {1}", "ছবি {1} সরান", "Махни снимка {1}", "移除第{1}张照片", "Retirer la photo {1}", "ફોટો {1} કાઢો", "फोटो {1} हटाएँ", "Togli la foto {1}", "Pašalinti nuotrauką {1}", "फोटो {1} हटाउनुहोस्", "Usuń zdjęcie {1}", "Retirar a foto {1}", "ਫੋਟੋ {1} ਹਟਾਓ", "Scoate fotografia {1}", "Quitar la foto {1}", "புகைப்படம் {1} ஐ நீக்கு", "{1}. fotoğrafı çıkar", "Прибрати фото {1}", "تصویر {1} ہٹائیں", "Bỏ ảnh {1}", "Gadael llun {1} allan"],
+"WhatsApp, words only": ["WhatsApp، النص فقط", "WhatsApp, միայն տեքստը", "WhatsApp, শুধু লেখা", "WhatsApp, само текста", "WhatsApp，仅文字", "WhatsApp, texte seul", "WhatsApp, ફક્ત લખાણ", "WhatsApp, सिर्फ़ शब्द", "WhatsApp, solo testo", "WhatsApp, tik tekstas", "WhatsApp, शब्द मात्र", "WhatsApp, sam tekst", "WhatsApp, só o texto", "WhatsApp, ਸਿਰਫ਼ ਸ਼ਬਦ", "WhatsApp, doar textul", "WhatsApp, solo texto", "WhatsApp, சொற்கள் மட்டும்", "WhatsApp, yalnızca yazı", "WhatsApp, лише текст", "WhatsApp، صرف الفاظ", "WhatsApp, chỉ chữ", "WhatsApp, geiriau yn unig"],
+"Copy the words": ["انسخ النص", "Պատճենել տեքստը", "লেখাটি কপি করুন", "Копирай текста", "复制文字", "Copier le texte", "લખાણ કૉપિ કરો", "शब्द कॉपी करें", "Copia il testo", "Kopijuoti tekstą", "शब्दहरू कपी गर्नुहोस्", "Skopiuj tekst", "Copiar o texto", "ਸ਼ਬਦ ਕਾਪੀ ਕਰੋ", "Copiază textul", "Copiar el texto", "சொற்களை நகலெடு", "Yazıyı kopyala", "Скопіювати текст", "الفاظ کاپی کریں", "Sao chép chữ", "Copïo'r geiriau"],
+"Copied. Now tap Send with photos": ["تم النسخ. الآن اضغط «أرسل مع الصور»", "Պատճենվեց։ Հիմա սեղմեք «Ուղարկել լուսանկարներով»", "কপি হয়েছে। এবার \"ছবিসহ পাঠান\" চাপুন", "Копирано. Сега натисни „Изпрати със снимките“", "已复制，现在点“连照片一起发送”", "Copié. Touchez maintenant « Envoyer avec les photos »", "કૉપિ થયું. હવે \"ફોટા સાથે મોકલો\" દબાવો", "कॉपी हो गया। अब \"फोटो के साथ भेजें\" दबाएँ", "Copiato. Ora tocca «Invia con le foto»", "Nukopijuota. Dabar paspauskite „Siųsti su nuotraukomis“", "कपी भयो। अब \"फोटोसहित पठाउनुहोस्\" थिच्नुहोस्", "Skopiowano. Teraz stuknij „Wyślij ze zdjęciami”", "Copiado. Agora toque em «Enviar com as fotos»", "ਕਾਪੀ ਹੋ ਗਿਆ। ਹੁਣ \"ਫੋਟੋਆਂ ਨਾਲ ਭੇਜੋ\" ਦਬਾਓ", "Copiat. Acum apasă „Trimite cu fotografiile”", "Copiado. Ahora toca «Enviar con las fotos»", "நகலெடுக்கப்பட்டது. இப்போது \"புகைப்படங்களுடன் அனுப்பு\" என்பதைத் தட்டவும்", "Kopyalandı. Şimdi \"Fotoğraflarla gönder\"e dokun", "Скопійовано. Тепер натисніть «Надіслати з фото»", "کاپی ہو گیا۔ اب \"تصاویر کے ساتھ بھیجیں\" دبائیں", "Đã sao chép. Giờ chạm \"Gửi kèm ảnh\"", "Wedi'i gopïo. Nawr tapiwch \"Anfon gyda'r lluniau\""],
+"Tap Copy the words, then Send with photos.": ["اضغط «انسخ النص»، ثم «أرسل مع الصور».", "Սեղմեք «Պատճենել տեքստը», ապա «Ուղարկել լուսանկարներով»։", "\"লেখাটি কপি করুন\" চাপুন, তারপর \"ছবিসহ পাঠান\"।", "Натисни „Копирай текста“, после „Изпрати със снимките“.", "先点“复制文字”，再点“连照片一起发送”。", "Touchez « Copier le texte », puis « Envoyer avec les photos ».", "\"લખાણ કૉપિ કરો\" દબાવો, પછી \"ફોટા સાથે મોકલો\".", "\"शब्द कॉपी करें\" दबाएँ, फिर \"फोटो के साथ भेजें\"।", "Tocca «Copia il testo», poi «Invia con le foto».", "Paspauskite „Kopijuoti tekstą“, tada „Siųsti su nuotraukomis“.", "\"शब्दहरू कपी गर्नुहोस्\" थिच्नुहोस्, अनि \"फोटोसहित पठाउनुहोस्\"।", "Stuknij „Skopiuj tekst”, a potem „Wyślij ze zdjęciami”.", "Toque em «Copiar o texto» e depois em «Enviar com as fotos».", "\"ਸ਼ਬਦ ਕਾਪੀ ਕਰੋ\" ਦਬਾਓ, ਫਿਰ \"ਫੋਟੋਆਂ ਨਾਲ ਭੇਜੋ\"।", "Apasă „Copiază textul”, apoi „Trimite cu fotografiile”.", "Toca «Copiar el texto» y luego «Enviar con las fotos».", "\"சொற்களை நகலெடு\" என்பதைத் தட்டி, பிறகு \"புகைப்படங்களுடன் அனுப்பு\" என்பதைத் தட்டவும்.", "\"Yazıyı kopyala\"ya, sonra \"Fotoğraflarla gönder\"e dokun.", "Натисніть «Скопіювати текст», а потім «Надіслати з фото».", "\"الفاظ کاپی کریں\" دبائیں، پھر \"تصاویر کے ساتھ بھیجیں\"۔", "Chạm \"Sao chép chữ\", rồi \"Gửi kèm ảnh\".", "Tapiwch \"Copïo'r geiriau\", yna \"Anfon gyda'r lluniau\"."],
+"Pick WhatsApp, then the chat.": ["اختر WhatsApp، ثم المحادثة.", "Ընտրեք WhatsApp-ը, ապա զրույցը։", "WhatsApp বেছে নিন, তারপর চ্যাটটি।", "Избери WhatsApp, после чата.", "选 WhatsApp，再选聊天。", "Choisissez WhatsApp, puis la discussion.", "WhatsApp પસંદ કરો, પછી ચેટ.", "WhatsApp चुनें, फिर चैट।", "Scegli WhatsApp, poi la chat.", "Pasirinkite WhatsApp, tada pokalbį.", "WhatsApp छान्नुहोस्, अनि च्याट।", "Wybierz WhatsApp, a potem czat.", "Escolha o WhatsApp e depois a conversa.", "WhatsApp ਚੁਣੋ, ਫਿਰ ਚੈਟ।", "Alege WhatsApp, apoi conversația.", "Elige WhatsApp y luego el chat.", "WhatsApp-ஐயும் பிறகு உரையாடலையும் தேர்ந்தெடுக்கவும்.", "WhatsApp'ı, sonra sohbeti seç.", "Виберіть WhatsApp, а потім чат.", "WhatsApp چنیں، پھر چیٹ۔", "Chọn WhatsApp, rồi chọn cuộc trò chuyện.", "Dewiswch WhatsApp, yna'r sgwrs."],
+"Press and hold the caption box, tap Paste, then send.": ["اضغط مطولًا على خانة التعليق، واختر «لصق»، ثم أرسل.", "Սեղմեք և պահեք նկարագրության դաշտը, ընտրեք «Տեղադրել», ապա ուղարկեք։", "ক্যাপশনের ঘরে চেপে ধরে রাখুন, \"পেস্ট\" চাপুন, তারপর পাঠান।", "Задръж пръст върху полето за надпис, натисни „Постави“ и изпрати.", "长按说明文字框，点“粘贴”，然后发送。", "Appuyez longuement sur le champ de légende, touchez « Coller », puis envoyez.", "કૅપ્શનના ખાનાને દબાવી રાખો, \"પેસ્ટ\" દબાવો, પછી મોકલો.", "कैप्शन वाले बॉक्स को दबाकर रखें, \"पेस्ट\" दबाएँ, फिर भेजें।", "Tieni premuto il campo della didascalia, tocca «Incolla», poi invia.", "Palaikykite paspaudę aprašo laukelį, paspauskite „Įklijuoti“, tada siųskite.", "क्याप्सनको बाकस थिचिराख्नुहोस्, \"पेस्ट\" थिच्नुहोस्, अनि पठाउनुहोस्।", "Przytrzymaj pole podpisu, stuknij „Wklej”, a potem wyślij.", "Mantenha premida a caixa da legenda, toque em «Colar» e depois envie.", "ਕੈਪਸ਼ਨ ਵਾਲੇ ਖਾਨੇ ਨੂੰ ਦਬਾ ਕੇ ਰੱਖੋ, \"ਪੇਸਟ\" ਦਬਾਓ, ਫਿਰ ਭੇਜੋ।", "Ține apăsat pe câmpul pentru descriere, apasă „Lipește”, apoi trimite.", "Mantén pulsado el cuadro del pie de foto, toca «Pegar» y envía.", "தலைப்புப் பெட்டியை அழுத்திப் பிடித்து, \"ஒட்டு\" என்பதைத் தட்டி, பிறகு அனுப்பவும்.", "Açıklama kutusuna basılı tut, \"Yapıştır\"a dokun, sonra gönder.", "Натисніть і утримуйте поле підпису, торкніться «Вставити», а потім надішліть.", "کیپشن والے خانے کو دبا کر رکھیں، \"پیسٹ\" دبائیں، پھر بھیجیں۔", "Nhấn giữ ô chú thích, chạm \"Dán\", rồi gửi.", "Pwyswch a dal y blwch capsiwn, tapiwch Paste, yna anfon."],
+"The photos couldn't be got ready, so only the words will go": ["تعذّر تجهيز الصور، لذا سيُرسل النص فقط", "Լուսանկարները հնարավոր չեղավ պատրաստել, ուստի կուղարկվի միայն տեքստը", "ছবিগুলো তৈরি করা যায়নি, তাই শুধু লেখা যাবে", "Снимките не можаха да се подготвят, затова ще отиде само текстът", "照片没能准备好，所以只会发送文字", "Les photos n'ont pas pu être préparées, seul le texte partira", "ફોટા તૈયાર ન થઈ શક્યા, એટલે ફક્ત લખાણ જશે", "फोटो तैयार नहीं हो सकीं, इसलिए सिर्फ़ शब्द जाएँगे", "Non è stato possibile preparare le foto, quindi partirà solo il testo", "Nuotraukų paruošti nepavyko, todėl bus išsiųstas tik tekstas", "फोटोहरू तयार हुन सकेनन्, त्यसैले शब्द मात्र जान्छन्", "Nie udało się przygotować zdjęć, więc pójdzie tylko tekst", "Não foi possível preparar as fotos, por isso só vai o texto", "ਫੋਟੋਆਂ ਤਿਆਰ ਨਹੀਂ ਹੋ ਸਕੀਆਂ, ਇਸ ਲਈ ਸਿਰਫ਼ ਸ਼ਬਦ ਜਾਣਗੇ", "Fotografiile nu au putut fi pregătite, așa că va pleca doar textul", "No se pudieron preparar las fotos, así que solo irá el texto", "புகைப்படங்களைத் தயார் செய்ய முடியவில்லை, அதனால் சொற்கள் மட்டும் அனுப்பப்படும்", "Fotoğraflar hazırlanamadı, bu yüzden yalnızca yazı gidecek", "Не вдалося підготувати фото, тож піде лише текст", "تصاویر تیار نہیں ہو سکیں، اس لیے صرف الفاظ جائیں گے", "Không chuẩn bị được ảnh, nên chỉ gửi chữ", "Doedd dim modd paratoi'r lluniau, felly dim ond y geiriau fydd yn mynd"],
+"Getting the photos ready. Tap again in a moment": ["جارٍ تجهيز الصور. اضغط مرة أخرى بعد لحظة", "Լուսանկարները պատրաստվում են։ Մի պահից նորից սեղմեք", "ছবিগুলো তৈরি হচ্ছে। একটু পরে আবার চাপুন", "Снимките се подготвят. Натисни пак след малко", "正在准备照片，请稍后再点一次", "Préparation des photos. Touchez à nouveau dans un instant", "ફોટા તૈયાર થઈ રહ્યા છે. થોડી વારમાં ફરી દબાવો", "फोटो तैयार हो रही हैं। थोड़ी देर में फिर दबाएँ", "Preparazione delle foto. Tocca di nuovo tra un attimo", "Ruošiamos nuotraukos. Po akimirkos paspauskite dar kartą", "फोटोहरू तयार हुँदैछन्। एकछिनमा फेरि थिच्नुहोस्", "Przygotowuję zdjęcia. Stuknij ponownie za chwilę", "A preparar as fotos. Toque de novo daqui a pouco", "ਫੋਟੋਆਂ ਤਿਆਰ ਹੋ ਰਹੀਆਂ ਹਨ। ਥੋੜ੍ਹੀ ਦੇਰ ਵਿੱਚ ਫਿਰ ਦਬਾਓ", "Se pregătesc fotografiile. Apasă din nou peste o clipă", "Preparando las fotos. Vuelve a tocar en un momento", "புகைப்படங்கள் தயாராகின்றன. சற்று நேரத்தில் மீண்டும் தட்டவும்", "Fotoğraflar hazırlanıyor. Birazdan tekrar dokun", "Готуємо фото. Натисніть ще раз за мить", "تصاویر تیار ہو رہی ہیں۔ تھوڑی دیر میں دوبارہ دبائیں", "Đang chuẩn bị ảnh. Chạm lại sau giây lát", "Wrthi'n paratoi'r lluniau. Tapiwch eto mewn eiliad"],
+"That photo couldn't be read. Try another": ["تعذّرت قراءة تلك الصورة. جرّب صورة أخرى", "Այդ լուսանկարը հնարավոր չեղավ կարդալ։ Փորձեք մեկ ուրիշը", "ছবিটি পড়া যায়নি। অন্য একটি চেষ্টা করুন", "Снимката не можа да се прочете. Опитай с друга", "无法读取这张照片，请换一张", "Impossible de lire cette photo. Essayez-en une autre", "એ ફોટો વાંચી ન શકાયો. બીજો અજમાવો", "वह फोटो पढ़ी नहीं जा सकी। कोई और आज़माएँ", "Impossibile leggere quella foto. Provane un'altra", "Nepavyko nuskaityti nuotraukos. Bandykite kitą", "त्यो फोटो पढ्न सकिएन। अर्को प्रयास गर्नुहोस्", "Nie udało się odczytać zdjęcia. Spróbuj innego", "Não foi possível ler essa foto. Experimente outra", "ਉਹ ਫੋਟੋ ਪੜ੍ਹੀ ਨਹੀਂ ਜਾ ਸਕੀ। ਕੋਈ ਹੋਰ ਅਜ਼ਮਾਓ", "Fotografia nu a putut fi citită. Încearcă alta", "No se pudo leer esa foto. Prueba con otra", "அந்தப் புகைப்படத்தைப் படிக்க முடியவில்லை. வேறொன்றை முயற்சிக்கவும்", "O fotoğraf okunamadı. Başka birini dene", "Не вдалося прочитати це фото. Спробуйте інше", "وہ تصویر پڑھی نہیں جا سکی۔ کوئی اور آزمائیں", "Không đọc được ảnh đó. Thử ảnh khác", "Doedd dim modd darllen y llun yna. Rhowch gynnig ar un arall"],
+"Send this drink": ["أرسل هذا المشروب", "Ուղարկել այս խմիչքը", "এই পানীয়টি পাঠান", "Изпрати тази напитка", "发送这款饮品", "Envoyer cette boisson", "આ પીણું મોકલો", "यह ड्रिंक भेजें", "Invia questo drink", "Siųsti šį gėrimą", "यो पेय पठाउनुहोस्", "Wyślij ten napój", "Enviar esta bebida", "ਇਹ ਡਰਿੰਕ ਭੇਜੋ", "Trimite această băutură", "Enviar esta bebida", "இந்த பானத்தை அனுப்பு", "Bu içeceği gönder", "Надіслати цей напій", "یہ مشروب بھیجیں", "Gửi đồ uống này", "Anfon y ddiod hon"],
+"Who reported it isn't included.": ["لا يُذكر اسم من أبلغ عنه.", "Թե ով է հայտնել, չի նշվում։", "কে জানিয়েছেন তা উল্লেখ করা হয় না।", "Кой е подал сигнала, не се включва.", "不包含反馈人的信息。", "Le nom de la personne qui l'a signalé n'est pas inclus.", "કોણે જણાવ્યું તે સામેલ નથી.", "किसने बताया, यह शामिल नहीं है।", "Chi l'ha segnalato non è incluso.", "Kas pranešė, neįtraukiama.", "कसले जनाएको हो भन्ने समावेश हुँदैन।", "Nie ma w nim informacji, kto zgłosił.", "Não inclui quem o comunicou.", "ਕਿਸਨੇ ਦੱਸਿਆ, ਇਹ ਸ਼ਾਮਲ ਨਹੀਂ ਹੈ।", "Nu se include cine a făcut sesizarea.", "No incluye quién lo comunicó.", "யார் தெரிவித்தார் என்பது சேர்க்கப்படவில்லை.", "Kimin bildirdiği eklenmez.", "Хто подав сигнал, не вказано.", "کس نے بتایا، یہ شامل نہیں ہے۔", "Không ghi tên người phản ánh.", "Dydy enw pwy wnaeth ei godi ddim wedi'i gynnwys."],
+"Add a photo of it, so whoever fixes it knows what to bring.": ["أضف صورة له، ليعرف من سيصلحه ما الذي يحضره.", "Ավելացրեք լուսանկար, որպեսզի վերանորոգողն իմանա՝ ինչ բերել։", "এর একটি ছবি যোগ করুন, যাতে যিনি ঠিক করবেন তিনি জানেন কী আনতে হবে।", "Добави снимка, за да знае който ще го поправя какво да донесе.", "加一张照片，让来修的人知道该带什么。", "Ajoutez une photo, pour que la personne qui répare sache quoi apporter.", "તેનો ફોટો ઉમેરો, જેથી રિપેર કરનારને ખબર પડે કે શું લાવવું.", "इसकी एक फोटो जोड़ें, ताकि ठीक करने वाले को पता हो कि क्या लाना है।", "Aggiungi una foto, così chi lo ripara sa cosa portare.", "Pridėkite nuotrauką, kad taisantis žinotų, ką atsinešti.", "यसको फोटो थप्नुहोस्, ताकि बनाउने व्यक्तिलाई के ल्याउने थाहा होस्।", "Dodaj zdjęcie, żeby osoba, która to naprawi, wiedziała, co ze sobą zabrać.", "Adicione uma foto, para quem vier reparar saber o que trazer.", "ਇਸਦੀ ਫੋਟੋ ਜੋੜੋ, ਤਾਂ ਜੋ ਠੀਕ ਕਰਨ ਵਾਲੇ ਨੂੰ ਪਤਾ ਹੋਵੇ ਕਿ ਕੀ ਲਿਆਉਣਾ ਹੈ।", "Adaugă o fotografie, ca cel care repară să știe ce să aducă.", "Añade una foto, para que quien lo arregle sepa qué traer.", "அதன் புகைப்படத்தைச் சேர்க்கவும், அப்போது சரிசெய்பவருக்கு என்ன கொண்டு வர வேண்டும் என்று தெரியும்.", "Fotoğrafını ekle, tamir edecek kişi ne getireceğini bilsin.", "Додайте фото, щоб той, хто ремонтуватиме, знав, що взяти з собою.", "اس کی تصویر شامل کریں، تاکہ ٹھیک کرنے والے کو پتا ہو کہ کیا لانا ہے۔", "Thêm ảnh để người sửa biết cần mang gì.", "Ychwanegwch lun ohono, er mwyn i bwy bynnag sy'n ei drwsio wybod beth i ddod gyda nhw."],
+"When can you come?": ["متى يمكنك الحضور؟", "Ե՞րբ կարող եք գալ", "আপনি কখন আসতে পারবেন?", "Кога можеш да дойдеш?", "你什么时候能来？", "Quand pouvez-vous venir ?", "તમે ક્યારે આવી શકો?", "आप कब आ सकते हैं?", "Quando puoi venire?", "Kada galite atvykti?", "तपाईं कहिले आउन सक्नुहुन्छ?", "Kiedy możesz przyjść?", "Quando pode vir?", "ਤੁਸੀਂ ਕਦੋਂ ਆ ਸਕਦੇ ਹੋ?", "Când puteți veni?", "¿Cuándo puedes venir?", "நீங்கள் எப்போது வர முடியும்?", "Ne zaman gelebilirsiniz?", "Коли ви можете прийти?", "آپ کب آ سکتے ہیں؟", "Khi nào bạn có thể đến?", "Pryd allwch chi ddod?"],
+"An issue": ["مشكلة", "Խնդիր", "একটি সমস্যা", "Проблем", "一个问题", "Un problème", "એક સમસ્યા", "एक समस्या", "Un problema", "Problema", "एउटा समस्या", "Problem", "Um problema", "ਇੱਕ ਸਮੱਸਿਆ", "O problemă", "Una incidencia", "ஒரு பிரச்சினை", "Bir sorun", "Проблема", "ایک مسئلہ", "Một sự cố", "Problem"],
+"A concern": ["بلاغ", "Մտահոգություն", "একটি উদ্বেগ", "Сигнал", "一条隐患反馈", "Un signalement", "એક ચિંતા", "एक चिंता", "Una segnalazione", "Pranešimas", "एउटा चिन्ता", "Zgłoszenie", "Uma preocupação", "ਇੱਕ ਚਿੰਤਾ", "O sesizare", "Una preocupación", "ஒரு கவலை", "Bir bildirim", "Сигнал", "ایک خدشہ", "Một phản ánh", "Pryder"],
+"More detail": ["تفاصيل أكثر", "Մանրամասներ", "আরও বিস্তারিত", "Още подробности", "更多细节", "Plus de détails", "વધુ વિગત", "और जानकारी", "Altri dettagli", "Daugiau informacijos", "थप विवरण", "Więcej szczegółów", "Mais pormenores", "ਹੋਰ ਵੇਰਵਾ", "Mai multe detalii", "Más detalles", "மேலும் விவரம்", "Daha fazla ayrıntı", "Більше деталей", "مزید تفصیل", "Thêm chi tiết", "Rhagor o fanylion"]
 }
 };
 const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
@@ -4898,8 +4991,51 @@ SHARE.rota = (o = "day") => {
       o === "person"
         ? { id: "people", label: "Who's on", one: true, lines: ppl.flatMap((n) => [n, ...xs.filter((x) => x.whoName === n).map((x) => subLine(`${dayName(x.day)} ${roTime(x)} (${sideName(x.side)})${x.note ? `, ${x.note}` : ""}${x.pub ? "" : " [draft]"}`))]) }
         : { id: "week", label: "The week", one: true, lines: [...new Set(xs.map((x) => x.day))].flatMap((d) => [dayName(d, { weekday: "long", day: "numeric", month: "short" }), ...xs.filter((x) => x.day === d).map((x) => subLine(line(x)))]) },
-    ], choose: { label: "Laid out", v: o, opts: [["day", "By day"], ["person", "By person"]] } };
+    ], choose: { label: "Laid out", v: o, opts: [["day", "By day"], ["person", "By person"]] },
+    photos: xs.length ? async () => [{ data: rotaPicture(wk, xs), note: "", file: `rota-${wk}` }] : null };
 };
+/* The week as a picture for the team chat, laid out as rotas are on the wall: a row for each person, a column for each
+   day, then the open shifts. A draft shift says so. */
+function rotaPicture(wk, xs) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(wk, i)), font = (w, n) => `${w} ${n}px -apple-system, system-ui, "Segoe UI", Roboto, sans-serif`;
+  const rows = [...new Set(xs.filter((x) => x.whoName).map((x) => x.whoName))].sort().map((n) => [n, (d) => xs.filter((x) => x.whoName === n && x.day === d)]);
+  if (xs.some((x) => !x.whoName)) rows.push(["Open shifts", (d) => xs.filter((x) => !x.whoName && x.day === d)]);
+  const W = 1400, pad = 28, nameW = 220, colW = (W - pad * 2 - nameW) / 7, line = 56, top = 168, headH = 64;
+  const rowH = rows.map(([, f]) => Math.max(1, ...days.map((d) => f(d).length)) * line + 12);
+  const H = top + headH + rowH.reduce((a, b) => a + b, 0) + 76;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const g = c.getContext("2d"); g.textBaseline = "top";
+  const text = (t, x, y, w, f, col) => { g.font = f; g.fillStyle = col; let s = t; while (s.length > 1 && g.measureText(s).width > w) s = s.slice(0, -2) + "…"; g.fillText(s, x, y); };
+  // The times are the point, so they're never cut short: the widest sets their size.
+  g.font = font(700, 24); const tf = Math.min(24, Math.floor((24 * (colW - 18)) / Math.max(1, ...xs.map((x) => g.measureText(roTime(x)).width))));
+  g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#0a0a0a"; g.fillRect(0, 0, W, top - 24);
+  text("Black Tap Soho rota", pad, 30, W - pad * 2, font(700, 46), "#d4af37");
+  text(`Week of ${dayName(wk, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`, pad, 92, W - pad * 2, font(400, 30), "#f7f1e3");
+  // The days across the top, the weekend shaded.
+  days.forEach((d, i) => {
+    const x = pad + nameW + i * colW;
+    if (i >= 5) { g.fillStyle = "#f6f1e7"; g.fillRect(x, top, colW, H - top - 76); }
+    text(dayName(d, { weekday: "short" }), x + 10, top + 6, colW - 16, font(700, 26), "#111");
+    text(dayName(d, { day: "numeric", month: "short" }), x + 10, top + 36, colW - 16, font(400, 20), "#555");
+  });
+  let y = top + headH;
+  rows.forEach(([n, f], r) => {
+    g.fillStyle = "#d8cdb9"; g.fillRect(pad, y, W - pad * 2, 2);
+    // A name too long for the column goes as on a wall rota: first name and initial.
+    g.font = font(700, 26); const ws = n.split(" "), nm = g.measureText(n).width > nameW - 14 && ws.length > 1 ? `${ws[0]} ${ws[ws.length - 1][0]}.` : n;
+    text(nm, pad, y + 18, nameW - 14, font(700, 26), n === "Open shifts" ? "#8a5a0b" : "#111");
+    days.forEach((d, i) => f(d).sort(roOrder).forEach((x, k) => {
+      const cx = pad + nameW + i * colW + 10, cy = y + 12 + k * line;
+      text(roTime(x), cx, cy, colW - 16, font(700, tf), "#111");
+      text(`${sideName(x.side)}${x.pub ? "" : " (draft)"}`, cx, cy + 28, colW - 16, font(400, 18), x.pub ? "#555" : "#b0361b");
+    }));
+    y += rowH[r];
+  });
+  g.fillStyle = "#d8cdb9"; g.fillRect(pad, y, W - pad * 2, 2);
+  text(`From Bar Book, ${stamp(new Date())}. Check the app for changes.`, pad, y + 26, W - pad * 2, font(400, 20), "#555");
+  return c.toDataURL("image/png");
+}
 // Photos load only when asked for, so the feed stays quick and cheap on data.
 const shownPhotos = {};
 async function showPhotos(id) {
@@ -5189,7 +5325,7 @@ function renderConcerns() {
     ${x.photos ? `<div data-cn-photos-of="${x.id}">${cnShown[x.id] || `<button class="btn" data-cn-photos="${x.id}">Show ${esc(x.photos)} photo${x.photos > 1 ? "s" : ""}</button>`}</div>` : ""}
     <p class="note" style="margin-top:6px">${x.anon ? "Sent anonymously" : `From ${esc(x.name)}`} · ${when(x.at)}</p>
     ${LIVE.admin || x.to !== "managers" ? `<div class="rvrow" style="grid-template-columns:1fr auto"><input data-cn-fixt="${x.id}" maxlength="300" placeholder="What was done (optional)" value="${esc(cnText[x.id] || "")}" aria-label="What was done"><button class="btn pri" data-cn-fix="${x.id}">Dealt with</button></div>` : ""}
-    ${LIVE.admin || (x.uid && x.uid === LIVE.uid) ? `<div class="actions"><button class="btn danger" data-cn-del="${x.id}">${LIVE.admin ? "Take down" : "Withdraw"}</button></div>` : ""}</article>`;
+    <div class="actions">${sendBtn("concern", "Send on WhatsApp", x.id)}${LIVE.admin || (x.uid && x.uid === LIVE.uid) ? `<button class="btn danger" data-cn-del="${x.id}">${LIVE.admin ? "Take down" : "Withdraw"}</button>` : ""}</div></article>`;
   $("#concerns").innerHTML = `<div class="sec">Concerns</div>
     <details class="setup" id="cn-form"${cnF.open ? " open" : ""}><summary>Report a concern</summary>
       <div class="mini">What's wrong</div><div class="recent">${CN.map(([k, t]) => `<button class="chip" data-cn-reason="${k}" aria-pressed="${k === cnF.reason}">${t}</button>`).join("")}</div>
@@ -5202,6 +5338,14 @@ function renderConcerns() {
       <div class="actions"><button class="btn pri" id="cn-go">Send</button></div></details>
     ${openConcerns().map(row).join("") || `<p class="note">No open concerns.</p>`}`;
 }
+SHARE.concern = (id) => {
+  const x = LIVE.concerns.find((c) => c.id === id); if (!x) return null;
+  return { what: "A concern", title: `${CN_NAME[x.reason]} · ${AREA[x.area] || "Other"} · Black Tap Soho`,
+    head: [`Reported ${stamp(new Date(ms(x.at)))}`, x.status === "open" ? "Still to be dealt with" : "Dealt with"],
+    parts: [{ id: "note", label: "What's wrong", one: true, lines: x.note ? [x.note] : [] }],
+    photos: x.photos ? async () => (await LIVE.api.concernPhotos(x)).filter(Boolean).map((data) => ({ data, note: "" })) : null,
+    tip: "Who reported it isn't included." };
+};
 async function showConcernPhotos(id) {
   const x = LIVE.concerns.find((c) => c.id === id); if (!x) return;
   const ps = (await LIVE.api.concernPhotos(x)).filter(Boolean);
@@ -5232,7 +5376,7 @@ function renderIssues() {
     <div class="tags">${x.urgent ? `<span class="pill no">Urgent</span>` : ""}<span class="pill">${AREA[x.area] || "Other"}</span>${x.status === "taken" ? `<span class="pill wait">On it: ${esc(x.who)}</span>` : `<span class="pill">Nobody on it yet</span>`}${x.again ? `<span class="pill">Raised again</span>` : ""}</div>
     ${x.detail ? `<p class="txt">${esc(x.detail)}</p>` : ""}
     <p class="note" style="margin-top:6px">Raised by ${esc(x.name)} · ${when(x.at)}</p>
-    <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${LIVE.admin ? `<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}">${esc(p.name)}</option>`).join("")}</select>` : ""}${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
+    <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${sendBtn("issue", "Send on WhatsApp", x.id)}${LIVE.admin ? `<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}">${esc(p.name)}</option>`).join("")}</select>` : ""}${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
     <div class="rvrow" style="grid-template-columns:1fr auto"><input data-fixt="${x.id}" maxlength="500" placeholder="What was done to fix it" value="${esc(fixText[x.id] || "")}" aria-label="What was done to fix it"><button class="btn pri" data-fix="${x.id}">Fixed</button></div></article>`;
   $("#issues").innerHTML = `<div class="sec">Issues and handover</div>
     <details class="setup" id="is-form"${isF.open ? " open" : ""}><summary>${isF.again ? "Raise it again" : "Raise an issue"}</summary>
@@ -5245,6 +5389,14 @@ function renderIssues() {
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
     ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${esc(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${esc(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
 }
+// One issue, for whoever fixes it: the engineer, a contractor or the landlord, with a photo added on the Send page.
+SHARE.issue = (id) => {
+  const x = LIVE.issues.find((i) => i.id === id); if (!x) return null;
+  return { what: "An issue", title: `${x.urgent ? "Urgent: " : ""}${x.title} · Black Tap Soho`,
+    head: [`${AREA[x.area] || "Other"}, raised ${stamp(new Date(ms(x.at)))}`, x.status === "fixed" ? "Fixed" : x.status === "taken" && x.who ? `${x.who} is on it` : "Nobody on it yet"],
+    parts: [{ id: "detail", label: "More detail", one: true, lines: x.detail ? [x.detail] : [] }],
+    notePh: "When can you come?", tip: "Add a photo of it, so whoever fixes it knows what to bring." };
+};
 /* ---------- Managers page, staff asks, incidents, reviews, anonymous feedback ---------- */
 const bday = (t) => ukDay(ms(t) - 6 * 36e5);
 const dayName = (k, o = { weekday: "short", day: "numeric", month: "short" }) => (k ? new Date(k + "T12:00").toLocaleDateString("en-GB", o) : "?");
@@ -6226,7 +6378,8 @@ SHARE.handover = () => {
       { id: "next", label: "For the next manager", one: true, lines: h.note ? [h.note] : [] },
       { id: "owner", label: "For the owner", one: true, lines: h.owner ? [h.owner] : [] },
       { id: "ack", label: "Accepted", one: true, lines: h.ackBy ? [`${h.ackBy}${h.ackNote ? `: ${h.ackNote}` : ""}`] : [] },
-    ] };
+    ], photos: async () => (await Promise.all(LIVE.reports.filter((r) => r.photos && bday(r.at) === h.day)
+      .map(async (r) => (await LIVE.api.loadPhotos(r.id)).map((x) => ({ ...x, note: [sideName(r.side), x.note].filter(Boolean).join(": ") }))))).flat() };
 };
 const hoAck = {};
 function hoCard(h, { accept = false } = {}) {

@@ -60,8 +60,12 @@
 /* Send: the summary, a tick box for each part, and the message as it will look. */
 .sendsum { margin-top: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 16px; line-height: 1.5; }
 .sendpart .s { margin-inline-start: auto; color: var(--muted); font-size: 14px; }
-.sendph { display: flex; gap: 8px; overflow-x: auto; margin-top: 8px; }
-.sendph img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; flex: none; }
+.sendph { display: flex; gap: 8px; overflow-x: auto; margin-top: 8px; padding-top: 6px; }
+.sendph figure { position: relative; margin: 0; flex: none; }
+.sendph img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; display: block; }
+.sendph .phx { position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--bg); background: var(--fg); color: var(--bg); font-size: 16px; line-height: 1; padding: 0; }
+.sendhow { margin: 8px 0 0; padding-left: 22px; font-size: 15px; color: var(--muted); }
+.sendhow li { margin: 2px 0; }
 .sendpre { white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.5 var(--body); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 8px 0 0; }
 #print { display: none; }
 @media print {
@@ -739,6 +743,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
     <input id="dm-in" type="file" accept="image/*" hidden>
     <input id="cn-in" type="file" accept="image/*" hidden>
+    <input id="send-in" type="file" accept="image/*" multiple hidden>
     <input id="ch-in" type="file" accept="image/*" hidden>
   </section>
 
@@ -829,31 +834,69 @@ let snd = null;
 const sndMsg = () => snd && SHARE[snd.k](snd.opt);
 function openSend(k, o, note = "") {
   const m = SHARE[k](o); if (!m) return toast("Nothing to send yet");
-  lastFocus = document.activeElement;
-  snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, withPhotos: true };
+  if ($("#sheet").hidden) lastFocus = document.activeElement;
+  document.querySelector(".swhint")?.remove();
+  // From a drink, Back goes back to the drink.
+  const s = snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, busy: false, drink: k === "drink" ? +o : null };
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Send</span><span></span></div></div><div id="send"></div>`;
   renderSend(m); showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus();
-  if (m.photos) m.photos().then(async (ps) => {
-    if (snd?.k !== k || !ps.length) return;
-    snd.photos = ps; renderSend();
-    // Made ready now: the share sheet has to open straight from the tap.
-    try { snd.files = await Promise.all(ps.map(async (x, i) => new File([await (await fetch(x.data)).blob()], `photo-${i + 1}.jpg`, { type: "image/jpeg" }))); } catch {}
+  if (m.photos) m.photos().then((ps) => {
+    if (snd !== s || !ps.length) return;
+    s.photos = [...ps, ...s.photos].slice(0, SEND_MAX); sndFiles(); renderSend();
   }).catch(() => {});
 }
 const canFiles = () => { try { return !!navigator.canShare?.({ files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] }); } catch { return false; } };
+/* Photos on the Send page: the message's own (tonight's closing photos, a concern's, a drink's house photo, the rota as
+   a picture) and any the person adds here from the camera or their photos. Added ones are only for this message:
+   nothing is saved. The share sheet takes the photos on their own: given words as well, an iPhone keeps the words and
+   drops the photos (WebKit bug 251500). So the words are copied first, with their own tap, for pasting in as the
+   caption: Safari lets the share sheet open only from a fresh tap, and sharing uses that tap up. */
+const SEND_MAX = 10;
+let sndGen = 0;
+// The photos as files for the share sheet, made ready as they change: it has to open straight from the tap.
+async function sndFiles() {
+  const s = snd, n = ++sndGen; s.files = null;
+  try {
+    const fs = await Promise.all(s.photos.map(async (x, i) => { const b = await photoBlob(x); return new File([b], `${x.file || `photo-${i + 1}`}.${b.type === "image/png" ? "png" : "jpg"}`, { type: b.type || "image/jpeg" }); }));
+    if (n === sndGen && snd === s) s.files = fs;
+  } catch { if (n === sndGen && snd === s) { s.files = []; toast("The photos couldn't be got ready, so only the words will go"); } }
+}
+// Words that fit a width, a line at a time.
+function fitLines(g, text, w) {
+  const out = [];
+  for (const word of text.split(/\s+/)) { const l = out.length ? `${out[out.length - 1]} ${word}` : word; if (out.length && g.measureText(l).width <= w) out[out.length - 1] = l; else out.push(word); }
+  return out;
+}
+// A photo with a note carries it in a strip along the bottom, so it still says what it shows in WhatsApp.
+async function photoBlob(x) {
+  if (!x.note) return (await fetch(x.data)).blob();
+  const img = new Image(); img.src = x.data; await img.decode();
+  const w = img.naturalWidth, h = img.naturalHeight, fs = Math.max(18, Math.round(w / 26)), pad = Math.round(fs * 0.75);
+  const c = document.createElement("canvas"), g = c.getContext("2d"), font = `600 ${fs}px -apple-system, system-ui, "Segoe UI", Roboto, sans-serif`;
+  g.font = font;
+  const ls = fitLines(g, x.note, w - pad * 2).slice(0, 3), band = Math.round(ls.length * fs * 1.3 + pad * 1.5);
+  c.width = w; c.height = h + band;
+  g.drawImage(img, 0, 0); g.fillStyle = "#111"; g.fillRect(0, h, w, band);
+  g.font = font; g.fillStyle = "#fff"; g.textBaseline = "top";
+  ls.forEach((l, i) => g.fillText(l, pad, h + pad * 0.75 + i * fs * 1.3));
+  return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("No picture"))), "image/jpeg", 0.85));
+}
 function renderSend(m = sndMsg()) {
   const box = $("#send"); if (!box || !m) return;
-  const ph = snd.photos.length, files = ph && snd.withPhotos && canFiles(), c = m.choose;
-  box.innerHTML = `<h2 id="sh-name" style="margin-top:12px">${esc(m.what)}</h2>
+  const ph = snd.photos.length, files = ph && canFiles(), c = m.choose;
+  box.innerHTML = `<h2 id="sh-name" style="margin-top:12px"${snd.k === "drink" ? ' translate="no"' : ""}>${esc(m.what)}</h2>
     ${c ? `<div class="mini">${esc(c.label)}</div><div class="recent">${c.opts.map(([v, t]) => `<button class="chip" data-send-opt="${esc(v)}" aria-pressed="${v === c.v}">${esc(t)}</button>`).join("")}</div>` : ""}
     ${m.head.length ? `<div class="sendsum" translate="no">${m.head.map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
-    ${m.parts.length || ph ? `<div class="sec">What goes in</div>` : ""}
+    ${m.parts.length ? `<div class="sec">What goes in</div>` : ""}
     ${m.parts.filter((x) => x.lines.length || !x.opt).map((x) => `<label class="check sendpart"><input type="checkbox" data-send-part="${x.id}"${snd.pick.has(x.id) && x.lines.length ? " checked" : ""}${x.lines.length ? "" : " disabled"}><span>${esc(x.label)}</span><span class="s">${!x.lines.length ? "Nothing" : x.one ? "" : partItems(x)}</span></label>`).join("")}
-    ${ph ? `<label class="check sendpart"><input type="checkbox" data-send-photos${snd.withPhotos ? " checked" : ""}><span>Photos</span><span class="s">${ph}</span></label>
-      <div class="sendph">${snd.photos.map((x) => `<img src="${x.data}" alt="${esc(x.note || "Photo")}">`).join("")}</div>` : ""}
+    <div class="sec">Photos${ph ? ` (${ph})` : ""}</div>
+    ${ph ? `<div class="sendph">${snd.photos.map((x, i) => `<figure><img src="${x.data}" alt="${esc(x.note || `Photo ${i + 1}`)}"><button class="phx" data-send-unphoto="${i}" aria-label="Take photo ${i + 1} out">×</button></figure>`).join("")}</div>` : ""}
+    ${ph < SEND_MAX ? `<label class="btn" for="send-in" style="cursor:pointer;margin-top:8px">${snd.busy ? "Adding…" : ph ? "Add another photo" : "Add a photo"}</label>` : `<p class="note">${SEND_MAX} photos is the most.</p>`}
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
-    <div class="actions"><a class="btn pri" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share ? `<button class="btn" data-send-sheet>${files ? "Send with photos" : "Other apps…"}</button>` : ""}<button class="btn" data-send-copy>Copy</button><button class="btn" data-send-print>Print</button></div>
-    ${ph ? `<p class="note">${files ? "WhatsApp and Email take the words. For the photos too, tap Send with photos and pick WhatsApp. The words are copied as well: paste them in if they don't show." : "WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF."}</p>` : ""}
+    ${files ? `<div class="actions"><button class="btn" data-send-copy>Copy the words</button><button class="btn pri" data-send-sheet>Send with photos</button></div>
+      <ol class="sendhow"><li>Tap Copy the words, then Send with photos.</li><li>Pick WhatsApp, then the chat.</li><li>Press and hold the caption box, tap Paste, then send.</li></ol>` : ""}
+    <div class="actions"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-print>Print</button></div>
+    ${ph && !files ? `<p class="note">WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF.</p>` : ""}
     ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
     <p class="note">It goes in English, so everyone can read it.</p>
     <div class="sec">How it will look</div>
@@ -881,22 +924,37 @@ document.addEventListener("click", (e) => {
     return;
   }
   const text = msgText(m, snd.pick, snd.note);
-  if (e.target.closest("[data-send-copy]")) { navigator.clipboard?.writeText(text).then(() => toast("Copied. Paste it anywhere"), () => toast("Couldn't copy. Press and hold the message to copy it")); return; }
-  if (e.target.closest("[data-send-sheet]")) {
-    const files = snd.withPhotos && snd.files?.length && navigator.canShare?.({ files: snd.files }) ? snd.files : null;
-    if (files) navigator.clipboard?.writeText(text).catch(() => {});
-    navigator.share(files ? { title: m.title, text, files } : { title: m.title, text }).catch(() => {});
+  if (e.target.closest("[data-send-copy]")) {
+    const next = snd.photos.length && canFiles() ? "Copied. Now tap Send with photos" : "Copied. Paste it anywhere";
+    navigator.clipboard?.writeText(text).then(() => toast(next), () => toast("Couldn't copy. Press and hold the message to copy it"));
     return;
   }
-  if (e.target.closest("[data-send-print]")) printMsg(msgText(m, snd.pick, snd.note, false), snd.withPhotos ? snd.photos : []);
+  if (e.target.closest("[data-send-sheet]")) {
+    if (snd.photos.length && !snd.files) return toast("Getting the photos ready. Tap again in a moment");
+    const files = snd.files?.length && navigator.canShare?.({ files: snd.files }) ? snd.files : null;
+    navigator.share(files ? { files } : { title: m.title, text }).catch(() => {});
+    return;
+  }
+  const ux = e.target.closest("[data-send-unphoto]");
+  if (ux) { snd.photos.splice(+ux.dataset.sendUnphoto, 1); sndFiles(); renderSend(m); return; }
+  if (e.target.closest("[data-send-print]")) printMsg(msgText(m, snd.pick, snd.note, false), snd.photos);
 });
 document.addEventListener("change", (e) => {
   if (!snd) return;
   const x = e.target.closest("[data-send-part]");
   if (x) { if (x.checked) snd.pick.add(x.dataset.sendPart); else snd.pick.delete(x.dataset.sendPart); sendPreview(); }
-  else if (e.target.matches("[data-send-photos]")) { snd.withPhotos = e.target.checked; renderSend(); }
 });
 document.addEventListener("input", (e) => { if (snd && e.target.id === "send-note") { snd.note = e.target.value; sendPreview(); } });
+$("#send-in").addEventListener("change", async (e) => {
+  const fs = [...e.target.files], s = snd; e.target.value = "";
+  if (!s || !fs.length) return;
+  s.busy = true; renderSend();
+  for (const f of fs) {
+    if (s.photos.length >= SEND_MAX) { toast(`${SEND_MAX} photos is the most`); break; }
+    try { const data = await shrink(f); if (snd !== s) return; s.photos.push({ data, note: "" }); } catch { toast("That photo couldn't be read. Try another"); }
+  }
+  s.busy = false; if (snd === s) { sndFiles(); renderSend(); }
+});
 // Lines the messages share.
 const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
 const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}: ${lower(RS[r.status])}${r.who ? ` (${r.who})` : ""}${rsLate(r) ? `, ${lower(rsLateText(r))}` : ""}`;
@@ -996,10 +1054,22 @@ function specRow(line) {
   const [q, rest] = m ? [m[1], m[2]] : ["", line];
   return `<li><span class="q">${esc(scaleQ(q))}</span><span>${esc(rest)}</span></li>`;
 }
+// The method a step a line, as on the drink.
+const methodLines = (method) => method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i)
+  .map((s) => s.replace(/\.$/, "").trim()).filter(Boolean).map((s) => s[0].toUpperCase() + s.slice(1));
+SHARE.drink = (id) => {
+  const d = D[+id]; if (!d) return null;
+  const m = mediaOf(d), al = d.allergens && d.allergens !== "None" ? d.allergens : "";
+  return { what: d.name, title: `${d.name} · Black Tap Soho`,
+    head: [`Glass: ${d.glass}`, `Ice: ${d.ice}`, `Garnish: ${d.garnish}`, ...(al ? [`Allergens: ${al}`] : [])],
+    parts: [{ id: "spec", label: "Spec", lines: d.spec }, { id: "method", label: "Method", lines: methodLines(d.method) },
+      { id: "subs", label: "Out of something?", one: true, lines: d.subs ? [d.subs.join(" ")] : [], off: true, opt: true }],
+    photos: m?.photo ? async () => [{ data: m.photo, note: d.name, file: d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") }] : null,
+    tip: "Jigger everything. 12.5 ml is half a 25 ml jigger." };
+};
 function steps(method) {
-  const parts = method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i).map((s) => s.replace(/\.$/, "").trim()).filter(Boolean);
-  const cap = (s) => s[0].toUpperCase() + s.slice(1);
-  return parts.length > 1 ? `<ol class="steps" translate="no">${parts.map((p) => `<li>${esc(cap(p))}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0" translate="no">${esc(method)}</p>`;
+  const parts = methodLines(method);
+  return parts.length > 1 ? `<ol class="steps" translate="no">${parts.map((p) => `<li>${esc(p)}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0" translate="no">${esc(method)}</p>`;
 }
 function guideHtml(g, nextName) {
   const chip = (i) => `<li><b>${i.ml != null ? `${i.ml} ml` : ""}</b><span>${esc(i.item)}${i.hint || i.note ? `<em>${esc([i.hint, i.note].filter(Boolean).join(", "))}</em>` : ""}</span></li>`;
@@ -1101,6 +1171,7 @@ function openSheet(id, keepScroll) {
     <div id="dmedit">${mediaEditHtml(d)}</div>
     ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
+    <div class="actions">${sendBtn("drink", "Send this drink", String(id))}</div>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
   if (LIVE.me) LIVE.api?.watchMedia(d.name);
@@ -1192,6 +1263,7 @@ function hideSheet() {
   LIVE.api?.watchMedia(null);
 }
 $("#sheet").addEventListener("click", (e) => {
+  if (e.target.closest("#sh-close") && snd?.drink != null) { const id = snd.drink; snd = null; openSheet(id, true); $("#sheet").scrollTop = 0; return; }
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
   const op = e.target.closest("[data-open]"); if (op) { mult = 1; openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
   const gb = e.target.closest("[data-go]"); if (gb) { slideTo(+gb.dataset.go); return; }
@@ -3805,8 +3877,51 @@ SHARE.rota = (o = "day") => {
       o === "person"
         ? { id: "people", label: "Who's on", one: true, lines: ppl.flatMap((n) => [n, ...xs.filter((x) => x.whoName === n).map((x) => subLine(`${dayName(x.day)} ${roTime(x)} (${sideName(x.side)})${x.note ? `, ${x.note}` : ""}${x.pub ? "" : " [draft]"}`))]) }
         : { id: "week", label: "The week", one: true, lines: [...new Set(xs.map((x) => x.day))].flatMap((d) => [dayName(d, { weekday: "long", day: "numeric", month: "short" }), ...xs.filter((x) => x.day === d).map((x) => subLine(line(x)))]) },
-    ], choose: { label: "Laid out", v: o, opts: [["day", "By day"], ["person", "By person"]] } };
+    ], choose: { label: "Laid out", v: o, opts: [["day", "By day"], ["person", "By person"]] },
+    photos: xs.length ? async () => [{ data: rotaPicture(wk, xs), note: "", file: `rota-${wk}` }] : null };
 };
+/* The week as a picture for the team chat, laid out as rotas are on the wall: a row for each person, a column for each
+   day, then the open shifts. A draft shift says so. */
+function rotaPicture(wk, xs) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(wk, i)), font = (w, n) => `${w} ${n}px -apple-system, system-ui, "Segoe UI", Roboto, sans-serif`;
+  const rows = [...new Set(xs.filter((x) => x.whoName).map((x) => x.whoName))].sort().map((n) => [n, (d) => xs.filter((x) => x.whoName === n && x.day === d)]);
+  if (xs.some((x) => !x.whoName)) rows.push(["Open shifts", (d) => xs.filter((x) => !x.whoName && x.day === d)]);
+  const W = 1400, pad = 28, nameW = 220, colW = (W - pad * 2 - nameW) / 7, line = 56, top = 168, headH = 64;
+  const rowH = rows.map(([, f]) => Math.max(1, ...days.map((d) => f(d).length)) * line + 12);
+  const H = top + headH + rowH.reduce((a, b) => a + b, 0) + 76;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const g = c.getContext("2d"); g.textBaseline = "top";
+  const text = (t, x, y, w, f, col) => { g.font = f; g.fillStyle = col; let s = t; while (s.length > 1 && g.measureText(s).width > w) s = s.slice(0, -2) + "…"; g.fillText(s, x, y); };
+  // The times are the point, so they're never cut short: the widest sets their size.
+  g.font = font(700, 24); const tf = Math.min(24, Math.floor((24 * (colW - 18)) / Math.max(1, ...xs.map((x) => g.measureText(roTime(x)).width))));
+  g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#0a0a0a"; g.fillRect(0, 0, W, top - 24);
+  text("Black Tap Soho rota", pad, 30, W - pad * 2, font(700, 46), "#d4af37");
+  text(`Week of ${dayName(wk, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`, pad, 92, W - pad * 2, font(400, 30), "#f7f1e3");
+  // The days across the top, the weekend shaded.
+  days.forEach((d, i) => {
+    const x = pad + nameW + i * colW;
+    if (i >= 5) { g.fillStyle = "#f6f1e7"; g.fillRect(x, top, colW, H - top - 76); }
+    text(dayName(d, { weekday: "short" }), x + 10, top + 6, colW - 16, font(700, 26), "#111");
+    text(dayName(d, { day: "numeric", month: "short" }), x + 10, top + 36, colW - 16, font(400, 20), "#555");
+  });
+  let y = top + headH;
+  rows.forEach(([n, f], r) => {
+    g.fillStyle = "#d8cdb9"; g.fillRect(pad, y, W - pad * 2, 2);
+    // A name too long for the column goes as on a wall rota: first name and initial.
+    g.font = font(700, 26); const ws = n.split(" "), nm = g.measureText(n).width > nameW - 14 && ws.length > 1 ? `${ws[0]} ${ws[ws.length - 1][0]}.` : n;
+    text(nm, pad, y + 18, nameW - 14, font(700, 26), n === "Open shifts" ? "#8a5a0b" : "#111");
+    days.forEach((d, i) => f(d).sort(roOrder).forEach((x, k) => {
+      const cx = pad + nameW + i * colW + 10, cy = y + 12 + k * line;
+      text(roTime(x), cx, cy, colW - 16, font(700, tf), "#111");
+      text(`${sideName(x.side)}${x.pub ? "" : " (draft)"}`, cx, cy + 28, colW - 16, font(400, 18), x.pub ? "#555" : "#b0361b");
+    }));
+    y += rowH[r];
+  });
+  g.fillStyle = "#d8cdb9"; g.fillRect(pad, y, W - pad * 2, 2);
+  text(`From Bar Book, ${stamp(new Date())}. Check the app for changes.`, pad, y + 26, W - pad * 2, font(400, 20), "#555");
+  return c.toDataURL("image/png");
+}
 // Photos load only when asked for, so the feed stays quick and cheap on data.
 const shownPhotos = {};
 async function showPhotos(id) {
@@ -4096,7 +4211,7 @@ function renderConcerns() {
     ${x.photos ? `<div data-cn-photos-of="${x.id}">${cnShown[x.id] || `<button class="btn" data-cn-photos="${x.id}">Show ${esc(x.photos)} photo${x.photos > 1 ? "s" : ""}</button>`}</div>` : ""}
     <p class="note" style="margin-top:6px">${x.anon ? "Sent anonymously" : `From ${esc(x.name)}`} · ${when(x.at)}</p>
     ${LIVE.admin || x.to !== "managers" ? `<div class="rvrow" style="grid-template-columns:1fr auto"><input data-cn-fixt="${x.id}" maxlength="300" placeholder="What was done (optional)" value="${esc(cnText[x.id] || "")}" aria-label="What was done"><button class="btn pri" data-cn-fix="${x.id}">Dealt with</button></div>` : ""}
-    ${LIVE.admin || (x.uid && x.uid === LIVE.uid) ? `<div class="actions"><button class="btn danger" data-cn-del="${x.id}">${LIVE.admin ? "Take down" : "Withdraw"}</button></div>` : ""}</article>`;
+    <div class="actions">${sendBtn("concern", "Send on WhatsApp", x.id)}${LIVE.admin || (x.uid && x.uid === LIVE.uid) ? `<button class="btn danger" data-cn-del="${x.id}">${LIVE.admin ? "Take down" : "Withdraw"}</button>` : ""}</div></article>`;
   $("#concerns").innerHTML = `<div class="sec">Concerns</div>
     <details class="setup" id="cn-form"${cnF.open ? " open" : ""}><summary>Report a concern</summary>
       <div class="mini">What's wrong</div><div class="recent">${CN.map(([k, t]) => `<button class="chip" data-cn-reason="${k}" aria-pressed="${k === cnF.reason}">${t}</button>`).join("")}</div>
@@ -4109,6 +4224,14 @@ function renderConcerns() {
       <div class="actions"><button class="btn pri" id="cn-go">Send</button></div></details>
     ${openConcerns().map(row).join("") || `<p class="note">No open concerns.</p>`}`;
 }
+SHARE.concern = (id) => {
+  const x = LIVE.concerns.find((c) => c.id === id); if (!x) return null;
+  return { what: "A concern", title: `${CN_NAME[x.reason]} · ${AREA[x.area] || "Other"} · Black Tap Soho`,
+    head: [`Reported ${stamp(new Date(ms(x.at)))}`, x.status === "open" ? "Still to be dealt with" : "Dealt with"],
+    parts: [{ id: "note", label: "What's wrong", one: true, lines: x.note ? [x.note] : [] }],
+    photos: x.photos ? async () => (await LIVE.api.concernPhotos(x)).filter(Boolean).map((data) => ({ data, note: "" })) : null,
+    tip: "Who reported it isn't included." };
+};
 async function showConcernPhotos(id) {
   const x = LIVE.concerns.find((c) => c.id === id); if (!x) return;
   const ps = (await LIVE.api.concernPhotos(x)).filter(Boolean);
@@ -4139,7 +4262,7 @@ function renderIssues() {
     <div class="tags">${x.urgent ? `<span class="pill no">Urgent</span>` : ""}<span class="pill">${AREA[x.area] || "Other"}</span>${x.status === "taken" ? `<span class="pill wait">On it: ${esc(x.who)}</span>` : `<span class="pill">Nobody on it yet</span>`}${x.again ? `<span class="pill">Raised again</span>` : ""}</div>
     ${x.detail ? `<p class="txt">${esc(x.detail)}</p>` : ""}
     <p class="note" style="margin-top:6px">Raised by ${esc(x.name)} · ${when(x.at)}</p>
-    <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${LIVE.admin ? `<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}">${esc(p.name)}</option>`).join("")}</select>` : ""}${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
+    <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${sendBtn("issue", "Send on WhatsApp", x.id)}${LIVE.admin ? `<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}">${esc(p.name)}</option>`).join("")}</select>` : ""}${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
     <div class="rvrow" style="grid-template-columns:1fr auto"><input data-fixt="${x.id}" maxlength="500" placeholder="What was done to fix it" value="${esc(fixText[x.id] || "")}" aria-label="What was done to fix it"><button class="btn pri" data-fix="${x.id}">Fixed</button></div></article>`;
   $("#issues").innerHTML = `<div class="sec">Issues and handover</div>
     <details class="setup" id="is-form"${isF.open ? " open" : ""}><summary>${isF.again ? "Raise it again" : "Raise an issue"}</summary>
@@ -4152,6 +4275,14 @@ function renderIssues() {
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
     ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${esc(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${esc(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
 }
+// One issue, for whoever fixes it: the engineer, a contractor or the landlord, with a photo added on the Send page.
+SHARE.issue = (id) => {
+  const x = LIVE.issues.find((i) => i.id === id); if (!x) return null;
+  return { what: "An issue", title: `${x.urgent ? "Urgent: " : ""}${x.title} · Black Tap Soho`,
+    head: [`${AREA[x.area] || "Other"}, raised ${stamp(new Date(ms(x.at)))}`, x.status === "fixed" ? "Fixed" : x.status === "taken" && x.who ? `${x.who} is on it` : "Nobody on it yet"],
+    parts: [{ id: "detail", label: "More detail", one: true, lines: x.detail ? [x.detail] : [] }],
+    notePh: "When can you come?", tip: "Add a photo of it, so whoever fixes it knows what to bring." };
+};
 /* ---------- Managers page, staff asks, incidents, reviews, anonymous feedback ---------- */
 const bday = (t) => ukDay(ms(t) - 6 * 36e5);
 const dayName = (k, o = { weekday: "short", day: "numeric", month: "short" }) => (k ? new Date(k + "T12:00").toLocaleDateString("en-GB", o) : "?");
@@ -5133,7 +5264,8 @@ SHARE.handover = () => {
       { id: "next", label: "For the next manager", one: true, lines: h.note ? [h.note] : [] },
       { id: "owner", label: "For the owner", one: true, lines: h.owner ? [h.owner] : [] },
       { id: "ack", label: "Accepted", one: true, lines: h.ackBy ? [`${h.ackBy}${h.ackNote ? `: ${h.ackNote}` : ""}`] : [] },
-    ] };
+    ], photos: async () => (await Promise.all(LIVE.reports.filter((r) => r.photos && bday(r.at) === h.day)
+      .map(async (r) => (await LIVE.api.loadPhotos(r.id)).map((x) => ({ ...x, note: [sideName(r.side), x.note].filter(Boolean).join(": ") }))))).flat() };
 };
 const hoAck = {};
 function hoCard(h, { accept = false } = {}) {
