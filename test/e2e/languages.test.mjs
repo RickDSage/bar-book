@@ -85,3 +85,40 @@ test("Gold is black and gold whatever the phone is set to, and stays after a rel
   assert.deepEqual(await look(), ["gold", "#0a0a0a", "rgb(10, 10, 10)"]);
   assert.deepEqual(p.errs, []);
 });
+
+test("dates, names in sentences and pop-ups are translated, and EN in the header switches straight back to English", async () => {
+  const p = await open();
+  await p.selectOption("#w-lang", "pl");
+  await p.click("#w-ok");
+  // Dates come from the phone's own calendar words; a name inside a sentence is kept as it is.
+  const got = await p.evaluate(() => [trLook("Friday 6 November"), trLook("Given to Sam"), trLook("Tomorrow"), trLook("Week of 9 November")]);
+  assert.match(got[0], /listopada/);
+  assert.equal(got[1], "Przekazane: Sam");
+  assert.equal(got[2], "Jutro");
+  assert.match(got[3], /^Tydzień od .*listopada/);
+  // A confirm() asks in Polish.
+  const asked = new Promise((r) => p.once("dialog", async (d) => { r(d.message()); await d.dismiss(); }));
+  p.evaluate(() => confirm("Withdraw this issue?"));
+  assert.equal(await asked, "Wycofać ten problem?");
+  // One tap back to English, one tap back to Polish.
+  assert.equal(await text(p, "#lang-btn"), "EN");
+  await p.click("#lang-btn");
+  assert.deepEqual(await tabs(p), ["Drinks", "Shift", "Team", "My pay", "Info"]);
+  assert.equal(await text(p, "#lang-btn"), "PL");
+  await p.click("#lang-btn");
+  assert.deepEqual(await tabs(p), ["Napoje", "Zmiana", "Zespół", "Wypłata", "Info"]);
+  assert.deepEqual(p.errs, []);
+});
+
+test("what people write gets a Translate button that opens Google Translate in the phone's language", async () => {
+  const p = await open();
+  await p.selectOption("#w-lang", "pt");
+  await p.click("#w-ok");
+  await p.evaluate(() => document.querySelector("#welcome").insertAdjacentHTML("afterend", `<p id="ut-test">${ut("Ice machine slow, engineer booked")}</p>`));
+  await p.waitForSelector("#ut-test .utx, #ut-test + .utx, #ut-test [data-utx]");
+  // The note itself is never run through the app's dictionary.
+  assert.equal(await p.$eval("#ut-test [data-ut]", (e) => e.textContent), "Ice machine slow, engineer booked");
+  const url = await p.evaluate(() => { let u; const o = window.open; window.open = (x) => { u = x; }; document.querySelector("#ut-test [data-utx]").click(); window.open = o; return u; });
+  assert.match(url, /^https:\/\/translate\.google\.com\/\?sl=auto&tl=pt-PT&text=Ice%20machine%20slow/);
+  assert.deepEqual(p.errs, []);
+});
