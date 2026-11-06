@@ -234,7 +234,7 @@ test("the owner can switch the calendar off, and with the rota off the calendar 
   const { O, M, S } = await team(browser, site, people);
   await O.evaluate(() => LIVE.api.setOff(["rota"]));
   for (const p of [M, S]) await switched(p, ["rota"]);
-  const top = ["brief:Tonight's briefing", "status:Tonight's status", "issues:Issues and handover", "guests:Guest issues"], rest = ["me:My requests", "chat:Chat", "board:Broadcasts", "concerns:Concerns", "reports:Reports"];
+  const top = ["brief:Tonight's briefing", "status:Tonight's status", "issues:Issues and handover", "guests:Guest issues"], rest = ["me:My requests", "chat:Chat", "send:WhatsApp and email", "board:Broadcasts", "concerns:Concerns", "reports:Reports"];
   assert.deepEqual(await teamTabs(S), [...top, "rota:Calendar", ...rest, "activity:Activity"]);
   await part(S, "rota");
   assert.ok(await S.evaluate(() => !$("#cal").hidden && $("#rota").hidden));

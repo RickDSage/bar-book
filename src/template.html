@@ -57,6 +57,22 @@
 /* English that stays English (drink names, specs, allergens) still reads left to right in Arabic or Urdu. */
 [translate="no"] { unicode-bidi: isolate; }
 :root[dir="rtl"] [translate="no"]:not(.fld) { direction: ltr; }
+/* Send: the summary, a tick box for each part, and the message as it will look. */
+.sendsum { margin-top: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 16px; line-height: 1.5; }
+.sendpart .s { margin-inline-start: auto; color: var(--muted); font-size: 14px; }
+.sendph { display: flex; gap: 8px; overflow-x: auto; margin-top: 8px; }
+.sendph img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; flex: none; }
+.sendpre { white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.5 var(--body); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 8px 0 0; }
+#print { display: none; }
+@media print {
+  body { background: #fff !important; }
+  body > *:not(#print) { display: none !important; }
+  #print { display: block; color: #000; font: 11pt/1.45 system-ui, sans-serif; }
+  #print pre { white-space: pre-wrap; font: inherit; margin: 0 0 12pt; }
+  #print figure { display: inline-block; width: 48%; margin: 0 1% 10pt; break-inside: avoid; vertical-align: top; }
+  #print img { width: 100%; }
+  #print figcaption { font-size: 9pt; }
+}
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 body {
@@ -706,7 +722,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-notices" hidden>
     <div id="hubtop"><h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p></div>
-    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="status"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="nights"></div><div id="act"></div><div id="kpis"></div><div id="money"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div>
+    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="status"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="nights"></div><div id="act"></div><div id="kpis"></div><div id="money"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div><div id="sendhub"></div>
   </section>
   <section class="view info" id="v-pay" hidden></section>
   <section class="view info" id="v-info" hidden></section>
@@ -722,6 +738,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <div id="tour" class="tour" hidden role="dialog" aria-label="Tour of the app"></div>
 
 <div id="sheet" class="sheet gut" hidden role="dialog" aria-modal="true" aria-labelledby="sh-name"></div>
+<div id="print" translate="no"></div>
 <div id="toast" class="toast" hidden></div>
 
 <script>
@@ -759,19 +776,110 @@ function track(p, ok, fail = "Not saved. Try again") {
 }
 addEventListener("online", () => renderNet()); addEventListener("offline", () => renderNet());
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 1800); }
-/* WhatsApp and Email: each opens the app with the text written in, and the person picks who it goes to. Bar Book sends
-   nothing itself. They're plain links whose address is filled in as they're tapped, from SHARE[k]() (the subject and
-   the text right then), so it's never out of date and nothing blocks it as a pop-up. */
+/* ---------- Send: WhatsApp, email, the phone's share sheet, copy or print ----------
+   Every Send button opens the same page. SHARE[k]() builds the message right then: what it is, a title, two or three
+   summary lines, then its parts, each with a tick box (ticked when it has anything in it), and photos where there are
+   some. The person ticks what goes in, adds a note if they like and sees the message as it will look. Bar Book sends
+   nothing itself: WhatsApp and Email open the person's own app with the words written in, and they pick who it goes
+   to. Messages are in English, the venue's working language, whatever language the phone shows. */
 const SHARE = {};
-// Other apps opens the phone's own share sheet (Messages, Notes, AirDrop, Slack…) where the browser has one.
-const shareBtns = (k) => `<a class="btn" data-share="${k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a><a class="btn" data-share="${k}" data-via="mail" href="mailto:">Email</a>${navigator.share ? `<button class="btn" data-share-sheet="${k}">Other apps…</button>` : ""}`;
+const sendBtn = (k, label, o) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}>${label}</button>`;
+// A line starting with a space belongs to the item above it.
+const partItems = (p) => p.lines.filter((l) => !/^\s/.test(l)).length;
+const subLine = (t) => `   ◦ ${t}`;
+// WhatsApp shows *this* in bold. Email and print get the same words without the marks.
+function msgText(m, pick, note = "", wa = true) {
+  const b = (t) => (wa ? `*${t}*` : t), out = [b(m.title), ...m.head];
+  for (const p of m.parts) {
+    if (!pick.has(p.id) || !p.lines.length) continue;
+    out.push("", b(p.one ? p.label : `${p.label} (${partItems(p)})`), ...p.lines.map((l) => (p.one || /^\s/.test(l) ? l : `• ${l}`)));
+  }
+  if (note.trim()) out.push("", ...(m.noteHead === null ? [] : [b("Note")]), note.trim());
+  return out.join("\n");
+}
+const pickOf = (m) => new Set(m.parts.filter((p) => p.lines.length && !p.off).map((p) => p.id));
+// The message as it goes if nothing is changed.
+const shareText = (k, wa = true, o) => { const m = SHARE[k](o); return m ? msgText(m, pickOf(m), "", wa) : ""; };
+let snd = null;
+// A builder can offer one choice (how late, which shift, who): SHARE[k](value) builds the message for it.
+const sndMsg = () => snd && SHARE[snd.k](snd.opt);
+function openSend(k, o) {
+  const m = SHARE[k](o); if (!m) return toast("Nothing to send yet");
+  lastFocus = document.activeElement;
+  snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note: "", photos: [], files: null, withPhotos: true };
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Send</span><span></span></div></div><div id="send"></div>`;
+  renderSend(m); showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus();
+  if (m.photos) m.photos().then(async (ps) => {
+    if (snd?.k !== k || !ps.length) return;
+    snd.photos = ps; renderSend();
+    // Made ready now: the share sheet has to open straight from the tap.
+    try { snd.files = await Promise.all(ps.map(async (x, i) => new File([await (await fetch(x.data)).blob()], `photo-${i + 1}.jpg`, { type: "image/jpeg" }))); } catch {}
+  }).catch(() => {});
+}
+const canFiles = () => { try { return !!navigator.canShare?.({ files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] }); } catch { return false; } };
+function renderSend(m = sndMsg()) {
+  const box = $("#send"); if (!box || !m) return;
+  const ph = snd.photos.length, files = ph && snd.withPhotos && canFiles(), c = m.choose;
+  box.innerHTML = `<h2 id="sh-name" style="margin-top:12px">${esc(m.what)}</h2>
+    ${c ? `<div class="mini">${esc(c.label)}</div><div class="recent">${c.opts.map(([v, t]) => `<button class="chip" data-send-opt="${esc(v)}" aria-pressed="${v === c.v}">${esc(t)}</button>`).join("")}</div>` : ""}
+    ${m.head.length ? `<div class="sendsum" translate="no">${m.head.map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
+    ${m.parts.length || ph ? `<div class="sec">What goes in</div>` : ""}
+    ${m.parts.filter((x) => x.lines.length || !x.opt).map((x) => `<label class="check sendpart"><input type="checkbox" data-send-part="${x.id}"${snd.pick.has(x.id) && x.lines.length ? " checked" : ""}${x.lines.length ? "" : " disabled"}><span>${esc(x.label)}</span><span class="s">${!x.lines.length ? "Nothing" : x.one ? "" : partItems(x)}</span></label>`).join("")}
+    ${ph ? `<label class="check sendpart"><input type="checkbox" data-send-photos${snd.withPhotos ? " checked" : ""}><span>Photos</span><span class="s">${ph}</span></label>
+      <div class="sendph">${snd.photos.map((x) => `<img src="${x.data}" alt="${esc(x.note || "Photo")}">`).join("")}</div>` : ""}
+    <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
+    <div class="actions"><a class="btn pri" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share ? `<button class="btn" data-send-sheet>${files ? "Send with photos" : "Other apps…"}</button>` : ""}<button class="btn" data-send-copy>Copy</button><button class="btn" data-send-print>Print</button></div>
+    ${ph ? `<p class="note">${files ? "WhatsApp and Email take the words. For the photos too, tap Send with photos and pick WhatsApp. The words are copied as well: paste them in if they don't show." : "WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF."}</p>` : ""}
+    ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
+    <p class="note">It goes in English, so everyone can read it.</p>
+    <div class="sec">How it will look</div>
+    <pre class="sendpre" id="send-pre" translate="no">${preHtml(msgText(m, snd.pick, snd.note))}</pre>`;
+}
+// The preview shows the bold that WhatsApp will show, not the marks.
+const preHtml = (t) => esc(t).replace(/^\*([^*\n]+)\*$/gm, "<b>$1</b>");
+const sendPreview = () => { const pre = $("#send-pre"), m = sndMsg(); if (pre && m) pre.innerHTML = preHtml(msgText(m, snd.pick, snd.note)); };
+// Print: the message and its photos on their own, for the venue's printer or to save as a PDF.
+function printMsg(text, photos) {
+  $("#print").innerHTML = `<pre>${esc(text)}</pre>${photos.map((x) => `<figure><img src="${x.data}" alt="">${x.note ? `<figcaption>${esc(x.note)}</figcaption>` : ""}</figure>`).join("")}`;
+  window.print();
+}
 document.addEventListener("click", (e) => {
-  const sh = e.target.closest("[data-share-sheet]");
-  if (sh) { const [title, text] = SHARE[sh.dataset.shareSheet](); navigator.share({ title, text }).catch(() => {}); return; }
-  const a = e.target.closest("a[data-share]"); if (!a) return;
-  const [subject, text] = SHARE[a.dataset.share]();
-  a.href = a.dataset.via === "wa" ? `https://wa.me/?text=${encodeURIComponent(text)}` : `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+  const o = e.target.closest("[data-send]"); if (o) { haptic(); openSend(o.dataset.send, o.dataset.sendO); return; }
+  if (!snd || !e.target.closest("#send")) return;
+  const op = e.target.closest("[data-send-opt]");
+  if (op) { snd.opt = op.dataset.sendOpt; const m = sndMsg(); if (m) { snd.pick = pickOf(m); renderSend(m); } return; }
+  const m = sndMsg(); if (!m) return;
+  // The address is filled in as it's tapped, so it's never out of date and nothing blocks it as a pop-up.
+  const a = e.target.closest("a[data-share]");
+  if (a) {
+    const wa = a.dataset.via === "wa", t = msgText(m, snd.pick, snd.note, wa);
+    a.href = wa ? `https://wa.me/?text=${encodeURIComponent(t)}` : `mailto:?subject=${encodeURIComponent(m.title)}&body=${encodeURIComponent(t)}`;
+    return;
+  }
+  const text = msgText(m, snd.pick, snd.note);
+  if (e.target.closest("[data-send-copy]")) { navigator.clipboard?.writeText(text).then(() => toast("Copied. Paste it anywhere"), () => toast("Couldn't copy. Press and hold the message to copy it")); return; }
+  if (e.target.closest("[data-send-sheet]")) {
+    const files = snd.withPhotos && snd.files?.length && navigator.canShare?.({ files: snd.files }) ? snd.files : null;
+    if (files) navigator.clipboard?.writeText(text).catch(() => {});
+    navigator.share(files ? { title: m.title, text, files } : { title: m.title, text }).catch(() => {});
+    return;
+  }
+  if (e.target.closest("[data-send-print]")) printMsg(msgText(m, snd.pick, snd.note, false), snd.withPhotos ? snd.photos : []);
 });
+document.addEventListener("change", (e) => {
+  if (!snd) return;
+  const x = e.target.closest("[data-send-part]");
+  if (x) { if (x.checked) snd.pick.add(x.dataset.sendPart); else snd.pick.delete(x.dataset.sendPart); sendPreview(); }
+  else if (e.target.matches("[data-send-photos]")) { snd.withPhotos = e.target.checked; renderSend(); }
+});
+document.addEventListener("input", (e) => { if (snd && e.target.id === "send-note") { snd.note = e.target.value; sendPreview(); } });
+// Lines the messages share.
+const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
+const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}: ${lower(RS[r.status])}${r.who ? ` (${r.who})` : ""}${rsLate(r) ? `, ${lower(rsLateText(r))}` : ""}`;
+const issueLines = (x) => [`${x.title} · ${AREA[x.area] || "Other"}${x.status === "taken" && x.who ? `, ${x.who} is on it` : ", nobody on it yet"}`, ...(x.detail ? [subLine(x.detail)] : [])];
+const guestLines = (x) => [`${GKN[x.kind] || "Other"}${x.table ? `, table ${x.table}` : ""}: ${x.what}${x.escalate && x.status === "open" ? " (needs a manager)" : ""}`,
+  ...(x.wants ? [subLine(`Guest wanted: ${x.wants}`)] : []), ...(x.done ? [subLine(`Done: ${x.done}`)] : []), ...(x.comp ? [subLine(`Given: ${gPounds(x.comp)}`)] : []),
+  ...(x.status === "closed" && x.resolution ? [subLine(`In the end: ${x.resolution}`)] : [])];
 
 /* ---------- Drinks list ---------- */
 const CATS = {
@@ -903,10 +1011,12 @@ const BASES = [["vodka", /vodka|smirnoff|c[iî]roc|grey goose|belvedere|chase/i]
 const baseOf = (d) => { const t = d.spec.join(" "); const b = BASES.find(([, re]) => re.test(t)); return b ? b[0] : "other"; };
 const kindOf = (d) => /Shots|Bombs/.test(d.section) ? "shot" : d.section === "Zero Proof" ? "zero" : d.section === "Pitchers" ? "pitcher" : "cocktail";
 D.forEach((d) => { d._b = baseOf(d); d._k = kindOf(d); });
+// The three closest drinks still in stock: the same kind and base spirit first, then shared flavours.
+const similarTo = (d) => D.filter((x) => x !== d && x._k === d._k && !isOut(x.name))
+  .map((x) => [x, (x._b === d._b && d._b !== "other" ? 3 : 0) + x.tags.filter((t) => d.tags.includes(t)).length + (x.section === d.section ? 0.5 : 0) + (x.official ? 0.25 : 0)])
+  .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([x]) => x);
 function tryInstead(d) {
-  const picks = D.filter((x) => x !== d && x._k === d._k && !isOut(x.name))
-    .map((x) => [x, (x._b === d._b && d._b !== "other" ? 3 : 0) + x.tags.filter((t) => d.tags.includes(t)).length + (x.section === d.section ? 0.5 : 0) + (x.official ? 0.25 : 0)])
-    .sort((a, b) => b[1] - a[1]).slice(0, 3).map(([x]) => x);
+  const picks = similarTo(d);
   if (!picks.length) return "";
   return `<div class="h3">${isOut(d.name) ? "Offer instead" : "Similar drinks"}</div><div class="recent">${picks.map((x) => `<button class="chip" data-open="${x.id}" translate="no">${esc(x.name)}</button>`).join("")}</div>`;
 }
@@ -1050,7 +1160,7 @@ $("#sheet").addEventListener("click", (e) => {
 
 function closeSheet() { if (history.state?.sheet) history.back(); else hideSheet(); }
 function hideSheet() {
-  document.querySelector(".swhint")?.remove();
+  document.querySelector(".swhint")?.remove(); snd = null;
   const sh = $("#sheet");
   const done = () => { sh.hidden = true; sh.classList.remove("closing"); };
   if (calm()) done(); else { sh.classList.add("closing"); setTimeout(done, 170); }
@@ -1324,7 +1434,35 @@ function tallyText() {
   };
   return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\nClosing manager: ${closer || "(not picked)"}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nSigned off by: ${closer || "____________"}`;
 }
-SHARE.shift = () => [`Black Tap Soho ${mode} shift, ${stamp(new Date())}`, tallyText()];
+// The shift for the managers' WhatsApp group or email, so nobody needs the app to know where it stands: how each list
+// ended, then everything still open (not done, blocked, 86'd, labels, restocks, issues, guest issues), the handover
+// note and the closing photos (taken tonight, or on the report already sent).
+SHARE.shift = () => {
+  const lists = MODE_LISTS[mode], many = lists.length > 1, out = [...outNow()].sort();
+  const items = (ks, sts) => ks.flatMap((k) => shown(k).filter(([i]) => sts.includes(statusOf(k, i))).map(([i, t]) => {
+    const x = taskOf(k, i); return `${t}${x?.status === "doing" ? " (in progress)" : ""}${x?.note ? `: ${x.note}` : ""}${many && ks.length > 1 ? ` \u00b7 ${LISTS[k].short}` : ""}`;
+  }));
+  const lbs = LIVE.loaded.has("labels") ? labelsDue([mode]) : [];
+  const head = lists.map((k) => { const p = progress(k), b = blockedTasks([k]).length; return `${p.n === p.of ? "\u2705" : "\u26a0\ufe0f"} ${LISTS[k].title}: ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${isLocked(k) ? ", finished" : ""}`; });
+  head.push(`86'd: ${out.length ? out.join(", ") : "nothing"}`);
+  if (closer) head.push(`Closing manager: ${closer}`);
+  return { what: `${sideName(mode)} shift`, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head, parts: [
+    // Each list's own tick box. A list nobody started is left out unless ticked: its summary line says enough.
+    ...lists.map((k) => ({ id: `todo-${k}`, label: `${LISTS[k].title}: not done`, lines: items([k], ["todo", "doing"]), off: !runOf(k) })),
+    { id: "blocked", label: "Blocked", lines: items(lists, ["blocked"]) },
+    { id: "skip", label: "Not needed tonight", lines: items(lists, ["cancelled"]) },
+    { id: "out", label: "86'd", lines: out.map((n) => `${n}${outBy(n) ? `, by ${outBy(n)}` : ""}`) },
+    { id: "labels", label: "Date labels due", lines: lbs.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
+    { id: "restock", label: "Restocks still open", lines: rsOpen().filter((r) => DEST_SIDE[r.dest] === mode).map(rsLine) },
+    { id: "issues", label: "Issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
+    { id: "guests", label: "Guest issues still open", lines: gOn() ? gOpen().flatMap(guestLines) : [] },
+    { id: "note", label: "Note for handover", one: true, lines: shiftNote.trim() ? [shiftNote.trim()] : [] },
+  ], photos: async () => {
+    if (LIVE.myPhotos.length) return LIVE.myPhotos;
+    const r = LIVE.reports.find((x) => x.uid === LIVE.uid && x.side === mode && x.photos && bday(x.at) === shiftDay());
+    return r ? LIVE.api.loadPhotos(r.id) : [];
+  } };
+};
 // The floor's date labels are all at the milkshake station, so they're on its Shakes page; the bar and kitchen have a page for them.
 const PANES = {
   bar: [["open", "Opening"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Send"]],
@@ -1903,6 +2041,7 @@ function renderTally() {
     stock: () => `<div class="sec">86'd tonight</div>
       <label class="fld">Ran out of something?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
+      ${outList.length ? `<div class="actions">${sendBtn("out", "Send the 86 list")}</div>` : ""}
       ${restockHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
     close: () => `${labelsDueHtml("bar")}${listPane("close")}${photosHtml()}${nextBtn("send", "Next: send for sign-off")}`,
     send: () => {
@@ -1914,7 +2053,7 @@ function renderTally() {
       <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${m === closer}">${esc(m)}</button>`).join("") || `<span class="note">No managers on the team yet.</span>`}</div></div>
       <label class="fld">Note for handover<textarea id="s-note" rows="3" maxlength="1000" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
       <button class="btn pri wide" id="t-copy">${left ? `Send with ${left} not done` : "Send to managers for sign-off"}</button>
-      <div class="actions">${shareBtns("shift")}</div>
+      <div class="actions">${sendBtn("shift", "Send everything on WhatsApp or email")}</div>
       <details class="setup"><summary>Preview the report</summary><textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea></details>
       <p class="note">The note and closing manager start empty again at 6am.</p>`;
     },
@@ -2356,7 +2495,7 @@ function payInner() {
     <div class="paygrid">${H.ys.length ? `<div class="fld">Hours in ${mName(lm)}<b class="logv">${hrs(sumMin(H.ys))}, logged</b></div>` : `<label class="fld">Hours in ${mName(lm)}<input data-pay-th="${lm}" inputmode="decimal" value="${esc(pay.th[lm] ?? "")}" placeholder="0"></label>`}${f("tronc", "Tronc an hour (£)", "5.00")}</div>
     <div class="recent" style="margin-top:8px">${TRONC_STEPS.map((t) => `<button class="chip" data-pay-tronc="${t}" aria-pressed="${num(pay.tronc) === t}">£${t}</button>`).join("")}</div>
     <div id="pay-out">${payOutHtml()}</div>
-    ${H.xs.length ? `<div class="mini">Send ${mName(pm)}'s hours to yourself or a manager</div><div class="actions" style="margin-top:6px">${shareBtns("hours")}</div>` : ""}
+    ${H.xs.length ? `<div class="mini">Send ${mName(pm)}'s hours to yourself or a manager</div><div class="actions" style="margin-top:6px">${sendBtn("hours", "Send my hours")}</div>` : ""}
     <details class="setup"><summary>Your rate, tax code, loan and pension</summary>
       <p class="note" id="pay-set">${paySet()}</p>
       <div class="paygrid">${f("rate", "Hourly rate (£)")}${f("code", "Tax code")}</div>
@@ -2371,8 +2510,9 @@ function renderPay() { if (isOn("pay")) $("#v-pay").innerHTML = payInner(); }
 // Typing only redraws the sums, so the keyboard stays up.
 const paySums = () => { $("#pay-sum").innerHTML = paySumHtml(); $("#pay-out").innerHTML = payOutHtml(); $("#pay-set").innerHTML = paySet(); };
 SHARE.hours = () => {
-  const xs = inM(pm), t = `My hours for ${mName(pm)}${LIVE.me ? `, ${LIVE.me}` : ""}`;
-  return [t, `${t}\n${xs.map((x) => `${dayName(x.day)} ${x.start}–${x.end}${x.brk ? `, ${x.brk} min break` : ""}: ${hrs(logMin(x))}`).join("\n")}\nIn all: ${hrs(sumMin(xs))} from ${nShifts(xs.length)}`];
+  const xs = inM(pm);
+  return { what: "My hours", title: `My hours for ${mName(pm)}${LIVE.me ? `, ${LIVE.me}` : ""}`, head: [`In all: ${hrs(sumMin(xs))} from ${nShifts(xs.length)}`],
+    parts: [{ id: "shifts", label: "Shifts", lines: xs.map((x) => `${dayName(x.day)} ${x.start}\u2013${x.end}${x.brk ? `, ${x.brk} min break` : ""}: ${hrs(logMin(x))}`) }] };
 };
 // Saves one shift for each day picked. A day that would overlap a shift already logged is left out and named.
 function hfSave() {
@@ -2767,7 +2907,7 @@ function renderTeamTop() {
         <button class="btn wide" id="tt-add">Add test person</button>
         <div id="tests"></div></details>
       ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderNights(); renderStatus(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderNights(); renderStatus(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub(); renderSendHub();
 }
 /* The Team page, which the bell opens: what's new and what needs you, tonight at a glance, then a card for each part of
    the team side of the app, in the Features page's groups and names. Each part opens on a page of its own, with Back to
@@ -2778,6 +2918,25 @@ const waiting = (a) => a.status === "pending" || (a.status === "seen" && a.kind 
 // Time off and swaps can be switched off (a venue that does them in Nory). Running late can't.
 const askOn = (a) => a.kind === "late" || isOn("asks");
 const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
+SHARE.issues = () => {
+  const o = openIssues().sort((a, b) => ms(a.at) - ms(b.at)), u = o.filter((x) => x.urgent);
+  return { what: "Open issues", title: `Black Tap Soho issues \u00b7 ${dayName(shiftDay())}`,
+    head: [o.length ? `${u.length ? "\u26a0\ufe0f" : "\ud83d\udd27"} ${o.length} open${u.length ? `, ${u.length} urgent` : ""}` : "\u2705 No open issues"],
+    parts: [
+      { id: "urgent", label: "Urgent", lines: u.flatMap(issueLines) },
+      { id: "open", label: "Open", lines: o.filter((x) => !x.urgent).flatMap(issueLines) },
+      { id: "fixed", label: "Recently fixed", off: true, lines: LIVE.issues.filter((x) => x.status === "fixed").slice(0, 10).map((x) => `${x.title}: ${x.fix}`) },
+    ] };
+};
+SHARE.out = () => {
+  const out = [...outNow()].sort(); if (!out.length) return null;
+  return { what: "The 86 list", title: `Black Tap Soho 86 list \u00b7 ${dayName(shiftDay())} \u00b7 ${hhmm(new Date())}`,
+    head: [`\ud83d\udeab ${plural(out.length, "thing")} out tonight`],
+    parts: [
+      { id: "out", label: "86'd", lines: out.map((n) => `${n}${outBy(n) ? `, by ${outBy(n)}` : ""}`) },
+      { id: "offer", label: "Offer instead", lines: out.flatMap((n) => { const d = D.find((x) => x.name === n), xs = d ? similarTo(d).slice(0, 2) : []; return xs.length ? [`${n}: ${xs.map((x) => x.name).join(" or ")}`] : []; }) },
+    ] };
+};
 const plural = (n, one, many = one + "s") => `${n} ${n === 1 ? one : many}`;
 // What's waiting on a manager.
 const toAnswer = () => LIVE.asks.filter((a) => waiting(a) && askOn(a)).length + LIVE.requests.filter((r) => !r.done).length;
@@ -2812,6 +2971,7 @@ const PLACES = [
     sub: () => { const n = LIVE.asks.filter((a) => a.uid === LIVE.uid && waiting(a) && askOn(a)).length; return n ? `${plural(n, "request")} waiting for an answer` : isOn("asks") ? "Running late, time off and swaps" : "Running late"; } },
   { g: "Everyone", k: "chat", c: "talk", n: () => "Chat", on: () => isOn("chat"), slots: ["#chat"],
     sub: () => { const u = unreadChats(); return u.length ? `New in ${u.map(chatName).join(", ")}` : "The team, one person or a group"; }, cnt: () => unreadChats().length },
+  { g: "Everyone", k: "send", c: "talk", n: () => "WhatsApp and email", slots: ["#sendhub"], sub: () => "Running late, off sick, cover, the rota and more, ready to send" },
   { g: "Everyone", k: "board", c: "talk", n: () => "Broadcasts", slots: ["#pins", "#pin-form", "#feed"],
     sub: () => { const n = LIVE.notices.filter(forMe).length; return `${n ? `${n} up now` : "None up now"}${LIVE.admin ? ". Send one" : ""}`; } },
   { g: "Everyone", k: "concerns", c: "talk", n: () => "Concerns", slots: ["#concerns"],
@@ -2890,6 +3050,7 @@ function renderHub() {
     // Training loads its records the first time it's opened, and the KPIs read the last 7 nights.
     if (p.k === "training") LIVE.api.watchTraining();
     if (p.k === "kpis" && !kpi.ev && !kpi.busy) loadKpis();
+    if (p.k === "send") renderSendHub();
     return;
   }
   renderForYou();
@@ -3105,14 +3266,25 @@ const forSide = (x) => !x.side || x.side === "all" || x.side === mode;
 const forMe = (x) => LIVE.admin || forSide(x);
 const audience = (x) => (x.side && x.side !== "all" ? `<span class="pill">${SIDES[x.side]} only</span>` : "") + (x.managers === false ? `<span class="pill">Managers left out</span>` : "");
 // Who has tapped Got it, and for a broadcast to everyone, who hasn't yet.
+const gotIt = (x) => LIVE.seen.filter((s) => s.notice === x.id);
+const notYet = (x) => { const got = gotIt(x); return x.side && x.side !== "all" ? [] : LIVE.staff.filter((p) => p.uid !== x.uid && (x.managers !== false || p.role !== "manager") && !got.some((s) => s.uid === p.uid)); };
 function readers(x) {
-  const got = LIVE.seen.filter((s) => s.notice === x.id);
-  const due = x.side && x.side !== "all" ? [] : LIVE.staff.filter((p) => p.uid !== x.uid && (x.managers !== false || p.role !== "manager") && !got.some((s) => s.uid === p.uid));
+  const got = gotIt(x), due = notYet(x);
   return `<p class="note">Read by ${got.length ? `${got.length}: ${got.map((s) => esc(s.name)).join(", ")}` : "nobody yet"}${due.length ? `. Not yet: ${due.map((p) => esc(p.name)).join(", ")}` : ""}</p>`;
 }
+// A broadcast on WhatsApp, for staff who aren't on the app, with who hasn't tapped Got it on one to everyone.
+SHARE.pin = (o) => {
+  const xs = LIVE.admin ? LIVE.notices : []; if (!xs.length) return null;
+  const x = xs.find((n) => n.id === o) || xs[0], due = notYet(x).map((p) => p.name).sort();
+  const cut = (t) => (t.length > 40 ? `${t.slice(0, 38).trim()}…` : t);
+  return { what: "A broadcast", title: `Broadcast from ${x.name}${x.side && x.side !== "all" ? ` to ${TO[x.side]}` : ""}`,
+    choose: xs.length > 1 ? { label: "Which one", v: x.id, opts: xs.slice(0, 8).map((n) => [n.id, cut(n.text)]) } : null,
+    head: [x.text, "Read it in Bar Book too and tap Got it, so we know you've seen it."],
+    parts: [{ id: "yet", label: "Still to read it", lines: due, opt: true }] };
+};
 function renderPins() {
   if (!LIVE.me) return;
-  $("#pins").innerHTML = LIVE.notices.filter(forMe).map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div>${audience(x) ? `<div class="tags">${audience(x)}</div>` : ""}<p class="txt">${esc(x.text)}</p>${LIVE.admin ? readers(x) : ""}${LIVE.admin && canTakeDown(x) ? `<div class="actions"><button class="btn" data-unpin="${x.id}">Remove broadcast</button></div>` : ""}</article>`).join("");
+  $("#pins").innerHTML = LIVE.notices.filter(forMe).map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div>${audience(x) ? `<div class="tags">${audience(x)}</div>` : ""}<p class="txt">${esc(x.text)}</p>${LIVE.admin ? `${readers(x)}<div class="actions">${sendBtn("pin", "Send on WhatsApp", x.id)}${canTakeDown(x) ? `<button class="btn" data-unpin="${x.id}">Remove broadcast</button>` : ""}</div>` : ""}</article>`).join("");
 }
 function renderFeed() {
   if (!LIVE.me) return;
@@ -3273,6 +3445,7 @@ function roRow(x) {
     ...(A && open ? hands.map(([uid, n]) => `<button class="btn pri" data-ro="${x.id}" data-ro-give="${uid}">Give it to ${esc(n)}</button>`) : []),
     offered && b("took", "Take it", " pri"), offered && b("declined", "No thanks"),
     mine && (x.cover ? b("kept", "I can do it after all") : b("cover", "Can't make it…")),
+    mine && x.cover && `<button class="btn" data-send="swap" data-send-o="${x.id}">Ask the team on WhatsApp</button>`,
     !A && open && !mine && !offered && (x.wants[me] ? b("unwants", "Take my hand down") : b("wants", x.who ? "I can cover it" : "I can do it", " pri")),
   ].filter(Boolean).join("");
   return `<div class="lb ro${flashed("ro-" + x.id, x) ? " flash" : ""}"><div class="le-row"><div><b>${roTime(x)}</b> ${x.who ? esc(mine ? "You" : x.whoName) : ""} ${pills}${line ? `<div class="s">${line}</div>` : ""}</div>
@@ -3352,7 +3525,7 @@ function renderRota() {
       ${off.length ? `<p class="note">${off.map((a) => esc(offText(a))).join(" · ")}</p>` : ""}${ds.map(roRow).join("") || `<p class="note">No shifts${roSide ? " to show" : ""}.</p>`}`;
   }).join("") : "";
   const hours = A && xs.length ? roHours(xs) : "";
-  const acts = xs.length ? `<div class="actions">${shareBtns("rota")}${A ? dlHtml("shifts", "Download every week as a spreadsheet", "rota") : ""}</div>` : "";
+  const acts = xs.length ? `<div class="actions">${sendBtn("rota", "Send the rota")}${A && roToFill().length ? sendBtn("cover", "Ask for cover") : ""}${A ? sendBtn("theirweek", "Send someone their shifts") + dlHtml("shifts", "Download every week as a spreadsheet", "rota") : sendBtn("myweek", "Send my shifts")}</div>` : "";
   const pub = xs.some((x) => x.pub), build = A ? roGridHtml(wk, xs, pub) + roAddHtml(wk, pub) : "";
   const foot = A || !isOn("asks") ? "" : calOn() ? `<p class="note">Need a day off? <button class="linkbtn" data-roview="cal">Tap it on the calendar</button> or <button class="linkbtn" data-go="me">ask in My requests</button>.</p>`
     : `<p class="note">Need a day off? <button class="linkbtn" data-go="me">Ask in My requests</button>.</p>`;
@@ -3535,14 +3708,19 @@ function roToast(e) {
 const RO_ACT = { added: "Added", edited: "Changed", removed: "Removed", wants: "Hand up", unwants: "Hand down", took: "Taken", declined: "Turned down", cover: "Can't make it", kept: "Can make it after all" };
 const roWas = (e) => (e.was ? `${e.was.day} ${e.was.start}-${e.was.end}, ${sideName(e.was.side)}, ${e.was.who || "open"}` : "");
 // Shared to WhatsApp, email or another app: the week, day by day.
-function roShareText(wk) {
-  const xs = weekShifts(wk);
-  return [`Black Tap Soho rota, week of ${dayName(wk, { weekday: "long", day: "numeric", month: "long" })}`, "", ...Array.from({ length: 7 }, (_, i) => addDays(wk, i)).flatMap((d) => {
-    const ds = xs.filter((x) => x.day === d).sort(roOrder);
-    return ds.length ? [dayName(d, { weekday: "long", day: "numeric", month: "short" }), ...ds.map((x) => `- ${roTime(x)} ${x.whoName || "Open shift"} (${sideName(x.side)})${x.note ? `, ${x.note}` : ""}${x.pub ? "" : " [draft]"}`), ""] : [];
-  })].join("\n").trim();
-}
-SHARE.rota = () => [`Black Tap Soho rota, week of ${dayName(roWeek())}`, roShareText(roWeek())];
+SHARE.rota = (o = "day") => {
+  const wk = roWeek(), xs = weekShifts(wk).sort((a, b) => a.day.localeCompare(b.day) || roOrder(a, b)), open = xs.filter((x) => !x.whoName), drafts = xs.filter((x) => !x.pub).length;
+  const ppl = [...new Set(xs.filter((x) => x.whoName).map((x) => x.whoName))].sort();
+  const line = (x) => `${roTime(x)} ${x.whoName || "Open shift"} (${sideName(x.side)})${x.note ? `, ${x.note}` : ""}${x.pub ? "" : " [draft]"}`;
+  return { what: "The rota", title: `Black Tap Soho rota \u00b7 week of ${dayName(wk, { weekday: "long", day: "numeric", month: "long" })}`,
+    head: [`${nShifts(xs.length)}${open.length ? `, ${open.length} open` : ""}`, ...(drafts ? [`${drafts} still a draft`] : [])],
+    parts: [
+      { id: "open", label: "Open shifts", lines: open.map((x) => `${dayName(x.day)} ${roTime(x)} (${sideName(x.side)})${x.note ? `, ${x.note}` : ""}`) },
+      o === "person"
+        ? { id: "people", label: "Who's on", one: true, lines: ppl.flatMap((n) => [n, ...xs.filter((x) => x.whoName === n).map((x) => subLine(`${dayName(x.day)} ${roTime(x)} (${sideName(x.side)})${x.note ? `, ${x.note}` : ""}${x.pub ? "" : " [draft]"}`))]) }
+        : { id: "week", label: "The week", one: true, lines: [...new Set(xs.map((x) => x.day))].flatMap((d) => [dayName(d, { weekday: "long", day: "numeric", month: "short" }), ...xs.filter((x) => x.day === d).map((x) => subLine(line(x)))]) },
+    ], choose: { label: "Laid out", v: o, opts: [["day", "By day"], ["person", "By person"]] } };
+};
 // Photos load only when asked for, so the feed stays quick and cheap on data.
 const shownPhotos = {};
 async function showPhotos(id) {
@@ -3718,6 +3896,22 @@ function calWeekHtml() {
     return `<button class="calwk" data-cal-open="${d}"><b>${n === 0 ? "Today" : n === 1 ? "Tomorrow" : dayName(d, { weekday: "long" })}</b> <span class="s">${dayName(d, { day: "numeric", month: "long" })}${rows.length ? "" : " · nothing on"}</span></button>${rows.join("")}`;
   }).join("");
 }
+// The next 7 days for the team group: the days that change a night, then the games on our screens. Something that runs
+// for several days (half term, a closure) is listed once, with its dates.
+SHARE.whatson = () => {
+  if (!calOn()) return null;
+  const days = [0, 1, 2, 3, 4, 5, 6].map((n) => addDays(shiftDay(), n)), seen = new Set(), on = [];
+  for (const d of days) for (const i of calItems(d)) {
+    if (i.x) { if (seen.has(i.x.id)) continue; seen.add(i.x.id); }
+    const tag = i.k === "bank" ? " (bank holiday)" : i.k === "closed" ? " (venue closed)" : "", more = i.x ? i.x.note : i.more;
+    on.push(`${i.x ? calSpan(i.x.date1, i.x.date2) : dayName(d)}: ${i.t}${tag}${more ? `, ${more}` : ""}`);
+  }
+  const games = days.flatMap((d) => calGames(d).map((g) => `${dayName(d)} ${g.ko} ${g.home} v ${g.away}${[g.channel, g.screen && `screen: ${g.screen}`].filter(Boolean).map((t) => `, ${t}`).join("")}`));
+  if (!on.length && !games.length) return null;
+  return { what: "What's on", title: "What's on at Black Tap Soho · next 7 days",
+    head: [[on.length && plural(on.length, "thing") + " on", games.length && plural(games.length, "game") + " on our screens"].filter(Boolean).join(", ")],
+    parts: [{ id: "on", label: "What's on", lines: on }, { id: "games", label: "Games on our screens", lines: games }] };
+};
 // Asking for time off: the days, any of your shifts in them, and a note.
 function calAskHtml() {
   const f = calF, clash = f.date1 && f.date2 >= f.date1 ? myShifts(f.date1, f.date2) : [];
@@ -3757,7 +3951,7 @@ function renderCal() {
   if (!LIVE.me || !calOn()) { box.innerHTML = ""; return; }
   const what = `Bank holidays, school holidays, faith days, big games and London events, the games on our screens, and your shifts and time off${LIVE.admin ? " (and everyone's time off)" : ""}`;
   if (calMode() === "next") {
-    box.innerHTML = `${roViews()}<div class="sec">Next 7 days</div><p class="note">${what}. Tap a day to open it in the month${isOn("asks") ? ", where you can ask for it off" : ""}.</p>${calWeekHtml()}`;
+    box.innerHTML = `${roViews()}<div class="sec">Next 7 days</div><p class="note">${what}. Tap a day to open it in the month${isOn("asks") ? ", where you can ask for it off" : ""}.</p>${calWeekHtml()}${LIVE.admin && SHARE.whatson() ? `<div class="actions">${sendBtn("whatson", "Send what's on")}</div>` : ""}`;
     return;
   }
   const mon = calMonth(), [lo, hi] = calRange(), here = monthOf(shiftDay());
@@ -3869,6 +4063,7 @@ function renderIssues() {
       <label class="check"><input type="checkbox" data-is="urgent"${isF.urgent ? " checked" : ""}> Urgent: needs sorting this shift</label>
       <div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
     ${open.map(row).join("") || `<p class="note">No open issues.</p>`}
+    ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
     ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${esc(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${esc(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
 }
 /* ---------- Managers page, staff asks, incidents, reviews, anonymous feedback ---------- */
@@ -3895,7 +4090,8 @@ function renderMe() {
   const from = `type="date" min="${shiftDay()}"`;
   const form = {
     late: () => `<p class="note">Roughly when will you get here? Managers see it straight away.</p>
-      <div class="recent">${[10, 15, 20, 30, 45, 60].map((m) => `<button class="chip" data-eta="${m}">+${m} min</button>`).join("")}</div>${fld("Arriving at", "eta", 'type="time"')}`,
+      <div class="recent">${[10, 15, 20, 30, 45, 60].map((m) => `<button class="chip" data-eta="${m}">+${m} min</button>`).join("")}</div>${fld("Arriving at", "eta", 'type="time"')}
+      <p class="note">Manager not looking at Bar Book? <button class="linkbtn" data-send="late">Send it on WhatsApp too</button></p>`,
     off: () => fld("From", "date1", from) + fld("To", "date2", from) + (calOn() ? `<p class="note">The calendar has the bank and school holidays on it. <button class="linkbtn" data-go="cal">Pick the days there</button></p>` : ""),
     swap: () => fld("Shift date", "date1", from) + fld("Swapping with", "with", 'maxlength="40" placeholder="Their name"'),
     incident: () => `<label class="fld">What kind<select data-f="ikind"><option value="">Choose…</option>${INCIDENTS.map((k) => `<option value="${k}"${k === meF.ikind ? " selected" : ""}>${k}</option>`).join("")}</select></label>
@@ -4069,7 +4265,7 @@ function renderLive() {
   if (!LIVE.loaded.has("tasks") || !LIVE.loaded.has("events")) { $("#live").innerHTML = `${head}<p class="note">Loading tonight. It needs signal the first time.</p>`; return; }
   const open = rsOpen().sort((a, b) => ms(a.askedAt) - ms(b.askedAt)), who = whoRows(), R = LIVE.events.filter((e) => e.kind === "restock");
   $("#live").innerHTML = `${head}<p class="note">${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}. This changes as the team taps, on every phone. Overdue means in progress for over ${TASK_LATE} minutes; a restock is late after ${RS_LATE}.</p>
-    <div class="actions">${shareBtns("live")}</div>
+    <div class="actions">${sendBtn("live", "Send tonight's summary")}</div>
     <div class="h3">Needs you now</div>${needsYou().map(flagHtml).join("") || `<p class="note">Nothing blocked, overdue or waiting too long.</p>`}
     <div class="h3">Opening and closing</div>${ALL_LISTS.map(procRow).join("")}
     <div class="h3">Restocking</div>${open.map(rsRow).join("") || `<p class="note">Nothing waiting to come up.</p>`}
@@ -4082,22 +4278,18 @@ function renderLive() {
 }
 const lbLiveRow = (x) => `<div class="staffrow"><div class="n">${esc(x.item)} <span class="pill ${LB_DUE[labelDue(x)][1]}">${LB_DUE[labelDue(x)][0]}</span> <span class="did">${sideName(x.side)}</span></div>
   <div class="s">Use by ${dayName(x.useBy)} · ${esc(opener(x))} · <button class="linkbtn" data-go="labels:${x.side}">Date labels</button></div></div>`;
-function liveText() {
-  const lines = [`Black Tap Soho, ${dayName(shiftDay())}, at ${hhmm(new Date())}`, ""];
-  for (const k of ALL_LISTS) {
-    const p = progress(k), r = runOf(k), b = blockedTasks([k]).length;
-    lines.push(`${LISTS[k].title}: ${RUN[r?.status || "todo"]}, ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${r ? `. ${runText(k)}` : ""}`);
-  }
-  const now = needsYou(), exc = exceptions(), open = rsOpen();
-  if (now.length) lines.push("", "Needs a manager:", ...now.map(flagText));
-  if (exc.length) lines.push("", "Exceptions tonight:", ...exc.map(flagText));
-  lines.push("", `Restocking open: ${open.length}`, ...open.map((r) => `- ${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}: ${RS[r.status]}${r.who ? ` (${r.who})` : ""}${rsLate(r) ? `, ${lower(rsLateText(r))}` : ""}`));
-  const lbs = labelsDue(LB_SIDES);
-  lines.push("", `Date labels due: ${lbs.length}`, ...lbs.map((x) => `- ${x.item} (${sideName(x.side)}): ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}, ${opener(x)}`));
-  lines.push("", `86'd: ${LIVE.out.size ? [...LIVE.out].sort().join(", ") : "nothing"}`);
-  return lines.join("\n");
-}
-SHARE.live = () => [`Black Tap Soho tonight, ${hhmm(new Date())}`, liveText()];
+SHARE.live = () => {
+  const now = needsYou(), out = [...LIVE.out].sort(), fl = (x) => flagText(x).slice(2);
+  return { what: "Tonight's summary", title: `Black Tap Soho tonight \u00b7 ${dayName(shiftDay())} \u00b7 ${hhmm(new Date())}`,
+    head: [now.length ? `\u26a0\ufe0f ${plural(now.length, "thing needs", "things need")} a manager` : "\u2705 Nothing needs a manager", `86'd: ${out.length ? out.join(", ") : "nothing"}`],
+    parts: [
+      { id: "needs", label: "Needs a manager", lines: now.map(fl) },
+      { id: "lists", label: "Checklists", lines: ALL_LISTS.map((k) => { const p = progress(k), r = runOf(k), b = blockedTasks([k]).length; return `${LISTS[k].title}: ${RUN[r?.status || "todo"]}, ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${r ? `. ${runText(k)}` : ""}`; }) },
+      { id: "exc", label: "Exceptions tonight", lines: exceptions().map(fl) },
+      { id: "restock", label: "Restocking open", lines: rsOpen().map(rsLine) },
+      { id: "labels", label: "Date labels due", lines: labelsDue(LB_SIDES).map((x) => `${x.item} (${sideName(x.side)}): ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}, ${opener(x)}`) },
+    ] };
+};
 
 /* ---------- Pre-service briefing ----------
    Before service a manager tells the team tonight's covers, big bookings, specials, allergies, sections, breaks and
@@ -4110,6 +4302,14 @@ const brOn = () => !!LIVE.me && isOn("briefing");
 const brReadBy = () => LIVE.briefReads.filter((r) => r.v === LIVE.briefing?.v);
 const brMine = () => !!LIVE.briefing && (LIVE.briefing.uid === LIVE.uid || LIVE.briefReads.some((r) => r.uid === LIVE.uid && r.v === LIVE.briefing.v));
 const brTonight = () => (isOn("rota") ? LIVE.shifts.filter((x) => x.pub && x.day === shiftDay() && x.who) : []);
+SHARE.brief = () => {
+  const b = LIVE.briefing; if (!b) return null;
+  const out = [...LIVE.out].sort();
+  return { what: "Tonight's briefing", title: `Black Tap Soho briefing \u00b7 ${dayName(b.day, { weekday: "long", day: "numeric", month: "long" })}`,
+    head: [`From ${b.name}`, ...(b.covers ? [`Expected covers: ${b.covers}`] : []), `86'd now: ${out.length ? out.join(", ") : "nothing"}`],
+    parts: [...BR_F.filter(([k]) => k !== "covers").map(([k, t]) => ({ id: k, label: t, one: true, opt: true, lines: b[k] ? [b[k]] : [] })),
+      { id: "rota", label: "On the rota tonight", lines: brTonight().map((x) => `${x.whoName} (${sideName(x.side)}, ${roTime(x)})`) }] };
+};
 function brFill() {
   const b = LIVE.briefing || {};
   for (const [k] of BR_F) brF[k] = k === "covers" ? (b.covers ? String(b.covers) : "") : b[k] || "";
@@ -4123,7 +4323,7 @@ function renderBrief() {
       ${BR_F.filter(([k]) => k !== "covers" && b[k]).map(([k, t]) => `<div class="h3">${t}</div><p class="txt">${esc(b[k])}</p>`).join("")}
       <div class="h3">86'd now</div><p class="txt">${out.length ? esc(out.join(", ")) : "Nothing"}</p>
       ${on.length ? `<div class="h3">On the rota tonight</div><p class="txt">${on.map((x) => `${esc(x.whoName)} (${sideName(x.side)}, ${roTime(x)})`).join(", ")}</p>` : ""}
-      <div class="actions">${brMine() ? `<span class="pill ok">${b.uid === LIVE.uid ? "You posted it" : "You've read it"}</span>` : `<button class="btn pri" id="br-read">I've read it</button>`}</div></article>`
+      <div class="actions">${brMine() ? `<span class="pill ok">${b.uid === LIVE.uid ? "You posted it" : "You've read it"}</span>` : `<button class="btn pri" id="br-read">I've read it</button>`}${sendBtn("brief", "Send it")}${LIVE.admin ? sendBtn("readbrief", "Send a reminder") : ""}</div></article>`
     : `<p class="note">${LIVE.admin ? "Nothing posted yet tonight. Post it before service." : "Nothing posted yet tonight."}</p>`;
   let who = "";
   if (LIVE.admin && b) {
@@ -4170,6 +4370,117 @@ const gClose = {};
 const gPounds = (p) => gbp(p / 100);
 const gOn = () => !!LIVE.me && isOn("guests");
 const gOpen = () => LIVE.guests.filter((x) => x.status === "open");
+SHARE.guests = () => {
+  const open = gOpen().sort((a, b) => b.escalate - a.escalate || ms(a.at) - ms(b.at)), night = LIVE.guests.filter((x) => bday(x.at) === shiftDay());
+  return { what: "Guest issues", title: `Black Tap Soho guest issues \u00b7 ${dayName(shiftDay())}`,
+    head: [open.length ? `\u26a0\ufe0f ${open.length} open` : "\u2705 Nothing open", `Tonight: ${plural(night.length, "guest issue")}`],
+    parts: [{ id: "open", label: "Open", lines: open.flatMap(guestLines) }, { id: "closed", label: "Closed tonight", lines: night.filter((x) => x.status === "closed").flatMap(guestLines) }] };
+};
+
+/* ---------- Quick messages ----------
+   The messages people send each other on WhatsApp anyway, written for them from the rota and tonight's records:
+   running late, off sick, cover my shift and my shifts for everyone; for managers someone's week, shifts that need
+   cover, a briefing reminder and a shout-out. Each opens the Send page, so it can be changed before it goes. */
+const firstName = (n) => String(n || "").split(" ")[0];
+const longDay = (k) => dayName(k, { weekday: "long", day: "numeric", month: "long" });
+const byStart = (a, b) => roSpan(a)[0] - roSpan(b)[0];
+const myNext = () => LIVE.shifts.filter((x) => x.pub && x.who === LIVE.uid && roSpan(x)[1] > roNow()).sort(byStart);
+const shiftWhen = (x) => (x.day === shiftDay() ? `today, ${roTime(x)}` : `${longDay(x.day)}, ${roTime(x)}`);
+const shiftLine = (x) => `${dayName(x.day)} ${roTime(x)} (${sideName(x.side)})${x.note ? `, ${x.note}` : ""}`;
+const LATE = ["5", "10", "15", "20", "30", "45", "60"];
+SHARE.late = (o = "15") => {
+  const x = isOn("rota") ? myNext()[0] : null, by = o === "60" ? "an hour" : `${o} minutes`;
+  return { what: "Running late", title: "Running late", choose: { label: "How late", v: o, opts: LATE.map((n) => [n, n === "60" ? "An hour" : `${n} min`]) },
+    head: [`Hi, it's ${firstName(LIVE.me)}. I'm running about ${by} late for my shift${x ? ` (${shiftWhen(x)})` : ""}. Sorry, I'll be there as soon as I can.`],
+    parts: [], noteHead: null, notePh: "Why, if you want to say",
+    tip: "Tell the managers in Bar Book too, from My requests, so it's on the record." };
+};
+SHARE.sick = () => {
+  const x = isOn("rota") ? myNext()[0] : null;
+  return { what: "Off sick", title: "Off sick",
+    head: [`Hi, it's ${firstName(LIVE.me)}. I'm not well and can't make my shift${x ? ` ${x.day === shiftDay() ? "today" : `on ${longDay(x.day)}`}, ${roTime(x)}` : " today"}. I'll let you know how I'm doing.`],
+    parts: [], noteHead: null, notePh: "Anything they need to know",
+    tip: "Tell your manager as early as you can, before the shift starts. Off for more than 7 days in a row? You'll need a fit note from a doctor." };
+};
+SHARE.swap = (o) => {
+  const xs = isOn("rota") ? myNext().slice(0, 8) : []; if (!xs.length) return null;
+  const x = xs.find((s) => s.id === o) || xs[0];
+  return { what: "Cover my shift", title: "Can anyone cover my shift?", choose: { label: "Which shift", v: x.id, opts: xs.map((s) => [s.id, roWhen(s)]) },
+    head: [`${longDay(x.day)}, ${roTime(x)}, ${lower(sideName(x.side))}.`, "A manager still has to agree the swap. Message me if you can take it."],
+    parts: [], noteHead: null, notePh: "Anything else, like why",
+    tip: "Say on the rota in Bar Book that you can't make it, too: the managers see it there." };
+};
+SHARE.myweek = (o) => {
+  if (!isOn("rota")) return null;
+  const wk = o || roThis(), xs = LIVE.shifts.filter((x) => x.pub && x.who === LIVE.uid && x.week === wk).sort(byStart);
+  return { what: "My shifts", title: `My shifts · week of ${longDay(wk)}`, choose: { label: "Which week", v: wk, opts: [[roThis(), "This week"], [addDays(roThis(), 7), "Next week"]] },
+    head: [xs.length ? `${nShifts(xs.length)}, ${hrs(xs.reduce((n, x) => n + shiftLen(x), 0))} before breaks` : "No shifts on the rota yet"],
+    parts: [{ id: "shifts", label: "Shifts", lines: xs.map(shiftLine) }] };
+};
+// Managers: one person's week, to send to them.
+SHARE.theirweek = (o) => {
+  if (!isOn("rota")) return null;
+  const wk = roWeek(), xs = weekShifts(wk).filter((x) => x.pub && x.who), ppl = [...new Map(xs.map((x) => [x.who, x.whoName])).entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  if (!ppl.length) return null;
+  const [uid, name] = ppl.find(([u]) => u === o) || ppl[0], mine = xs.filter((x) => x.who === uid).sort(byStart);
+  return { what: "Someone's shifts", title: `Your shifts · week of ${longDay(wk)}`, choose: { label: "Who", v: uid, opts: ppl },
+    head: [`Hi ${firstName(name)}, you're on for ${nShifts(mine.length)} this week. Can't make one? Say so in Bar Book as soon as you can.`],
+    parts: [{ id: "shifts", label: "Shifts", lines: mine.map(shiftLine) }] };
+};
+SHARE.cover = () => {
+  if (!isOn("rota")) return null;
+  const xs = roToFill().sort(byStart); if (!xs.length) return null;
+  return { what: "Shifts that need cover", title: "Shifts that need cover",
+    head: [`${nShifts(xs.length)} in the next 7 days. Put your hand up in Bar Book (Team, then Rota), or reply here.`],
+    parts: [{ id: "shifts", label: "Shifts", lines: xs.map((x) => `${shiftLine(x)}${x.who ? ", needs cover" : ""}`) }] };
+};
+SHARE.readbrief = () => {
+  const b = LIVE.briefing; if (!b || !isOn("briefing")) return null;
+  const read = new Set(brReadBy().map((r) => r.uid)), yet = [...new Set(brTonight().filter((x) => x.who !== b.uid && !read.has(x.who)).map((x) => x.whoName))].sort();
+  return { what: "Briefing reminder", title: "Tonight's briefing is up",
+    head: ["Read it in Bar Book before service (Team, then Tonight's briefing) and tap I've read it."],
+    parts: [{ id: "yet", label: "Still to read it", lines: yet }] };
+};
+SHARE.shout = (o) => {
+  const ppl = LIVE.staff.filter((x) => x.uid !== LIVE.uid).map((x) => [x.uid, x.name]); if (!ppl.length) return null;
+  const [, name] = ppl.find(([u]) => u === o) || ppl[0];
+  return { what: "Shout-out", title: `Shout-out to ${name} \ud83d\udc4f`, choose: { label: "Who", v: (ppl.find(([u]) => u === o) || ppl[0])[0], opts: ppl },
+    head: [], parts: [], noteHead: null, noteLabel: "What they did", notePh: "Kept the bar moving on a slammed Friday and helped everyone close" };
+};
+
+/* ---------- WhatsApp and email ----------
+   Everything Bar Book can send, in one place: ready-made messages first, then tonight's records, then the managers'.
+   Each opens the Send page. Something with nothing to send yet isn't listed. */
+const SEND_LIST = [
+  ["You", "late", "Running late", "Tell your manager, with your shift time"],
+  ["You", "sick", "Off sick", "Tell your manager you can't come in"],
+  ["You", "swap", "Cover my shift", "Ask the team to cover one of yours"],
+  ["You", "myweek", "My shifts", "This week or next, to save or share"],
+  ["You", "hours", "My hours", "This month's hours, from My pay"],
+  ["Tonight", "shift", "My shift report", "Everything from your side tonight, with the photos"],
+  ["Tonight", "out", "The 86 list", "What's run out, and what to offer instead"],
+  ["Tonight", "brief", "Tonight's briefing", "The whole briefing, for anyone not on the app"],
+  ["Tonight", "issues", "Open issues", "What needs fixing and who's on it"],
+  ["Tonight", "guests", "Guest issues", "Tonight's guest issues and what was done"],
+  ["Managers", "rota", "The rota", "The week by day or by person, for the team group"],
+  ["Managers", "theirweek", "Someone's shifts", "One person's week, to send to them"],
+  ["Managers", "cover", "Shifts that need cover", "Open shifts in the next 7 days"],
+  ["Managers", "readbrief", "Briefing reminder", "Who on tonight still has to read it"],
+  ["Managers", "pin", "A broadcast", "For anyone not on the app, with who hasn't read it"],
+  ["Managers", "shout", "Shout-out", "Thank someone in front of the team"],
+  ["Managers", "whatson", "What's on", "The big nights and the games on our screens, next 7 days"],
+  ["Managers", "live", "Tonight's summary", "What needs a manager, the checklists and restocks"],
+  ["Managers", "handover", "The handover", "Tonight's close, for the next manager and the owner"],
+];
+const SEND_GROUP = { You: "From you", Tonight: "Tonight", Managers: "For managers" };
+function renderSendHub() {
+  const box = $("#sendhub"); if (!box) return;
+  if (tpane !== "send" || !LIVE.me) { box.innerHTML = ""; return; }
+  const ok = ([g, k]) => (g !== "Managers" || LIVE.admin) && (k === "handover" ? isOn("handover") : k === "guests" ? gOn() : k === "brief" ? isOn("briefing") : true) && (() => { try { return !!SHARE[k](); } catch { return false; } })();
+  const rows = SEND_LIST.filter(ok);
+  box.innerHTML = `<p class="note">Ready to go on WhatsApp or by email. You pick who it goes to, and can change any word before it goes.</p>
+    ${Object.entries(SEND_GROUP).map(([g, t]) => { const xs = rows.filter((r) => r[0] === g); return xs.length ? `<div class="sec">${t}</div><div class="places">${xs.map(([, k, n, sub]) => `<button class="place" data-send="${k}"><span><b>${n}</b><small>${sub}</small></span></button>`).join("")}</div>` : ""; }).join("")}`;
+}
 const gLimit = () => (LIVE.owner ? Infinity : LIVE.comp ? LIVE.comp[LIVE.role] || 0 : 0);
 const gLimitText = () => (gLimit() === Infinity ? "As the owner you have no limit." : gLimit() ? `You can give up to ${gPounds(gLimit())} without asking a manager.` : LIVE.admin ? "The owner hasn't set what managers can give yet, so ask the owner first." : "Ask a manager before giving anything away.");
 const toPence = (t) => { const v = String(t).trim().replace(/^£/, ""); if (!v) return 0; const n = Math.round(Number(v) * 100); return /^\d+(\.\d{1,2})?$/.test(v) ? n : NaN; };
@@ -4207,6 +4518,7 @@ function renderGuests() {
     ${LIVE.admin && rep.length ? `<div class="h3">Keeps happening</div>${rep.map(([k, c]) => `<p class="note"><b>${GKN[k]}:</b> ${c} times in the last 7 days</p>`).join("")}` : ""}
     ${LIVE.admin ? `<p class="note">Last 7 days: ${plural(week.length, "guest issue")}${given ? `, ${gPounds(given)} given` : ""}.</p>` : ""}
     <div class="h3">Open (${open.length})</div>${open.map(gRow).join("") || `<p class="note">Nothing open.</p>`}
+    ${LIVE.guests.length ? `<div class="actions">${sendBtn("guests", "Send guest issues")}</div>` : ""}
     ${closed.length ? `<details class="setup"><summary>Recently closed (${closed.length})</summary>${closed.map(gRow).join("")}</details>` : ""}
     ${LIVE.owner ? `<details class="setup"><summary>What people can give without asking</summary>
       <p class="note">The most staff and managers can give a guest (in £) before asking someone above them. The owner has no limit. ${LIVE.comp ? `Set by ${esc(LIVE.comp.name)}, ${when(LIVE.comp.at)}.` : "Not set yet: until it is, nobody but you can give anything."}</p>
@@ -4285,20 +4597,20 @@ const hoRisk = (q, a) => q.risk && a === "no";
 const hoX = () => LIVE.hoq.map((q) => ({ id: q.id, t: q.t, crit: !!q.crit, a: hoF.x[q.id]?.a || "", what: (hoF.x[q.id]?.what || "").trim(), told: (hoF.x[q.id]?.told || "").trim() }));
 const hoRisks = (a) => HO_Q.filter((q) => hoRisk(q, a[q.k])).length;
 const hoNos = (a) => HO_Q.filter((q) => a[q.k] === "no" && !q.risk).length;
-// The text of a sent handover, for sharing and for the record.
-function hoText(h) {
-  const lines = [`Manager close, night of ${dayName(h.day, { weekday: "long", day: "numeric", month: "long" })}, by ${h.name}`, ""];
-  const bad = HO_Q.filter((q) => h.answers[q.k] === "no");
-  lines.push(bad.length ? "Not right:" : "Every question answered yes or n/a.");
-  for (const q of bad) lines.push(`- ${q.t} No${q.risk ? " (risk)" : ""}`, ...q.f.map(([k, t]) => `  ${t} ${h.follow[q.k]?.[k] || ""}`));
-  for (const x of Object.values(h.extra || {}).filter((x) => x.a === "no")) lines.push(`- ${x.t} No${x.crit ? " (risk)" : ""}`, `  What happened? ${x.what}`, `  Who has been told? ${x.told}`);
-  if (h.lines) lines.push("", "Tonight's exceptions:", h.lines);
-  if (h.note) lines.push("", `For the next manager: ${h.note}`);
-  if (h.owner) lines.push("", `For the owner: ${h.owner}`);
-  if (h.ackBy) lines.push("", `Accepted by ${h.ackBy}${h.ackNote ? `: ${h.ackNote}` : ""}`);
-  return lines.join("\n");
-}
-SHARE.handover = () => { const h = hoTonight() || LIVE.handovers[0]; return h ? [`Black Tap Soho handover, ${dayName(h.day)}`, hoText(h)] : ["", ""]; };
+SHARE.handover = () => {
+  const h = hoTonight() || LIVE.handovers[0]; if (!h) return null;
+  const bad = HO_Q.filter((q) => h.answers[q.k] === "no"), xbad = Object.values(h.extra || {}).filter((x) => x.a === "no"), n = bad.length + xbad.length;
+  return { what: "The handover", title: `Black Tap Soho handover \u00b7 ${dayName(h.day, { weekday: "long", day: "numeric", month: "long" })}`,
+    head: [`By ${h.name}`, n ? `\u26a0\ufe0f ${plural(n, "answer")} not right` : "\u2705 Every question answered yes or n/a", ...(h.ackBy ? [`Accepted by ${h.ackBy}`] : [])],
+    parts: [
+      { id: "bad", label: "Not right", lines: [...bad.flatMap((q) => [`${q.t} No${q.risk ? " (risk)" : ""}`, ...q.f.map(([k, t]) => subLine(`${t} ${h.follow[q.k]?.[k] || ""}`))]),
+        ...xbad.flatMap((x) => [`${x.t} No${x.crit ? " (risk)" : ""}`, subLine(`What happened? ${x.what}`), subLine(`Who has been told? ${x.told}`)])] },
+      { id: "exc", label: "Tonight's exceptions", lines: (h.lines || "").split("\n").map((l) => l.replace(/^- /, "").trim()).filter(Boolean) },
+      { id: "next", label: "For the next manager", one: true, lines: h.note ? [h.note] : [] },
+      { id: "owner", label: "For the owner", one: true, lines: h.owner ? [h.owner] : [] },
+      { id: "ack", label: "Accepted", one: true, lines: h.ackBy ? [`${h.ackBy}${h.ackNote ? `: ${h.ackNote}` : ""}`] : [] },
+    ] };
+};
 const hoAck = {};
 function hoCard(h, { accept = false } = {}) {
   const bad = HO_Q.filter((q) => h.answers[q.k] === "no"), na = HO_Q.filter((q) => h.answers[q.k] === "na").length;
@@ -4355,7 +4667,7 @@ function renderHandover() {
   const earlier = LIVE.handovers.filter((h) => h !== mine && h !== acc);
   box.innerHTML = `<div class="sec">Close and handover</div>
     ${acc ? `<div class="h3">Last handover: read it and accept it</div>${hoCard(acc, { accept: true })}` : ""}
-    ${mine ? `<div class="h3">Tonight's close is sent</div>${hoCard(mine)}<div class="actions">${shareBtns("handover")}</div>` : LIVE.loaded.has("tasks") && LIVE.loaded.has("events") ? hoForm() : `<p class="note">Loading tonight. It needs signal the first time.</p>`}
+    ${mine ? `<div class="h3">Tonight's close is sent</div>${hoCard(mine)}<div class="actions">${sendBtn("handover", "Send the handover")}</div>` : LIVE.loaded.has("tasks") && LIVE.loaded.has("events") ? hoForm() : `<p class="note">Loading tonight. It needs signal the first time.</p>`}
     ${earlier.length ? `<details class="setup"><summary>Earlier handovers (${earlier.length})</summary>${earlier.map((h) => hoCard(h)).join("")}</details>` : ""}
     <details class="setup" id="hq-box"><summary>Your venue's own questions (${LIVE.hoq.length} of 10)</summary>
       <p class="note">Asked after the standard ones, every night, yes or no. A no asks what happened and who's been told. Tick "a no is a risk" to raise it as an urgent issue for the team.</p>
@@ -4865,7 +5177,7 @@ function renderKpis() {
   if (!kpi.ev) { $("#kpis").innerHTML = `${head}<p class="note">${kpi.err ? "Couldn't read the last 7 nights. Check your signal." : "Reading the last 7 nights…"}</p>${kpi.err ? `<div class="actions"><button class="btn" id="kpi-go">Try again</button></div>` : ""}`; return; }
   const ev = kpiEvents(), N = nightStats(ev), P = personStats(ev), sums = ALL_LISTS.map((k) => listSummary(N, k)).filter(Boolean);
   $("#kpis").innerHTML = `${head}<p class="note">The last 7 nights, worked out from every change made in Bar Book. Tonight keeps up to date.</p>
-    <div class="actions">${shareBtns("kpis")}<button class="btn" id="kpi-go">${kpi.busy ? "Reading…" : "Refresh"}</button></div>
+    <div class="actions">${sendBtn("kpis", "Send the KPIs")}<button class="btn" id="kpi-go">${kpi.busy ? "Reading…" : "Refresh"}</button></div>
     ${sums.map((s) => `<p class="txt">${esc(s)}</p>`).join("") || `<p class="note">No checklists started in the last 7 nights.</p>`}
     <div class="h3">Night by night</div>${N.map(nightRow).join("") || `<p class="note">Nothing yet.</p>`}
     <div class="h3">By person</div>${P.map(personRow).join("") || `<p class="note">Nothing yet.</p>`}
@@ -4880,12 +5192,11 @@ function renderKpis() {
     <p class="note"><b>Use these to ask questions, not as proof on their own.</b> They count taps, not work: someone serving guests, helping a teammate or on a break isn't tapping. Tell the team their changes are logged with their name and the time, and why. The ICO has guidance on <a class="linkbtn" href="https://ico.org.uk/for-organisations/uk-gdpr-guidance-and-resources/employment/monitoring-workers/" target="_blank" rel="noopener">monitoring workers</a>.</p>`;
 }
 // Shared to WhatsApp or email: the lists night by night. Figures for each person stay in Bar Book and the spreadsheet.
-function kpiText() {
-  const N = nightStats(kpiEvents());
-  return [`Black Tap Soho closing KPIs, the 7 nights to ${dayName(shiftDay())}`, "", ...ALL_LISTS.map((k) => listSummary(N, k)).filter(Boolean), "", "Night by night:",
-    ...N.map((g) => `- ${dayName(g.day)}, ${LISTS[g.list]?.title}: ${nightLine(g)}`)].join("\n");
-}
-SHARE.kpis = () => ["Black Tap Soho closing KPIs", kpiText()];
+SHARE.kpis = () => {
+  const N = nightStats(kpiEvents()), sums = ALL_LISTS.map((k) => listSummary(N, k)).filter(Boolean);
+  return { what: "Closing KPIs", title: `Black Tap Soho closing KPIs \u00b7 the 7 nights to ${dayName(shiftDay())}`, head: sums.length ? sums : ["No checklists started in the last 7 nights."],
+    parts: [{ id: "nights", label: "Night by night", lines: N.map((g) => `${dayName(g.day)}, ${LISTS[g.list]?.title}: ${nightLine(g)}`) }] };
+};
 
 /* ---------- Activity: who did what and when ----------
    Worked out from the records themselves, since every change keeps who made it and when, and from the events behind

@@ -106,7 +106,7 @@ test("the owner switches features off for everyone, and switching them on brings
   assert.equal(await S.evaluate(() => getComputedStyle($("nav.tabs")).gridTemplateColumns.split(" ").length), 4, "Drinks, Shift, Team and Info");
   await S.evaluate(() => show("allergens"));
   assert.equal(await where(S), "drinks", "a switched-off tab can't be opened");
-  const rest = ["brief:Tonight's briefing", "status:Tonight's status", "issues:Issues and handover", "guests:Guest issues", "me:My requests", "board:Broadcasts", "concerns:Concerns", "reports:Reports"];
+  const rest = ["brief:Tonight's briefing", "status:Tonight's status", "issues:Issues and handover", "guests:Guest issues", "me:My requests", "send:WhatsApp and email", "board:Broadcasts", "concerns:Concerns", "reports:Reports"];
   assert.deepEqual(await teamTabs(S), [...rest, "activity:Activity"]);
   await part(S, "me");
   assert.deepEqual(await S.$$eval("[data-mek]", (x) => x.map((b) => b.dataset.mek)), ["late"]);

@@ -23,7 +23,7 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 date labels to change", "Not yet bar report tonight", "Not yet floor report tonight"]);
   assert.deepEqual(await O.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), ["Everyone", "Managers"]);
   assert.deepEqual(await O.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)),
-    ["brief", "status", "issues", "guests", "rota", "me", "chat", "board", "concerns", "reports", "live", "handover", "requests", "nights", "kpis", "money", "out", "team", "training", "feedback", "act"]);
+    ["brief", "status", "issues", "guests", "rota", "me", "chat", "send", "board", "concerns", "reports", "live", "handover", "requests", "nights", "kpis", "money", "out", "team", "training", "feedback", "act"]);
   // Each category is a pull-down list, named with what's in it; staff don't see the Everyone and Managers headings.
   assert.deepEqual(await O.$$eval("#hub details.cat > summary b", (x) => x.map((e) => e.textContent)), ["Tonight", "Rota and requests", "Messages", "Reports and history", "Running tonight", "Numbers", "Team and records"]);
 
@@ -43,7 +43,7 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   await S.evaluate(() => show("notices"));
   assert.deepEqual(await forYou(S), ["Urgent: Glass washer leaking | Raised by you. Nobody's on it yet > issues (hot)"]);
   assert.equal((await tiles(S)).length, 7, "staff see the same shift tiles");
-  assert.deepEqual(await S.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)), ["brief", "status", "issues", "guests", "rota", "me", "chat", "board", "concerns", "reports", "activity"]);
+  assert.deepEqual(await S.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)), ["brief", "status", "issues", "guests", "rota", "me", "chat", "send", "board", "concerns", "reports", "activity"]);
   assert.deepEqual(await S.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), []);
   // A category closed stays closed on that phone, and opens by itself when something in it needs you.
   await S.click('#hub details[data-cat="talk"] > summary');

@@ -62,6 +62,20 @@ test("a phone photo is shrunk, noted, sent with the report and locked once sent"
   await O.waitForSelector("[data-photos-of] img");
   assert.match(await O.$eval("[data-photos-of]", (e) => e.innerText), /Back bar wiped and restocked/);
 
+  // After sending, the shift's Send page brings the report's photos. Where the phone can share files (an iPhone can),
+  // Send with photos hands them to the share sheet with the words. The share sheet is stood in for here.
+  await S.evaluate(() => { navigator.canShare = () => true; navigator.share = (d) => { window.shared = { text: d.text, files: (d.files || []).map((f) => [f.name, f.type, f.size > 1000]) }; return Promise.resolve(); }; });
+  await S.click("#tally [data-send=shift]");
+  await S.waitForSelector("#send .sendph img");
+  assert.equal(await S.isChecked("[data-send-photos]"), true);
+  await S.waitForFunction(() => snd.files?.length === 1);
+  await S.click("#send [data-send-sheet]");
+  await S.waitForFunction(() => window.shared);
+  const sh = await S.evaluate(() => window.shared);
+  assert.deepEqual(sh.files, [["photo-1.jpg", "image/jpeg", true]]);
+  assert.match(sh.text, /^\*Black Tap Soho · Bar shift · /);
+  await S.evaluate(() => closeSheet());
+
   assert.equal(await attempt(S, (id) => LIVE.api.notePhoto(id, "Changed later"), mine), "permission-denied");
   assert.equal(await attempt(S, (id) => LIVE.api.deletePhoto(id), mine), "permission-denied");
   assert.equal(await attempt(O, (id) => LIVE.api.deletePhoto(id), mine), "permission-denied", "a manager can't delete it inside the 30 days either");

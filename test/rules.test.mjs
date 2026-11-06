@@ -803,7 +803,7 @@ describe("the rota: managers draft a week and publish it; then every change says
   test("once published, every change needs its event, and the event has to match", async () => {
     const id = await live();
     await fails(act("mgr1", "edited", { id, f: { start: "17:00" }, noEvent: true }), "a change with no event");
-    for (const [why, event] of [["another act", { act: "took" }], ["another day", { sday: plusDays(today(), 1) }], ["another start", { start: "19:00" }], ["another person", { who: "Tia Staff" }],
+    for (const [why, event] of [["another act", { act: "took" }], ["another day", { sday: plusDays(mondayOf(today()), 6) }], ["another start", { start: "19:00" }], ["another person", { who: "Tia Staff" }],
       ["another offer", { offer: "Tia Staff" }], ["a cover reason", { cover: "Sick" }], ["another side", { area: "floor" }], ["another label", { label: "Saturday" }], ["no was", { was: null }],
       ["another was", { was: { day: today(), start: "18:00", end: "02:00", side: "bar", who: "Sam Staff" } }], ["a note", { note: "Swapped" }], ["an extra field", { whoUid: "staff1" }],
       ["another night", { day: dayFromNow(-5) }], ["someone else's name", { name: "Max Manager" }], ["phone's clock", { at: Timestamp.now() }]]) {

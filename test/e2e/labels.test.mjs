@@ -126,7 +126,7 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   // (Headings read in capitals: innerText follows the page's CSS.)
   assert.match(live, new RegExp(`Needs you now Label overdue Orange juice \\(Bar\\) Use by ${wasName} · Opened ${openedName} by Tia Staff · Date labels`, "i"));
   assert.match(live, new RegExp(`Date labels Orange juice Overdue Bar Use by ${wasName} · opened ${openedName} by Tia Staff · Date labels Cranberry juice Due today Bar Use by ${today} · opened today by Sam Staff`, "i"));
-  assert.match(await M.evaluate(() => liveText()), new RegExp(`Date labels due: 2\\n- Orange juice \\(Bar\\): overdue, use by ${wasName}, opened ${openedName} by Tia Staff\\n- Cranberry juice \\(Bar\\): due today`));
+  assert.match(await M.evaluate(() => shareText("live")), new RegExp(`\\*Date labels due \\(2\\)\\*\\n• Orange juice \\(Bar\\): overdue, use by ${wasName}, opened ${openedName} by Tia Staff\\n• Cranberry juice \\(Bar\\): due today`));
   await M.click('#live [data-go="labels:bar"]');
   assert.deepEqual(await M.evaluate(() => [mode, pane, !document.querySelector("#v-tally").hidden]), ["bar", "labels", true]);
 
