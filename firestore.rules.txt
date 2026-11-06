@@ -973,6 +973,20 @@ service cloud.firestore {
       allow delete: if freshOwner();
     }
 
+    // ---------- Tonight's quiz ----------
+    // One result per person per business night, id = {day}-{uid}: which of the night's 10 questions they got right at
+    // their first go, "1" or "0" for each in turn (right). The app makes the questions from the date, so it can tell
+    // managers which ones the team got wrong. Only that first write is allowed, so a second go or another phone can't
+    // replace it. Managers read everyone's; each person their own. Only Start fresh deletes them.
+    match /quiz/{id} {
+      allow get: if isMember() && (isManager() || id.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}-' + request.auth.uid));
+      allow list: if isManager();
+      allow create: if isMember() && exactly(['day', 'right', 'uid', 'name', 'at']) && stamped()
+        && id == incoming().day + '-' + request.auth.uid && nearNow(incoming().day)
+        && incoming().right is string && incoming().right.matches('[01]{10}');
+      allow delete: if freshOwner();
+    }
+
     // ---------- New starters ----------
     // Each new person's checklist, id = their uid: their first day, and what's done ({the thing: {day, by}}), ticked by
     // managers, who read everyone's. The new person reads their own.

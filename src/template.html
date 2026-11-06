@@ -645,6 +645,15 @@ a.btn { text-decoration: none; color: inherit; }
 .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: background .2s, transform .2s; }
 .dots i.on { background: var(--brass); transform: scale(1.35); }
 .dots i.ok { background: var(--ok); }
+.dots i.no { background: var(--warn); }
+/* Quiz: four answers, the right one marked once picked. */
+.qz-opts { display: grid; gap: 8px; margin-top: 14px; }
+.qz-opts .btn { justify-content: flex-start; text-align: left; }
+.qz-opts .btn.right { border-color: var(--ok); color: var(--ok); opacity: 1; }
+.qz-opts .btn.wrong { border-color: var(--warn); color: var(--warn); opacity: 1; }
+.qz-of { font-size: 20px; font-weight: 700; margin: 6px 0 0; }
+.qz-said { margin: 12px 0 8px; font-size: 18px; }
+.qz-got { font-size: 18px; font-weight: 700; margin: 8px 0; }
 .car { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x pan-y; margin-top: 10px; }
 .car::-webkit-scrollbar { display: none; }
 .car > * { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; margin-top: 0 !important; }
@@ -734,9 +743,11 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
   <section class="view" id="v-practice" hidden>
     <h2 style="font-size:28px;margin-top:12px">Practise specs</h2>
-    <p class="lead">Say the spec out loud, then check it.</p>
+    <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button></div>
+    <p class="lead" id="plead"></p>
     <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
     <div id="pcard"></div>
+    <div id="pquiz" hidden></div>
   </section>
 
   <section class="view" id="v-make" hidden></section>
@@ -1008,7 +1019,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], status: [], blocks: [], blockHist: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], onboard: [], onboardList: null, off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], status: [], blocks: [], blockHist: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], quiz: [], onboard: [], onboardList: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -1351,6 +1362,10 @@ const POOLS = {
 };
 let pool = store.get("pool", "Signatures"); if (!POOLS[pool]) pool = "Signatures";
 let pDrink = null, pShown = false, pScore = { got: 0, miss: 0 };
+// Cards or the quiz, and the quiz being taken ({ night, day, qs, i, picks }; see Quiz below).
+const QZ_N = 10;
+let pmode = store.get("pmode", "cards"); if (pmode !== "quiz") pmode = "cards";
+let qz = null;
 function nextCard() {
   const list = D.filter(POOLS[pool]).filter((d) => d !== pDrink);
   pDrink = list[Math.floor(Math.random() * list.length)]; pShown = false; renderPractice();
@@ -1358,6 +1373,11 @@ function nextCard() {
 function renderPractice() {
   // Logged in, Practise also shows which drinks a manager has signed you off on.
   if (LIVE.api && LIVE.me) LIVE.api.watchTraining();
+  const quiz = pmode === "quiz";
+  $$("#pmode [data-pmode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.pmode === pmode));
+  $("#plead").textContent = quiz ? "Ten questions from our own specs." : "Say the spec out loud, then check it.";
+  $("#ppool").hidden = quiz; $("#pcard").hidden = quiz; $("#pquiz").hidden = !quiz;
+  if (quiz) renderQuiz();
   const mine = new Set(LIVE.me ? LIVE.training.filter((t) => t.trainee === LIVE.uid).map((t) => t.drinkName) : []), inPool = D.filter(POOLS[pool]);
   $("#ppool").innerHTML = Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}</button>`).join("");
   const d = pDrink;
@@ -1369,9 +1389,174 @@ function renderPractice() {
 }
 $("#v-practice").addEventListener("click", (e) => {
   const pb = e.target.closest("[data-pool]"); if (pb) { pool = pb.dataset.pool; store.set("pool", pool); pDrink = null; nextCard(); return; }
+  const pm = e.target.closest("[data-pmode]"); if (pm) { pmode = pm.dataset.pmode; store.set("pmode", pmode); renderPractice(); return; }
+  const qa = e.target.closest("[data-qz]");
+  if (qa) {
+    const a = qa.dataset.qz;
+    if (a === "night" || a === "practice") quizStart(a === "night");
+    else if (a === "next") { qz.i++; qzKeep(); if (qz.i === qz.qs.length) quizDone(); renderPractice(); }
+    else { qz = null; renderPractice(); }
+    $("#v-practice").scrollIntoView({ block: "start" });
+    return;
+  }
+  const qp = e.target.closest("[data-qz-pick]");
+  if (qp) {
+    if (qz && qz.picks[qz.i] == null) { qz.picks[qz.i] = qp.dataset.qzPick; qzKeep(); haptic(); renderPractice(); $('#pquiz [data-qz="next"]').scrollIntoView({ block: "nearest", behavior: calm() ? "auto" : "smooth" }); }
+    return;
+  }
+  const op = e.target.closest("[data-open]"); if (op) { openSheet(+op.dataset.open); return; }
   const b = e.target.closest("[data-p]"); if (!b) return;
   if (b.dataset.p === "show") { pShown = true; renderPractice(); } else { pScore[b.dataset.p]++; nextCard(); }
 });
+
+/* ---------- Quiz ----------
+   Ten questions made from our own specs, each about one drink: which glass, what ice, the garnish, how it's made, how
+   much of something goes in, or which of four things goes in it. The wrong answers come from other drinks, never one
+   that means the same (a coupe and a chilled coupe, a twist and a zest). Tonight's quiz is the same ten for everyone,
+   made from the night's date, and the first go is the one that counts: logged in, which questions were right goes to
+   the managers, never to the rest of the team. Answers are spec words, so like the specs they stay in English. */
+// Random numbers that come out the same from the same seed (mulberry32), so every phone makes the same quiz tonight.
+function seeded(seed) {
+  let a = seed >>> 0;
+  return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+}
+const seedOf = (s) => [...s].reduce((h, ch) => (Math.imul(h, 31) + ch.charCodeAt(0)) >>> 0, 7);
+const shuffle = (r, xs) => { const a = xs.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+// When two answers mean the same: the glass without "chilled" or its rim, the kind of ice, and a garnish with twist,
+// zest and peel as one, wheel and slice as one.
+const glassKey = (g) => g.toLowerCase().replace(/^chilled /, "").split(/,| \+ | or /)[0].trim();
+const iceKey = (i) => (/^none/i.test(i) ? "none" : /crushed/i.test(i) ? "crushed" : /large cube/i.test(i) ? "large" : /^pitcher/i.test(i) ? "pitcher" : "cubed");
+const garnishKey = (g) => g.toLowerCase().replace(/\b(twist|zest|peel)\b/g, "peel").replace(/\b(wheel|slice)\b/g, "slice");
+const nearly = (a, b) => a.includes(b) || b.includes(a);
+const QZ_HOW = [["shake", "Shaken"], ["stir", "Stirred"], ["build", "Built in the glass"], ["layer", "Layered"]];
+const QZ_ML = [5, 7.5, 10, 12.5, 15, 20, 25, 30, 35, 40, 50, 60, 75, 100];
+// "25 ml Campari": the measure and what it is.
+const mlLines = (d) => d.spec.map((l) => l.match(/^(\d+(?:\.\d+)?) ?ml (.+)$/)).filter(Boolean).map(([, n, what]) => ({ n: +n, what: what.trim() }));
+// Each kind of glass or ice the way it's most often written ("Chilled coupe" for the coupes), for the wrong answers.
+function usual(key, field) {
+  const by = new Map();
+  for (const d of D) { const m = by.get(key(d[field])) || new Map(); m.set(d[field], (m.get(d[field]) || 0) + 1); by.set(key(d[field]), m); }
+  return [...by].map(([k, m]) => [k, [...m].sort((a, b) => b[1] - a[1])[0][0]]);
+}
+let qzUsual = null;
+// Each kind of question: what's asked, the answer and three wrong ones, or nothing where it doesn't fit the drink.
+// app: the answers are the app's own words, so they're translated.
+const QZ_KINDS = {
+  glass: (d, r) => {
+    const k = glassKey(d.glass); if (k.startsWith("pitcher")) return null;
+    return { ask: "Which glass?", answer: d.glass, wrong: shuffle(r, qzUsual.glass.filter(([x]) => x !== k && !x.startsWith("pitcher")).map(([, v]) => v)).slice(0, 3) };
+  },
+  ice: (d, r) => {
+    const k = iceKey(d.ice); if (k === "pitcher") return null;
+    return { ask: "What ice?", answer: d.ice, wrong: shuffle(r, qzUsual.ice.filter(([x]) => x !== k && x !== "pitcher").map(([, v]) => v)).slice(0, 3) };
+  },
+  garnish: (d, r) => {
+    const seen = [garnishKey(d.garnish)], wrong = [];
+    for (const g of shuffle(r, [...new Set(D.map((x) => x.garnish))])) {
+      const k = garnishKey(g); if (seen.some((x) => nearly(x, k))) continue;
+      seen.push(k); wrong.push(g); if (wrong.length === 3) break;
+    }
+    return { ask: "What's the garnish?", answer: d.garnish, wrong };
+  },
+  how: (d) => {
+    const m = d.method.toLowerCase().match(/\b(shake|stir|build|layer)/); if (!m) return null;
+    const right = QZ_HOW.find(([k]) => k === m[1])[1];
+    return { ask: "How is it made?", answer: right, wrong: QZ_HOW.map(([, t]) => t).filter((t) => t !== right), app: true };
+  },
+  amount: (d, r) => {
+    const all = mlLines(d), ls = all.filter((l) => l.n <= 100 && all.filter((x) => x.what === l.what).length === 1); if (!ls.length) return null;
+    const l = ls[Math.floor(r() * ls.length)], far = (n) => Math.abs(Math.log(n / l.n));
+    return { ask: "How much of this goes in?", of: l.what, answer: `${l.n} ml`, wrong: QZ_ML.filter((n) => n !== l.n).sort((a, b) => far(a) - far(b)).slice(0, 3).map((n) => `${n} ml`) };
+  },
+  goesIn: (d, r) => {
+    const mine = mlLines(d).map((l) => l.what); if (!mine.length) return null;
+    const spec = d.spec.join(" ").toLowerCase(), low = mine.map((x) => x.toLowerCase()), wrong = [], from = (xs) => shuffle(r, [...new Set(xs.flatMap((x) => mlLines(x).map((l) => l.what)))]);
+    // Things that go in drinks like this one first, so the wrong answers are believable. Never one that's in it at all.
+    for (const w of [...from(D.filter((x) => x.section === d.section && x !== d)), ...from(D)]) {
+      const wl = w.toLowerCase();
+      if (spec.includes(wl) || low.some((m) => nearly(m, wl)) || wrong.some((x) => nearly(x.toLowerCase(), wl))) continue;
+      wrong.push(w); if (wrong.length === 3) break;
+    }
+    return { ask: "Which of these goes in it?", answer: mine[Math.floor(r() * mine.length)], wrong };
+  },
+};
+const QZ_ORDER = Object.keys(QZ_KINDS);
+// Ten questions, the kinds taken in turn, each drink getting the next kind that fits it. A drink comes up once, unless
+// there are fewer than ten to pick from (the Signatures): then some come up again with a different kind of question.
+function quizMake(drinks, r) {
+  qzUsual ||= { glass: usual(glassKey, "glass"), ice: usual(iceKey, "ice") };
+  const qs = [], asked = new Set(), start = Math.floor(r() * QZ_ORDER.length);
+  for (let round = 0; round < QZ_ORDER.length && qs.length < QZ_N; round++) {
+    for (const d of shuffle(r, drinks)) {
+      if (qs.length === QZ_N) break;
+      for (let j = 0; j < QZ_ORDER.length; j++) {
+        const kind = QZ_ORDER[(start + qs.length + j) % QZ_ORDER.length]; if (asked.has(`${d.id} ${kind}`)) continue;
+        const q = QZ_KINDS[kind](d, r); if (!q || q.wrong.length < 3) continue;
+        asked.add(`${d.id} ${kind}`); qs.push({ ...q, kind, id: d.id, name: d.name, opts: shuffle(r, [q.answer, ...q.wrong]) });
+        break;
+      }
+    }
+  }
+  return round1(qs, r);
+}
+// Where a drink came up twice, the questions are mixed so its two aren't one after the other.
+const round1 = (qs, r) => (new Set(qs.map((q) => q.id)).size === qs.length ? qs : shuffle(r, qs));
+// A night's quiz, the same on every phone.
+const qzNightQs = (day) => quizMake(D, seeded(seedOf(`quiz ${day}`)));
+function quizStart(night) {
+  const day = shiftDay(), run = night && qzRun();
+  qz = { night, first: night && qzFirst(), day, qs: night ? qzNightQs(day) : quizMake(D.filter(POOLS[pool]), Math.random), i: run ? run.i : 0, picks: run ? run.picks : [] };
+  renderPractice();
+}
+// A go as "1" or "0" for each question, and how many of those are right.
+const qzMarks = (x) => x.qs.map((q, j) => (x.picks[j] === q.answer ? "1" : "0")).join("");
+const qzScore = (right) => [...right].filter((c) => c === "1").length;
+// Tonight's first go: logged in, the one the managers have; otherwise the first go on this phone.
+const qzMine = () => (LIVE.me ? LIVE.quiz.find((x) => x.uid === LIVE.uid && x.day === shiftDay()) : null);
+const qzHere = () => { const x = store.get("qzNight", null); return x?.day === shiftDay() ? x : null; };
+const qzCounts = () => !!LIVE.me && isOn("training");
+const qzFirst = () => !(qzCounts() ? qzMine() : qzHere());
+// The first go is kept as it goes, so a guest at the bar or a closed app doesn't lose it: Stop, and it carries on
+// where it was, with the answers given still given.
+const qzRun = () => { const x = store.get("qzRun", null); return x?.day === shiftDay() && qzFirst() ? x : null; };
+const qzKeep = () => { if (qz?.first) store.set("qzRun", { day: qz.day, i: qz.i, picks: qz.picks }); };
+// The first go at tonight's quiz is kept: logged in, it goes to the managers. The rules refuse a second.
+function quizDone() {
+  if (!qz.first) return;
+  const right = qzMarks(qz);
+  store.set("qzNight", { day: qz.day, right }); store.set("qzRun", null);
+  if (qzCounts()) track(LIVE.api.saveQuiz(qz.day, right), `Your score is in: ${qzScore(right)} out of ${QZ_N}`, "Not saved. Only your first go tonight counts");
+}
+function renderQuiz() {
+  const box = $("#pquiz");
+  if (!qz) {
+    const got = qzMine() || qzHere(), run = !got && qzRun();
+    box.innerHTML = `<div class="card"><h2 style="font-size:28px">Tonight's quiz</h2>
+      <p class="note">${qzCounts() ? "The same 10 questions for everyone tonight. Your first go counts." : "The same 10 questions for everyone tonight."}</p>
+      ${got ? `<p class="qz-got">You got ${qzScore(got.right)} out of ${QZ_N} tonight.</p>` : run ? `<p class="qz-got">You stopped at question ${run.i + 1} of ${QZ_N}.</p>` : ""}
+      <button class="btn${got ? "" : " pri"} wide" data-qz="night">${got ? "Take it again" : run ? "Carry on tonight's quiz" : "Start tonight's quiz"}</button>
+      ${got && qzCounts() ? `<p class="note">Only your first go counts.</p>` : ""}</div>
+    <div class="card"><h2 style="font-size:28px">Practice quiz</h2><p class="note">Ten questions from one part of the menu.</p>
+      <div class="recent" style="justify-content:center">${Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}</button>`).join("")}</div>
+      <button class="btn wide" data-qz="practice" style="margin-top:12px">Start a practice quiz</button></div>`;
+    return;
+  }
+  const q = qz.qs[qz.i];
+  if (q) {
+    const picked = qz.picks[qz.i], done = picked != null;
+    const opt = (o) => `<button class="btn wide${done && o === q.answer ? " right" : done && o === picked ? " wrong" : ""}" data-qz-pick="${esc(o)}"${done ? " disabled" : ""}>${done && o === q.answer ? `<span aria-hidden="true">\u2713 </span>` : done && o === picked ? `<span aria-hidden="true">\u2717 </span>` : ""}<span>${esc(o)}</span></button>`;
+    box.innerHTML = `<div class="cprog"><b>Question ${qz.i + 1} of ${qz.qs.length}</b><span class="dots" aria-hidden="true">${qz.qs.map((x, j) => `<i class="${j < qz.i ? (qz.picks[j] === x.answer ? "ok" : "no") : j === qz.i ? "on" : ""}"></i>`).join("")}</span></div>
+      <div class="card"><h2 translate="no">${esc(q.name)}</h2><p class="lead" style="margin:6px auto 0">${esc(q.ask)}</p>${q.of ? `<p class="qz-of" translate="no">${esc(q.of)}</p>` : ""}
+        <div class="qz-opts"${q.app ? "" : ' translate="no"'}>${q.opts.map(opt).join("")}</div>
+        ${done ? `<p class="qz-said" role="status"><b>${picked === q.answer ? "Right." : "Not quite."}</b></p><button class="btn pri wide" data-qz="next">${qz.i + 1 < qz.qs.length ? "Next question" : "See your score"}</button>` : ""}</div>
+      <div class="actions"><button class="btn" data-qz="home">Stop the quiz</button></div>`;
+    return;
+  }
+  const right = qzScore(qzMarks(qz)), missed = qz.qs.filter((x, j) => qz.picks[j] !== x.answer);
+  box.innerHTML = `<div class="card"><h2>${right} out of ${qz.qs.length}</h2><p class="lead" style="margin:6px auto 0">${right === qz.qs.length ? "Perfect." : right >= 8 ? "Strong." : right >= 5 ? "Getting there." : "Practise these, then try again."}</p></div>
+    ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n" translate="no">${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div><div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div></div>`).join("")}` : ""}
+    <div class="actions"><button class="btn pri" data-qz="practice">Another practice quiz</button><button class="btn" data-qz="home">Done</button></div>`;
+}
 
 /* ---------- Shift ---------- */
 // The standard opening and closing checklists for each side. A manager can change any of them in the app (see Changing
@@ -2964,8 +3149,8 @@ const FEATURES = [
     what: "A checklist for each new person's first weeks: what the law needs on day one, safety, allergens, Challenge 25, the cellar and the till, each ticked off with the day and who did it.",
     staff: "See yours in My first weeks while you're new.", mgr: "Start one for someone new, tick things off, change the checklist, and send someone's on." },
   { g: "Managers", k: "training", n: "Training", go: "tab:practice", mgrGo: "training", login: 1, sw: 1, tour: "mgr",
-    what: "Signing people off drink by drink once they've made it to spec in front of a manager.",
-    staff: "See your sign-offs in Practise.", mgr: "Sign someone off or undo it, and download every sign-off." },
+    what: "Signing people off drink by drink once they've made it to spec in front of a manager, and a quiz each night: 10 questions from our own specs, the same for everyone.",
+    staff: "See your sign-offs and take tonight's quiz in Practise.", mgr: "Sign someone off or undo it, download every sign-off, see quiz scores and the questions the team gets wrong, and send the answers to the team." },
   { g: "Managers", k: "team", n: "Team logins", go: "team", login: 1, admin: 1,
     what: "Everyone's login, with every change recorded.",
     mgr: "Add people, reset a PIN and remove someone. The owner also makes people managers." },
@@ -3245,7 +3430,7 @@ const PLACES = [
   { g: "Managers", k: "team", c: "people", n: () => "Team logins", admin: 1, slots: ["#mgr"], sub: () => `${plural(LIVE.staff.length, "person", "people")}` },
   { g: "Managers", k: "onboard", c: "people", n: () => "New starters", admin: 1, on: () => isOn("onboard"), slots: ["#onboard"],
     sub: () => { const n = obActive().length; return n ? `${plural(n, "person", "people")} in their first weeks` : "A checklist for each new person's first weeks"; } },
-  { g: "Managers", k: "training", c: "people", n: () => "Training", admin: 1, on: () => isOn("training"), slots: ["#mtrain"], sub: () => "Sign-offs, drink by drink" },
+  { g: "Managers", k: "training", c: "people", n: () => "Training", admin: 1, on: () => isOn("training"), slots: ["#mtrain"], sub: () => "Sign-offs and tonight's quiz" },
   { g: "Managers", k: "pulse", c: "people", n: () => "Shift feedback", admin: 1, on: () => isOn("pulse"), slots: ["#pulses"],
     sub: () => { const xs = puLast(7); return xs.length ? `Last 7 nights: ${puAvg(xs)} out of 5` : "How each shift went, as the team says"; }, cnt: () => puBad().length },
   { g: "Managers", k: "feedback", c: "people", n: () => "Manager feedback", admin: 1, on: () => isOn("feedback"), slots: ["#fb"], sub: () => "Anonymous, between managers" },
@@ -4470,6 +4655,35 @@ function renderOutlog() {
     <p class="note">Last 100 changes. The log can't be edited or deleted.</p>`;
 }
 /* ---------- Managers: training ---------- */
+// Quiz results from the last 7 nights. Scores are for managers, to see who needs a hand: nothing ranks anyone.
+const qzWeek = () => LIVE.quiz.filter((x) => x.day > addDays(shiftDay(), -7));
+const qzAvg = (xs) => Math.round((xs.reduce((a, x) => a + qzScore(x.right), 0) / xs.length) * 10) / 10;
+const qzByName = (a, b) => a.name.localeCompare(b.name);
+// The questions the most people got wrong, top 3, each night's ten made again from its date as every phone made them.
+// The same question on two nights counts as one.
+function qzMissed(xs) {
+  const nights = new Map(), by = new Map();
+  for (const x of xs) {
+    if (!nights.has(x.day)) nights.set(x.day, qzNightQs(x.day));
+    nights.get(x.day).forEach((q, j) => {
+      const k = `${q.id} ${q.kind} ${q.of || ""}`, m = by.get(k) || { q, n: 0, of: 0 };
+      m.of++; if (x.right[j] === "0") m.n++; by.set(k, m);
+    });
+  }
+  return [...by.values()].filter((m) => m.n).sort((a, b) => b.n - a.n || a.of - b.of).slice(0, 3);
+}
+// The round-up for the team chat, from the latest night anyone took the quiz: how many did, and the answers most worth
+// knowing. No names unless a manager ticks Full marks, and the average only once three have taken it, so nobody's
+// score can be worked out.
+SHARE.quiz = () => {
+  const day = LIVE.admin && isOn("training") ? qzWeek().map((x) => x.day).sort().pop() : null; if (!day) return null;
+  const xs = LIVE.quiz.filter((x) => x.day === day), ask = (q) => (q.of ? `How much ${q.of}?` : q.ask);
+  return { what: "Quiz round-up", title: `Black Tap Soho quiz \u00b7 ${dayName(day, { weekday: "long", day: "numeric", month: "long" })}`,
+    head: [xs.length >= 3 ? `${xs.length} of the team took it, average ${qzAvg(xs)} out of ${QZ_N}` : `${xs.length} of the team took it`],
+    parts: [{ id: "know", label: "Answers to know", lines: qzMissed(xs).map(({ q }) => `${q.name}. ${ask(q)} ${q.answer}`) },
+      { id: "full", label: "Full marks", lines: xs.filter((x) => qzScore(x.right) === QZ_N).sort(qzByName).map((x) => x.name), off: true }],
+    tip: "Names are only in it if you tick Full marks. The quiz is in Practise, under Quiz." };
+};
 // Sign-offs, drink by drink. Practise shows each person their own.
 const TRAIN_POOLS = ["Signatures", "Classics", "Shots & bombs"];
 let trWho = "", trPool = "Signatures";
@@ -4478,7 +4692,20 @@ function renderTraining() {
   if (!LIVE.loaded.has("training")) { $("#mtrain").innerHTML = `<div class="sec">Training</div><p class="note">Loading sign-offs…</p>`; return; }
   const people = LIVE.staff.filter((p) => p.uid !== LIVE.uid), signed = (uid, name) => LIVE.training.find((t) => t.trainee === uid && t.drinkName === name);
   const who = people.find((p) => p.uid === trWho), list = D.filter(POOLS[trPool]).sort((a, b) => a.name.localeCompare(b.name));
+  // The quiz: tonight's scores by name, what the team got wrong this week, and each person's week.
+  const week = qzWeek(), night = week.filter((x) => x.day === shiftDay()).sort(qzByName), missed = qzMissed(week);
+  const each = Object.values(week.reduce((m, x) => { (m[x.uid] ||= { name: x.name, xs: [] }).xs.push(x); return m; }, {})).sort(qzByName);
   $("#mtrain").innerHTML = `<div class="sec">Training</div>
+    <div class="h3">Tonight's quiz</div>
+    ${night.length ? `${night.map((x) => `<div class="staffrow"><div class="n">${esc(x.name)}</div><div class="s">${qzScore(x.right)} out of ${QZ_N}</div></div>`).join("")}
+      <p class="note">${night.length} took it, average ${qzAvg(night)} out of ${QZ_N}</p>`
+      : `<p class="note">Nobody has taken tonight's quiz yet. It's in Practise, under Quiz: the same 10 questions for everyone.</p>`}
+    ${missed.length ? `<div class="h3">Most missed, last 7 nights</div>
+      ${missed.map(({ q, n, of }) => `<div class="staffrow"><div class="n" translate="no">${esc(q.name)}</div><div class="s"><span>${esc(q.ask)}</span> ${q.of ? `<span translate="no">${esc(q.of)}:</span> ` : ""}<b${q.app ? "" : ' translate="no"'}>${esc(q.answer)}</b></div><div class="s">missed by ${n} of ${of}</div></div>`).join("")}
+      <p class="note">Worth going over at the briefing.</p>` : ""}
+    ${each.length ? `<div class="h3">Last 7 nights</div>${each.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${p.xs.length} ${p.xs.length > 1 ? "quizzes" : "quiz"}, average ${qzAvg(p.xs)}</div></div>`).join("")}
+      <div class="actions">${sendBtn("quiz", "Send the quiz round-up")}</div>` : ""}
+    <div class="h3">Sign-offs</div>
     <p class="note">Sign someone off once they've made the drink to spec in front of you. They see their progress in Practise.</p>
     <div class="actions">${dlHtml("training", "Download sign-offs as a spreadsheet", "training")}</div>
     ${people.map((p) => `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${TRAIN_POOLS.map((k) => { const xs = D.filter(POOLS[k]); return `${k} ${xs.filter((d) => signed(p.uid, d.name)).length}/${xs.length}`; }).join(" · ")}</div></div>`).join("") || `<p class="note">Add people in Team first.</p>`}
@@ -4809,6 +5036,7 @@ const SEND_LIST = [
   ["Managers", "certs", "Certificates", "What's due, and everyone's, without right to work dates"],
   ["Managers", "onboard", "New starter checklist", "Someone's first weeks: what's done and still to do"],
   ["Managers", "pulse", "Shift feedback", "The last 7 nights, without names"],
+  ["Managers", "quiz", "Quiz round-up", "How the team did and the answers to know, without names"],
   ["Managers", "live", "Tonight's summary", "What needs a manager, the checklists and restocks"],
   ["Managers", "handover", "The handover", "Tonight's close, for the next manager and the owner"],
 ];
@@ -4816,7 +5044,7 @@ const SEND_GROUP = { You: "From you", Tonight: "Tonight", Managers: "For manager
 function renderSendHub() {
   const box = $("#sendhub"); if (!box) return;
   if (tpane !== "send" || !LIVE.me) { box.innerHTML = ""; return; }
-  const ok = ([g, k]) => (g !== "Managers" || LIVE.admin) && (k === "handover" ? isOn("handover") : k === "guests" ? gOn() : k === "brief" ? isOn("briefing") : true) && (() => { try { return !!SHARE[k](); } catch { return false; } })();
+  const ok = ([g, k]) => (g !== "Managers" || LIVE.admin) && (k === "handover" ? isOn("handover") : k === "guests" ? gOn() : k === "brief" ? isOn("briefing") : k === "quiz" ? isOn("training") : true) && (() => { try { return !!SHARE[k](); } catch { return false; } })();
   const rows = SEND_LIST.filter(ok);
   box.innerHTML = `<p class="note">Ready to go on WhatsApp or by email. You pick who it goes to, and can change any word before it goes.</p>
     ${Object.entries(SEND_GROUP).map(([g, t]) => { const xs = rows.filter((r) => r[0] === g); return xs.length ? `<div class="sec">${t}</div><div class="places">${xs.map(([, k, n, sub]) => `<button class="place" data-send="${k}"><span><b>${n}</b><small>${sub}</small></span></button>`).join("")}</div>` : ""; }).join("")}`;
@@ -6517,7 +6745,7 @@ function liveChanged(what) {
     const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], nights: [renderNights, renderBrief], status: [renderStatus], blocks: [renderStatus], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota, renderAvail, renderOnboard], tests: [renderStaff, renderRota], requests: [renderRequests, renderAct],
       asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief, renderTests], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
-      seen: [renderPins], photos: [], training: [renderTraining, renderAct], contacts: [renderCall], refusals: [renderRefusals], certs: [renderCerts, renderRota], avail: [renderAvail, renderRota], shouts: [renderShouts], pulse: [renderPulses], onboard: [renderOnboard], onboardList: [renderOnboard],
+      seen: [renderPins], photos: [], training: [renderTraining, renderAct], quiz: [renderTraining], contacts: [renderCall], refusals: [renderRefusals], certs: [renderCerts, renderRota], avail: [renderAvail, renderRota], shouts: [renderShouts], pulse: [renderPulses], onboard: [renderOnboard], onboardList: [renderOnboard],
       concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat, renderShouts], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
@@ -6527,7 +6755,7 @@ function liveChanged(what) {
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
   if (["me", "out", "photos", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports", "directory", "pulse"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
-  if (what === "training" && !$("#v-practice").hidden) renderPractice();
+  if ((what === "training" || what === "quiz") && !$("#v-practice").hidden) renderPractice();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // Overdue and waiting times move on with no change to the data, and date labels fall due when the day rolls over at 6am,
