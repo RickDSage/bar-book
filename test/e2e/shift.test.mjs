@@ -27,6 +27,8 @@ test("the 86 board is shared, says who did it, and keeps a log managers can read
   await S.evaluate(() => closeSheet());
 
   await S.click('[data-back="Guinness"]');
+  // The 86 log is read once a manager opens it.
+  await part(O, "out");
   await O.waitForFunction(() => !LIVE.out.has("Guinness") && LIVE.outlog.length === 3);
   assert.deepEqual(await O.evaluate(() => LIVE.outlog.map((x) => `${x.itemName} ${x.action} ${x.name}`).reverse()),
     ["Guinness out Sam Staff", "Negroni out Olly Owner", "Guinness back Sam Staff"]);

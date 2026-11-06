@@ -92,6 +92,8 @@ test("managers review reports and leave each other anonymous feedback", async ()
   assert.equal(await toastOf(O), "Say what's wrong in the comment box, then flag it");
   await O.fill("[data-rvt] >> nth=0", "Good close, bins missed"); await O.click("[data-rv][data-v=flag] >> nth=0");
   await O.click("[data-rv][data-v=up] >> nth=1");
+  // Reviews are read when Reports is opened.
+  await part(M, "reports");
   await M.waitForFunction(() => LIVE.reviews.length === 2);
   assert.deepEqual(await M.evaluate(() => LIVE.reviews.map((v) => `${v.verdict}:${v.text}:${v.name}`).sort()), ["flag:Good close, bins missed:Olly Owner", "up::Olly Owner"]);
   assert.equal(await attempt(S, () => LIVE.api.review(LIVE.reports[0].id, "up", "")), "permission-denied");

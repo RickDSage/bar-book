@@ -174,7 +174,7 @@ test("a month in: what each phone reads when it opens, and what a day at a 25-pe
     docs.push([`handovers/${day}`, { day, answers: Object.fromEntries(QS.map((q) => [q, "yes"])), follow: {}, extra: {}, risks: 0, exceptions: 0, lines: "", snap: {}, note: "", owner: "", ...by, at: ago(d, 23) }]);
     for (let i = 0; i < 4; i++) { const o = rid(); docs.push([`outlog/${o}`, { item: "london-cosmo", itemName: "London Cosmo", action: "out", ...by, at: ago(d, 19) }], [`outlog/${o}-back`, { item: "london-cosmo", itemName: "London Cosmo", action: "back", ...by, at: ago(d, 22) }]); }
     for (let i = 0; i < 4; i++) docs.push([`guests/${rid()}`, { kind: "slow", table: String(i + 1), what: "Slow mains", wants: "", done: "Apologised", comp: 0, escalate: false, status: "closed", resolution: "Done", extra: 0, followUp: false, closedBy: by.name, closedByUid: by.uid, closedAt: ago(d), ...by, at: ago(d) }]);
-    for (let i = 0; i < 4; i++) docs.push([`asks/${rid()}`, { kind: "late", eta: "17:30", note: "", status: "seen", by: by.name, byUid: by.uid, byAt: ago(d), ...by, at: ago(d) }]);
+    for (let i = 0; i < 4; i++) docs.push([`asks/${rid()}`, { kind: "late", eta: "17:30", note: "", status: "approved", by: by.name, byUid: by.uid, byAt: ago(d), ...by, at: ago(d) }]);
     for (let i = 0; i < 8; i++) docs.push([`reviews/${rid()}`, { report: rid(), verdict: "up", text: "", ...by, at: ago(d) }]);
     docs.push([`issues/${rid()}`, { title: "Light out", detail: "", area: "bar", urgent: false, again: null, status: "fixed", fix: "Changed", fixedBy: by.name, fixedByUid: by.uid, fixedAt: ago(d), ...by, at: ago(d) }]);
     for (let i = 0; i < 2; i++) docs.push([`incidents/${rid()}`, { kind: "Accident", text: "Slip", status: "closed", outcome: "First aid", closedBy: by.name, closedByUid: by.uid, closedAt: ago(d), ...by, at: ago(d) }]);
@@ -198,7 +198,7 @@ test("a month in: what each phone reads when it opens, and what a day at a 25-pe
     await p.evaluate((a) => LIVE.api.login(...a), [username, pin]);
     await p.waitForFunction((r) => LIVE.role === r, role);
     const n = await quiet(p);
-    const top = Object.entries((await reads(p)).by).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const top = Object.entries((await reads(p)).by).sort((a, b) => b[1] - a[1]).filter(([, n]) => n > 1);
     assert.deepEqual(p.errs, []);
     await p.context().close();
     return { n, top };
@@ -206,7 +206,11 @@ test("a month in: what each phone reads when it opens, and what a day at a 25-pe
   const mgr = await coldOf("mia", MANAGER_PIN, "manager"), staff = await coldOf("sam", STAFF_PIN, "staff");
   t.diagnostic(`manager opening the app: ${mgr.n} reads; biggest: ${JSON.stringify(mgr.top)}`);
   t.diagnostic(`staff opening the app: ${staff.n} reads; biggest: ${JSON.stringify(staff.top)}`);
-  // A day: 20 staff open it 3 times, 5 managers 6 times (each a fresh read, as phones are away more than 30 minutes).
-  const day = 20 * 3 * staff.n + 5 * 6 * mgr.n;
-  t.diagnostic(`a day's opens at a 25-person venue: about ${day} reads of the free 50,000, before the night's own changes`);
+  // A day: about 12 people on shift open it 3 times each and 3 managers 6 times, each open a fresh read (phones are away
+  // for over 30 minutes between them). The night's own changes come on top: the first test puts those at about 200 a phone.
+  const day = 12 * 3 * staff.n + 3 * 6 * mgr.n + 15 * 200;
+  t.diagnostic(`a day at a 25-person venue: about ${day} reads of the free 50,000`);
+  assert.ok(mgr.n < 900, `a manager's phone reads ${mgr.n} on opening`);
+  assert.ok(staff.n < 560, `a staff phone reads ${staff.n} on opening`);
+  assert.ok(day < 38000, `a day comes to ${day}`);
 });
