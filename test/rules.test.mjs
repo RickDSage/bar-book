@@ -8,7 +8,7 @@ import fs from "node:fs";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
 import {
   doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, orderBy, limit,
-  writeBatch, serverTimestamp, Timestamp, deleteField, getCountFromServer,
+  writeBatch, serverTimestamp, Timestamp, deleteField, getCountFromServer, FieldPath,
 } from "firebase/firestore";
 
 const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080").split(":");
@@ -1298,6 +1298,119 @@ describe("who to call: the venue's own numbers", () => {
 });
 
 // =====================================================================================
+describe("availability: when each person can work", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const av = (uid, extra = {}) => ({ days: ["", "no", "18:00-23:00", "", "17:00-02:00", "", "no"], note: "Uni on Tuesdays", ...by(uid), ...extra });
+  const ref = (uid, who = uid) => doc(db(uid), "avail", who);
+  test("each person keeps their own; managers read everyone's, staff only their own", async () => {
+    await assertSucceeds(setDoc(ref("staff1"), av("staff1")));
+    await assertSucceeds(setDoc(ref("staff1"), av("staff1", { days: Array(7).fill(""), note: "" })));
+    await assertSucceeds(setDoc(ref("mgr1"), av("mgr1")));
+    await assertSucceeds(getDoc(ref("staff1")));
+    await assertSucceeds(getDoc(ref("staff2")));
+    await assertFails(getDoc(ref("staff2", "staff1")));
+    await assertFails(getDocs(collection(db("staff1"), "avail")));
+    for (const uid of ["mgr2", "owner1"]) { await assertSucceeds(getDoc(ref(uid, "staff1"))); await assertSucceeds(getDocs(collection(db(uid), "avail"))); }
+    await assertFails(getDoc(ref("stranger", "staff1")));
+    await assertFails(setDoc(ref("mgr1", "staff1"), av("mgr1")));
+    await assertFails(setDoc(ref("staff2", "staff1"), av("staff1")));
+    await assertFails(setDoc(ref("stranger"), av("stranger")));
+    for (const uid of ["staff1", "mgr1"]) await assertFails(deleteDoc(ref(uid, "staff1")));
+  });
+  test("each day is any time, can't, or two times, and nothing else", async () => {
+    for (const bad of [{ days: Array(6).fill("") }, { days: Array(8).fill("") }, { days: ["", "", "", "", "", "", "maybe"] }, { days: ["", "", "", "", "", "", "18:00"] },
+      { days: ["", "", "", "", "", "", "24:00-02:00"] }, { days: ["", "", "", "", "", "", "18:00-23:00 "] }, { days: "no" }, { note: "x".repeat(121) },
+      { name: "Tia Staff" }, { uid: "staff2" }, { at: daysAgo(1) }, { extra: 1 }]) {
+      await assertFails(setDoc(ref("staff1"), av("staff1", bad)));
+    }
+  });
+});
+
+describe("shout-outs", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const sh = (uid, extra = {}) => ({ to: "staff2", toName: "Tia Staff", text: "Kept the bar moving on a slammed Friday", ...by(uid), ...extra });
+  test("anyone thanks someone else, everyone on the team reads them, and the writer or a manager takes one down", async () => {
+    const ref = await assertSucceeds(addDoc(collection(db("staff1"), "shouts"), sh("staff1")));
+    await assertSucceeds(addDoc(collection(db("mgr1"), "shouts"), sh("mgr1", { to: "staff1", toName: "Sam Staff" })));
+    for (const uid of ["staff2", "mgr1", "owner1"]) await assertSucceeds(getDoc(doc(db(uid), "shouts", ref.id)));
+    await assertFails(getDoc(doc(db("stranger"), "shouts", ref.id)));
+    for (const uid of ["staff1", "mgr1"]) await assertFails(updateDoc(doc(db(uid), "shouts", ref.id), { text: "Changed" }));
+    await assertFails(deleteDoc(doc(db("staff2"), "shouts", ref.id)));
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "shouts", ref.id)));
+    const r2 = await addDoc(collection(db("staff1"), "shouts"), sh("staff1"));
+    await assertSucceeds(deleteDoc(doc(db("mgr2"), "shouts", r2.id)));
+  });
+  test("never to yourself, to someone on the team by their name, saying something short", async () => {
+    for (const bad of [{ to: "staff1", toName: "Sam Staff" }, { toName: "Someone Else" }, { to: "nobody", toName: "Nobody" }, { text: "  " }, { text: "x".repeat(201) },
+      { name: "Tia Staff" }, { uid: "staff2" }, { at: daysAgo(1) }, { extra: 1 }]) {
+      await assertFails(addDoc(collection(db("staff1"), "shouts"), sh("staff1", bad)));
+    }
+    await assertFails(addDoc(collection(db("stranger"), "shouts"), sh("stranger")));
+  });
+});
+
+describe("how was your shift", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const pu = (uid, extra = {}) => ({ day: today(), score: 4, note: "", ...by(uid), ...extra });
+  const ref = (uid, who = uid, day = today()) => doc(db(uid), "pulse", `${day}-${who}`);
+  test("one answer each a night, which they can change; managers read everyone's, staff their own", async () => {
+    await assertSucceeds(setDoc(ref("staff1"), pu("staff1")));
+    await assertSucceeds(setDoc(ref("staff1"), pu("staff1", { score: 2, note: "Two down on the bar all night" })));
+    await assertSucceeds(getDoc(ref("staff1")));
+    await assertSucceeds(getDoc(ref("staff2")));
+    await assertFails(getDoc(ref("staff2", "staff1")));
+    await assertFails(getDocs(query(collection(db("staff1"), "pulse"), where("day", ">=", dayFromNow(-14)))));
+    for (const uid of ["mgr1", "owner1"]) await assertSucceeds(getDoc(ref(uid, "staff1")));
+    for (const uid of ["staff1", "mgr1", "owner1"]) await assertFails(deleteDoc(ref(uid, "staff1")));
+  });
+  test("a whole score from 1 to 5 for a night close to today, in their own name and record", async () => {
+    for (const bad of [{ score: 0 }, { score: 6 }, { score: 3.5 }, { score: "4" }, { note: "x".repeat(201) }, { name: "Tia Staff" }, { at: daysAgo(1) }, { extra: 1 }]) {
+      await assertFails(setDoc(ref("staff1"), pu("staff1", bad)));
+    }
+    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), pu("staff1", { day: dayFromNow(-3) })));
+    await assertFails(setDoc(ref("staff1", "staff2"), pu("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-1)), pu("staff1")));
+    await assertFails(setDoc(ref("mgr1", "staff1"), pu("mgr1")));
+  });
+});
+
+describe("new starters", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const ob = (uid, extra = {}) => ({ who: "staff1", whoName: "Sam Staff", start: today(), done: {}, ...by(uid), ...extra });
+  const ref = (uid, who = "staff1") => doc(db(uid), "onboard", who);
+  const fire = "Fire safety: alarms, exits, assembly point and extinguishers";
+  const tick = (uid, v) => updateDoc(ref(uid), new FieldPath("done", fire), v, "uid", uid, "name", TEAM[uid].name, "at", now());
+  test("managers start one and tick things off one at a time; the new person reads their own", async () => {
+    await assertSucceeds(setDoc(ref("mgr1"), ob("mgr1")));
+    await assertSucceeds(tick("mgr2", { day: today(), by: "Max Manager" }));
+    await assertSucceeds(tick("mgr1", deleteField()));
+    await assertSucceeds(getDoc(ref("staff1")));
+    await assertSucceeds(getDoc(ref("staff2", "staff2")));
+    await assertFails(getDoc(ref("staff2")));
+    await assertFails(getDocs(collection(db("staff1"), "onboard")));
+    await assertSucceeds(getDocs(collection(db("owner1"), "onboard")));
+    await assertFails(setDoc(ref("staff1"), ob("staff1")));
+    await assertFails(tick("staff1", { day: today(), by: "Sam Staff" }));
+    await assertFails(deleteDoc(ref("staff1")));
+    await assertSucceeds(deleteDoc(ref("mgr2")));
+  });
+  test("it's for someone on the team, by their name, with a real first day", async () => {
+    for (const bad of [{ whoName: "Someone Else" }, { who: "staff2" }, { start: "Monday" }, { done: [] }, { name: "Max Manager" }, { at: daysAgo(1) }, { extra: 1 }]) {
+      await assertFails(setDoc(ref("mgr1"), ob("mgr1", bad)));
+    }
+    await assertFails(setDoc(ref("mgr1", "nobody"), ob("mgr1", { who: "nobody", whoName: "Nobody" })));
+  });
+  test("managers keep the venue's own checklist, up to 30 things, and everyone reads it", async () => {
+    const ref = (uid) => doc(db(uid), "settings", "onboard");
+    await assertSucceeds(setDoc(ref("mgr1"), { list: [fire, "Allergens: the allergen menu"], ...by("mgr1") }));
+    await assertSucceeds(getDoc(ref("staff1")));
+    for (const bad of [{ list: [] }, { list: Array(31).fill("x") }, { list: fire }, { extra: 1 }]) await assertFails(setDoc(ref("mgr1"), { list: [fire], ...by("mgr1"), ...bad }));
+    await assertFails(setDoc(ref("staff1"), { list: [fire], ...by("staff1") }));
+    await assertFails(deleteDoc(ref("mgr1")));
+  });
+});
+
+// =====================================================================================
 describe("manager reviews of reports", () => {
   let rep;
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); rep = (await addDoc(collection(db("staff1"), "reports"), report("staff1"))).id; });
@@ -1858,7 +1971,8 @@ describe("team chat", () => {
 describe("features the owner switches off for the venue", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   // Everything the app lets the owner switch off.
-  const ALL = ["allergens", "practice", "pay", "football", "chat", "rota", "calendar", "asks", "incidents", "kpis", "training", "feedback", "handover", "briefing", "guests", "refusals", "certs"];
+  const ALL = ["allergens", "practice", "pay", "football", "chat", "rota", "calendar", "asks", "incidents", "kpis", "training", "feedback", "handover", "briefing", "guests", "refusals", "certs",
+    "shouts", "pulse", "onboard"];
   const ref = (uid, id = "features") => doc(db(uid), "settings", id);
   const set = (uid, off, extra = {}) => setDoc(ref(uid), { off, ...by(uid), ...extra });
   test("only the owner switches features off and on, and everyone on the team reads it", async () => {
@@ -2316,6 +2430,7 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "guests"), orderBy("at", "desc"), limit(100)),
     query(collection(d, "refusals"), where("day", ">=", dayFromNow(-100)), limit(1000)),
     query(collection(d, "certs"), where("who", "==", uid)),
+    query(collection(d, "shouts"), orderBy("at", "desc"), limit(50)),
     collection(d, "lists"),
     collection(d, "labels"),
     // One date label's or shift's history.
@@ -2347,6 +2462,9 @@ describe("every query the app makes works for the roles that make it", () => {
     query(collection(d, "handovers"), orderBy("at", "desc"), limit(14)),
     query(collection(d, "briefReads"), where("day", "==", today())),
     query(collection(d, "certs"), limit(1000)),
+    collection(d, "avail"),
+    collection(d, "onboard"),
+    query(collection(d, "pulse"), where("day", ">=", dayFromNow(-14))),
   ];
   test("staff", async () => {
     const d = db("staff1");

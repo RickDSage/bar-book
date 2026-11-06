@@ -60,8 +60,12 @@
 /* Send: the summary, a tick box for each part, and the message as it will look. */
 .sendsum { margin-top: 12px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; font-size: 16px; line-height: 1.5; }
 .sendpart .s { margin-inline-start: auto; color: var(--muted); font-size: 14px; }
-.sendph { display: flex; gap: 8px; overflow-x: auto; margin-top: 8px; }
-.sendph img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; flex: none; }
+.sendph { display: flex; gap: 8px; overflow-x: auto; margin-top: 8px; padding-top: 6px; }
+.sendph figure { position: relative; margin: 0; flex: none; }
+.sendph img { width: 72px; height: 72px; object-fit: cover; border-radius: 8px; display: block; }
+.sendph .phx { position: absolute; top: -8px; right: -8px; width: 32px; height: 32px; border-radius: 50%; border: 2px solid var(--bg); background: var(--fg); color: var(--bg); font-size: 16px; line-height: 1; padding: 0; }
+.sendhow { margin: 8px 0 0; padding-left: 22px; font-size: 15px; color: var(--muted); }
+.sendhow li { margin: 2px 0; }
 .sendpre { white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.5 var(--body); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 8px 0 0; }
 #print { display: none; }
 @media print {
@@ -466,6 +470,18 @@ a.btn { text-decoration: none; color: inherit; }
 .c25 { margin-top: 10px; padding: 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .c25 p { margin: 6px 0 0; }
 .c25 p:first-of-type { margin-top: 0; }
+/* How was your shift: one tap at the end of a shift, then a few words if they like. */
+.pucard { margin-top: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; }
+.pu { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 6px; margin-top: 10px; }
+.pu button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; min-width: 0; min-height: 66px; padding: 8px 2px; border: 1px solid var(--line); border-radius: 10px; color: var(--fg); font-size: 12px; line-height: 1.2; }
+.pu button span { font-size: 26px; line-height: 1; }
+.pu button[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); font-weight: 700; }
+/* Availability: a row for each day of the week. */
+.avrow { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+/* New starters: each thing to show them, ticked off by a manager with the day and who. */
+.obi { display: flex; align-items: flex-start; gap: 10px; margin-top: 10px; font-size: 16px; }
+.obi small { display: block; font-size: 13px; color: var(--muted); }
+.obi.done > span:first-child { color: var(--ok); font-weight: 700; }
 .places { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; margin-top: 10px; }
 .place { display: flex; align-items: flex-start; gap: 6px; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 10px 10px 12px; min-height: 76px; color: var(--fg); }
 .place.hot { border-color: var(--warn); }
@@ -551,6 +567,7 @@ a.btn { text-decoration: none; color: inherit; }
 .rg-c.on { border-color: var(--fg); }
 .rg-c.draft { border-style: dashed; }
 .rg-c.clash { border-color: var(--warn); }
+.rg-c.cant i { color: var(--warn); }
 .rg-c span, .rgkey span { border-top: 3px solid var(--brass); padding-top: 1px; }
 .rg-c b { display: block; white-space: nowrap; }
 .rg-c b + b { color: var(--muted); }
@@ -726,13 +743,14 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
     <input id="dm-in" type="file" accept="image/*" hidden>
     <input id="cn-in" type="file" accept="image/*" hidden>
+    <input id="send-in" type="file" accept="image/*" multiple hidden>
     <input id="ch-in" type="file" accept="image/*" hidden>
   </section>
 
   <section class="view" id="v-notices" hidden>
     <div id="hubtop"><h2 style="font-size:28px;margin-top:12px">Team</h2>
     <p class="lead" id="team-lead">Messages from the manager and bar lead. Newest first.</p></div>
-    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="status"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="nights"></div><div id="act"></div><div id="kpis"></div><div id="money"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div><div id="sendhub"></div><div id="call"></div><div id="refusals"></div><div id="certs"></div>
+    <div id="placebar"></div><div id="team"></div><div id="foryou"></div><div id="pulse"></div><div id="dash"></div><div id="hub"></div><div id="brief"></div><div id="status"></div><div id="chat"></div><div id="pins"></div><div id="pin-form"></div><div id="concerns"></div><div id="issues"></div><div id="guests"></div><div id="rota"></div><div id="cal"></div><div id="requests"></div><div id="reports"></div><div id="feed"></div><div id="sact"></div><div id="live"></div><div id="mclose"></div><div id="nights"></div><div id="act"></div><div id="kpis"></div><div id="money"></div><div id="outlog"></div><div id="mtrain"></div><div id="mgr"></div><div id="fb"></div><div id="me"></div><div id="sendhub"></div><div id="call"></div><div id="refusals"></div><div id="certs"></div><div id="avail"></div><div id="shouts"></div><div id="pulses"></div><div id="onboard"></div><div id="myob"></div>
   </section>
   <section class="view info" id="v-pay" hidden></section>
   <section class="view info" id="v-info" hidden></section>
@@ -755,6 +773,13 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 /*DATA*/
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => r.querySelectorAll(s);
+// Each form with a heading to tap remembers whether it's open, so a redraw keeps it open. The toggle event says so a
+// moment after the tap, by which time a live update may already have redrawn the page and shut it, so the change is
+// also caught as it happens.
+function keepOpen(el, fn) {
+  el.addEventListener("toggle", fn, true);
+  new MutationObserver((ms) => ms.forEach((m) => fn({ target: m.target }))).observe(el, { attributes: true, attributeFilter: ["open"], subtree: true });
+}
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const D = DATA.drinks;
 const SECTIONS = [...new Set(D.map((d) => d.section))];
@@ -793,7 +818,8 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = fal
    nothing itself: WhatsApp and Email open the person's own app with the words written in, and they pick who it goes
    to. Messages are in English, the venue's working language, whatever language the phone shows. */
 const SHARE = {};
-const sendBtn = (k, label, o) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}>${label}</button>`;
+// A note given here starts the Send page's note, for the person to change.
+const sendBtn = (k, label, o, note) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}${note ? ` data-send-note="${esc(note)}"` : ""}>${label}</button>`;
 // A line starting with a space belongs to the item above it.
 const partItems = (p) => p.lines.filter((l) => !/^\s/.test(l)).length;
 const subLine = (t) => `   ◦ ${t}`;
@@ -813,33 +839,71 @@ const shareText = (k, wa = true, o) => { const m = SHARE[k](o); return m ? msgTe
 let snd = null;
 // A builder can offer one choice (how late, which shift, who): SHARE[k](value) builds the message for it.
 const sndMsg = () => snd && SHARE[snd.k](snd.opt);
-function openSend(k, o) {
+function openSend(k, o, note = "") {
   const m = SHARE[k](o); if (!m) return toast("Nothing to send yet");
-  lastFocus = document.activeElement;
-  snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note: "", photos: [], files: null, withPhotos: true };
+  if ($("#sheet").hidden) lastFocus = document.activeElement;
+  document.querySelector(".swhint")?.remove();
+  // From a drink, Back goes back to the drink.
+  const s = snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, busy: false, drink: k === "drink" ? +o : null };
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Send</span><span></span></div></div><div id="send"></div>`;
   renderSend(m); showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus();
-  if (m.photos) m.photos().then(async (ps) => {
-    if (snd?.k !== k || !ps.length) return;
-    snd.photos = ps; renderSend();
-    // Made ready now: the share sheet has to open straight from the tap.
-    try { snd.files = await Promise.all(ps.map(async (x, i) => new File([await (await fetch(x.data)).blob()], `photo-${i + 1}.jpg`, { type: "image/jpeg" }))); } catch {}
+  if (m.photos) m.photos().then((ps) => {
+    if (snd !== s || !ps.length) return;
+    s.photos = [...ps, ...s.photos].slice(0, SEND_MAX); sndFiles(); renderSend();
   }).catch(() => {});
 }
 const canFiles = () => { try { return !!navigator.canShare?.({ files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] }); } catch { return false; } };
+/* Photos on the Send page: the message's own (tonight's closing photos, a concern's, a drink's house photo, the rota as
+   a picture) and any the person adds here from the camera or their photos. Added ones are only for this message:
+   nothing is saved. The share sheet takes the photos on their own: given words as well, an iPhone keeps the words and
+   drops the photos (WebKit bug 251500). So the words are copied first, with their own tap, for pasting in as the
+   caption: Safari lets the share sheet open only from a fresh tap, and sharing uses that tap up. */
+const SEND_MAX = 10;
+let sndGen = 0;
+// The photos as files for the share sheet, made ready as they change: it has to open straight from the tap.
+async function sndFiles() {
+  const s = snd, n = ++sndGen; s.files = null;
+  try {
+    const fs = await Promise.all(s.photos.map(async (x, i) => { const b = await photoBlob(x); return new File([b], `${x.file || `photo-${i + 1}`}.${b.type === "image/png" ? "png" : "jpg"}`, { type: b.type || "image/jpeg" }); }));
+    if (n === sndGen && snd === s) s.files = fs;
+  } catch { if (n === sndGen && snd === s) { s.files = []; toast("The photos couldn't be got ready, so only the words will go"); } }
+}
+// Words that fit a width, a line at a time.
+function fitLines(g, text, w) {
+  const out = [];
+  for (const word of text.split(/\s+/)) { const l = out.length ? `${out[out.length - 1]} ${word}` : word; if (out.length && g.measureText(l).width <= w) out[out.length - 1] = l; else out.push(word); }
+  return out;
+}
+// A photo with a note carries it in a strip along the bottom, so it still says what it shows in WhatsApp.
+async function photoBlob(x) {
+  if (!x.note) return (await fetch(x.data)).blob();
+  const img = new Image(); img.src = x.data; await img.decode();
+  const w = img.naturalWidth, h = img.naturalHeight, fs = Math.max(18, Math.round(w / 26)), pad = Math.round(fs * 0.75);
+  const c = document.createElement("canvas"), g = c.getContext("2d"), font = `600 ${fs}px -apple-system, system-ui, "Segoe UI", Roboto, sans-serif`;
+  g.font = font;
+  const ls = fitLines(g, x.note, w - pad * 2).slice(0, 3), band = Math.round(ls.length * fs * 1.3 + pad * 1.5);
+  c.width = w; c.height = h + band;
+  g.drawImage(img, 0, 0); g.fillStyle = "#111"; g.fillRect(0, h, w, band);
+  g.font = font; g.fillStyle = "#fff"; g.textBaseline = "top";
+  ls.forEach((l, i) => g.fillText(l, pad, h + pad * 0.75 + i * fs * 1.3));
+  return new Promise((ok, no) => c.toBlob((b) => (b ? ok(b) : no(new Error("No picture"))), "image/jpeg", 0.85));
+}
 function renderSend(m = sndMsg()) {
   const box = $("#send"); if (!box || !m) return;
-  const ph = snd.photos.length, files = ph && snd.withPhotos && canFiles(), c = m.choose;
-  box.innerHTML = `<h2 id="sh-name" style="margin-top:12px">${esc(m.what)}</h2>
+  const ph = snd.photos.length, files = ph && canFiles(), c = m.choose;
+  box.innerHTML = `<h2 id="sh-name" style="margin-top:12px"${snd.k === "drink" ? ' translate="no"' : ""}>${esc(m.what)}</h2>
     ${c ? `<div class="mini">${esc(c.label)}</div><div class="recent">${c.opts.map(([v, t]) => `<button class="chip" data-send-opt="${esc(v)}" aria-pressed="${v === c.v}">${esc(t)}</button>`).join("")}</div>` : ""}
     ${m.head.length ? `<div class="sendsum" translate="no">${m.head.map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
-    ${m.parts.length || ph ? `<div class="sec">What goes in</div>` : ""}
+    ${m.parts.length ? `<div class="sec">What goes in</div>` : ""}
     ${m.parts.filter((x) => x.lines.length || !x.opt).map((x) => `<label class="check sendpart"><input type="checkbox" data-send-part="${x.id}"${snd.pick.has(x.id) && x.lines.length ? " checked" : ""}${x.lines.length ? "" : " disabled"}><span>${esc(x.label)}</span><span class="s">${!x.lines.length ? "Nothing" : x.one ? "" : partItems(x)}</span></label>`).join("")}
-    ${ph ? `<label class="check sendpart"><input type="checkbox" data-send-photos${snd.withPhotos ? " checked" : ""}><span>Photos</span><span class="s">${ph}</span></label>
-      <div class="sendph">${snd.photos.map((x) => `<img src="${x.data}" alt="${esc(x.note || "Photo")}">`).join("")}</div>` : ""}
+    <div class="sec">Photos${ph ? ` (${ph})` : ""}</div>
+    ${ph ? `<div class="sendph">${snd.photos.map((x, i) => `<figure><img src="${x.data}" alt="${esc(x.note || `Photo ${i + 1}`)}"><button class="phx" data-send-unphoto="${i}" aria-label="Take photo ${i + 1} out">×</button></figure>`).join("")}</div>` : ""}
+    ${ph < SEND_MAX ? `<label class="btn" for="send-in" style="cursor:pointer;margin-top:8px">${snd.busy ? "Adding…" : ph ? "Add another photo" : "Add a photo"}</label>` : `<p class="note">${SEND_MAX} photos is the most.</p>`}
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
-    <div class="actions"><a class="btn pri" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share ? `<button class="btn" data-send-sheet>${files ? "Send with photos" : "Other apps…"}</button>` : ""}<button class="btn" data-send-copy>Copy</button><button class="btn" data-send-print>Print</button></div>
-    ${ph ? `<p class="note">${files ? "WhatsApp and Email take the words. For the photos too, tap Send with photos and pick WhatsApp. The words are copied as well: paste them in if they don't show." : "WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF."}</p>` : ""}
+    ${files ? `<div class="actions"><button class="btn" data-send-copy>Copy the words</button><button class="btn pri" data-send-sheet>Send with photos</button></div>
+      <ol class="sendhow"><li>Tap Copy the words, then Send with photos.</li><li>Pick WhatsApp, then the chat.</li><li>Press and hold the caption box, tap Paste, then send.</li></ol>` : ""}
+    <div class="actions"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-print>Print</button></div>
+    ${ph && !files ? `<p class="note">WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF.</p>` : ""}
     ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
     <p class="note">It goes in English, so everyone can read it.</p>
     <div class="sec">How it will look</div>
@@ -854,7 +918,7 @@ function printMsg(text, photos) {
   window.print();
 }
 document.addEventListener("click", (e) => {
-  const o = e.target.closest("[data-send]"); if (o) { haptic(); openSend(o.dataset.send, o.dataset.sendO); return; }
+  const o = e.target.closest("[data-send]"); if (o) { haptic(); openSend(o.dataset.send, o.dataset.sendO, o.dataset.sendNote); return; }
   if (!snd || !e.target.closest("#send")) return;
   const op = e.target.closest("[data-send-opt]");
   if (op) { snd.opt = op.dataset.sendOpt; const m = sndMsg(); if (m) { snd.pick = pickOf(m); renderSend(m); } return; }
@@ -867,22 +931,37 @@ document.addEventListener("click", (e) => {
     return;
   }
   const text = msgText(m, snd.pick, snd.note);
-  if (e.target.closest("[data-send-copy]")) { navigator.clipboard?.writeText(text).then(() => toast("Copied. Paste it anywhere"), () => toast("Couldn't copy. Press and hold the message to copy it")); return; }
-  if (e.target.closest("[data-send-sheet]")) {
-    const files = snd.withPhotos && snd.files?.length && navigator.canShare?.({ files: snd.files }) ? snd.files : null;
-    if (files) navigator.clipboard?.writeText(text).catch(() => {});
-    navigator.share(files ? { title: m.title, text, files } : { title: m.title, text }).catch(() => {});
+  if (e.target.closest("[data-send-copy]")) {
+    const next = snd.photos.length && canFiles() ? "Copied. Now tap Send with photos" : "Copied. Paste it anywhere";
+    navigator.clipboard?.writeText(text).then(() => toast(next), () => toast("Couldn't copy. Press and hold the message to copy it"));
     return;
   }
-  if (e.target.closest("[data-send-print]")) printMsg(msgText(m, snd.pick, snd.note, false), snd.withPhotos ? snd.photos : []);
+  if (e.target.closest("[data-send-sheet]")) {
+    if (snd.photos.length && !snd.files) return toast("Getting the photos ready. Tap again in a moment");
+    const files = snd.files?.length && navigator.canShare?.({ files: snd.files }) ? snd.files : null;
+    navigator.share(files ? { files } : { title: m.title, text }).catch(() => {});
+    return;
+  }
+  const ux = e.target.closest("[data-send-unphoto]");
+  if (ux) { snd.photos.splice(+ux.dataset.sendUnphoto, 1); sndFiles(); renderSend(m); return; }
+  if (e.target.closest("[data-send-print]")) printMsg(msgText(m, snd.pick, snd.note, false), snd.photos);
 });
 document.addEventListener("change", (e) => {
   if (!snd) return;
   const x = e.target.closest("[data-send-part]");
   if (x) { if (x.checked) snd.pick.add(x.dataset.sendPart); else snd.pick.delete(x.dataset.sendPart); sendPreview(); }
-  else if (e.target.matches("[data-send-photos]")) { snd.withPhotos = e.target.checked; renderSend(); }
 });
 document.addEventListener("input", (e) => { if (snd && e.target.id === "send-note") { snd.note = e.target.value; sendPreview(); } });
+$("#send-in").addEventListener("change", async (e) => {
+  const fs = [...e.target.files], s = snd; e.target.value = "";
+  if (!s || !fs.length) return;
+  s.busy = true; renderSend();
+  for (const f of fs) {
+    if (s.photos.length >= SEND_MAX) { toast(`${SEND_MAX} photos is the most`); break; }
+    try { const data = await shrink(f); if (snd !== s) return; s.photos.push({ data, note: "" }); } catch { toast("That photo couldn't be read. Try another"); }
+  }
+  s.busy = false; if (snd === s) { sndFiles(); renderSend(); }
+});
 // Lines the messages share.
 const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
 const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}: ${lower(RS[r.status])}${r.who ? ` (${r.who})` : ""}${rsLate(r) ? `, ${lower(rsLateText(r))}` : ""}`;
@@ -915,7 +994,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], status: [], blocks: [], blockHist: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, contacts: [], refusals: [], certs: [], off: new Set(store.get("off", [])), offBy: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], handovers: [], nights: [], status: [], blocks: [], blockHist: [], briefing: null, briefReads: [], guests: [], comp: null, hoq: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [], training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], onboard: [], onboardList: null, off: new Set(store.get("off", [])), offBy: null };
 // Features the owner has switched off for this venue (the Features page). A phone keeps the last list it saw, so they
 // stay hidden while it connects and when nobody is logged in.
 const isOn = (k) => !LIVE.off.has(k);
@@ -982,10 +1061,22 @@ function specRow(line) {
   const [q, rest] = m ? [m[1], m[2]] : ["", line];
   return `<li><span class="q">${esc(scaleQ(q))}</span><span>${esc(rest)}</span></li>`;
 }
+// The method a step a line, as on the drink.
+const methodLines = (method) => method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i)
+  .map((s) => s.replace(/\.$/, "").trim()).filter(Boolean).map((s) => s[0].toUpperCase() + s.slice(1));
+SHARE.drink = (id) => {
+  const d = D[+id]; if (!d) return null;
+  const m = mediaOf(d), al = d.allergens && d.allergens !== "None" ? d.allergens : "";
+  return { what: d.name, title: `${d.name} · Black Tap Soho`,
+    head: [`Glass: ${d.glass}`, `Ice: ${d.ice}`, `Garnish: ${d.garnish}`, ...(al ? [`Allergens: ${al}`] : [])],
+    parts: [{ id: "spec", label: "Spec", lines: d.spec }, { id: "method", label: "Method", lines: methodLines(d.method) },
+      { id: "subs", label: "Out of something?", one: true, lines: d.subs ? [d.subs.join(" ")] : [], off: true, opt: true }],
+    photos: m?.photo ? async () => [{ data: m.photo, note: d.name, file: d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") }] : null,
+    tip: "Jigger everything. 12.5 ml is half a 25 ml jigger." };
+};
 function steps(method) {
-  const parts = method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i).map((s) => s.replace(/\.$/, "").trim()).filter(Boolean);
-  const cap = (s) => s[0].toUpperCase() + s.slice(1);
-  return parts.length > 1 ? `<ol class="steps" translate="no">${parts.map((p) => `<li>${esc(cap(p))}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0" translate="no">${esc(method)}</p>`;
+  const parts = methodLines(method);
+  return parts.length > 1 ? `<ol class="steps" translate="no">${parts.map((p) => `<li>${esc(p)}</li>`).join("")}</ol>` : `<p style="font-size:18px;margin:0" translate="no">${esc(method)}</p>`;
 }
 function guideHtml(g, nextName) {
   const chip = (i) => `<li><b>${i.ml != null ? `${i.ml} ml` : ""}</b><span>${esc(i.item)}${i.hint || i.note ? `<em>${esc([i.hint, i.note].filter(Boolean).join(", "))}</em>` : ""}</span></li>`;
@@ -1087,6 +1178,7 @@ function openSheet(id, keepScroll) {
     <div id="dmedit">${mediaEditHtml(d)}</div>
     ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
+    <div class="actions">${sendBtn("drink", "Send this drink", String(id))}</div>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
   if (LIVE.me) LIVE.api?.watchMedia(d.name);
@@ -1140,7 +1232,7 @@ function renderMedia() {
   $("#dmedia").innerHTML = mediaHtml(d);
   if (document.activeElement?.id !== "dm-video") $("#dmedit").innerHTML = mediaEditHtml(d);
 }
-$("#sheet").addEventListener("toggle", (e) => { if (e.target.id === "dm-box") dmOpen = e.target.open; }, true);
+keepOpen($("#sheet"), (e) => { if (e.target.id === "dm-box") dmOpen = e.target.open; });
 // What's saved goes with what's there already, so this drink's record has to have loaded first. The drink is passed
 // in, so a photo still shrinking when someone swipes to the next drink can't land on that one.
 function saveMedia(d, photo, video, ok) {
@@ -1178,6 +1270,7 @@ function hideSheet() {
   LIVE.api?.watchMedia(null);
 }
 $("#sheet").addEventListener("click", (e) => {
+  if (e.target.closest("#sh-close") && snd?.drink != null) { const id = snd.drink; snd = null; openSheet(id, true); $("#sheet").scrollTop = 0; return; }
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
   const op = e.target.closest("[data-open]"); if (op) { mult = 1; openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
   const gb = e.target.closest("[data-go]"); if (gb) { slideTo(+gb.dataset.go); return; }
@@ -2063,7 +2156,7 @@ function renderTally() {
       <div class="fld">Closing manager<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${m === closer}">${esc(m)}</button>`).join("") || `<span class="note">No managers on the team yet.</span>`}</div></div>
       <label class="fld">Note for handover<textarea id="s-note" rows="3" maxlength="1000" placeholder="Anything running low, ordered, broken or left for the morning">${esc(shiftNote)}</textarea></label>
       <button class="btn pri wide" id="t-copy">${left ? `Send with ${left} not done` : "Send to managers for sign-off"}</button>
-      <div class="actions">${sendBtn("shift", "Send everything on WhatsApp or email")}</div>
+      <div class="actions">${sendBtn("shift", "Send everything on WhatsApp or email")}</div>${puHtml()}
       <details class="setup"><summary>Preview the report</summary><textarea class="copybox" id="t-text" readonly aria-label="Shift report">${esc(tallyText())}</textarea></details>
       <p class="note">The note and closing manager start empty again at 6am.</p>`;
     },
@@ -2106,7 +2199,7 @@ $("#tally").addEventListener("change", async (e) => {
   if (t.id !== "s-86" || !t.value) return;
   const n = t.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
 });
-$("#tally").addEventListener("toggle", (e) => { if (e.target.id === "lb-add") lbF.open = e.target.open; }, true);
+keepOpen($("#tally"), (e) => { if (e.target.id === "lb-add") lbF.open = e.target.open; });
 $("#tally").addEventListener("input", (e) => {
   if (le && e.target.dataset.leT != null) { le.items[+e.target.dataset.leT].t = e.target.value; return; }
   if (e.target.id === "rs-other") { rsF.other = e.target.value; return; }
@@ -2224,7 +2317,7 @@ function renderFootball() {
     ${form}</div>`;
 }
 $("#football").addEventListener("input", (e) => { const k = e.target.dataset.fx; if (k) fxForm[k] = e.target.value; });
-$("#football").addEventListener("toggle", (e) => { if (e.target.id === "fx-add") fxForm.open = e.target.open; }, true);
+keepOpen($("#football"), (e) => { if (e.target.id === "fx-add") fxForm.open = e.target.open; });
 $("#football").addEventListener("click", (e) => {
   const d = e.target.closest("[data-fx-drop]");
   if (d) { if (confirm("Take this game down?")) track(LIVE.api.dropFixture(d.dataset.fxDrop), "Taken down", "Not taken down. Try again"); return; }
@@ -2697,10 +2790,17 @@ const FEATURES = [
   { g: "Team", k: "chat", n: "Chat", go: "chat", login: 1, sw: 1, tour: 1,
     what: "Messages to the whole team, one person or a group. Ping someone with @.",
     staff: "Message anyone on the team." },
+  { g: "Team", k: "shouts", n: "Shout-outs", go: "shouts", login: 1, sw: 1,
+    what: "Thanking someone in front of the whole team for something they did.",
+    staff: "Give anyone a shout-out. Everyone sees it, and the person thanked gets a pop-up.", mgr: "Take one down, and send one on WhatsApp." },
+  { g: "Team", k: "pulse", n: "How was your shift?", go: "pulse", login: 1, sw: 1,
+    what: "One tap at the end of each shift, from rough to great, and a few words if you like. Only managers see the answers.",
+    staff: "Answer on the Team page or where you send the shift report, from an hour before your shift ends.",
+    mgr: "See each night's score, who has had a run of bad shifts and what people said, and send the last 7 nights without names." },
   { g: "Team", k: "rota", n: "Rota", go: "rota", login: 1, sw: 1, tour: 1,
-    what: "The week's shifts once a manager publishes them, with open shifts, offers and cover.",
-    staff: "See your shifts, put your hand up for an open one, take or turn down an offer, or say you can't make one.",
-    mgr: "Build a week as a draft on a grid of people and days, one tap a shift. Then publish it, give shifts to people, copy last week, and download or share it." },
+    what: "The week's shifts once a manager publishes them, with open shifts, offers and cover, and when each person can work.",
+    staff: "See your shifts, put your hand up for an open one, take or turn down an offer, say you can't make one, and say when you can work each week.",
+    mgr: "Build a week as a draft on a grid of people and days, one tap a shift, with who can't work which day. Then publish it, give shifts to people, copy last week, and download or share it." },
   { g: "Team", k: "calendar", n: "Calendar", go: "cal", login: 1, sw: 1, tour: 1,
     what: "The next 7 days and a month at a time: bank holidays, school holidays, faith days, big games, London events, the nights that change how busy we are and the games on our screens, with your shifts and time off.",
     staff: "See the week ahead at a glance. Tap a day to see what's on it, and ask for time off from there.",
@@ -2749,6 +2849,9 @@ const FEATURES = [
     staff: "See your own.", mgr: "Add and change them. Anything running out in the next 30 days shows under For you." },
   { g: "Managers", k: "out", n: "86 log", go: "out", login: 1, admin: 1,
     what: "Every 86 and back in stock, and what runs out most.", mgr: "Read the last 100 changes." },
+  { g: "Managers", k: "onboard", n: "New starters", go: "myob", mgrGo: "onboard", login: 1, sw: 1,
+    what: "A checklist for each new person's first weeks: what the law needs on day one, safety, allergens, Challenge 25, the cellar and the till, each ticked off with the day and who did it.",
+    staff: "See yours in My first weeks while you're new.", mgr: "Start one for someone new, tick things off, change the checklist, and send someone's on." },
   { g: "Managers", k: "training", n: "Training", go: "tab:practice", mgrGo: "training", login: 1, sw: 1, tour: "mgr",
     what: "Signing people off drink by drink once they've made it to spec in front of a manager.",
     staff: "See your sign-offs in Practise.", mgr: "Sign someone off or undo it, and download every sign-off." },
@@ -2869,11 +2972,13 @@ const ms = (t) => (t ? t.toMillis() : Date.now());
 const when = (t) => `<b class="dt">${stamp(new Date(ms(t)))}</b>`;
 let feedSeen = store.get("feedSeen", 0);
 const isNew = (x) => x.uid !== LIVE.uid && ms(x.at) > feedSeen;
-const feedNew = () => [...LIVE.notices, ...LIVE.reports].filter(isNew);
+// Shout-outs to this person count as new too.
+const shToMe = () => (isOn("shouts") ? LIVE.shouts.filter((x) => x.to === LIVE.uid) : []);
+const feedNew = () => [...LIVE.notices, ...LIVE.reports, ...shToMe()].filter(isNew);
 // Random 6-digit PINs for new people and resets.
 const newPin = () => [...crypto.getRandomValues(new Uint32Array(6))].map((x) => x % 10).join("");
 let staffMsg = "";
-const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#status", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#guests", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#nights", "#act", "#kpis", "#money", "#outlog", "#mtrain", "#mgr", "#fb", "#me", "#call", "#refusals", "#certs"];
+const SLOTS = ["#team", "#placebar", "#foryou", "#dash", "#hub", "#brief", "#status", "#chat", "#pins", "#pin-form", "#concerns", "#issues", "#guests", "#rota", "#requests", "#feed", "#reports", "#sact", "#live", "#mclose", "#nights", "#act", "#kpis", "#money", "#outlog", "#mtrain", "#mgr", "#fb", "#me", "#call", "#refusals", "#certs", "#pulse", "#avail", "#shouts", "#pulses", "#onboard", "#myob"];
 function renderTeamTop() {
   $("#team-lead").textContent = LIVE.api ? "What needs you, tonight at a glance, and everything for the team." : "Messages from the manager and bar lead. Newest first.";
   SLOTS.forEach((s) => ($(s).innerHTML = ""));
@@ -2930,7 +3035,7 @@ function renderTeamTop() {
         <button class="btn wide" id="tt-add">Add test person</button>
         <div id="tests"></div></details>
       ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
-  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderNights(); renderStatus(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub(); renderSendHub(); renderCall(); renderRefusals(); renderCerts();
+  renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderNights(); renderStatus(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub(); renderSendHub(); renderCall(); renderRefusals(); renderCerts(); renderAvail(); renderShouts(); renderPulse(); renderPulses(); renderOnboard();
 }
 /* The Team page, which the bell opens: what's new and what needs you, tonight at a glance, then a card for each part of
    the team side of the app, in the Features page's groups and names. Each part opens on a page of its own, with Back to
@@ -2992,6 +3097,8 @@ const PLACES = [
     cnt: () => (!isOn("rota") ? 0 : LIVE.admin ? roToFill().length : roOffers().length), hot: () => isOn("rota") && LIVE.admin && roToFill().some((x) => x.day <= addDays(shiftDay(), 1)) },
   { g: "Everyone", k: "me", c: "rota", n: () => "My requests", slots: ["#me"],
     sub: () => { const n = LIVE.asks.filter((a) => a.uid === LIVE.uid && waiting(a) && askOn(a)).length; return n ? `${plural(n, "request")} waiting for an answer` : isOn("asks") ? "Running late, time off and swaps" : "Running late"; } },
+  { g: "Everyone", k: "avail", c: "rota", n: () => (LIVE.admin ? "Availability" : "My availability"), on: () => isOn("rota"), slots: ["#avail"],
+    sub: () => (LIVE.admin ? `${avSaid().length} of ${LIVE.staff.length} have said when they can work` : avOf(LIVE.uid) ? "Saved. Change it when your week changes" : "When you can work each week, for the rota") },
   { g: "Everyone", k: "chat", c: "talk", n: () => "Chat", on: () => isOn("chat"), slots: ["#chat"],
     sub: () => { const u = unreadChats(); return u.length ? `New in ${u.map(chatName).join(", ")}` : "The team, one person or a group"; }, cnt: () => unreadChats().length },
   { g: "Everyone", k: "send", c: "talk", n: () => "WhatsApp and email", slots: ["#sendhub"], sub: () => "Running late, off sick, cover, the rota and more, ready to send" },
@@ -2999,6 +3106,8 @@ const PLACES = [
     sub: () => { const n = LIVE.notices.filter(forMe).length; return `${n ? `${n} up now` : "None up now"}${LIVE.admin ? ". Send one" : ""}`; } },
   { g: "Everyone", k: "concerns", c: "talk", n: () => "Concerns", slots: ["#concerns"],
     sub: () => (openConcerns().length ? `${openConcerns().length} open` : "Nothing open"), cnt: () => openConcerns().length, hot: () => openConcerns().some((x) => x.reason === "hazard") },
+  { g: "Everyone", k: "shouts", c: "talk", n: () => "Shout-outs", on: () => isOn("shouts"), slots: ["#shouts"],
+    sub: () => { const x = LIVE.shouts[0]; return x ? `Latest: ${x.name} to ${x.toName}` : "Thank someone in front of the team"; }, cnt: () => shNew().length },
   { g: "Everyone", k: "reports", c: "history", n: () => "Reports", slots: ["#reports"],
     sub: () => (LIVE.admin && toSign() ? `${plural(toSign(), "report")} to sign off` : "Every shift report, night by night"), cnt: () => (LIVE.admin ? toSign() + openInc() : 0), hot: () => openInc() > 0 },
   { g: "Everyone", k: "activity", c: "history", n: () => "Activity", staff: 1, slots: ["#sact"], sub: () => "What the team has done" },
@@ -3008,6 +3117,8 @@ const PLACES = [
   { g: "Everyone", k: "certs", c: "law", n: () => (LIVE.admin ? "Certificates" : "My certificates"), on: () => isOn("certs"), slots: ["#certs"],
     sub: () => (LIVE.admin ? (ctDue().length ? `Due in the next 30 days: ${ctDue().length}` : "Licences, training and right to work") : "Licences and training, kept by your manager"),
     cnt: () => ctDue().length, hot: () => ctDue().some((c) => ctLeft(c) < 0) },
+  { g: "Everyone", k: "myob", c: "people", n: () => "My first weeks", staff: 1, on: () => isOn("onboard") && !!obMine(), slots: ["#myob"],
+    sub: () => `${obDone(obMine())} of ${obList().length} done` },
   { g: "Managers", k: "live", c: "run", n: () => "Live", admin: 1, slots: ["#live"],
     sub: () => (needsYou().length ? `${needsYou().length} need${needsYou().length === 1 ? "s" : ""} you now` : "Tonight as it happens"), cnt: () => needsYou().length, hot: () => needsYou().length > 0 },
   { g: "Managers", k: "handover", c: "run", n: () => "Close and handover", admin: 1, on: () => isOn("handover"), slots: ["#mclose"],
@@ -3021,7 +3132,11 @@ const PLACES = [
   { g: "Managers", k: "money", c: "numbers", n: () => "Money sandbox", admin: 1, slots: ["#money"], sub: () => "Sales, GP, labour and rent, with made-up numbers" },
   { g: "Managers", k: "out", c: "numbers", n: () => "86 log", admin: 1, slots: ["#outlog"], sub: () => (LIVE.out.size ? `${LIVE.out.size} 86'd now` : "Every 86 and back in stock") },
   { g: "Managers", k: "team", c: "people", n: () => "Team logins", admin: 1, slots: ["#mgr"], sub: () => `${plural(LIVE.staff.length, "person", "people")}` },
+  { g: "Managers", k: "onboard", c: "people", n: () => "New starters", admin: 1, on: () => isOn("onboard"), slots: ["#onboard"],
+    sub: () => { const n = obActive().length; return n ? `${plural(n, "person", "people")} in their first weeks` : "A checklist for each new person's first weeks"; } },
   { g: "Managers", k: "training", c: "people", n: () => "Training", admin: 1, on: () => isOn("training"), slots: ["#mtrain"], sub: () => "Sign-offs, drink by drink" },
+  { g: "Managers", k: "pulse", c: "people", n: () => "Shift feedback", admin: 1, on: () => isOn("pulse"), slots: ["#pulses"],
+    sub: () => { const xs = puLast(7); return xs.length ? `Last 7 nights: ${puAvg(xs)} out of 5` : "How each shift went, as the team says"; }, cnt: () => puBad().length },
   { g: "Managers", k: "feedback", c: "people", n: () => "Manager feedback", admin: 1, on: () => isOn("feedback"), slots: ["#fb"], sub: () => "Anonymous, between managers" },
   { g: "Managers", k: "act", c: "people", n: () => "Activity", admin: 1, slots: ["#act"], sub: () => "Everything done in the app" },
 ];
@@ -3048,6 +3163,8 @@ function forYou() {
     if (openInc()) add(`${plural(openInc(), "open incident")}`, "incidents", "Close each one with what was done", true);
     if (toAnswer()) add(`${plural(toAnswer(), "request")} to answer`, "requests", [...new Set(LIVE.asks.filter((a) => waiting(a) && askOn(a)).map((a) => a.name))].join(", "));
     if (toSign()) add(`${plural(toSign(), "report")} to sign off`, "reports");
+    const bad = puBad();
+    if (bad.length) add(`${plural(bad.length, "person", "people")} had a bad shift`, "pulse", bad.map((x) => `${x.name}${x.note ? `: ${x.note}` : ""}`).join(". "));
     const due = ctDue();
     if (due.length) add(`${plural(due.length, "certificate")} due`, "certs", due.slice(0, 3).map((c) => `${c.whoName}: ${ctName(c)}`).join(", "), due.some((c) => ctLeft(c) < 0));
     const fill = isOn("rota") ? roToFill() : [];
@@ -3057,6 +3174,7 @@ function forYou() {
   for (const x of isOn("rota") ? roOffers() : []) add(`${x.name} offered you a shift`, `rota:${x.week}`, `${roWhen(x)}, ${sideName(x.side)}`);
   for (const x of openIssues().filter((i) => i.status === "taken" && i.whoUid === LIVE.uid)) add(x.setByUid === LIVE.uid ? `You're on: ${x.title}` : `${x.setBy} gave you: ${x.title}`, "issues", "Mark it fixed when it's done");
   for (const c of unreadChats()) add(`New in ${chatName(c)}`, `chat:${c.id}`, pinged(c) ? "You were pinged" : "");
+  for (const x of shNew()) add(`${x.name} gave you a shout-out`, "shouts", x.text);
   const reps = LIVE.reports.filter((r) => r.uid !== LIVE.uid && ms(r.at) > hubSince);
   if (reps.length && !LIVE.admin) add(`${plural(reps.length, "new report")}`, "reports", reps.map((r) => `${sideName(r.side)}, from ${r.name}`).join(". "));
   return xs;
@@ -3068,11 +3186,11 @@ function renderForYou() {
 }
 function renderHub() {
   const ps = placesOn(), all = PLACES.flatMap((p) => p.slots);
-  if (!LIVE.me) { tpane = ""; ["#placebar", "#foryou", "#hub"].forEach((x) => ($(x).innerHTML = "")); $("#hubtop").hidden = false; all.forEach((x) => ($(x).hidden = false)); return; }
+  if (!LIVE.me) { tpane = ""; ["#placebar", "#foryou", "#pulse", "#hub"].forEach((x) => ($(x).innerHTML = "")); $("#hubtop").hidden = false; all.forEach((x) => ($(x).hidden = false)); return; }
   const p = ps.find((x) => x.k === tpane);
   if (!p) tpane = "";
   $("#hubtop").hidden = !!p;
-  ["#team", "#foryou", "#dash", "#hub"].forEach((x) => ($(x).hidden = !!p));
+  ["#team", "#foryou", "#pulse", "#dash", "#hub"].forEach((x) => ($(x).hidden = !!p));
   $("#placebar").hidden = !p;
   for (const q of PLACES) q.slots.forEach((x) => ($(x).hidden = q !== p));
   if (p) {
@@ -3084,7 +3202,7 @@ function renderHub() {
     if (p.k === "send") renderSendHub();
     return;
   }
-  renderForYou();
+  renderForYou(); renderPulse();
   const card = (q) => {
     const n = q.cnt?.() || 0, hot = n > 0 && !!q.hot?.();
     return `<button class="place${hot ? " hot" : ""}" data-tpane="${q.k}"><span><b>${q.n()}</b><small>${esc(q.sub())}</small></span>${n ? `<span class="pc" aria-label="${n} waiting">${n > 99 ? "99+" : n}</span>` : ""}</button>`;
@@ -3094,7 +3212,7 @@ function renderHub() {
     const xs = ps.filter((q) => q.g === g && q.c === c); if (!xs.length) return "";
     const n = xs.reduce((a, q) => a + (q.cnt?.() || 0), 0), hot = xs.some((q) => (q.cnt?.() || 0) > 0 && q.hot?.());
     const open = n > 0 || !catOpen || catOpen.includes(c);
-    return `<details class="cat${hot ? " hot" : ""}" data-cat="${c}"${open ? " open" : ""}><summary><span><b>${t}</b><small>${xs.map((q) => q.n()).join(" · ")}</small></span>${n ? `<span class="pc" aria-label="${n} waiting">${n > 99 ? "99+" : n}</span>` : ""}</summary>
+    return `<details class="cat${hot ? " hot" : ""}" data-cat="${c}"${open ? " open" : ""}><summary><span><b>${t}</b><small>${xs.map((q) => `<span>${q.n()}</span>`).join(" · ")}</small></span>${n ? `<span class="pc" aria-label="${n} waiting">${n > 99 ? "99+" : n}</span>` : ""}</summary>
       <div class="places">${xs.map(card).join("")}</div></details>`;
   };
   $("#hub").innerHTML = [...new Set(ps.map((q) => q.g))].map((g) => `${LIVE.admin ? `<div class="sec">${g}</div>` : ""}<div data-g="${g}">${HUB_CATS.map(cat(g)).join("")}</div>`).join("");
@@ -3435,6 +3553,7 @@ function roClash(uid, s, id) {
   const off = offOn(s.day).find((o) => o.uid === uid);
   if (other) return `is on ${roWhen(other)} too`;
   if (off) return off.status === "approved" ? `is off on ${dayName(s.day)}` : `has asked for ${dayName(s.day)} off`;
+  const av = avClash(uid, s); if (av) return av;
   // Adults are entitled to 11 hours off between working days (gov.uk, rest breaks at work).
   const [near, gap] = mine.map((x) => [x, roSpan(x)[1] <= a ? a - roSpan(x)[1] : roSpan(x)[0] - b]).filter(([, g]) => g >= 0 && g < 660).sort((p, q) => p[1] - q[1])[0] || [];
   return near ? `would have only ${hrs(gap)} off ${roSpan(near)[1] <= a ? "after" : "before"} ${roWhen(near)} (the law gives adults 11 h between shifts)` : "";
@@ -3595,15 +3714,17 @@ function roGridHtml(wk, xs, pub) {
     <div class="two even">${roTimeFields("rof", f)}</div>${roSideField("rof", f)}
     <p class="note">Tap a day in someone's row to put them on${pub ? ". The week is published, so it's on their rota straight away" : ""}. Tap a draft again to take it off. A published shift opens below, to change or remove.</p>
     <div class="rgrid">${head}${rows}</div>
-    <p class="note rgkey">${Object.entries(SIDE_NAME).map(([k, t]) => `<span class="${k}">${t}</span>`).join("")}Drafts have a dashed edge.${days.some((d) => roCover(d, xs)) ? " A day marked ! has nobody on with a personal licence or first aid: it says which under the day below." : ""}</p>`;
+    <p class="note rgkey">${Object.entries(SIDE_NAME).map(([k, t]) => `<span class="${k}">${t}</span>`).join("")}Drafts have a dashed edge.${LIVE.avail.length ? " Can't, or two grey times: what someone has said they can work." : ""}${days.some((d) => roCover(d, xs)) ? " A day marked ! has nobody on with a personal licence or first aid: it says which under the day below." : ""}</p>`;
 }
 // One person's day on the grid: each shift's start and end, or their time off.
 function roCell(p, d, xs) {
   const on = xs.filter((x) => x.who === p.uid && x.day === d).sort(roOrder), off = offOn(d).find((a) => a.uid === p.uid);
-  const said = on.length ? on.map((x) => `${roTime(x)}, ${sideName(x.side)}${x.pub ? "" : ", a draft"}`).join("; ") : off ? (off.status === "approved" ? "off" : "has asked for the day off") : "not on";
-  const cls = ["rg-c", on.length && "on", on.some((x) => !x.pub) && "draft", on.length && off && "clash"].filter(Boolean).join(" ");
+  const av = avOf(p.uid)?.days?.[avIdx(d)] || "", win = av && av !== "no" ? av.split("-") : null;
+  const said = on.length ? on.map((x) => `${roTime(x)}, ${sideName(x.side)}${x.pub ? "" : ", a draft"}`).join("; ") : off ? (off.status === "approved" ? "off" : "has asked for the day off")
+    : av === "no" ? "has said they can't work that day" : win ? `can only work ${avText(av)}` : "not on";
+  const cls = ["rg-c", on.length && "on", on.some((x) => !x.pub) && "draft", on.length && (off || avClash(p.uid, on[0])) && "clash", !on.length && !off && av === "no" && "cant"].filter(Boolean).join(" ");
   return `<button class="${cls}" data-ro-cell="${p.uid}|${d}" aria-label="${esc(`${p.name}, ${dayName(d, { weekday: "long", day: "numeric", month: "short" })}: ${said}`)}">${on.map((x) => `<span class="${x.side}"><b>${x.start}</b><b>${x.end}</b></span>`).join("")
-    || (off ? `<i>${off.status === "approved" ? "Off" : "Asked off"}</i>` : `<i aria-hidden="true">+</i>`)}</button>`;
+    || (off ? `<i>${off.status === "approved" ? "Off" : "Asked off"}</i>` : av === "no" ? `<i>Can't</i>` : win ? `<i>${win[0]}</i><i>${win[1]}</i>` : `<i aria-hidden="true">+</i>`)}</button>`;
 }
 // A tap on the grid. Nobody on: put them on at the times and side picked, warned of a clash. A draft: take it off (it's
 // only ever been the managers'). A published shift: open it below, where it's changed or removed with its history.
@@ -3665,7 +3786,7 @@ function roPublish() {
   const wk = roWeek(), xs = weekShifts(wk).filter((x) => !x.pub);
   if (!xs.length) return;
   const clashes = xs.filter((x) => x.who && roClash(x.who, x, x.id)).length;
-  if (!confirm(`Publish ${nShifts(xs.length)} for the week of ${dayName(wk)}? Everyone can see the week then, and each change after that is saved with who made it.${clashes ? ` ${clashes} of them clash with time off, another shift or the 11 hours between shifts, as marked on the rota.` : ""}`)) return;
+  if (!confirm(`Publish ${nShifts(xs.length)} for the week of ${dayName(wk)}? Everyone can see the week then, and each change after that is saved with who made it.${clashes ? ` ${clashes} of them clash with time off, availability, another shift or the 11 hours between shifts, as marked on the rota.` : ""}`)) return;
   track(LIVE.api.publish(xs), `Published. Everyone can see the week of ${dayName(wk)}`, "Not all of it was published. Check your signal and publish again");
   haptic();
 }
@@ -3763,8 +3884,51 @@ SHARE.rota = (o = "day") => {
       o === "person"
         ? { id: "people", label: "Who's on", one: true, lines: ppl.flatMap((n) => [n, ...xs.filter((x) => x.whoName === n).map((x) => subLine(`${dayName(x.day)} ${roTime(x)} (${sideName(x.side)})${x.note ? `, ${x.note}` : ""}${x.pub ? "" : " [draft]"}`))]) }
         : { id: "week", label: "The week", one: true, lines: [...new Set(xs.map((x) => x.day))].flatMap((d) => [dayName(d, { weekday: "long", day: "numeric", month: "short" }), ...xs.filter((x) => x.day === d).map((x) => subLine(line(x)))]) },
-    ], choose: { label: "Laid out", v: o, opts: [["day", "By day"], ["person", "By person"]] } };
+    ], choose: { label: "Laid out", v: o, opts: [["day", "By day"], ["person", "By person"]] },
+    photos: xs.length ? async () => [{ data: rotaPicture(wk, xs), note: "", file: `rota-${wk}` }] : null };
 };
+/* The week as a picture for the team chat, laid out as rotas are on the wall: a row for each person, a column for each
+   day, then the open shifts. A draft shift says so. */
+function rotaPicture(wk, xs) {
+  const days = Array.from({ length: 7 }, (_, i) => addDays(wk, i)), font = (w, n) => `${w} ${n}px -apple-system, system-ui, "Segoe UI", Roboto, sans-serif`;
+  const rows = [...new Set(xs.filter((x) => x.whoName).map((x) => x.whoName))].sort().map((n) => [n, (d) => xs.filter((x) => x.whoName === n && x.day === d)]);
+  if (xs.some((x) => !x.whoName)) rows.push(["Open shifts", (d) => xs.filter((x) => !x.whoName && x.day === d)]);
+  const W = 1400, pad = 28, nameW = 220, colW = (W - pad * 2 - nameW) / 7, line = 56, top = 168, headH = 64;
+  const rowH = rows.map(([, f]) => Math.max(1, ...days.map((d) => f(d).length)) * line + 12);
+  const H = top + headH + rowH.reduce((a, b) => a + b, 0) + 76;
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const g = c.getContext("2d"); g.textBaseline = "top";
+  const text = (t, x, y, w, f, col) => { g.font = f; g.fillStyle = col; let s = t; while (s.length > 1 && g.measureText(s).width > w) s = s.slice(0, -2) + "…"; g.fillText(s, x, y); };
+  // The times are the point, so they're never cut short: the widest sets their size.
+  g.font = font(700, 24); const tf = Math.min(24, Math.floor((24 * (colW - 18)) / Math.max(1, ...xs.map((x) => g.measureText(roTime(x)).width))));
+  g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#0a0a0a"; g.fillRect(0, 0, W, top - 24);
+  text("Black Tap Soho rota", pad, 30, W - pad * 2, font(700, 46), "#d4af37");
+  text(`Week of ${dayName(wk, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}`, pad, 92, W - pad * 2, font(400, 30), "#f7f1e3");
+  // The days across the top, the weekend shaded.
+  days.forEach((d, i) => {
+    const x = pad + nameW + i * colW;
+    if (i >= 5) { g.fillStyle = "#f6f1e7"; g.fillRect(x, top, colW, H - top - 76); }
+    text(dayName(d, { weekday: "short" }), x + 10, top + 6, colW - 16, font(700, 26), "#111");
+    text(dayName(d, { day: "numeric", month: "short" }), x + 10, top + 36, colW - 16, font(400, 20), "#555");
+  });
+  let y = top + headH;
+  rows.forEach(([n, f], r) => {
+    g.fillStyle = "#d8cdb9"; g.fillRect(pad, y, W - pad * 2, 2);
+    // A name too long for the column goes as on a wall rota: first name and initial.
+    g.font = font(700, 26); const ws = n.split(" "), nm = g.measureText(n).width > nameW - 14 && ws.length > 1 ? `${ws[0]} ${ws[ws.length - 1][0]}.` : n;
+    text(nm, pad, y + 18, nameW - 14, font(700, 26), n === "Open shifts" ? "#8a5a0b" : "#111");
+    days.forEach((d, i) => f(d).sort(roOrder).forEach((x, k) => {
+      const cx = pad + nameW + i * colW + 10, cy = y + 12 + k * line;
+      text(roTime(x), cx, cy, colW - 16, font(700, tf), "#111");
+      text(`${sideName(x.side)}${x.pub ? "" : " (draft)"}`, cx, cy + 28, colW - 16, font(400, 18), x.pub ? "#555" : "#b0361b");
+    }));
+    y += rowH[r];
+  });
+  g.fillStyle = "#d8cdb9"; g.fillRect(pad, y, W - pad * 2, 2);
+  text(`From Bar Book, ${stamp(new Date())}. Check the app for changes.`, pad, y + 26, W - pad * 2, font(400, 20), "#555");
+  return c.toDataURL("image/png");
+}
 // Photos load only when asked for, so the feed stays quick and cheap on data.
 const shownPhotos = {};
 async function showPhotos(id) {
@@ -4054,7 +4218,7 @@ function renderConcerns() {
     ${x.photos ? `<div data-cn-photos-of="${x.id}">${cnShown[x.id] || `<button class="btn" data-cn-photos="${x.id}">Show ${esc(x.photos)} photo${x.photos > 1 ? "s" : ""}</button>`}</div>` : ""}
     <p class="note" style="margin-top:6px">${x.anon ? "Sent anonymously" : `From ${esc(x.name)}`} · ${when(x.at)}</p>
     ${LIVE.admin || x.to !== "managers" ? `<div class="rvrow" style="grid-template-columns:1fr auto"><input data-cn-fixt="${x.id}" maxlength="300" placeholder="What was done (optional)" value="${esc(cnText[x.id] || "")}" aria-label="What was done"><button class="btn pri" data-cn-fix="${x.id}">Dealt with</button></div>` : ""}
-    ${LIVE.admin || (x.uid && x.uid === LIVE.uid) ? `<div class="actions"><button class="btn danger" data-cn-del="${x.id}">${LIVE.admin ? "Take down" : "Withdraw"}</button></div>` : ""}</article>`;
+    <div class="actions">${sendBtn("concern", "Send on WhatsApp", x.id)}${LIVE.admin || (x.uid && x.uid === LIVE.uid) ? `<button class="btn danger" data-cn-del="${x.id}">${LIVE.admin ? "Take down" : "Withdraw"}</button>` : ""}</div></article>`;
   $("#concerns").innerHTML = `<div class="sec">Concerns</div>
     <details class="setup" id="cn-form"${cnF.open ? " open" : ""}><summary>Report a concern</summary>
       <div class="mini">What's wrong</div><div class="recent">${CN.map(([k, t]) => `<button class="chip" data-cn-reason="${k}" aria-pressed="${k === cnF.reason}">${t}</button>`).join("")}</div>
@@ -4067,6 +4231,14 @@ function renderConcerns() {
       <div class="actions"><button class="btn pri" id="cn-go">Send</button></div></details>
     ${openConcerns().map(row).join("") || `<p class="note">No open concerns.</p>`}`;
 }
+SHARE.concern = (id) => {
+  const x = LIVE.concerns.find((c) => c.id === id); if (!x) return null;
+  return { what: "A concern", title: `${CN_NAME[x.reason]} · ${AREA[x.area] || "Other"} · Black Tap Soho`,
+    head: [`Reported ${stamp(new Date(ms(x.at)))}`, x.status === "open" ? "Still to be dealt with" : "Dealt with"],
+    parts: [{ id: "note", label: "What's wrong", one: true, lines: x.note ? [x.note] : [] }],
+    photos: x.photos ? async () => (await LIVE.api.concernPhotos(x)).filter(Boolean).map((data) => ({ data, note: "" })) : null,
+    tip: "Who reported it isn't included." };
+};
 async function showConcernPhotos(id) {
   const x = LIVE.concerns.find((c) => c.id === id); if (!x) return;
   const ps = (await LIVE.api.concernPhotos(x)).filter(Boolean);
@@ -4097,7 +4269,7 @@ function renderIssues() {
     <div class="tags">${x.urgent ? `<span class="pill no">Urgent</span>` : ""}<span class="pill">${AREA[x.area] || "Other"}</span>${x.status === "taken" ? `<span class="pill wait">On it: ${esc(x.who)}</span>` : `<span class="pill">Nobody on it yet</span>`}${x.again ? `<span class="pill">Raised again</span>` : ""}</div>
     ${x.detail ? `<p class="txt">${esc(x.detail)}</p>` : ""}
     <p class="note" style="margin-top:6px">Raised by ${esc(x.name)} · ${when(x.at)}</p>
-    <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${LIVE.admin ? `<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}">${esc(p.name)}</option>`).join("")}</select>` : ""}${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
+    <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${sendBtn("issue", "Send on WhatsApp", x.id)}${LIVE.admin ? `<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}">${esc(p.name)}</option>`).join("")}</select>` : ""}${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
     <div class="rvrow" style="grid-template-columns:1fr auto"><input data-fixt="${x.id}" maxlength="500" placeholder="What was done to fix it" value="${esc(fixText[x.id] || "")}" aria-label="What was done to fix it"><button class="btn pri" data-fix="${x.id}">Fixed</button></div></article>`;
   $("#issues").innerHTML = `<div class="sec">Issues and handover</div>
     <details class="setup" id="is-form"${isF.open ? " open" : ""}><summary>${isF.again ? "Raise it again" : "Raise an issue"}</summary>
@@ -4110,6 +4282,14 @@ function renderIssues() {
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
     ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${esc(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${esc(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
 }
+// One issue, for whoever fixes it: the engineer, a contractor or the landlord, with a photo added on the Send page.
+SHARE.issue = (id) => {
+  const x = LIVE.issues.find((i) => i.id === id); if (!x) return null;
+  return { what: "An issue", title: `${x.urgent ? "Urgent: " : ""}${x.title} · Black Tap Soho`,
+    head: [`${AREA[x.area] || "Other"}, raised ${stamp(new Date(ms(x.at)))}`, x.status === "fixed" ? "Fixed" : x.status === "taken" && x.who ? `${x.who} is on it` : "Nobody on it yet"],
+    parts: [{ id: "detail", label: "More detail", one: true, lines: x.detail ? [x.detail] : [] }],
+    notePh: "When can you come?", tip: "Add a photo of it, so whoever fixes it knows what to bring." };
+};
 /* ---------- Managers page, staff asks, incidents, reviews, anonymous feedback ---------- */
 const bday = (t) => ukDay(ms(t) - 6 * 36e5);
 const dayName = (k, o = { weekday: "short", day: "numeric", month: "short" }) => (k ? new Date(k + "T12:00").toLocaleDateString("en-GB", o) : "?");
@@ -4486,7 +4666,7 @@ SHARE.readbrief = () => {
     parts: [{ id: "yet", label: "Still to read it", lines: yet }] };
 };
 SHARE.shout = (o) => {
-  const ppl = LIVE.staff.filter((x) => x.uid !== LIVE.uid).map((x) => [x.uid, x.name]); if (!ppl.length) return null;
+  const ppl = LIVE.directory.filter((x) => x.uid !== LIVE.uid).map((x) => [x.uid, x.name]); if (!ppl.length) return null;
   const [, name] = ppl.find(([u]) => u === o) || ppl[0];
   return { what: "Shout-out", title: `Shout-out to ${name} \ud83d\udc4f`, choose: { label: "Who", v: (ppl.find(([u]) => u === o) || ppl[0])[0], opts: ppl },
     head: [], parts: [], noteHead: null, noteLabel: "What they did", notePh: "Kept the bar moving on a slammed Friday and helped everyone close" };
@@ -4509,12 +4689,15 @@ const SEND_LIST = [
   ["Managers", "rota", "The rota", "The week by day or by person, for the team group"],
   ["Managers", "theirweek", "Someone's shifts", "One person's week, to send to them"],
   ["Managers", "cover", "Shifts that need cover", "Open shifts in the next 7 days"],
+  ["Managers", "avask", "Availability", "Ask who hasn't said when they can work"],
   ["Managers", "readbrief", "Briefing reminder", "Who on tonight still has to read it"],
   ["Managers", "pin", "A broadcast", "For anyone not on the app, with who hasn't read it"],
   ["Managers", "shout", "Shout-out", "Thank someone in front of the team"],
   ["Managers", "whatson", "What's on", "The big nights and the games on our screens, next 7 days"],
   ["Managers", "refusals", "Refusals log", "A month's refusals, for the licensing authority or the police"],
   ["Managers", "certs", "Certificates", "What's due, and everyone's, without right to work dates"],
+  ["Managers", "onboard", "New starter checklist", "Someone's first weeks: what's done and still to do"],
+  ["Managers", "pulse", "Shift feedback", "The last 7 nights, without names"],
   ["Managers", "live", "Tonight's summary", "What needs a manager, the checklists and restocks"],
   ["Managers", "handover", "The handover", "Tonight's close, for the next manager and the owner"],
 ];
@@ -4702,6 +4885,264 @@ SHARE.certs = () => {
       { id: "all", label: "Everyone's", lines: [...cs].sort((a, b) => a.whoName.localeCompare(b.whoName) || ctName(a).localeCompare(ctName(b))).map(line), off: due.length > 0 }],
     tip: "Right to work dates aren't included: they stay in Bar Book." };
 };
+/* ---------- Availability ----------
+   When each person can work, week by week: any time, not at all, or only between two times, and a note. Managers see
+   everyone's as they make the rota: the grid shows who can't work a day, and putting someone on outside their
+   availability warns, as time off does. A particular day off is asked for in My requests. */
+const AV_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+const AV_WIN = /^(([01]\d|2[0-3]):[0-5]\d)-(([01]\d|2[0-3]):[0-5]\d)$/;
+// This person's form while they change it; until then it's what they saved.
+let avF = null;
+const avOf = (uid) => LIVE.avail.find((x) => x.id === uid);
+const avSaid = () => LIVE.staff.filter((p) => avOf(p.uid));
+// Monday is 0.
+const avIdx = (day) => (new Date(Date.parse(day)).getUTCDay() + 6) % 7;
+const avText = (v) => (!v ? "Any time" : v === "no" ? "Can't work" : v.replace("-", "–"));
+function avWeek(a) {
+  const no = AV_DAYS.filter((_, i) => a.days[i] === "no").map((d) => d.slice(0, 3)), win = AV_DAYS.map((d, i) => [d.slice(0, 3), a.days[i]]).filter(([, v]) => v && v !== "no");
+  return [no.length && `Can't work ${no.join(", ")}`, ...win.map(([d, v]) => `${d} ${avText(v)}`)].filter(Boolean).join(" · ") || "Any time";
+}
+// Why someone's availability rules shift s out, or "".
+function avClash(uid, s) {
+  const i = avIdx(s.day), v = avOf(uid)?.days?.[i]; if (!v) return "";
+  if (v === "no") return `has said they can't work ${AV_DAYS[i]}s`;
+  const [f, t] = v.split("-").map(toMin), a = toMin(s.start), b = a + shiftLen(s);
+  return a >= f && b <= (t > f ? t : t + 1440) ? "" : `can only work ${avText(v)} on ${AV_DAYS[i]}s`;
+}
+function renderAvail() {
+  const box = $("#avail"); if (!box) return;
+  if (!LIVE.me || !isOn("rota")) { box.innerHTML = ""; return; }
+  if (!LIVE.loaded.has("avail")) { box.innerHTML = `<p class="note">Loading. It needs signal the first time.</p>`; return; }
+  const mine = avOf(LIVE.uid);
+  if (!avF?.dirty) avF = { days: [...(mine?.days || Array(7).fill(""))], note: mine?.note || "", dirty: false };
+  const row = (d, i) => {
+    const v = avF.days[i], win = v && v !== "no", [f, t] = win ? v.split("-") : ["", ""];
+    return `<div class="avrow"><b>${d}</b><div class="recent">${[["any", "Any time", !v], ["no", "Can't work", v === "no"], ["win", "Only between…", win]].map(([k, n, on]) => `<button class="chip" data-av-day="${i}" data-av="${k}" aria-pressed="${on}">${n}</button>`).join("")}</div>
+      ${win ? `<div class="two even"><label class="fld">From<input type="time" data-av-from="${i}" value="${esc(f)}"></label><label class="fld">Until<input type="time" data-av-to="${i}" value="${esc(t)}"></label></div>` : ""}</div>`;
+  };
+  let team = "";
+  if (LIVE.admin) {
+    const ppl = [...LIVE.staff].sort((a, b) => a.name.localeCompare(b.name)), yet = ppl.filter((p) => !avOf(p.uid));
+    team = `<div class="h3">The team</div>
+      <p class="note">What each person has said. Putting someone on outside it warns you, and the rota grid shows the days they can't work.</p>
+      ${ppl.filter((p) => avOf(p.uid)).map((p) => { const a = avOf(p.uid); return `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${esc(avWeek(a))}</div>${a.note ? `<div class="s" translate="no">${esc(a.note)}</div>` : ""}</div>`; }).join("")}
+      ${yet.length ? `<p class="note">Not said yet: ${esc(yet.map((p) => p.name).join(", "))}.</p><div class="actions">${sendBtn("avask", "Ask them on WhatsApp")}</div>` : ""}`;
+  }
+  box.innerHTML = `<div class="sec">${LIVE.admin ? "My availability" : "When I can work"}</div>
+    <p class="note">Your usual week, for the rota. Managers see it when they put people on shifts. For one particular day off, ask in My requests.</p>
+    ${AV_DAYS.map(row).join("")}
+    <label class="fld">Anything else (optional)<input data-av-note maxlength="120" value="${esc(avF.note)}" placeholder="Uni on Tuesdays until December"></label>
+    <div class="actions"><button class="btn pri" id="av-save">Save</button></div>
+    ${mine ? `<p class="note">Saved ${when(mine.at)}.</p>` : ""}${team}`;
+}
+function avSave(A) {
+  const bad = AV_DAYS.find((_, i) => { const v = avF.days[i]; return v && v !== "no" && (!AV_WIN.test(v) || v.split("-")[0] === v.split("-")[1]); });
+  if (bad) return toast(`Put in both times for ${bad}`);
+  track(A.saveAvail([...avF.days], avF.note.trim()), "Saved. The managers see it when they make the rota");
+  avF = null; haptic(); renderAvail();
+}
+SHARE.avask = () => {
+  if (!LIVE.admin || !isOn("rota")) return null;
+  const yet = LIVE.staff.filter((p) => !avOf(p.uid)).map((p) => p.name).sort();
+  return { what: "Availability", title: "When can you work?",
+    head: ["Put your usual week in Bar Book, so the rota fits it: Team, then My availability. It takes a minute, and you can change it any time."],
+    parts: [{ id: "yet", label: "Still to do it", lines: yet }] };
+};
+
+/* ---------- Shout-outs ----------
+   Anyone thanks anyone else in front of the team, saying what they did. Everyone sees the latest 50 and gets a pop-up;
+   the person thanked sees it under For you and on the bell. Whoever wrote one, or a manager, can take it down or send
+   it on WhatsApp. */
+const shF = { to: "", text: "" };
+const shNew = () => shToMe().filter((x) => ms(x.at) > hubSince);
+function shRow(x) {
+  const mine = x.uid === LIVE.uid;
+  return `<article class="notice${x.to === LIVE.uid && ms(x.at) > hubSince ? " new" : ""}"><div class="meta"><span aria-hidden="true">👏</span> <b>${esc(x.to === LIVE.uid ? "You" : x.toName)}</b> · ${mine ? "<span>from you</span>" : `from ${esc(x.name)}`} · ${x.pending ? "<span>sending…</span>" : when(x.at)}</div>
+    <p class="txt" translate="no">${esc(x.text)}</p>
+    ${mine || LIVE.admin ? `<div class="actions">${x.to === LIVE.uid ? "" : sendBtn("shout", "Send on WhatsApp", x.to, x.text)}<button class="btn" data-sh-drop="${x.id}">Take it down</button></div>` : ""}</article>`;
+}
+function renderShouts() {
+  const box = $("#shouts"); if (!box) return;
+  if (!LIVE.me || !isOn("shouts")) { box.innerHTML = ""; return; }
+  const ppl = LIVE.directory.filter((p) => p.uid !== LIVE.uid);
+  box.innerHTML = `<div class="sec">Give a shout-out</div>
+    <label class="fld">Who it's for<select data-sh="to"><option value="">Pick someone</option>${ppl.map((p) => `<option value="${p.uid}"${shF.to === p.uid ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+    <label class="fld">What they did<textarea data-sh="text" rows="2" maxlength="200" placeholder="Kept the bar moving on a slammed Friday and helped everyone close">${esc(shF.text)}</textarea></label>
+    <div class="actions"><button class="btn pri" id="sh-go">Post it</button></div>
+    <p class="note">The whole team sees it, and they get a pop-up.</p>
+    <div class="sec">Latest</div>
+    ${LIVE.shouts.map(shRow).join("") || `<p class="note">None yet.</p>`}`;
+}
+function shPost(A) {
+  const p = LIVE.directory.find((x) => x.uid === shF.to);
+  if (!p) return toast("Pick who it's for");
+  if (!shF.text.trim()) return toast("Say what they did");
+  track(A.shout(p, shF.text.trim()), "Posted. The team can see it");
+  Object.assign(shF, { to: "", text: "" }); haptic(); renderShouts();
+}
+
+/* ---------- How was your shift? ----------
+   One tap at the end of a shift, from rough to great, then a few words if they like. Managers see the answers with the
+   names, to catch a bad night or someone having a hard time early; what they send on has no names. It's asked from an
+   hour before someone's shift on tonight's rota ends, or after 9pm when nobody is on tonight's rota, until the day rolls
+   over at 6am, on the Team page and where the shift report is sent. Not tonight puts it away until then. */
+const PU = { 1: ["😣", "Rough"], 2: ["😕", "Not great"], 3: ["😐", "OK"], 4: ["🙂", "Good"], 5: ["😄", "Great"] };
+let puSkip = store.get("puSkip", ""), puJust = false, puNote = "";
+const puMine = () => LIVE.pulse.find((x) => x.uid === LIVE.uid && x.day === shiftDay());
+const puLast = (n) => LIVE.pulse.filter((x) => x.day > addDays(shiftDay(), -n));
+const puAvg = (xs) => (xs.reduce((t, x) => t + x.score, 0) / xs.length).toFixed(1);
+// Tonight's and last night's bad shifts, for the managers.
+const puBad = () => (LIVE.admin && isOn("pulse") ? LIVE.pulse.filter((x) => x.score <= 2 && x.uid !== LIVE.uid && x.day >= addDays(shiftDay(), -1)) : []);
+function puDue() {
+  if (!LIVE.me || !isOn("pulse") || !LIVE.loaded.has("pulse") || puSkip === shiftDay() || puMine()) return false;
+  const on = isOn("rota") ? LIVE.shifts.filter((x) => x.pub && x.day === shiftDay()) : [];
+  if (on.length) return on.some((x) => x.who === LIVE.uid && roSpan(x)[1] - 60 <= roNow());
+  const h = +hhmm(new Date()).slice(0, 2); return h >= 21 || h < 6;
+}
+function puHtml() {
+  const m = puMine();
+  if (!(puJust && m) && !puDue()) return "";
+  return `<div class="pucard"><b>How was your shift?</b>
+    <div class="pu">${Object.entries(PU).map(([k, [e, t]]) => `<button data-pu="${k}" aria-pressed="${m?.score === +k}"><span aria-hidden="true">${e}</span>${t}</button>`).join("")}</div>
+    ${m ? `<label class="fld">Anything to add? (optional)<input id="pu-note" maxlength="200" value="${esc(puNote)}" placeholder="What made it good or hard"></label>
+      <div class="actions"><button class="btn pri" id="pu-save">Send it</button><button class="btn" id="pu-done">Done</button></div>`
+      : `<p class="note">One tap. Only managers see it, with your name. <button class="linkbtn" id="pu-skip">Not tonight</button></p>`}</div>`;
+}
+function renderPulse() { const box = $("#pulse"); if (box) box.innerHTML = tpane ? "" : puHtml(); }
+// Redraws the card wherever it is: the Team page and the Shift tab's Send pane.
+function puRedraw() { renderPulse(); if (!$("#v-tally").hidden && pane === "send") renderTally(); }
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-pu], #pu-skip, #pu-save, #pu-done"); if (!b || !LIVE.api) return;
+  if (b.dataset.pu) {
+    const m = puMine();
+    track(LIVE.api.pulse(+b.dataset.pu, m ? m.note : ""), m ? "Changed" : "Thanks. Only managers see it");
+    puJust = true; haptic();
+  } else if (b.id === "pu-skip") { puSkip = shiftDay(); store.set("puSkip", puSkip); }
+  else if (b.id === "pu-save") { const m = puMine(); if (m) track(LIVE.api.pulse(m.score, puNote.trim()), "Sent. Only managers see it"); puJust = false; puNote = ""; }
+  else { puJust = false; puNote = ""; }
+  puRedraw();
+});
+document.addEventListener("input", (e) => { if (e.target.id === "pu-note") puNote = e.target.value; });
+function renderPulses() {
+  const box = $("#pulses"); if (!box) return;
+  if (!LIVE.admin || !isOn("pulse")) { box.innerHTML = ""; return; }
+  const days = Array.from({ length: 14 }, (_, i) => addDays(shiftDay(), -i)), xs = puLast(14);
+  const by = new Map(); for (const x of xs.filter((y) => y.score <= 2)) by.set(x.uid, [x.name, (by.get(x.uid)?.[1] || 0) + 1]);
+  const low = [...by.values()].filter(([, n]) => n >= 2).sort((a, b) => b[1] - a[1]);
+  const said = xs.filter((x) => x.note).sort((a, b) => b.day.localeCompare(a.day) || ms(b.at) - ms(a.at));
+  box.innerHTML = `<div class="sec">Shift feedback</div>
+    <p class="note">How each shift went, from 1 (rough) to 5 (great), as the team answered at the end of it. Only managers see the names.</p>
+    ${low.length ? `<div class="h3">Check in with</div>${low.map(([n, k]) => `<p class="note warnline">${esc(n)}: ${k} bad shifts in the last 14 days</p>`).join("")}` : ""}
+    <div class="h3">Night by night</div>
+    ${days.map((d) => { const ys = xs.filter((x) => x.day === d); return ys.length ? `<div class="staffrow"><div class="n">${dayName(d)} · <b>${puAvg(ys)}</b> <span class="did">· ${plural(ys.length, "answer")}</span></div>
+      <div class="s">${Object.entries(PU).map(([k, [e]]) => `${e} ${ys.filter((y) => y.score === +k).length}`).join(" · ")}</div></div>` : ""; }).join("") || `<p class="note">No answers yet. The team is asked at the end of each shift.</p>`}
+    ${said.length ? `<div class="h3">What they said</div>${said.map((x) => `<div class="staffrow"><div class="n">${esc(x.name)} · ${dayName(x.day)} · ${PU[x.score][0]} ${PU[x.score][1]}</div><div class="s" translate="no">${esc(x.note)}</div></div>`).join("")}` : ""}
+    ${puLast(7).length ? `<div class="actions">${sendBtn("pulse", "Send the last 7 nights")}</div>` : ""}`;
+}
+// To send: the numbers and what was said, without names.
+SHARE.pulse = () => {
+  const xs = LIVE.admin && isOn("pulse") ? puLast(7) : []; if (!xs.length) return null;
+  const days = [...new Set(xs.map((x) => x.day))].sort();
+  return { what: "Shift feedback", title: "Shift feedback · Black Tap Soho · last 7 nights",
+    head: [`${puAvg(xs)} out of 5, from ${plural(xs.length, "answer")}`],
+    parts: [{ id: "nights", label: "Night by night", lines: days.map((d) => { const ys = xs.filter((x) => x.day === d); return `${dayName(d)}: ${puAvg(ys)} (${plural(ys.length, "answer")})`; }) },
+      { id: "said", label: "What they said", lines: xs.filter((x) => x.note).sort((a, b) => a.day.localeCompare(b.day)).map((x) => `${PU[x.score][1]}: ${x.note}`) }],
+    tip: "Names aren't included: they stay in Bar Book." };
+};
+
+/* ---------- New starters ----------
+   A checklist for each new person's first weeks, ticked off by a manager, which saves the day and who did it: the
+   standard one below or the venue's own. Some of it is the law from day one: the written statement of terms on the first
+   day (gov.uk), right to work checked before they start (Home Office), fire safety training when first employed
+   (Regulatory Reform (Fire Safety) Order 2005, article 21) and health and safety induction: hazards, emergency
+   procedures, first aid and who to ask (HSE). HMRC needs their P45 or starter checklist by the first payday. The new
+   person sees their own in My first weeks. */
+const OB_STD = [
+  "Right to work checked before the first shift",
+  "Written statement of terms given on day one",
+  "P45 or HMRC starter checklist, bank details and NI number",
+  "Fire safety: alarms, exits, assembly point and extinguishers",
+  "First aid: the kit, the first aiders and the accident book",
+  "Hazards: wet floors, broken glass, hot water and chemicals",
+  "Reporting accidents and near misses, and raising a concern",
+  "Challenge 25: what ID to take, and logging a refusal",
+  "Allergens: the allergen menu and how to answer a guest",
+  "Food hygiene: handwashing, ice and garnishes",
+  "Cellar: lifting kegs and changing gas safely",
+  "Till, payments and the opening and closing checklists",
+  "Drinks specs and pours: Practise, then sign-offs",
+  "Uniform, breaks, staff food and tronc",
+  "Bar Book: the rota, availability and requests",
+];
+const obF = { who: "", start: "", text: null, open: false, edit: false };
+const obList = () => LIVE.onboardList || OB_STD;
+const obMine = () => LIVE.onboard.find((o) => o.id === LIVE.uid);
+const obDone = (o) => obList().filter((t) => o.done[t]).length;
+// Those still on the team, and those of them with something left to do.
+const obNow = () => LIVE.onboard.filter((o) => LIVE.staff.some((p) => p.uid === o.id)).sort((a, b) => b.start.localeCompare(a.start));
+const obActive = () => obNow().filter((o) => obDone(o) < obList().length);
+function obItem(o, t, i) {
+  const d = o.done[t], by = d ? `<small>${dayName(d.day)}, ${esc(d.by)}</small>` : "";
+  return LIVE.admin ? `<label class="check obi"><input type="checkbox" data-ob="${o.id}" data-ob-i="${i}"${d ? " checked" : ""}><span>${esc(t)}${by}</span></label>`
+    : `<div class="obi${d ? " done" : ""}"><span aria-hidden="true">${d ? "✓" : "○"}</span><span>${esc(t)}${by}</span></div>`;
+}
+function obCard(o) {
+  const L = obList();
+  return `<div class="h3">${esc(o.whoName)}</div><p class="note">Started ${dayName(o.start)} · ${obDone(o)} of ${L.length} done</p>
+    ${L.map((t, i) => obItem(o, t, i)).join("")}
+    <div class="actions">${sendBtn("onboard", "Send their checklist", o.id)}<button class="btn" data-ob-drop="${o.id}">Remove</button></div>`;
+}
+function renderOnboard() {
+  const box = $("#onboard"), own = $("#myob"); if (!box || !own) return;
+  box.innerHTML = own.innerHTML = "";
+  if (!LIVE.me || !isOn("onboard")) return;
+  const L = obList();
+  if (!LIVE.admin) {
+    const o = obMine(); if (!o) return;
+    own.innerHTML = `<div class="sec">My first weeks</div>
+      <p class="note">What you'll be shown and trained on in your first weeks. A manager ticks each one off with you.</p>
+      <p class="note"><b>${obDone(o)} of ${L.length} done</b> · <span>Started</span> ${dayName(o.start)}</p>${L.map((t, i) => obItem(o, t, i)).join("")}`;
+    return;
+  }
+  const now = obNow(), active = obActive(), done = now.filter((o) => !active.includes(o)), ppl = LIVE.staff.filter((p) => !LIVE.onboard.some((o) => o.id === p.uid)).sort((a, b) => a.name.localeCompare(b.name));
+  box.innerHTML = `<div class="sec">New starters</div>
+    <p class="note">A checklist for each new person's first weeks. Tick each thing off as it's done: it saves the day and who did it. Some of it is the law from day one: the written statement of terms, the right to work check before they start, and fire safety and health and safety training.</p>
+    ${active.map(obCard).join("") || `<p class="note">Nobody in their first weeks.</p>`}
+    <details class="setup" id="ob-add"${obF.open ? " open" : ""}><summary>Add a new starter</summary>
+      <label class="fld">Who<select data-obf="who"><option value="">Pick someone</option>${ppl.map((p) => `<option value="${p.uid}"${obF.who === p.uid ? " selected" : ""}>${esc(p.name)}</option>`).join("")}</select></label>
+      <label class="fld">First day<input type="date" data-obf="start" value="${esc(obF.start || shiftDay())}"></label>
+      <p class="note">Someone new needs their login first, in Team logins.</p>
+      <div class="actions"><button class="btn pri" id="ob-go">Start their checklist</button></div></details>
+    ${done.length ? `<details class="setup"><summary>Finished (${done.length})</summary>${done.map(obCard).join("")}</details>` : ""}
+    <details class="setup" id="ob-list"${obF.edit ? " open" : ""}><summary>Change the checklist</summary>
+      <p class="note">One thing per line, up to 30. A tick stays with anything whose words don't change.</p>
+      <label class="fld">The checklist<textarea data-obf="text" rows="12">${esc(obF.text ?? L.join("\n"))}</textarea></label>
+      <div class="actions"><button class="btn pri" id="ob-save">Save the checklist</button><button class="btn" id="ob-std">Start from the standard one</button></div></details>`;
+}
+function obStart(A) {
+  const p = LIVE.staff.find((x) => x.uid === obF.who);
+  if (!p) return toast("Pick who it's for");
+  if (!/^\d{4}-\d\d-\d\d$/.test(obF.start || shiftDay())) return toast("Pick their first day");
+  track(A.startOnboard(p, obF.start || shiftDay()), `Started. ${p.name} can see it in My first weeks`);
+  Object.assign(obF, { who: "", start: "", open: false }); haptic(); renderOnboard();
+}
+function obSaveList(A) {
+  const xs = [...new Set((obF.text ?? obList().join("\n")).split("\n").map((t) => t.trim()).filter(Boolean))];
+  if (!xs.length) return toast("Put in at least one thing");
+  if (xs.length > 30) return toast(`That's ${xs.length}. Keep it to 30`);
+  const long = xs.find((t) => t.length > 80); if (long) return toast(`Keep each one to 80 letters: "${long.slice(0, 30)}…"`);
+  track(A.saveOnboardList(xs), "Saved. Every new starter's checklist has changed");
+  Object.assign(obF, { text: null, edit: false }); haptic(); renderOnboard();
+}
+SHARE.onboard = (o) => {
+  const xs = LIVE.admin && isOn("onboard") ? obNow() : []; if (!xs.length) return null;
+  const x = xs.find((y) => y.id === o) || xs[0], L = obList();
+  return { what: "New starter checklist", title: `${x.whoName}'s first weeks · Black Tap Soho`,
+    choose: { label: "Who", v: x.id, opts: xs.map((y) => [y.id, y.whoName]) },
+    head: [`Started ${dayName(x.start)}: ${obDone(x)} of ${L.length} done`],
+    parts: [{ id: "todo", label: "Still to do", lines: L.filter((t) => !x.done[t]) },
+      { id: "done", label: "Done", lines: L.filter((t) => x.done[t]).map((t) => `${t} (${dayName(x.done[t].day)}, ${x.done[t].by})`) }] };
+};
 const gLimit = () => (LIVE.owner ? Infinity : LIVE.comp ? LIVE.comp[LIVE.role] || 0 : 0);
 const gLimitText = () => (gLimit() === Infinity ? "As the owner you have no limit." : gLimit() ? `You can give up to ${gPounds(gLimit())} without asking a manager.` : LIVE.admin ? "The owner hasn't set what managers can give yet, so ask the owner first." : "Ask a manager before giving anything away.");
 const toPence = (t) => { const v = String(t).trim().replace(/^£/, ""); if (!v) return 0; const n = Math.round(Number(v) * 100); return /^\d+(\.\d{1,2})?$/.test(v) ? n : NaN; };
@@ -4830,7 +5271,8 @@ SHARE.handover = () => {
       { id: "next", label: "For the next manager", one: true, lines: h.note ? [h.note] : [] },
       { id: "owner", label: "For the owner", one: true, lines: h.owner ? [h.owner] : [] },
       { id: "ack", label: "Accepted", one: true, lines: h.ackBy ? [`${h.ackBy}${h.ackNote ? `: ${h.ackNote}` : ""}`] : [] },
-    ] };
+    ], photos: async () => (await Promise.all(LIVE.reports.filter((r) => r.photos && bday(r.at) === h.day)
+      .map(async (r) => (await LIVE.api.loadPhotos(r.id)).map((x) => ({ ...x, note: [sideName(r.side), x.note].filter(Boolean).join(": ") }))))).flat() };
 };
 const hoAck = {};
 function hoCard(h, { accept = false } = {}) {
@@ -5657,7 +6099,7 @@ async function prepareDownload(sec) {
 const FRESH_NAME = { status: "Department statuses", blocks: "Bottleneck reports", nights: "Nights' sales and covers", shifts: "Shifts on the rota", asks: "Time off, swaps and running late", reports: "Shift reports", photos: "Closing photos",
   reviews: "Reviews of reports", events: "Changes in the activity history", restock: "Restocks", out: "On the 86 board", outlog: "86 log entries",
   issues: "Issues", concerns: "Concerns", concernPhotos: "Concern photos", notices: "Broadcasts", seen: "Got it taps on broadcasts", feed: "Old board posts",
-  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", teststaff: "Test staff", checklists: "Checklist items" };
+  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", teststaff: "Test staff", shouts: "Shout-outs", pulse: "Shift feedback answers", checklists: "Checklist items" };
 const FRESH_WORDS = "START FRESH";
 const frF = { counts: null, total: 0, busy: false, done: 0, of: 0, words: "", msg: "" };
 const frCount = (n) => n.toLocaleString("en-GB");
@@ -5674,9 +6116,9 @@ function renderFresh() {
       <button class="btn danger wide" id="fr-go"${frF.busy ? " disabled" : ""}>Clear it for everyone</button>`;
   box.innerHTML = `<p class="note">Clears the shift work for everyone, for a clean start once you've finished trying the app out. It can't be undone, and it's best done when nobody's on shift.</p>
     <div class="mini">It clears</div>
-    <p class="note">The rota, time off and swap asks, shift reports with their photos, reviews and sign-offs, the checklists, restocking, the 86 board and its log, issues, concerns, broadcasts, the activity history, and the old board and stock requests.</p>
+    <p class="note">The rota, time off and swap asks, shift reports with their photos, reviews and sign-offs, the checklists, restocking, the 86 board and its log, issues, concerns, broadcasts, shout-outs, shift feedback, the activity history, and the old board and stock requests.</p>
     <div class="mini">It keeps</div>
-    <p class="note">Everyone's logins and PINs, the audit trail, the lists, date labels, drink photos and videos, the calendar, the games on the screens, incidents, training sign-offs, feedback, chats, and the old temperature, waste and stock records.</p>
+    <p class="note">Everyone's logins and PINs, the audit trail, the lists, date labels, drink photos and videos, the calendar, the games on the screens, incidents, training sign-offs, manager feedback, chats, availability, new starter checklists, certificates, refusals, and the old temperature, waste and stock records.</p>
     <div class="mini">First, download what you want to keep</div>
     <div class="actions">${dlHtml("all", "Everything in Activity", "fr-all")}${dlHtml("shifts", "The rota", "fr-rota")}</div>
     <p class="note">Photos aren't in the spreadsheets, so save any you need from Reports first.</p>
@@ -5932,6 +6374,7 @@ const TOAST = {
   events: eventToast,
   shifts: (x) => (isOn("rota") ? roOutToast(x) : ""),
   refusals: (x) => (isOn("refusals") && x.day === shiftDay() ? `${x.name} refused someone: ${RF_SAY[x.reason]}` : ""),
+  shouts: (x) => (!isOn("shouts") ? "" : x.to === LIVE.uid ? `${x.name} gave you a shout-out` : `${x.name} gave ${x.toName} a shout-out`),
 };
 const MINE = {
   reports: (x) => (x.signedBy ? `${x.signedBy} signed off your shift report` : ""),
@@ -5960,19 +6403,19 @@ function liveChanged(what) {
   renderBell(); renderNet();
   if (what === "me" || what === "out") renderList();
   if (!$("#v-notices").hidden) {
-    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], nights: [renderNights, renderBrief], status: [renderStatus], blocks: [renderStatus], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota], tests: [renderStaff, renderRota], requests: [renderRequests, renderAct],
+    const R = { feed: [renderFeed, renderAct], notices: [renderPins, renderDash, renderAct], reports: [renderReports, renderDash, renderAct, renderHandover], handovers: [renderHandover], nights: [renderNights, renderBrief], status: [renderStatus], blocks: [renderStatus], hoq: [renderHandover], guests: [renderGuests], comp: [renderGuests], briefing: [renderBrief], briefReads: [renderBrief], outlog: [renderOutlog, renderAct], staff: [renderStaff, renderFeedback, renderIssues, renderLive, renderRota, renderAvail, renderOnboard], tests: [renderStaff, renderRota], requests: [renderRequests, renderAct],
       asks: [renderRequests, renderRota, renderCal, renderMe, renderReports, renderDash, renderAct], incidents: [renderReports, renderDash, renderAct], reviews: [renderReports, renderAct], ratings: [renderFeedback], issues: [renderIssues, renderDash, renderAct, renderHandover], audit: [renderStaff, renderAct],
       out: [renderDash, renderAct, renderBrief], tasks: [renderDash, renderLive, renderHandover], runs: [renderDash, renderLive], events: [renderLive, renderAct, renderKpis, renderRota, renderHandover], shifts: [renderRota, renderCal, renderDash, renderLive, renderBrief, renderTests], lists: [renderDash, renderLive], labels: [renderDash, renderLive, renderHandover], restock: [renderDash, renderLive, renderHandover],
-      seen: [renderPins], photos: [], training: [renderTraining, renderAct], contacts: [renderCall], refusals: [renderRefusals], certs: [renderCerts, renderRota],
-      concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
+      seen: [renderPins], photos: [], training: [renderTraining, renderAct], contacts: [renderCall], refusals: [renderRefusals], certs: [renderCerts, renderRota], avail: [renderAvail, renderRota], shouts: [renderShouts], pulse: [renderPulses], onboard: [renderOnboard], onboardList: [renderOnboard],
+      concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat, renderShouts], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"], [renderHandover, "#mclose"], [renderBrief, "#brief"], [renderGuests, "#guests"], [renderCall, "#call"], [renderRefusals, "#refusals"], [renderCerts, "#certs"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"], [renderHandover, "#mclose"], [renderBrief, "#brief"], [renderGuests, "#guests"], [renderCall, "#call"], [renderRefusals, "#refusals"], [renderCerts, "#certs"], [renderAvail, "#avail"], [renderShouts, "#shouts"], [renderOnboard, "#onboard"], [renderStatus, "#status"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderHub(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports", "directory"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports", "directory", "pulse"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "training" && !$("#v-practice").hidden) renderPractice();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
@@ -5985,7 +6428,7 @@ setInterval(() => {
   if (!$("#v-notices").hidden) { renderDash(); if (tpane === "live") renderLive(); renderHub(); }
 }, 60000);
 function markSeen() {
-  const all = [...LIVE.feed, ...LIVE.notices, ...LIVE.reports].map((x) => ms(x.at));
+  const all = [...LIVE.feed, ...LIVE.notices, ...LIVE.reports, ...LIVE.shouts].map((x) => ms(x.at));
   if (all.length) { feedSeen = Math.max(feedSeen, ...all); store.set("feedSeen", feedSeen); }
   renderBell();
 }
@@ -6021,6 +6464,10 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.cl) clF[t.dataset.cl] = t.value;
   if (t.dataset.rf) rfF[t.dataset.rf] = t.value;
   if (t.dataset.ct) { ctF[t.dataset.ct] = t.value; ctF.open = true; }
+  if (avF && (t.dataset.avFrom || t.dataset.avTo)) { const i = +(t.dataset.avFrom || t.dataset.avTo), [f, u] = avF.days[i].split("-"); avF.days[i] = t.dataset.avFrom ? `${t.value}-${u}` : `${f}-${t.value}`; avF.dirty = true; }
+  if (avF && t.dataset.avNote !== undefined) { avF.note = t.value; avF.dirty = true; }
+  if (t.dataset.sh) shF[t.dataset.sh] = t.value;
+  if (t.dataset.obf) obF[t.dataset.obf] = t.value;
   if (t.dataset.moR) { const k = t.dataset.moR; moF[k] = t.value; const f = $(`[data-mo="${k}"]`); if (f) f.value = t.value; moSave(); moOut(); moDrink(); }
   if (t.dataset.mo && t.dataset.mo !== "what") { const r = $(`[data-mo-r="${t.dataset.mo}"]`), v = moNum(t.value, MO_NEG.includes(t.dataset.mo)); if (r && !Number.isNaN(v)) r.value = v; }
   if (t.dataset.mo) { moF[t.dataset.mo] = t.value; moSave(); if (t.dataset.mo === "what") $("#mo-wt").textContent = `${Number(t.value) > 0 ? "+" : ""}${t.value}% sales and guests`; moOut(); moDrink(); }
@@ -6057,12 +6504,21 @@ $("#v-notices").addEventListener("change", (e) => {
   // The calendar's days: a last day before the first moves up to it, and the page shows the new days.
   if (t.dataset.calf && t.type === "date") { calF[t.dataset.calf] = t.value; if (calF.date1 && calF.date2 < calF.date1) calF.date2 = calF.date1; renderCal(); }
   if (t.dataset.cale && t.type === "date") { calE[t.dataset.cale] = t.value; if (calE.date1 && calE.date2 < calE.date1) calE.date2 = calE.date1; renderCal(); }
+  if (t.dataset.sh) shF[t.dataset.sh] = t.value;
+  if (t.dataset.obf) obF[t.dataset.obf] = t.value;
+  // A new starter's checklist: one tick at a time, with the day and who.
+  if (t.dataset.ob) {
+    const o = LIVE.onboard.find((x) => x.id === t.dataset.ob), item = obList()[+t.dataset.obI];
+    // Out of the way, so the list redraws with who ticked it and when.
+    if (o && item) { track(LIVE.api.tickOnboard(o.id, item, t.checked), "", "Not saved. Check the signal and try again"); haptic(); t.blur(); }
+    return;
+  }
   if (t.dataset.give && t.value) {
     const p = LIVE.staff.find((x) => x.uid === t.value);
     track(LIVE.api.take(t.dataset.give, p), `Given to ${p.name}`, "Not updated. It may have just been fixed");
   }
 });
-$("#v-notices").addEventListener("toggle", (e) => {
+keepOpen($("#v-notices"), (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
   if (e.target.id === "g-form") gF.open = e.target.open;
   // Changing the briefing starts from what was posted.
@@ -6072,7 +6528,9 @@ $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "cal-add") calE.open = e.target.open;
   if (e.target.id === "cl-form") clF.open = e.target.open;
   if (e.target.id === "ct-box") ctF.open = e.target.open;
-}, true);
+  if (e.target.id === "ob-add") obF.open = e.target.open;
+  if (e.target.id === "ob-list") obF.edit = e.target.open;
+});
 function sendMe(A) {
   const f = meF, sent = () => { haptic(); Object.keys(meF).filter((k) => !k.startsWith("fb")).forEach((k) => (meF[k] = "")); renderMe(); };
   if (meKind === "incident") {
@@ -6107,6 +6565,18 @@ $("#v-notices").addEventListener("click", (e) => {
     renderCerts(); $("#ct-box")?.scrollIntoView({ block: "start" }); return;
   }
   if (b.dataset.ctDrop) { const c = LIVE.certs.find((x) => x.id === b.dataset.ctDrop); if (c && confirm(`Remove ${ctName(c)} for ${c.whoName}?`)) track(A.dropCert(c.id), "Removed"); return; }
+  if (b.dataset.avDay && avF) {
+    const i = +b.dataset.avDay, v = avF.days[i];
+    avF.days[i] = b.dataset.av === "any" ? "" : b.dataset.av === "no" ? "no" : v && v !== "no" ? v : "17:00-23:00";
+    avF.dirty = true; renderAvail(); return;
+  }
+  if (b.id === "av-save") return avSave(A);
+  if (b.id === "sh-go") return shPost(A);
+  if (b.dataset.shDrop) { if (confirm("Take this shout-out down for everyone?")) track(A.dropShout(b.dataset.shDrop), "Taken down"); return; }
+  if (b.id === "ob-go") return obStart(A);
+  if (b.id === "ob-save") return obSaveList(A);
+  if (b.id === "ob-std") { Object.assign(obF, { text: OB_STD.join("\n"), edit: true }); renderOnboard(); return; }
+  if (b.dataset.obDrop) { const o = LIVE.onboard.find((x) => x.id === b.dataset.obDrop); if (o && confirm(`Remove ${o.whoName}'s checklist? Its ticks go with it.`)) track(A.dropOnboard(o.id), "Removed"); return; }
   if (b.dataset.roWk) { roWk = addDays(roWeek(), +b.dataset.roWk); Object.assign(roF, { days: [] }); roM = ""; roE = null; renderRota(); return; }
   if (b.dataset.roGoto) { roWk = b.dataset.roGoto; roF.days = []; renderRota(); return; }
   if (b.dataset.roSide !== undefined) { roSide = b.dataset.roSide; renderRota(); return; }

@@ -87,7 +87,10 @@ export async function team(browser, site, people = []) {
     await p.waitForFunction((r) => LIVE.role === r, role);
     out[key] = p;
   }
-  await O.waitForFunction((n) => LIVE.staff.length === n, people.length + 1);
+  // Every phone has the whole team and tonight's rota before a test starts. A write made while a phone's listeners
+  // were still starting was now and then refused by the emulator ("maximum of 1000 expressions"), and a manager's phone
+  // could still be waiting for the last person added.
+  for (const p of Object.values(out)) await p.waitForFunction((n) => LIVE.directory.length === n && LIVE.loaded.has("shifts") && (!LIVE.admin || LIVE.staff.length === n), people.length + 1);
   return out;
 }
 // How many team records this phone has saved for offline use.
