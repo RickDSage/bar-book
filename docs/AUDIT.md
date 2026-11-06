@@ -199,7 +199,7 @@ Five ways to report something: Issues, Concerns, Incidents, Guest issues, Refusa
 
 ### 6.9a Bugs found while testing (being fixed on branch `team`)
 - A pull-down form (Who to call's "Add a number", and others) can snap shut if the page redraws between the tap and the browser's toggle event, for example when a live update lands. The browser test for Who to call fails on `main` today because of it. Fixed on branch `team` with a `keepOpen()` helper.
-- Publishing several rota shifts at once was refused under load with "maximum of 1000 expressions" in the browser tests. Fixed on branch `team` by writing each published shift with its event in its own batch. It may be an emulator artefact, but the fix is safe either way.
+- Publishing several rota shifts at once was occasionally refused with "maximum of 1000 expressions" in the browser tests. Traced on branch `team` to an emulator artefact: it only happens when a write lands while the phone's listeners are still starting, and the rules tests pass the same batch every time. No app change needed; tests that write straight after login should wait for the listeners first.
 - Tonight's status form could lose a half-typed hold-up note when a live update redrew it. Fixed on branch `team`.
 
 ### 6.10 Retired code and data
