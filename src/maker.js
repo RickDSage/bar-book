@@ -446,7 +446,7 @@ function mkMakePane() {
     const ready = res.filter((r) => !r.miss.length), one = res.filter((r) => r.miss.length === 1), more = res.filter((r) => r.miss.length > 1).slice(0, 20);
     const block = (t, a) => a.length ? `<div class="sec">${t}<span class="cnt">${a.length}</span></div>${a.slice(0, 40).map(mkResHtml).join("")}` : "";
     out = `<div class="mk-opts"><span class="mini" style="margin:0;align-self:center">From My bar (${mk.bar.length})</span><button class="chip" aria-pressed="${mk.opt.basics}" data-mk-opt="basics">+ bar basics</button><button class="chip" data-mk="unbar">Close</button></div>`
-      + (res.length ? block("Make it now", ready) + block("Missing one thing", one) + block("Close", more) : `<p class="empty">Nothing in the book fits My bar yet.</p>`);
+      + (res.length ? block("Make it now", ready) + block("Missing one thing", one) + block("Missing two or more", more) : `<p class="empty">Nothing in the book fits My bar yet.</p>`);
   } else {
     MK.ids = [];
     out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>${mk.bar.length ? `<button class="btn wide" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
@@ -506,7 +506,8 @@ function mkQsPane() {
 function renderMaker() {
   const tabs = [["make", "Make"], ["bar", "My bar"], ["rnd", "Random"], ["qs", "Specs"]];
   const pane = { make: mkMakePane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane }[mk.pane] || mkMakePane;
-  const open = [...$$("#v-make details[open] summary")].map((s) => s.firstChild.textContent);
+  // By the English name, as the open ones may be showing in another language (trWas keeps the English).
+  const open = [...$$("#v-make details[open] summary")].map((s) => trWas.get(s.firstChild) ?? s.firstChild.textContent);
   $("#v-make").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cocktail maker</h2>
     <div class="seg mk-seg" role="group" aria-label="Cocktail maker">${tabs.map(([k, l]) => `<button aria-pressed="${mk.pane === k}" data-mk-pane="${k}">${l}</button>`).join("")}</div>
     <div id="mk-pane">${pane()}</div>`;

@@ -43,7 +43,7 @@ test("a manager drafts a week, copies last week's and publishes it", async () =>
   const { O, M, S } = await team(browser, site, people);
   await rota(M); await rota(S);
   assert.match(await text(S, "#rota"), /Nothing published for this week yet\./);
-  assert.match(await text(S, "#rota"), /Need a day off\? Tap it on the calendar, or ask in My requests\./);
+  assert.match(await text(S, "#rota"), /Need a day off\? Tap it on the calendar or ask in My requests\./);
   assert.equal(await S.locator("#ro-add").count(), 0, "staff don't get the add form");
   assert.match(await text(M, "#rota"), /Nothing on this week yet\. Put people on below\./);
   assert.equal(await M.locator("#ro-copy").count(), 0, "nothing to copy on an empty rota");
@@ -282,17 +282,19 @@ test("someone who can't make their shift says so, and can take it back", async (
 test("a manager changes a published shift, with its history, warnings and the record", async () => {
   await resetEmulators();
   const { O, M, S, T } = await team(browser, site, people);
-  // Tia has the day after tomorrow off, approved.
-  const [d1, d2] = [await day(O, 1), await day(O, 2)];
+  // Tia has the second of two days still to come off, approved. (Days early in the week are already past later in it,
+  // and time off can't be asked for in the past.)
+  const [n1, n2] = await soon(O);
+  const [d1, d2] = [await day(O, n1), await day(O, n2)];
   await T.evaluate((d) => LIVE.api.ask({ kind: "off", date1: d, date2: d, eta: "", with: "", note: "Wedding" }), d2);
   await O.waitForFunction(() => LIVE.asks.length === 1);
   await O.evaluate(() => LIVE.api.decide(LIVE.asks[0].id, "approved"));
   await O.waitForFunction(() => LIVE.asks[0].status === "approved");
-  await rota(O); await rota(S); await rota(T);
+  await rota(O, n1); await rota(S, n1); await rota(T, n1);
   assert.match(await text(O, "#rota"), /Tia Staff is off/);
 
   // Putting someone on two shifts at once, or on a day off, is warned about but allowed.
-  await add(O, [1], "18:00", "02:00", "Sam Staff", { note: "Close" });
+  await add(O, [n1], "18:00", "02:00", "Sam Staff", { note: "Close" });
   await settled(O, 1);
   await O.click("#ro-pub");
   await settled(S, 1);
@@ -300,9 +302,9 @@ test("a manager changes a published shift, with its history, warnings and the re
   assert.match(await text(T, "#rota"), /You're off/);
   assert.doesNotMatch(await text(S, "#rota"), /is off|You're off/);
   O.answer = "yes";
-  await add(O, [1], "20:00", "23:00", "Sam Staff");
+  await add(O, [n1], "20:00", "23:00", "Sam Staff");
   await waitToast(O, /^Shift added and published$/);
-  await add(O, [2], "18:00", "02:00", "Tia Staff");
+  await add(O, [n2], "18:00", "02:00", "Tia Staff");
   await settled(O, 3);
   const live = await text(O, "#rota");
   assert.match(live, /Sam Staff is on .* 20:00–23:00 too/);

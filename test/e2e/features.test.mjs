@@ -32,7 +32,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   assert.match(flat(await S.$eval("#feat", (e) => e.innerText)), /^WHAT'S IN BAR BOOK The drinks, the shift and the team in one app\. .* You're staff: what you can do is under You\. .* Take the tour \(14 steps\) DRINKS /);
   assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 35);
   assert.match(await card(S, "fresh"), /^Start fresh Managers only A clean start for everyone once the venue has finished trying the app out: .* Managers: The owner downloads what to keep, sees what it would clear, then types their PIN to clear it for everyone\.$/);
-  assert.match(await card(S, "lists"), /^Checklists Opening and closing .* You: Tick items off, start one, or mark one blocked and say why\. Managers: The same, and give an item to someone and change what's on each list\. Open$/);
+  assert.match(await card(S, "lists"), /^Checklists Opening and closing .* You: Tick items off, start one, or mark one blocked and say why\. Managers: The same, and give an item to someone and change what's on each list\. Open it$/);
   assert.match(await card(S, "live"), /^Live Managers only Tonight as it happens: .* Managers: Share tonight's summary on WhatsApp or by email\.$/);
   assert.equal(await S.$$eval("[data-feat-sw]", (x) => x.length), 0, "only the owner gets switches");
   // A shortcut closes the page and opens the feature.
@@ -48,7 +48,7 @@ test("every feature, what it's for and what each person can do with it, with sho
 
   // A manager: their own line is You, and the Managers parts open.
   await openFeatures(M);
-  assert.match(await card(M, "live"), /^Live Tonight as it happens: .* You: Share tonight's summary on WhatsApp or by email\. Open$/);
+  assert.match(await card(M, "live"), /^Live Tonight as it happens: .* You: Share tonight's summary on WhatsApp or by email\. Open it$/);
   assert.match(await card(M, "lists"), /Staff: Tick items off, .* You: The same, and give an item to someone/);
   await M.click('[data-feat-go="kpis"]'); await closed(M);
   assert.equal(await where(M), "team:kpis");
