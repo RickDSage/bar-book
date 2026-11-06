@@ -86,6 +86,9 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
 test("the rota goes as a picture of the week, and a concern with its photo but not who reported it", async () => {
   await resetEmulators();
   const { M, S } = await team(browser, site, people);
+  // Shifts are added once the rota has loaded, as a manager would: written while the phone's listeners were still
+  // starting, the emulator now and then refused them ("maximum of 1000 expressions"), which the rules tests don't do.
+  await M.waitForFunction(() => LIVE.loaded.has("shifts"));
   const sam = await M.evaluate(() => LIVE.staff.find((p) => p.name === "Sam Staff").uid);
   await M.evaluate(async (uid) => {
     const wk = roWeek(), s = (day, start, end, side, who, whoName) => ({ week: wk, day: addDays(wk, day), start, end, side, note: "", who, whoName, offer: "", offerName: "" });

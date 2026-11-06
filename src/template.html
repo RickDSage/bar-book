@@ -773,6 +773,13 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 /*DATA*/
 const $ = (s, r = document) => r.querySelector(s);
 const $$ = (s, r = document) => r.querySelectorAll(s);
+// Each form with a heading to tap remembers whether it's open, so a redraw keeps it open. The toggle event says so a
+// moment after the tap, by which time a live update may already have redrawn the page and shut it, so the change is
+// also caught as it happens.
+function keepOpen(el, fn) {
+  el.addEventListener("toggle", fn, true);
+  new MutationObserver((ms) => ms.forEach((m) => fn({ target: m.target }))).observe(el, { attributes: true, attributeFilter: ["open"], subtree: true });
+}
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const D = DATA.drinks;
 const SECTIONS = [...new Set(D.map((d) => d.section))];
@@ -1225,7 +1232,7 @@ function renderMedia() {
   $("#dmedia").innerHTML = mediaHtml(d);
   if (document.activeElement?.id !== "dm-video") $("#dmedit").innerHTML = mediaEditHtml(d);
 }
-$("#sheet").addEventListener("toggle", (e) => { if (e.target.id === "dm-box") dmOpen = e.target.open; }, true);
+keepOpen($("#sheet"), (e) => { if (e.target.id === "dm-box") dmOpen = e.target.open; });
 // What's saved goes with what's there already, so this drink's record has to have loaded first. The drink is passed
 // in, so a photo still shrinking when someone swipes to the next drink can't land on that one.
 function saveMedia(d, photo, video, ok) {
@@ -2192,7 +2199,7 @@ $("#tally").addEventListener("change", async (e) => {
   if (t.id !== "s-86" || !t.value) return;
   const n = t.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
 });
-$("#tally").addEventListener("toggle", (e) => { if (e.target.id === "lb-add") lbF.open = e.target.open; }, true);
+keepOpen($("#tally"), (e) => { if (e.target.id === "lb-add") lbF.open = e.target.open; });
 $("#tally").addEventListener("input", (e) => {
   if (le && e.target.dataset.leT != null) { le.items[+e.target.dataset.leT].t = e.target.value; return; }
   if (e.target.id === "rs-other") { rsF.other = e.target.value; return; }
@@ -2310,7 +2317,7 @@ function renderFootball() {
     ${form}</div>`;
 }
 $("#football").addEventListener("input", (e) => { const k = e.target.dataset.fx; if (k) fxForm[k] = e.target.value; });
-$("#football").addEventListener("toggle", (e) => { if (e.target.id === "fx-add") fxForm.open = e.target.open; }, true);
+keepOpen($("#football"), (e) => { if (e.target.id === "fx-add") fxForm.open = e.target.open; });
 $("#football").addEventListener("click", (e) => {
   const d = e.target.closest("[data-fx-drop]");
   if (d) { if (confirm("Take this game down?")) track(LIVE.api.dropFixture(d.dataset.fxDrop), "Taken down", "Not taken down. Try again"); return; }
@@ -6403,7 +6410,7 @@ function liveChanged(what) {
       concerns: [renderConcerns, renderDash, renderAct, renderHandover], fixtures: [renderCal], calendar: [renderCal], resets: [renderFresh], directory: [renderChat, renderShouts], chats: [renderChat], pings: [renderChat], msgs: [renderMsgs] }[what];
     const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
     // Forms someone may be typing in aren't redrawn under them.
-    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"], [renderHandover, "#mclose"], [renderBrief, "#brief"], [renderGuests, "#guests"], [renderCall, "#call"], [renderRefusals, "#refusals"], [renderCerts, "#certs"], [renderAvail, "#avail"], [renderShouts, "#shouts"], [renderOnboard, "#onboard"]];
+    const GUARD = [[renderConcerns, "#concerns"], [renderIssues, "#issues"], [renderAct, "#act"], [renderChat, "#chat"], [renderRota, "#rota"], [renderCal, "#cal"], [renderReports, "#reports"], [renderFresh, "#fresh"], [renderHandover, "#mclose"], [renderBrief, "#brief"], [renderGuests, "#guests"], [renderCall, "#call"], [renderRefusals, "#refusals"], [renderCerts, "#certs"], [renderAvail, "#avail"], [renderShouts, "#shouts"], [renderOnboard, "#onboard"], [renderStatus, "#status"]];
     if (R) { R.filter((f) => !GUARD.some(([g, sel]) => g === f && typing($(sel)))).forEach((f) => f()); markSeen(); renderHub(); } else if (what === "me" || !$("#v-notices").contains(document.activeElement)) renderNotices();
   }
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
@@ -6511,7 +6518,7 @@ $("#v-notices").addEventListener("change", (e) => {
     track(LIVE.api.take(t.dataset.give, p), `Given to ${p.name}`, "Not updated. It may have just been fixed");
   }
 });
-$("#v-notices").addEventListener("toggle", (e) => {
+keepOpen($("#v-notices"), (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
   if (e.target.id === "g-form") gF.open = e.target.open;
   // Changing the briefing starts from what was posted.
@@ -6523,7 +6530,7 @@ $("#v-notices").addEventListener("toggle", (e) => {
   if (e.target.id === "ct-box") ctF.open = e.target.open;
   if (e.target.id === "ob-add") obF.open = e.target.open;
   if (e.target.id === "ob-list") obF.edit = e.target.open;
-}, true);
+});
 function sendMe(A) {
   const f = meF, sent = () => { haptic(); Object.keys(meF).filter((k) => !k.startsWith("fb")).forEach((k) => (meF[k] = "")); renderMe(); };
   if (meKind === "incident") {
