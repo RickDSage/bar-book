@@ -192,6 +192,9 @@ nav.tabs button .dot { top: 4px; right: auto; left: calc(50% + 4px); min-width: 
 .total { display: flex; justify-content: space-between; align-items: baseline; margin-top: 14px; }
 .total b { font-family: var(--display); font-size: 40px; color: var(--brass); }
 .actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+/* Adding photos: the camera, or the phone's own photos. */
+.addph { display: grid; gap: 8px; margin-top: 8px; }
+.addph label { cursor: pointer; }
 .confirm { margin-top: 10px; padding: 12px; border: 1px solid var(--warn); border-radius: 10px; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 700; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-top: 14px; text-align: center; }
@@ -741,9 +744,11 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <div id="football"></div>
     <div id="tally"></div>
     <input id="ph-in" type="file" accept="image/*" capture="environment" hidden>
+    <input id="ph-pick" type="file" accept="image/*" multiple hidden>
     <input id="dm-in" type="file" accept="image/*" hidden>
     <input id="cn-in" type="file" accept="image/*" hidden>
     <input id="send-in" type="file" accept="image/*" multiple hidden>
+    <input id="send-cam" type="file" accept="image/*" capture="environment" hidden>
     <input id="ch-in" type="file" accept="image/*" hidden>
   </section>
 
@@ -972,7 +977,8 @@ function renderSend(m = sndMsg()) {
     ${m.parts.filter((x) => x.lines.length || !x.opt).map((x) => `<label class="check sendpart"><input type="checkbox" data-send-part="${x.id}"${snd.pick.has(x.id) && x.lines.length ? " checked" : ""}${x.lines.length ? "" : " disabled"}><span>${esc(x.label)}</span><span class="s">${!x.lines.length ? "Nothing" : x.one ? "" : partItems(x)}</span></label>`).join("")}
     <div class="sec">Photos${ph ? ` (${ph})` : ""}</div>
     ${ph ? `<div class="sendph">${snd.photos.map((x, i) => `<figure><img src="${x.data}" alt="${esc(x.note || `Photo ${i + 1}`)}"><button class="phx" data-send-unphoto="${i}" aria-label="Take photo ${i + 1} out">×</button></figure>`).join("")}</div>` : ""}
-    ${ph < SEND_MAX ? `<label class="btn" for="send-in" style="cursor:pointer;margin-top:8px">${snd.busy ? "Adding…" : ph ? "Add another photo" : "Add a photo"}</label>` : `<p class="note">${SEND_MAX} photos is the most.</p>`}
+    ${ph >= SEND_MAX ? `<p class="note">${SEND_MAX} photos is the most.</p>` : snd.busy ? `<p class="note" role="status">Adding…</p>`
+      : `<div class="addph"><label class="btn" for="send-cam">Take a photo</label><label class="btn" for="send-in">Choose from your photos</label></div>`}
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
     ${files ? `<div class="actions"><button class="btn" data-send-copy>Copy the words</button><button class="btn pri" data-send-sheet>Send with photos</button></div>
       <ol class="sendhow"><li>Tap Copy the words, then Send with photos.</li><li>Pick WhatsApp, then the chat.</li><li>Press and hold the caption box, tap Paste, then send.</li></ol>` : ""}
@@ -1026,7 +1032,8 @@ document.addEventListener("change", (e) => {
   if (x) { if (x.checked) snd.pick.add(x.dataset.sendPart); else snd.pick.delete(x.dataset.sendPart); sendPreview(); }
 });
 document.addEventListener("input", (e) => { if (snd && e.target.id === "send-note") { snd.note = e.target.value; sendPreview(); } });
-$("#send-in").addEventListener("change", async (e) => {
+// The camera, or several of the phone's photos at once.
+async function addSendPhotos(e) {
   const fs = [...e.target.files], s = snd; e.target.value = "";
   if (!s || !fs.length) return;
   s.busy = true; renderSend();
@@ -1035,7 +1042,9 @@ $("#send-in").addEventListener("change", async (e) => {
     try { const data = await shrink(f); if (snd !== s) return; s.photos.push({ data, note: "" }); } catch { toast("That photo couldn't be read. Try another"); }
   }
   s.busy = false; if (snd === s) { sndFiles(); renderSend(); }
-});
+}
+$("#send-in").addEventListener("change", addSendPhotos);
+$("#send-cam").addEventListener("change", addSendPhotos);
 // Lines the messages share.
 const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
 const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.dest])}: ${lower(RS[r.status])}${r.who ? ` (${r.who})` : ""}${rsLate(r) ? `, ${lower(rsLateText(r))}` : ""}`;
@@ -2163,12 +2172,14 @@ function labelsReport(side) {
   const xs = labelsDue([side]);
   return xs.length ? `Date labels:\n${xs.map((x) => `- ${LB_DUE[labelDue(x)][0]}: ${x.item} (use by ${dayName(x.useBy)}, ${opener(x)})`).join("\n")}` : "Date labels: nothing due";
 }
-/* Closing photos: taken in the app, sent with the shift report, never saved to the phone. */
+/* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
-    <p class="note">The close, or anything you worked on. Sent with your report, not saved on your phone.</p>
+    <p class="note">The close, or anything you worked on. Take them here or choose from your photos: they go with your report.</p>
     ${LIVE.myPhotos.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
-    ${LIVE.myPhotos.length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>` : `<label class="btn pri wide" for="ph-in" style="cursor:pointer">${photoBusy ? "Adding photo…" : "Take a photo"}</label>`}`;
+    ${LIVE.myPhotos.length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
+      : photoBusy ? `<p class="note" role="status">Adding…</p>`
+      : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
 }
 let photoBusy = false;
 // Phone photos are several MB; shrink to a JPEG under about 450 KB (600,000 characters of text) so each fits in one
@@ -2239,17 +2250,24 @@ function renderTally() {
   const enter = lastPane !== mode + pane; lastPane = mode + pane;
   $("#tally").innerHTML = tabs + `<div class="pane${enter ? " enter" : ""}">${body}</div>`;
 }
-// The camera input lives outside #tally. A teammate's change re-draws the list, and if the input were redrawn while the
-// camera was open, the photo would be lost without a word.
-$("#ph-in").addEventListener("change", async (e) => {
-  const f = e.target.files[0]; e.target.value = "";
-  if (!f || !LIVE.me) return;
-  if (LIVE.myPhotos.length >= LIVE.api.MAX_PHOTOS) return toast(`${LIVE.api.MAX_PHOTOS} photos is the most for one report`);
+// The photo inputs live outside #tally. A teammate's change re-draws the list, and if an input were redrawn while the
+// camera or the phone's photos were open, the photos would be lost without a word. Several chosen at once go in as far
+// as there's room.
+async function addClosingPhotos(e) {
+  const fs = [...e.target.files]; e.target.value = "";
+  if (!fs.length || !LIVE.me) return;
+  const room = LIVE.api.MAX_PHOTOS - LIVE.myPhotos.length;
+  if (fs.length > room) toast(`${LIVE.api.MAX_PHOTOS} photos is the most for one report`);
+  if (room <= 0) return;
   photoBusy = true; renderTally();
-  try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try again"); else { track(LIVE.api.addPhoto(data), null, "Photo not saved. Try again"); haptic(); } }
-  catch { toast("Couldn't read that photo"); }
+  for (const f of fs.slice(0, room)) {
+    try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try again"); else { track(LIVE.api.addPhoto(data), null, "Photo not saved. Try again"); haptic(); } }
+    catch { toast("Couldn't read that photo"); }
+  }
   photoBusy = false; renderTally();
-});
+}
+$("#ph-in").addEventListener("change", addClosingPhotos);
+$("#ph-pick").addEventListener("change", addClosingPhotos);
 // A task's id is its list and its position: close-10.
 const taskKey = (id) => { const j = id.lastIndexOf("-"); return [id.slice(0, j), +id.slice(j + 1)]; };
 $("#tally").addEventListener("change", async (e) => {
@@ -3491,7 +3509,9 @@ const I18N = {
 "When can you come?": ["متى يمكنك الحضور؟", "Ե՞րբ կարող եք գալ", "আপনি কখন আসতে পারবেন?", "Кога можеш да дойдеш?", "你什么时候能来？", "Quand pouvez-vous venir ?", "તમે ક્યારે આવી શકો?", "आप कब आ सकते हैं?", "Quando puoi venire?", "Kada galite atvykti?", "तपाईं कहिले आउन सक्नुहुन्छ?", "Kiedy możesz przyjść?", "Quando pode vir?", "ਤੁਸੀਂ ਕਦੋਂ ਆ ਸਕਦੇ ਹੋ?", "Când puteți veni?", "¿Cuándo puedes venir?", "நீங்கள் எப்போது வர முடியும்?", "Ne zaman gelebilirsiniz?", "Коли ви можете прийти?", "آپ کب آ سکتے ہیں؟", "Khi nào bạn có thể đến?", "Pryd allwch chi ddod?"],
 "An issue": ["مشكلة", "Խնդիր", "একটি সমস্যা", "Проблем", "一个问题", "Un problème", "એક સમસ્યા", "एक समस्या", "Un problema", "Problema", "एउटा समस्या", "Problem", "Um problema", "ਇੱਕ ਸਮੱਸਿਆ", "O problemă", "Una incidencia", "ஒரு பிரச்சினை", "Bir sorun", "Проблема", "ایک مسئلہ", "Một sự cố", "Problem"],
 "A concern": ["بلاغ", "Մտահոգություն", "একটি উদ্বেগ", "Сигнал", "一条隐患反馈", "Un signalement", "એક ચિંતા", "एक चिंता", "Una segnalazione", "Pranešimas", "एउटा चिन्ता", "Zgłoszenie", "Uma preocupação", "ਇੱਕ ਚਿੰਤਾ", "O sesizare", "Una preocupación", "ஒரு கவலை", "Bir bildirim", "Сигнал", "ایک خدشہ", "Một phản ánh", "Pryder"],
-"More detail": ["تفاصيل أكثر", "Մանրամասներ", "আরও বিস্তারিত", "Още подробности", "更多细节", "Plus de détails", "વધુ વિગત", "और जानकारी", "Altri dettagli", "Daugiau informacijos", "थप विवरण", "Więcej szczegółów", "Mais pormenores", "ਹੋਰ ਵੇਰਵਾ", "Mai multe detalii", "Más detalles", "மேலும் விவரம்", "Daha fazla ayrıntı", "Більше деталей", "مزید تفصیل", "Thêm chi tiết", "Rhagor o fanylion"]
+"More detail": ["تفاصيل أكثر", "Մանրամասներ", "আরও বিস্তারিত", "Още подробности", "更多细节", "Plus de détails", "વધુ વિગત", "और जानकारी", "Altri dettagli", "Daugiau informacijos", "थप विवरण", "Więcej szczegółów", "Mais pormenores", "ਹੋਰ ਵੇਰਵਾ", "Mai multe detalii", "Más detalles", "மேலும் விவரம்", "Daha fazla ayrıntı", "Більше деталей", "مزید تفصیل", "Thêm chi tiết", "Rhagor o fanylion"],
+"Choose from your photos": ["اختر من صورك", "Ընտրել ձեր լուսանկարներից", "আপনার ছবি থেকে বেছে নিন", "Избери от снимките си", "从相册选择", "Choisir dans vos photos", "તમારા ફોટામાંથી પસંદ કરો", "अपनी फोटो में से चुनें", "Scegli dalle tue foto", "Pasirinkti iš savo nuotraukų", "आफ्ना फोटोबाट छान्नुहोस्", "Wybierz ze swoich zdjęć", "Escolher das suas fotos", "ਆਪਣੀਆਂ ਫੋਟੋਆਂ ਵਿੱਚੋਂ ਚੁਣੋ", "Alege din fotografiile tale", "Elegir de tus fotos", "உங்கள் புகைப்படங்களிலிருந்து தேர்ந்தெடு", "Fotoğraflarından seç", "Вибрати зі своїх фото", "اپنی تصاویر میں سے چنیں", "Chọn từ ảnh của bạn", "Dewis o'ch lluniau"],
+"The close, or anything you worked on. Take them here or choose from your photos: they go with your report.": ["الإغلاق، أو أي شيء عملت عليه. التقطها هنا أو اخترها من صورك: تُرسل مع تقريرك.", "Փակումը կամ այն, ինչի վրա աշխատել ես։ Լուսանկարիր այստեղ կամ ընտրիր քո լուսանկարներից, և դրանք կուղարկվեն հաշվետվությանդ հետ։", "ক্লোজ, বা আপনি যা নিয়ে কাজ করেছেন। এখানে তুলুন বা আপনার ছবি থেকে বেছে নিন: সেগুলো আপনার রিপোর্টের সাথে যাবে।", "Затварянето или каквото си свършил. Снимай тук или избери от снимките си: отиват с отчета ти.", "收店情况，或你处理过的任何东西。在这里拍，或从相册选择：照片会随报告一起发送。", "La fermeture, ou tout ce sur quoi vous avez travaillé. Prenez-les ici ou choisissez-les dans vos photos : elles partent avec votre rapport.", "ક્લોઝ, અથવા તમે જેના પર કામ કર્યું. અહીં લો અથવા તમારા ફોટામાંથી પસંદ કરો: તે તમારા રિપોર્ટ સાથે જાય છે.", "क्लोज़, या जिस पर भी आपने काम किया। यहीं लें या अपनी फोटो में से चुनें: ये आपकी रिपोर्ट के साथ जाती हैं।", "La chiusura, o qualsiasi cosa su cui hai lavorato. Scattale qui o sceglile dalle tue foto: partono con il report.", "Uždarymas ar bet kas, ką darėte. Fotografuokite čia arba pasirinkite iš savo nuotraukų: jos siunčiamos su ataskaita.", "बन्द गर्ने काम, वा तपाईंले गरेको जुनसुकै काम। यहीँ खिच्नुहोस् वा आफ्ना फोटोबाट छान्नुहोस्: ती तपाईंको रिपोर्टसँग जान्छन्।", "Zamknięcie albo cokolwiek, nad czym pracowałeś. Zrób je tutaj albo wybierz ze swoich zdjęć: pójdą z raportem.", "O fecho, ou qualquer coisa em que trabalhou. Tire-as aqui ou escolha-as das suas fotos: vão com o relatório.", "ਕਲੋਜ਼, ਜਾਂ ਜਿਸ 'ਤੇ ਵੀ ਤੁਸੀਂ ਕੰਮ ਕੀਤਾ। ਇੱਥੇ ਲਓ ਜਾਂ ਆਪਣੀਆਂ ਫੋਟੋਆਂ ਵਿੱਚੋਂ ਚੁਣੋ: ਇਹ ਤੁਹਾਡੀ ਰਿਪੋਰਟ ਨਾਲ ਜਾਂਦੀਆਂ ਹਨ।", "Închiderea sau orice ai lucrat. Fă-le aici sau alege-le din fotografiile tale: pleacă împreună cu raportul.", "El cierre, o cualquier cosa en la que hayas trabajado. Hazlas aquí o elígelas de tus fotos: van con tu informe.", "மூடுதல், அல்லது நீங்கள் செய்த எந்த வேலையும். இங்கே எடுக்கவும் அல்லது உங்கள் புகைப்படங்களிலிருந்து தேர்ந்தெடுக்கவும்: அவை உங்கள் அறிக்கையுடன் செல்லும்.", "Kapanış ya da üzerinde çalıştığın her şey. Burada çek ya da fotoğraflarından seç: raporunla birlikte gider.", "Закриття або будь-що, над чим ви працювали. Зробіть їх тут або виберіть зі своїх фото: вони підуть разом зі звітом.", "کلوزنگ، یا جس پر بھی آپ نے کام کیا۔ یہیں لیں یا اپنی تصاویر میں سے چنیں: یہ آپ کی رپورٹ کے ساتھ جاتی ہیں۔", "Phần đóng cửa, hoặc bất cứ việc gì bạn đã làm. Chụp tại đây hoặc chọn từ ảnh của bạn: ảnh sẽ được gửi kèm báo cáo.", "Y cau, neu unrhyw beth y buoch chi'n gweithio arno. Tynnwch nhw yma neu dewiswch o'ch lluniau: maen nhw'n mynd gyda'ch adroddiad."]
 }
 };
 const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
