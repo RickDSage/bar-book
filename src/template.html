@@ -397,6 +397,8 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+.bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
+.utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
 .chrow { display: block; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
 .chrow.new { border-color: var(--brass); }
@@ -718,7 +720,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button><button class="btn pri" id="w-kitchen" data-start="kitchen">Kitchen</button></div>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell" id="money-btn" hidden aria-label="Money sandbox"><svg viewBox="0 0 24 24"><path d="M15.5 6.5A3.5 3.5 0 0 0 9 8.3c0 2.2 1 3.7 1 5.7a4 4 0 0 1-2 3.5h9"/><path d="M7 12h7"/></svg></button><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="bell" id="money-btn" hidden aria-label="Money sandbox"><svg viewBox="0 0 24 24"><path d="M15.5 6.5A3.5 3.5 0 0 0 9 8.3c0 2.2 1 3.7 1 5.7a4 4 0 0 1-2 3.5h9"/><path d="M7 12h7"/></svg></button><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <header class="gut" id="hdr">
   <div id="hdr-drinks">
@@ -797,6 +799,9 @@ function keepOpen(el, fn) {
   new MutationObserver((ms) => ms.forEach((m) => fn({ target: m.target }))).observe(el, { attributes: true, attributeFilter: ["open"], subtree: true });
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// What people write (messages, notes, titles) goes in its own span: the app's words never change it, and it gets a
+// Translate button (see Language).
+const ut = (x) => `<span data-ut>${esc(x)}</span>`;
 const D = DATA.drinks;
 const SECTIONS = [...new Set(D.map((d) => d.section))];
 const glass = (d) => ART(d.g, d.c, d.garnish, d.ice);
@@ -2010,7 +2015,7 @@ function handoverHtml() {
   const note = r.text.match(/\nNote for handover:\n([\s\S]*?)\n\nSigned off by/)?.[1].trim();
   const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
   return `<article class="notice" id="handover"><div class="meta">Last handover · <b>${esc(r.name)}</b> · ${when(r.at)}</div>
-    <p class="txt">${note && note !== "None" ? esc(note) : "No note left."}</p>
+    <p class="txt">${note && note !== "None" ? ut(note) : "No note left."}</p>
     ${left.length ? `<p class="note">Left from that shift:<br>${left.map(esc).join("<br>")}</p>` : ""}
     <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>`;
 }
@@ -2587,17 +2592,77 @@ const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
 let lang = store.get("lang", "");
 const TR = new Map();
 function trBuild() {
-  TR.clear(); const i = LANGS.findIndex(([c]) => c === lang); if (i < 0) return;
-  for (const [en, xs] of Object.entries(I18N.words)) if (xs[i]) TR.set(en, xs[i]);
+  TR.clear(); TR_PAT = []; trCache.clear(); trFmt = null; const i = LANGS.findIndex(([c]) => c === lang); if (i < 0) return;
+  for (const [en, xs] of Object.entries(I18N.words)) if (xs[i]) { if (/\{[a-d]\}/.test(en)) TR_PAT.push(trPat(en, xs[i])); else TR.set(en, xs[i]); }
+  // The longest phrases are tried first, so "Remove {a} for everyone?" wins over "Remove {a}".
+  TR_PAT.sort((a, b) => b.re.source.length - a.re.source.length);
+  const loc = `${LOCALE[lang] || lang}-u-nu-latn`;
+  // Only where the phone has the language's calendar words: some browsers say they do and give "M11" or the English.
+  const nov = (o) => new Intl.DateTimeFormat(loc, { timeZone: "UTC", ...o }).format(new Date(Date.UTC(2026, 10, 6)));
+  if (Intl.DateTimeFormat.supportedLocalesOf(loc).length && !/November|Nov\b|Fri\b|M11/.test(nov({ month: "long" }) + nov({ weekday: "short", day: "numeric", month: "short" }))) {
+    const fs = new Map(); trFmt = (o) => { const k = JSON.stringify(o); if (!fs.has(k)) fs.set(k, new Intl.DateTimeFormat(loc, o)); return fs.get(k); };
+  }
 }
 // A phrase with numbers in it ("3 of 21 done") is listed with {1}, {2}… for the numbers ("{1} of {2} done"), and the
 // numbers go back in wherever the translation puts them.
 const TR_NUM = /\d+(?:[.,:]\d+)*/g;
-function trLook(k) {
-  const t = TR.get(k); if (t || !/\d/.test(k)) return t;
-  const ns = k.match(TR_NUM); let i = 0;
-  return TR.get(k.replace(TR_NUM, () => `{${++i}}`))?.replace(/\{(\d)\}/g, (_, j) => ns[j - 1]);
+// Dates the app writes in English ("Fri 6 Nov", "Saturday 7 November 2026", "November 2026") are put into the
+// phone's language with the phone's own calendar words. Digits stay 0-9.
+const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MO = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const alt = (xs) => xs.map((x) => (x === "May" ? x : `${x}|${x.slice(0, 3)}`)).join("|");
+const TR_DATE_SRC = `(?:(${alt(WD)}),? )?(\\d{1,2}) (${alt(MO)})(?: (\\d{4}))?|(${MO.join("|")})(?: (\\d{4}))?`;
+const TR_DATE = new RegExp(`^(?:${TR_DATE_SRC})$`);
+const LOCALE = { zh: "zh-CN", pt: "pt-PT", es: "es-ES" };
+let trFmt = null;
+function trDate(k) {
+  const m = k.match(TR_DATE); if (!m || !trFmt) return;
+  const [, wd, d, mo, y, mo2, y2] = m, mi = MO.findIndex((x) => (mo || mo2).startsWith(x.slice(0, 3)));
+  const o = { timeZone: "UTC", month: (mo || mo2).length > 3 ? "long" : "short" };
+  if (d) o.day = "numeric";
+  else if (!y2) o.month = "long";
+  if (y || y2) o.year = "numeric";
+  if (wd) o.weekday = wd.length > 3 ? "long" : "short";
+  // Without a year, the year that puts the day on the weekday shown (this year or the ones either side).
+  const now = new Date().getUTCFullYear(), wi = wd ? WD.findIndex((x) => x.startsWith(wd.slice(0, 3))) : -1;
+  const yr = Number(y || y2) || [now, now + 1, now - 1, now + 2].find((n) => wi < 0 || new Date(Date.UTC(n, mi, Number(d))).getUTCDay() === wi);
+  return trFmt(o).format(new Date(Date.UTC(yr, mi, Number(d) || 1)));
 }
+// A phrase with someone's name, a title or a date in it is listed with {a}, {b}… for the text and {d} for a date
+// ("Accept {a}'s handover"). The text goes back as it was, or translated if it's a phrase of its own.
+let TR_PAT = [];
+const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function trPat(en, t) {
+  const slots = [], src = en.split(/(\{(?:\d|[a-d])\})/).map((x, i) => {
+    if (!(i % 2)) return reEsc(x);
+    slots.push(x);
+    return x === "{d}" ? `(${TR_DATE_SRC.replace(/\((?!\?)/g, "(?:")})` : /\d/.test(x) ? "(\\d+(?:[.,:]\\d+)*)" : "([\\s\\S]+?)";
+  }).join("");
+  const lits = en.split(/\{(?:\d|[a-d])\}/).filter(Boolean), hint = lits.reduce((a, x) => (x.length > a.length ? x : a), "");
+  return { re: new RegExp(`^${src}$`), slots, t, hint };
+}
+const trCache = new Map();
+function trLook(k) {
+  if (trCache.has(k)) return trCache.get(k);
+  let t = TR.get(k) || trDate(k);
+  if (!t && /\d/.test(k)) { const ns = k.match(TR_NUM); let i = 0; t = TR.get(k.replace(TR_NUM, () => `{${++i}}`))?.replace(/\{(\d)\}/g, (_, j) => ns[j - 1]); }
+  if (!t) for (const p of TR_PAT) {
+    if (p.hint && !k.includes(p.hint)) continue;
+    const m = k.match(p.re); if (!m) continue;
+    const v = {}; p.slots.forEach((x, i) => (v[x] = m[i + 1]));
+    t = p.t.replace(/\{(?:\d|[a-d])\}/g, (x) => (x === "{d}" ? trDate(v[x]) || v[x] : /\d/.test(x) ? v[x] : trLook(v[x]) || v[x]));
+    break;
+  }
+  // A line made of parts ("Bar · Opening 3/8 · Closing 0/12") is put together from the parts it knows.
+  // "Glass washer drained and cleaned (Closing checklist)": both halves have to be known.
+  const pm = !t && k.match(/^(.+) \(([^()]+)\)$/);
+  if (pm) { const x = trLook(pm[1]), y = trLook(pm[2]); if (x && y) t = `${x} (${y})`; }
+  if (!t && k.includes(" · ")) { const ps = k.split(" · "), ts = ps.map((x) => trLook(x)); if (ts.some(Boolean)) t = ps.map((x, i) => ts[i] || x).join(" · "); }
+  trCache.set(k, t);
+  return t;
+}
+// Pop-ups and questions are put through the same words.
+for (const f of ["alert", "confirm", "prompt"]) { const o = window[f]; window[f] = (m, ...r) => o.call(window, trLook(String(m).trim()) || m, ...r); }
 // The English each translated text node or attribute came from, so switching back or to another language works.
 const trWas = new WeakMap();
 function trNode(n) {
@@ -2610,16 +2675,17 @@ function trAttr(el, a) {
   if (t) { el.setAttribute(key, was); if (el.getAttribute(a) !== t) el.setAttribute(a, t); }
   else if (el.hasAttribute(key)) { el.setAttribute(a, was); el.removeAttribute(key); }
 }
-const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no]";
+const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no],[data-ut]";
 function trTree(root) {
   if (root.nodeType === 3) { if (!root.parentElement?.closest(TR_SKIP)) trNode(root); return; }
   if (root.nodeType !== 1 || root.closest(TR_SKIP)) return;
   const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentElement.closest(TR_SKIP) ? 2 : 1) });
   for (let n; (n = w.nextNode());) trNode(n);
-  for (const el of [root, ...root.querySelectorAll("[placeholder],[aria-label]")]) for (const a of ["placeholder", "aria-label"]) if (el.hasAttribute(a) && !el.closest("[translate=no]")) trAttr(el, a);
+  for (const el of [root, ...root.querySelectorAll("[placeholder],[aria-label],[title]")]) for (const a of ["placeholder", "aria-label", "title"]) if (el.hasAttribute(a) && !el.closest("[translate=no]")) trAttr(el, a);
 }
 // Everything drawn later is translated as it lands.
 const trObs = new MutationObserver((ms) => {
+  for (const m of ms) m.addedNodes.forEach((n) => n.nodeType === 1 && utMark(n));
   if (!TR.size) return;
   trObs.disconnect();
   for (const m of ms) if (m.type === "characterData") { trWas.delete(m.target); trTree(m.target); } else m.addedNodes.forEach(trTree);
@@ -2627,11 +2693,38 @@ const trObs = new MutationObserver((ms) => {
 });
 const trWatch = () => trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
 function setLang(c) {
-  lang = c; store.set("lang", c); trBuild();
+  lang = c; store.set("lang", c); if (c) store.set("lang.last", c); trBuild();
+  langBtn(); utMark(document.body);
   document.documentElement.lang = c || "en-GB"; document.documentElement.dir = LANG_RTL.has(c) ? "rtl" : "ltr";
   trObs.disconnect(); trTree(document.body); trWatch();
   $$("select[data-lang]").forEach((s) => (s.value = c));
 }
+/* What people write or send (chat, broadcasts, notes, issues, handovers) isn't in the app's dictionary, so it gets a
+   Translate button that opens Google Translate with the words, into this phone's language (or English, on an English
+   phone). It's free and needs signal; the words go to Google. On an English phone the button shows only for writing
+   with letters outside English (Polish, Arabic, Hindi…), so English messages stay uncluttered. */
+const GT_LANG = { zh: "zh-CN", pt: "pt-PT" };
+function utMark(root) {
+  const els = root.matches?.("[data-ut]") ? [root] : root.querySelectorAll ? root.querySelectorAll("[data-ut]") : [];
+  for (const el of els) {
+    const t = el.textContent.trim(), want = /\p{L}{2}/u.test(t) && (!!lang || /[^\x00-\x7F]/.test(t)), has = el.nextElementSibling?.matches(".utx");
+    if (want && !has) el.insertAdjacentHTML("afterend", `<button class="utx" data-utx>Translate</button>`);
+    else if (!want && has) el.nextElementSibling.remove();
+  }
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-utx]"); if (!b) return;
+  const t = b.previousElementSibling?.textContent.trim(); if (!t) return;
+  window.open(`https://translate.google.com/?sl=auto&tl=${GT_LANG[lang] || lang || "en"}&text=${encodeURIComponent(t)}&op=translate`, "_blank", "noopener");
+});
+// One tap between English and the language picked last, from the top of every page.
+function langBtn() {
+  const b = $("#lang-btn"), last = store.get("lang.last", ""), to = lang ? "" : last, l = LANGS.find(([c]) => c === (lang || last));
+  b.hidden = !l; if (!l) return;
+  b.textContent = to ? to.toUpperCase() : "EN"; b.dataset.to = to;
+  b.setAttribute("aria-label", to ? `${l[1]} (${l[2]})` : "English");
+}
+$("#lang-btn").addEventListener("click", (e) => { setLang(e.currentTarget.dataset.to); haptic(); });
 // The list to pick from: English first, then each language in its own words, with the English name after it.
 const langOptions = () => `<option value="">English</option>${LANGS.map(([c, own, en]) => `<option value="${c}"${c === lang ? " selected" : ""}>${own} (${en})</option>`).join("")}`;
 document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); haptic(); } });
@@ -3636,13 +3729,13 @@ SHARE.pin = (o) => {
 };
 function renderPins() {
   if (!LIVE.me) return;
-  $("#pins").innerHTML = LIVE.notices.filter(forMe).map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div>${audience(x) ? `<div class="tags">${audience(x)}</div>` : ""}<p class="txt">${esc(x.text)}</p>${LIVE.admin ? `${readers(x)}<div class="actions">${sendBtn("pin", "Send on WhatsApp", x.id)}${canTakeDown(x) ? `<button class="btn" data-unpin="${x.id}">Remove broadcast</button>` : ""}</div>` : ""}</article>`).join("");
+  $("#pins").innerHTML = LIVE.notices.filter(forMe).map((x) => `<article class="notice pinned${isNew(x) ? " new" : ""}"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div>${audience(x) ? `<div class="tags">${audience(x)}</div>` : ""}<p class="txt">${ut(x.text)}</p>${LIVE.admin ? `${readers(x)}<div class="actions">${sendBtn("pin", "Send on WhatsApp", x.id)}${canTakeDown(x) ? `<button class="btn" data-unpin="${x.id}">Remove broadcast</button>` : ""}</div>` : ""}</article>`).join("");
 }
 function renderFeed() {
   if (!LIVE.me) return;
   const del = (x) => (canTakeDown(x) ? `<div class="actions"><button class="btn" data-del="${x.id}">Delete</button></div>` : "");
   // The board is read-only since team chat (26 October 2026): old posts stay until someone takes them down.
-  $("#feed").innerHTML = LIVE.feed.length ? `<details class="setup"><summary>Old board posts (${LIVE.feed.length})</summary><p class="note">The board is closed. Post in Chat instead.</p>${LIVE.feed.map((x) => `<article class="notice"><div class="meta"><b>${esc(x.name)}</b> · ${when(x.at)}</div><p class="txt">${esc(x.text)}</p>${del(x)}</article>`).join("")}</details>` : "";
+  $("#feed").innerHTML = LIVE.feed.length ? `<details class="setup"><summary>Old board posts (${LIVE.feed.length})</summary><p class="note">The board is closed. Post in Chat instead.</p>${LIVE.feed.map((x) => `<article class="notice"><div class="meta"><b>${esc(x.name)}</b> · ${when(x.at)}</div><p class="txt">${ut(x.text)}</p>${del(x)}</article>`).join("")}</details>` : "";
 }
 /* ---------- Reports ----------
    Every report in one tab: the shift reports from every side and, for managers, incidents. Waiting ones sit at the
@@ -3670,7 +3763,7 @@ function renderReports() {
   const top = `<div class="sec">Waiting for sign-off</div>` +
     (waitingR.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}${r.pending ? " · sending…" : ""}</div><p class="txt">${esc(r.summary)}</p>${body(r)}
       ${A ? `<div class="actions"><button class="btn pri" data-sign="${r.id}">Sign off</button></div>${reviewHtml(r)}` : `<p class="note">Waiting for a manager to sign it off.</p>`}</article>`).join("") || `<p class="note">No reports waiting for sign-off.</p>`) +
-    (A && isOn("incidents") ? `<div class="sec">Open incidents</div>${openI.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill wait">Open</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>
+    (A && isOn("incidents") ? `<div class="sec">Open incidents</div>${openI.map((x) => `<div class="staffrow"><div class="n">${esc(x.kind)} <span class="pill wait">Open</span></div><div class="s">${esc(x.name)} · ${when(x.at)}</div><p class="txt" style="margin:6px 0 0">${ut(x.text)}</p>
       <div class="rvrow" style="grid-template-columns:1fr auto"><input data-inct="${x.id}" maxlength="500" placeholder="What was done about it" value="${esc(incText[x.id] || "")}" aria-label="What was done about it"><button class="btn" data-inc-close="${x.id}">Close</button></div></div>`).join("") || `<p class="note">No open incidents. Anyone can log one in My requests.</p>`}` : "");
   // Night by night. For the last 7 nights managers also get the flags, incidents and lateness counted, as those are
   // all loaded; further back the counts could be short, so they're left off.
@@ -3685,7 +3778,7 @@ function renderReports() {
   };
   const repRow = (r) => `<div class="staffrow"><div class="n">${sideName(r.side)} · ${esc(r.name)} ${r.signedBy ? `<span class="pill ok">Signed off</span>` : `<span class="pill wait">Waiting</span>`}${A && rpFlagged(r) ? ` <span class="pill no">Flagged</span>` : ""}</div>
     <div class="s">${hhmm(new Date(ms(r.at)))} · ${esc(r.summary.replace(/^(Floor|Bar|Kitchen) · /, ""))}</div>${r.signedBy ? `<div class="s ok">Signed off by ${esc(r.signedBy)}, ${when(r.signedAt)}</div>` : ""}${body(r)}${A && r.signedBy ? reviewHtml(r) : ""}</div>`;
-  const incRow = (x) => `<div class="staffrow"><div class="n">${esc(x.kind)} ${x.status === "closed" ? `<span class="pill ok">Closed</span>` : `<span class="pill wait">Open</span>`}</div><div class="s">${hhmm(new Date(ms(x.at)))} · ${esc(x.name)}</div><p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>${x.status === "closed" ? `<div class="s">What was done: ${esc(x.outcome)} · ${esc(x.closedBy)}, ${when(x.closedAt)}</div>` : ""}</div>`;
+  const incRow = (x) => `<div class="staffrow"><div class="n">${esc(x.kind)} ${x.status === "closed" ? `<span class="pill ok">Closed</span>` : `<span class="pill wait">Open</span>`}</div><div class="s">${hhmm(new Date(ms(x.at)))} · ${esc(x.name)}</div><p class="txt" style="margin:6px 0 0">${ut(x.text)}</p>${x.status === "closed" ? `<div class="s">What was done: ${esc(x.outcome)} · ${esc(x.closedBy)}, ${when(x.closedAt)}</div>` : ""}</div>`;
   const list = [...nights].map(([k, ys]) => `<article class="notice night"><div class="meta"><b>${dayName(k, { weekday: "long", day: "numeric", month: "long" })}</b></div>${A && !inc && recent.includes(k) ? facts(k) : ""}${ys.map(inc ? incRow : repRow).join("")}</article>`).join("");
   const what = inc ? "incidents" : "reports", more = rpMore(what);
   $("#reports").innerHTML = top + `<div class="sec">Every report</div>
@@ -3721,12 +3814,12 @@ function renderRequests() {
   // Managers don't decide their own requests; another manager or the owner does.
   const own = (a) => a.uid === LIVE.uid && !LIVE.owner;
   $("#requests").innerHTML = `<div class="sec">Staff requests</div>` +
-    (pend.map((a) => `<article class="notice${isNew(a) ? " new" : ""}"><div class="meta"><b>${esc(a.name)}</b> · ${when(a.at)}${a.status === "seen" ? ` · seen by ${esc(a.by)}` : ""}</div><p class="txt"><b>${askLine(a)}</b>${a.note ? `<br>${esc(a.note)}` : ""}</p>
+    (pend.map((a) => `<article class="notice${isNew(a) ? " new" : ""}"><div class="meta"><b>${esc(a.name)}</b> · ${when(a.at)}${a.status === "seen" ? ` · seen by ${esc(a.by)}` : ""}</div><p class="txt"><b>${askLine(a)}</b>${a.note ? `<br>${ut(a.note)}` : ""}</p>
       ${own(a) ? `<p class="note">Another manager or the owner decides this one.</p>` : `<div class="actions">${a.kind === "late" ? `<button class="btn pri" data-decide="${a.id}" data-to="seen">Seen</button>` : `<button class="btn pri" data-decide="${a.id}" data-to="approved">Approve</button><button class="btn danger" data-decide="${a.id}" data-to="declined">Decline</button>`}</div>`}</article>`).join("") || `<p class="note">Nothing waiting.</p>`) +
     (decided.length ? `<details class="setup"><summary>Decided (${decided.length})</summary>${decided.map((a) => `<div class="staffrow"><div class="n">${esc(a.name)} · ${askLine(a)}</div><div class="s">${statusPill(a)} by ${esc(a.by)}, ${when(a.byAt)}</div></div>`).join("")}</details>` : "") +
     // Stock requests from before restocking, until the last ones are cleared. New asks are on the Shift tab's Stock page.
     (open.length ? `<div class="sec">Old stock requests</div><p class="note">From before restocking. Mark each one ordered or turn it down. New asks for stock are on the Shift tab's Stock page.</p>` +
-      open.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt"><b>${esc(r.item)}</b>${r.note ? `<br>${esc(r.note)}` : ""}</p><div class="actions"><button class="btn pri" data-ordered="${r.id}">Ordered</button><button class="btn" data-rq-drop="${r.id}">Turn down</button></div></article>`).join("") : "");
+      open.map((r) => `<article class="notice${isNew(r) ? " new" : ""}"><div class="meta"><b>${esc(r.name)}</b> · ${when(r.at)}</div><p class="txt"><b>${esc(r.item)}</b>${r.note ? `<br>${ut(r.note)}` : ""}</p><div class="actions"><button class="btn pri" data-ordered="${r.id}">Ordered</button><button class="btn" data-rq-drop="${r.id}">Turn down</button></div></article>`).join("") : "");
 }
 /* ---------- Rota ----------
    Managers make a week as a draft only they can see, then publish it. After that every change is saved with who made
@@ -3802,7 +3895,7 @@ function roRow(x) {
   const live = x.pub && roSpan(x)[1] > roNow(), hands = Object.entries(x.wants), clash = A && x.who ? roClash(x.who, x, x.id) : "";
   const pills = [!x.pub && `<span class="pill wait">Draft</span>`, !x.who && `<span class="pill no">Open shift</span>`, x.cover && `<span class="pill no">Needs cover</span>`,
     !x.who && x.offer && `<span class="pill wait">Offered to ${offered ? "you" : esc(x.offerName)}</span>`, `<span class="pill">${sideName(x.side)}</span>`, isTestUid(x.who) && `<span class="pill">Test</span>`].filter(Boolean).join(" ");
-  const line = [x.note && esc(x.note), x.cover && `${mine ? "You" : esc(x.whoName)} can't make it: ${esc(x.cover)}`, hands.length && `Hands up: ${esc(hands.map(([, n]) => n).join(", "))}`,
+  const line = [x.note && ut(x.note), x.cover && `${mine ? "You" : esc(x.whoName)} can't make it: ${esc(x.cover)}`, hands.length && `Hands up: ${esc(hands.map(([, n]) => n).join(", "))}`,
     clash && `<b class="late">${esc(x.whoName)} ${esc(clash)}</b>`, A && x.who && !roFind(x.who) && `${esc(x.whoName)} ${isTestUid(x.who) ? "was a test person" : "has left the team"}`, x.pending && "Saving…"].filter(Boolean).join(" · ");
   const b = (act, t, c = "") => `<button class="btn${c}" data-ro="${x.id}" data-ro-act="${act}">${t}</button>`;
   // Managers give it to someone with a hand up. Anyone: takes or turns down a shift offered to them, says they can't
@@ -4136,7 +4229,7 @@ function rotaPicture(wk, xs) {
 const shownPhotos = {};
 async function showPhotos(id) {
   const ps = await LIVE.api.loadPhotos(id);
-  shownPhotos[id] = ps.length ? ps.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><p class="txt">${p.note ? esc(p.note) : "<span class=\"note\">No note</span>"}</p></div>`).join("") : `<p class="note">These photos were cleared (photos are kept for ${LIVE.api.KEEP_DAYS} days).</p>`;
+  shownPhotos[id] = ps.length ? ps.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><p class="txt">${p.note ? ut(p.note) : "<span class=\"note\">No note</span>"}</p></div>`).join("") : `<p class="note">These photos were cleared (photos are kept for ${LIVE.api.KEEP_DAYS} days).</p>`;
   const box = document.querySelector(`[data-photos-of="${id}"]`); if (box) box.innerHTML = shownPhotos[id];
 }
 /* ---------- Calendar ----------
@@ -4417,7 +4510,7 @@ function renderConcerns() {
   if (!LIVE.me) return;
   const row = (x) => `<article class="notice${x.reason === "hazard" ? " new" : ""}"><div class="meta"><b>${CN_NAME[x.reason]}</b> · ${AREA[x.area] || "Other"}${x.pending ? " · sending…" : ""}</div>
     <div class="tags"><span class="pill${x.to === "managers" ? " wait" : ""}">${CN_TO_NAME[x.to]}</span>${x.anon ? `<span class="pill">Anonymous</span>` : ""}</div>
-    ${x.note ? `<p class="txt">${esc(x.note)}</p>` : ""}
+    ${x.note ? `<p class="txt">${ut(x.note)}</p>` : ""}
     ${x.photos ? `<div data-cn-photos-of="${x.id}">${cnShown[x.id] || `<button class="btn" data-cn-photos="${x.id}">Show ${esc(x.photos)} photo${x.photos > 1 ? "s" : ""}</button>`}</div>` : ""}
     <p class="note" style="margin-top:6px">${x.anon ? "Sent anonymously" : `From ${esc(x.name)}`} · ${when(x.at)}</p>
     ${LIVE.admin || x.to !== "managers" ? `<div class="rvrow" style="grid-template-columns:1fr auto"><input data-cn-fixt="${x.id}" maxlength="300" placeholder="What was done (optional)" value="${esc(cnText[x.id] || "")}" aria-label="What was done"><button class="btn pri" data-cn-fix="${x.id}">Dealt with</button></div>` : ""}
@@ -4468,7 +4561,7 @@ function renderIssues() {
   if (!LIVE.me) return;
   const open = openIssues().sort((a, b) => (b.urgent - a.urgent) || (ms(a.at) - ms(b.at)));
   const fixed = LIVE.issues.filter((x) => x.status === "fixed").slice(0, 10);
-  const row = (x) => `<article class="notice issue${x.urgent ? " new" : ""}"><div class="meta"><b>${esc(x.title)}</b>${x.pending ? " · sending…" : ""}</div>
+  const row = (x) => `<article class="notice issue${x.urgent ? " new" : ""}"><div class="meta"><b>${ut(x.title)}</b>${x.pending ? " · sending…" : ""}</div>
     <div class="tags">${x.urgent ? `<span class="pill no">Urgent</span>` : ""}<span class="pill">${AREA[x.area] || "Other"}</span>${x.status === "taken" ? `<span class="pill wait">On it: ${esc(x.who)}</span>` : `<span class="pill">Nobody on it yet</span>`}${x.again ? `<span class="pill">Raised again</span>` : ""}</div>
     ${x.detail ? `<p class="txt">${esc(x.detail)}</p>` : ""}
     <p class="note" style="margin-top:6px">Raised by ${esc(x.name)} · ${when(x.at)}</p>
@@ -4483,7 +4576,7 @@ function renderIssues() {
       <div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
     ${open.map(row).join("") || `<p class="note">No open issues.</p>`}
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
-    ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${esc(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${esc(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
+    ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${ut(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${ut(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
 }
 // One issue, for whoever fixes it: the engineer, a contractor or the landlord, with a photo added on the Send page.
 SHARE.issue = (id) => {
@@ -4535,7 +4628,7 @@ function renderMe() {
 // A thumbs up can stand alone. A flag or a note needs a comment, so the team knows what it's about.
 function reviewHtml(r) {
   const vs = rpReviews().filter((v) => v.report === r.id).reverse();
-  return `${vs.map((v) => `<div class="s" style="margin-top:6px"><b>${esc(v.name)}</b> ${v.verdict === "up" ? "👍" : v.verdict === "flag" ? `<span class="pill no">Flagged</span>` : ""}${v.text ? ` ${esc(v.text)}` : ""} · ${when(v.at)}</div>`).join("")}
+  return `${vs.map((v) => `<div class="s" style="margin-top:6px"><b>${esc(v.name)}</b> ${v.verdict === "up" ? "👍" : v.verdict === "flag" ? `<span class="pill no">Flagged</span>` : ""}${v.text ? ` ${ut(v.text)}` : ""} · ${when(v.at)}</div>`).join("")}
     <div class="rvrow"><input data-rvt="${r.id}" maxlength="500" placeholder="Comment for managers" value="${esc(rvText[r.id] || "")}" aria-label="Comment for managers"><button class="btn" data-rv="${r.id}" data-v="up" aria-label="Thumbs up">👍</button><button class="btn" data-rv="${r.id}" data-v="flag">Flag</button><button class="btn" data-rv="${r.id}" data-v="note">Note</button></div>`;
 }
 // Anonymous feedback between managers. Nights and incidents moved to Reports (3 November 2026).
@@ -4549,7 +4642,7 @@ function renderFeedback() {
     <label class="fld">Comment (${meF.fbScore === "Needs improvement" ? "say what needs to improve" : "optional"})<textarea data-f="fbText" rows="2" maxlength="500">${esc(meF.fbText)}</textarea></label>
     <button class="btn pri wide" id="fb-go">Send anonymously</button>
     <h3 style="font-size:18px;margin-top:18px">${LIVE.owner ? "Feedback for every manager" : "Feedback about you"}</h3>
-    ${LIVE.ratings.map((x) => `<div class="staffrow"><div class="n">${LIVE.owner ? `${esc(x.aboutName)} · ` : ""}<span class="pill ${x.score === "Needs improvement" ? "no" : "ok"}">${x.score}</span></div>${x.text ? `<p class="txt" style="margin:6px 0 0">${esc(x.text)}</p>` : ""}<div class="s">${when(x.at)}</div></div>`).join("") || `<p class="note">None yet.</p>`}`;
+    ${LIVE.ratings.map((x) => `<div class="staffrow"><div class="n">${LIVE.owner ? `${esc(x.aboutName)} · ` : ""}<span class="pill ${x.score === "Needs improvement" ? "no" : "ok"}">${x.score}</span></div>${x.text ? `<p class="txt" style="margin:6px 0 0">${ut(x.text)}</p>` : ""}<div class="s">${when(x.at)}</div></div>`).join("") || `<p class="note">None yet.</p>`}`;
 }
 function renderOutlog() {
   if (!LIVE.admin) return;
@@ -4789,7 +4882,7 @@ function renderBrief() {
   const out = [...LIVE.out].sort(), on = brTonight();
   const show = b ? `<article class="notice brief"><div class="meta"><b>${dayName(b.day, { weekday: "long", day: "numeric", month: "long" })}</b> · from ${esc(b.name)}, ${b.pending ? "sending…" : when(b.at)}${b.v > 1 ? " (changed)" : ""}</div>
       ${b.covers ? `<p class="txt">Expected covers: <b>${b.covers}</b></p>` : ""}
-      ${BR_F.filter(([k]) => k !== "covers" && b[k]).map(([k, t]) => `<div class="h3">${t}</div><p class="txt">${esc(b[k])}</p>`).join("")}
+      ${BR_F.filter(([k]) => k !== "covers" && b[k]).map(([k, t]) => `<div class="h3">${t}</div><p class="txt">${ut(b[k])}</p>`).join("")}
       <div class="h3">86'd now</div><p class="txt">${out.length ? esc(out.join(", ")) : "Nothing"}</p>
       ${on.length ? `<div class="h3">On the rota tonight</div><p class="txt">${on.map((x) => `${esc(x.whoName)} (${sideName(x.side)}, ${roTime(x)})`).join(", ")}</p>` : ""}
       <div class="actions">${brMine() ? `<span class="pill ok">${b.uid === LIVE.uid ? "You posted it" : "You've read it"}</span>` : `<button class="btn pri" id="br-read">I've read it</button>`}${sendBtn("brief", "Send it")}${LIVE.admin ? sendBtn("readbrief", "Send a reminder") : ""}</div></article>`
@@ -5012,7 +5105,7 @@ const monthName = (m) => dayName(`${m}-01`, { month: "long", year: "numeric" });
 let rfMon = "";
 function rfRow(x, day) {
   return `<div class="staffrow"><div class="n">${day ? `${dayName(x.day)} ` : ""}${hhmm(new Date(ms(x.at)))} · <span>${esc(RF_WHY[x.reason])}</span>${x.what ? ` · <span translate="no">${esc(x.what)}</span>` : ""}</div>
-    ${x.note ? `<div class="s" translate="no">${esc(x.note)}</div>` : ""}<div class="s">${esc(x.name)}${x.pending ? ", saving…" : ""}</div>
+    ${x.note ? `<div class="s">${ut(x.note)}</div>` : ""}<div class="s">${esc(x.name)}${x.pending ? ", saving…" : ""}</div>
     ${LIVE.owner ? `<div class="actions"><button class="btn" data-rf-drop="${x.id}">Delete, it was a test</button></div>` : ""}</div>`;
 }
 function renderRefusals() {
@@ -5084,7 +5177,7 @@ function renderCerts() {
   const box = $("#certs"); if (!box) return;
   if (!LIVE.me || !isOn("certs")) { box.innerHTML = ""; return; }
   const byName = (a, b) => ctName(a).localeCompare(ctName(b));
-  const row = (c, who) => `<div class="staffrow"><div class="n">${who ? `${esc(c.whoName)}: ` : ""}<span>${esc(ctName(c))}</span></div><div class="s${ctLeft(c) < 0 ? " late" : ""}">${esc(ctState(c, LIVE.admin))}</div>${c.note ? `<div class="s" translate="no">${esc(c.note)}</div>` : ""}
+  const row = (c, who) => `<div class="staffrow"><div class="n">${who ? `${esc(c.whoName)}: ` : ""}<span>${esc(ctName(c))}</span></div><div class="s${ctLeft(c) < 0 ? " late" : ""}">${esc(ctState(c, LIVE.admin))}</div>${c.note ? `<div class="s">${ut(c.note)}</div>` : ""}
     ${LIVE.admin ? `<div class="actions"><button class="btn" data-ct-edit="${c.id}">Change</button><button class="btn" data-ct-drop="${c.id}">Remove</button></div>` : ""}</div>`;
   if (!LIVE.admin) {
     box.innerHTML = `<div class="sec">My certificates</div><p class="note">Your manager keeps these. Tell them when you do a course or get a new licence.</p>
@@ -5171,7 +5264,7 @@ function renderAvail() {
     const ppl = [...LIVE.staff].sort((a, b) => a.name.localeCompare(b.name)), yet = ppl.filter((p) => !avOf(p.uid));
     team = `<div class="h3">The team</div>
       <p class="note">What each person has said. Putting someone on outside it warns you, and the rota grid shows the days they can't work.</p>
-      ${ppl.filter((p) => avOf(p.uid)).map((p) => { const a = avOf(p.uid); return `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${esc(avWeek(a))}</div>${a.note ? `<div class="s" translate="no">${esc(a.note)}</div>` : ""}</div>`; }).join("")}
+      ${ppl.filter((p) => avOf(p.uid)).map((p) => { const a = avOf(p.uid); return `<div class="staffrow"><div class="n">${esc(p.name)}</div><div class="s">${esc(avWeek(a))}</div>${a.note ? `<div class="s">${ut(a.note)}</div>` : ""}</div>`; }).join("")}
       ${yet.length ? `<p class="note">Not said yet: ${esc(yet.map((p) => p.name).join(", "))}.</p><div class="actions">${sendBtn("avask", "Ask them on WhatsApp")}</div>` : ""}`;
   }
   box.innerHTML = `<div class="sec">${LIVE.admin ? "My availability" : "When I can work"}</div>
@@ -5204,7 +5297,7 @@ const shNew = () => shToMe().filter((x) => ms(x.at) > hubSince);
 function shRow(x) {
   const mine = x.uid === LIVE.uid;
   return `<article class="notice${x.to === LIVE.uid && ms(x.at) > hubSince ? " new" : ""}"><div class="meta"><span aria-hidden="true">👏</span> <b>${esc(x.to === LIVE.uid ? "You" : x.toName)}</b> · ${mine ? "<span>from you</span>" : `from ${esc(x.name)}`} · ${x.pending ? "<span>sending…</span>" : when(x.at)}</div>
-    <p class="txt" translate="no">${esc(x.text)}</p>
+    <p class="txt">${ut(x.text)}</p>
     ${mine || LIVE.admin ? `<div class="actions">${x.to === LIVE.uid ? "" : sendBtn("shout", "Send on WhatsApp", x.to, x.text)}<button class="btn" data-sh-drop="${x.id}">Take it down</button></div>` : ""}</article>`;
 }
 function renderShouts() {
@@ -5282,7 +5375,7 @@ function renderPulses() {
     <div class="h3">Night by night</div>
     ${days.map((d) => { const ys = xs.filter((x) => x.day === d); return ys.length ? `<div class="staffrow"><div class="n">${dayName(d)} · <b>${puAvg(ys)}</b> <span class="did">· ${plural(ys.length, "answer")}</span></div>
       <div class="s">${Object.entries(PU).map(([k, [e]]) => `${e} ${ys.filter((y) => y.score === +k).length}`).join(" · ")}</div></div>` : ""; }).join("") || `<p class="note">No answers yet. The team is asked at the end of each shift.</p>`}
-    ${said.length ? `<div class="h3">What they said</div>${said.map((x) => `<div class="staffrow"><div class="n">${esc(x.name)} · ${dayName(x.day)} · ${PU[x.score][0]} ${PU[x.score][1]}</div><div class="s" translate="no">${esc(x.note)}</div></div>`).join("")}` : ""}
+    ${said.length ? `<div class="h3">What they said</div>${said.map((x) => `<div class="staffrow"><div class="n">${esc(x.name)} · ${dayName(x.day)} · ${PU[x.score][0]} ${PU[x.score][1]}</div><div class="s">${ut(x.note)}</div></div>`).join("")}` : ""}
     ${puLast(7).length ? `<div class="actions">${sendBtn("pulse", "Send the last 7 nights")}</div>` : ""}`;
 }
 // To send: the numbers and what was said, without names.
@@ -5402,7 +5495,7 @@ function gRow(x) {
   const closed = x.status === "closed";
   return `<article class="notice${x.escalate && !closed ? " new" : ""}"><div class="meta"><b>${GKN[x.kind] || "Other"}</b>${x.table ? ` · table ${esc(x.table)}` : ""} · ${esc(x.name)}, ${x.pending ? "sending…" : when(x.at)}</div>
     <div class="tags">${closed ? `<span class="pill ok">Closed</span>` : x.escalate ? `<span class="pill no">Needs a manager</span>` : `<span class="pill wait">Open</span>`}${x.comp ? `<span class="pill">Given ${gPounds(x.comp)}</span>` : ""}${x.followUp ? `<span class="pill wait">Follow up</span>` : ""}</div>
-    <p class="txt">${esc(x.what)}</p>${x.wants ? `<div class="s"><b>Guest wanted:</b> ${esc(x.wants)}</div>` : ""}${x.done ? `<div class="s"><b>Done:</b> ${esc(x.done)}</div>` : ""}
+    <p class="txt">${ut(x.what)}</p>${x.wants ? `<div class="s"><b>Guest wanted:</b> ${ut(x.wants)}</div>` : ""}${x.done ? `<div class="s"><b>Done:</b> ${ut(x.done)}</div>` : ""}
     ${closed ? `<div class="s"><b>${esc(x.closedBy)}:</b> ${esc(x.resolution)}${x.extra ? ` (gave ${gPounds(x.extra)} more)` : ""} · ${when(x.closedAt)}</div>`
       : LIVE.admin ? `<label class="fld">What was done in the end<input data-gc="${x.id}:res" maxlength="500" value="${esc(gClose[x.id]?.res || "")}"></label>
         <div class="rvrow" style="grid-template-columns:1fr auto auto"><input data-gc="${x.id}:extra" inputmode="decimal" placeholder="More given (£, optional)" value="${esc(gClose[x.id]?.extra || "")}" aria-label="More given">
@@ -5531,10 +5624,10 @@ function hoCard(h, { accept = false } = {}) {
     ${bad.map((q) => `<div class="staffrow"><div class="n"><span class="pill ${q.risk ? "no" : "wait"}">${q.risk ? "Risk" : "No"}</span> <span class="did">${esc(q.t)}</span></div>${fu(q)}${q.risk === "team" ? `<div class="s">Raised as an urgent issue for the team.</div>` : ""}</div>`).join("")
       || `<p class="note">Every question answered yes${na ? ` (${na} n/a)` : ""}.</p>`}
     ${Object.values(h.extra || {}).filter((x) => x.a === "no").map((x) => `<div class="staffrow"><div class="n"><span class="pill ${x.crit ? "no" : "wait"}">${x.crit ? "Risk" : "No"}</span> <span class="did">${esc(x.t)}</span></div>
-      <div class="s">What happened? <b>${esc(x.what)}</b></div><div class="s">Who has been told? <b>${esc(x.told)}</b></div></div>`).join("")}
+      <div class="s">What happened? <b>${ut(x.what)}</b></div><div class="s">Who has been told? <b>${ut(x.told)}</b></div></div>`).join("")}
     ${h.lines ? `<div class="h3">Tonight's exceptions, as Bar Book saw them</div><pre class="txt ho-lines" translate="no">${esc(h.lines)}</pre>` : ""}
-    ${h.note ? `<div class="h3">For the next manager</div><p class="txt">${esc(h.note)}</p>` : ""}
-    ${h.owner ? `<div class="h3">For the owner</div><p class="txt">${esc(h.owner)}</p>` : ""}
+    ${h.note ? `<div class="h3">For the next manager</div><p class="txt">${ut(h.note)}</p>` : ""}
+    ${h.owner ? `<div class="h3">For the owner</div><p class="txt">${ut(h.owner)}</p>` : ""}
     ${h.ackBy ? `<p class="note">Accepted by ${esc(h.ackBy)}, ${when(h.ackAt)}${h.ackNote ? `: ${esc(h.ackNote)}` : ""}</p>`
       : accept ? `<label class="fld">${h.risks ? "What you'll do about the risks (needed)" : "Note (optional)"}<textarea data-hoack="${h.id}" rows="2" maxlength="500">${esc(hoAck[h.id] || "")}</textarea></label>
         <div class="actions"><button class="btn pri" data-ho-accept="${h.id}">Accept the handover</button></div>` : ""}</article>`;
@@ -5987,7 +6080,7 @@ function renderStatus() {
   const tonight = [...LIVE.blocks].sort((a, b) => ms(b.at) - ms(a.at));
   $("#status").innerHTML = `<div class="sec">Tonight's status</div>
     <div class="st-grid">${SIDES3.map(([k, t]) => { const x = stOf(k); return `<div class="st-card lv-${x?.level || "none"}"><div class="mini">${t}</div><b>${x ? ST_LEVEL[x.level] : "Not set"}</b>
-      ${x?.note ? `<div class="did">${esc(x.note)}</div>` : ""}${x ? `<div class="did">${esc(x.name)}, ${x.pending ? "saving…" : when(x.at)}</div>` : ""}</div>`; }).join("")}</div>
+      ${x?.note ? `<div class="did">${ut(x.note)}</div>` : ""}${x ? `<div class="did">${esc(x.name)}, ${x.pending ? "saving…" : when(x.at)}</div>` : ""}</div>`; }).join("")}</div>
     <div class="h3">Which department are you?</div>
     <div class="recent">${SIDES3.map(([k, t]) => `<button class="chip" data-st-side="${k}" aria-pressed="${stF.side === k}">${t}</button>`).join("")}</div>
     <div class="h3">How is it right now?</div>
@@ -5999,7 +6092,7 @@ function renderStatus() {
     <label class="fld">A few words (optional)<input data-st="bnote" maxlength="140" value="${esc(stF.bnote)}" placeholder="Pint glasses, washer's slow"></label>
     <div class="st-blocks">${BK.map(([k, t]) => `<button class="btn" data-bk="${k}">${t}</button>`).join("")}</div>
     ${tonight.length ? `<div class="h3">Reported tonight (${tonight.length})</div>${tonight.slice(0, 30).map((x) => `<div class="staffrow"><div class="n">${hhmm(new Date(ms(x.at)))} · ${BKN[x.kind]} · ${SIDES3.find(([k]) => k === x.side)?.[1] || ""}
-      <div class="did">${x.note ? `${esc(x.note)}, ` : ""}${esc(x.name)}${x.pending ? ", sending…" : ""}</div></div></div>`).join("")}` : ""}
+      <div class="did">${x.note ? `${ut(x.note)}, ` : ""}${esc(x.name)}${x.pending ? ", sending…" : ""}</div></div></div>`).join("")}` : ""}
     ${LIVE.admin ? `<details class="setup"><summary>Patterns: the last four weeks</summary>${stPatterns()}</details>` : ""}`;
 }
 /* Sales and covers (managers): each night's covers and net sales, typed in from the till's end-of-day report, and a
@@ -6035,7 +6128,7 @@ function ntRow(x) {
   return `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "short", day: "numeric", month: "short" })} · <b>${x.covers}</b> covers · ${ntPounds(net)}
     <div class="did">wet ${ntPounds(x.wet)}, dry ${ntPounds(x.dry)}${x.covers ? `, ${ntPounds(net / x.covers)} a head` : ""}${h ? `, ${ntPounds(net / h)} per labour hour (${Math.round(h)} h on the rota)` : ""}</div>
     ${f ? `<div class="did">Forecast ${f.covers} covers, ${ntPounds(ntNet(f))}: sales ${ntPct(ntNet(f), net)}</div>` : ""}
-    ${x.note ? `<div class="did">${esc(x.note)}</div>` : ""}<div class="did">${esc(x.name)}${x.pending ? ", saving…" : ""}</div></div>
+    ${x.note ? `<div class="did">${ut(x.note)}</div>` : ""}<div class="did">${esc(x.name)}${x.pending ? ", saving…" : ""}</div></div>
     <div class="actions"><button class="btn" data-nt-edit="${x.day}">Change</button></div></div>`;
 }
 // The next 7 nights: forecast covers and sales, and the rota hours if it's drafted, with the hours the usual sales per
@@ -6478,7 +6571,7 @@ function renderMsgs() {
   el.innerHTML = LIVE.msgs.map((m) => { const mine = m.uid === LIVE.uid, at = m.mentions?.includes(LIVE.uid) && c.kind !== "dm";
     return `<div class="msg${mine ? " me" : ""}${at ? " at" : ""}"><div class="meta">${mine ? "You" : `<b>${esc(m.name)}</b>`} · ${chWhen(m.at)}${m.pending ? " · sending…" : ""}</div>
       ${m.mentions?.length && c.kind !== "dm" ? `<div class="tags">${m.mentions.map((u) => `<span class="pill${u === LIVE.uid ? " wait" : ""}">@${esc(u === LIVE.uid ? "you" : dirName(u))}</span>`).join(" ")}</div>` : ""}
-      ${m.text ? `<p class="txt">${esc(m.text)}</p>` : ""}${m.photo ? photoOf(c, m) : ""}${mine && !m.pending ? `<button class="linkbtn" data-ch-unsend="${m.id}">Unsend</button>` : ""}</div>`; }).join("")
+      ${m.text ? `<p class="txt">${ut(m.text)}</p>` : ""}${m.photo ? photoOf(c, m) : ""}${mine && !m.pending ? `<button class="linkbtn" data-ch-unsend="${m.id}">Unsend</button>` : ""}</div>`; }).join("")
     || `<p class="note">No messages yet.</p>`;
   el.scrollTop = el.scrollHeight;
 }
@@ -6569,7 +6662,7 @@ function renderBcast() {
   if (!LIVE.loaded.has("seen")) { $("#bcast").innerHTML = ""; return; }
   const mine = new Set(LIVE.seen.filter((s) => s.uid === LIVE.uid).map((s) => s.notice));
   const xs = LIVE.notices.filter((x) => forSide(x) && x.uid !== LIVE.uid && !x.pending && !mine.has(x.id));
-  $("#bcast").innerHTML = xs.map((x) => `<article class="bcast"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div><p>${esc(x.text)}</p><button class="btn pri" data-bc-ok="${x.id}">Got it</button></article>`).join("");
+  $("#bcast").innerHTML = xs.map((x) => `<article class="bcast"><div class="meta"><b>Broadcast</b> from ${esc(x.name)} · ${when(x.at)}</div><p>${ut(x.text)}</p><button class="btn pri" data-bc-ok="${x.id}">Got it</button></article>`).join("");
 }
 $("#bcast").addEventListener("click", (e) => {
   const b = e.target.closest("[data-bc-ok]"), n = b && LIVE.notices.find((x) => x.id === b.dataset.bcOk); if (!n) return;

@@ -89,7 +89,8 @@ test("refusals: Challenge 25 for everyone, logged in two taps, and a month's log
   assert.equal(await S.$eval("#placebar .t", (e) => e.textContent), "Odmowy sprzedaży");
   assert.match(await text(S, "#refusals .c25"), /^Każdy, kto wygląda na mniej niż 25 lat, pokazuje dokument, zanim zostanie obsłużony\. /);
   assert.equal(await S.getAttribute('[data-rf="what"]', "placeholder"), "2 pinty lagera");
-  assert.match(await text(S, "#refusals"), /DZIŚ WIECZOREM \(1\) \d\d:\d\d · Brak dokumentu · 2 pints of lager Looked about 17 Sam Staff$/);
+  // The note is what someone wrote, so it stays as written, with a Translate button beside it.
+  assert.match(await text(S, "#refusals"), /DZIŚ WIECZOREM \(1\) \d\d:\d\d · Brak dokumentu · 2 pints of lager Looked about 17Przetłumacz Sam Staff$/);
   await S.evaluate(() => setLang(""));
 
   // Only the owner can delete one, for a test: the log is the venue's record.

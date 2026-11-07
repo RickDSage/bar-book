@@ -44,6 +44,8 @@ const ukDay = (ms) => {
 };
 const today = () => ukDay(Date.now() - 6 * 36e5);
 const dayFromNow = (n) => ukDay(Date.now() + n * 864e5);
+// The night before tonight, worked out from today() so it differs from it even between midnight and 6am.
+const dayBefore = (d) => new Date(Date.parse(`${d}T12:00Z`) - 864e5).toISOString().slice(0, 10);
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const autoId = () => doc(collection(db("owner1"), "x")).id;
 
@@ -1369,7 +1371,7 @@ describe("how was your shift", () => {
     }
     await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), pu("staff1", { day: dayFromNow(-3) })));
     await assertFails(setDoc(ref("staff1", "staff2"), pu("staff1")));
-    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-1)), pu("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", dayBefore(today())), pu("staff1")));
     await assertFails(setDoc(ref("mgr1", "staff1"), pu("mgr1")));
   });
 });
@@ -1396,7 +1398,7 @@ describe("tonight's quiz", () => {
     }
     await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), qz("staff1", { day: dayFromNow(-3) })));
     await assertFails(setDoc(ref("staff1", "staff2"), qz("staff1")));
-    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-1)), qz("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", dayBefore(today())), qz("staff1")));
     await assertFails(setDoc(ref("mgr1", "staff1"), qz("mgr1")));
     // A quiz started before 6am and finished after counts for the night it started.
     await assertSucceeds(setDoc(ref("staff1", "staff1", dayFromNow(-1)), qz("staff1", { day: dayFromNow(-1) })));
