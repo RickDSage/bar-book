@@ -32,8 +32,9 @@ test("every report in one tab: waiting first, night by night, filters, and older
   await resetEmulators();
   const { O, S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
   await seed(await O.evaluate(() => LIVE.staff.find((p) => p.name === "Sam Staff").uid));
-  await O.waitForFunction(() => LIVE.reports.length === 30 && LIVE.incidents.length === 50 && LIVE.reviews.length === 1);
+  // Reviews are read once Reports is opened, not when the app opens.
   await part(O, "reports");
+  await O.waitForFunction(() => LIVE.reports.length === 30 && LIVE.incidents.length === 50 && LIVE.reviews.length === 1);
 
   // The managers' Nights and Incidents pages are part of this tab now.
   assert.deepEqual(await O.$$eval("[data-rp-show]", (x) => x.map((b) => b.dataset.rpShow)), ["all", "bar", "floor", "kitchen", "flagged", "incidents"]);

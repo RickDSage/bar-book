@@ -35,11 +35,27 @@ const ms = (t) => (t ? t.toMillis() : Date.now());
 const err = (msg) => { throw new Error(msg); };
 let stop = null, subs = {};
 const unsub = (k) => { if (subs[k]) { subs[k](); delete subs[k]; } };
-const unsubAll = () => { Object.keys(subs).forEach(unsub); if (stop) { stop(); stop = null; } };
+const unsubAll = () => { Object.keys(subs).forEach(unsub); Object.keys(LATER).forEach((k) => delete LATER[k]); rotaPast = false; rotaGot = {}; if (stop) { stop(); stop = null; } };
 // A listen the rules refuse (account not confirmed by the server yet) is dropped and retried on the next staff snapshot.
 function sub(k, ref, fn, failed) {
   if (subs[k]) return;
-  subs[k] = onSnapshot(ref, (snap) => { LIVE.loaded.add(k); fn(snap); }, () => { delete subs[k]; failed?.(); });
+  let first = true;
+  subs[k] = onSnapshot(ref, (snap) => { if (!snap.metadata.fromCache) { tally(k, snap, first); first = false; } LIVE.loaded.add(k); fn(snap); }, () => { delete subs[k]; failed?.(); });
+}
+// Documents this phone has read from the server since it opened, as Firebase bills them on the free plan's 50,000 a
+// day: everything in a listener's first answer from the server, then each document that changes. A listener that was
+// off for over 30 minutes is billed in full again, which a phone coming back to the app counts as a first answer too.
+// Reads for downloads and older history (getDocs) aren't counted here.
+const READS = { n: 0, by: {} };
+// History that only one page shows is read when that page is first opened (LIVE.api.want), not each time the app
+// opens: it was most of what a manager's phone read. Each key starts its listeners once; logging out stops them.
+const LATER = {};
+const later = (k, start) => { LATER[k] = start; };
+// Records from several listeners on the same collection, once each, newest first.
+const merged = (parts) => [...new Map(Object.values(parts).flat().map((x) => [x.id, x])).values()].sort((a, b) => ms(b.at) - ms(a.at));
+function tally(k, snap, first) {
+  const n = !snap.docs ? 1 : first ? Math.max(snap.size, 1) : snap.docChanges().length;
+  READS.n += n; READS.by[k] = (READS.by[k] || 0) + n;
 }
 // Something just written on this phone has no server time yet, so its "at" is null and it sorts as newest. (Firestore's
 // own estimate is rounded down to the second, which can put it below something written a moment earlier.)
@@ -66,7 +82,9 @@ function listen(uid) {
   unsubAll();
   // Removal or a role change by a manager takes effect straight away.
   let seen = false;
+  let firstMe = true;
   stop = onSnapshot(doc(db, "staff", uid), { includeMetadataChanges: true }, (d) => {
+    if (!d.metadata.fromCache && firstMe) { tally("me", d, true); firstMe = false; }
     // Only a record this phone has seen going away logs it out (removal, or a PIN reset). A record that isn't there yet
     // means a first launch with no signal, or first-time setup still saving, perhaps in another tab: wait for it.
     if (!d.exists()) { if (seen && !d.metadata.fromCache) leave(); return; }
@@ -108,13 +126,19 @@ function listen(uid) {
       liveChanged("features");
     });
     // Guest issues: the latest 100 (a month or more at a venue this size), and what each role may give a guest.
-    sub("guests", query(collection(db, "guests"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.guests = rows(snap); liveChanged("guests"); });
+    // Live: the open ones and the last two days'. The latest 100, for managers' patterns, when Guest issues is opened.
+    const gs = {}, mergeGuests = () => { LIVE.guests = merged(gs); liveChanged("guests"); };
+    sub("guests", query(collection(db, "guests"), where("status", "==", "open")), (snap) => { gs.open = rows(snap); mergeGuests(); });
+    sub("guests-recent", query(collection(db, "guests"), where("at", ">=", Timestamp.fromMillis(Date.now() - 2 * 864e5))), (snap) => { gs.recent = rows(snap); mergeGuests(); });
+    if (LIVE.admin) later("guests", () => sub("guests-hist", query(collection(db, "guests"), orderBy("at", "desc"), limit(100)), (snap) => { gs.hist = rows(snap); mergeGuests(); }));
     sub("hoq", doc(db, "settings", "hoq"), (d) => { LIVE.hoq = d.exists() ? d.data().qs : []; liveChanged("hoq"); });
     sub("comp", doc(db, "settings", "comp"), (d) => { LIVE.comp = d.exists() ? d.data() : null; liveChanged("comp"); });
     // Who to call: the venue's own numbers, kept by managers.
     sub("contacts", doc(db, "settings", "contacts"), (d) => { LIVE.contacts = d.exists() ? d.data().list : []; liveChanged("contacts"); });
-    // Refusals: the last 100 days, for tonight's list and the managers' log.
-    sub("refusals", query(collection(db, "refusals"), where("day", ">=", ukDay(Date.now() - 100 * 864e5)), limit(1000)), (snap) => { LIVE.refusals = rows(snap); liveChanged("refusals"); });
+    // Refusals: the last two days live, for tonight's list; the last 100 days when the managers' log is opened.
+    const rf = {}, mergeRefusals = () => { LIVE.refusals = merged(rf); liveChanged("refusals"); };
+    sub("refusals", query(collection(db, "refusals"), where("day", ">=", ukDay(Date.now() - 2 * 864e5))), (snap) => { rf.now = rows(snap); mergeRefusals(); });
+    if (LIVE.admin) later("refusals", () => sub("refusals-hist", query(collection(db, "refusals"), where("day", ">=", ukDay(Date.now() - 100 * 864e5)), limit(1000)), (snap) => { rf.hist = rows(snap); mergeRefusals(); }));
     // Certificates: managers keep everyone's, staff see their own.
     sub("certs", LIVE.admin ? query(collection(db, "certs"), limit(1000)) : query(collection(db, "certs"), where("who", "==", uid)), (snap) => { LIVE.certs = rows(snap); liveChanged("certs"); });
     // Availability: managers read everyone's for the rota, staff their own.
@@ -159,20 +183,24 @@ function listen(uid) {
     sub("concerns", LIVE.admin ? query(concerns, where("status", "==", "open")) : query(concerns, where("to", "in", ["all", "bar", "floor"]), where("status", "==", "open")), (snap) => { cn.open = rows(snap); mergeConcerns(); });
     sub("concerns-more", LIVE.admin ? query(concerns, orderBy("at", "desc"), limit(50)) : query(concerns, where("uid", "==", uid)), (snap) => { cn.more = rows(snap); mergeConcerns(); });
     // Time off, swaps and lateness: staff see their own, managers see everyone's.
-    sub("asks", LIVE.admin ? query(collection(db, "asks"), orderBy("at", "desc"), limit(100)) : query(collection(db, "asks"), where("uid", "==", uid)), (snap) => {
-      LIVE.asks = rows(snap); liveChanged("asks");
-    });
+    // Managers: what's still to decide, time off still to come (for the rota and calendar), and the latest 20.
+    const as = {}, mergeAsks = () => { LIVE.asks = merged(as); liveChanged("asks"); };
+    if (LIVE.admin) {
+      sub("asks", query(collection(db, "asks"), where("status", "in", ["pending", "seen"])), (snap) => { as.open = rows(snap); mergeAsks(); });
+      sub("asks-off", query(collection(db, "asks"), where("date2", ">=", ukDay(Date.now() - 864e5))), (snap) => { as.off = rows(snap); mergeAsks(); });
+      sub("asks-recent", query(collection(db, "asks"), orderBy("at", "desc"), limit(20)), (snap) => { as.recent = rows(snap); mergeAsks(); });
+    } else sub("asks", query(collection(db, "asks"), where("uid", "==", uid)), (snap) => { as.mine = rows(snap); mergeAsks(); });
     watchChats(uid);
     if (!LIVE.admin) { Object.assign(LIVE, { staff: [], tests: [], handovers: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], training: [], requests: [] }); return; }
     // Stock requests from before restocking, kept so managers can still clear the last ones.
     sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
     sub("incidents", query(collection(db, "incidents"), orderBy("at", "desc"), limit(LIVE_N.incidents)), (snap) => { LIVE.incidents = rows(snap); liveChanged("incidents"); });
-    sub("reviews", query(collection(db, "reviews"), orderBy("at", "desc"), limit(200)), (snap) => { LIVE.reviews = rows(snap); liveChanged("reviews"); });
+    later("reviews", () => sub("reviews", query(collection(db, "reviews"), orderBy("at", "desc"), limit(200)), (snap) => { LIVE.reviews = rows(snap); liveChanged("reviews"); }));
     // Anonymous feedback: the owner reads all of it, a manager only what's about them.
     sub("ratings", LIVE.owner ? query(collection(db, "ratings"), orderBy("at", "desc"), limit(100)) : query(collection(db, "ratings"), where("about", "==", uid)), (snap) => {
       LIVE.ratings = rows(snap); liveChanged("ratings");
     });
-    sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); });
+    later("outlog", () => sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); }));
     sub("staff", collection(db, "staff"), (snap) => {
       LIVE.staff = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
       staffSettled = !snap.metadata.hasPendingWrites; liveChanged("staff"); syncDirectory();
@@ -186,7 +214,7 @@ function listen(uid) {
     // Manager closes and handovers: the last two weeks' worth.
     sub("handovers", query(collection(db, "handovers"), orderBy("at", "desc"), limit(14)), (snap) => { LIVE.handovers = rows(snap); liveChanged("handovers"); });
     // Bottlenecks: the last 400 reports, for four weeks of patterns (tonight's come to everyone below).
-    sub("blockHist", query(collection(db, "blocks"), orderBy("at", "desc"), limit(400)), (snap) => { LIVE.blockHist = rows(snap); liveChanged("blocks"); });
+    later("blocks", () => sub("blockHist", query(collection(db, "blocks"), orderBy("at", "desc"), limit(400)), (snap) => { LIVE.blockHist = rows(snap); liveChanged("blocks"); }));
     // Sales and covers: the last 120 nights, enough for the forecast and four months of history.
     sub("nights", query(collection(db, "nights"), orderBy("day", "desc"), limit(120)), (snap) => { LIVE.nights = rows(snap); LIVE.loaded.add("nights"); liveChanged("nights"); });
     clearOldPhotos();
@@ -237,7 +265,16 @@ function syncDirectory() {
     const h = have.get(p.uid);
     if (!h || h.name !== p.name || h.role !== p.role) once(`${p.uid}:${p.name}:${p.role}`, () => setDoc(doc(db, "directory", p.uid), { name: p.name, role: p.role }));
   }
-  if (LIVE.admin) for (const h of LIVE.directory) if (!want.some((p) => p.uid === h.uid)) once(`${h.uid}:gone`, () => deleteDoc(doc(db, "directory", h.uid)));
+  // Someone who has left comes off, but only once the server agrees how many are on the team: a manager's new phone
+  // can hold just its own staff record in its cache at first, and taking everyone else off then wiped the directory.
+  const gone = LIVE.admin ? LIVE.directory.filter((h) => !want.some((p) => p.uid === h.uid) && !triedDir.has(`${h.uid}:gone`)) : [];
+  if (gone.length) {
+    const n = LIVE.staff.length;
+    getCountFromServer(collection(db, "staff")).then((c) => {
+      if (c.data().count !== n || LIVE.staff.length !== n) return;
+      for (const h of gone) once(`${h.uid}:gone`, () => deleteDoc(doc(db, "directory", h.uid)));
+    }, () => {});
+  }
 }
 // Chat photos are cleared by whoever sent them, 30 days on (Firebase Storage needs a paid plan). Each launch checks the
 // week of business days just past that, one query per day (two equality filters need no index made in the console).
@@ -373,23 +410,25 @@ function watchDays() {
   subDay("quiz", () => (LIVE.admin ? query(collection(db, "quiz"), where("day", ">=", addDays(shiftDay(), -7))) : doc(db, "quiz", `${shiftDay()}-${auth.currentUser.uid}`)),
     (x) => { LIVE.quiz = listOf(x); liveChanged("quiz"); });
 }
-// The rota. Managers get every shift from four weeks back, drafts included. Everyone else gets the published shifts
+// The rota. Managers get every shift from last week on, drafts included (older weeks are in the rota download). Everyone else gets the published shifts
 // from last week to the week after next, a week at a time: a query the rules can check, with no index to set up.
 function watchRota() {
   const wk = weekOf(shiftDay());
   if (LIVE.admin) {
-    subDay("shifts", () => query(collection(db, "shifts"), where("week", ">=", addDays(wk, -28))), (snap) => { LIVE.shifts = rows(snap); liveChanged("shifts"); }, wk);
+    subDay("shifts", () => query(collection(db, "shifts"), where("week", ">=", addDays(wk, -7))), (snap) => { LIVE.shifts = rows(snap); liveChanged("shifts"); }, wk);
     return;
   }
-  const got = {};
-  for (const n of [-1, 0, 1, 2]) {
+  // Last week only once the rota or calendar is opened (LIVE.api.want("rota")): nothing else needs it.
+  for (const n of rotaPast ? [-1, 0, 1, 2] : [0, 1, 2]) {
     subDay(`shifts${n}`, () => query(collection(db, "shifts"), where("week", "==", addDays(wk, 7 * n)), where("pub", "==", true)), (snap) => {
-      got[n] = rows(snap); LIVE.shifts = Object.values(got).flat();
+      rotaGot[n] = rows(snap); LIVE.shifts = Object.values(rotaGot).flat();
       if (n === 0) LIVE.loaded.add("shifts");
       liveChanged("shifts");
     }, wk);
   }
+  later("rota", () => { if (!rotaPast) { rotaPast = true; watchRota(); } });
 }
+let rotaPast = false, rotaGot = {};
 setInterval(() => { if (LIVE.me) watchDays(); }, 60000);
 // Which side of the venue each list and each restocking destination belongs to, as the rules work it out.
 const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor", kopen: "kitchen", kclose: "kitchen" };
@@ -413,6 +452,8 @@ function audit(b, id, action, person, actor = { uid: auth.currentUser.uid, name:
 const staffRecord = (p) => ({ name: p.name, username: p.username, role: p.role });
 
 LIVE.api = {
+  reads: () => ({ n: READS.n, by: { ...READS.by } }),
+  want: (k) => LATER[k]?.(),
   async login(username, pin) {
     const u = await getDoc(doc(db, "usernames", username));
     if (!u.exists()) err("Wrong username or PIN");
