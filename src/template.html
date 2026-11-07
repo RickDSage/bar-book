@@ -5431,7 +5431,7 @@ function renderGuests() {
     <div class="h3">Open (${open.length})</div>${open.map(gRow).join("") || `<p class="note">Nothing open.</p>`}
     ${LIVE.guests.length ? `<div class="actions">${sendBtn("guests", "Send guest issues")}</div>` : ""}
     ${closed.length ? `<details class="setup"><summary>Recently closed (${closed.length})</summary>${closed.map(gRow).join("")}</details>` : ""}
-    ${LIVE.owner ? `<details class="setup"><summary>What people can give without asking</summary>
+    ${LIVE.owner ? `<details class="setup" id="g-lim"${gF.lim ? " open" : ""}><summary>What people can give without asking</summary>
       <p class="note">The most staff and managers can give a guest (in £) before asking someone above them. The owner has no limit. ${LIVE.comp ? `Set by ${esc(LIVE.comp.name)}, ${when(LIVE.comp.at)}.` : "Not set yet: until it is, nobody but you can give anything."}</p>
       <label class="fld">Staff, £<input id="g-lim-staff" inputmode="decimal" value="${LIVE.comp ? (LIVE.comp.staff / 100).toFixed(2) : ""}"></label>
       <label class="fld">Managers, £<input id="g-lim-mgr" inputmode="decimal" value="${LIVE.comp ? (LIVE.comp.manager / 100).toFixed(2) : ""}"></label>
@@ -6770,6 +6770,7 @@ $("#v-notices").addEventListener("change", (e) => {
 keepOpen($("#v-notices"), (e) => {
   if (e.target.id === "is-form") isF.open = e.target.open;
   if (e.target.id === "g-form") gF.open = e.target.open;
+  if (e.target.id === "g-lim") gF.lim = e.target.open;
   // Changing the briefing starts from what was posted.
   if (e.target.id === "br-form") { brF.open = e.target.open; if (brF.open && LIVE.briefing && !brF.filled) { brFill(); brF.filled = true; renderBrief(); } }
   if (e.target.id === "cn-form") cnF.open = e.target.open;

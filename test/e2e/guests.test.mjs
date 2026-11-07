@@ -28,7 +28,10 @@ test("staff log a guest issue within their limit, flag it for a manager, and a m
 
   // The owner sets the limits: staff £5, managers £20.
   await part(O, "guests");
+  // Older guest issues load when the page opens; the box stays open when they arrive.
   await O.click("text=What people can give without asking");
+  await O.waitForFunction(() => LIVE.loaded.has("guests-hist"));
+  assert.equal(await O.$eval("#g-lim", (e) => e.open), true);
   await O.fill("#g-lim-staff", "5"); await O.fill("#g-lim-mgr", "20");
   await O.click("#g-lim-go");
   await waitToast(O, /^Limits saved$/);
