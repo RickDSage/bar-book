@@ -51,7 +51,7 @@ const MK_CATS = [
     ["Amaretto", "Amaretto"], ["Disaronno", "Amaretto"], ["Frangelico", "Hazelnut liqueur", "hazelnut liqueur"],
     ["Chambord", "Raspberry liqueur", "raspberry liqueur", "black raspberry"], ["Crème de cassis", "Cassis", "creme de cassis", "cassis", "blackcurrant liqueur"], ["Crème de mûre", "Blackberry liqueur", "creme de mure", "blackberry liqueur"],
     ["Heering Cherry", "Cherry liqueur", "heering", "cherry heering", "cherry liqueur", "cherry brandy"], ["Luxardo Maraschino", "Maraschino", "maraschino"],
-    ["Midori", "Melon liqueur", "melon liqueur"], ["Archers", "Peach schnapps", "peach schnapps", "peach liqueur"], ["Passoa", "Passion fruit liqueur", "passion fruit liqueur"],
+    ["Midori", "Melon liqueur", "melon liqueur"], ["Archers", "Peach schnapps", "peach schnapps", "peach liqueur"], ["Passoa", "Passion fruit liqueur", "passion fruit liqueur"], ["Lychee liqueur", "Lychee liqueur", "lychee liqueur", "soho lychee", "kwai feh"],
     ["Apple liqueur", "Apple liqueur", "sour apple", "apple schnapps", "apple sourz"], ["Luxardo Limoncello", "Limoncello", "limoncello"], ["Malibu", "Coconut rum", "coconut rum"],
     ["St-Germain", "Elderflower liqueur", "st germain", "elderflower liqueur"], ["Baileys", "Cream liqueur", "irish cream", "cream liqueur"],
     ["Marshmallow liqueur", "Marshmallow liqueur"], ["Velvet Falernum", "Falernum", "falernum"], ["Apricot brandy", "Apricot liqueur", "apricot liqueur"],
@@ -85,7 +85,7 @@ const MK_CATS = [
     ["Lime juice", "Lime juice", "fresh lime"], ["Lemon juice", "Lemon juice", "fresh lemon"], ["Orange juice", "Orange juice", "oj"], ["Pineapple juice", "Pineapple juice"],
     ["Cranberry juice", "Cranberry juice", "cranberry", "eager cranberry"], ["Grapefruit juice", "Grapefruit juice", "grapefruit"], ["Tomato juice", "Tomato juice"], ["Apple juice", "Apple juice"],
     ["Mango juice", "Mango juice"], ["Strawberry purée", "Strawberry purée", "strawberry puree"], ["Funkin peach purée", "Peach purée", "peach puree", "funkin peach"],
-    ["Passion fruit purée", "Passion fruit purée", "passion fruit puree"], ["Mango purée", "Mango purée", "mango puree"], ["Raspberry purée", "Raspberry purée", "raspberry puree"]]],
+    ["Passion fruit purée", "Passion fruit purée", "passion fruit puree"], ["Mango purée", "Mango purée", "mango puree"], ["Raspberry purée", "Raspberry purée", "raspberry puree"], ["Lychee juice", "Lychee juice", "lychee juice", "lychee syrup from the tin"]]],
   ["Mixers and fizz", null, [
     ["Soda water", "Soda", "soda", "club soda", "sparkling water"], ["Fever-Tree Indian Tonic", "Tonic", "indian tonic", "tonic", "tonic water"], ["Fever-Tree Light Tonic", "Tonic", "light tonic", "slimline tonic"],
     ["Fever-Tree Ginger Ale", "Ginger ale", "ginger ale"], ["Fever-Tree Ginger Beer", "Ginger beer", "ginger beer"], ["Lemonade", "Lemonade", "house lemonade", "sprite", "7up"],
