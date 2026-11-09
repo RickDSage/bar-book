@@ -65,7 +65,7 @@ const CHEAT = (() => {
 <div class="cs-head"><span></span><span>Spec (ml)</span><span>Glass</span><span>Method</span><span>Garnish</span></div>
 <div class="cs-rows" style="grid-template-rows:repeat(${ds.length},1fr)">${ds.map((d, k) => row(d, k + 1, art, ds.length > 8)).join("")}</div>
 <div class="cs-foot">${ends}<span>Train &middot; Pour &middot; Impress</span>${ends}</div>
-<div class="cs-note">Specs as in the Bar Book, ${esc(when)}. UK measures: spirits in 25 or 50 ml. Check the app for allergens and swaps.</div>
+<div class="cs-note">Specs as in the Bar Book, ${esc(when)}. All measures in ml. Check the app for allergens and swaps.</div>
 </section>`;
   };
   const missing = (byName) => SHEETS.flatMap((s) => s.names.filter((n) => !byName.has(n)));
