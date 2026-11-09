@@ -68,6 +68,8 @@
 .sendhow li { margin: 2px 0; }
 .sendpre { white-space: pre-wrap; overflow-wrap: anywhere; font: 15px/1.5 var(--body); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin: 8px 0 0; }
 #print { display: none; }
+.cs-view { margin-top: 12px; border-radius: 8px; overflow: hidden; box-shadow: 0 4px 18px var(--shadow, #0004); }
+.cs-zoom { zoom: var(--z, .45); }
 @media print {
   body { background: #fff !important; }
   body > *:not(#print) { display: none !important; }
@@ -729,7 +731,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
 <main class="gut">
   <div id="bcast"></div>
-  <nav class="subnav" id="subnav" aria-label="Drinks"><button class="chip" data-tab="drinks">Menu</button><button class="chip" data-tab="make">Make one</button><button class="chip" data-tab="allergens">Allergens</button><button class="chip" data-tab="practice">Practise</button></nav>
+  <nav class="subnav" id="subnav" aria-label="Drinks"><button class="chip" data-tab="drinks">Menu</button><button class="chip" data-tab="make">Make one</button><button class="chip" data-tab="allergens">Allergens</button><button class="chip" data-tab="practice">Practise</button><button class="chip" data-tab="sheets">Cheat sheets</button></nav>
   <section class="view" id="v-drinks"><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p></section>
 
   <section class="view" id="v-allergens" hidden>
@@ -749,6 +751,8 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   </section>
 
   <section class="view" id="v-make" hidden></section>
+
+  <section class="view" id="v-sheets" hidden></section>
 
   <section class="view" id="v-tally" hidden>
     <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
@@ -799,7 +803,9 @@ function keepOpen(el, fn) {
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
 const D = DATA.drinks;
 const SECTIONS = [...new Set(D.map((d) => d.section))];
-const glass = (d) => ART(d.g, d.c, d.garnish, d.ice);
+// Martini-glass drinks get the V-shaped glass; the step guides still use their coupe pictures.
+const glassOf = (d) => (/martini glass/i.test(d.glass) ? "martini" : d.g);
+const glass = (d) => ART(glassOf(d), d.c, d.garnish, d.ice);
 const blurb = (d) => d.blurb || (d.desc || "").replace(/\s*Pairs with.*$/, "");
 const store = {
   get(k, f) { try { const v = localStorage.getItem("btbar." + k); return v == null ? f : JSON.parse(v); } catch { return f; } },
@@ -2952,6 +2958,8 @@ const FEATURES = [
   { g: "Drinks", k: "practice", n: "Practise", go: "tab:practice", sw: 1, tour: 1,
     what: "Flashcards on the specs: say the spec out loud, then check it.",
     staff: "Practise one section or everything, and see which drinks a manager has signed you off on." },
+  { g: "Drinks", k: "sheets", n: "Cheat sheets", go: "tab:sheets",
+    what: "Twenty A4 pages to print double-sided and laminate for behind the bar: the signatures, martinis, margaritas, spritzes, sours, stirred, long drinks, rum, gin, fruity, house serves, after dinner, mojitos and mules, modern favourites, New York classics, pitchers, three of shots and bombs, and zero proof, with the same specs as the app." },
   { g: "Drinks", k: "info", n: "Bar info", go: "tab:info",
     what: "Measures and the law, the technique key, prep and batches, the shot tray guide, and putting the app on your home screen." },
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", sw: 1, tour: 1,
@@ -7102,7 +7110,41 @@ $("#bell").addEventListener("click", () => show("notices"));
 $("#money-btn").addEventListener("click", () => openAt("money"));
 $("#home").addEventListener("click", (e) => { e.preventDefault(); show("drinks"); });
 
-const TABS = ["drinks", "make", "allergens", "practice", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "make", "allergens", "practice"];
+/* ---------- Cheat sheets ----------
+   The laminate sheets (src/cheatsheet.js): a preview of one, and Print for one or all of them. They print in English, at
+   A4 with no margins, from the same drinks as the rest of the app. scripts/cheatsheets.js makes the JPEGs and PDF. */
+/*CHEAT*/
+let csPick = 0;
+const csByName = new Map(D.map((d) => [d.name, d]));
+const csArt = (d) => ART(glassOf(d), d.c, d.garnish, d.ice);
+const csPage = (i) => CHEAT.page(CHEAT.SHEETS[i], i, csByName, csArt, new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }));
+function csFit() { const v = $("#cs-view"); if (v) v.style.setProperty("--z", v.clientWidth / 794); }
+function renderSheets() {
+  if (!$("#cs-css")) { const st = document.createElement("style"); st.id = "cs-css"; st.textContent = CHEAT.css(CHEAT_FONT); document.head.append(st); }
+  $("#v-sheets").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cheat sheets</h2>
+    <p class="lead">Print them on A4 and laminate them for behind the bar. They use the same specs as the app.</p>
+    <div class="actions"><button class="btn pri" data-cs-all>Print all</button><button class="btn" data-cs-one>Print this one</button></div>
+    <div class="recent" translate="no">${CHEAT.SHEETS.map((x, i) => `<button class="chip" data-cs="${i}" aria-pressed="${i === csPick}">${esc(x.t)}</button>`).join("")}</div>
+    <div id="cs-view" class="cs-view"><div class="cs-zoom">${csPage(csPick)}</div></div>`;
+  csFit();
+}
+function csPrint(list) {
+  const st = document.createElement("style");
+  st.textContent = "@page{size:A4;margin:0}#print .cs-page{height:296.5mm}#print .cs-page:not(:last-child){break-after:page}";
+  document.head.append(st);
+  $("#print").innerHTML = list.map(csPage).join("");
+  addEventListener("afterprint", () => { st.remove(); $("#print").innerHTML = ""; }, { once: true });
+  window.print();
+}
+$("#v-sheets").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-cs]");
+  if (b) { haptic(); csPick = +b.dataset.cs; renderSheets(); return; }
+  if (e.target.closest("[data-cs-one]")) csPrint([csPick]);
+  if (e.target.closest("[data-cs-all]")) csPrint(CHEAT.SHEETS.map((_, i) => i));
+});
+addEventListener("resize", csFit);
+
+const TABS = ["drinks", "make", "allergens", "practice", "sheets", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "make", "allergens", "practice", "sheets"];
 function show(tab) {
   if (!TABS.includes(tab) || !tabOn(tab)) tab = "drinks";
   TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
@@ -7114,6 +7156,7 @@ function show(tab) {
   if (tab === "make") renderMaker();
   if (tab === "allergens") renderAllergens();
   if (tab === "practice" && !pDrink) nextCard();
+  if (tab === "sheets") renderSheets();
   if (tab === "tally") renderTally();
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();

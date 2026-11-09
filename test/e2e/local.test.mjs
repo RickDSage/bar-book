@@ -43,7 +43,7 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   await p.setViewportSize({ width: 320, height: 640 });
   assert.equal(await p.locator("nav.tabs button:not([hidden])").count(), 5);
   await p.click("nav.tabs [data-tab=drinks]");
-  assert.deepEqual(await p.$$eval("#subnav [data-tab]", (x) => x.map((b) => b.textContent)), ["Menu", "Make one", "Allergens", "Practise"]);
+  assert.deepEqual(await p.$$eval("#subnav [data-tab]", (x) => x.map((b) => b.textContent)), ["Menu", "Make one", "Allergens", "Practise", "Cheat sheets"]);
   assert.ok(await p.evaluate(() => [...document.querySelectorAll("nav.tabs button:not([hidden])")].every((b) => { const r = document.createRange(); r.selectNodeContents(b.lastChild); return r.getClientRects().length === 1; })));
   assert.deepEqual(p.errs, []);
 });
