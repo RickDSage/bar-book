@@ -1,4 +1,4 @@
-/* Cheat sheets: A4 pages to print and laminate, eight drinks a page (twelve for shots), twenty pages to print double-sided on ten sheets, drawn from the same specs as the app.
+/* Cheat sheets: A4 pages to print and laminate, eight drinks a page (twelve for shots), 22 pages to print double-sided on 11 sheets, drawn from the same specs as the app.
    The app's Cheat sheets view and the JPEG/PDF generator both use this file, so the paper always matches the phone. */
 const CHEAT = (() => {
   // Families of the most ordered drinks (bestseller lists from Drinks International and UK bar sales), with Black Tap's own first.
@@ -19,6 +19,8 @@ const CHEAT = (() => {
     { id: "modern", t: "Modern Favourites", sub: "The twists guests ask for", names: ["Hazelnut Espresso Martini", "Salted Caramel Espresso Martini", "Baileys Espresso Martini", "Chocolate Old Fashioned", "Midori Sour", "Japanese Slipper", "Rhubarb & Elderflower Martini", "Mango Martini"] },
     { id: "nyc", t: "Born in NYC", sub: "New York classics for a New York burger bar", names: ["Bronx Cocktail", "Big Apple Sour", "Staten Island Ferry", "Jack Rose", "Gold Rush", "Old Cuban", "Greenpoint", "New York Sour"] },
     { id: "pitchers", t: "Pitchers", sub: "Serves 4. Glasses with ice on the side", names: ["Pimm's Pitcher", "Mojito Pitcher", "Aperol Spritz Pitcher", "Woo Woo Pitcher", "Rum Punch Pitcher", "Sangria Pitcher", "Margarita Pitcher"] },
+    { id: "aperitivo", t: "Aperitivo & Stirred", sub: "Low and slow: stir cold, strain, zest", names: ["Adonis", "Bamboo", "Milano Torino", "Old Pal", "Rosita", "White Negroni", "Gibson", "B&B"] },
+    { id: "bartender", t: "Bartender's Classics", sub: "For guests who know their drinks", names: ["20th Century", "Charlie Chaplin", "Nuclear Daiquiri", "Eastside Gimlet", "Brooklyn", "Queens", "Floradora", "Twinkle"] },
     { id: "shots", t: "Shots & Bombs", sub: "Chill the shots. Bombs go out side by side", names: ["Baby Guinness", "B-52", "Jägerbomb", "Tequila, Salt & Lime", "Mini Espresso Martini", "Pornstar Shot", "Kamikaze", "Lemon Drop", "Green Tea Shot", "Pickleback", "Cherry Bakewell", "Skittle Bomb"] },
     { id: "house-shots", t: "House Shots", sub: "Our own shots, shaken cold", names: ["Chocolate Orange", "Sour Apple", "Smoke & Fire", "Coconut Kiss", "Apple Pie", "Spicy Margarita Shot", "Lemon Meringue", "Jolly Rancher", "Gummy Bear", "Jam Doughnut", "Pineapple Upside-Down", "Peanut Butter & Jam"] },
     { id: "more-shots", t: "More Shots & Bombs", sub: "Layer slowly over the back of a bar spoon", names: ["Tequila Slammer", "Brain Haemorrhage", "Washington Apple", "Mexican Flag", "Squashed Frog", "After Eight", "Slippery Nipple", "Duck Fart", "Flatliner", "Cherry Bomb", "Passion Bomb", "Vegas Bomb"] },
