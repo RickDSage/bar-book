@@ -18,9 +18,16 @@ const unpairShake = (d) => ({
   desc: d.desc && d.desc.replace(/\s*Pairs with [^.]*shake\.$/i, ""),
   pairsWith: /shake$/i.test(d.pairsWith || "") ? undefined : d.pairsWith,
 });
+// Not stocked at Black Tap Soho (Emily, bar team, 9 Nov 2026): these stay in the data but leave the app and the cheat sheets.
+// By name, plus anything that needs a bottle the bar doesn't carry.
+const NOT_STOCKED = new Set(["Bramble", "Caipirinha", "Kir Royale", "Lychee Martini", "Aviation", "Gin Basil Smash", "Brandy Crusta", "Brandy Alexander",
+  "Bobby Burns", "Corpse Reviver No. 2", "Tuxedo", "Paper Plane", "Moonwalk", "Grasshopper", "Hanky Panky", "Hemingway Daiquiri", "Nuclear Daiquiri",
+  "Charlie Chaplin", "20th Century", "B&B", "Rusty Nail", "White Negroni", "Singapore Sling", "Last Word", "Vesper"]);
+const NOT_STOCKED_BOTTLE = /b[ée]n[ée]dictine|lillet|apricot|peychaud|maraschino|cassis/i;
+const stocked = (d) => !NOT_STOCKED.has(d.name) && !d.spec.some((l) => NOT_STOCKED_BOTTLE.test(l));
 const extras = require("./extras.js")(icons);
 const { fixGuide, fixDrink, tidyMethod } = require("./builds.js");
-const drinks = [...src.drinks.filter((d) => !DROP.has(d.name) && noShake(d)).map(unpairShake), ...extras.map((x) => x.drink)].map((d) => ({ ...d, spec: d.spec.map(clean) })).map(fixDrink).map(({ price, ...d }, i) => ({
+const drinks = [...src.drinks.filter((d) => !DROP.has(d.name) && noShake(d)).map(unpairShake), ...extras.map((x) => x.drink)].map((d) => ({ ...d, spec: d.spec.map(clean) })).map(fixDrink).filter(stocked).map(({ price, ...d }, i) => ({
   // No prices in the staff app (owner, 24 Oct)
   id: i, ...d, spec: d.spec.map(clean),
   g: icons.glassKind(d.glass.replace(/spritz/i, "wine")),
@@ -33,7 +40,9 @@ const scene = (...a) => sceneArt(...a).replace(/Any 4 for £\d+/g, "Pick any 4")
 const scenes = [], sceneIdx = new Map();
 const guides = {};
 const byName = new Map(drinks.map((d) => [d.name, d]));
-for (const raw of [...require(DATA + "guides.json").guides.filter((g) => !DROP.has(g.name) && noShake(g)), ...extras.map((x) => x.guide)]) {
+// Guides for drinks taken off (not stocked) go too; the Shot tray guide has no drink of its own.
+const allNames = new Set([...src.drinks, ...extras.map((x) => x.drink)].map((d) => d.name));
+for (const raw of [...require(DATA + "guides.json").guides.filter((g) => !DROP.has(g.name) && noShake(g)), ...extras.map((x) => x.guide)].filter((g) => byName.has(g.name) || !allNames.has(g.name))) {
   const g = byName.has(raw.name) ? { ...fixGuide(raw, byName.get(raw.name)), glassKind: byName.get(raw.name).g } : raw;
   guides[g.name] = { tools: g.tools, steps: g.steps.map((st) => {
     const svg = scene(st, g);

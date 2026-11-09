@@ -18,6 +18,7 @@ const METHOD = {
   "Chambord Royale": "Chambord first, top Prosecco slowly",
   "Mimosa": "Orange juice first, top Prosecco slowly",
   "Bramble": "Shake gin, lemon and sugar, strain over crushed ice, drizzle crème de mûre on top",
+  "Irish Coffee": "Warm the glass, add whiskey, sugar and an Americano from the coffee machine, stir, float lightly whipped cream over a spoon",
   "Jägerbomb": "Pour the shot. Pour half a can of Red Bull into a rocks glass. Serve side by side, guest drops the shot in",
 };
 // Checked against the IBA official recipes (iba-world.com, 24 Oct 2026) and Difford's Guide (25 Oct 2026).
@@ -54,7 +55,7 @@ const FIX = {
   "Mai Tai": { ml: { "Cointreau": 15, "Giffard Orgeat": 15 } },
   "Paloma": { ml: { "Casamigos Reposado": 50, "agave syrup": 10, "grapefruit juice": 50 }, add: ["Pinch of salt"] },
   "Piña Colada": { ml: { "Coco Real": 25, "pineapple juice": 100, "lime juice": 10 }, drop: ["Malibu"] },
-  "Irish Coffee": { rename: { "demerara syrup": "sugar syrup" }, text: { pourGlass: "Measure the Jameson and sugar syrup into the warm glass." }, ml: { "Jameson": 25, "sugar syrup": 15, "hot Americano": 120, "double cream, lightly whipped": 50 } },
+  "Irish Coffee": { rename: { "demerara syrup": "sugar syrup" }, text: { heat: "Fill the heatproof glass with hot water from the coffee machine's hot water tap. Tip it out after a minute.", pourGlass: "Measure the Jameson and sugar syrup into the warm glass.", top: "Pull an Americano on the coffee machine, pour it in and stir." }, ml: { "Jameson": 25, "sugar syrup": 15, "hot Americano": 120, "double cream, lightly whipped": 50 } },
   "Midori Sour": { ml: { "lemon juice": 15, "lime juice": 15 } },
   // Back on the list now stock doesn't decide it (owner, 3 Nov). IBA: crème de mûre, not Chambord.
   "Bramble": { rename: { "Chambord": "crème de mûre" }, ml: { "crème de mûre": 15, "sugar syrup": 10 },
