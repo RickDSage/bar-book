@@ -58,7 +58,7 @@ const ID = "Serve straight away. Check ID if the guest looks under 25.";
 const UP = "Hawthorne strainer on the tin, fine strainer over the glass. Strain into the chilled coupe.";
 
 // Shapes the 5 Nov 2026 additions share, so each new drink is one line of data and one of steps.
-const HEAT = { scene: "heat", title: "Warm the glass", text: "Fill the heatproof glass with hot water. Tip it out after a minute." };
+const HEAT = { scene: "heat", title: "Warm the glass", text: "Fill the heatproof glass with hot water from the coffee machine's hot water tap. Tip it out after a minute." };
 const built = (sp, g, glass = "highball") => [S.ice("cubed", glass), S.glass(pick(sp, /^\d/)), S.top(pick(sp, TOPS)), S.lift(), S.garnish(g)];
 const upShake = (sp, g, extra) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.shake(), S.strain(UP, true), S.garnish(g, extra)];
 const upStir = (sp, g) => [S.chill("coupe"), S.mix(pick(sp, ALL)), S.stir(), S.strainMix("Hold the julep strainer on the mixing glass. Strain into the chilled coupe."), S.garnish(g)];
@@ -680,14 +680,14 @@ const X = [
     method: "Lager first, top lemonade", spec: ["150 ml Stella Artois", "Top 150 ml lemonade"], garnish: "None",
     steps: (sp) => [S.glass(pick(sp, /^\d/), "Tilt the glass and pour the lager down the side."), S.top(pick(sp, TOPS), "Top with cold lemonade."), S.serve("No garnish. Serve straight away.")] },
   { section: "After Dinner", name: "Hot Toddy", tags: ["Hot", "Zesty"], blurb: "whisky, honey, lemon and hot water with cloves, the winter cure", glass: "Heatproof glass", ice: "None (hot)", colour: "#d89a4a",
-    method: "Warm the glass, build whisky, honey and lemon, top hot water, stir", spec: ["40 ml Johnnie Walker Black Label", "20 ml honey syrup (2:1)", "20 ml lemon juice", "1 dash Angostura", "Top 100 ml hot water"], garnish: "Lemon wheel studded with 3 cloves, cinnamon stick",
-    steps: (sp) => [HEAT, S.glass(pick(sp, /^\d/), "Measure into the warm glass."), S.top(pick(sp, TOPS), "Top with hot water (not boiling) and stir."), S.garnish("Lemon wheel studded with 3 cloves, cinnamon stick", "Serve on a saucer, the glass is hot.")] },
+    method: "Warm the glass, build whisky, honey and lemon, top with hot water from the coffee machine, stir", spec: ["40 ml Johnnie Walker Black Label", "20 ml honey syrup (2:1)", "20 ml lemon juice", "1 dash Angostura", "Top 100 ml hot water"], garnish: "Lemon wheel studded with 3 cloves, cinnamon stick",
+    steps: (sp) => [HEAT, S.glass(pick(sp, /^\d/), "Measure into the warm glass."), S.top(pick(sp, TOPS), "Top with hot water from the coffee machine's hot water tap and stir."), S.garnish("Lemon wheel studded with 3 cloves, cinnamon stick", "Serve on a saucer, the glass is hot.")] },
   { section: "After Dinner", name: "Baileys Coffee", tags: ["Hot", "Creamy", "Coffee"], blurb: "Baileys in hot coffee with a cream float", glass: "Heatproof glass", ice: "None (hot)", colour: "#7a5236",
-    method: "Warm the glass, Baileys and coffee, float cream", spec: ["50 ml Baileys", "120 ml hot Americano", "25 ml double cream, lightly whipped"], garnish: "Grated chocolate", allergens: "Milk",
-    steps: (sp) => [HEAT, S.glass(pick(sp, /Baileys|Americano/), "Measure the Baileys into the warm glass. Pour in the hot coffee and stir."), S.float(pick(sp, /cream/), "Pour the lightly whipped cream slowly over the back of a spoon so it floats."), S.garnish("Grated chocolate", "Serve. Contains milk.")] },
+    method: "Warm the glass, Baileys, Americano from the coffee machine, float cream", spec: ["50 ml Baileys", "120 ml hot Americano", "25 ml double cream, lightly whipped"], garnish: "Grated chocolate", allergens: "Milk",
+    steps: (sp) => [HEAT, S.glass(pick(sp, /Baileys|Americano/), "Measure the Baileys into the warm glass. Pull an Americano on the coffee machine, pour it in and stir."), S.float(pick(sp, /cream/), "Pour the lightly whipped cream slowly over the back of a spoon so it floats."), S.garnish("Grated chocolate", "Serve. Contains milk.")] },
   { section: "After Dinner", name: "Calypso Coffee", tags: ["Hot", "Coffee"], blurb: "dark rum and Kahlúa in hot coffee with a cream float", glass: "Heatproof glass", ice: "None (hot)", colour: "#3b2416",
-    method: "Warm the glass, rum, Kahlúa and coffee, float cream", spec: ["25 ml Captain Morgan Dark", "25 ml Kahlúa", "120 ml hot Americano", "25 ml double cream, lightly whipped"], garnish: "3 coffee beans", allergens: "Milk",
-    steps: (sp) => [HEAT, S.glass(pick(sp, /Captain|Kahl|Americano/), "Measure the rum and Kahlúa into the warm glass. Pour in the hot coffee and stir."), S.float(pick(sp, /cream/), "Pour the lightly whipped cream slowly over the back of a spoon so it floats."), S.garnish("3 coffee beans", "Serve. Contains milk.")] },
+    method: "Warm the glass, rum, Kahlúa, Americano from the coffee machine, float cream", spec: ["25 ml Captain Morgan Dark", "25 ml Kahlúa", "120 ml hot Americano", "25 ml double cream, lightly whipped"], garnish: "3 coffee beans", allergens: "Milk",
+    steps: (sp) => [HEAT, S.glass(pick(sp, /Captain|Kahl|Americano/), "Measure the rum and Kahlúa into the warm glass. Pull an Americano on the coffee machine, pour it in and stir."), S.float(pick(sp, /cream/), "Pour the lightly whipped cream slowly over the back of a spoon so it floats."), S.garnish("3 coffee beans", "Serve. Contains milk.")] },
   // ---------- Perfect serves: the simple mixes people order most ----------
   { section: "Perfect Serves", name: "Malibu & Pineapple", tags: ["Easy", "Tropical"], blurb: "Malibu and pineapple juice", glass: "Highball", ice: "Cubed", colour: "#f6e08a",
     method: "Build over ice, top pineapple", spec: ["50 ml Malibu", "Top 125 ml pineapple juice"], garnish: "Pineapple wedge",
