@@ -234,6 +234,9 @@ function fixGuide(g, d) {
 const SUBS = [
   [/crème de mûre/, "No crème de mûre? Use Chambord."],
   [/crème de cassis/, "No crème de cassis? Use Chambord."],
+  [/Amer Picon/, "No Amer Picon? Use Amaro Nonino."],
+  [/Suze/, "No Suze? Use 15 ml Campari and 10 ml more Lillet."],
+  [/fino sherry/, "No fino sherry? Use Martini Extra Dry."],
   [/lychee liqueur/, "No lychee liqueur? Use 15 ml Monin Lychee and add 10 ml more vodka."],
   [/Velvet Falernum/, "No falernum? Use the same of Giffard Orgeat and add 1 dash Angostura."],
   [/Wray & Nephew/, "No overproof rum? Use Captain Morgan White."],
