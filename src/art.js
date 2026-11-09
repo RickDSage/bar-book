@@ -11,6 +11,7 @@ const ART = (() => {
     rocks: { body: "M13 28 H51 L49 69 Q48.6 72 46 72 H18 Q15.4 72 15 69Z", top: 40, extra: "", cubes: [[20, 44, 13], [31, 50, 12]], rim: [49, 28] },
     highball: { body: "M19 8 H45 L44 72 H20Z", top: 17, extra: "", cubes: [[23, 22, 10], [30, 36, 10], [23, 50, 10]], rim: [43, 8] },
     wine: { body: "M13 12 H51 C53 33 45 46 32 46 C19 46 11 33 13 12Z", top: 24, extra: "M32 46 V68 M20 71 Q32 66 44 71", cubes: [[19, 28, 9], [32, 30, 9]], rim: [49, 12] },
+    martini: { body: "M9 16 H55 L32 45Z", top: 21, extra: "M32 45 V68 M20 71 Q32 66 44 71", cubes: [], rim: [52, 16] },
     shot: { body: "M20 36 H44 L41 72 H23Z", top: 46, extra: "M22.5 64 H41.5", cubes: [], rim: [42, 36] },
     hurricane: { body: "M19 6 C16 18 26 22 23 32 C20 42 24 53 32 53 C40 53 44 42 41 32 C38 22 48 18 45 6Z", top: 14, extra: "M32 53 V68 M21 71 Q32 66 43 71", cubes: [[25, 22, 9], [31, 34, 9]], rim: [43, 6] },
     heatproof: { body: "M17 16 H45 L43 58 H19Z", top: 20, extra: "M45 24 C55 24 55 44 44 44 M31 58 V68 M20 71 Q31 66 42 71", cubes: [], rim: [43, 16], cream: 8 },

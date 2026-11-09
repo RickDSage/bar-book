@@ -41,6 +41,7 @@ Both test suites run against the local Firebase emulators, never the live projec
 | `npm run test:e2e` | Builds a copy of the site that talks to the emulators (`.emusite/`, not committed), then runs the browser tests. |
 | `npm test` | Both. |
 | `npm run emulators` | Just the emulators, for trying things by hand alongside `npm run build:emu`. |
+| `node scripts/cheatsheets.js <folder>` | After a build: the laminate cheat sheets (20 pages, double-sided) as an A4 PDF and a JPEG per sheet. Which drinks go on them is `SHEETS` in `src/cheatsheet.js`. |
 
 ## Decisions worth knowing
 
