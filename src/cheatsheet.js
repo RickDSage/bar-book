@@ -4,7 +4,7 @@ const CHEAT = (() => {
   // Families of the most ordered drinks (bestseller lists from Drinks International and UK bar sales), with Black Tap's own first.
   const SHEETS = [
     { id: "signatures", t: "Black Tap Signatures", sub: "Our house cocktails", names: ["London Cosmo", "Uptown Hustle", "Salted Caramel Buzz", "Cali Heatwave", "West Coast Love", "The Paddington", "Marshmallow Boulevard", "The Rockefeller"] },
-    { id: "martinis", t: "Martinis", sub: "Chilled martini glass, served up", names: ["Espresso Martini", "Pornstar Martini", "Dry Martini", "Dirty Martini", "French Martini", "Lemon Drop Martini", "Cosmopolitan", "Vesper"] },
+    { id: "martinis", t: "Martinis", sub: "Chilled martini glass, served up", names: ["Espresso Martini", "Pornstar Martini", "Dry Martini", "Dirty Martini", "French Martini", "Lemon Drop Martini", "Cosmopolitan", "Lychee Martini"] },
     { id: "margaritas", t: "Margaritas & Agave", sub: "Ritas, Palomas and Ranch Water", names: ["Margarita", "Tommy's Margarita", "Spicy Margarita", "Mezcal Margarita", "Passion Fruit Margarita", "Watermelon Margarita", "Paloma", "Ranch Water"] },
     { id: "spritz", t: "Spritz & Sparkling", sub: "Spritz: glass full of ice, Prosecco first, gentle lift", names: ["Aperol Spritz", "Hugo Spritz", "Limoncello Spritz", "French 75", "Kir Royale", "Mimosa", "Negroni Sbagliato", "Bellini"] },
     { id: "sours", t: "Sours", sub: "Shake hard. Foamer drinks: dry shake first", names: ["Whiskey Sour", "Amaretto Sour", "Daiquiri", "Pisco Sour", "Clover Club", "Bramble", "Penicillin", "Paper Plane"] },
