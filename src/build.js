@@ -20,7 +20,7 @@ const unpairShake = (d) => ({
 });
 // Not stocked at Black Tap Soho (Emily, bar team, 9 Nov 2026): these stay in the data but leave the app and the cheat sheets.
 // By name, plus anything that needs a bottle the bar doesn't carry.
-const NOT_STOCKED = new Set(["Bramble", "Caipirinha", "Kir Royale", "Lychee Martini", "Aviation", "Gin Basil Smash", "Brandy Crusta", "Brandy Alexander",
+const NOT_STOCKED = new Set(["Bramble", "Caipirinha", "Kir Royale", "Chambord Royale", "Lychee Martini", "Aviation", "Gin Basil Smash", "Brandy Crusta", "Brandy Alexander",
   "Bobby Burns", "Corpse Reviver No. 2", "Tuxedo", "Paper Plane", "Moonwalk", "Grasshopper", "Hanky Panky", "Hemingway Daiquiri", "Nuclear Daiquiri",
   "Charlie Chaplin", "20th Century", "B&B", "Rusty Nail", "White Negroni", "Singapore Sling", "Last Word", "Vesper"]);
 const NOT_STOCKED_BOTTLE = /b[ée]n[ée]dictine|lillet|apricot|peychaud|maraschino|cassis/i;
