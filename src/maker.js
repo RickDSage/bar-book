@@ -290,7 +290,7 @@ const BT_LINEUP = [
     { k: "mango puree", name: "Funkin mango purée", note: "Mango martinis and margaritas." },
     { k: "raspberry puree", name: "Funkin raspberry purée", note: "Raspberry mojitos and Clover Club style drinks." },
   ]],
-  // The gun (postmix), 9 Nov 2026. A Fanta Fruit Twist Zero may be on it too: unconfirmed, so left off.
+  // The gun (postmix), 9 Nov 2026. No Fanta Fruit Twist Zero on it (Derek, 15 Nov).
   ["Postmix (gun)", [
     { k: "coca cola", name: "Coke (gun)", glass: "Highball, cubed ice, lemon wedge", measure: "Fill the glass" },
     { k: "diet coke", name: "Diet Coke (gun)", glass: "Highball, cubed ice, lemon wedge", measure: "Fill the glass" },
