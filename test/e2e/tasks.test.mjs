@@ -140,13 +140,13 @@ test("a list finishes once everything's done; finishing early takes a manager an
   await pick(M, "fset-0", "cancelled");
   await settled(S, "fset-0", "cancelled");
   assert.match(await row(S, "fset", 0), /Not needed tonight By Mia Manager, \d\d:\d\d: Terrace closed$/);
-  assert.deepEqual(await S.$$eval(".prog-head > *", (xs) => xs.map((e) => e.textContent)), ["0 of 4 done · 1 not needed tonight", "0%"]);
+  assert.deepEqual(await S.$$eval(".prog-head > *", (xs) => xs.map((e) => e.textContent)), ["0 of 5 done · 1 not needed tonight", "0%"]);
   await S.click('[data-list=fset][data-i="0"]');
   assert.equal(await toastOf(S), "Not needed tonight. A manager can bring it back");
 
-  // Three of the four done: staff can't finish it yet, and the rules won't let a list finish short without a manager.
-  for (const i of [1, 2, 3]) await S.click(`[data-list=fset][data-i="${i}"]`);
-  await M.waitForFunction(() => [1, 2, 3].every((i) => LIVE.tasks[`fset-${i}`]?.status === "done" && !LIVE.tasks[`fset-${i}`].pending));
+  // Four of the five done: staff can't finish it yet, and the rules won't let a list finish short without a manager.
+  for (const i of [5, 1, 2, 3]) await S.click(`[data-list=fset][data-i="${i}"]`);
+  await M.waitForFunction(() => [5, 1, 2, 3].every((i) => LIVE.tasks[`fset-${i}`]?.status === "done" && !LIVE.tasks[`fset-${i}`].pending));
   assert.equal(await S.locator('[data-run="fset"][data-to="finished"]').count(), 0);
   assert.match(await runBox(S), /Finish shows once every item is done/);
   assert.equal(await attempt(S, () => LIVE.api.setRun("fset", "Tables and cutlery", "finished", 3, 4, "Done enough")), "permission-denied");
@@ -157,7 +157,7 @@ test("a list finishes once everything's done; finishing early takes a manager an
   await waitToast(S, /^Tables and cutlery finished by Mia Manager, with 1 not done$/);
   await S.waitForFunction(() => LIVE.runs.fset?.status === "finished" && !LIVE.runs.fset.pending);
   assert.match(await runBox(S),
-    /^Finished Started by Mia Manager, \d\d:\d\d\. Finished by Mia Manager, \d\d:\d\d, with 1 of 4 not done\. Reason: Short staffed, last table done tomorrow Reopen…$/);
+    /^Finished Started by Mia Manager, \d\d:\d\d\. Finished by Mia Manager, \d\d:\d\d, with 1 of 5 not done\. Reason: Short staffed, last table done tomorrow Reopen…$/);
   await S.click('[data-list=fset][data-i="4"]');
   assert.equal(await toastOf(S), "Tables and cutlery is finished. Reopen it to change anything");
   assert.equal(await attempt(S, () => LIVE.api.setTask("fset", 4, "x", "done")), "permission-denied");
@@ -170,7 +170,7 @@ test("a list finishes once everything's done; finishing early takes a manager an
   await S.waitForFunction(() => LIVE.runs.fset?.status === "started" && !LIVE.runs.fset.pending);
   await S.click('[data-list=fset][data-i="4"]');
   await S.click('[data-run="fset"][data-to="finished"]');
-  await M.waitForFunction(() => LIVE.runs.fset?.status === "finished" && LIVE.runs.fset.done === 4 && LIVE.runs.fset.required === 4 && !LIVE.runs.fset.pending);
+  await M.waitForFunction(() => LIVE.runs.fset?.status === "finished" && LIVE.runs.fset.done === 5 && LIVE.runs.fset.required === 5 && !LIVE.runs.fset.pending);
 
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
