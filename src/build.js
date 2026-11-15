@@ -23,7 +23,8 @@ const unpairShake = (d) => ({
 const NOT_STOCKED = new Set(["Bramble", "Caipirinha", "Kir Royale", "Chambord Royale", "Lychee Martini", "Aviation", "Gin Basil Smash", "Brandy Crusta", "Brandy Alexander",
   "Bobby Burns", "Corpse Reviver No. 2", "Tuxedo", "Paper Plane", "Moonwalk", "Grasshopper", "Hanky Panky", "Hemingway Daiquiri", "Nuclear Daiquiri",
   "Charlie Chaplin", "20th Century", "B&B", "Rusty Nail", "White Negroni", "Singapore Sling", "Last Word", "Vesper"]);
-const NOT_STOCKED_BOTTLE = /b[ée]n[ée]dictine|lillet|apricot|peychaud|maraschino|cassis/i;
+// Emily's list also rules out Fernet, green Chartreuse and sloe gin (15 Nov 2026: Fernandito, Tipperary, Alabama Slammer go).
+const NOT_STOCKED_BOTTLE = /b[ée]n[ée]dictine|lillet|apricot|peychaud|maraschino|cassis|fernet|green chartreuse|sloe gin/i;
 const stocked = (d) => !NOT_STOCKED.has(d.name) && !d.spec.some((l) => NOT_STOCKED_BOTTLE.test(l));
 const extras = require("./extras.js")(icons);
 const { fixGuide, fixDrink, tidyMethod } = require("./builds.js");

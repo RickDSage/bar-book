@@ -52,6 +52,12 @@ test("the Black Tap line-up: serve cards, classics, the shelf and My bar", async
   const cls = await p.evaluate(() => btClassics("all"));
   assert.equal(cls.house.length, 8, "every house cocktail");
   assert.ok(cls.ready.some((r) => r.d.name === "Margarita") && cls.ready.some((r) => r.d.name === "Gin & Tonic"));
+  // The staples are in the line-up, so the bar classics are ready with nothing to add.
+  for (const n of ["Negroni", "Aperol Spritz", "Espresso Martini", "Cosmopolitan", "Long Island Iced Tea", "Old Fashioned", "Whiskey Sour", "Mojito", "Tequila Sunrise", "Dry Martini"])
+    assert.ok([...cls.house, ...cls.ready].some((r) => r.d.name === n), n);
+  // Every drink has its closest swaps, in spec order.
+  assert.deepEqual(await p.evaluate(() => D.filter((d) => !d.subs).map((d) => d.name)), []);
+  assert.match((await p.evaluate(() => D.find((d) => d.name === "Margarita").subs.join(" "))), /^No El Jimador Blanco\?.*No Cointreau\? Use Grand Marnier.*No lime juice\? Use lemon juice/);
   assert.match(await p.$eval("#bt-out", (e) => e.innerText), /HOUSE COCKTAILS[\s\S]*READY WITH THE LINE-UP/i);
   await p.click("[data-bt-view=Draught]");
   const t = await p.$eval("#bt-out", (e) => e.innerText);
@@ -61,6 +67,13 @@ test("the Black Tap line-up: serve cards, classics, the shelf and My bar", async
   assert.match(await p.$eval("#bt-out", (e) => e.innerText), /Coke \(gun\)[\s\S]*Fanta Zero \(gun\)[\s\S]*Hold the gun just above the glass/);
   await p.click("[data-bt-view='Juices, syrups and purées']");
   assert.match(await p.$eval("#bt-out", (e) => e.innerText), /Tomato juice[\s\S]*Funkin passion fruit purée/);
+  // Bartending 101: Cointreau as the triple sec, the citrus, sugar and bitters, and the garnish tray.
+  await p.click("[data-bt-view=Liqueurs]");
+  assert.match(await p.$eval("#bt-out", (e) => e.innerText), /Cointreau \(triple sec\)[\s\S]*Baileys[\s\S]*Disaronno/);
+  await p.click("[data-bt-view='Bar basics']");
+  assert.match(await p.$eval("#bt-out", (e) => e.innerText), /Fresh lime juice[\s\S]*Sugar syrup[\s\S]*Grenadine[\s\S]*Angostura bitters/);
+  await p.click("[data-bt-view='Fresh and garnish']");
+  assert.match(await p.$eval("#bt-out", (e) => e.innerText), /Limes[\s\S]*Oranges[\s\S]*Cocktail cherries/);
   await p.click("[data-bt-view=Draught]");
   // Drinks with it starts an order from that one item.
   await p.click("[data-bt-use='guinness']");
