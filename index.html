@@ -4115,8 +4115,32 @@ function renderInfo() {
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>
     <p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
+    <h2 id="clear">Clear everything</h2>
+    <div class="fbbox"><h3 style="margin-top:0">This phone</h3>
+      <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the language and look, and the team's data saved on it. Then it logs out. Nobody else's phone changes.</p>
+      <label class="fld">Type ${CLEAR_WORD} to show you mean it<input id="cp-words" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
+      <button class="btn danger wide" id="cp-go">Clear this phone</button></div>
+    <div id="fresh"></div>
     <p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p>`;
+  renderFresh();
 }
+// Clear everything, at the bottom of Info.
+$("#v-info").addEventListener("input", (e) => { if (e.target.id === "fr-words") frF.words = e.target.value; });
+$("#v-info").addEventListener("change", (e) => {
+  const x = e.target.closest("[data-fr-group]"); if (!x) return;
+  if (x.checked) frF.groups.add(x.dataset.frGroup); else frF.groups.delete(x.dataset.frGroup);
+  renderFresh();
+});
+$("#v-info").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  if (b.id === "cp-go") {
+    if ($("#cp-words").value.trim().toUpperCase() !== CLEAR_WORD) return toast(`Type ${CLEAR_WORD} to show you mean it`);
+    return clearPhone();
+  }
+  if (b.id === "fr-count") return frCountAll(b);
+  if (b.id === "fr-go") return frGo();
+  if (b.dataset.dl) dlGo(b);
+});
 
 /* ---------- Features ----------
    Every feature: what it's for, what staff and managers can do with it, and where it is. The owner can switch the ones
@@ -4141,6 +4165,9 @@ const FEATURES = [
     what: "22 A4 pages to print double-sided and laminate for behind the bar: the signatures, martinis, margaritas, spritzes, sours, stirred, long drinks, rum, gin, fruity, house serves, after dinner, mojitos and mules, modern favourites, New York classics, pitchers, aperitivo, bartender's classics, three of shots and bombs, and zero proof, with the same specs as the app." },
   { g: "Drinks", k: "info", n: "Bar info", go: "tab:info",
     what: "Measures and the law, the technique key, prep and batches, the shot tray guide, and putting the app on your home screen." },
+  { g: "Drinks", k: "fresh", n: "Clear everything", go: "tab:info#clear",
+    what: "At the bottom of Info: wipe everything the app keeps on your phone, or, for the owner, the team's data for everyone.",
+    staff: "Type CLEAR to wipe this phone and log out.", mgr: "The owner downloads what to keep, ticks what goes (shift work, team records, chats, set-up, legal records), sees the counts, then types their PIN and CLEAR. Logins, lists and the audit trail stay." },
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", sw: 1, tour: 1,
     what: "Its own tab: the shifts you worked and each month's take-home, with tax, National Insurance, tronc, student loan and pension. It stays on your phone: nobody else sees it, not even managers.",
     staff: "Add shifts a few days at a time, go back a month, set your rate and tronc once, and send your hours to yourself or a manager." },
@@ -4248,9 +4275,6 @@ const FEATURES = [
   { g: "Managers", k: "team", n: "Team logins", go: "team", login: 1, admin: 1,
     what: "Everyone's login, with every change recorded.",
     mgr: "Add people, reset a PIN and remove someone. The owner also makes people managers." },
-  { g: "Managers", k: "fresh", n: "Start fresh", go: "team", login: 1, admin: 1,
-    what: "A clean start for everyone once the venue has finished trying the app out: the shift work goes, the logins, lists and records stay.",
-    mgr: "The owner downloads what to keep, sees what it would clear, then types their PIN to clear it for everyone." },
   { g: "Managers", k: "feedback", n: "Manager feedback", go: "feedback", login: 1, admin: 1, sw: 1,
     what: "Anonymous feedback between managers.",
     mgr: "Send feedback about another manager and read what's about you. The owner reads all of it." },
@@ -4294,7 +4318,7 @@ function openFeatures() {
 }
 // Where a feature lives: a bottom tab, a part of the Shift tab, or a part of the Team page.
 function openAt(where) {
-  if (where.startsWith("tab:")) return show(where.slice(4));
+  if (where.startsWith("tab:")) { const [tab, at] = where.slice(4).split("#"); show(tab); if (at) $("#" + at).scrollIntoView(); return; }
   if (where === "football" || where === "send") { if (where === "send") pane = "send"; return show("tally"); }
   if (where === "whatsapp") { show("notices"); return openPlace("send"); }
   if (where === "shift" || where === "stock" || where === "labels") return go(where);
@@ -4423,8 +4447,7 @@ function renderTeamTop() {
         <div class="two even"><label class="fld">Side<select id="tt-side">${Object.entries(SIDE_NAME).map(([k, t]) => `<option value="${k}">${t}</option>`).join("")}</select></label>
         <label class="fld">Role<select id="tt-role"><option value="staff">Staff</option><option value="manager">Manager</option></select></label></div>
         <button class="btn wide" id="tt-add">Add test person</button>
-        <div id="tests"></div></details>
-      ${LIVE.owner ? `<details class="setup" id="fresh-box"><summary>Start fresh</summary><div id="fresh"></div></details>` : ""}`;
+        <div id="tests"></div></details>`;
   renderDash(); renderChat(); renderConcerns(); renderIssues(); renderPins(); renderRota(); renderCal(); renderRequests(); renderFeed(); renderReports(); renderFeedback(); renderOutlog(); renderTraining(); renderStaff(); renderMe(); renderLive(); renderHandover(); renderNights(); renderStatus(); renderBrief(); renderGuests(); renderAct(); renderKpis(); renderMoney(); renderFresh(); renderHub(); renderSendHub(); renderCall(); renderRefusals(); renderCerts(); renderAvail(); renderShouts(); renderPulse(); renderPulses(); renderOnboard();
 }
 /* The Team page, which the bell opens: what's new and what needs you, tonight at a glance, then a card for each part of
@@ -4706,7 +4729,7 @@ const PERMS = `<table class="perms"><tr><th></th><th>Staff</th><th>Manager</th><
   ["Drinks, specs, checklists, shift reports", 1, 1, 1], ["Chat, issues, concerns, incidents", 1, 1, 1], ["Time off and swaps, hands up for shifts", 1, 1, 1],
   ["Sign off reports, close incidents", 0, 1, 1], ["Build and publish the rota", 0, 1, 1], ["Broadcasts, briefing, close and handover", 0, 1, 1],
   ["Add, reset and remove staff, test staff", 0, 1, 1], ["Add and remove managers, change roles", 0, 0, 1], ["Features on and off, comp limits", 0, 0, 1],
-  ["All anonymous feedback, Start fresh", 0, 0, 1]].map(([t, ...c]) => `<tr><td>${t}</td>${c.map((y) => `<td>${y ? "✓" : "–"}</td>`).join("")}</tr>`).join("")}</table>
+  ["All anonymous feedback, clear everything for everyone", 0, 0, 1]].map(([t, ...c]) => `<tr><td>${t}</td>${c.map((y) => `<td>${y ? "✓" : "–"}</td>`).join("")}</tr>`).join("")}</table>
   <p class="note">Managers see the feedback about themselves only. To give someone more, make them a manager; to take it away, make them staff. Both take effect on their phone straight away.</p>`;
 /* A username from a name: the first name, then with the surname's first letter, then numbered, skipping any taken. */
 function makeUser(name, taken) {
@@ -7516,6 +7539,7 @@ async function events31() {
   return [...past.ev, ...LIVE.events];
 }
 const LOAD = { ticks: () => LIVE.api.ticksFor(lastNights(31)), events: events31, restock: () => LIVE.api.restockFrom(lastNights(31).at(-1)), shifts: async () => LIVE.shifts };
+const dlGo = (b) => busy(b, "Getting the full history…", prepareDownload(b.dataset.dl).catch(() => toast("Couldn't get it. Check your signal and try again")));
 async function prepareDownload(sec) {
   const x = Object.fromEntries([...new Set(Object.values(NEEDS).flat()), "restock"].map((k) => [k, []]));
   await Promise.all(NEEDS[sec].map(async (k) => { x[k] = await (LOAD[k] ? LOAD[k]() : LIVE.api.history(k)); }));
@@ -7525,60 +7549,89 @@ async function prepareDownload(sec) {
   actFile = { sec, n: rows.length - 1, name: `black-tap-${name}-${ukDay(Date.now())}.csv`, url: URL.createObjectURL(new Blob([text], { type: "text/csv;charset=utf-8" })) };
   [renderAct, renderTraining, renderKpis, renderRota, renderReports, renderFresh].forEach((f) => f());
 }
-/* ---------- Start fresh (the owner) ----------
-   Clears the shift work for everyone, for a clean start once the venue has finished trying the app out (FRESH in the
-   live layer says what goes). It can't be undone, so the downloads come first, then what it would clear, then the
-   owner's PIN and the words typed in. Every phone drops its own copies when it hears of a new one. */
+/* ---------- Clear everything (Info) ----------
+   Anyone clears this phone: everything the app keeps on it, then it logs out. The owner also clears the team's data for
+   everyone, in groups they tick (CLEAR in the live layer says what each holds). That can't be undone, so the downloads
+   come first, then what it would clear, then the owner's PIN and CLEAR typed in. Every phone drops its own copies when
+   it hears of a new one. */
+const CLEAR_WORD = "CLEAR";
+function clearPhone() {
+  Object.keys(localStorage).filter((k) => k.startsWith("btbar.")).forEach((k) => localStorage.removeItem(k));
+  // Logging out also wipes the team's data saved on the phone, then starts the app afresh.
+  if (LIVE.api) LIVE.api.logout(); else location.reload();
+}
 const FRESH_NAME = { status: "Department statuses", blocks: "Bottleneck reports", nights: "Nights' sales and covers", shifts: "Shifts on the rota", asks: "Time off, swaps and running late", reports: "Shift reports", photos: "Closing photos",
   reviews: "Reviews of reports", events: "Changes in the activity history", restock: "Restocks", out: "On the 86 board", outlog: "86 log entries",
   issues: "Issues", concerns: "Concerns", concernPhotos: "Concern photos", notices: "Broadcasts", seen: "Got it taps on broadcasts", feed: "Old board posts",
-  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", teststaff: "Test staff", shouts: "Shout-outs", pulse: "Shift feedback answers", checklists: "Checklist items" };
-const FRESH_WORDS = "START FRESH";
-const frF = { counts: null, total: 0, busy: false, done: 0, of: 0, words: "", msg: "" };
+  requests: "Old stock requests", handovers: "Manager handovers", briefings: "Briefings", briefReads: "Briefing reads", guests: "Guest issues", teststaff: "Test staff", shouts: "Shout-outs", pulse: "Shift feedback answers", quiz: "Quiz scores", checklists: "Checklist items",
+  calendar: "Calendar entries", fixtures: "Games on the screens", training: "Training sign-offs", onboard: "New starter checklists", certs: "Certificates", avail: "Availability", ratings: "Manager feedback",
+  labels: "Date labels", labelEvents: "Date label history", drinkMedia: "Drink photos and videos",
+  incidents: "Incidents", refusals: "Challenge 25 refusals", waste: "Old waste records", kit: "Old kit checks", safety: "Old safety checks", pars: "Old par levels", counts: "Old stock counts" };
+// The groups, in order, with what's in each. The last is off unless the owner ticks it.
+const CLEAR_GROUPS = [
+  ["work", "Shift work", "The rota, time off and swap asks, shift reports with their photos, reviews and sign-offs, the checklists, restocking, the 86 board and its log, handovers, briefings, guest issues, issues, concerns, broadcasts, shout-outs, shift feedback, quiz scores, the activity history and test staff."],
+  ["team", "Team records", "The calendar, the games on the screens, training sign-offs, new starter checklists, certificates, availability and manager feedback."],
+  ["chats", "Chats", "The team chat, groups and private chats, with their photos. Your phone opens them only to delete them."],
+  ["setup", "Set-up", "Date labels and their history, and the house photos and videos on the drinks."],
+  ["records", "Records the law may expect you to keep", "Incidents, Challenge 25 refusals, and the old temperature, waste and stock records. Only tick this if they're all from trying the app out: the HSE says to keep accident records for at least 3 years, and a refusals log shows the licensing team you check ID."]];
+const frF = { counts: null, groups: new Set(["work", "team", "chats", "setup"]), busy: false, done: 0, of: 0, words: "", msg: "" };
 const frCount = (n) => n.toLocaleString("en-GB");
+const frKinds = (g) => LIVE.api.CLEAR[g].map((k) => [k, frF.counts[k]]);
+const frTotal = () => (frF.counts ? [...frF.groups].flatMap(frKinds).reduce((a, [, n]) => a + n, 0) : 0);
 function renderFresh() {
   const box = $("#fresh");
-  if (!box || !LIVE.owner) return;
-  const r = LIVE.reset, xs = frF.counts ? Object.entries(frF.counts).filter(([, n]) => n) : [];
-  const last = r && !r.pending ? `<p class="note">Last started fresh ${when(r.at)} by ${esc(r.name)}, clearing ${frCount(r.total)}.</p>` : "";
-  const counted = !frF.counts ? `<div class="actions"><button class="btn" id="fr-count">See what it would clear</button></div>`
-    : !frF.total ? `<p class="note">There's nothing to clear.</p>`
-    : `<div class="mini">It would clear ${frCount(frF.total)}</div><ul class="frlist">${xs.map(([k, n]) => `<li>${FRESH_NAME[k]}: <b>${frCount(n)}</b></li>`).join("")}</ul>
-      <label class="fld">Your PIN<input id="fr-pin" type="password" inputmode="numeric" maxlength="12" autocomplete="current-password"></label>
-      <label class="fld">Type ${FRESH_WORDS} to show you mean it<input id="fr-words" value="${esc(frF.words)}" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
-      <button class="btn danger wide" id="fr-go"${frF.busy ? " disabled" : ""}>Clear it for everyone</button>`;
-  box.innerHTML = `<p class="note">Clears the shift work for everyone, for a clean start once you've finished trying the app out. It can't be undone, and it's best done when nobody's on shift.</p>
-    <div class="mini">It clears</div>
-    <p class="note">The rota, time off and swap asks, shift reports with their photos, reviews and sign-offs, the checklists, restocking, the 86 board and its log, issues, concerns, broadcasts, shout-outs, shift feedback, the activity history, and the old board and stock requests.</p>
-    <div class="mini">It keeps</div>
-    <p class="note">Everyone's logins and PINs, the audit trail, the lists, date labels, drink photos and videos, the calendar, the games on the screens, incidents, training sign-offs, manager feedback, chats, availability, new starter checklists, certificates, refusals, and the old temperature, waste and stock records.</p>
+  if (!box) return;
+  if (!LIVE.owner) { box.innerHTML = ""; return; }
+  const r = LIVE.reset, total = frTotal(), chats = frF.groups.has("chats");
+  const last = r && !r.pending ? `<p class="note">Last cleared ${when(r.at)} by ${esc(r.name)}, clearing ${frCount(r.total)}.</p>` : "";
+  const groups = CLEAR_GROUPS.map(([g, n, what]) => {
+    const xs = frF.counts ? frKinds(g).filter(([, c]) => c) : [];
+    return `<label class="check"><input type="checkbox" data-fr-group="${g}"${frF.groups.has(g) ? " checked" : ""}${frF.busy ? " disabled" : ""}> <b>${n}</b></label>
+      <p class="note">${what}</p>${xs.length ? `<ul class="frlist">${xs.map(([k, c]) => `<li>${FRESH_NAME[k]}: <b>${frCount(c)}</b></li>`).join("")}</ul>` : ""}`;
+  }).join("");
+  const ready = frF.counts && (total || chats);
+  box.innerHTML = `<div class="fbbox"><h3 style="margin-top:0">Everyone's data</h3>
+    <p class="note">Clears the team's data for everyone, for a clean start. It can't be undone, and it's best done when nobody's on shift.</p>
+    <div class="mini">Always kept</div>
+    <p class="note">Everyone's logins and PINs, the audit trail, the lists, the features you've switched on or off, and a record of each clear.</p>
     <div class="mini">First, download what you want to keep</div>
     <div class="actions">${dlHtml("all", "Everything in Activity", "fr-all")}${dlHtml("shifts", "The rota", "fr-rota")}</div>
-    <p class="note">Photos aren't in the spreadsheets, so save any you need from Reports first.</p>
-    ${counted}
+    <p class="note">Photos and chats aren't in the spreadsheets, so save any you need first.</p>
+    <div class="mini">Tick what to clear</div>${groups}
+    ${!frF.counts ? `<div class="actions"><button class="btn" id="fr-count">See what it would clear</button></div>`
+      : !ready ? `<p class="note">There's nothing to clear in what you've ticked.</p>`
+      : `<div class="mini">It would clear ${frCount(total)}${chats ? ", and every chat" : ""}</div>
+      <label class="fld">Your PIN<input id="fr-pin" type="password" inputmode="numeric" maxlength="12" autocomplete="current-password"></label>
+      <label class="fld">Type ${CLEAR_WORD} to show you mean it<input id="fr-words" value="${esc(frF.words)}" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
+      <button class="btn danger wide" id="fr-go"${frF.busy ? " disabled" : ""}>Clear it for everyone</button>`}
     ${frF.busy ? `<p class="note" id="fr-prog" role="status"><b>Clearing ${frCount(frF.done)} of ${frCount(frF.of)}…</b> Keep the app open until it's done.</p>` : ""}
-    ${frF.msg ? `<p class="note" role="status"><b>${esc(frF.msg)}</b></p>` : ""}${last}`;
+    ${frF.msg ? `<p class="note" role="status"><b>${esc(frF.msg)}</b></p>` : ""}${last}</div>`;
+}
+async function frCountAll(b) {
+  if (!navigator.onLine) return toast("You need signal for this");
+  busy(b, "Counting…", LIVE.api.freshCounts(CLEAR_GROUPS.map(([g]) => g)).then((x) => { frF.counts = x.counts; frF.msg = ""; renderFresh(); })
+    .catch(() => toast("Couldn't count them. Check your signal and try again")));
 }
 async function frGo() {
   const pin = $("#fr-pin").value.trim(), say = (msg) => { frF.msg = msg; renderFresh(); };
   frF.words = $("#fr-words").value;
   if (!LIVE.api.PIN.test(pin)) return say("Type your PIN.");
-  if (frF.words.trim().toUpperCase() !== FRESH_WORDS) return say(`Type ${FRESH_WORDS} to show you mean it.`);
+  if (frF.words.trim().toUpperCase() !== CLEAR_WORD) return say(`Type ${CLEAR_WORD} to show you mean it.`);
   if (!navigator.onLine) return say("You need signal for this.");
-  Object.assign(frF, { busy: true, done: 0, of: frF.total, msg: "" }); renderFresh();
+  Object.assign(frF, { busy: true, done: 0, of: frTotal(), msg: "" }); renderFresh();
   try {
-    const n = await LIVE.api.startFresh(pin, (done, of) => {
+    const n = await LIVE.api.startFresh(pin, CLEAR_GROUPS.map(([g]) => g).filter((g) => frF.groups.has(g)), (done, of) => {
       Object.assign(frF, { done, of: Math.max(of, done) });
       const p = $("#fr-prog b"); if (p) p.textContent = `Clearing ${frCount(frF.done)} of ${frCount(frF.of)}…`;
     });
-    Object.assign(frF, { counts: null, words: "", msg: `Done: ${frCount(n)} cleared. Everyone's app has the fresh start.` });
+    Object.assign(frF, { counts: null, words: "", msg: `Done: ${frCount(n)} cleared for everyone.` });
   } catch (e) {
     frF.msg = e.code === "fresh/pin" ? e.message : frF.done ? `Stopped after ${frCount(frF.done)} of ${frCount(frF.of)}. Check your signal, then clear it again to finish.`
-      : e.code === "permission-denied" ? "Firebase refused it. The rules with Start fresh need publishing first." : "Nothing cleared. Check your signal and try again.";
+      : e.code === "permission-denied" ? "Firebase refused it. The rules with Clear everything need publishing first." : "Nothing cleared. Check your signal and try again.";
   }
   frF.busy = false; renderFresh();
 }
-// A new start fresh: drop what this phone kept of what went (older reports, the downloads' and the KPIs' copies of
+// A new clear: drop what this phone kept of what went (older reports, the downloads' and the KPIs' copies of
 // earlier nights). A spreadsheet already made stays, to be saved. The others are told, if it's today's news.
 let resetSeen;
 function freshHeard() {
@@ -7588,7 +7641,7 @@ function freshHeard() {
   resetSeen = id;
   rpSeen.clear(); Object.assign(rpOld, { incidents: [], reviews: [], more: {} });
   past = { day: "", ev: [] }; kpi.ev = null;
-  if (r.uid !== LIVE.uid && ms(r.at) > Date.now() - 864e5) toast(`${r.name} started the app fresh`);
+  if (r.uid !== LIVE.uid && ms(r.at) > Date.now() - 864e5) toast(`${r.name} cleared the team's data`);
 }
 /* ---------- Team chat ----------
    The team chat (everyone), private chats between two people and groups. Pinging someone (@) marks the chat for them and
@@ -7885,7 +7938,6 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.roe && roE) roE[t.dataset.roe] = t.value;
   if (t.dataset.calf) calF[t.dataset.calf] = t.value;
   if (t.dataset.cale) calE[t.dataset.cale] = t.value;
-  if (t.id === "fr-words") frF.words = t.value;
   if (t.dataset.hof) { const [q, k] = t.dataset.hof.split(":"); (hoF.f[q] ||= {})[k] = t.value; hoSave(); }
   if (t.dataset.hon) { hoF[t.dataset.hon] = t.value; hoSave(); }
   if (t.dataset.hoack) hoAck[t.dataset.hoack] = t.value;
@@ -8057,13 +8109,7 @@ $("#v-notices").addEventListener("click", (e) => {
   if (b.id === "act-more") { actMax += 50; renderActRows(); return; }
   if (b.dataset.hist) { actOpen = actOpen === b.dataset.hist ? "" : b.dataset.hist; renderActRows(); return; }
   if (b.id === "kpi-go") { loadKpis(); return; }
-  if (b.id === "fr-count") {
-    if (!navigator.onLine) return toast("You need signal for this");
-    busy(b, "Counting…", A.freshCounts().then((x) => { Object.assign(frF, { ...x, msg: "" }); renderFresh(); }).catch(() => toast("Couldn't count them. Check your signal and try again")));
-    return;
-  }
-  if (b.id === "fr-go") return frGo();
-  if (b.dataset.dl) { busy(b, "Getting the full history…", prepareDownload(b.dataset.dl).catch(() => toast("Couldn't get it. Check your signal and try again"))); return; }
+  if (b.dataset.dl) { dlGo(b); return; }
   if (b.dataset.cnReason) { cnF.reason = b.dataset.cnReason; renderConcerns(); return; }
   if (b.dataset.cnTo) { cnF.to = b.dataset.cnTo; renderConcerns(); return; }
   if (b.dataset.cnUnphoto) { cnF.photos.splice(+b.dataset.cnUnphoto, 1); renderConcerns(); return; }

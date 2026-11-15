@@ -2344,7 +2344,7 @@ describe("guest recovery", () => {
   });
 });
 
-describe("starting fresh: the owner clears the shift work for everyone", () => {
+describe("clear everything: the owner clears the team's data for everyone", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   // The app signs the owner in afresh for it. Other logins have an old sign-in (the test library's default is 1970).
   // A sign-in's record is resets/{uid}-{auth_time}.
@@ -2390,7 +2390,7 @@ describe("starting fresh: the owner clears the shift work for everyone", () => {
     await seedRecord(`owner1-${t - 60}`, "owner1");
     for (const [c, x] of SAMPLE) await fails(deleteDoc(doc(d, c, x)), `deleting ${c}/${x} on an earlier sign-in's record`);
   });
-  test("an older sign-in, a manager or staff can't, even with a record, and date labels keep their history", async () => {
+  test("an older sign-in, a manager or staff can't, even with a record", async () => {
     await seedWork();
     const late = signIn("owner1", 16), mgr = signIn("mgr1"), staff = signIn("staff1");
     for (const [{ d, id }, uid, who] of [[late, "owner1", "the owner 16 minutes after signing in"], [{ d: db("owner1"), id: "owner1-0" }, "owner1", "the owner on an old sign-in"],
@@ -2399,10 +2399,36 @@ describe("starting fresh: the owner clears the shift work for everyone", () => {
       await seedRecord(id, uid);
       for (const [c, x] of SAMPLE) await fails(deleteDoc(doc(d, c, x)), `${who} deleting ${c}/${x}`);
     }
+  });
+  // What else can be ticked: team records, chats (other people's included), the set-up and the old records.
+  const MORE = [["avail", "staff1"], ["waste", "w1"], ["kit", "k1"], ["safety", "y1"], ["pars", "p1"], ["counts", "n1"], ["labels", "lb1"], ["events", "l-lb1-1"],
+    ["chats/staff1-staff2/msgs", "m1"], ["chatPhotos", "staff1-staff2-m1"], ["pings", "staff2-staff1-staff2"], ["chats", "staff1-staff2"],
+    ["calendar", "c1"], ["fixtures", "f1"], ["training", "t1"], ["onboard", "staff1"], ["certs", "c1"], ["ratings", "r1"], ["incidents", "i1"], ["refusals", "r1"], ["drinkMedia", "mojito"]];
+  const seedMore = async () => { await seedWork(); await seed(async (s) => {
+    await setDoc(doc(s, "chats", "staff1-staff2"), { kind: "dm", title: "", members: ["staff1", "staff2"] });
+    for (const [c, id] of MORE) if (c !== "chats" && !(c === "events" || c === "labels")) await setDoc(doc(s, c, id), { uid: "staff1", name: "Sam Staff", to: "staff2", chat: "staff1-staff2", at: daysAgo(1) });
+  }); };
+  test("with the record, the owner also clears the team records, every chat, date labels and the old records", async () => {
+    await seedMore();
     const { d, id } = signIn("owner1");
+    // Before the record, someone else's private chat can't even be listed.
+    await fails(getDocs(collection(d, "chats")), "listing other people's chats with no record");
+    await fails(getDocs(collection(d, "chats", "staff1-staff2", "msgs")), "reading someone else's messages with no record");
+    for (const [c, x] of MORE.filter(([c]) => !["calendar", "fixtures", "training", "onboard", "certs", "ratings", "incidents", "refusals", "drinkMedia"].includes(c)))
+      await fails(deleteDoc(doc(d, c, x)), `deleting ${c}/${x} with no record`);
     await assertSucceeds(setDoc(doc(d, "resets", id), record("owner1")));
-    await fails(deleteDoc(doc(d, "events", "l-lb1-1")), "a date label's event going");
-    await fails(deleteDoc(doc(d, "labels", "lb1")), "a date label going without its event");
+    for (const q of [collection(d, "chats"), collection(d, "chats", "staff1-staff2", "msgs"), collection(d, "chatPhotos"), collection(d, "pings")]) {
+      await assertSucceeds(getCountFromServer(q)); await assertSucceeds(getDocs(query(q, limit(100))));
+    }
+    for (const [c, x] of MORE) await assertSucceeds(deleteDoc(doc(d, c, x)));
+  });
+  test("a manager, even with a record, can't clear chats, availability or the old records", async () => {
+    await seedMore();
+    const { d, id } = signIn("mgr1");
+    await seedRecord(id, "mgr1");
+    await fails(getDocs(collection(d, "chats")), "a manager listing every chat");
+    for (const [c, x] of [["avail", "staff1"], ["waste", "w1"], ["kit", "k1"], ["pars", "p1"], ["chats/staff1-staff2/msgs", "m1"], ["chatPhotos", "staff1-staff2-m1"], ["pings", "staff2-staff1-staff2"], ["chats", "staff1-staff2"], ["events", "l-lb1-1"]])
+      await fails(deleteDoc(doc(d, c, x)), `a manager deleting ${c}/${x}`);
   });
   test("each record is this sign-in's, says what it found and who, can't be changed or deleted, and everyone on the team reads the latest", async () => {
     const { d, id, t } = signIn("owner1"), ref = doc(d, "resets", id);
@@ -2412,6 +2438,7 @@ describe("starting fresh: the owner clears the shift work for everyone", () => {
     await fails(setDoc(ref, record("owner1", { note: "x" })), "an extra field");
     await fails(setDoc(ref, record("owner1", { counts: [1, 2] })), "counts that aren't a map");
     await fails(setDoc(ref, record("owner1", { total: -1 })), "a total below nothing");
+    await fails(setDoc(ref, record("owner1", { counts: Object.fromEntries(Array.from({ length: 61 }, (_, i) => [`k${i}`, 1])) })), "more than 60 kinds");
     await fails(setDoc(ref, record("owner1", { name: "Mia Manager" })), "someone else's name");
     await fails(setDoc(ref, record("owner1", { at: daysAgo(1) })), "a time that isn't now");
     await assertSucceeds(setDoc(ref, record("owner1")));
