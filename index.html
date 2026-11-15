@@ -718,6 +718,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (Bar info shows how)</li></ul>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in Bar info.</p>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button><button class="btn pri" id="w-kitchen" data-start="kitchen">Kitchen</button></div>
+  <button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire: house cocktails</button>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell" id="money-btn" hidden aria-label="Money sandbox"><svg viewBox="0 0 24 24"><path d="M15.5 6.5A3.5 3.5 0 0 0 9 8.3c0 2.2 1 3.7 1 5.7a4 4 0 0 1-2 3.5h9"/><path d="M7 12h7"/></svg></button><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
@@ -731,7 +732,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
 <main class="gut">
   <div id="bcast"></div>
-  <nav class="subnav" id="subnav" aria-label="Drinks"><button class="chip" data-tab="drinks">Menu</button><button class="chip" data-tab="make">Make one</button><button class="chip" data-tab="allergens">Allergens</button><button class="chip" data-tab="practice">Practise</button><button class="chip" data-tab="sheets">Cheat sheets</button></nav>
+  <nav class="subnav" id="subnav" aria-label="Drinks"><button class="chip" data-tab="rapid">⚡ Rapid fire</button><button class="chip" data-tab="drinks">Menu</button><button class="chip" data-tab="make">Make</button><button class="chip" data-tab="practice">Practise</button><button class="chip" data-tab="allergens">Allergens</button><button class="chip" data-tab="sheets">Cheat sheets</button></nav>
   <section class="view" id="v-drinks"><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p></section>
 
   <section class="view" id="v-allergens" hidden>
@@ -751,6 +752,8 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   </section>
 
   <section class="view" id="v-make" hidden></section>
+
+  <section class="view" id="v-rapid" hidden></section>
 
   <section class="view" id="v-sheets" hidden></section>
 
@@ -1142,6 +1145,8 @@ function renderList() {
   let html = "", last = "";
   const per = {}; rows.forEach((d) => (per[d.section] = (per[d.section] || 0) + 1));
   for (const d of rows) { if (d.section !== last) { html += `<div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; } html += rowHtml(d); }
+  // A filtered list (a section, a flavour or a search) can go out as one WhatsApp message of specs.
+  if (sec !== "All" || q || flav) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}</div>`;
   $("#list").innerHTML = html;
 }
 $("#q").addEventListener("input", renderList);
@@ -1247,7 +1252,7 @@ function slideTo(step) {
 }
 function openSheet(id, keepScroll) {
   const d = D[id];
-  if (!keepScroll) { ctx = listIds.includes(id) && !$("#v-drinks").hidden ? listIds.slice() : MK.ids.includes(id) && !$("#v-make").hidden ? MK.ids.slice() : D.map((x) => x.id); mult = 1; }
+  if (!keepScroll) { ctx = listIds.includes(id) && !$("#v-drinks").hidden ? listIds.slice() : MK.ids.includes(id) && !$("#v-make").hidden ? MK.ids.slice() : RAPID.ids.includes(id) && !$("#v-rapid").hidden ? RAPID.ids.slice() : D.map((x) => x.id); mult = 1; }
   if (!ctx.includes(id)) ctx = D.map((x) => x.id);
   curId = id;
   if (!keepScroll) { lastFocus = document.activeElement; recent = [id, ...recent.filter((r) => r !== id)].slice(0, 6); store.set("recent", recent); keepAwake(); }
@@ -3765,7 +3770,49 @@ const I18N = {
 "Cheat sheets": ["أوراق المرجع السريع", "Արագ հուշաթերթեր", "চিট শিট", "Помощни листове", "速查表", "Fiches mémo", "ઝડપી માર્ગદર્શિકા પત્રકો", "चीट शीट", "Schede rapide", "Atmintinės", "छिटो सन्दर्भ पाना", "Ściągi", "Fichas rápidas", "ਤੁਰੰਤ ਹਵਾਲਾ ਸ਼ੀਟਾਂ", "Fișe rapide", "Chuletas", "விரைவு குறிப்புத் தாள்கள்", "Kopya kâğıtları", "Шпаргалки", "فوری حوالہ شیٹس", "Bảng tra nhanh", "Taflenni cyfeirio"],
 "Print all": ["اطبع الكل", "Տպել բոլորը", "সব প্রিন্ট করুন", "Отпечатай всички", "全部打印", "Tout imprimer", "બધું છાપો", "सब प्रिंट करें", "Stampa tutto", "Spausdinti visus", "सबै प्रिन्ट गर्नुहोस्", "Drukuj wszystkie", "Imprimir tudo", "ਸਭ ਪ੍ਰਿੰਟ ਕਰੋ", "Tipărește tot", "Imprimir todo", "அனைத்தையும் அச்சிடு", "Tümünü yazdır", "Друкувати всі", "سب پرنٹ کریں", "In tất cả", "Argraffu'r cyfan"],
 "Print this one": ["اطبع هذه", "Տպել այս մեկը", "এটি প্রিন্ট করুন", "Отпечатай този", "打印这一张", "Imprimer celle-ci", "આ છાપો", "यह प्रिंट करें", "Stampa questa", "Spausdinti šį", "यो प्रिन्ट गर्नुहोस्", "Drukuj tę", "Imprimir esta", "ਇਹ ਪ੍ਰਿੰਟ ਕਰੋ", "Tipărește-o pe aceasta", "Imprimir esta", "இதை அச்சிடு", "Bunu yazdır", "Друкувати цей", "یہ پرنٹ کریں", "In tờ này", "Argraffu hon"],
-"Print them on A4 and laminate them for behind the bar. They use the same specs as the app.": ["اطبعها على ورق A4 وغلّفها لتبقى خلف البار. تستخدم نفس المقادير الموجودة في التطبيق.", "Տպեք դրանք A4 թղթի վրա և լամինացրեք բարի համար։ Դրանցում նույն բաղադրատոմսերն են, ինչ հավելվածում։", "এগুলো A4 কাগজে প্রিন্ট করে ল্যামিনেট করুন, বারের পেছনে রাখার জন্য। এতে অ্যাপের একই রেসিপি আছে।", "Отпечатайте ги на A4 и ги ламинирайте за зад бара. Рецептите са същите като в приложението.", "用 A4 纸打印并过塑，放在吧台后面。配方与应用中的完全相同。", "Imprimez-les en A4 et plastifiez-les pour derrière le bar. Les recettes sont les mêmes que dans l'appli.", "તેને A4 પર છાપો અને બારની પાછળ રાખવા લેમિનેટ કરો. તેમાં એપ જેવી જ રેસિપી છે.", "इन्हें A4 पर प्रिंट करें और बार के पीछे रखने के लिए लैमिनेट करें। इनमें ऐप वाली ही रेसिपी हैं।", "Stampale in A4 e plastificale per il bancone. Le ricette sono le stesse dell'app.", "Atspausdinkite jas A4 formatu ir laminuokite, kad būtų už baro. Receptai tokie patys kaip programėlėje.", "यिनलाई A4 मा प्रिन्ट गरेर बारपछाडि राख्न ल्यामिनेट गर्नुहोस्। यसमा एपकै रेसिपी छन्।", "Wydrukuj je na A4 i zalaminuj na bar. Receptury są takie same jak w aplikacji.", "Imprima em A4 e plastifique para ficar atrás do bar. As receitas são as mesmas da app.", "ਇਨ੍ਹਾਂ ਨੂੰ A4 'ਤੇ ਪ੍ਰਿੰਟ ਕਰੋ ਅਤੇ ਬਾਰ ਦੇ ਪਿੱਛੇ ਰੱਖਣ ਲਈ ਲੈਮੀਨੇਟ ਕਰੋ। ਇਨ੍ਹਾਂ ਵਿੱਚ ਐਪ ਵਾਲੀਆਂ ਹੀ ਰੈਸਿਪੀਆਂ ਹਨ।", "Tipărește-le pe A4 și laminează-le pentru spatele barului. Rețetele sunt aceleași ca în aplicație.", "Imprímelas en A4 y plastifícalas para la barra. Las recetas son las mismas que en la app.", "இவற்றை A4 தாளில் அச்சிட்டு, பாருக்குப் பின்னால் வைக்க லேமினேட் செய்யுங்கள். செயலியில் உள்ள அதே செய்முறைகள்தான் இவற்றில் உள்ளன.", "A4'e yazdırıp bar arkası için lamine edin. Tarifler uygulamadakilerle aynı.", "Надрукуйте їх на A4 і заламінуйте для бару. Рецепти ті самі, що й у застосунку.", "انہیں A4 پر پرنٹ کریں اور بار کے پیچھے رکھنے کے لیے لیمینیٹ کریں۔ ان میں ایپ والی ہی ترکیبیں ہیں۔", "In ra khổ A4 và ép plastic để sau quầy bar. Công thức giống hệt trong ứng dụng.", "Argraffwch nhw ar A4 a'u lamineiddio ar gyfer y tu ôl i'r bar. Maen nhw'n defnyddio'r un ryseitiau â'r ap."]
+"Print them on A4 and laminate them for behind the bar. They use the same specs as the app.": ["اطبعها على ورق A4 وغلّفها لتبقى خلف البار. تستخدم نفس المقادير الموجودة في التطبيق.", "Տպեք դրանք A4 թղթի վրա և լամինացրեք բարի համար։ Դրանցում նույն բաղադրատոմսերն են, ինչ հավելվածում։", "এগুলো A4 কাগজে প্রিন্ট করে ল্যামিনেট করুন, বারের পেছনে রাখার জন্য। এতে অ্যাপের একই রেসিপি আছে।", "Отпечатайте ги на A4 и ги ламинирайте за зад бара. Рецептите са същите като в приложението.", "用 A4 纸打印并过塑，放在吧台后面。配方与应用中的完全相同。", "Imprimez-les en A4 et plastifiez-les pour derrière le bar. Les recettes sont les mêmes que dans l'appli.", "તેને A4 પર છાપો અને બારની પાછળ રાખવા લેમિનેટ કરો. તેમાં એપ જેવી જ રેસિપી છે.", "इन्हें A4 पर प्रिंट करें और बार के पीछे रखने के लिए लैमिनेट करें। इनमें ऐप वाली ही रेसिपी हैं।", "Stampale in A4 e plastificale per il bancone. Le ricette sono le stesse dell'app.", "Atspausdinkite jas A4 formatu ir laminuokite, kad būtų už baro. Receptai tokie patys kaip programėlėje.", "यिनलाई A4 मा प्रिन्ट गरेर बारपछाडि राख्न ल्यामिनेट गर्नुहोस्। यसमा एपकै रेसिपी छन्।", "Wydrukuj je na A4 i zalaminuj na bar. Receptury są takie same jak w aplikacji.", "Imprima em A4 e plastifique para ficar atrás do bar. As receitas são as mesmas da app.", "ਇਨ੍ਹਾਂ ਨੂੰ A4 'ਤੇ ਪ੍ਰਿੰਟ ਕਰੋ ਅਤੇ ਬਾਰ ਦੇ ਪਿੱਛੇ ਰੱਖਣ ਲਈ ਲੈਮੀਨੇਟ ਕਰੋ। ਇਨ੍ਹਾਂ ਵਿੱਚ ਐਪ ਵਾਲੀਆਂ ਹੀ ਰੈਸਿਪੀਆਂ ਹਨ।", "Tipărește-le pe A4 și laminează-le pentru spatele barului. Rețetele sunt aceleași ca în aplicație.", "Imprímelas en A4 y plastifícalas para la barra. Las recetas son las mismas que en la app.", "இவற்றை A4 தாளில் அச்சிட்டு, பாருக்குப் பின்னால் வைக்க லேமினேட் செய்யுங்கள். செயலியில் உள்ள அதே செய்முறைகள்தான் இவற்றில் உள்ளன.", "A4'e yazdırıp bar arkası için lamine edin. Tarifler uygulamadakilerle aynı.", "Надрукуйте їх на A4 і заламінуйте для бару. Рецепти ті самі, що й у застосунку.", "انہیں A4 پر پرنٹ کریں اور بار کے پیچھے رکھنے کے لیے لیمینیٹ کریں۔ ان میں ایپ والی ہی ترکیبیں ہیں۔", "In ra khổ A4 và ép plastic để sau quầy bar. Công thức giống hệt trong ứng dụng.", "Argraffwch nhw ar A4 a'u lamineiddio ar gyfer y tu ôl i'r bar. Maen nhw'n defnyddio'r un ryseitiau â'r ap."],
+"Rapid fire": ["سريع جدًا", "Արագ", "র‍্যাপিড ফায়ার", "Бързо", "快速查", "Express", "ઝડપી", "रैपिड फायर", "Lampo", "Greitai", "छिटो", "Ekspres", "Rápido", "ਫਟਾਫਟ", "Rapid", "Rápido", "விரைவு", "Hızlı", "Швидко", "فٹافٹ", "Tra nhanh", "Ar frys"],
+"⚡ Rapid fire": ["⚡ سريع جدًا", "⚡ Արագ", "⚡ র‍্যাপিড ফায়ার", "⚡ Бързо", "⚡ 快速查", "⚡ Express", "⚡ ઝડપી", "⚡ रैपिड फायर", "⚡ Lampo", "⚡ Greitai", "⚡ छिटो", "⚡ Ekspres", "⚡ Rápido", "⚡ ਫਟਾਫਟ", "⚡ Rapid", "⚡ Rápido", "⚡ விரைவு", "⚡ Hızlı", "⚡ Швидко", "⚡ فٹافٹ", "⚡ Tra nhanh", "⚡ Ar frys"],
+"⚡ Rapid fire: house cocktails": ["⚡ سريع: كوكتيلات المكان", "⚡ Արագ՝ տան կոկտեյլներ", "⚡ র‍্যাপিড ফায়ার: হাউস ককটেল", "⚡ Бързо: коктейлите на заведението", "⚡ 快速查：本店鸡尾酒", "⚡ Express : cocktails maison", "⚡ ઝડપી: હાઉસ કોકટેલ", "⚡ रैपिड फायर: हाउस कॉकटेल", "⚡ Lampo: cocktail della casa", "⚡ Greitai: namų kokteiliai", "⚡ छिटो: हाउस ककटेल", "⚡ Ekspres: koktajle firmowe", "⚡ Rápido: cocktails da casa", "⚡ ਫਟਾਫਟ: ਹਾਊਸ ਕਾਕਟੇਲ", "⚡ Rapid: cocktailurile casei", "⚡ Rápido: cócteles de la casa", "⚡ விரைவு: ஹவுஸ் காக்டெயில்கள்", "⚡ Hızlı: evin kokteylleri", "⚡ Швидко: фірмові коктейлі", "⚡ فٹافٹ: ہاؤس کاک ٹیل", "⚡ Tra nhanh: cocktail của quán", "⚡ Ar frys: coctels y tŷ"],
+"Type a drink or a spirit": ["اكتب اسم مشروب أو مشروب روحي", "Գրեք խմիչք կամ ըմպելիք", "একটি পানীয় বা স্পিরিট লিখুন", "Напиши напитка или алкохол", "输入饮品或基酒", "Tapez une boisson ou un alcool", "પીણું અથવા સ્પિરિટ લખો", "ड्रिंक या स्पिरिट लिखें", "Scrivi un drink o un distillato", "Įrašykite gėrimą ar alkoholį", "पेय वा स्पिरिट लेख्नुहोस्", "Wpisz napój lub alkohol", "Escreva uma bebida ou um destilado", "ਡਰਿੰਕ ਜਾਂ ਸਪਿਰਿਟ ਲਿਖੋ", "Scrie o băutură sau un spirtos", "Escribe una bebida o un destilado", "பானம் அல்லது மதுவை எழுதுங்கள்", "Bir içecek ya da içki yaz", "Введіть напій або алкоголь", "ڈرنک یا اسپرٹ لکھیں", "Gõ tên đồ uống hoặc rượu", "Teipiwch ddiod neu wirod"],
+"Search the house drinks": ["ابحث في مشروبات المكان", "Որոնել տան խմիչքները", "হাউস পানীয় খুঁজুন", "Търси напитките на заведението", "搜索本店饮品", "Chercher dans les boissons maison", "હાઉસ પીણાં શોધો", "हाउस ड्रिंक खोजें", "Cerca i drink della casa", "Ieškoti namų gėrimų", "हाउस पेय खोज्नुहोस्", "Szukaj napojów firmowych", "Pesquisar bebidas da casa", "ਹਾਊਸ ਡਰਿੰਕ ਖੋਜੋ", "Caută băuturile casei", "Buscar bebidas de la casa", "ஹவுஸ் பானங்களைத் தேடு", "Evin içeceklerinde ara", "Шукати фірмові напої", "ہاؤس ڈرنکس تلاش کریں", "Tìm đồ uống của quán", "Chwilio diodydd y tŷ"],
+"Show specs on the page": ["اعرض الوصفات في الصفحة", "Ցույց տալ բաղադրատոմսերը էջում", "পাতায় রেসিপি দেখান", "Покажи рецептите на страницата", "在页面上显示配方", "Afficher les recettes sur la page", "પાન પર રેસીપી બતાવો", "पेज पर रेसिपी दिखाएं", "Mostra le ricette nella pagina", "Rodyti receptus puslapyje", "पानामा रेसिपी देखाउनुहोस्", "Pokaż przepisy na stronie", "Mostrar receitas na página", "ਪੰਨੇ ਉੱਤੇ ਰੈਸਿਪੀ ਦਿਖਾਓ", "Arată rețetele pe pagină", "Mostrar recetas en la página", "பக்கத்தில் செய்முறைகளைக் காட்டு", "Tarifleri sayfada göster", "Показати рецепти на сторінці", "صفحے پر ترکیبیں دکھائیں", "Hiện công thức trên trang", "Dangos ryseitiau ar y dudalen"],
+"Beer, cider and softs": ["بيرة وسيدر ومشروبات غازية", "Գարեջուր, սիդր և զովացուցիչ", "বিয়ার, সাইডার ও সফট ড্রিংক", "Бира, сайдер и безалкохолни", "啤酒、苹果酒和软饮", "Bière, cidre et softs", "બીયર, સાઇડર અને સોફ્ટ ડ્રિંક", "बियर, साइडर और सॉफ्ट ड्रिंक", "Birra, sidro e analcolici", "Alus, sidras ir gaivieji", "बियर, साइडर र सफ्ट ड्रिंक", "Piwo, cydr i napoje", "Cerveja, sidra e refrigerantes", "ਬੀਅਰ, ਸਾਈਡਰ ਅਤੇ ਸੌਫਟ ਡਰਿੰਕ", "Bere, cidru și răcoritoare", "Cerveza, sidra y refrescos", "பீர், சைடர் மற்றும் குளிர்பானங்கள்", "Bira, elma şarabı ve meşrubat", "Пиво, сидр і безалкогольні", "بیئر، سائیڈر اور سافٹ ڈرنکس", "Bia, cider và nước ngọt", "Cwrw, seidr a diodydd meddal"],
+"House cocktails": ["كوكتيلات المكان", "Տան կոկտեյլներ", "হাউস ককটেল", "Коктейлите на заведението", "本店鸡尾酒", "Cocktails maison", "હાઉસ કોકટેલ", "हाउस कॉकटेल", "Cocktail della casa", "Namų kokteiliai", "हाउस ककटेल", "Koktajle firmowe", "Cocktails da casa", "ਹਾਊਸ ਕਾਕਟੇਲ", "Cocktailurile casei", "Cócteles de la casa", "ஹவுஸ் காக்டெயில்கள்", "Evin kokteylleri", "Фірмові коктейлі", "ہاؤس کاک ٹیل", "Cocktail của quán", "Coctels y tŷ"],
+"Guests ask for": ["ما يطلبه الضيوف", "Հյուրերը հաճախ խնդրում են", "অতিথিরা যা চান", "Гостите питат за", "客人常点", "Les clients demandent", "મહેમાનો જે માગે છે", "मेहमान अक्सर मांगते हैं", "Gli ospiti chiedono", "Svečiai prašo", "पाहुनाले माग्ने", "Goście pytają o", "Os clientes pedem", "ਮਹਿਮਾਨ ਮੰਗਦੇ ਹਨ", "Oaspeții cer", "Los clientes piden", "விருந்தினர்கள் கேட்பவை", "Misafirlerin istedikleri", "Гості просять", "مہمان مانگتے ہیں", "Khách hay gọi", "Mae gwesteion yn gofyn am"],
+"Shots and bombs": ["شوتات وبومب", "Շոթեր և բոմբեր", "শট ও বোম", "Шотове и бомби", "Shot与炸弹酒", "Shots et bombs", "શોટ અને બોમ્બ", "शॉट और बॉम्ब", "Shot e bomb", "Šotai ir bombos", "सट र बम", "Shoty i bomby", "Shots e bombas", "ਸ਼ਾਟ ਅਤੇ ਬੰਬ", "Shoturi și bombe", "Chupitos y bombas", "ஷாட்கள் மற்றும் பாம்கள்", "Shotlar ve bomblar", "Шоти та бомби", "شاٹس اور بمز", "Shot và bomb", "Shots a bombs"],
+"Serves": ["تقديمات", "Մատուցումներ", "সার্ভ", "Сервирания", "简单调饮", "Services", "સર્વ", "सर्व", "Serve", "Patiekimai", "सर्भ", "Podania", "Serviços", "ਸਰਵ", "Serviri", "Combinados", "பரிமாறல்கள்", "Servisler", "Подачі", "سرو", "Ly pha sẵn", "Diodydd syml"],
+"Everything else": ["كل ما تبقى", "Մնացած ամեն ինչ", "বাকি সব", "Всичко останало", "其他所有", "Tout le reste", "બાકીનું બધું", "बाकी सब", "Tutto il resto", "Visa kita", "बाँकी सबै", "Wszystko inne", "Tudo o resto", "ਬਾਕੀ ਸਭ", "Restul", "Todo lo demás", "மற்ற அனைத்தும்", "Diğer her şey", "Усе інше", "باقی سب", "Mọi thứ khác", "Popeth arall"],
+"Send the house cocktails": ["أرسل كوكتيلات المكان", "Ուղարկել տան կոկտեյլները", "হাউস ককটেল পাঠান", "Изпрати коктейлите на заведението", "发送本店鸡尾酒", "Envoyer les cocktails maison", "હાઉસ કોકટેલ મોકલો", "हाउस कॉकटेल भेजें", "Invia i cocktail della casa", "Siųsti namų kokteilius", "हाउस ककटेल पठाउनुहोस्", "Wyślij koktajle firmowe", "Enviar os cocktails da casa", "ਹਾਊਸ ਕਾਕਟੇਲ ਭੇਜੋ", "Trimite cocktailurile casei", "Enviar los cócteles de la casa", "ஹவுஸ் காக்டெயில்களை அனுப்பு", "Evin kokteyllerini gönder", "Надіслати фірмові коктейлі", "ہاؤس کاک ٹیل بھیجیں", "Gửi cocktail của quán", "Anfon coctels y tŷ"],
+"Nothing matches. Try a spirit, like “rum”.": ["لا توجد نتائج. جرّب اسم مشروب روحي مثل “rum”.", "Ոչինչ չգտնվեց։ Փորձեք ըմպելիքի անուն, օրինակ՝ “rum”։", "কিছু মেলেনি। “rum”-এর মতো কোনো স্পিরিট লিখে দেখুন।", "Няма съвпадения. Опитай с алкохол, например “rum”.", "没有匹配项。试试输入基酒，比如“rum”。", "Aucun résultat. Essayez un alcool, comme « rum ».", "કંઈ મળ્યું નહીં. “rum” જેવું સ્પિરિટ લખી જુઓ.", "कुछ नहीं मिला। “rum” जैसी कोई स्पिरिट लिखकर देखें।", "Nessun risultato. Prova un distillato, tipo “rum”.", "Nieko nerasta. Įrašykite gėrimą, pvz., “rum”.", "केही भेटिएन। “rum” जस्तो स्पिरिट लेखेर हेर्नुहोस्।", "Brak wyników. Wpisz alkohol, np. „rum”.", "Sem resultados. Experimente uma bebida espirituosa, como “rum”.", "ਕੁਝ ਨਹੀਂ ਮਿਲਿਆ। “rum” ਵਰਗੀ ਸਪਿਰਿਟ ਲਿਖ ਕੇ ਦੇਖੋ।", "Niciun rezultat. Încearcă o băutură spirtoasă, ca “rum”.", "No hay resultados. Prueba con un destilado, como “rum”.", "எதுவும் கிடைக்கவில்லை. “rum” போன்ற ஒரு மதுவை தேடுங்கள்.", "Sonuç yok. “rum” gibi bir içki dene.", "Нічого не знайдено. Спробуйте напій, як-от “rum”.", "کچھ نہیں ملا۔ “rum” جیسی کوئی اسپرٹ لکھ کر دیکھیں۔", "Không có kết quả. Thử một loại rượu, như “rum”.", "Dim byd yn cyfateb. Rhowch gynnig ar wirod, fel “rum”."],
+"Black Tap classics": ["كلاسيكيات Black Tap", "Black Tap դասականներ", "Black Tap ক্লাসিক", "Класиките на Black Tap", "Black Tap 经典", "Classiques Black Tap", "Black Tap ક્લાસિક", "Black Tap क्लासिक", "Classici Black Tap", "Black Tap klasika", "Black Tap क्लासिक", "Klasyki Black Tap", "Clássicos Black Tap", "Black Tap ਕਲਾਸਿਕ", "Clasicele Black Tap", "Clásicos de Black Tap", "Black Tap கிளாசிக்குகள்", "Black Tap klasikleri", "Класика Black Tap", "Black Tap کلاسکس", "Món kinh điển Black Tap", "Clasuron Black Tap"],
+"Spirits": ["مشروبات روحية", "Ոգելից խմիչքներ", "স্পিরিট", "Спиртни напитки", "烈酒", "Spiritueux", "સ્પિરિટ", "स्पिरिट", "Distillati", "Stiprieji gėrimai", "स्पिरिट", "Alkohole", "Destilados", "ਸਪਿਰਿਟ", "Spirtoase", "Destilados", "மதுவகைகள்", "Sert içkiler", "Міцні напої", "اسپرٹس", "Rượu mạnh", "Gwirodydd"],
+"Foam": ["رغوة", "Փրփուր", "ফোম", "Пяна", "泡沫", "Mousse", "ફોમ", "फोम", "Schiuma", "Puta", "फोम", "Pianka", "Espuma", "ਫੋਮ", "Spumă", "Espuma", "நுரை", "Köpük", "Піна", "جھاگ", "Bọt", "Ewyn"],
+"Draught": ["بيرة السحب", "Լցովի", "ড্রাফট", "Наливна", "生啤", "Pression", "ડ્રાફ્ટ", "ड्राफ्ट", "Alla spina", "Pilstomas", "ड्राफ्ट", "Z beczki", "À pressão", "ਡ੍ਰਾਫਟ", "La halbă", "De barril", "டிராஃப்ட்", "Fıçı", "Розливне", "ڈرافٹ", "Bia tươi", "Ar y tap"],
+"Bottles and cans": ["زجاجات وعلب", "Շշեր և բանկաներ", "বোতল ও ক্যান", "Бутилки и кенове", "瓶装和罐装", "Bouteilles et canettes", "બોટલ અને કેન", "बोतल और कैन", "Bottiglie e lattine", "Buteliai ir skardinės", "बोतल र क्यान", "Butelki i puszki", "Garrafas e latas", "ਬੋਤਲਾਂ ਅਤੇ ਕੈਨ", "Sticle și doze", "Botellas y latas", "பாட்டில்கள் மற்றும் கேன்கள்", "Şişeler ve kutular", "Пляшки та банки", "بوتلیں اور کین", "Chai và lon", "Poteli a chaniau"],
+"Softs and mixers": ["مشروبات غازية وخلطات", "Զովացուցիչ և միքսերներ", "সফট ড্রিংক ও মিক্সার", "Безалкохолни и миксери", "软饮和调酒饮料", "Softs et mixers", "સોફ્ટ ડ્રિંક અને મિક્સર", "सॉफ्ट ड्रिंक और मिक्सर", "Analcolici e mixer", "Gaivieji ir maišymui", "सफ्ट ड्रिंक र मिक्सर", "Napoje i dodatki", "Refrigerantes e mixers", "ਸੌਫਟ ਡਰਿੰਕ ਅਤੇ ਮਿਕਸਰ", "Răcoritoare și mixere", "Refrescos y mezcladores", "குளிர்பானங்கள் மற்றும் மிக்சர்கள்", "Meşrubat ve mikserler", "Безалкогольні та міксери", "سافٹ ڈرنکس اور مکسرز", "Nước ngọt và nước pha", "Diodydd meddal a chymysgwyr"],
+"+ juices, syrup and fresh": ["+ عصائر وشراب وطازج", "+ հյութեր, օշարակ և թարմ", "+ জুস, সিরাপ ও তাজা", "+ сокове, сироп и пресни", "+ 果汁、糖浆和新鲜配料", "+ jus, sirop et frais", "+ જ્યુસ, સિરપ અને તાજું", "+ जूस, सिरप और ताज़ा", "+ succhi, sciroppo e fresco", "+ sultys, sirupas ir švieži", "+ जुस, सिरप र ताजा", "+ soki, syrop i świeże", "+ sumos, xarope e frescos", "+ ਜੂਸ, ਸਿਰਪ ਅਤੇ ਤਾਜ਼ਾ", "+ sucuri, sirop și proaspete", "+ zumos, sirope y frescos", "+ சாறுகள், சிரப் மற்றும் புதியவை", "+ meyve suları, şurup ve taze", "+ соки, сироп і свіже", "+ جوس، سیرپ اور تازہ", "+ nước ép, siro và đồ tươi", "+ sudd, surop a ffres"],
+"Ready: every bottle is in the line-up, plus the bar's juices, lemonade, sugar syrup, citrus and mint.": ["جاهز: كل زجاجة موجودة في التشكيلة، مع عصائر البار والليمونادة وشراب السكر والحمضيات والنعناع.", "Պատրաստ է՝ ամեն շիշ կազմում է, գումարած բարի հյութերը, լիմոնադը, շաքարի օշարակը, ցիտրուսը և անանուխը։", "প্রস্তুত: প্রতিটি বোতল লাইন-আপে আছে, সঙ্গে বারের জুস, লেমনেড, চিনির সিরাপ, লেবু ও পুদিনা।", "Готово: всяка бутилка е в асортимента, плюс соковете, лимонадата, захарния сироп, цитрусите и ментата на бара.", "可做：每瓶酒都在常备酒单里，另加吧台的果汁、柠檬汽水、糖浆、柑橘和薄荷。", "Prêt : chaque bouteille fait partie de la gamme, plus les jus, la limonade, le sirop de sucre, les agrumes et la menthe du bar.", "તૈયાર: દરેક બોટલ લાઇન-અપમાં છે, સાથે બારના જ્યુસ, લેમોનેડ, ખાંડની સિરપ, લીંબુ અને ફુદીનો.", "तैयार: हर बोतल लाइन-अप में है, साथ में बार के जूस, लेमोनेड, चीनी सिरप, नींबू और पुदीना।", "Pronto: ogni bottiglia è nella linea, più succhi, limonata, sciroppo di zucchero, agrumi e menta del bar.", "Paruošta: kiekvienas butelis yra asortimente, plius baro sultys, limonadas, cukraus sirupas, citrusai ir mėta.", "तयार: हरेक बोतल लाइन-अपमा छ, साथै बारका जुस, लेमोनेड, चिनी सिरप, कागती र पुदिना।", "Gotowe: każda butelka jest w ofercie, plus soki, lemoniada, syrop cukrowy, cytrusy i mięta z baru.", "Pronto: todas as garrafas estão na gama, mais os sumos, a limonada, o xarope de açúcar, os citrinos e a hortelã do bar.", "ਤਿਆਰ: ਹਰ ਬੋਤਲ ਲਾਈਨ-ਅੱਪ ਵਿੱਚ ਹੈ, ਨਾਲ ਬਾਰ ਦੇ ਜੂਸ, ਲੈਮਨੇਡ, ਖੰਡ ਦਾ ਸਿਰਪ, ਨਿੰਬੂ ਅਤੇ ਪੁਦੀਨਾ।", "Gata: fiecare sticlă e în gamă, plus sucurile, limonada, siropul de zahăr, citricele și menta barului.", "Listo: cada botella está en la gama, más los zumos, la limonada, el sirope de azúcar, los cítricos y la menta de la barra.", "தயார்: ஒவ்வொரு பாட்டிலும் வரிசையில் உள்ளது, மேலும் பாரின் சாறுகள், லெமனேட், சர்க்கரை சிரப், எலுமிச்சை மற்றும் புதினா.", "Hazır: her şişe ürün listesinde, artı barın meyve suları, limonata, şeker şurubu, narenciye ve nane.", "Готово: кожна пляшка є в асортименті, плюс соки, лимонад, цукровий сироп, цитрусові та м'ята бару.", "تیار: ہر بوتل لائن اپ میں ہے، ساتھ بار کے جوس، لیمونیڈ، چینی کا سیرپ، لیموں اور پودینہ۔", "Sẵn sàng: mọi chai đều có trong danh sách, cộng nước ép, nước chanh, siro đường, cam chanh và bạc hà của quầy.", "Yn barod: mae pob potel yn y rhestr, a sudd, lemonêd, surop siwgr, sitrws a mintys y bar."],
+"Ready: every bottle is in the line-up.": ["جاهز: كل زجاجة موجودة في التشكيلة.", "Պատրաստ է՝ ամեն շիշ կազմում է։", "প্রস্তুত: প্রতিটি বোতল লাইন-আপে আছে।", "Готово: всяка бутилка е в асортимента.", "可做：每瓶酒都在常备酒单里。", "Prêt : chaque bouteille fait partie de la gamme.", "તૈયાર: દરેક બોટલ લાઇન-અપમાં છે.", "तैयार: हर बोतल लाइन-अप में है।", "Pronto: ogni bottiglia è nella linea.", "Paruošta: kiekvienas butelis yra asortimente.", "तयार: हरेक बोतल लाइन-अपमा छ।", "Gotowe: każda butelka jest w ofercie.", "Pronto: todas as garrafas estão na gama.", "ਤਿਆਰ: ਹਰ ਬੋਤਲ ਲਾਈਨ-ਅੱਪ ਵਿੱਚ ਹੈ।", "Gata: fiecare sticlă e în gamă.", "Listo: cada botella está en la gama.", "தயார்: ஒவ்வொரு பாட்டிலும் வரிசையில் உள்ளது.", "Hazır: her şişe ürün listesinde.", "Готово: кожна пляшка є в асортименті.", "تیار: ہر بوتل لائن اپ میں ہے۔", "Sẵn sàng: mọi chai đều có trong danh sách.", "Yn barod: mae pob potel yn y rhestr."],
+"Ready with the line-up": ["جاهز من التشكيلة", "Պատրաստ է կազմով", "লাইন-আপ দিয়েই তৈরি", "Готово с асортимента", "常备酒即可做", "Prêt avec la gamme", "લાઇન-અપથી તૈયાર", "लाइन-अप से तैयार", "Pronto con la linea", "Paruošta iš asortimento", "लाइन-अपबाटै तयार", "Gotowe z oferty", "Pronto com a gama", "ਲਾਈਨ-ਅੱਪ ਨਾਲ ਤਿਆਰ", "Gata cu gama", "Listo con la gama", "வரிசையுடன் தயார்", "Listeyle hazır", "Готово з асортименту", "لائن اپ سے تیار", "Làm được ngay", "Yn barod o'r rhestr"],
+"Ready with a swap": ["جاهز مع بديل", "Պատրաստ է փոխարինմամբ", "একটি বদলে তৈরি", "Готово със замяна", "换一样即可做", "Prêt avec un remplacement", "એક બદલાવ સાથે તૈયાર", "एक बदलाव के साथ तैयार", "Pronto con una sostituzione", "Paruošta su pakaitalu", "एउटा साटेर तयार", "Gotowe z zamiennikiem", "Pronto com uma troca", "ਇੱਕ ਬਦਲਾਅ ਨਾਲ ਤਿਆਰ", "Gata cu un înlocuitor", "Listo con un cambio", "ஒரு மாற்றுடன் தயார்", "Bir değişiklikle hazır", "Готово із заміною", "ایک تبدیلی کے ساتھ تیار", "Làm được nếu thay một thứ", "Yn barod gydag un newid"],
+"Add one thing": ["أضف شيئًا واحدًا", "Ավելացրեք մեկ բան", "একটা জিনিস যোগ করুন", "Добави едно нещо", "再加一样", "Ajoutez une chose", "એક વસ્તુ ઉમેરો", "एक चीज़ जोड़ें", "Aggiungi una cosa", "Pridėkite vieną dalyką", "एउटा कुरा थप्नुहोस्", "Dodaj jedną rzecz", "Junte uma coisa", "ਇੱਕ ਚੀਜ਼ ਜੋੜੋ", "Adaugă un lucru", "Añade una cosa", "ஒன்றைச் சேர்க்கவும்", "Bir şey ekle", "Додайте одне", "ایک چیز شامل کریں", "Thêm một thứ", "Ychwanegwch un peth"],
+"Send these specs": ["أرسل هذه الوصفات", "Ուղարկել այս բաղադրատոմսերը", "এই রেসিপিগুলো পাঠান", "Изпрати тези рецепти", "发送这些配方", "Envoyer ces recettes", "આ રેસીપી મોકલો", "ये रेसिपी भेजें", "Invia queste ricette", "Siųsti šiuos receptus", "यी रेसिपी पठाउनुहोस्", "Wyślij te przepisy", "Enviar estas receitas", "ਇਹ ਰੈਸਿਪੀਆਂ ਭੇਜੋ", "Trimite aceste rețete", "Enviar estas recetas", "இந்த செய்முறைகளை அனுப்பு", "Bu tarifleri gönder", "Надіслати ці рецепти", "یہ ترکیبیں بھیجیں", "Gửi các công thức này", "Anfon y ryseitiau hyn"],
+"Send these serves": ["أرسل طرق التقديم هذه", "Ուղարկել այս մատուցումները", "এই সার্ভগুলো পাঠান", "Изпрати тези сервирания", "发送这些出品方式", "Envoyer ces services", "આ સર્વ મોકલો", "ये सर्व भेजें", "Invia questi servizi", "Siųsti šiuos patiekimus", "यी सर्भ पठाउनुहोस्", "Wyślij te podania", "Enviar estes serviços", "ਇਹ ਸਰਵ ਭੇਜੋ", "Trimite aceste serviri", "Enviar estos servicios", "இந்த பரிமாறல்களை அனுப்பு", "Bu servisleri gönder", "Надіслати ці подачі", "یہ سرو بھیجیں", "Gửi cách phục vụ này", "Anfon y ffyrdd gweini hyn"],
+"Measure": ["الكمية", "Չափ", "মাপ", "Мярка", "分量", "Mesure", "માપ", "माप", "Misura", "Matas", "नाप", "Miara", "Medida", "ਮਾਪ", "Măsură", "Medida", "அளவு", "Ölçü", "Міра", "پیمانہ", "Định lượng", "Mesur"],
+"Pour": ["الصب", "Լցնել", "ঢালা", "Наливане", "倒法", "Service", "રેડવું", "डालना", "Versare", "Pilstymas", "खन्याउने", "Nalewanie", "Servir", "ਪਾਉਣਾ", "Turnare", "Servir", "ஊற்றுதல்", "Dökme", "Наливання", "ڈالنا", "Cách rót", "Arllwys"],
+"Drinks with it": ["مشروبات به", "Խմիչքներ դրանով", "এটি দিয়ে পানীয়", "Напитки с него", "含它的饮品", "Boissons avec", "તેનાથી બનતાં પીણાં", "इससे बनने वाले ड्रिंक", "Drink con questo", "Gėrimai su juo", "यससँगका पेय", "Napoje z tym", "Bebidas com isto", "ਇਸ ਨਾਲ ਡਰਿੰਕ", "Băuturi cu el", "Bebidas con esto", "இதனுடன் பானங்கள்", "Bununla içecekler", "Напої з ним", "اس کے ساتھ ڈرنکس", "Đồ uống có nó", "Diodydd gydag ef"],
+"Put the whole line-up in My bar": ["ضع التشكيلة كاملة في باري", "Ամբողջ կազմը դնել Իմ բարում", "পুরো লাইন-আপ আমার বারে রাখুন", "Сложи целия асортимент в Моят бар", "把全部常备酒放进我的酒柜", "Mettre toute la gamme dans Mon bar", "આખું લાઇન-અપ મારા બારમાં મૂકો", "पूरा लाइन-अप मेरे बार में डालें", "Metti tutta la linea in Il mio bar", "Įdėti visą asortimentą į Mano barą", "पूरै लाइन-अप मेरो बारमा राख्नुहोस्", "Dodaj całą ofertę do Mój bar", "Pôr toda a gama em O meu bar", "ਪੂਰਾ ਲਾਈਨ-ਅੱਪ ਮੇਰੇ ਬਾਰ ਵਿੱਚ ਪਾਓ", "Pune toată gama în Barul meu", "Poner toda la gama en Mi barra", "முழு வரிசையையும் என் பாரில் வை", "Tüm listeyi Barım'a ekle", "Додати весь асортимент у Мій бар", "پوری لائن اپ میرا بار میں ڈالیں", "Đưa cả danh sách vào Quầy của tôi", "Rhoi'r rhestr gyfan yn Fy mar"],
+"Load the Black Tap line-up": ["حمّل تشكيلة Black Tap", "Բեռնել Black Tap-ի կազմը", "Black Tap লাইন-আপ লোড করুন", "Зареди асортимента на Black Tap", "载入 Black Tap 常备酒", "Charger la gamme Black Tap", "Black Tap લાઇન-અપ લોડ કરો", "Black Tap लाइन-अप लोड करें", "Carica la linea Black Tap", "Įkelti Black Tap asortimentą", "Black Tap लाइन-अप लोड गर्नुहोस्", "Wczytaj ofertę Black Tap", "Carregar a gama Black Tap", "Black Tap ਲਾਈਨ-ਅੱਪ ਲੋਡ ਕਰੋ", "Încarcă gama Black Tap", "Cargar la gama de Black Tap", "Black Tap வரிசையை ஏற்று", "Black Tap listesini yükle", "Завантажити асортимент Black Tap", "Black Tap لائن اپ لوڈ کریں", "Tải danh sách Black Tap", "Llwytho rhestr Black Tap"],
+"Load the whole back bar": ["حمّل البار الخلفي كاملًا", "Բեռնել ամբողջ բարը", "পুরো ব্যাক বার লোড করুন", "Зареди целия бар", "载入整个后吧台", "Charger tout le bar", "આખો બેક બાર લોડ કરો", "पूरा बैक बार लोड करें", "Carica tutto il bar", "Įkelti visą barą", "पूरै ब्याक बार लोड गर्नुहोस्", "Wczytaj cały bar", "Carregar o bar todo", "ਪੂਰਾ ਬੈਕ ਬਾਰ ਲੋਡ ਕਰੋ", "Încarcă tot barul", "Cargar toda la barra", "முழு பின் பாரையும் ஏற்று", "Tüm arka barı yükle", "Завантажити весь бар", "پورا بیک بار لوڈ کریں", "Tải cả quầy rượu", "Llwytho'r bar cyfan"],
+"Can't decide? Spin": ["محتار؟ دوّر", "Չե՞ք կարող որոշել։ Պտտեք", "ঠিক করতে পারছেন না? ঘোরান", "Не можеш да избереш? Завърти", "拿不定主意？转一下", "Pas d'idée ? Tournez", "નક્કી નથી? ફેરવો", "तय नहीं कर पा रहे? घुमाएं", "Indeciso? Gira", "Negalite apsispręsti? Sukite", "निर्णय गर्न सक्नुभएन? घुमाउनुहोस्", "Nie wiesz? Zakręć", "Indeciso? Rode", "ਫ਼ੈਸਲਾ ਨਹੀਂ? ਘੁਮਾਓ", "Nu te poți decide? Învârte", "¿No te decides? Gira", "முடிவு செய்ய முடியவில்லையா? சுழற்று", "Karar veremedin mi? Çevir", "Не можете вирішити? Крутніть", "فیصلہ نہیں ہو رہا؟ گھمائیں", "Chưa chọn được? Quay", "Methu penderfynu? Troelli"],
+"‹ Back to Make": ["‹ رجوع إلى حضّر", "‹ Վերադառնալ Պատրաստել", "‹ বানান-এ ফিরুন", "‹ Обратно към Направи", "‹ 返回调制", "‹ Retour à Préparer", "‹ બનાવો પર પાછા", "‹ बनाएं पर वापस", "‹ Torna a Prepara", "‹ Atgal į Gaminti", "‹ बनाउनुहोस्-मा फर्कनुहोस्", "‹ Wróć do Zrób", "‹ Voltar a Fazer", "‹ ਬਣਾਓ ਤੇ ਵਾਪਸ", "‹ Înapoi la Prepară", "‹ Volver a Preparar", "‹ செய் பக்கத்துக்குத் திரும்பு", "‹ Yap'a dön", "‹ Назад до Приготувати", "‹ بنائیں پر واپس", "‹ Quay lại Pha", "‹ Yn ôl i Gwneud"],
+"Send the first {1} specs": ["أرسل أول {1} وصفة", "Ուղարկել առաջին {1} բաղադրատոմսերը", "প্রথম {1}টি রেসিপি পাঠান", "Изпрати първите {1} рецепти", "发送前 {1} 个配方", "Envoyer les {1} premières recettes", "પહેલી {1} રેસીપી મોકલો", "पहली {1} रेसिपी भेजें", "Invia le prime {1} ricette", "Siųsti pirmuosius {1} receptus", "पहिलो {1} रेसिपी पठाउनुहोस्", "Wyślij pierwsze {1} przepisów", "Enviar as primeiras {1} receitas", "ਪਹਿਲੀਆਂ {1} ਰੈਸਿਪੀਆਂ ਭੇਜੋ", "Trimite primele {1} rețete", "Enviar las primeras {1} recetas", "முதல் {1} செய்முறைகளை அனுப்பு", "İlk {1} tarifi gönder", "Надіслати перші {1} рецептів", "پہلی {1} ترکیبیں بھیجیں", "Gửi {1} công thức đầu", "Anfon y {1} rysáit cyntaf"],
+"Send this spec": ["أرسل هذه الوصفة", "Ուղարկել այս բաղադրատոմսը", "এই রেসিপি পাঠান", "Изпрати тази рецепта", "发送这个配方", "Envoyer cette recette", "આ રેસીપી મોકલો", "यह रेसिपी भेजें", "Invia questa ricetta", "Siųsti šį receptą", "यो रेसिपी पठाउनुहोस्", "Wyślij ten przepis", "Enviar esta receita", "ਇਹ ਰੈਸਿਪੀ ਭੇਜੋ", "Trimite această rețetă", "Enviar esta receta", "இந்த செய்முறையை அனுப்பு", "Bu tarifi gönder", "Надіслати цей рецепт", "یہ ترکیب بھیجیں", "Gửi công thức này", "Anfon y rysáit hon"],
+"Line-up loaded: My bar has {1} items": ["تم تحميل التشكيلة: في باري {1} عنصرًا", "Կազմը բեռնված է՝ Իմ բարում կա {1} բան", "লাইন-আপ লোড হয়েছে: আমার বারে {1}টি জিনিস", "Асортиментът е зареден: в Моят бар има {1} неща", "常备酒已载入：我的酒柜有 {1} 样", "Gamme chargée : Mon bar contient {1} articles", "લાઇન-અપ લોડ થયું: મારા બારમાં {1} વસ્તુઓ", "लाइन-अप लोड हुआ: मेरे बार में {1} चीज़ें", "Linea caricata: Il mio bar ha {1} articoli", "Asortimentas įkeltas: Mano bare {1} prekės", "लाइन-अप लोड भयो: मेरो बारमा {1} वस्तु", "Oferta wczytana: Mój bar ma {1} pozycji", "Gama carregada: O meu bar tem {1} itens", "ਲਾਈਨ-ਅੱਪ ਲੋਡ ਹੋਇਆ: ਮੇਰੇ ਬਾਰ ਵਿੱਚ {1} ਚੀਜ਼ਾਂ", "Gamă încărcată: Barul meu are {1} produse", "Gama cargada: Mi barra tiene {1} artículos", "வரிசை ஏற்றப்பட்டது: என் பாரில் {1} பொருட்கள்", "Liste yüklendi: Barım'da {1} ürün var", "Асортимент завантажено: у Моєму барі {1} позицій", "لائن اپ لوڈ ہو گئی: میرا بار میں {1} چیزیں", "Đã tải danh sách: Quầy của tôi có {1} món", "Rhestr wedi'i llwytho: mae {1} eitem yn Fy mar"],
+"{1} specs": ["{1} وصفات", "{1} բաղադրատոմս", "{1}টি রেসিপি", "{1} рецепти", "{1} 个配方", "{1} recettes", "{1} રેસીપી", "{1} रेसिपी", "{1} ricette", "{1} receptai", "{1} रेसिपी", "{1} przepisów", "{1} receitas", "{1} ਰੈਸਿਪੀਆਂ", "{1} rețete", "{1} recetas", "{1} செய்முறைகள்", "{1} tarif", "{1} рецептів", "{1} ترکیبیں", "{1} công thức", "{1} rysáit"],
+"{1} spec": ["{1} وصفة", "{1} բաղադրատոմս", "{1}টি রেসিপি", "{1} рецепта", "{1} 个配方", "{1} recette", "{1} રેસીપી", "{1} रेसिपी", "{1} ricetta", "{1} receptas", "{1} रेसिपी", "{1} przepis", "{1} receita", "{1} ਰੈਸਿਪੀ", "{1} rețetă", "{1} receta", "{1} செய்முறை", "{1} tarif", "{1} рецепт", "{1} ترکیب", "{1} công thức", "{1} rysáit"],
+"Tick the drinks to send. The first {1} are ticked; a long message may be cut short by WhatsApp.": ["ضع علامة على المشروبات التي تريد إرسالها. أول {1} محددة؛ قد يقطع واتساب الرسالة الطويلة.", "Նշեք ուղարկվող խմիչքները։ Առաջին {1}-ը նշված են․ WhatsApp-ը կարող է կտրել երկար հաղորդագրությունը։", "যে পানীয় পাঠাবেন টিক দিন। প্রথম {1}টি টিক দেওয়া আছে; লম্বা মেসেজ WhatsApp কেটে দিতে পারে।", "Отбележи напитките за изпращане. Първите {1} са отбелязани; WhatsApp може да съкрати дълго съобщение.", "勾选要发送的饮品。前 {1} 个已勾选；消息太长时 WhatsApp 可能会截断。", "Cochez les boissons à envoyer. Les {1} premières sont cochées ; WhatsApp peut couper un long message.", "મોકલવાનાં પીણાં પર ટિક કરો. પહેલાં {1} પર ટિક છે; લાંબો મેસેજ WhatsApp કાપી શકે છે.", "भेजने वाले ड्रिंक पर टिक करें। पहले {1} पर टिक है; लंबा मैसेज WhatsApp काट सकता है।", "Spunta i drink da inviare. I primi {1} sono spuntati; WhatsApp può tagliare un messaggio lungo.", "Pažymėkite gėrimus siuntimui. Pirmieji {1} pažymėti; WhatsApp gali sutrumpinti ilgą žinutę.", "पठाउने पेयमा टिक लगाउनुहोस्। पहिलो {1} मा टिक छ; लामो सन्देश WhatsApp ले काट्न सक्छ।", "Zaznacz napoje do wysłania. Pierwsze {1} są zaznaczone; WhatsApp może uciąć długą wiadomość.", "Marque as bebidas a enviar. As primeiras {1} estão marcadas; o WhatsApp pode cortar uma mensagem longa.", "ਭੇਜਣ ਵਾਲੇ ਡਰਿੰਕਾਂ ਤੇ ਟਿੱਕ ਕਰੋ। ਪਹਿਲੇ {1} ਤੇ ਟਿੱਕ ਹੈ; ਲੰਮਾ ਸੁਨੇਹਾ WhatsApp ਕੱਟ ਸਕਦਾ ਹੈ।", "Bifează băuturile de trimis. Primele {1} sunt bifate; WhatsApp poate tăia un mesaj lung.", "Marca las bebidas que quieres enviar. Las primeras {1} están marcadas; WhatsApp puede cortar un mensaje largo.", "அனுப்ப வேண்டிய பானங்களைத் தேர்ந்தெடுக்கவும். முதல் {1} தேர்ந்தெடுக்கப்பட்டுள்ளன; நீண்ட செய்தியை WhatsApp வெட்டக்கூடும்.", "Gönderilecek içecekleri işaretle. İlk {1} işaretli; WhatsApp uzun bir mesajı kısaltabilir.", "Позначте напої для надсилання. Перші {1} позначено; WhatsApp може обрізати довге повідомлення.", "بھیجنے والے ڈرنکس پر ٹک کریں۔ پہلے {1} پر ٹک ہے؛ لمبا میسج WhatsApp کاٹ سکتا ہے۔", "Đánh dấu đồ uống muốn gửi. {1} món đầu đã được đánh dấu; WhatsApp có thể cắt bớt tin nhắn dài.", "Ticiwch y diodydd i'w hanfon. Mae'r {1} cyntaf wedi'u ticio; gall WhatsApp dorri neges hir."]
 }
 };
 const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
@@ -8431,7 +8478,7 @@ $("#v-sheets").addEventListener("click", (e) => {
 });
 addEventListener("resize", csFit);
 
-const TABS = ["drinks", "make", "allergens", "practice", "sheets", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "make", "allergens", "practice", "sheets"];
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets"];
 function show(tab) {
   if (!TABS.includes(tab) || !tabOn(tab)) tab = "drinks";
   TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
@@ -8441,6 +8488,7 @@ function show(tab) {
   $("#subnav").hidden = !drinky;
   $("#hdr").hidden = tab !== "drinks";
   if (tab === "make") renderMaker();
+  if (tab === "rapid") showRapid();
   if (tab === "allergens") renderAllergens();
   if (tab === "practice" && !pDrink) nextCard();
   if (tab === "sheets") renderSheets();
@@ -8521,8 +8569,12 @@ const MK_CATS = [
     ["Dry vermouth", "Dry vermouth"], ["Martini Extra Dry", "Dry vermouth", "martini dry"], ["Noilly Prat", "Dry vermouth"], ["Lillet Blanc", "Lillet", "lillet"], ["Fino sherry", "Sherry", "fino", "sherry", "tio pepe"],
     ["Pimm's No.1", "Pimm's", "pimms", "pimm s"], ["Dry white wine", "White wine", "white wine"], ["Red wine", "Red wine"],
     ["Prosecco", "Sparkling wine", "sparkling wine", "fizz"], ["Champagne", "Sparkling wine"], ["Cava", "Sparkling wine"]]],
-  ["Beer", "Beer", [
-    ["Lager", "Lager"], ["Stella Artois", "Lager", "stella"], ["Budweiser", "Lager", "bud"], ["Corona", "Lager"], ["Camden Hells", "Lager", "camden"], ["Guinness", "Stout", "stout"], ["Cider", "Cider", "apple cider"]]],
+  ["Beer and cider", "Beer", [
+    ["Lager", "Lager"], ["Stella Artois", "Lager", "stella"], ["Budweiser", "Lager", "bud"], ["Corona", "Lager"], ["San Miguel", "Lager", "san miguel"], ["Camden Hells", "Lager", "camden", "camden hells lager"],
+    ["IPA", "IPA", "india pale ale", "pale ale"], ["Camden Off Menu IPA", "IPA", "off menu", "camden off menu"], ["Camden Eazy IPA", "IPA", "eazy ipa", "easy ipa", "camden eazy"], ["Goose Island Midway", "IPA", "goose island", "midway", "midway ipa"],
+    ["Guinness", "Stout", "stout"], ["Athletic Run Wild IPA 0%", "Alcohol-free beer", "athletic", "run wild", "alcohol free beer", "0 beer"],
+    ["Cider", "Cider", "apple cider"], ["Kopparberg Crisp Apple", "Cider", "crisp apple", "kopparberg apple"], ["Fruit cider", "Fruit cider"], ["Kopparberg Strawberry & Lime", "Fruit cider", "kopparberg strawberry", "strawberry and lime"],
+    ["Kopparberg Mixed Fruit", "Fruit cider", "kopparberg", "mixed fruit cider"], ["Kopparberg Mixed Fruit 0%", "Alcohol-free cider", "alcohol free cider", "kopparberg 0", "kopparberg alcohol free"]]],
   ["Creams, milk and foam", null, [
     ["Double cream", "Cream", "cream", "whipping cream"], ["Single cream", "Cream"], ["Milk", "Milk", "whole milk"], ["Oat milk", "Milk", "oatly"],
     ["Coco Real", "Coconut cream", "cream of coconut", "coconut cream", "coconut syrup"], ["Coconut milk", "Coconut cream"],
@@ -8543,7 +8595,7 @@ const MK_CATS = [
   ["Mixers and fizz", null, [
     ["Soda water", "Soda", "soda", "club soda", "sparkling water"], ["Fever-Tree Indian Tonic", "Tonic", "indian tonic", "tonic", "tonic water"], ["Fever-Tree Light Tonic", "Tonic", "light tonic", "slimline tonic"],
     ["Fever-Tree Ginger Ale", "Ginger ale", "ginger ale"], ["Fever-Tree Ginger Beer", "Ginger beer", "ginger beer"], ["Lemonade", "Lemonade", "house lemonade", "sprite", "7up"],
-    ["Coca-Cola", "Cola", "cola", "coke", "coca cola"], ["Diet Coke", "Cola", "coke zero", "pepsi"], ["Red Bull", "Energy drink", "energy drink"], ["Iced tea", "Iced tea", "house iced tea"], ["Water", "Water", "hot water"]]],
+    ["Coca-Cola", "Cola", "cola", "coke", "coca cola"], ["Diet Coke", "Cola", "pepsi"], ["Coke Zero", "Cola", "coca cola zero", "zero sugar coke"], ["Red Bull", "Energy drink", "energy drink"], ["Red Bull Sugarfree", "Energy drink", "red bull sugar free", "sugar free red bull", "red bull zero"], ["Iced tea", "Iced tea", "house iced tea"], ["Water", "Water", "hot water"]]],
   ["Coffee", null, [["Fresh espresso", "Espresso", "espresso", "coffee"], ["Hot Americano", "Hot coffee", "americano", "filter coffee"]]],
   ["Fresh and garnish", null, [
     ["Mint", "Mint", "mint leaves", "mint sprig"], ["Basil", "Basil", "basil leaves"], ["Limes", "Lime", "lime wedge", "lime wedges", "lime", "1 lime"], ["Lemons", "Lemon", "lemon wedge", "lemon"],
@@ -8561,7 +8613,7 @@ const MK_FAM = {
   "Cherry liqueur": "Cherry", "Maraschino": "Cherry", "Raspberry liqueur": "Berry", "Cassis": "Berry", "Blackberry liqueur": "Berry",
   "White cacao": "Cacao", "Dark cacao": "Cacao", "Yellow Chartreuse": "Herbal", "Green Chartreuse": "Herbal", "Bénédictine": "Herbal", "Drambuie": "Herbal", "Galliano": "Herbal",
   "Absinthe": "Anise", "Sambuca": "Anise", "Pastis": "Anise", "Aperol": "Bitter aperitif", "Campari": "Bitter aperitif", "Sarti Rosa": "Bitter aperitif", "Amaro": "Bitter aperitif", "Gentian liqueur": "Bitter aperitif", "Fernet": "Bitter aperitif", "White wine": "Wine", "Red wine": "Wine",
-  "Sweet vermouth": "Vermouth", "Bianco vermouth": "Vermouth", "Dry vermouth": "Vermouth", "Lillet": "Vermouth", "Sherry": "Vermouth", "Lager": "Beer", "Stout": "Beer", "Cider": "Beer",
+  "Sweet vermouth": "Vermouth", "Bianco vermouth": "Vermouth", "Dry vermouth": "Vermouth", "Lillet": "Vermouth", "Sherry": "Vermouth", "Lager": "Beer", "IPA": "Beer", "Stout": "Beer", "Cider": "Beer", "Fruit cider": "Beer", "Alcohol-free beer": "No-alcohol beer", "Alcohol-free cider": "No-alcohol beer",
   "Cream": "Dairy", "Milk": "Dairy", "Ice cream": "Dairy", "Sugar syrup": "Sweet", "Sugar": "Sweet", "Honey": "Sweet", "Agave syrup": "Sweet",
   "Elderflower": "Elderflower", "Elderflower liqueur": "Elderflower", "Marshmallow liqueur": "Marshmallow", "Marshmallow syrup": "Marshmallow",
   "Lime juice": "Citrus", "Lemon juice": "Citrus", "Tonic": "Tonic", "Lemonade": "Lemony fizz", "Soda": "Fizz", "Ginger ale": "Ginger", "Ginger beer": "Ginger", "Ginger syrup": "Ginger",
@@ -8572,7 +8624,7 @@ const MK_FAM = {
 const mkNorm = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const MK = { items: [], byKey: new Map(), reqs: new Map(), unmatched: [], ids: [] };
 for (const [cat, fam, list] of MK_CATS) for (const [n, kind, ...al] of list) {
-  const it = { k: mkNorm(n), n, cat, kind, fam: fam || MK_FAM[kind] || kind, gen: n === kind, al: [...new Set([mkNorm(n), ...al.map(mkNorm)])] };
+  const it = { k: mkNorm(n), n, cat, kind, fam: MK_FAM[kind] || fam || kind, gen: n === kind, al: [...new Set([mkNorm(n), ...al.map(mkNorm)])] };
   MK.items.push(it); MK.byKey.set(it.k, it);
 }
 // Every alias, longest first, so "Smirnoff Vanilla" wins over "Smirnoff" and "lime juice" over "lime".
@@ -8609,12 +8661,13 @@ const mk = {
   opt: { basics: true, kind: "all", ...store.get("mk.opt", {}) },
   rnd: { mode: "any", mine: false, kind: "all", last: [], cur: null, ...store.get("mk.rnd", {}), cur: null },
   qs: { q: "", kind: "all", mine: false },
+  bt: { view: "classics", kind: "all", house: true, ...store.get("mk.bt", {}) },
   edit: null, // the pick whose ml is being set
-  cat: null, // the ingredient group open on the shelf (null: Popular)
+  cat: "bt", // the ingredient group open on the shelf ("bt": the Black Tap line-up, null: Popular)
   fromBar: false, // showing what My bar can make
   typed: { make: "", bar: "" },
 };
-const mkSave = () => { store.set("mk.pane", mk.pane); store.set("mk.pick", mk.pick); store.set("mk.bar", mk.bar); store.set("mk.opt", mk.opt); store.set("mk.rnd", { mode: mk.rnd.mode, mine: mk.rnd.mine, kind: mk.rnd.kind, last: mk.rnd.last }); };
+const mkSave = () => { store.set("mk.pane", mk.pane); store.set("mk.pick", mk.pick); store.set("mk.bar", mk.bar); store.set("mk.opt", mk.opt); store.set("mk.rnd", { mode: mk.rnd.mode, mine: mk.rnd.mine, kind: mk.rnd.kind, last: mk.rnd.last }); store.set("mk.bt", mk.bt); };
 const mkName = (k) => (k.startsWith("~") ? k.slice(1) : MK.byKey.get(k).n);
 // What a typed item stands for: a list item if it reads like one, so "absolut raspberri vodka" still works as a vodka.
 const mkLike = (k) => (k.startsWith("~") ? mkFind(k.slice(1)) : MK.byKey.get(k));
@@ -8673,6 +8726,111 @@ function mkMatches() {
 // Can My bar (and the basics) make this drink with nothing missing?
 const mkCanMake = (d) => !mkScore(d, mkHeld([], true, true), new Set(mk.bar)).miss.length;
 
+/* ---------- The Black Tap line-up ----------
+   The house basics behind the Soho bar, as Derek listed them (15 Nov 2026): the speed rail, the foam, the draught,
+   the fridge and the mixers. Each is a serve card (glass, measure, how to pour) and a maker ingredient (k), so one tap
+   lists every drink it goes in. "Black Tap classics" is every drink the line-up makes with what's always on the bar.
+   ABVs are the makers' own (Camden, Kopparberg, Goose Island, Guinness pages, 15 Nov 2026); the rest stay unstated. */
+const BT_DRAUGHT = { glass: "Branded pint glass, clean and cold", measure: "Pint, half or two-thirds (a third too). By law draught is only sold in these",
+  pour: "Glass at 45° under the tap without touching it, open the tap fully, straighten the glass as it fills, finish with a head of about two fingers" };
+const BT_SPIRIT = { glass: "Highball, cubed ice to the top", measure: "25 ml single, 50 ml double", pour: "Ice first, then the spirit, then the mixer. Wedge on the rim if the serve has one" };
+const BT_SOFT = { glass: "Highball, cubed ice", measure: "The whole bottle or can", pour: "Pour slowly down the side of the glass, or a bar spoon, so it keeps its bubbles" };
+const BT_LINEUP = [
+  ["Spirits", [
+    { k: "smirnoff", note: "The house vodka. With Coke, lemonade, cranberry, tonic or Red Bull." },
+    { k: "ciroc red berry", note: "Berry vodka for the London Cosmo. Long with lemonade or soda and a lime wedge." },
+    { k: "tanqueray", note: "The house gin. G&T: Fever-Tree Indian or Light tonic and a lime wedge." },
+    { k: "bacardi carta blanca", note: "White rum. Mojito and Daiquiri, or with Coke and a lime wedge (Cuba Libre)." },
+    { k: "captain morgan spiced gold", note: "Spiced rum. With Coke and a lime wedge, or ginger beer." },
+    { k: "el jimador blanco", note: "House tequila for Margaritas and shots. A shot comes with salt and a lime wedge if asked." },
+    { k: "el jimador reposado", note: "Rested tequila for the signatures. Long with ginger ale and lime." },
+    { k: "buffalo trace", note: "The house bourbon. Neat, over ice, or with Coke or ginger ale." },
+    { k: "bulleit bourbon", note: "Second bourbon, higher rye: Old Fashioned, Whiskey Sour, or with ginger ale." },
+    { k: "cointreau", glass: "Rocks, cubed ice, if served on its own", measure: "15 to 25 ml in cocktails, 50 ml on the rocks", pour: "Measure with the jigger; on its own, pour over ice", note: "Orange liqueur for Margaritas, Cosmos and sours." },
+    { k: "kahlua", glass: "Rocks, cubed ice, if served on its own", measure: "20 to 25 ml in cocktails, 50 ml on the rocks", pour: "Measure with the jigger; with milk, pour the Kahlúa over ice then the milk", note: "Coffee liqueur for Espresso Martinis and Russians." },
+  ]],
+  ["Foam", [
+    { k: "egg white", glass: "As the drink", measure: "20 ml (about half an egg white) instead of 2 drops foamer", pour: "Dry shake hard without ice, then shake again with ice and double strain", note: "Egg is an allergen: tell the guest. Use pasteurised egg white." },
+    { k: "aquafaba", glass: "As the drink", measure: "20 ml instead of 2 drops foamer", pour: "Dry shake hard without ice, then shake again with ice and double strain", note: "Chickpea water: the vegan foam." },
+    { k: "foamer", glass: "As the drink", measure: "2 drops", pour: "Into the tin with everything else, dry shake, shake with ice, double strain", note: "The house foam in every egg-white style drink." },
+  ]],
+  ["Draught", [
+    { k: "stella artois", name: "Stella Artois (draught)", glass: "Stella chalice, rinsed cold", note: "Belgian lager. Skim the head level with the skimmer and serve with the logo facing the guest." },
+    { k: "budweiser", name: "Budweiser (draught)", note: "American lager." },
+    { k: "san miguel", name: "San Miguel (draught)", note: "Spanish lager." },
+    { k: "corona", name: "Corona (draught)", note: "Mexican lager. Lime wedge if the guest wants one." },
+    { k: "camden hells", name: "Camden Hells", abv: "4.6%", note: "London lager: clean, crisp and dry." },
+    { k: "camden off menu ipa", name: "Camden Off Menu IPA", abv: "5.8%", note: "West Coast style IPA: hoppy, clean and tropical." },
+    { k: "camden eazy ipa", name: "Camden Eazy IPA", abv: "5.0%", note: "Hazy IPA: juicy stone fruit, easy drinking." },
+    { k: "goose island midway", name: "Goose Island Midway", abv: "4.1%", note: "Session IPA: light and hoppy." },
+    { k: "guinness", name: "Guinness", abv: "4.2%", glass: "Guinness pint glass, clean and dry", pour: "Two-part pour: glass at 45°, fill to three quarters, let it settle until it's dark, then top up to the brim with the glass upright", note: "Stout. Never top up straight away: the surge has to settle." },
+    { k: "kopparberg crisp apple", name: "Kopparberg Crisp Apple (draught)", abv: "4.0%", pour: "Pour straight, no head needed. Over ice in a pint glass if the guest asks", note: "Apple cider with a touch of sweetness." },
+  ]],
+  ["Bottles and cans", [
+    { k: "corona", name: "Corona (bottle)", glass: "In the bottle", measure: "One bottle", pour: "Ice cold, lime wedge pushed into the neck. A glass on the side if asked" },
+    { k: "san miguel", name: "San Miguel (bottle)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "" },
+    { k: "stella artois", name: "Stella Artois (bottle)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "" },
+    { k: "athletic run wild ipa 0", name: "Athletic Run Wild IPA (alcohol-free)", glass: "Pint glass", measure: "One can", pour: "Pour at 45°, straighten as it fills", note: "Alcohol-free IPA. Say it's the alcohol-free one when it goes down." },
+    { k: "kopparberg strawberry lime", name: "Kopparberg Strawberry & Lime", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "Fruit cider." },
+    { k: "kopparberg mixed fruit", name: "Kopparberg Mixed Fruit", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "Fruit cider: blackcurrant and raspberry." },
+    { k: "kopparberg mixed fruit 0", name: "Kopparberg Mixed Fruit (alcohol-free)", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "The alcohol-free one. Check the label before it goes out." },
+  ]],
+  ["Softs and mixers", [
+    { k: "coca cola", name: "Coca-Cola (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "Leave the bottle with the guest if there's some left." },
+    { k: "diet coke", name: "Diet Coke (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "" },
+    { k: "coke zero", name: "Coke Zero (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "Zero sugar." },
+    { k: "red bull", name: "Red Bull (can)", glass: "Highball, cubed ice", measure: "250 ml can", pour: "Serve the can with the glass of ice", note: "Half a can for each bomb." },
+    { k: "red bull sugarfree", name: "Red Bull Sugarfree (can)", glass: "Highball, cubed ice", measure: "250 ml can", pour: "Serve the can with the glass of ice", note: "No sugar. Check the can before it goes out." },
+    { k: "fever tree indian tonic", glass: "Highball or wine glass, as the serve", measure: "Top up, or the whole bottle on the side", note: "The tonic for the G&T." },
+    { k: "fever tree light tonic", glass: "Highball or wine glass, as the serve", measure: "Top up, or the whole bottle on the side", note: "Fewer calories than Indian tonic." },
+    { k: "fever tree ginger ale", measure: "Top up", note: "Softer and sweeter than ginger beer: whiskey and ginger." },
+    { k: "fever tree ginger beer", measure: "Top up", note: "Spicier: Moscow Mule and spiced rum and ginger." },
+  ]],
+];
+const BT_DEF = { Spirits: BT_SPIRIT, Foam: {}, Draught: BT_DRAUGHT, "Bottles and cans": {}, "Softs and mixers": BT_SOFT };
+const BT = BT_LINEUP.flatMap(([grp, list]) => list.map((x) => {
+  const it = MK.byKey.get(x.k); if (!it) throw new Error("Line-up item not in the maker list: " + x.k);
+  return { ...BT_DEF[grp], ...x, grp, name: x.name || it.n };
+}));
+const BT_KEYS = [...new Set(BT.map((x) => x.k))];
+// What's always on the bar besides the line-up: the bar basics plus the gun's juices and lemonade, sugar and foam.
+const BT_HOUSE = ["orange juice", "pineapple juice", "cranberry juice", "apple juice", "lemonade", "grenadine", "lemons", "mint"];
+function btClassics(kind) {
+  const held = [...new Set([...BT_KEYS, ...(mk.bt.house ? [...MK_BASICS, ...BT_HOUSE] : [])])].map((k) => ({ k }));
+  const anchor = new Set(BT_KEYS);
+  const res = D.filter((d) => mkKindOk(d, kind) && !isOut(d.name)).map((d) => mkScore(d, held, anchor)).filter((r) => r.used > 0);
+  // Exact bottles only: a swap (Smirnoff for Grey Goose) counts as one thing to add, so "Ready" means it's on the rail.
+  const by = (a, b) => (b.d.official ? 1 : 0) - (a.d.official ? 1 : 0) || a.miss.length - b.miss.length || a.swaps.length - b.swaps.length || a.d.name.localeCompare(b.d.name);
+  const house = res.filter((r) => r.d.official);
+  const rest = res.filter((r) => !r.d.official);
+  const ready = rest.filter((r) => !r.miss.length && !r.swaps.length).sort(by);
+  const swap = rest.filter((r) => !r.miss.length && r.swaps.length).sort(by);
+  const one = rest.filter((r) => r.miss.length === 1).sort(by);
+  return { house, ready, swap, one };
+}
+// How many drinks in the book use a line-up item (its exact bottle or the same kind).
+const btUses = (k) => D.filter((d) => MK.reqs.get(d.id).some((r) => mkCover(r, k) >= 0.9)).length;
+
+/* ---------- Send: several specs, or the line-up serves, as one tidy WhatsApp message ----------
+   Each drink is its own tick box on the Send page, so the person picks which go. The first dozen are ticked. */
+const SPEC_MAX = 40, SPEC_ON = 12;
+const specPart = (d, i) => ({ id: "d" + d.id, label: d.name, one: true, off: i >= SPEC_ON,
+  lines: [...d.spec.map((l) => `• ${l}`), [d.glass, d.ice, d.garnish && `Garnish: ${d.garnish}`].filter((x) => x && !/^(Garnish: )?None\b/i.test(x)).join(" · "), `How: ${d.method}`] });
+SHARE.specs = (o) => {
+  const ids = String(o || "").split(",").filter(Boolean).map(Number).filter((i) => D[i]).slice(0, SPEC_MAX);
+  if (!ids.length) return null;
+  const ds = ids.map((i) => D[i]);
+  return { what: `${ds.length} ${ds.length === 1 ? "spec" : "specs"}`, title: "Drink specs · Black Tap Soho",
+    head: [`${ds.length} ${ds.length === 1 ? "drink" : "drinks"}. Jigger everything: 25 ml single, 50 ml double.`],
+    parts: ds.map(specPart), tip: `Tick the drinks to send. The first ${SPEC_ON} are ticked; a long message may be cut short by WhatsApp.` };
+};
+SHARE.lineup = (grp) => {
+  const xs = BT.filter((x) => x.grp === grp); if (!xs.length) return null;
+  return { what: `Line-up: ${grp}`, title: `Black Tap line-up · ${grp}`, head: [`${xs.length} serves`],
+    parts: xs.map((x, i) => ({ id: "s" + i, label: x.name + (x.abv ? ` (${x.abv})` : ""), one: true,
+      lines: [...(x.note ? [x.note] : []), `• Glass: ${x.glass}`, `• Measure: ${x.measure}`, `• Pour: ${x.pour}`] })) };
+};
+
 /* ---------- Looks ---------- */
 document.head.insertAdjacentHTML("beforeend", `<style>
 .seg.mk-seg{grid-template-columns:repeat(4,1fr);margin-top:10px}.seg.mk-seg button{padding:8px 4px}
@@ -8726,6 +8884,12 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .mk-cats{padding-block:8px 0}.mk-shelf{padding-block:6px 4px}.mk-shelf .chip,.mk-goes .chip{color:var(--fg)}.mk-goes .chip small{color:var(--muted);margin-left:4px}
 .mk-hl b{color:var(--brass);font-weight:700}
 .mk-own{margin:12px 0;padding:14px;border:1px solid var(--brass);border-radius:14px;background:var(--surface)}.mk-own ul{margin:6px 0 0;padding-left:18px}.mk-own li{padding:2px 0}.mk-own .m{margin:8px 0 0;font-size:14.5px}
+.bt-card{padding:12px 0;border-bottom:1px solid var(--line)}
+.bt-card .n{font-weight:700;font-size:17px;display:flex;justify-content:space-between;gap:8px}
+.bt-card .abv{color:var(--brass);font-size:13px;white-space:nowrap}
+.bt-note{margin:4px 0 0;font-size:14.5px;color:var(--muted)}
+.bt-dl{display:grid;gap:4px;margin:8px 0;font-size:14.5px}.bt-dl div{display:grid;grid-template-columns:72px 1fr;gap:8px}.bt-dl dt{color:var(--muted)}.bt-dl dd{margin:0}
+.bt-card .chip small{color:var(--muted);margin-left:4px}
 .mk-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 </style>`);
 const MK_ICON = `<svg viewBox="0 0 24 24"><path d="M8 3h8l-1 4H9z"/><path d="M9 7h6l1.5 13a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z"/><path d="M8 12h8"/></svg>`;
@@ -8786,7 +8950,7 @@ const MK_KINDS = [["all", "Everything"], ["cocktail", "Cocktails"], ["zero", "Mo
    Tap (or type) an ingredient and every drink with it lists straight away. Each tap narrows the list to drinks with all of
    them, and "Goes with" offers the next ingredient from what those drinks use. When nothing in the book has them all,
    it shows the closest and a drink of your own built from the house ratios. */
-const MK_SHORT = { "Rum and cachaça": "Rum", "Tequila and mezcal": "Tequila", "Whisky and whiskey": "Whisky", "Aperitifs, vermouth and wine": "Aperitifs & wine",
+const MK_SHORT = { "Beer and cider": "Beer", "Rum and cachaça": "Rum", "Tequila and mezcal": "Tequila", "Whisky and whiskey": "Whisky", "Aperitifs, vermouth and wine": "Aperitifs & wine",
   "Creams, milk and foam": "Cream & milk", "Syrups and sauces": "Syrups", "Juices and purées": "Juices", "Mixers and fizz": "Mixers", "Fresh and garnish": "Fresh", "Bitters and seasoning": "Bitters" };
 const mkCatName = (c) => MK_SHORT[c] || c;
 // The chip to show for an ingredient: the generic of its kind when there is one (Smirnoff shows as Vodka).
@@ -8828,7 +8992,7 @@ function mkOwn() {
   const of = (f) => its.filter(({ it }) => f(it));
   const base = of((it) => MK_BASE.has(it.cat)), mod = of((it) => /Liqueurs|Aperitifs/.test(it.cat) && it.kind !== "Sparkling wine"), fizzWine = of((it) => it.kind === "Sparkling wine");
   const citrus = of((it) => /Lime juice|Lemon juice/.test(it.kind)), juice = of((it) => it.cat === "Juices and purées" && !/Lime juice|Lemon juice/.test(it.kind));
-  const syrup = of((it) => it.cat === "Syrups and sauces"), cream = of((it) => it.cat === "Creams, milk and foam"), mixer = of((it) => it.cat === "Mixers and fizz" || it.cat === "Beer");
+  const syrup = of((it) => it.cat === "Syrups and sauces"), cream = of((it) => it.cat === "Creams, milk and foam"), mixer = of((it) => it.cat === "Mixers and fizz" || it.cat === "Beer and cider");
   const fresh = of((it) => it.cat === "Fresh and garnish"), bitters = of((it) => it.cat === "Bitters and seasoning"), coffee = of((it) => it.cat === "Coffee");
   const nm = (x) => mkName(x.p.k), ml = (x, n) => x.p.ml || n;
   const lines = [], add = (n, x) => lines.push(`${ml(x, n)} ml ${nm(x)}`);
@@ -8873,8 +9037,8 @@ function mkOrderRow(r) {
 }
 function mkShelf(on) {
   const cats = MK_CATS.map(([c]) => c);
-  const its = mk.cat ? MK.items.filter((i) => i.cat === mk.cat) : MK_POP;
-  return `<div class="chips hrow mk-cats" role="toolbar" aria-label="Ingredient groups"><button class="chip" aria-pressed="${!mk.cat}" data-mk-cat="">Popular</button>${cats.map((c) => `<button class="chip" aria-pressed="${mk.cat === c}" data-mk-cat="${esc(c)}">${esc(mkCatName(c))}</button>`).join("")}</div>
+  const its = mk.cat === "bt" ? BT_KEYS.map((k) => MK.byKey.get(k)) : mk.cat ? MK.items.filter((i) => i.cat === mk.cat) : MK_POP;
+  return `<div class="chips hrow mk-cats" role="toolbar" aria-label="Ingredient groups"><button class="chip" aria-pressed="${mk.cat === "bt"}" data-mk-cat="bt">Black Tap</button><button class="chip" aria-pressed="${!mk.cat}" data-mk-cat="">Popular</button>${cats.map((c) => `<button class="chip" aria-pressed="${mk.cat === c}" data-mk-cat="${esc(c)}">${esc(mkCatName(c))}</button>`).join("")}</div>
     <div class="chips hrow mk-shelf" role="toolbar" aria-label="Ingredients">${its.map((i) => mkChip(i, on.has(i.k), "mk-pick")).join("")}</div>`;
 }
 function mkMakePane() {
@@ -8893,6 +9057,7 @@ function mkMakePane() {
       + (all.length ? `<div class="sec">${all.length} ${all.length === 1 ? "drink" : "drinks"} with ${esc(what)}</div>${all.slice(0, 60).map(mkOrderRow).join("")}${all.length > 60 ? `<p class="note">Add another ingredient to see the rest.</p>` : ""}${all.length <= 3 ? mkOwn() : ""}`
         : `<p class="empty" style="padding:14px 0 4px">No drink in the book has all of ${esc(what)}.</p>${mkOwn()}${near.length ? `<div class="sec">Closest in the book<span class="cnt">${near.length}</span></div>${near.slice(0, 30).map(mkOrderRow).join("")}` : ""}`)
       + (all.length > 3 ? `<details class="mk-cat"><summary>Make your own with these<span>House ratios</span></summary>${mkOwn()}</details>` : "")
+      + (list.length ? `<div class="actions">${sendBtn("specs", "Send these specs", MK.ids.slice(0, SPEC_MAX).join(","))}</div>` : "")
       + `<div class="mk-row2"><button class="btn" data-mk="keep">☆ Keep in My bar</button><button class="btn" data-mk="clear">Clear and start again</button></div>`;
   } else if (mk.fromBar && mk.bar.length) {
     const res = mkMatches();
@@ -8903,9 +9068,39 @@ function mkMakePane() {
       + (res.length ? block("Make it now", ready) + block("Missing one thing", one) + block("Missing two or more", more) : `<p class="empty">Nothing in the book fits My bar yet.</p>`);
   } else {
     MK.ids = [];
-    out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>${mk.bar.length ? `<button class="btn wide" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
+    out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>
+      <div class="mk-row2"><button class="btn pri" data-mk-pane="bt">Black Tap classics</button><button class="btn" data-mk-pane="rnd">Can't decide? Spin</button></div>
+      ${mk.bar.length ? `<button class="btn wide" style="margin-top:8px" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
   }
   return `${mkTypeBox("make", "Type anything: vodka, 50ml lime…")}${mkShelf(on)}${picks}${kinds}<div id="mk-out">${out}</div>`;
+}
+/* ---------- Line-up pane: Black Tap classics and the house serves ---------- */
+const BT_VIEWS = [["classics", "Black Tap classics"], ...BT_LINEUP.map(([g]) => [g, g])];
+function btServeHtml(x) {
+  const n = btUses(x.k);
+  return `<div class="bt-card"><div class="n"><span translate="no">${esc(x.name)}</span>${x.abv ? `<span class="abv" translate="no">${esc(x.abv)}</span>` : ""}</div>
+    ${x.note ? `<p class="bt-note" translate="no">${esc(x.note)}</p>` : ""}
+    <dl class="bt-dl"><div><dt>Glass</dt><dd translate="no">${esc(x.glass || "")}</dd></div><div><dt>Measure</dt><dd translate="no">${esc(x.measure || "")}</dd></div><div><dt>Pour</dt><dd translate="no">${esc(x.pour || "")}</dd></div></dl>
+    ${n ? `<button class="chip" data-bt-use="${esc(x.k)}">Drinks with it <small>${n}</small></button>` : ""}</div>`;
+}
+function btPane() {
+  const v = mk.bt.view;
+  const chips = `<div class="chips hrow" role="toolbar" aria-label="Line-up">${BT_VIEWS.map(([k, l]) => `<button class="chip" aria-pressed="${v === k}" data-bt-view="${esc(k)}">${esc(l)}</button>`).join("")}</div>`;
+  let out;
+  if (v === "classics") {
+    const { house, ready, swap, one } = btClassics(mk.bt.kind);
+    MK.ids = [...house, ...ready, ...swap, ...one].map((r) => r.d.id);
+    const block = (t, a, max = 80) => a.length ? `<div class="sec">${t}<span class="cnt">${a.length}</span></div>${a.slice(0, max).map(mkResHtml).join("")}` : "";
+    out = `<div class="chips hrow" role="toolbar" aria-label="Show">${MK_KINDS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.bt.kind === k}" data-bt-kind="${k}">${l}</button>`).join("")}<button class="chip" aria-pressed="${mk.bt.house}" data-bt-house="1">+ juices, syrup and fresh</button></div>
+      <p class="note">Ready: every bottle is in the line-up${mk.bt.house ? ", plus the bar's juices, lemonade, sugar syrup, citrus and mint" : ""}.</p>
+      ${block("House cocktails", house)}${block("Ready with the line-up", ready)}${block("Ready with a swap", swap, 40)}${block("Add one thing", one, 40)}
+      ${ready.length ? `<div class="actions">${sendBtn("specs", "Send these specs", MK.ids.slice(0, SPEC_MAX).join(","))}</div>` : ""}`;
+  } else {
+    MK.ids = [];
+    out = BT.filter((x) => x.grp === v).map(btServeHtml).join("") + `<div class="actions">${sendBtn("lineup", "Send these serves", v)}</div>`;
+  }
+  return `${chips}<div id="bt-out">${out}</div>
+    <button class="btn wide" style="margin-top:12px" data-mk="btbar">Put the whole line-up in My bar</button>`;
 }
 function mkBarPane() {
   const on = new Set(mk.bar);
@@ -8918,7 +9113,8 @@ function mkBarPane() {
     <div class="mk-row2"><button class="btn pri" data-mk="frombar">What can I make?</button><button class="btn" data-mk="clearbar">Clear My bar</button></div>`
     : `<p class="empty" style="padding:16px 0">Nothing kept yet. Add the exact bottles (El Jimador Blanco, Cîroc Red Berry) or just the kind (Vodka).</p>`;
   return `<p class="lead">The bottles you have, at work or at home. Kept on this phone.</p>
-    <div class="mk-row2"><button class="btn" data-mk="bt">Load the Black Tap bar</button><button class="btn" data-mk="frombar"${mk.bar.length ? "" : " disabled"}>Make from My bar</button></div>
+    <div class="mk-row2"><button class="btn" data-mk="btbar">Load the Black Tap line-up</button><button class="btn" data-mk="bt">Load the whole back bar</button></div>
+    <button class="btn wide" style="margin-top:8px" data-mk="frombar"${mk.bar.length ? "" : " disabled"}>Make from My bar</button>
     <div style="margin-top:12px">${mkTypeBox("bar", "Add a bottle, juice or syrup")}</div>${mine}
     <div class="h3">Add from the list</div>${mkCatsHtml(on, "mk-bar")}`;
 }
@@ -8937,7 +9133,7 @@ function mkRndCard(d) {
 function mkRndPane() {
   const pool = mkPool();
   const seg = (k, l) => `<button aria-pressed="${mk.rnd.mode === k}" data-mk-rmode="${k}">${l}</button>`;
-  return `<p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
+  return `<button class="btn" data-mk-pane="make" style="margin-top:4px">‹ Back to Make</button><p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
     <div class="seg" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Alcohol">${seg("alc", "Alcoholic")}${seg("zero", "Alcohol-free")}${seg("any", "Either")}</div>
     ${mk.rnd.mode === "alc" ? `<div class="chips hrow">${[["all", "Any"], ["cocktail", "Cocktail"], ["spritz", "Spritz"], ["shot", "Shot"]].map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.kind === k}" data-mk-rkind="${k}">${l}</button>`).join("")}</div>` : ""}
     <div class="mk-opts"><button class="chip" aria-pressed="${mk.rnd.mine}" data-mk-rmine="1">Only what My bar can make</button></div>
@@ -8958,8 +9154,8 @@ function mkQsPane() {
     <div id="mk-qlist">${mkQsList()}</div>`;
 }
 function renderMaker() {
-  const tabs = [["make", "Make"], ["bar", "My bar"], ["rnd", "Random"], ["qs", "Specs"]];
-  const pane = { make: mkMakePane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane }[mk.pane] || mkMakePane;
+  const tabs = [["make", "Make"], ["bt", "Black Tap"], ["bar", "My bar"], ["qs", "Specs"]];
+  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane }[mk.pane] || mkMakePane;
   // By the English name, as the open ones may be showing in another language (trWas keeps the English).
   const open = [...$$("#v-make details[open] summary")].map((s) => trWas.get(s.firstChild) ?? s.firstChild.textContent);
   $("#v-make").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cocktail maker</h2>
@@ -9038,10 +9234,15 @@ $("#v-make").addEventListener("click", (e) => {
   if (ds.mkRmode) { mk.rnd.mode = ds.mkRmode; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.mkRkind) { mk.rnd.kind = ds.mkRkind; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.mkRmine) { mk.rnd.mine = !mk.rnd.mine; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
+  if (ds.btUse) { mk.pick = [{ k: ds.btUse }]; mk.fromBar = false; mk.edit = null; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }
+  if (ds.btView) { mk.bt.view = ds.btView; mkSave(); return mkRedraw(); }
+  if (ds.btKind) { mk.bt.kind = ds.btKind; mkSave(); return mkRedraw(); }
+  if (ds.btHouse) { mk.bt.house = !mk.bt.house; mkSave(); return mkRedraw(); }
   if (ds.mkQkind) { mk.qs.kind = ds.mkQkind; $("#mk-pane").innerHTML = mkQsPane(); return; }
   if (ds.mkQmine) { mk.qs.mine = !mk.qs.mine; $("#mk-pane").innerHTML = mkQsPane(); return; }
   const a = ds.mk;
   if (a === "spin") return mkSpin();
+  if (a === "btbar") { const ks = new Set(mk.bar); for (const k of [...BT_KEYS, ...BT_HOUSE]) ks.add(k); mk.bar = [...ks]; mkSave(); toast(`Line-up loaded: My bar has ${mk.bar.length} items`); return mkRedraw(); }
   if (a === "keep") { for (const p of mk.pick) if (!mk.bar.includes(p.k)) mk.bar.push(p.k); mkSave(); toast(`Kept in My bar (${mk.bar.length})`); return mkRedraw(); }
   if (a === "clear") { mk.pick = []; mk.edit = null; mkSave(); return mkRedraw(); }
   if (a === "clearbar") { if (confirm("Clear everything from My bar on this phone?")) { mk.bar = []; mkSave(); mkRedraw(); } return; }
@@ -9050,6 +9251,77 @@ $("#v-make").addEventListener("click", (e) => {
   // Every ingredient the book's own drinks use: what's behind the Black Tap bar.
   if (a === "bt") { const ks = new Set(mk.bar); for (const r of MK.reqs.values()) for (const x of r) ks.add(x.it.k); mk.bar = [...ks]; mkSave(); toast(`My bar has ${mk.bar.length} items`); return mkRedraw(); }
 });
+
+/* ---------- Rapid fire: the house drinks as big buttons, for answering a guest fast ----------
+   One tap from opening the app (the start page's Rapid fire button, or the first chip under Drinks). The signatures,
+   then what guests ask for most, shots, alcohol-free and serves. Tap a button for the full spec; swipe on from there
+   through the same list. "Specs on" shows each spec right on the page, so most questions need no tap at all. */
+const RAPID_GROUPS = [
+  ["House cocktails", (d) => d.section === "Black Tap Signatures"],
+  // The classics UK guests ask for most (CGA and trade top-seller lists), in the order the bar hears them.
+  ["Guests ask for", ["Pornstar Martini", "Espresso Martini", "Mojito", "Aperol Spritz", "Margarita", "Piña Colada", "Long Island Iced Tea", "Daiquiri", "Strawberry Daiquiri",
+    "Sex on the Beach", "Cosmopolitan", "Old Fashioned", "Negroni", "Hugo Spritz", "Spicy Margarita", "Tommy's Margarita", "Paloma", "Moscow Mule", "Whiskey Sour", "Amaretto Sour",
+    "French Martini", "Woo Woo", "Mai Tai", "Bloody Mary", "Passion Fruit Mojito", "Salted Caramel Espresso Martini", "Dirty Martini", "Tequila Sunrise"]],
+  ["Shots and bombs", ["Tequila, Salt & Lime", "Baby Guinness", "Jägerbomb", "Pornstar Shot", "Mini Espresso Martini", "B-52", "Sour Apple", "Cherry Bakewell", "Skittle Bomb", "Kamikaze", "Pickleback"]],
+  ["No alcohol", ["Virgin Mojito", "No-Star Martini", "Virgin Colada", "Espresso No-tini", "Virgin Margarita", "Virgin Cosmo", "Shirley Temple", "Strawberry Lemonade", "Virgin Hugo", "Lime & Soda"]],
+  ["Serves", ["Gin & Tonic", "Vodka Red Bull", "Rum & Coke", "Jack & Coke", "Vodka Lemonade", "Vodka Cranberry", "Jameson, Ginger & Lime", "Malibu & Pineapple", "Pink Gin & Lemonade", "Archers & Lemonade"]],
+];
+const RAPID = { ids: [], q: "", specs: store.get("rapid.specs", false) };
+const rapidList = (f) => (typeof f === "function" ? D.filter(f) : f.map((n) => D.find((d) => d.name === n)).filter(Boolean));
+const rapidSpec = (d) => d.spec.map((s) => s.replace(/^Top about /i, "Top ~")).join(" · ");
+function rapidTile(d) {
+  const out = isOut(d.name);
+  return RAPID.specs
+    ? `<button class="rp-row${out ? " out" : ""}" data-rp="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><span><span class="n" translate="no">${esc(d.name)}${out ? ` <i>86'd</i>` : ""}</span><span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.garnish)}</span></span></button>`
+    : `<button class="rp-tile${out ? " out" : ""}" data-rp="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><span class="n" translate="no">${esc(d.name)}</span>${out ? `<i>86'd</i>` : ""}</button>`;
+}
+function renderRapid() {
+  const words = mkNorm(RAPID.q).split(" ").filter(Boolean);
+  const hit = (d) => words.every((w) => d._h.includes(w));
+  const seen = new Set(), groups = [];
+  for (const [t, f] of RAPID_GROUPS) {
+    const ds = rapidList(f).filter((d) => !seen.has(d.id) && hit(d)); ds.forEach((d) => seen.add(d.id));
+    if (ds.length) groups.push([t, ds]);
+  }
+  // Searching reaches the whole book, after the house list.
+  if (words.length) { const more = D.filter((d) => !seen.has(d.id) && hit(d)).slice(0, 40); if (more.length) groups.push(["Everything else", more]); }
+  RAPID.ids = groups.flatMap(([, ds]) => ds.map((d) => d.id));
+  $("#rp-out").innerHTML = groups.map(([t, ds]) => `<div class="sec">${esc(t)}<span class="cnt">${ds.length}</span></div><div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${ds.map(rapidTile).join("")}</div>`).join("")
+    || `<p class="empty">Nothing matches. Try a spirit, like “rum”.</p>`;
+  $("#rp-specs").setAttribute("aria-pressed", RAPID.specs);
+}
+function showRapid() {
+  if (!$("#rp-out")) {
+    $("#v-rapid").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Rapid fire</h2>
+      <div class="search"><input id="rp-q" type="search" placeholder="Type a drink or a spirit" autocomplete="off" enterkeyhint="search" aria-label="Search the house drinks"></div>
+      <div class="chips hrow"><button class="chip" id="rp-specs" aria-pressed="false">Show specs on the page</button><button class="chip" data-rp-lineup="1">Beer, cider and softs</button></div>
+      <div id="rp-out"></div>
+      <div class="actions">${sendBtn("specs", "Send the house cocktails", D.filter((d) => d.section === "Black Tap Signatures").map((d) => d.id).join(","))}</div>`;
+  }
+  renderRapid();
+}
+$("#v-rapid").addEventListener("input", (e) => { if (e.target.id === "rp-q") { RAPID.q = e.target.value; renderRapid(); } });
+$("#v-rapid").addEventListener("click", (e) => {
+  const t = e.target.closest("[data-rp]"); if (t) { haptic(); return openSheet(+t.dataset.rp); }
+  if (e.target.closest("#rp-specs")) { RAPID.specs = !RAPID.specs; store.set("rapid.specs", RAPID.specs); return renderRapid(); }
+  // The line-up's serve cards live in Make; the subnav's own handler opens the tab, this picks the pane.
+  if (e.target.closest("[data-rp-lineup]")) { mk.pane = "bt"; mk.bt.view = "Draught"; mkSave(); show("make"); }
+});
+document.head.insertAdjacentHTML("beforeend", `<style>
+.rp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:6px 0 4px}
+.rp-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:104px;padding:10px 6px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;color:var(--fg)}
+.rp-tile .g{width:34px;height:40px}.rp-tile .g svg{width:100%;height:100%}
+.rp-tile .n{font-weight:700;font-size:16px;line-height:1.2}
+.rp-tile i,.rp-row i{font-style:normal;font-size:12px;color:var(--warn)}
+.rp-tile.out,.rp-row.out{opacity:.6}
+.rp-tile:active{border-color:var(--brass)}
+.rp-row{display:grid;grid-template-columns:36px 1fr;gap:10px;width:100%;text-align:left;padding:10px 0;border-bottom:1px solid var(--line);color:var(--fg)}
+.rp-row .g{width:36px;height:42px}.rp-row .g svg{width:100%;height:100%}
+.rp-row .n{display:block;font-weight:700;font-size:17px}
+.rp-row .s{display:block;font-size:15px;margin-top:2px}
+.rp-row .m{display:block;font-size:13.5px;color:var(--muted);margin-top:2px}
+.wrapid{width:100%;margin-top:8px;min-height:52px;font-size:18px}
+</style>`);
 
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
@@ -9065,7 +9337,8 @@ renderChips(); renderList();
     const b = e.target.closest("[data-start]"); if (!b) return;
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);
-    if (mode !== "bar") show("tally");
+    if (b.dataset.rapid) show("rapid");
+    else if (mode !== "bar") show("tally");
   });
 }
 applyFeatures();
