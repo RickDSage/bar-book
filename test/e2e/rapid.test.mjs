@@ -46,7 +46,7 @@ test("the Black Tap line-up: serve cards, classics, the shelf and My bar", async
   await p.click("nav.tabs [data-tab=drinks]"); await p.click("#subnav [data-tab=make]");
   // The shelf opens on the line-up.
   const shelf = await p.$$eval(".mk-shelf .chip", (x) => x.map((c) => c.textContent));
-  for (const n of ["Sprite", "Fanta Orange Zero", "Monin Salted Caramel", "Funkin peach purée", "Tomato juice", "Smirnoff", "Cîroc Red Berry", "El Jimador Reposado", "Bulleit Bourbon", "Egg white", "Aquafaba", "Guinness", "Camden Off Menu IPA", "Kopparberg Mixed Fruit 0%", "Red Bull Sugarfree", "Coke Zero"])
+  for (const n of ["Jarritos Grapefruit", "Sprite", "Fanta Orange Zero", "Monin Salted Caramel", "Funkin peach purée", "Tomato juice", "Smirnoff", "Cîroc Red Berry", "El Jimador Reposado", "Bulleit Bourbon", "Egg white", "Aquafaba", "Guinness", "Camden Off Menu IPA", "Kopparberg Mixed Fruit 0%", "Red Bull Sugarfree", "Coke Zero"])
     assert.ok(shelf.includes(n), n);
   await p.click("[data-mk-pane=bt]");
   const cls = await p.evaluate(() => btClassics("all"));
