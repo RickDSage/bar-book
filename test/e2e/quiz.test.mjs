@@ -28,7 +28,7 @@ async function open() {
   await p.click("#w-ok");
   return p;
 }
-const practise = async (p) => { await p.click("nav.tabs [data-tab=drinks]"); await p.click("#subnav [data-tab=practice]"); };
+const practise = async (p) => { await p.click("nav.tabs [data-tab=info]"); await p.click("[data-go=practice]"); };
 const quizMode = async (p) => { await practise(p); await p.click('#pmode [data-pmode="quiz"]'); };
 // Answers the question on screen, right or wrong, then goes on.
 async function answer(p, right) {

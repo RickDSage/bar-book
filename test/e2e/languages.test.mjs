@@ -26,7 +26,7 @@ test("Polish on the welcome screen changes the app's words, numbers included, an
   assert.equal(await p.evaluate(() => document.documentElement.lang), "pl");
   assert.match(await text(p, "#welcome"), /Każdy nasz napój w Twojej kieszeni\./);
   await p.click("#w-ok");
-  assert.deepEqual(await tabs(p), ["Napoje", "Zmiana", "Zespół", "Wypłata", "Info"]);
+  assert.deepEqual(await tabs(p), ["Napoje", "Zmiana", "Zespół", "Wypłata", "Więcej"]);
   // A phrase with numbers in it is matched with the numbers taken out, and they go back where Polish puts them.
   const n = await p.evaluate(() => D.length);
   await p.waitForFunction((n) => document.querySelector("#count").textContent === `Napoje: ${n}`, n);
@@ -34,7 +34,7 @@ test("Polish on the welcome screen changes the app's words, numbers included, an
   await p.waitForFunction(() => document.querySelector("#pcard .score")?.textContent === "Dobrze: 0, do powtórki: 0");
   await p.reload();
   await p.click("#w-ok");
-  assert.deepEqual(await tabs(p), ["Napoje", "Zmiana", "Zespół", "Wypłata", "Info"]);
+  assert.deepEqual(await tabs(p), ["Napoje", "Zmiana", "Zespół", "Wypłata", "Więcej"]);
   assert.deepEqual(p.errs, []);
 });
 
@@ -67,7 +67,7 @@ test("Urdu reads right to left and fits the screen; English puts every word back
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 390, "nothing wider than the screen");
   await p.selectOption("#v-info select[data-lang]", "");
   assert.deepEqual(await p.evaluate(() => [document.documentElement.lang, document.documentElement.dir]), ["en-GB", "ltr"]);
-  assert.deepEqual(await tabs(p), ["Drinks", "Shift", "Team", "My pay", "Info"]);
+  assert.deepEqual(await tabs(p), ["Drinks", "Shift", "Team", "My pay", "More"]);
   assert.equal(await p.locator("[data-en-placeholder],[data-en-aria-label]").count(), 0, "no attribute left translated");
   assert.deepEqual(p.errs, []);
 });
@@ -102,10 +102,10 @@ test("dates, names in sentences and pop-ups are translated, and EN in the header
   // One tap back to English, one tap back to Polish.
   assert.equal(await text(p, "#lang-btn"), "EN");
   await p.click("#lang-btn");
-  assert.deepEqual(await tabs(p), ["Drinks", "Shift", "Team", "My pay", "Info"]);
+  assert.deepEqual(await tabs(p), ["Drinks", "Shift", "Team", "My pay", "More"]);
   assert.equal(await text(p, "#lang-btn"), "PL");
   await p.click("#lang-btn");
-  assert.deepEqual(await tabs(p), ["Napoje", "Zmiana", "Zespół", "Wypłata", "Info"]);
+  assert.deepEqual(await tabs(p), ["Napoje", "Zmiana", "Zespół", "Wypłata", "Więcej"]);
   assert.deepEqual(p.errs, []);
 });
 
