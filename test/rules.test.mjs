@@ -805,7 +805,7 @@ describe("the rota: managers draft a week and publish it; then every change says
     await fails(act("mgr1", "edited", { id, f: { start: "17:00" }, noEvent: true }), "a change with no event");
     for (const [why, event] of [["another act", { act: "took" }], ["another day", { sday: plusDays(mondayOf(today()), 6) }], ["another start", { start: "19:00" }], ["another person", { who: "Tia Staff" }],
       ["another offer", { offer: "Tia Staff" }], ["a cover reason", { cover: "Sick" }], ["another side", { area: "floor" }], ["another label", { label: "Saturday" }], ["no was", { was: null }],
-      ["another was", { was: { day: today(), start: "18:00", end: "02:00", side: "bar", who: "Sam Staff" } }], ["a note", { note: "Swapped" }], ["an extra field", { whoUid: "staff1" }],
+      ["another was", { was: { day: plusDays(mondayOf(today()), 4), start: "18:00", end: "02:00", side: "bar", who: "Sam Staff" } }], ["a note", { note: "Swapped" }], ["an extra field", { whoUid: "staff1" }],
       ["another night", { day: dayFromNow(-5) }], ["someone else's name", { name: "Max Manager" }], ["phone's clock", { at: Timestamp.now() }]]) {
       await fails(act("mgr1", "edited", { id, f: { start: "17:00" }, event }), why);
     }
@@ -1369,7 +1369,7 @@ describe("how was your shift", () => {
     }
     await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), pu("staff1", { day: dayFromNow(-3) })));
     await assertFails(setDoc(ref("staff1", "staff2"), pu("staff1")));
-    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-1)), pu("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", plusDays(today(), -1)), pu("staff1")));
     await assertFails(setDoc(ref("mgr1", "staff1"), pu("mgr1")));
   });
 });
@@ -1396,7 +1396,7 @@ describe("tonight's quiz", () => {
     }
     await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), qz("staff1", { day: dayFromNow(-3) })));
     await assertFails(setDoc(ref("staff1", "staff2"), qz("staff1")));
-    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-1)), qz("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", plusDays(today(), -1)), qz("staff1")));
     await assertFails(setDoc(ref("mgr1", "staff1"), qz("mgr1")));
     // A quiz started before 6am and finished after counts for the night it started.
     await assertSucceeds(setDoc(ref("staff1", "staff1", dayFromNow(-1)), qz("staff1", { day: dayFromNow(-1) })));
