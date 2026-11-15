@@ -92,7 +92,7 @@ const MK_CATS = [
     ["Passion fruit purée", "Passion fruit purée", "passion fruit puree"], ["Mango purée", "Mango purée", "mango puree"], ["Raspberry purée", "Raspberry purée", "raspberry puree"], ["Lychee juice", "Lychee juice", "lychee juice", "lychee syrup from the tin"]]],
   ["Mixers and fizz", null, [
     ["Soda water", "Soda", "soda", "club soda", "sparkling water"], ["Fever-Tree Indian Tonic", "Tonic", "indian tonic", "tonic", "tonic water"], ["Fever-Tree Light Tonic", "Tonic", "light tonic", "slimline tonic"],
-    ["Fever-Tree Ginger Ale", "Ginger ale", "ginger ale"], ["Fever-Tree Ginger Beer", "Ginger beer", "ginger beer"], ["Lemonade", "Lemonade", "house lemonade", "sprite", "7up"],
+    ["Fever-Tree Ginger Ale", "Ginger ale", "ginger ale"], ["Fever-Tree Ginger Beer", "Ginger beer", "ginger beer"], ["Lemonade", "Lemonade", "house lemonade", "7up"], ["Sprite", "Lemonade", "sprite zero"], ["Fanta Orange Zero", "Orange soda", "fanta", "fanta zero", "fanta orange", "orange soda"],
     ["Coca-Cola", "Cola", "cola", "coke", "coca cola"], ["Diet Coke", "Cola", "pepsi"], ["Coke Zero", "Cola", "coca cola zero", "zero sugar coke"], ["Red Bull", "Energy drink", "energy drink"], ["Red Bull Sugarfree", "Energy drink", "red bull sugar free", "sugar free red bull", "red bull zero"], ["Iced tea", "Iced tea", "house iced tea"], ["Water", "Water", "hot water"]]],
   ["Coffee", null, [["Fresh espresso", "Espresso", "espresso", "coffee"], ["Hot Americano", "Hot coffee", "americano", "filter coffee"]]],
   ["Fresh and garnish", null, [
@@ -273,7 +273,37 @@ const BT_LINEUP = [
     { k: "kopparberg mixed fruit", name: "Kopparberg Mixed Fruit", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "Fruit cider: blackcurrant and raspberry." },
     { k: "kopparberg mixed fruit 0", name: "Kopparberg Mixed Fruit (alcohol-free)", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "The alcohol-free one. Check the label before it goes out." },
   ]],
-  ["Softs and mixers", [
+  ["Juices, syrups and purées", [
+    { k: "orange juice", glass: "Highball, cubed ice, if served on its own", measure: "Fill the glass on its own; as the spec in drinks", note: "Screwdriver, Tequila Sunrise, Mimosa and Buck's Fizz." },
+    { k: "apple juice", glass: "Highball, cubed ice, if served on its own", measure: "Fill the glass on its own; as the spec in drinks", note: "Long with vodka, or the base of apple mocktails." },
+    { k: "cranberry juice", glass: "Highball, cubed ice, if served on its own", measure: "Fill the glass on its own; as the spec in drinks", note: "Cosmos, Sea Breeze, Woo Woo and Vodka Cranberry." },
+    { k: "tomato juice", glass: "Highball, cubed ice", measure: "As the spec", pour: "Roll it between tins rather than shaking, so it doesn't go frothy", note: "Bloody Mary and Virgin Mary." },
+    { k: "strawberry syrup", name: "Monin Strawberry syrup", note: "Strawberry drinks, mojitos and lemonades." },
+    { k: "monin vanilla", note: "Pornstars and vanilla sours." },
+    { k: "monin salted caramel", note: "Salted caramel drinks and espresso martinis." },
+    { k: "monin elderflower", note: "Elderflower spritzes, Hugo and fizzes." },
+    { k: "passion fruit syrup", name: "Monin Passion Fruit syrup", note: "Pornstars and passion fruit mojitos." },
+    { k: "giffard orgeat", note: "Almond syrup for Mai Tais and tiki drinks." },
+    { k: "funkin peach puree", name: "Funkin peach purée", note: "Bellinis and peach drinks." },
+    { k: "strawberry puree", name: "Funkin strawberry purée", note: "Strawberry daiquiris and margaritas." },
+    { k: "passion fruit puree", name: "Funkin passion fruit purée", note: "Pornstar Martini and passion fruit drinks." },
+    { k: "mango puree", name: "Funkin mango purée", note: "Mango martinis and margaritas." },
+    { k: "raspberry puree", name: "Funkin raspberry purée", note: "Raspberry mojitos and Clover Club style drinks." },
+  ]],
+  // The gun (postmix), 9 Nov 2026. A Fanta Fruit Twist Zero may be on it too: unconfirmed, so left off.
+  ["Postmix (gun)", [
+    { k: "coca cola", name: "Coke (gun)", glass: "Highball, cubed ice, lemon wedge", measure: "Fill the glass" },
+    { k: "diet coke", name: "Diet Coke (gun)", glass: "Highball, cubed ice, lemon wedge", measure: "Fill the glass" },
+    { k: "coke zero", name: "Coke Zero (gun)", glass: "Highball, cubed ice, lemon wedge", measure: "Fill the glass" },
+    { k: "sprite", name: "Sprite (gun)", measure: "Fill the glass" },
+    { k: "fanta orange zero", name: "Fanta Zero (gun)", measure: "Fill the glass", note: "Orange, no sugar." },
+    { k: "lemonade", name: "Lemonade (gun)", note: "For vodka lemonades, top-ups and shandies." },
+    { k: "soda water", name: "Soda water (gun)", note: "Spritzes, highballs and Lime & Soda." },
+    { k: "fever tree indian tonic", name: "Tonic (gun)", note: "The gun tonic. Fever-Tree bottles are for the perfect serves or when asked." },
+    { k: "fever tree ginger ale", name: "Ginger ale (gun)", note: "Softer and sweeter: whiskey and ginger." },
+    { k: "fever tree ginger beer", name: "Ginger beer (gun)", note: "Spicier: mules and spiced rum and ginger." },
+  ]],
+  ["Bottled softs and mixers", [
     { k: "coca cola", name: "Coca-Cola (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "Leave the bottle with the guest if there's some left." },
     { k: "diet coke", name: "Diet Coke (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "" },
     { k: "coke zero", name: "Coke Zero (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "Zero sugar." },
@@ -281,11 +311,13 @@ const BT_LINEUP = [
     { k: "red bull sugarfree", name: "Red Bull Sugarfree (can)", glass: "Highball, cubed ice", measure: "250 ml can", pour: "Serve the can with the glass of ice", note: "No sugar. Check the can before it goes out." },
     { k: "fever tree indian tonic", glass: "Highball or wine glass, as the serve", measure: "Top up, or the whole bottle on the side", note: "The tonic for the G&T." },
     { k: "fever tree light tonic", glass: "Highball or wine glass, as the serve", measure: "Top up, or the whole bottle on the side", note: "Fewer calories than Indian tonic." },
-    { k: "fever tree ginger ale", measure: "Top up", note: "Softer and sweeter than ginger beer: whiskey and ginger." },
-    { k: "fever tree ginger beer", measure: "Top up", note: "Spicier: Moscow Mule and spiced rum and ginger." },
+    { k: "fever tree ginger ale", measure: "Top up, or the whole bottle on the side", note: "Softer and sweeter than ginger beer: whiskey and ginger." },
+    { k: "fever tree ginger beer", measure: "Top up, or the whole bottle on the side", note: "Spicier: Moscow Mule and spiced rum and ginger." },
   ]],
 ];
-const BT_DEF = { Spirits: BT_SPIRIT, Foam: {}, Draught: BT_DRAUGHT, "Bottles and cans": {}, "Softs and mixers": BT_SOFT };
+const BT_GUN = { glass: "Highball, cubed ice", measure: "Top up", pour: "Ice first. Hold the gun just above the glass, not in the ice, and pour down the side" };
+const BT_MIX = { glass: "As the drink", measure: "As the spec, measured with the jigger", pour: "Shake purées before use. Opened cartons and purées go back in the fridge, used by the date on the label" };
+const BT_DEF = { Spirits: BT_SPIRIT, Foam: {}, Draught: BT_DRAUGHT, "Bottles and cans": {}, "Juices, syrups and purées": BT_MIX, "Postmix (gun)": BT_GUN, "Bottled softs and mixers": BT_SOFT };
 const BT = BT_LINEUP.flatMap(([grp, list]) => list.map((x) => {
   const it = MK.byKey.get(x.k); if (!it) throw new Error("Line-up item not in the maker list: " + x.k);
   return { ...BT_DEF[grp], ...x, grp, name: x.name || it.n };
