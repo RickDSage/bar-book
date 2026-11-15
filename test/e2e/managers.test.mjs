@@ -2,7 +2,7 @@
 // report reviews and anonymous feedback, and what each role can see and decide.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, ukDay, part } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, ukDay, part, handOver } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -84,8 +84,8 @@ test("incidents are for managers' eyes and close with what was done", async () =
 test("managers review reports and leave each other anonymous feedback", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
-  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
-  await S.evaluate(() => setMode("floor")); await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
+  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=send]"); await handOver(S);
+  await S.evaluate(() => setMode("floor")); await S.click(".ptabs [data-pane=send]"); await handOver(S);
   await O.waitForFunction(() => LIVE.reports.length === 2 && !LIVE.reports.some((r) => r.pending));
   await part(O, "reports");
   await O.click("[data-rv][data-v=flag] >> nth=0");

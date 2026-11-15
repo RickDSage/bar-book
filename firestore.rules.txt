@@ -275,23 +275,20 @@ service cloud.firestore {
     function givenTo(t, from) {
       return isManager() && from in ['todo', 'doing', 'blocked'] && t.whoUid != was('whoUid', null) && teammate(t.who, t.whoUid);
     }
-    // Where a task can go from where it is. Blocked and Not needed need a reason, and so does reopening a done task,
-    // unless whoever did it takes it back within 5 minutes (a mis-tap). Only managers mark a task not needed.
+    // Where a task can go from where it is. Blocked and Not needed need a reason, and only managers mark a task not
+    // needed. Anyone on the team can take a task back to not started (a mis-tap, or clearing a list to start again):
+    // the event still says who and when.
     function taskMove(from, to, note) {
-      let mine = was('uid', '') == request.auth.uid;
       return (to == 'doing' && from in ['todo', 'blocked'])
         || (to == 'done' && from in ['todo', 'doing', 'blocked'])
         || (to == 'blocked' && from in ['todo', 'doing'] && reqText(note, 200))
         || (to == 'cancelled' && from in ['todo', 'doing', 'blocked'] && isManager() && reqText(note, 200))
-        || (to == 'todo' && from == 'blocked')
-        || (to == 'todo' && from == 'doing' && (mine || isManager()))
-        || (to == 'todo' && from == 'done' && (mine || isManager())
-          && (reqText(note, 200) || (mine && request.time < resource.data.at + duration.value(5, 'm'))))
+        || (to == 'todo' && from in ['blocked', 'doing', 'done'])
         || (to == 'todo' && from == 'cancelled' && isManager());
     }
 
     // One record per list per night: started, then finished. Finishing with tasks left needs a manager and a reason
-    // (an override), and so does reopening. done and required are counted by the phone that finishes it: the rules
+    // (an override). Anyone can reopen a finished list, with a reason (Cleared, when a list is cleared). done and required are counted by the phone that finishes it: the rules
     // can't count the tasks, so the tasks and their events stay the record of what was done.
     match /shift/{day}/runs/{list} {
       allow read: if isMember();
@@ -307,7 +304,7 @@ service cloud.firestore {
         && r.done is int && r.required is int && r.done >= 0 && r.done <= r.required && r.required <= 60
         && ((r.status == 'started' && from == 'todo')
           || (r.status == 'finished' && from in ['todo', 'started'] && (r.done == r.required || (isManager() && reqText(r.note, 300))))
-          || (r.status == 'started' && from == 'finished' && isManager() && reqText(r.note, 300)));
+          || (r.status == 'started' && from == 'finished' && reqText(r.note, 300)));
     }
 
     // ---------- The lists themselves ----------

@@ -3,7 +3,7 @@
 // can't overwrite each other without knowing, and the closing manager is picked from the team's logins.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, phone, team, toastOf, attempt, part } from "./helpers.mjs";
+import { serve, resetEmulators, launch, phone, team, toastOf, attempt, part, handOver } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -52,15 +52,14 @@ test("the kitchen has its own opening and closing lists, restocking, report and 
   await M.waitForFunction(() => LIVE.restock[0]?.dest === "kitchen" && !LIVE.restock[0].pending);
   assert.equal(await M.evaluate(() => LIVE.events.find((e) => e.kind === "restock").area), "kitchen");
 
-  // The closing manager is one of the team's managers or the owner, never someone on staff.
+  // Closed by: tap the first names of whoever closed (this side's team first), several if need be.
   await S.click(".ptabs [data-pane=send]");
-  await S.waitForSelector('[data-closer="Mia Manager"]');
-  assert.deepEqual((await S.$$eval("[data-closer]", (x) => x.map((b) => b.dataset.closer))).sort(), ["Mia Manager", "Olly Owner"]);
-  await S.click('[data-closer="Mia Manager"]');
-  assert.match(await S.$eval("#t-text", (e) => e.value), /^Black Tap Soho kitchen shift, [\s\S]*Closing manager: Mia Manager\n\nKitchen opening: 1 of 14 done[\s\S]*Kitchen closing: 0 of 15 done/);
-  await S.click("#t-copy");
+  await S.waitForSelector('[data-closer="Angel"]');
+  await S.click('[data-closer="Angel"]'); await S.click('[data-closer="Kadir"]');
+  assert.match(await S.evaluate(() => tallyText()), /^Black Tap Soho kitchen shift, [\s\S]*\n\nKitchen opening: 1 of 14 done[\s\S]*Kitchen closing: 0 of 15 done[\s\S]*\n\nClosed by: Angel, Kadir$/);
+  await handOver(S);
   await O.waitForFunction(() => LIVE.reports[0]?.side === "kitchen" && !LIVE.reports[0].pending);
-  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Kitchen · Opening 1\/14 · Closing 0\/15 · 0 86'd · Closing manager Mia Manager$/);
+  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Kitchen · Opening 1\/14 · Closing 0\/15 · 0 86'd · Closed by Angel, Kadir$/);
   await part(M, "reports");
   await M.waitForFunction(() => /Kitchen · Sam Staff/.test(document.querySelector("#reports").innerText));
   assert.match(flat(await M.$eval("#reports", (e) => e.innerText)), /Kitchen · Sam Staff Waiting \d\d:\d\d · Opening 1\/14 · Closing 0\/15/);
