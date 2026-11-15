@@ -31,7 +31,7 @@ test("every feature, what it's for and what each person can do with it, with sho
   await openFeatures(S);
   assert.match(flat(await S.$eval("#feat", (e) => e.innerText)), /^WHAT'S IN BAR BOOK The drinks, the shift and the team in one app\. .* You're staff: what you can do is under You\. .* Take the tour \(14 steps\) DRINKS /);
   assert.equal(await S.$$eval("[data-feat]", (x) => x.length), 43);
-  assert.match(await card(S, "fresh"), /^Clear everything At the bottom of Info: wipe everything the app keeps on your phone, .* You: Type CLEAR to wipe this phone and log out\. Managers: The same, and the owner downloads what to keep, ticks what goes .* Open it$/);
+  assert.match(await card(S, "fresh"), /^Start fresh Managers only A clean start for everyone once the venue has finished trying the app out: .* Managers: The owner downloads what to keep, sees what it would clear, then types their PIN to clear it for everyone\.$/);
   assert.match(await card(S, "lists"), /^Checklists Opening and closing .* You: Tick items off, start one, or mark one blocked and say why\. Managers: The same, and give an item to someone and change what's on each list\. Open it$/);
   assert.match(await card(S, "live"), /^Live Managers only Tonight as it happens: .* Managers: Share tonight's summary on WhatsApp or by email\.$/);
   assert.equal(await S.$$eval("[data-feat-sw]", (x) => x.length), 0, "only the owner gets switches");

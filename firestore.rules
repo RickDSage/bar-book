@@ -23,7 +23,7 @@ service cloud.firestore {
     function isMember() { return signedIn() && profile() != null; }
     function isManager() { return isMember() && profile().data.role in ['manager', 'owner']; }
     function isOwner() { return isMember() && profile().data.role == 'owner'; }
-    // Clear everything (see resets below): the owner within 15 minutes of typing their PIN, and only once this sign-in has
+    // Start fresh (see resets below): the owner within 15 minutes of typing their PIN, and only once this sign-in has
     // recorded that it's starting fresh, so nothing is ever deleted without everyone seeing a record of it.
     function recentOwner() { return isOwner() && request.time.toMillis() < request.auth.token.auth_time * 1000 + 15 * 60 * 1000; }
     function resetId() { return request.auth.uid + '-' + string(request.auth.token.auth_time); }
@@ -193,7 +193,7 @@ service cloud.firestore {
 
     // ---------- Shift reports and closing photos ----------
     // A report is sent once, with its photos attached in the same write, then signed off once by a manager.
-    // Nobody can edit a report from the app, or delete one except when the owner clears everything.
+    // Nobody can edit a report from the app, or delete one except when the owner starts fresh.
     match /reports/{id} {
       allow read: if isMember();
       allow create: if isMember() && exactly(['side', 'text', 'summary', 'photos', 'uid', 'name', 'at'])
@@ -255,7 +255,7 @@ service cloud.firestore {
     // the item's id in its list, which stays with it when a manager changes the list (see lists below). Each
     // change raises v by one and writes events/t-{day}-{list}-{item}-{v} in the same batch, so a change can't happen
     // without its event, an event can't be made up, and a phone working from an old copy (two people at once, or a late
-    // sync) is refused instead of overwriting the newer change. Nobody deletes a task, except when the owner clears everything.
+    // sync) is refused instead of overwriting the newer change. Nobody deletes a task, except when the owner starts fresh.
     match /shift/{day}/tasks/{id} {
       allow read: if isMember();
       allow create, update: if isMember() && nearNow(day) && stamped() && validTask(day, id)
@@ -351,7 +351,7 @@ service cloud.firestore {
         && notOpen(incoming()) && existsAfter(eventDoc('l-' + id + '-1'));
       allow update: if isMember() && stamped() && validLabel() && incoming().v == resource.data.v + 1 && labelMove()
         && existsAfter(eventDoc('l-' + id + '-' + string(incoming().v)));
-      allow delete: if freshOwner() || (isManager() && existsAfter(eventDoc('l-' + id + '-' + string(resource.data.v + 1))));
+      allow delete: if isManager() && existsAfter(eventDoc('l-' + id + '-' + string(resource.data.v + 1)));
     }
     function validLabel() {
       let l = incoming();
@@ -435,11 +435,11 @@ service cloud.firestore {
     // restock, the item, amount and place; for a label, what was done and its dates; for a shift, what was done, its day,
     // times and people, and its day, times and person before). Nobody edits an event, the owner included: a correction is
     // a new change with its own event. Ids carry the record's version, so a retried or repeated write can't add a second
-    // event for the same change. They're deleted only when the owner clears everything, with what they record, and a date
+    // event for the same change. They're deleted only when the owner starts fresh, with what they record, and a date
     // label's stay with the label.
     match /events/{id} {
       allow read: if isMember();
-      allow delete: if freshOwner();
+      allow delete: if freshOwner() && resource.data.kind != 'label';
       allow create: if isMember() && stamped() && nearNow(incoming().day) && reqText(incoming().label, 200) && optText(incoming().note, 300)
         && (incoming().kind == 'task' ? taskEvent(id) : incoming().kind == 'run' ? runEvent(id) : incoming().kind == 'restock' ? restockEvent(id)
           : incoming().kind == 'label' ? labelEvent(id) : incoming().kind == 'shift' && shiftEvent(id));
@@ -514,19 +514,15 @@ service cloud.firestore {
 
     // ---------- Old records: waste and due diligence ----------
     // Kept read-only as the venue's record since 25 Oct 2026. Temperatures and line cleans are logged in Alert65 and
-    // waste in Nory now, so nothing new is written here and nothing is edited. Managers download them. Only Clear
-    // everything deletes them, when the owner ticks the records the law may expect kept.
+    // waste in Nory now, so nothing new is written here and nothing is edited or deleted. Managers download them.
     match /waste/{id} {
       allow read: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
-      allow delete: if freshOwner();
     }
     match /kit/{id} {
       allow read: if isMember();
-      allow delete: if freshOwner();
     }
     match /safety/{id} {
       allow read: if isMember();
-      allow delete: if freshOwner();
     }
 
     // ---------- 86 board ----------
@@ -534,7 +530,7 @@ service cloud.firestore {
     // rules check they match: an 86 creates out/{item} pointing at its new log entry; back in stock deletes it
     // and adds the entry {that log id}-back. So the board and its history can't drift apart, the same item
     // can't be 86'd twice, and nothing comes back that wasn't out. Log entries can never be edited, or deleted except
-    // with the board when the owner clears everything.
+    // with the board when the owner starts fresh.
     function outDoc(item) { return /databases/$(database)/documents/out/$(item); }
     function logDoc(id) { return /databases/$(database)/documents/outlog/$(id); }
     match /out/{item} {
@@ -590,11 +586,9 @@ service cloud.firestore {
     // then, so its order list can still be worked out from the download.
     match /pars/{id} {
       allow read: if isManager();
-      allow delete: if freshOwner();
     }
     match /counts/{id} {
       allow read: if isManager();
-      allow delete: if freshOwner();
     }
 
     // ---------- Running late, time off and shift swaps ----------
@@ -652,7 +646,7 @@ service cloud.firestore {
     // follow-up answers. A no on food safety, equipment or security also raises an urgent issue, id h-{day}-{question},
     // in the same write, so the whole team sees it until someone fixes it and it can't be closed away. A no on cash
     // stays among the managers. risks counts the no answers on those four. Once sent it can't be changed or deleted
-    // (except by Clear everything); the next manager accepts it once, saying what they'll do about any risks.
+    // (except by Start fresh); the next manager accepts it once, saying what they'll do about any risks.
     function hoQs() { return ['sales', 'cash', 'voids', 'tips', 'breaks', 'incidents', 'complaints', 'depts', 'food', 'faults', 'security', 'ready']; }
     function hoNo(a, q) { return a[q] == 'no' ? 1 : 0; }
     function hoIssue(day, q) { return existsAfter(/databases/$(database)/documents/issues/$('h-' + day + '-' + q)); }
@@ -776,19 +770,19 @@ service cloud.firestore {
       allow delete: if freshOwner();
     }
 
-    // ---------- Clear everything ----------
-    // The owner's Clear everything (on Info) clears the team's data for everyone, in groups they tick: the shift work
-    // (the rota, asks, shift reports with their photos and reviews, the checklists and their events, restocking, the 86
-    // board and its log, handovers, briefings, guest issues, issues, concerns, broadcasts, the old board and stock
-    // requests), team records, chats, date labels and drink media, and the records the law may expect kept. Accounts,
-    // the audit trail, lists, settings and these records always stay. It needs the owner's PIN in the last 15 minutes,
-    // and each time is recorded here first, under the owner's uid and the time they signed in, with how many of each it
-    // found: the deletes check for that record (freshOwner). A record can't be changed or deleted. Every phone watches
-    // the latest, so its copies of what went are dropped.
+    // ---------- Starting fresh ----------
+    // The owner's Start fresh (Managers, Team) clears the shift work for everyone, for a clean start after trying the app
+    // out: the rota, asks, shift reports with their photos and reviews, the checklists and their events, restocking, the
+    // 86 board and its log, manager handovers, briefings and who read them, guest issues, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
+    // Accounts, the audit trail, lists, date labels, drink media, the calendar, games, incidents, training, feedback,
+    // chats and the old records stay. It needs the owner's PIN in the last 15 minutes, and each time is recorded here
+    // first, under the owner's uid and the time they signed in, with how many of each it found: the deletes check for
+    // that record (freshOwner). A record can't be changed or deleted. Every phone watches the latest, so its copies of
+    // what went are dropped.
     match /resets/{id} {
       allow read: if isMember();
       allow create: if recentOwner() && id == resetId() && exactly(['counts', 'total', 'uid', 'name', 'at']) && stamped()
-        && incoming().counts is map && incoming().counts.size() <= 60 && incoming().total is int && incoming().total >= 0;
+        && incoming().counts is map && incoming().counts.size() <= 30 && incoming().total is int && incoming().total >= 0;
     }
 
     // ---------- Calendar ----------
@@ -954,7 +948,6 @@ service cloud.firestore {
         && avDay(incoming().days[0]) && avDay(incoming().days[1]) && avDay(incoming().days[2]) && avDay(incoming().days[3])
         && avDay(incoming().days[4]) && avDay(incoming().days[5]) && avDay(incoming().days[6])
         && optText(incoming().note, 120);
-      allow delete: if freshOwner();
     }
 
     // ---------- Shout-outs ----------
@@ -970,7 +963,7 @@ service cloud.firestore {
 
     // ---------- How was your shift ----------
     // One answer per person per business night, id = {day}-{uid}: a score from 1 (rough) to 5 (great) and a few words.
-    // They can change it that night. Managers read everyone's; each person their own. Only Clear everything deletes them.
+    // They can change it that night. Managers read everyone's; each person their own. Only Start fresh deletes them.
     match /pulse/{id} {
       allow get: if isMember() && (isManager() || id.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}-' + request.auth.uid));
       allow list: if isManager();
@@ -984,7 +977,7 @@ service cloud.firestore {
     // One result per person per business night, id = {day}-{uid}: which of the night's 10 questions they got right at
     // their first go, "1" or "0" for each in turn (right). The app makes the questions from the date, so it can tell
     // managers which ones the team got wrong. Only that first write is allowed, so a second go or another phone can't
-    // replace it. Managers read everyone's; each person their own. Only Clear everything deletes them.
+    // replace it. Managers read everyone's; each person their own. Only Start fresh deletes them.
     match /quiz/{id} {
       allow get: if isMember() && (isManager() || id.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}-' + request.auth.uid));
       allow list: if isManager();
@@ -1098,8 +1091,6 @@ service cloud.firestore {
     // Three kinds of chat: the team chat (id team, everyone on the team is in it), private chats between two people (one
     // per pair, named after both uids in order) and groups (anyone starts one, with a name and who's in it). Only the
     // people in a private chat or a group can read it: managers and the owner can't read other people's chats in the app.
-    // The one exception is Clear everything with chats ticked: the owner's phone lists them only to delete them, after
-    // the record everyone sees.
     // A chat keeps a preview of its latest message (with who it pinged), written in the same batch as the message, and
     // read {uid: time}, when each person last read it, which is how a phone shows what's unread.
     function chatDoc(id) { return /databases/$(database)/documents/chats/$(id); }
@@ -1114,8 +1105,7 @@ service cloud.firestore {
       // Asking for the team chat before anyone has made it is allowed (there's nothing to see). A list must ask only for
       // chats the caller is in.
       allow get: if isMember() && (resource == null || inChat(resource.data));
-      allow list: if freshOwner() || (isMember() && request.auth.uid in resource.data.members);
-      allow delete: if freshOwner();
+      allow list: if isMember() && request.auth.uid in resource.data.members;
       allow create: if isMember() && newChat(id);
       allow update: if isMember() && inChat(resource.data) && (
         (changesOnly(['read']) && readNow(incoming()))
@@ -1157,7 +1147,7 @@ service cloud.firestore {
     // Messages can't be edited. Whoever sent one can unsend it, and its photo goes with it. Up to five people are pinged
     // (mentioned) per message, and they must be in the chat; in a private chat the other person is pinged every time.
     match /chats/{chat}/msgs/{id} {
-      allow read: if freshOwner() || (isMember() && inChat(get(chatDoc(chat)).data));
+      allow read: if isMember() && inChat(get(chatDoc(chat)).data);
       allow create: if isMember() && autoId(id) && stamped() && exactly(['text', 'photo', 'mentions', 'uid', 'name', 'at'])
         && optText(incoming().text, 1000) && incoming().photo is bool && (incoming().photo || incoming().text.trim().size() > 0)
         && incoming().mentions is list && incoming().mentions.size() <= 5 && !(request.auth.uid in incoming().mentions)
@@ -1165,13 +1155,13 @@ service cloud.firestore {
         && (get(chatDoc(chat)).data.kind == 'team' || incoming().mentions.hasOnly(get(chatDoc(chat)).data.members))
         && getAfter(chatDoc(chat)).data.lastId == id
         && (!incoming().photo || existsAfter(chatPhotoDoc(chat + '-' + id)));
-      allow delete: if freshOwner() || (isMember() && resource.data.uid == request.auth.uid
-        && (!resource.data.photo || !existsAfter(chatPhotoDoc(chat + '-' + id))));
+      allow delete: if isMember() && resource.data.uid == request.auth.uid
+        && (!resource.data.photo || !existsAfter(chatPhotoDoc(chat + '-' + id)));
     }
     // A message's photo, kept apart so the chat loads quickly, added only in the write that sends its message. Readable by
     // the people in that chat. day is the business day it was sent: the sender's phone clears their own after 30 days.
     match /chatPhotos/{id} {
-      allow read: if freshOwner() || (isMember() && (resource.data.uid == request.auth.uid || inChat(get(chatDoc(resource.data.chat)).data)));
+      allow read: if isMember() && (resource.data.uid == request.auth.uid || inChat(get(chatDoc(resource.data.chat)).data));
       allow create: if isMember() && stamped() && exactly(['chat', 'msg', 'day', 'data', 'uid', 'name', 'at'])
         && incoming().chat is string && incoming().msg is string && id == incoming().chat + '-' + incoming().msg
         && getAfter(msgDoc(incoming().chat, incoming().msg)).data.uid == request.auth.uid
@@ -1180,12 +1170,12 @@ service cloud.firestore {
         && nearNow(incoming().day) && incoming().data is string && incoming().data.size() <= 700000
         && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+');
       // (Unsending a message names its photo even if it was already cleared; deleting nothing is allowed.)
-      allow delete: if freshOwner() || (isMember() && (resource == null || resource.data.uid == request.auth.uid));
+      allow delete: if isMember() && (resource == null || resource.data.uid == request.auth.uid);
     }
     // Pings: one record per person per chat, {to}-{chat}, pointing at the latest message that pinged them, written in the
     // same batch as that message. Only the person pinged reads it, and their phone deletes it once they've read the chat.
     match /pings/{id} {
-      allow read, delete: if freshOwner() || (isMember() && resource.data.to == request.auth.uid);
+      allow read, delete: if isMember() && resource.data.to == request.auth.uid;
       allow create, update: if isMember() && stamped() && exactly(['to', 'chat', 'msg', 'text', 'uid', 'name', 'at'])
         && incoming().to is string && incoming().chat is string && incoming().msg is string
         && id == incoming().to + '-' + incoming().chat && optText(incoming().text, 200)

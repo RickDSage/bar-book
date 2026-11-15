@@ -296,44 +296,33 @@ async function clearOldPhotos() {
   }
 }
 
-// Clear everything (the owner, on Info) clears the team's data for everyone, in groups the owner ticks: the shift work
-// (each collection in FRESH, and every business day's checklists under shift/{day} since the app began), team records,
-// chats, the set-up and the records the law may expect kept. Logins, the audit trail, lists and settings always stay.
-// The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh with the PIN, on a
-// copy of Firebase of its own, and clears through that. It records what it found first.
+// Start fresh (the owner, Managers > Team) clears the shift work for everyone, for a clean start after trying the app
+// out: each collection in FRESH, and every business day's checklists under shift/{day} since the app began. Concerns go
+// before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
+// with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
 const FRESH = ["shifts", "asks", "reports", "handovers", "nights", "status", "blocks", "briefReads", "briefings", "guests", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
-  "notices", "seen", "feed", "requests", "teststaff", "shouts", "pulse", "quiz", "checklists"];
-// Chats can't be counted before the PIN (the owner isn't in other people's chats), so they're counted as they go.
-const CLEAR = { work: FRESH, team: ["calendar", "fixtures", "training", "onboard", "certs", "avail", "ratings"], chats: [],
-  setup: ["labels", "labelEvents", "drinkMedia"], records: ["incidents", "refusals", "waste", "kit", "safety", "pars", "counts"] };
+  "notices", "seen", "feed", "requests", "teststaff", "shouts", "pulse", "quiz"];
 const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
-// A date label's events are cleared with the labels, the rest with the shift work.
-const freshQuery = (d, k) => (k === "events" ? query(collection(d, k), where("kind", "in", ["task", "run", "restock", "shift"]))
-  : k === "labelEvents" ? query(collection(d, "events"), where("kind", "==", "label")) : collection(d, k));
+// A date label's events stay with the label.
+const freshQuery = (d, k) => (k === "events" ? query(collection(d, k), where("kind", "in", ["task", "run", "restock", "shift"])) : collection(d, k));
 const freshDays = () => { const out = []; for (let day = FIRST_DAY; day <= addDays(shiftDay(), 1); day = addDays(day, 1)) out.push(day); return out; };
-const dayParts = (d) => freshDays().flatMap((day) => DAY_PARTS.map((p) => collection(d, "shift", day, p)));
-const countOf = async (q) => (await getCountFromServer(q)).data().count;
-const sum = (xs) => xs.reduce((a, b) => a + b, 0);
-// How many there are of each kind in these groups, and in all: { counts: { shifts: 12, …, checklists: 340 }, total }.
-async function freshCounts(groups = Object.keys(CLEAR), d = db) {
-  const kinds = groups.flatMap((g) => CLEAR[g]);
-  const counts = Object.fromEntries(await Promise.all(kinds.map(async (k) => [k, k === "checklists" ? sum(await Promise.all(dayParts(d).map(countOf))) : await countOf(freshQuery(d, k))])));
-  return { counts, total: sum(Object.values(counts)) };
+// How many there are of each, and in all: { counts: { shifts: 12, …, checklists: 340 }, total }.
+async function freshCounts(d = db) {
+  const n = async (q) => (await getCountFromServer(q)).data().count;
+  const counts = Object.fromEntries(await Promise.all(FRESH.map(async (k) => [k, await n(freshQuery(d, k))])));
+  counts.checklists = (await Promise.all(freshDays().flatMap((day) => DAY_PARTS.map((p) => n(collection(d, "shift", day, p)))))).reduce((a, b) => a + b, 0);
+  return { counts, total: Object.values(counts).reduce((a, b) => a + b, 0) };
 }
-async function startFresh(pin, groups, progress) {
+async function startFresh(pin, progress) {
   const app2 = initializeApp(__CONFIG__, `fresh-${Date.now()}`), a2 = initializeAuth(app2, { persistence: inMemoryPersistence }), d2 = initializeFirestore(app2, {});
   if (__EMU__) { connectAuthEmulator(a2, "http://127.0.0.1:9099", { disableWarnings: true }); connectFirestoreEmulator(d2, "127.0.0.1", 8080); }
   try {
     await signInWithEmailAndPassword(a2, auth.currentUser.email, pin).catch((e) => {
       throw Object.assign(new Error(e.code === "auth/too-many-requests" ? "Too many wrong PINs. Wait a few minutes and try again." : "That PIN isn't right."), { code: "fresh/pin" });
     });
-    const found = await freshCounts(groups, d2), uid = a2.currentUser.uid, t = (await a2.currentUser.getIdTokenResult()).claims.auth_time;
-    const counts = Object.fromEntries(Object.entries(found.counts).filter(([, n]) => n));
+    const { counts, total } = await freshCounts(d2), uid = a2.currentUser.uid, t = (await a2.currentUser.getIdTokenResult()).claims.auth_time;
     // The record goes first, under this sign-in: the rules check for it on every delete.
-    await setDoc(doc(d2, "resets", `${uid}-${t}`), { counts, total: found.total, uid, name: LIVE.me, at: serverTimestamp() });
-    const chats = groups.includes("chats") ? (await getDocsFromServer(collection(d2, "chats"))).docs : [];
-    const chatQs = [...chats.map((c) => collection(d2, "chats", c.id, "msgs")), collection(d2, "chatPhotos"), collection(d2, "pings")];
-    const total = found.total + (chats.length ? chats.length + sum(await Promise.all(chatQs.map(countOf))) : 0);
+    await setDoc(doc(d2, "resets", `${uid}-${t}`), { counts, total, uid, name: LIVE.me, at: serverTimestamp() });
     let done = 0;
     progress(0, total);
     // A hundred read at a time, deleted five at a time: each delete is checked against the owner's staff record and the
@@ -347,11 +336,8 @@ async function startFresh(pin, groups, progress) {
         }
       }
     };
-    for (const k of groups.flatMap((g) => CLEAR[g])) {
-      if (k === "checklists") { for (const q of dayParts(d2)) await clear(q); } else await clear(freshQuery(d2, k));
-    }
-    // Each chat's messages, then the photos and pings, then the chats themselves.
-    if (chats.length) { for (const q of chatQs) await clear(q); await clear(collection(d2, "chats")); }
+    for (const k of FRESH) await clear(freshQuery(d2, k));
+    for (const day of freshDays()) for (const p of DAY_PARTS) await clear(collection(d2, "shift", day, p));
     return done;
   } finally {
     await terminate(d2).catch(() => {});
@@ -719,8 +705,8 @@ LIVE.api = {
   olderThan: (name, before, n) => getDocs(query(collection(db, name), where("at", "<", before), orderBy("at", "desc"), limit(n))).then(rows),
   // The owner's list of features switched off for everyone here.
   setOff: (off) => setDoc(doc(db, "settings", "features"), { off, ...me() }),
-  // The owner's Clear everything: what it would clear, and clearing it (with the PIN typed again).
-  CLEAR, freshCounts: (groups) => freshCounts(groups), startFresh,
+  // The owner's Start fresh: what it would clear, and clearing it (with the PIN typed again).
+  freshCounts: () => freshCounts(), startFresh,
   // Managers' reviews of up to 30 reports, the most one "in" query takes.
   reviewsOf: (ids) => (ids.length ? getDocs(query(collection(db, "reviews"), where("report", "in", ids))).then(rows) : Promise.resolve([])),
   // Checklist ticks from before tasks (24 and 25 October 2026), for the given business days.
