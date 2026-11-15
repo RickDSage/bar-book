@@ -150,8 +150,8 @@ service cloud.firestore {
     }
     function reportDoc(id) { return /databases/$(database)/documents/reports/$(id); }
     match /photos/{id} {
-      // Your own drafts and photos on a sent report.
-      allow read: if isMember() && (resource.data.uid == request.auth.uid || resource.data.report != null);
+      // Your own drafts and photos on a sent report. The owner and the manager read them all, to clear old ones.
+      allow read: if isMember() && (resource.data.uid == request.auth.uid || resource.data.report != null || isManager());
       allow create: if isMember() && exactly(['data', 'note', 'report', 'uid', 'name', 'at'])
         && incoming().data is string && incoming().data.size() <= 700000
         && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+')
@@ -163,9 +163,9 @@ service cloud.firestore {
           || (changesOnly(['report']) && autoId(incoming().report)
               && getAfter(reportDoc(incoming().report)).data.uid == request.auth.uid
               && getAfter(reportDoc(incoming().report)).data.at == request.time));
-      // Drafts can be binned by whoever took them. Any phone on the team clears photos over 30 days old (to stay free).
+      // Drafts can be binned by whoever took them. The owner's or the manager's phone clears photos over 30 days old (to stay free).
       allow delete: if isMember() && ((resource.data.uid == request.auth.uid && resource.data.report == null)
-        || resource.data.at < request.time - duration.value(30, 'd'));
+        || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
     }
 
     // ---------- Tonight's checklists: tasks and procedures ----------
@@ -211,9 +211,9 @@ service cloud.firestore {
         && ((t.status == from && givenTo(t, from))
           || (t.status != from && t.who == was('who', null) && t.whoUid == was('whoUid', null) && taskMove(from, t.status, t.note)));
     }
-    // Anyone gives a task to someone, or takes it off them, without changing where it's up to.
+    // The manager gives a task to someone, or takes it off them, without changing where it's up to.
     function givenTo(t, from) {
-      return isMember() && from in ['todo', 'doing', 'blocked'] && t.whoUid != was('whoUid', null) && teammate(t.who, t.whoUid);
+      return isManager() && from in ['todo', 'doing', 'blocked'] && t.whoUid != was('whoUid', null) && teammate(t.who, t.whoUid);
     }
     // Where a task can go from where it is. Blocked and Not needed need a reason, and only managers mark a task not
     // needed. Anyone on the team can take a task back to not started (a mis-tap, or clearing a list to start again):
@@ -275,7 +275,7 @@ service cloud.firestore {
 
     // ---------- Date labels for open items ----------
     // One record per thing a side dates once it's opened (a juice, a sauce, a cake): what it is, its side, how many days
-    // it keeps once opened, whether it needs a label (on), and where it's up to. Anyone on the team adds, changes and removes them.
+    // it keeps once opened, whether it needs a label (on), and where it's up to. The manager adds, changes and removes them.
     // Anyone on the team opens one (today, with the use-by date its life gives it, or an earlier one when the pack's own
     // date comes first), changes one (the old one binned and a new one opened and labelled) or bins one (used up or
     // thrown away, with no new one opened). Each change raises v and writes events/l-{id}-{v} in the same batch, so every
@@ -283,11 +283,11 @@ service cloud.firestore {
     function labelDoc(id) { return /databases/$(database)/documents/labels/$(id); }
     match /labels/{id} {
       allow read: if isMember();
-      allow create: if isMember() && autoId(id) && stamped() && validLabel() && incoming().v == 1 && incoming().act == 'added'
+      allow create: if isManager() && autoId(id) && stamped() && validLabel() && incoming().v == 1 && incoming().act == 'added'
         && notOpen(incoming()) && existsAfter(eventDoc('l-' + id + '-1'));
       allow update: if isMember() && stamped() && validLabel() && incoming().v == resource.data.v + 1 && labelMove()
         && existsAfter(eventDoc('l-' + id + '-' + string(incoming().v)));
-      allow delete: if isMember() && existsAfter(eventDoc('l-' + id + '-' + string(resource.data.v + 1)));
+      allow delete: if isManager() && existsAfter(eventDoc('l-' + id + '-' + string(resource.data.v + 1)));
     }
     function validLabel() {
       let l = incoming();
@@ -306,7 +306,7 @@ service cloud.firestore {
       let old = resource.data;
       let same = l.state == old.state && l.openedOn == old.openedOn && l.useBy == old.useBy && l.openedBy == old.openedBy && l.openedUid == old.openedUid;
       let def = l.item == old.item && l.side == old.side && l.life == old.life && l.on == old.on;
-      return (l.act == 'edited' && isMember() && same && !def)
+      return (l.act == 'edited' && isManager() && same && !def)
         || (l.act == 'opened' && def && old.state == 'none' && openedNow(l))
         || (l.act == 'changed' && def && old.state == 'open' && openedNow(l))
         || (l.act == 'binned' && def && old.state == 'open' && notOpen(l));
@@ -343,24 +343,25 @@ service cloud.firestore {
       let same = r.who == old.who && r.whoUid == old.whoUid && r.moved == old.moved && r.got == old.got;
       return r.diff(old).affectedKeys().hasOnly(['status', 'who', 'whoUid', 'moved', 'got', 'note', 'v', 'uid', 'name', 'at'])
         && r.v == old.v + 1 && optText(r.note, 200) && (
-          // Given to someone, or to someone else.
-          (to == 'given' && from in ['asked', 'given', 'doing', 'blocked'] && isMember() && r.whoUid != null && r.whoUid != old.whoUid
+          // Given to someone, or to someone else, by a manager.
+          (to == 'given' && from in ['asked', 'given', 'doing', 'blocked'] && isManager() && r.whoUid != null && r.whoUid != old.whoUid
             && teammate(r.who, r.whoUid) && r.moved == null && r.got == null)
-          // Taken on by anyone.
-          || (to == 'doing' && from in ['asked', 'given', 'blocked'] && me && (from != 'given' || mine || isMember()) && r.moved == null && r.got == null)
-          // Brought up, saying how much was moved.
-          || (to == 'delivered' && from == 'doing' && r.who == old.who && r.whoUid == old.whoUid && amount(r.moved) && r.got == null)
+          // Taken on by anyone while it's waiting; once it's been given to someone, by them or a manager.
+          || (to == 'doing' && from in ['asked', 'given', 'blocked'] && me && (from != 'given' || mine || isManager()) && r.moved == null && r.got == null)
+          // Brought up by whoever has it (or a manager), saying how much was moved.
+          || (to == 'delivered' && from == 'doing' && (mine || isManager()) && r.who == old.who && r.whoUid == old.whoUid && amount(r.moved) && r.got == null)
           // Confirmed by whoever is there, saying how much arrived.
           || (to == 'received' && from == 'delivered' && r.who == old.who && r.whoUid == old.whoUid && r.moved == old.moved && amount(r.got))
           || (to == 'unavailable' && from in ['asked', 'given', 'doing', 'blocked'] && same)
           || (to == 'blocked' && from in ['asked', 'given', 'doing'] && same && reqText(r.note, 200))
           || (to == 'cancelled' && from in ['asked', 'given', 'doing', 'blocked'] && same
-            && (old.askedUid == request.auth.uid || reqText(r.note, 200)))
-          // Back to waiting: let go, not there after all once brought up (with a reason), or reopened (with a reason).
+            && (old.askedUid == request.auth.uid || (isManager() && reqText(r.note, 200))))
+          // Back to waiting: let go by whoever has it (or a manager), not there after all once brought up (with a
+          // reason), or reopened by a manager (with a reason).
           || (to == 'asked' && r.who == null && r.whoUid == null && r.moved == null && r.got == null
-            && (from in ['given', 'doing']
+            && ((from in ['given', 'doing'] && (mine || isManager()))
               || (from == 'delivered' && reqText(r.note, 200))
-              || (from in ['received', 'unavailable', 'cancelled'] && isMember() && reqText(r.note, 200)))));
+              || (from in ['received', 'unavailable', 'cancelled'] && isManager() && reqText(r.note, 200)))));
     }
 
     // ---------- Audit trail ----------
@@ -452,8 +453,8 @@ service cloud.firestore {
     }
 
     // ---------- Drink photos and how-to videos ----------
-    // One record per drink, under the drink's name as the 86 board keys it. Anyone on the team adds the house photo (a JPEG, like
-    // the closing photos) and a link to a how-to video on a video site, and everyone on the team sees them on the drink.
+    // One record per drink, under the drink's name as the 86 board keys it. The owner or the manager adds the house photo (a JPEG,
+    // like the closing photos) and a link to a how-to video on a video site, and everyone on the team sees them on the drink.
     // Only links to these sites are taken, so a record can't point anyone at a lookalike login page.
     function videoLink(s) {
       return s == '' || (s.size() <= 300
@@ -461,12 +462,12 @@ service cloud.firestore {
     }
     match /drinkMedia/{id} {
       allow read: if isMember();
-      allow create, update: if isMember() && exactly(['drink', 'photo', 'video', 'uid', 'name', 'at']) && stamped()
+      allow create, update: if isManager() && exactly(['drink', 'photo', 'video', 'uid', 'name', 'at']) && stamped()
         && reqText(incoming().drink, 80) && slug(incoming().drink) == id
         && incoming().photo is string && incoming().video is string
         && (incoming().photo == '' || (incoming().photo.size() <= 700000 && incoming().photo.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+')))
         && videoLink(incoming().video) && (incoming().photo != '' || incoming().video != '');
-      allow delete: if isMember();
+      allow delete: if isManager();
     }
 
     // ---------- Who to call ----------
@@ -505,21 +506,21 @@ service cloud.firestore {
               && get(staffDoc(incoming().whoUid)).data.name == incoming().who)
           || (incoming().status == 'fixed' && changesOnly(['status', 'fix', 'fixedBy', 'fixedByUid', 'fixedAt'])
               && reqText(incoming().fix, 500) && signedAs('fixedBy', 'fixedByUid', 'fixedAt')));
-      // Whoever raised it can withdraw it before anyone takes it on.
-      allow delete: if isMember() && resource.data.uid == request.auth.uid && resource.data.status == 'open';
+      // Whoever raised it can withdraw it before anyone takes it on. The owner and the manager can take any one down.
+      allow delete: if (isMember() && resource.data.uid == request.auth.uid && resource.data.status == 'open') || isManager();
     }
 
     // ---------- Football on the screens ----------
-    // Anyone on the team lists the games the bar is showing: the day, kick-off, the teams, the competition, the channel and the
-    // screen. Everyone on the team reads them. A wrong one is taken down and added again.
+    // The owner or the manager lists the games the bar is showing: the day, kick-off, the teams, the competition, the channel and
+    // the screen. Everyone on the team reads them. A wrong one is taken down and added again.
     match /fixtures/{id} {
       allow read: if isMember();
-      allow create: if isMember() && exactly(['day', 'ko', 'home', 'away', 'comp', 'channel', 'screen', 'uid', 'name', 'at'])
+      allow create: if isManager() && exactly(['day', 'ko', 'home', 'away', 'comp', 'channel', 'screen', 'uid', 'name', 'at'])
         && isDay(incoming().day) && dayOf(incoming().day) > request.time - duration.value(2, 'd')
         && dayOf(incoming().day) < request.time + duration.value(90, 'd') && isTime(incoming().ko)
         && reqText(incoming().home, 40) && reqText(incoming().away, 40) && optText(incoming().comp, 40)
         && optText(incoming().channel, 30) && optText(incoming().screen, 30) && stamped();
-      allow delete: if isMember();
+      allow delete: if isManager();
     }
 
   }

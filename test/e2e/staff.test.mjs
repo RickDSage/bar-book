@@ -175,3 +175,46 @@ test("a phone taken off the team stays off until it opens the link again", async
   await O.waitForFunction(() => LIVE.staff.length === 1);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
+
+test("issues: raise, take on, give to someone, fix, and raise again", async () => {
+  await resetEmulators();
+  const { O, S, T } = await team(browser, site, [["S", "Kadir"], ["T", "Pema"]]);
+  await part(S, "issues");
+  await S.click("#is-form summary"); await S.click("#is-go");
+  await waitToast(S, /^Say what's wrong and where$/);
+  await S.fill("[data-is=title]", "Glass washer leaking"); await S.selectOption("[data-is=area]", "bar");
+  await S.fill("[data-is=detail]", "Water under the machine"); await S.check("[data-is=urgent]"); await S.click("#is-go");
+  await waitToast(T, /^Urgent: Glass washer leaking$/);
+  const id = await T.evaluate(() => LIVE.issues[0].id);
+  // Anyone on the team gives it to someone.
+  await part(T, "issues");
+  await T.selectOption(`[data-give="${id}"]`, { label: "Kadir" });
+  await waitToast(S, /^Pema gave you: Glass washer leaking$/);
+  await S.waitForFunction(() => /On it: Kadir/.test(document.querySelector("#tc-issues").innerText));
+  await S.fill(`[data-fixt="${id}"]`, "Tightened the hose");
+  await S.click(`[data-fix="${id}"]`);
+  await O.waitForFunction(() => LIVE.issues[0]?.status === "fixed" && LIVE.issues[0].fix === "Tightened the hose");
+  // Still broken raises a new one linked to the old.
+  await S.click("#tc-issues details.setup:not(#is-form) summary");
+  await S.click(`[data-again="${id}"]`);
+  assert.equal(await S.inputValue("[data-is=title]"), "Glass washer leaking");
+  await S.click("#is-go");
+  await O.waitForFunction((old) => LIVE.issues.some((x) => x.again === old && x.status === "open"), id);
+  assert.deepEqual([O.errs, S.errs, T.errs], [[], [], []]);
+});
+
+test("slurs can't go out in a message, a name or anything to the manager; ordinary words that contain them can", async () => {
+  await resetEmulators();
+  const { S } = await team(browser, site, [["S", "Vi"]]);
+  const r = (t) => S.evaluate((t) => rude(t), t);
+  // Built from pieces so the test file doesn't hold the words either.
+  const w = ["n", "i", "g", "g", "e", "r"].join(""), p = ["p", "a", "k", "i"].join("");
+  for (const t of [w, `you ${w.toUpperCase()}`, w.replace("i", "1"), w.split("").join(" "), w.split("").join("."), `${p}s`, ["f", "a", "g", "g", "o", "t"].join("")]) assert.equal(await r(t), true, t);
+  for (const t of ["Need a hand at the bar", "En retard de 10 minutes", "Pakistan v England tonight", "Going for a fag break", "Pavimento spazzato", "Negroni", "Snigger", "be an error"]) assert.equal(await r(t), false, t);
+  await S.evaluate(() => show("notices"));
+  await S.fill("#m-text", `Get the ${w} off the bar`);
+  await S.click("#m-go");
+  await waitToast(S, /^That has a slur in it, so it can't go out\./);
+  assert.equal(await S.evaluate(() => LIVE.notices.length), 0);
+  assert.deepEqual(S.errs, []);
+});

@@ -123,7 +123,7 @@ function listen(uid) {
     });
     // Who to call: the venue's own numbers, kept by the manager.
     sub("contacts", doc(db, "settings", "contacts"), (x) => { LIVE.contacts = x.exists() ? x.data().list : []; liveChanged("contacts"); });
-    clearOldPhotos();
+    if (LIVE.admin) clearOldPhotos();
   }, () => {});
 }
 
@@ -148,8 +148,8 @@ async function leave() {
   location.reload();
 }
 
-// Photos live in the database (Firebase Storage needs a paid plan), so any phone on the team clears them after 30 days
-// to stay free. A day's margin keeps clear of the rule's own 30-day check if this phone's clock is a little out.
+// Photos live in the database (Firebase Storage needs a paid plan), so the owner's or the manager's phone clears them
+// after 30 days to stay free. A day's margin keeps clear of the rule's own 30-day check if this phone's clock is a little out.
 const KEEP_DAYS = 30;
 async function clearOldPhotos() {
   const cutoff = Timestamp.fromMillis(Date.now() - (KEEP_DAYS + 1) * 864e5);

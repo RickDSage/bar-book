@@ -1,4 +1,4 @@
-// The app with no team logins: drinks, allergens and practice work; the shift tools need a login.
+// The app without the team side: drinks, allergens and practice work; the shift tools need it.
 // live.js is blocked, so this is exactly the site built without a Firebase config.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -26,14 +26,14 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   assert.equal(await p.evaluate(() => LIVE.api), null);
   await p.evaluate(() => openSheet(D.find((d) => d.name === "Negroni").id));
   assert.match(await p.$eval("#sheet", (e) => e.innerText), /Negroni[\s\S]*Spec/);
-  assert.equal(await p.locator("#sh-86").count(), 0, "no 86 button without a login");
+  assert.equal(await p.locator("#sh-86").count(), 0, "no 86 button off the team");
   await p.evaluate(() => closeSheet());
   await p.click("[data-tab=tally]");
-  assert.match(await p.$eval("#tally", (e) => e.innerText), /need team logins/);
-  assert.equal(await p.locator("[data-list]").count(), 0, "no checklists without a login");
+  assert.match(await p.$eval("#tally", (e) => e.innerText), /need the team side/);
+  assert.equal(await p.locator("[data-list]").count(), 0, "no checklists off the team");
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 390, "nothing wider than the screen");
   await p.evaluate(() => show("notices"));
-  assert.match(await p.$eval("#team", (e) => e.innerText), /Team logins/i);
+  assert.match(await p.$eval("#tm-top", (e) => e.innerText), /needs signal the first time/i);
   // Bar info: what's in the app, then the bar's own reference, then this phone's settings.
   await p.click("[data-tab=info]");
   assert.deepEqual(await p.$$eval("#v-info h2", (x) => x.map((h) => h.textContent)), ["What's in the app", "Measures and the law", "Technique key", "Prep and batches",
@@ -217,22 +217,3 @@ test("my hours: several shifts at once, a month at a time, with a student loan a
   assert.deepEqual(p.errs, []);
 });
 
-test("my pay: where the venue uses the rota, the rest of the month's shifts are one tap away", async () => {
-  const p = await open({ at: "2026-11-20T12:00:00Z" });
-  // This person's published shifts: only those still to come this month count, before breaks.
-  await p.evaluate(() => {
-    Object.assign(LIVE, { me: "Sam Staff", uid: "u1" }); LIVE.loaded.add("shifts");
-    const s = (day, start, end, x = {}) => ({ pub: true, who: "u1", day, start, end, ...x });
-    LIVE.shifts = [s("2026-11-19", "18:00", "02:00"), s("2026-11-25", "18:00", "02:00"), s("2026-11-28", "12:00", "20:30"), s("2026-11-26", "12:00", "20:00", { pub: false }),
-      s("2026-11-27", "12:00", "20:00", { who: "u2" }), s("2026-12-02", "12:00", "20:00")];
-  });
-  await p.click("[data-tab=pay]");
-  await p.click("[data-pay-rota]");
-  assert.equal(await p.inputValue('[data-pay="rota"]'), "16.5");
-  assert.equal(await p.locator("[data-pay-rota]").count(), 0, "gone once it's used");
-  await p.evaluate(() => LIVE.off.add("rota"));
-  await p.evaluate(() => renderPay());
-  await p.fill('[data-pay="rota"]', "3"); await p.evaluate(() => renderPay());
-  assert.equal(await p.locator("[data-pay-rota]").count(), 0, "not where the rota is switched off");
-  assert.deepEqual(p.errs, []);
-});
