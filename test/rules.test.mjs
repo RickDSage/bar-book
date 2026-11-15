@@ -44,6 +44,8 @@ const ukDay = (ms) => {
 };
 const today = () => ukDay(Date.now() - 6 * 36e5);
 const dayFromNow = (n) => ukDay(Date.now() + n * 864e5);
+// A business night n nights from tonight. Before 6am dayFromNow(-1) is tonight, so "another night" counts from today().
+const nightFromTonight = (n) => ukDay(Date.now() - 6 * 36e5 + n * 864e5);
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const autoId = () => doc(collection(db("owner1"), "x")).id;
 
@@ -1369,7 +1371,7 @@ describe("how was your shift", () => {
     }
     await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), pu("staff1", { day: dayFromNow(-3) })));
     await assertFails(setDoc(ref("staff1", "staff2"), pu("staff1")));
-    await assertFails(setDoc(ref("staff1", "staff1", plusDays(today(), -1)), pu("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", nightFromTonight(-1)), pu("staff1")));
     await assertFails(setDoc(ref("mgr1", "staff1"), pu("mgr1")));
   });
 });
@@ -1396,7 +1398,7 @@ describe("tonight's quiz", () => {
     }
     await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), qz("staff1", { day: dayFromNow(-3) })));
     await assertFails(setDoc(ref("staff1", "staff2"), qz("staff1")));
-    await assertFails(setDoc(ref("staff1", "staff1", plusDays(today(), -1)), qz("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", nightFromTonight(-1)), qz("staff1")));
     await assertFails(setDoc(ref("mgr1", "staff1"), qz("mgr1")));
     // A quiz started before 6am and finished after counts for the night it started.
     await assertSucceeds(setDoc(ref("staff1", "staff1", dayFromNow(-1)), qz("staff1", { day: dayFromNow(-1) })));
