@@ -1,33 +1,35 @@
-// Live team layer: individual logins, the team board, notices, shift reports, the shared 86 list, tonight's tasks and
-// procedures, date labels, the rota, restocking from the cellar and the events behind them, synced through Firebase.
+// Live team layer: who is on the team, live messages, the 86 board, tonight's checklists, date labels, restocking,
+// closing photos and reports, issues, shout-outs, football, who to call and messages to the manager, synced through Firebase.
 // Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE and calls liveChanged().
 // Every write here has a matching rule in firestore.rules and a test in test/rules.test.mjs.
-// Each person logs in with a username and a PIN. Under the hood that is a Firebase email/password account with a
-// made-up address; usernames/{username} maps the username to it. Access comes from having a staff/{uid} record.
-import { initializeApp, deleteApp } from "firebase/app";
+//
+// Bar and floor staff have no login: the phone signs in anonymously and joins with the team code from the team link,
+// under the first name picked on the phone. Only the owner and the manager have a username and password (underneath, a
+// Firebase email/password account with a made-up address; usernames/{username} points the login screen at it).
+import { initializeApp } from "firebase/app";
 import {
-  getAuth, initializeAuth, inMemoryPersistence, connectAuthEmulator, onAuthStateChanged,
+  getAuth, initializeAuth, inMemoryPersistence, connectAuthEmulator, onAuthStateChanged, signInAnonymously,
   signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, deleteUser,
 } from "firebase/auth";
 import {
   initializeFirestore, persistentLocalCache, connectFirestoreEmulator, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc,
   collection, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
-  terminate, clearIndexedDbPersistence, arrayRemove, getCountFromServer, getDocsFromServer, FieldPath, deleteField,
+  terminate, clearIndexedDbPersistence,
 } from "firebase/firestore";
 
 const app = initializeApp(__CONFIG__);
 const auth = getAuth(app);
-// A second auth instance creates accounts for other people without logging the manager out.
+// A second auth instance makes the manager's account without logging the owner out.
 const maker = initializeAuth(initializeApp(__CONFIG__, "maker"), { persistence: inMemoryPersistence });
-// Kept on the phone so the app works with no signal. Logging out clears it.
+// Kept on the phone so the app works with no signal. Leaving clears it.
 const db = initializeFirestore(app, { localCache: persistentLocalCache() });
 if (__EMU__) {
   for (const a of [auth, maker]) connectAuthEmulator(a, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
 }
 
-// PINs are 6 to 12 digits for everyone; 6 is the shortest password Firebase accepts.
-const USER = /^[a-z0-9.]{2,20}$/, PIN = /^\d{6,12}$/, MAX_PHOTOS = 8, CODE_MIN = 16;
+// Passwords for the two accounts: 6 characters or more (Firebase's minimum). Team codes are 8 or more.
+const USER = /^[a-z0-9.]{2,20}$/, PASSWORD_MIN = 6, CODE_MIN = 8, MAX_PHOTOS = 8;
 const emailFor = (u) => `${u}-${crypto.randomUUID().slice(0, 8)}@users.example.com`;
 // The 86 board keys each item by this, and the rules check it the same way.
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
@@ -36,97 +38,57 @@ const err = (msg) => { throw new Error(msg); };
 let stop = null, subs = {};
 const unsub = (k) => { if (subs[k]) { subs[k](); delete subs[k]; } };
 const unsubAll = () => { Object.keys(subs).forEach(unsub); if (stop) { stop(); stop = null; } };
-// A listen the rules refuse (account not confirmed by the server yet) is dropped and retried on the next staff snapshot.
+// A listen the rules refuse (a join not confirmed by the server yet) is dropped and retried on the next staff snapshot.
 function sub(k, ref, fn, failed) {
   if (subs[k]) return;
   subs[k] = onSnapshot(ref, (snap) => { LIVE.loaded.add(k); fn(snap); }, () => { delete subs[k]; failed?.(); });
 }
-// Something just written on this phone has no server time yet, so its "at" is null and it sorts as newest. (Firestore's
-// own estimate is rounded down to the second, which can put it below something written a moment earlier.)
 // Ids go into the page's HTML. The app only ever makes plain ones (letters, digits, dashes), so a record with any other
-// id was written some other way, for example by a script using someone's login, and is skipped. The id goes after a
-// record's own fields so that a field called id can't take its place.
+// id was written some other way and is skipped. The id goes after a record's own fields so a field called id can't
+// take its place. Something just written on this phone has no server time yet, so it sorts as newest.
 const plain = (x) => /^[A-Za-z0-9-]+$/.test(x.id);
 const rows = (snap) => snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id, pending: x.metadata.hasPendingWrites })).sort((a, b) => ms(b.at) - ms(a.at));
-// A query's records, or one record's as a list of it or of nothing.
-const listOf = (x) => (x.docs ? rows(x) : x.exists() && plain(x) ? [{ ...x.data(), id: x.id, pending: x.metadata.hasPendingWrites }] : []);
 const me = () => ({ uid: auth.currentUser.uid, name: LIVE.me, at: serverTimestamp() });
-const SHIFT_KEYS = ["week", "day", "start", "end", "side", "note", "who", "whoName", "offer", "offerName", "cover", "wants", "pub"];
-// A published shift's event: what was done, the shift after it (or as it was, when it's removed), and its day, times,
-// side and person before.
-const shiftEvent = (id, s, was) => ({ kind: "shift", day: shiftDay(), ref: id, label: `${s.day} ${s.start}-${s.end}`, area: s.side, act: s.act, sday: s.day, start: s.start,
-  end: s.end, who: s.whoName, offer: s.offerName, cover: s.cover, was: was && { day: was.day, start: was.start, end: was.end, side: was.side, who: was.whoName }, note: "", v: s.v, ...me() });
-// The rules may look up at most 20 other records for one write of several, and Firestore only says repeat lookups "may"
-// not count. So many records go in small batches, each written whole or not at all; fn adds one record to a batch.
-const inBatches = (xs, n, fn) => Promise.all(Array.from({ length: Math.ceil(xs.length / n) }, (_, i) => {
-  const b = writeBatch(db); xs.slice(i * n, i * n + n).forEach((x) => fn(b, x)); return b.commit();
-}));
 
 function listen(uid) {
   unsubAll();
-  // Removal or a role change by a manager takes effect straight away.
+  // Being taken off the team (by the manager, or a new team code) takes effect straight away.
   let seen = false;
   stop = onSnapshot(doc(db, "staff", uid), { includeMetadataChanges: true }, (d) => {
-    // Only a record this phone has seen going away logs it out (removal, or a PIN reset). A record that isn't there yet
-    // means a first launch with no signal, or first-time setup still saving, perhaps in another tab: wait for it.
-    if (!d.exists()) { if (seen && !d.metadata.fromCache) leave(); return; }
-    // A record still being saved doesn't count as seen: a refused setup takes it away again.
+    // A record this phone has seen going away means it was taken off the team. A record that isn't there yet means a
+    // phone that has signed in but not joined (or a join still saving): the welcome screen asks for the team link.
+    if (!d.exists()) {
+      if (seen && !d.metadata.fromCache) { liveChanged("removed"); leave(); }
+      else if (!d.metadata.hasPendingWrites && LIVE.me) { LIVE.me = null; liveChanged("me"); }
+      return;
+    }
     if (!d.metadata.hasPendingWrites) seen = true;
     const s = d.data();
     if (LIVE.me !== s.name || LIVE.role !== s.role) {
-      // What someone can read depends on their role, so a new role starts every listener again.
       if (LIVE.role && LIVE.role !== s.role) { Object.keys(subs).forEach(unsub); LIVE.loaded.clear(); }
-      LIVE.me = s.name; LIVE.username = s.username; LIVE.role = s.role;
+      LIVE.me = s.name; LIVE.username = s.username || null; LIVE.role = s.role;
       LIVE.admin = s.role === "manager" || s.role === "owner"; LIVE.owner = s.role === "owner";
       liveChanged("me");
     }
     if (d.metadata.hasPendingWrites) return;
-    sub("feed", query(collection(db, "feed"), orderBy("at", "desc"), limit(40)), (snap) => { LIVE.feed = rows(snap); liveChanged("feed"); });
+    // Who is on the team: everyone's phones and the two accounts. Used for "seen by" and for giving someone a job.
+    sub("staff", collection(db, "staff"), (snap) => {
+      LIVE.staff = snap.docs.filter(plain).map((x) => ({ name: x.data().name, role: x.data().role, at: x.data().at || null, uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
+      liveChanged("staff");
+    }, () => { if (!d.metadata.fromCache) { liveChanged("removed"); leave(); } });
+    // Live messages, newest first, and who has tapped Got it on them.
+    sub("notices", query(collection(db, "notices"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.notices = rows(snap); liveChanged("notices"); });
+    sub("seen", query(collection(db, "seen"), orderBy("at", "desc"), limit(1000)), (snap) => { LIVE.seen = rows(snap); liveChanged("seen"); });
+    sub("templates", collection(db, "templates"), (snap) => { LIVE.templates = rows(snap).reverse(); liveChanged("templates"); });
     sub("out", collection(db, "out"), (snap) => {
       LIVE.outInfo = new Map(snap.docs.map((x) => [x.data().itemName, x.data({ serverTimestamps: "estimate" })]));
       LIVE.out = new Set(LIVE.outInfo.keys());
       liveChanged("out");
     });
-    // Broadcasts. The owner can leave managers out of one, so a manager's phone asks only for the ones they may read.
-    // (No orderBy: with the filter it would need an index made in the console. There are only ever a few.)
-    sub("notices", LIVE.role === "manager" ? query(collection(db, "notices"), where("managers", "==", true)) : collection(db, "notices"), (snap) => {
-      LIVE.notices = rows(snap); liveChanged("notices"); watchSeen(uid);
-    });
-    sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(LIVE_N.reports)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
+    sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); });
+    sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
     watchDays();
-    // Managers' versions of the lists. A list with none here is the app's standard one.
-    sub("lists", collection(db, "lists"), (snap) => {
-      LIVE.lists = Object.fromEntries(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
-      liveChanged("lists");
-    });
-    // The features the owner has switched off here. A phone with nothing saved yet waits for the server rather than
-    // showing everything for a moment.
-    sub("features", doc(db, "settings", "features"), (d) => {
-      if (!d.exists() && d.metadata.fromCache) return;
-      const x = d.exists() ? d.data() : null;
-      LIVE.off = new Set(x?.off || []); LIVE.offBy = x && { name: x.name, at: x.at };
-      liveChanged("features");
-    });
-    // Guest issues: the latest 100 (a month or more at a venue this size), and what each role may give a guest.
-    sub("guests", query(collection(db, "guests"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.guests = rows(snap); liveChanged("guests"); });
-    sub("hoq", doc(db, "settings", "hoq"), (d) => { LIVE.hoq = d.exists() ? d.data().qs : []; liveChanged("hoq"); });
-    sub("comp", doc(db, "settings", "comp"), (d) => { LIVE.comp = d.exists() ? d.data() : null; liveChanged("comp"); });
-    // Who to call: the venue's own numbers, kept by managers.
-    sub("contacts", doc(db, "settings", "contacts"), (d) => { LIVE.contacts = d.exists() ? d.data().list : []; liveChanged("contacts"); });
-    // Refusals: the last 100 days, for tonight's list and the managers' log.
-    sub("refusals", query(collection(db, "refusals"), where("day", ">=", ukDay(Date.now() - 100 * 864e5)), limit(1000)), (snap) => { LIVE.refusals = rows(snap); liveChanged("refusals"); });
-    // Certificates: managers keep everyone's, staff see their own.
-    sub("certs", LIVE.admin ? query(collection(db, "certs"), limit(1000)) : query(collection(db, "certs"), where("who", "==", uid)), (snap) => { LIVE.certs = rows(snap); liveChanged("certs"); });
-    // Availability: managers read everyone's for the rota, staff their own.
-    sub("avail", LIVE.admin ? collection(db, "avail") : doc(db, "avail", uid), (x) => { LIVE.avail = listOf(x); liveChanged("avail"); });
-    // Shout-outs: the latest 50.
     sub("shouts", query(collection(db, "shouts"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.shouts = rows(snap); liveChanged("shouts"); });
-    // New starters: the venue's checklist (none saved means the standard one), and each new person's ticks: managers
-    // read everyone's, staff their own.
-    sub("onboardList", doc(db, "settings", "onboard"), (d) => { LIVE.onboardList = d.exists() ? d.data().list : null; liveChanged("onboardList"); });
-    sub("onboard", LIVE.admin ? collection(db, "onboard") : doc(db, "onboard", uid), (x) => { LIVE.onboard = listOf(x); liveChanged("onboard"); });
-    // The latest time the owner started fresh. Each phone drops its copies of what went.
-    sub("resets", query(collection(db, "resets"), orderBy("at", "desc"), limit(1)), (snap) => { LIVE.reset = rows(snap)[0] || null; liveChanged("resets"); });
     // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
     sub("labels", collection(db, "labels"), (snap) => { LIVE.labels = rows(snap); liveChanged("labels"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
@@ -145,120 +107,23 @@ function listen(uid) {
     });
     // Football: today's games and the ones coming up. Old ones drop off the screen by date.
     sub("fixtures", query(collection(db, "fixtures"), where("day", ">=", ukDay(Date.now() - 864e5)), orderBy("day"), limit(60)), (snap) => { LIVE.fixtures = rows(snap); liveChanged("fixtures"); });
-    // The calendar: what the managers have added that hasn't long finished. The app goes back three months.
-    sub("calendar", query(collection(db, "calendar"), where("date2", ">=", ukDay(Date.now() - 100 * 864e5)), limit(300)), (snap) => { LIVE.cal = rows(snap); liveChanged("calendar"); });
     // Issues: everything still open, however old, plus the latest few including fixed ones.
     const issues = { open: [], recent: [] };
     const mergeIssues = () => { LIVE.issues = [...new Map([...issues.recent, ...issues.open].map((x) => [x.id, x])).values()].sort((a, b) => ms(b.at) - ms(a.at)); liveChanged("issues"); };
     sub("issues", query(collection(db, "issues"), where("status", "in", ["open", "taken"])), (snap) => { issues.open = rows(snap); mergeIssues(); });
     sub("issues-recent", query(collection(db, "issues"), orderBy("at", "desc"), limit(30)), (snap) => { issues.recent = rows(snap); mergeIssues(); });
-    // Concerns: managers get every open one plus the latest 50; staff get the open ones sent to the team, and their own
-    // named ones. (Anonymous ones carry no uid, so after sending, the sender sees them only if they went to the team.)
-    const concerns = collection(db, "concerns"), cn = { open: [], more: [] };
-    const mergeConcerns = () => { LIVE.concerns = [...new Map([...cn.more, ...cn.open].map((x) => [x.id, x])).values()].sort((a, b) => ms(b.at) - ms(a.at)); liveChanged("concerns"); };
-    sub("concerns", LIVE.admin ? query(concerns, where("status", "==", "open")) : query(concerns, where("to", "in", ["all", "bar", "floor"]), where("status", "==", "open")), (snap) => { cn.open = rows(snap); mergeConcerns(); });
-    sub("concerns-more", LIVE.admin ? query(concerns, orderBy("at", "desc"), limit(50)) : query(concerns, where("uid", "==", uid)), (snap) => { cn.more = rows(snap); mergeConcerns(); });
-    // Time off, swaps and lateness: staff see their own, managers see everyone's.
-    sub("asks", LIVE.admin ? query(collection(db, "asks"), orderBy("at", "desc"), limit(100)) : query(collection(db, "asks"), where("uid", "==", uid)), (snap) => {
+    // To the manager: the manager and owner read all of them; staff read back their own named ones.
+    sub("asks", LIVE.admin ? query(collection(db, "asks"), orderBy("at", "desc"), limit(200)) : query(collection(db, "asks"), where("uid", "==", uid)), (snap) => {
       LIVE.asks = rows(snap); liveChanged("asks");
     });
-    watchChats(uid);
-    if (!LIVE.admin) { Object.assign(LIVE, { staff: [], tests: [], handovers: [], outlog: [], incidents: [], reviews: [], ratings: [], audit: [], training: [], requests: [] }); return; }
-    // Stock requests from before restocking, kept so managers can still clear the last ones.
-    sub("requests", query(collection(db, "requests"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.requests = rows(snap); liveChanged("requests"); });
-    sub("incidents", query(collection(db, "incidents"), orderBy("at", "desc"), limit(LIVE_N.incidents)), (snap) => { LIVE.incidents = rows(snap); liveChanged("incidents"); });
-    sub("reviews", query(collection(db, "reviews"), orderBy("at", "desc"), limit(200)), (snap) => { LIVE.reviews = rows(snap); liveChanged("reviews"); });
-    // Anonymous feedback: the owner reads all of it, a manager only what's about them.
-    sub("ratings", LIVE.owner ? query(collection(db, "ratings"), orderBy("at", "desc"), limit(100)) : query(collection(db, "ratings"), where("about", "==", uid)), (snap) => {
-      LIVE.ratings = rows(snap); liveChanged("ratings");
-    });
-    sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); });
-    sub("staff", collection(db, "staff"), (snap) => {
-      LIVE.staff = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
-      staffSettled = !snap.metadata.hasPendingWrites; liveChanged("staff"); syncDirectory();
-    });
-    sub("audit", query(collection(db, "audit"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.audit = rows(snap); liveChanged("audit"); });
-    // Test staff: made-up people for a practice day, never logins. uid is the record's id, as with the real team.
-    sub("tests", collection(db, "teststaff"), (snap) => {
-      LIVE.tests = snap.docs.filter(plain).map((x) => ({ name: x.data().who, side: x.data().side, role: x.data().role, uid: x.id, test: true })).sort((a, b) => a.name.localeCompare(b.name));
-      liveChanged("tests");
-    });
-    // Manager closes and handovers: the last two weeks' worth.
-    sub("handovers", query(collection(db, "handovers"), orderBy("at", "desc"), limit(14)), (snap) => { LIVE.handovers = rows(snap); liveChanged("handovers"); });
-    // Bottlenecks: the last 400 reports, for four weeks of patterns (tonight's come to everyone below).
-    sub("blockHist", query(collection(db, "blocks"), orderBy("at", "desc"), limit(400)), (snap) => { LIVE.blockHist = rows(snap); liveChanged("blocks"); });
-    // Sales and covers: the last 120 nights, enough for the forecast and four months of history.
-    sub("nights", query(collection(db, "nights"), orderBy("day", "desc"), limit(120)), (snap) => { LIVE.nights = rows(snap); LIVE.loaded.add("nights"); liveChanged("nights"); });
+    // Who to call: the venue's own numbers, kept by the manager.
+    sub("contacts", doc(db, "settings", "contacts"), (x) => { LIVE.contacts = x.exists() ? x.data().list : []; liveChanged("contacts"); });
     clearOldPhotos();
   }, () => {});
 }
 
-// Who has tapped Got it on a broadcast. Staff need only their own records; managers and the owner get the records for
-// the broadcasts they can see (at most 30, Firestore's limit for "in"), and managers only those they weren't left out of.
-let seenKey = "";
-function watchSeen(uid) {
-  const ids = LIVE.notices.map((x) => x.id).slice(0, 30), key = LIVE.admin ? ids.join() : uid;
-  if (key === seenKey && subs.seen) return;
-  unsub("seen"); seenKey = key;
-  if (!ids.length && LIVE.admin) { LIVE.seen = []; liveChanged("seen"); return; }
-  const seen = collection(db, "seen");
-  sub("seen", !LIVE.admin ? query(seen, where("uid", "==", uid)) : LIVE.owner ? query(seen, where("notice", "in", ids))
-    : query(seen, where("managers", "==", true), where("notice", "in", ids)), (snap) => { LIVE.seen = rows(snap); liveChanged("seen"); });
-}
-
-// Team chat: who's on the team (the directory), the chats this person is in, the team chat, and their pings. Messages
-// load only for the chat that's open.
-const byName = (a, b) => a.name.localeCompare(b.name);
-function watchChats(uid) {
-  sub("directory", collection(db, "directory"), (snap) => {
-    LIVE.directory = snap.docs.filter(plain).map((x) => ({ ...x.data(), uid: x.id })).sort(byName);
-    dirSettled = !snap.metadata.hasPendingWrites; liveChanged("directory"); syncDirectory();
-  });
-  const ch = { mine: [], team: [] };
-  const merge = () => { LIVE.chats = [...ch.team, ...ch.mine].sort((a, b) => ms(b.lastAt) - ms(a.lastAt)); liveChanged("chats"); };
-  sub("chats", query(collection(db, "chats"), where("members", "array-contains", uid)), (snap) => { ch.mine = rows(snap); merge(); });
-  sub("team-chat", doc(db, "chats", "team"), (d) => { ch.team = d.exists() ? [{ ...d.data(), id: d.id, pending: d.metadata.hasPendingWrites }] : []; merge(); });
-  sub("pings", query(collection(db, "pings"), where("to", "==", uid)), (snap) => { LIVE.pings = rows(snap); liveChanged("pings"); });
-  clearOldChatPhotos(uid).catch(() => {});
-}
-// Each phone keeps its own directory entry matching its staff record; managers' phones keep everyone's and remove
-// people who have left. Only from what the server has confirmed: a change still saving (a role change, say) may yet be
-// refused, and a refused write makes the phone resend the writes queued behind it, which those can't survive (a role
-// change's audit entry only matches the first time). A write the rules refuse isn't tried again until something changes.
-const triedDir = new Set();
-let staffSettled = false, dirSettled = false;
-function syncDirectory() {
-  if (!LIVE.loaded.has("directory") || !dirSettled || (LIVE.admin && (!LIVE.loaded.has("staff") || !staffSettled))) return;
-  const want = LIVE.admin ? LIVE.staff : [{ uid: auth.currentUser.uid, name: LIVE.me, role: LIVE.role }];
-  const have = new Map(LIVE.directory.map((p) => [p.uid, p]));
-  // (After logging out the database is closed, and a write throws straight away.)
-  const once = (k, write) => { if (!triedDir.has(k)) { triedDir.add(k); Promise.resolve().then(write).catch(() => {}); } };
-  for (const p of want) {
-    const h = have.get(p.uid);
-    if (!h || h.name !== p.name || h.role !== p.role) once(`${p.uid}:${p.name}:${p.role}`, () => setDoc(doc(db, "directory", p.uid), { name: p.name, role: p.role }));
-  }
-  if (LIVE.admin) for (const h of LIVE.directory) if (!want.some((p) => p.uid === h.uid)) once(`${h.uid}:gone`, () => deleteDoc(doc(db, "directory", h.uid)));
-}
-// Chat photos are cleared by whoever sent them, 30 days on (Firebase Storage needs a paid plan). Each launch checks the
-// week of business days just past that, one query per day (two equality filters need no index made in the console).
-async function clearOldChatPhotos(uid) {
-  for (let n = KEEP_DAYS + 1; n <= KEEP_DAYS + 7; n++) {
-    const day = ukDay(Date.now() - 6 * 36e5 - n * 864e5);
-    const old = await getDocs(query(collection(db, "chatPhotos"), where("uid", "==", uid), where("day", "==", day))).catch(() => null);
-    if (old && !old.empty) { const b = writeBatch(db); old.docs.slice(0, 400).forEach((d) => b.delete(d.ref)); await b.commit().catch(() => {}); }
-  }
-}
-// The chat that's open: its latest 60 messages.
-let openChat = "";
-function watchMessages(id) {
-  if (id === openChat && subs.msgs) return;
-  unsub("msgs"); openChat = id; LIVE.msgs = []; LIVE.loaded.delete("msgs");
-  if (id) sub("msgs", query(collection(db, "chats", id, "msgs"), orderBy("at", "desc"), limit(60)), (snap) => { LIVE.msgs = rows(snap).reverse(); liveChanged("msgs"); });
-}
-const preview = (text) => [...(text || "Photo")].slice(0, 80).join("");
-// The house photo and how-to video of the drink that's open, kept live while it's open. LIVE.media says which drink it's
-// for, so a drink just swiped to shows nothing of the last one's. A record that can't be read (before the rules that
-// allow it are published) shows as none, so a manager's save is tried and says it wasn't saved.
+// The house photo and how-to video of the drink that's open, kept live while it's open. LIVE.media says which drink
+// it's for, so a drink just swiped to shows nothing of the last one's.
 let mediaFor = "";
 function watchMedia(drink) {
   if (drink === mediaFor && (subs.media || !drink)) return;
@@ -267,7 +132,7 @@ function watchMedia(drink) {
   if (drink) sub("media", doc(db, "drinkMedia", slug(drink)), (d) => show({ ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites }), () => show());
 }
 
-// Logging out, or being removed, wipes this phone's copy of the team's data, then starts the app afresh.
+// Leaving, or being taken off the team, wipes this phone's copy of the team's data, then starts the app afresh.
 let leaving = false;
 async function leave() {
   if (leaving) return;
@@ -278,74 +143,19 @@ async function leave() {
   location.reload();
 }
 
-// How many of the newest reports and incidents stay live. The Reports tab reads older ones a page at a time.
-const LIVE_N = { reports: 30, incidents: 50 };
-
-// Photos live in the database (Firebase Storage needs a paid plan), so they're cleared after 30 days to stay free.
-// A day's margin keeps clear of the rule's own 30-day check if this phone's clock is a little out.
+// Photos live in the database (Firebase Storage needs a paid plan), so any phone on the team clears them after 30 days
+// to stay free. A day's margin keeps clear of the rule's own 30-day check if this phone's clock is a little out.
 const KEEP_DAYS = 30;
 async function clearOldPhotos() {
   const cutoff = Timestamp.fromMillis(Date.now() - (KEEP_DAYS + 1) * 864e5);
-  for (const c of ["photos", "concernPhotos"]) {
-    const old = await getDocs(query(collection(db, c), where("at", "<", cutoff), limit(100))).catch(() => null);
-    if (!old || old.empty) continue;
-    // Ten at a time: each delete is checked against the manager's staff record, and one batch may only make 20 such checks.
-    for (let i = 0; i < old.docs.length; i += 10) {
-      const b = writeBatch(db); old.docs.slice(i, i + 10).forEach((d) => b.delete(d.ref)); await b.commit().catch(() => {});
-    }
+  const old = await getDocs(query(collection(db, "photos"), where("at", "<", cutoff), limit(100))).catch(() => null);
+  if (!old || old.empty) return;
+  for (let i = 0; i < old.docs.length; i += 10) {
+    const b = writeBatch(db); old.docs.slice(i, i + 10).forEach((d) => b.delete(d.ref)); await b.commit().catch(() => {});
   }
 }
 
-// Start fresh (the owner, Managers > Team) clears the shift work for everyone, for a clean start after trying the app
-// out: each collection in FRESH, and every business day's checklists under shift/{day} since the app began. Concerns go
-// before their photos. The rules let only the owner do it, within 15 minutes of signing in, so the app signs in afresh
-// with the PIN, on a copy of Firebase of its own, and clears through that. It records what it found first.
-const FRESH = ["shifts", "asks", "reports", "handovers", "nights", "status", "blocks", "briefReads", "briefings", "guests", "photos", "reviews", "events", "restock", "out", "outlog", "issues", "concerns", "concernPhotos",
-  "notices", "seen", "feed", "requests", "teststaff", "shouts", "pulse", "quiz"];
-const FIRST_DAY = "2026-10-20", DAY_PARTS = ["tasks", "runs", "ticks"];
-// A date label's events stay with the label.
-const freshQuery = (d, k) => (k === "events" ? query(collection(d, k), where("kind", "in", ["task", "run", "restock", "shift"])) : collection(d, k));
-const freshDays = () => { const out = []; for (let day = FIRST_DAY; day <= addDays(shiftDay(), 1); day = addDays(day, 1)) out.push(day); return out; };
-// How many there are of each, and in all: { counts: { shifts: 12, …, checklists: 340 }, total }.
-async function freshCounts(d = db) {
-  const n = async (q) => (await getCountFromServer(q)).data().count;
-  const counts = Object.fromEntries(await Promise.all(FRESH.map(async (k) => [k, await n(freshQuery(d, k))])));
-  counts.checklists = (await Promise.all(freshDays().flatMap((day) => DAY_PARTS.map((p) => n(collection(d, "shift", day, p)))))).reduce((a, b) => a + b, 0);
-  return { counts, total: Object.values(counts).reduce((a, b) => a + b, 0) };
-}
-async function startFresh(pin, progress) {
-  const app2 = initializeApp(__CONFIG__, `fresh-${Date.now()}`), a2 = initializeAuth(app2, { persistence: inMemoryPersistence }), d2 = initializeFirestore(app2, {});
-  if (__EMU__) { connectAuthEmulator(a2, "http://127.0.0.1:9099", { disableWarnings: true }); connectFirestoreEmulator(d2, "127.0.0.1", 8080); }
-  try {
-    await signInWithEmailAndPassword(a2, auth.currentUser.email, pin).catch((e) => {
-      throw Object.assign(new Error(e.code === "auth/too-many-requests" ? "Too many wrong PINs. Wait a few minutes and try again." : "That PIN isn't right."), { code: "fresh/pin" });
-    });
-    const { counts, total } = await freshCounts(d2), uid = a2.currentUser.uid, t = (await a2.currentUser.getIdTokenResult()).claims.auth_time;
-    // The record goes first, under this sign-in: the rules check for it on every delete.
-    await setDoc(doc(d2, "resets", `${uid}-${t}`), { counts, total, uid, name: LIVE.me, at: serverTimestamp() });
-    let done = 0;
-    progress(0, total);
-    // A hundred read at a time, deleted five at a time: each delete is checked against the owner's staff record and the
-    // record above, and one batch may make only 20 such checks.
-    const clear = async (q) => {
-      for (let snap = await getDocsFromServer(query(q, limit(100))); !snap.empty; snap = await getDocsFromServer(query(q, limit(100)))) {
-        for (let i = 0; i < snap.docs.length; i += 5) {
-          const b = writeBatch(d2), xs = snap.docs.slice(i, i + 5);
-          xs.forEach((x) => b.delete(x.ref)); await b.commit();
-          done += xs.length; progress(done, total);
-        }
-      }
-    };
-    for (const k of FRESH) await clear(freshQuery(d2, k));
-    for (const day of freshDays()) for (const p of DAY_PARTS) await clear(collection(d2, "shift", day, p));
-    return done;
-  } finally {
-    await terminate(d2).catch(() => {});
-    await deleteApp(app2).catch(() => {});
-  }
-}
-
-// Listeners tied to the business day (or its week) start again with the new query when it rolls over at 6am.
+// Listeners tied to the business day start again with the new query when it rolls over at 6am.
 const dayKeys = {};
 function subDay(k, ref, fn, when = shiftDay()) {
   if (dayKeys[k] === when && subs[k]) return;
@@ -359,134 +169,65 @@ function watchDays() {
   subDay("tasks", () => collection(db, "shift", shiftDay(), "tasks"), (snap) => { LIVE.tasks = byId(snap); liveChanged("tasks"); });
   subDay("runs", () => collection(db, "shift", shiftDay(), "runs"), (snap) => { LIVE.runs = byId(snap); liveChanged("runs"); });
   subDay("events", () => query(collection(db, "events"), where("day", "==", shiftDay()), limit(2000)), (snap) => { LIVE.events = rows(snap); liveChanged("events"); });
-  watchRota();
-  // Tonight's briefing, and who has read it: managers everyone's, staff their own.
-  subDay("blocks", () => query(collection(db, "blocks"), where("day", "==", shiftDay())), (snap) => { LIVE.blocks = rows(snap); liveChanged("blocks"); });
-  subDay("status", () => query(collection(db, "status"), where("day", "==", shiftDay())), (snap) => { LIVE.status = rows(snap); liveChanged("status"); });
-  subDay("briefing", () => doc(db, "briefings", shiftDay()), (d) => { LIVE.briefing = d.exists() ? { ...d.data({ serverTimestamps: "estimate" }), id: d.id, pending: d.metadata.hasPendingWrites } : null; liveChanged("briefing"); });
-  subDay("briefReads", () => (LIVE.admin ? query(collection(db, "briefReads"), where("day", "==", shiftDay())) : doc(db, "briefReads", `${shiftDay()}-${auth.currentUser.uid}`)),
-    (x) => { LIVE.briefReads = listOf(x); liveChanged("briefReads"); });
-  // How was your shift: managers read the last 14 nights, everyone else their own answer tonight.
-  subDay("pulse", () => (LIVE.admin ? query(collection(db, "pulse"), where("day", ">=", addDays(shiftDay(), -14))) : doc(db, "pulse", `${shiftDay()}-${auth.currentUser.uid}`)),
-    (x) => { LIVE.pulse = listOf(x); liveChanged("pulse"); });
-  // Tonight's quiz: managers read the last 7 nights' results, everyone else their own tonight.
-  subDay("quiz", () => (LIVE.admin ? query(collection(db, "quiz"), where("day", ">=", addDays(shiftDay(), -7))) : doc(db, "quiz", `${shiftDay()}-${auth.currentUser.uid}`)),
-    (x) => { LIVE.quiz = listOf(x); liveChanged("quiz"); });
-}
-// The rota. Managers get every shift from four weeks back, drafts included. Everyone else gets the published shifts
-// from last week to the week after next, a week at a time: a query the rules can check, with no index to set up.
-function watchRota() {
-  const wk = weekOf(shiftDay());
-  if (LIVE.admin) {
-    subDay("shifts", () => query(collection(db, "shifts"), where("week", ">=", addDays(wk, -28))), (snap) => { LIVE.shifts = rows(snap); liveChanged("shifts"); }, wk);
-    return;
-  }
-  const got = {};
-  for (const n of [-1, 0, 1, 2]) {
-    subDay(`shifts${n}`, () => query(collection(db, "shifts"), where("week", "==", addDays(wk, 7 * n)), where("pub", "==", true)), (snap) => {
-      got[n] = rows(snap); LIVE.shifts = Object.values(got).flat();
-      if (n === 0) LIVE.loaded.add("shifts");
-      liveChanged("shifts");
-    }, wk);
-  }
 }
 setInterval(() => { if (LIVE.me) watchDays(); }, 60000);
 // Which side of the venue each list and each restocking destination belongs to, as the rules work it out.
-const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor", kopen: "kitchen", kclose: "kitchen" };
-const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor", kitchen: "kitchen" };
+const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose: "floor" };
+const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor" };
 const RS_OPEN = ["asked", "given", "doing", "blocked", "delivered"];
-
-// Makes a login for someone else, runs the database write, and deletes the login again if the write is refused.
-async function withAccount(username, pin, write) {
-  const { user } = await createUserWithEmailAndPassword(maker, emailFor(username), pin);
-  try { await write(user); }
-  catch (e) { await deleteUser(user).catch(() => {}); throw e; }
-  finally { await signOut(maker).catch(() => {}); }
-}
-// Every account change writes one of these in the same batch; the rules refuse the change without it.
-function audit(b, id, action, person, actor = { uid: auth.currentUser.uid, name: LIVE.me }) {
-  b.set(doc(db, "audit", id), {
-    action, target: person.uid, targetName: person.name, username: person.username, role: person.role,
-    uid: actor.uid, name: actor.name, at: serverTimestamp(),
-  });
-}
-const staffRecord = (p) => ({ name: p.name, username: p.username, role: p.role });
+const joinErr = (e) => err(e.code === "permission-denied" ? "That team link didn't work. Ask for the latest one in the staff group"
+  : e.code === "auth/operation-not-allowed" ? "Joining isn't switched on yet in Firebase (Anonymous sign-in)" : "Couldn't join. Check your signal and try again");
 
 LIVE.api = {
-  async login(username, pin) {
-    const u = await getDoc(doc(db, "usernames", username));
-    if (!u.exists()) err("Wrong username or PIN");
-    // After many wrong PINs Firebase locks the login for a while. Calling that a wrong PIN would send people round in circles.
-    await signInWithEmailAndPassword(auth, u.data().email, pin).catch((e) => err(e.code === "auth/too-many-requests" ? "Too many wrong PINs. Wait a few minutes, then try again"
-      : e.code === "auth/network-request-failed" ? "Could not log in. Check your signal" : "Wrong username or PIN"));
+  // A staff phone: signs in anonymously if it hasn't yet, then joins (or changes its name) with the team code.
+  async join(code, name) {
+    if (!auth.currentUser) await signInAnonymously(auth).catch(joinErr);
+    await setDoc(doc(db, "staff", auth.currentUser.uid), { name, role: "staff", code, at: serverTimestamp() }).catch(joinErr);
   },
-  logout: () => leave(),
-  changePin: (pin) => updatePassword(auth.currentUser, pin),
-  // First-time setup of the owner account, allowed once by the setup code in config/pins. One batch claims
-  // config/owner, writes the owner's records and deletes the code, so it can't be used again.
-  async setup(name, username, pin, code) {
+  // The owner and the manager.
+  async login(username, password) {
+    const u = await getDoc(doc(db, "usernames", username)).catch(() => err("Could not log in. Check your signal"));
+    if (!u.exists()) err("Wrong username or password");
+    // After many wrong tries Firebase locks the login for a while. Calling that a wrong password would send people round in circles.
+    if (auth.currentUser?.isAnonymous) await deleteDoc(doc(db, "staff", auth.currentUser.uid)).catch(() => {});
+    await signInWithEmailAndPassword(auth, u.data().email, password).catch((e) => err(e.code === "auth/too-many-requests" ? "Too many wrong tries. Wait a few minutes, then try again"
+      : e.code === "auth/network-request-failed" ? "Could not log in. Check your signal" : "Wrong username or password"));
+  },
+  // Leaving the team on this phone. A staff phone's record goes too.
+  async leave() {
+    if (auth.currentUser?.isAnonymous) await deleteDoc(doc(db, "staff", auth.currentUser.uid)).catch(() => {});
+    liveChanged("left");
+    return leave();
+  },
+  changePassword: (pw) => updatePassword(auth.currentUser, pw),
+  // The owner adds the manager's account: a username and a password the owner picks and gives them.
+  async addManager(name, username, password) {
     if ((await getDoc(doc(db, "usernames", username))).exists()) err("That username is taken");
-    const { user } = await createUserWithEmailAndPassword(auth, emailFor(username), pin);
-    const owner = { uid: user.uid, name, username, role: "owner" }, b = writeBatch(db);
-    b.set(doc(db, "config", "owner"), { uid: user.uid, proof: code });
-    b.set(doc(db, "staff", user.uid), staffRecord(owner));
-    b.set(doc(db, "usernames", username), { email: user.email, uid: user.uid });
-    audit(b, user.uid + "-in", "setup", owner, owner);
-    b.delete(doc(db, "config", "pins"));
-    // The rules refuse a wrong code or a second owner. Anything else (no signal, say) isn't the code's fault.
-    await b.commit().catch(async (e) => {
-      await deleteUser(user).catch(() => {});
-      err(e.code === "permission-denied" ? "That setup code didn't work, or setup has already been done" : "Setup didn't finish. Check your signal and try again");
-    });
-  },
-  async addPerson(name, username, pin, role) {
-    if ((await getDoc(doc(db, "usernames", username))).exists()) err("That username is taken");
-    await withAccount(username, pin, (user) => {
-      const p = { uid: user.uid, name, username, role }, b = writeBatch(db);
-      b.set(doc(db, "staff", user.uid), staffRecord(p));
-      b.set(doc(db, "usernames", username), { email: user.email, uid: user.uid });
-      audit(b, user.uid + "-in", "add", p);
-      return b.commit();
-    });
-  },
-  // Firebase can't change someone else's password from the app, so a reset moves them to a fresh account.
-  resetPin(person, pin) {
-    return withAccount(person.username, pin, (user) => {
+    const { user } = await createUserWithEmailAndPassword(maker, emailFor(username), password);
+    try {
       const b = writeBatch(db);
-      b.set(doc(db, "staff", user.uid), staffRecord(person));
-      b.set(doc(db, "usernames", person.username), { email: user.email, uid: user.uid });
-      b.delete(doc(db, "staff", person.uid));
-      audit(b, user.uid + "-in", "reset", { ...person, uid: user.uid });
-      audit(b, person.uid + "-out", "reset", person);
-      return b.commit();
-    });
+      b.set(doc(db, "staff", user.uid), { name, username, role: "manager" });
+      b.set(doc(db, "usernames", username), { email: user.email, uid: user.uid });
+      await b.commit();
+    } catch (e) { await deleteUser(user).catch(() => {}); throw e; } finally { await signOut(maker).catch(() => {}); }
   },
-  // Removes their access and their username. What they wrote keeps their name.
+  // Takes a phone or the manager off the team. What they wrote keeps their name.
   remove(person) {
     const b = writeBatch(db);
-    b.delete(doc(db, "usernames", person.username));
+    if (person.role === "manager" && person.username) b.delete(doc(db, "usernames", person.username));
     b.delete(doc(db, "staff", person.uid));
-    audit(b, person.uid + "-out", "remove", person);
     return b.commit();
   },
-  // Test staff: ps is [{name, side, role}]. Ids start test- so every phone can tell them apart from the real team.
-  addTests: (ps) => inBatches(ps, 20, (b, p) => {
-    const id = "test-" + doc(collection(db, "teststaff")).id;
-    b.set(doc(db, "teststaff", id), { who: p.name, side: p.side, role: p.role, ...me() });
-  }),
-  removeTests: (ids) => inBatches(ids, 20, (b, id) => b.delete(doc(db, "teststaff", id))),
-  setRole(person, role) {
-    const b = writeBatch(db);
-    b.update(doc(db, "staff", person.uid), { role });
-    audit(b, doc(collection(db, "audit")).id, "role", { ...person, role });
-    return b.commit();
-  },
-  removePost: (id) => deleteDoc(doc(db, "feed", id)),
-  // side: "all", "bar", "floor" or "kitchen". managers: false leaves managers out (the owner only).
-  pin: (text, side, managers) => addDoc(collection(db, "notices"), { text, side, managers, ...me() }),
-  // Got it: carries the broadcast's managers setting, as the rules require. Broadcasts from before audiences count as true.
-  gotIt: (n) => setDoc(doc(db, "seen", `${n.id}-${auth.currentUser.uid}`), { notice: n.id, managers: n.managers ?? true, ...me() }),
-  unpin: (id) => deleteDoc(doc(db, "notices", id)),
+  // Live messages. side: all, bar or floor. level: urgent, asap or info.
+  post: (text, side, level) => addDoc(collection(db, "notices"), { text, side, level, ...me() }),
+  gotIt: (n) => setDoc(doc(db, "seen", `${n.id}-${auth.currentUser.uid}`), { notice: n.id, ...me() }),
+  unpost: (id) => deleteDoc(doc(db, "notices", id)),
+  saveTemplate: (text, level) => addDoc(collection(db, "templates"), { text, level, ...me() }),
+  dropTemplate: (id) => deleteDoc(doc(db, "templates", id)),
+  // To the manager. An anonymous one holds no name and no device id.
+  ask: (a) => addDoc(collection(db, "asks"), { kind: a.kind, text: a.text, when: a.when, anon: a.anon, status: "new", ...(a.anon ? { at: serverTimestamp() } : me()) }),
+  answer: (id, status, reply = "") => updateDoc(doc(db, "asks", id), { status, reply, by: LIVE.me, byAt: serverTimestamp() }),
+  dropAsk: (id) => deleteDoc(doc(db, "asks", id)),
   // The report and its photos go in one write, so the photos can't end up on the wrong report.
   sendReport(side, text, summary) {
     const b = writeBatch(db), ref = doc(collection(db, "reports")), photos = LIVE.myPhotos.slice(0, MAX_PHOTOS);
@@ -498,7 +239,6 @@ LIVE.api = {
   // ({name, uid}, or null for nobody) to give it to without changing where it's up to. The task and its event go in one
   // write. Each change raises the version by one, so a change made from an old copy (two phones at once, or a phone
   // that was offline) is refused instead of overwriting the newer one, and a retried write can't add a second event.
-  // Giving it to someone keeps the reason it's blocked, if it is.
   setTask(list, item, label, to, { note, give } = {}) {
     const day = shiftDay(), id = `${list}-${item}`, cur = LIVE.tasks[id], v = (cur?.v || 0) + 1, from = cur?.status || "todo";
     note ??= give === undefined ? "" : cur?.note || "";
@@ -515,21 +255,9 @@ LIVE.api = {
     b.set(doc(db, "events", `r-${day}-${list}-${v}`), { kind: "run", day, list, label, area: SIDE[list], from, to, done, required, note, v, ...me() });
     return b.commit();
   },
-  // A manager's version of a list: its items ({id, t, days}), the id the next new item gets, and a copy in the list's
-  // history, in one write. The version goes up by one, so if two managers save at once the second is refused instead of
-  // overwriting the first without knowing.
-  saveList(key, items, next) {
-    const v = (LIVE.lists[key]?.v || 0) + 1, x = { items, next, v, ...me() }, b = writeBatch(db);
-    b.set(doc(db, "lists", key), x);
-    b.set(doc(db, "listlog", `${key}-${v}`), { list: key, ...x });
-    return b.commit();
-  },
-  // Every saved version of a list, newest first, read once when a manager opens its history.
-  listHistory: (key) => getDocs(query(collection(db, "listlog"), where("list", "==", key))).then((s) => rows(s).sort((a, b) => b.v - a.v)),
-  // A date label: added, edited or removed by a manager (item, side, life and on say what it is), or opened, changed or
-  // binned by anyone (useBy is the date written on it). Opening and changing date it today and put this person's name on
-  // it. The label and its event go in one write, and the version goes up by one, so a change made from an old copy is
-  // refused. The event keeps the label's date before and after, so a late change shows.
+  // A date label: added, edited or removed (item, side, life and on say what it is), or opened, changed or binned
+  // (useBy is the date written on it). Opening and changing date it today and put this person's name on it. The label
+  // and its event go in one write, and the version goes up by one, so a change made from an old copy is refused.
   label(x, act, { item, side, life, on, useBy } = {}) {
     const day = shiftDay(), add = act === "added", ref = add ? doc(collection(db, "labels")) : doc(db, "labels", x.id), v = add ? 1 : x.v + 1;
     const def = add || act === "edited" ? { item, side, life, on } : { item: x.item, side: x.side, life: x.life, on: x.on };
@@ -544,27 +272,8 @@ LIVE.api = {
       useBy: now ? now.useBy : null, was: add ? null : x.useBy, note: "", v, ...me() });
     return b.commit();
   },
-  // Every change to one date label or shift, oldest first, read when someone opens its history.
+  // Every change to one date label, oldest first, read when someone opens its history.
   eventsOf: (id, kind) => getDocs(query(collection(db, "events"), where("ref", "==", id))).then((s) => rows(s).filter((e) => e.kind === kind).sort((a, b) => a.v - b.v)),
-  // The rota. Shifts for one week, as drafts (nothing for staff to see until it's published) or straight onto a week
-  // that's out, each with its event. f is {week, day, start, end, side, note, who, whoName, offer, offerName}.
-  shiftsAdd: (fs, pub) => inBatches(fs, pub ? 3 : 10, (b, f) => {
-    const ref = doc(collection(db, "shifts")), s = { ...f, cover: "", wants: {}, pub, act: "added", v: 1, ...me() };
-    b.set(ref, s);
-    if (pub) b.set(doc(db, "events", `w-${ref.id}-1`), shiftEvent(ref.id, s, null));
-  }),
-  // A change to one shift: f holds the fields that change. Once it's published, the change goes with its event, which
-  // keeps the shift as it was before; the version goes up by one, so a change made from an old copy is refused.
-  shift(x, act, f = {}) {
-    const ref = doc(db, "shifts", x.id), v = x.v + 1, b = writeBatch(db);
-    const s = { ...Object.fromEntries(SHIFT_KEYS.map((k) => [k, x[k]])), ...f, act, v, ...me() };
-    if (act === "removed") b.delete(ref); else b.set(ref, s);
-    if (x.pub) b.set(doc(db, "events", `w-${x.id}-${v}`), shiftEvent(x.id, act === "removed" ? { ...x, act, v } : s, x));
-    return b.commit();
-  },
-  // Publishing a week: every draft in it, with no events (drafts have none).
-  publish: (xs) => inBatches(xs, 10, (b, x) => b.update(doc(db, "shifts", x.id), { pub: true, act: "published", v: x.v + 1, ...me() })),
-  // Restocking from the cellar: what, how much, which unit, where it's going (up, down, shakes, floor or kitchen) and any detail.
   askRestock({ item, qty, unit, dest, detail }) {
     const day = shiftDay(), ref = doc(collection(db, "restock")), b = writeBatch(db);
     b.set(ref, { item, qty, unit, dest, detail, day, status: "asked", who: null, whoUid: null, moved: null, got: null, note: "", v: 1, askedBy: LIVE.me, askedUid: auth.currentUser.uid, askedAt: serverTimestamp(), ...me() });
@@ -573,7 +282,7 @@ LIVE.api = {
   },
   // to: given (to give, {name, uid}), doing (taken on by this person), delivered (moved: how much was brought up),
   // received (got: how much arrived), unavailable, blocked, cancelled, or asked (back to waiting, which clears who has
-  // it and the amounts). Asked, moved and received stay separate, and no stock level changes here.
+  // it and the amounts).
   moveRestock(r, to, { note = "", give, moved, got } = {}) {
     const v = r.v + 1, back = to === "asked";
     const p = to === "given" ? give : to === "doing" ? { name: LIVE.me, uid: auth.currentUser.uid } : back ? null : { name: r.who, uid: r.whoUid };
@@ -583,35 +292,11 @@ LIVE.api = {
       qty: to === "delivered" ? m : to === "received" ? g : null, unit: r.unit, dest: r.dest, note, v, ...me() });
     return b.commit();
   },
-  // Earlier nights, read once: the KPIs, Activity's earlier nights and the downloads. Newest nights first, so if there
-  // are ever more than the limit, the oldest are the ones left out.
-  eventsOn: (day) => getDocs(query(collection(db, "events"), where("day", "==", day), limit(2000))).then(rows),
-  eventsFrom: (day) => getDocs(query(collection(db, "events"), where("day", ">=", day), orderBy("day", "desc"), limit(5000))).then(rows),
-  restockFrom: (day) => getDocs(query(collection(db, "restock"), where("day", ">=", day), orderBy("day", "desc"), limit(2000))).then(rows),
-  cancelRequest: (id) => deleteDoc(doc(db, "requests", id)),
-  markOrdered: (id) => updateDoc(doc(db, "requests", id), { done: true, doneBy: LIVE.me, doneByUid: auth.currentUser.uid, doneAt: serverTimestamp() }),
   addPhoto: (data) => addDoc(collection(db, "photos"), { data, note: "", report: null, ...me() }),
   notePhoto: (id, note) => updateDoc(doc(db, "photos", id), { note }),
   deletePhoto: (id) => deleteDoc(doc(db, "photos", id)),
   loadPhotos: (reportId) => getDocs(query(collection(db, "photos"), where("report", "==", reportId))).then((s) => s.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id })).sort((a, b) => ms(a.at) - ms(b.at))),
   KEEP_DAYS,
-  // A concern and its photos go in one write. An anonymous one carries no uid or name.
-  reportConcern(c, photos) {
-    const b = writeBatch(db), ref = doc(collection(db, "concerns"));
-    b.set(ref, { ...c, photos: photos.length, status: "open", ...(c.anon ? { at: serverTimestamp() } : me()) });
-    photos.forEach((data, n) => b.set(doc(db, "concernPhotos", `${ref.id}-${n}`), { concern: ref.id, n, to: c.to, data, at: serverTimestamp() }));
-    return b.commit();
-  },
-  closeConcern: (id, fix) => updateDoc(doc(db, "concerns", id), { status: "closed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
-  removeConcern(c) {
-    const b = writeBatch(db);
-    b.delete(doc(db, "concerns", c.id));
-    for (let n = 0; n < c.photos; n++) b.delete(doc(db, "concernPhotos", `${c.id}-${n}`));
-    return b.commit();
-  },
-  // Each photo's data, or null where it has been cleared after 30 days.
-  concernPhotos: (c) => Promise.all(Array.from({ length: c.photos }, (_, n) => getDoc(doc(db, "concernPhotos", `${c.id}-${n}`)).then((x) => (x.exists() ? x.data().data : null)))),
-  signOff: (id) => updateDoc(doc(db, "reports", id), { signedBy: LIVE.me, signedByUid: auth.currentUser.uid, signedAt: serverTimestamp() }),
   // The board and its log change in one write. Back in stock writes "{the 86's log id}-back", so the two always match.
   set86(name, on) {
     const item = slug(name), ref = doc(db, "out", item), b = writeBatch(db);
@@ -627,140 +312,28 @@ LIVE.api = {
     }
     return b.commit();
   },
-  // Only the fields each kind needs, so nothing left over from another form goes with it.
-  ask(a) {
-    const extra = { late: { eta: a.eta }, off: { date1: a.date1, date2: a.date2 }, swap: { date1: a.date1, with: a.with } }[a.kind];
-    return addDoc(collection(db, "asks"), { kind: a.kind, ...extra, note: a.note, status: "pending", ...me() });
-  },
-  cancelAsk: (id) => deleteDoc(doc(db, "asks", id)),
-  decide: (id, status) => updateDoc(doc(db, "asks", id), { status, by: LIVE.me, byUid: auth.currentUser.uid, byAt: serverTimestamp() }),
-  incident: (kind, text) => addDoc(collection(db, "incidents"), { kind, text, status: "open", ...me() }),
-  closeIncident: (id, outcome) => updateDoc(doc(db, "incidents", id), { status: "closed", outcome, closedBy: LIVE.me, closedByUid: auth.currentUser.uid, closedAt: serverTimestamp() }),
-  review: (report, verdict, text) => addDoc(collection(db, "reviews"), { report, verdict, text, ...me() }),
-  removeReview: (id) => deleteDoc(doc(db, "reviews", id)),
-  // No name or uid is saved, so nobody (the owner included) can tell who wrote it.
-  rate: (person, score, text) => addDoc(collection(db, "ratings"), { about: person.uid, aboutName: person.name, score, text, at: serverTimestamp() }),
-  // Issues and handover: raise, take on (or give to someone), mark fixed. "Still broken" raises a new one linked back.
-  // A calendar entry, new (no id) or changed: the whole entry each time, signed by whoever saves it.
-  saveCal: (id, x) => { const v = { title: x.title, kind: x.kind, date1: x.date1, date2: x.date2, note: x.note, ...me() }; return id ? setDoc(doc(db, "calendar", id), v) : addDoc(collection(db, "calendar"), v); },
-  dropCal: (id) => deleteDoc(doc(db, "calendar", id)),
   addFixture: (x) => addDoc(collection(db, "fixtures"), { day: x.day, ko: x.ko, home: x.home, away: x.away, comp: x.comp, channel: x.channel, screen: x.screen, ...me() }),
   dropFixture: (id) => deleteDoc(doc(db, "fixtures", id)),
-  // The manager close: tonight's handover and, for each food safety, equipment or security problem, an urgent issue the
-  // whole team sees, all in one write, so the handover can't be saved without them. The id is the business day, so a
-  // second close of the same night is refused.
-  sendHandover(day, h, raise) {
-    const b = writeBatch(db);
-    for (const x of raise) b.set(doc(db, "issues", `h-${day}-${x.q}`), { title: x.title, detail: x.detail, area: x.area, urgent: true, again: null, status: "open", ...me() });
-    b.set(doc(db, "handovers", day), { day, ...h, ...me() });
-    return b.commit();
-  },
-  // Tonight's briefing, new or changed: the whole of it each time, one version up.
-  saveBriefing: (b) => setDoc(doc(db, "briefings", shiftDay()), { day: shiftDay(), covers: b.covers, bookings: b.bookings, specials: b.specials, allergies: b.allergies, sections: b.sections, breaks: b.breaks, focus: b.focus, previous: b.previous, v: (LIVE.briefing?.v || 0) + 1, ...me() }),
-  readBriefing: () => setDoc(doc(db, "briefReads", `${shiftDay()}-${auth.currentUser.uid}`), { day: shiftDay(), v: LIVE.briefing.v, ...me() }),
-  logGuest: (g) => addDoc(collection(db, "guests"), { kind: g.kind, table: g.table, what: g.what, wants: g.wants, done: g.done, comp: g.comp, escalate: g.escalate, status: "open", ...me() }),
-  closeGuest: (id, resolution, extra, followUp) => updateDoc(doc(db, "guests", id), { status: "closed", resolution, extra, followUp, closedBy: LIVE.me, closedByUid: auth.currentUser.uid, closedAt: serverTimestamp() }),
-  setStatus: (side, level, note) => setDoc(doc(db, "status", `${shiftDay()}-${side}`), { day: shiftDay(), side, level, note, ...me() }),
-  addBlock: (side, kind, note) => addDoc(collection(db, "blocks"), { day: shiftDay(), side, kind, note, ...me() }),
-  saveNight: (day, n) => setDoc(doc(db, "nights", day), { day, covers: n.covers, wet: n.wet, dry: n.dry, note: n.note, ...me() }),
-  saveHoq: (qs) => setDoc(doc(db, "settings", "hoq"), { qs, ...me() }),
-  setComp: (staff, manager) => setDoc(doc(db, "settings", "comp"), { staff, manager, ...me() }),
-  saveContacts: (list) => setDoc(doc(db, "settings", "contacts"), { list, ...me() }),
-  refuse: (reason, what, note) => addDoc(collection(db, "refusals"), { day: shiftDay(), reason, what, note, ...me() }),
-  dropRefusal: (id) => deleteDoc(doc(db, "refusals", id)),
-  // c: { who, whoName, kind, label, done, ends, note }. A new one when id is empty.
-  saveCert: (id, c) => (id ? setDoc(doc(db, "certs", id), { ...c, ...me() }) : addDoc(collection(db, "certs"), { ...c, ...me() })),
-  dropCert: (id) => deleteDoc(doc(db, "certs", id)),
-  saveAvail: (days, note) => setDoc(doc(db, "avail", auth.currentUser.uid), { days, note, ...me() }),
-  shout: (p, text) => addDoc(collection(db, "shouts"), { to: p.uid, toName: p.name, text, ...me() }),
-  dropShout: (id) => deleteDoc(doc(db, "shouts", id)),
-  pulse: (score, note) => setDoc(doc(db, "pulse", `${shiftDay()}-${auth.currentUser.uid}`), { day: shiftDay(), score, note, ...me() }),
-  // The first go at tonight's quiz: "1" or "0" for each question. Only a first write is allowed, so another phone's go
-  // can't replace it.
-  saveQuiz: (day, right) => setDoc(doc(db, "quiz", `${day}-${auth.currentUser.uid}`), { day, right, ...me() }),
-  saveOnboardList: (list) => setDoc(doc(db, "settings", "onboard"), { list, ...me() }),
-  startOnboard: (p, start) => setDoc(doc(db, "onboard", p.uid), { who: p.uid, whoName: p.name, start, done: {}, ...me() }),
-  // One tick on its own, so two managers ticking at once don't undo each other's.
-  tickOnboard: (who, item, on) => updateDoc(doc(db, "onboard", who), new FieldPath("done", item), on ? { day: shiftDay(), by: LIVE.me } : deleteField(),
-    "uid", auth.currentUser.uid, "name", LIVE.me, "at", serverTimestamp()),
-  dropOnboard: (who) => deleteDoc(doc(db, "onboard", who)),
-  acceptHandover: (day, note) => updateDoc(doc(db, "handovers", day), { ackBy: LIVE.me, ackByUid: auth.currentUser.uid, ackAt: serverTimestamp(), ackNote: note }),
+  // Issues: raise, take on (or give to someone), mark fixed. "Still broken" raises a new one linked back.
   raise: (x) => addDoc(collection(db, "issues"), { title: x.title, detail: x.detail, area: x.area, urgent: x.urgent, again: x.again || null, status: "open", ...me() }),
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),
   fixed: (id, fix) => updateDoc(doc(db, "issues", id), { status: "fixed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
   withdrawIssue: (id) => deleteDoc(doc(db, "issues", id)),
-  // Training sign-offs load the first time someone opens Practise or Training: staff their own, managers everyone's.
-  watchTraining() {
-    const t = collection(db, "training");
-    sub("training", LIVE.admin ? t : query(t, where("trainee", "==", auth.currentUser.uid)), (snap) => { LIVE.training = rows(snap); liveChanged("training"); });
-  },
-  // One record per person per drink, named after both, so the same drink can't be signed off twice.
-  passDrink: (person, drinkName) => setDoc(doc(db, "training", `${person.uid}-${slug(drinkName)}`), { trainee: person.uid, traineeName: person.name, drinkName, ...me() }),
-  unpass: (id) => deleteDoc(doc(db, "training", id)),
-  // Managers' spreadsheet downloads: the whole of one collection, read once (the live lists keep only the latest). Waste,
-  // temperatures, line cleans and stock counts are read-only old records now (Alert65 and Nory took them over).
-  history: (name) => getDocs(query(collection(db, name), orderBy("at", "desc"))).then(rows),
-  LIVE_N,
-  // One page of reports or incidents from before a time, newest first, for the Reports tab's "Show older".
-  olderThan: (name, before, n) => getDocs(query(collection(db, name), where("at", "<", before), orderBy("at", "desc"), limit(n))).then(rows),
-  // The owner's list of features switched off for everyone here.
-  setOff: (off) => setDoc(doc(db, "settings", "features"), { off, ...me() }),
-  // The owner's Start fresh: what it would clear, and clearing it (with the PIN typed again).
-  freshCounts: () => freshCounts(), startFresh,
-  // Managers' reviews of up to 30 reports, the most one "in" query takes.
-  reviewsOf: (ids) => (ids.length ? getDocs(query(collection(db, "reviews"), where("report", "in", ids))).then(rows) : Promise.resolve([])),
-  // Checklist ticks from before tasks (24 and 25 October 2026), for the given business days.
-  ticksFor: (days) => Promise.all(days.map((day) => getDocs(collection(db, "shift", day, "ticks")).then((s) => s.docs.map((x) => ({ day, ...x.data() }))))).then((xs) => xs.flat()),
-  // Team chat. A private chat's id is both uids in order, so a pair only ever has one.
-  dmId: (other) => [auth.currentUser.uid, other].sort().join("-"),
-  newChat(kind, { other, title = "", members = [] } = {}) {
-    const uid = auth.currentUser.uid, ref = kind === "team" ? doc(db, "chats", "team") : kind === "dm" ? doc(db, "chats", LIVE.api.dmId(other)) : doc(collection(db, "chats"));
-    const ids = kind === "dm" ? [uid, other].sort() : kind === "group" ? [uid, ...members.filter((m) => m !== uid)] : [];
-    return setDoc(ref, { kind, title, members: ids, by: uid, at: serverTimestamp(), lastId: "", lastText: "", lastName: "", lastUid: "", lastAt: serverTimestamp(), lastPings: [], read: {} }).then(() => ref.id);
-  },
-  watchMessages,
-  // A message, the chat's preview, its photo and a ping for each person mentioned go in one write. In a private chat the
-  // other person is always pinged.
-  sendChat(c, text, photo, mentions = []) {
-    const uid = auth.currentUser.uid, b = writeBatch(db), m = doc(collection(db, "chats", c.id, "msgs"));
-    if (c.kind === "dm") mentions = c.members.filter((x) => x !== uid);
-    b.set(m, { text, photo: !!photo, mentions, ...me() });
-    b.update(doc(db, "chats", c.id), { lastId: m.id, lastText: preview(text), lastName: LIVE.me, lastUid: uid, lastAt: serverTimestamp(), lastPings: mentions, [`read.${uid}`]: serverTimestamp() });
-    if (photo) b.set(doc(db, "chatPhotos", `${c.id}-${m.id}`), { chat: c.id, msg: m.id, day: shiftDay(), data: photo, ...me() });
-    mentions.forEach((to) => b.set(doc(db, "pings", `${to}-${c.id}`), { to, chat: c.id, msg: m.id, text: preview(text), ...me() }));
-    return b.commit();
-  },
-  // Takes back your own message and its photo. If it was the latest, the chat's preview clears.
-  unsend(c, m) {
-    const b = writeBatch(db);
-    b.delete(doc(db, "chats", c.id, "msgs", m.id));
-    if (m.photo) b.delete(doc(db, "chatPhotos", `${c.id}-${m.id}`));
-    if (c.lastId === m.id) b.update(doc(db, "chats", c.id), { lastText: "" });
-    return b.commit();
-  },
-  // Read up to now, and any ping for this chat cleared.
-  markRead(c) {
-    const uid = auth.currentUser.uid, b = writeBatch(db);
-    b.update(doc(db, "chats", c.id), { [`read.${uid}`]: serverTimestamp() });
-    if (LIVE.pings.some((p) => p.chat === c.id)) b.delete(doc(db, "pings", `${uid}-${c.id}`));
-    return b.commit();
-  },
-  editGroup: (c, title, members) => updateDoc(doc(db, "chats", c.id), { title, members }),
-  leaveGroup: (c) => updateDoc(doc(db, "chats", c.id), { members: arrayRemove(auth.currentUser.uid) }),
-  // A photo's data, or null once it has been cleared after 30 days.
-  chatPhoto: (c, m) => getDoc(doc(db, "chatPhotos", `${c.id}-${m.id}`)).then((x) => (x.exists() ? x.data().data : null)),
+  saveContacts: (list) => setDoc(doc(db, "settings", "contacts"), { list, ...me() }),
+  shout: (toName, text) => addDoc(collection(db, "shouts"), { toName, text, ...me() }),
+  dropShout: (id) => deleteDoc(doc(db, "shouts", id)),
   watchMedia,
   // A drink's photo and video link, saved together. With neither, the record goes.
   setMedia: (drink, photo, video) => (photo || video ? setDoc(doc(db, "drinkMedia", slug(drink)), { drink, photo, video, ...me() }) : deleteDoc(doc(db, "drinkMedia", slug(drink)))),
-  USER, PIN, MAX_PHOTOS, CODE_MIN,
+  USER, PASSWORD_MIN, CODE_MIN, MAX_PHOTOS,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, feed: [], out: new Set(), outInfo: new Map(), notices: [], seen: [], reports: [], outlog: [], staff: [], tests: [], myPhotos: [], requests: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], shifts: [], restock: [], fixtures: [], cal: [], asks: [], incidents: [], reviews: [], ratings: [], issues: [], audit: [],
-  training: [], concerns: [], directory: [], chats: [], msgs: [], pings: [], media: null, reset: null, contacts: [], refusals: [], certs: [], avail: [], shouts: [], pulse: [], quiz: [], onboard: [], onboardList: null });
+const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, anon: false, staff: [], notices: [], seen: [], templates: [], out: new Set(), outInfo: new Map(),
+  outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], shouts: [], asks: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
-  if (u) { LIVE.uid = u.uid; listen(u.uid); return; }
-  unsubAll(); LIVE.loaded.clear(); openChat = "";
+  if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }
+  unsubAll(); LIVE.loaded.clear();
   Object.assign(LIVE, EMPTY());
   liveChanged("me");
 });

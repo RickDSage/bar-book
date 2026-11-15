@@ -10,9 +10,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 export const PROJECT = "demo-bar-book";
 const FS = `http://127.0.0.1:8080`;
 const DOCS = `${FS}/v1/projects/${PROJECT}/databases/(default)/documents`;
-// Test-only setup code. The real one lives only in the owner's Firebase console.
-export const SETUP_CODE = "test-setup-code-0123456789";
-export const OWNER_PIN = "111222", MANAGER_PIN = "222333", STAFF_PIN = "333444";
+// Test-only team code. The real one lives only in the owner's Firebase console (config/team).
+export const TEAM_CODE = "test-team-code-0123";
+export const OWNER_PW = "owner-pass-111", MANAGER_PW = "manager-pass-222";
 
 // Serves a built site folder on a free port.
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".webmanifest": "application/manifest+json", ".txt": "text/plain" };
@@ -27,20 +27,28 @@ export function serve(dir) {
   return new Promise((ok) => server.listen(0, "127.0.0.1", () => ok({ url: `http://127.0.0.1:${server.address().port}/`, close: () => server.close() })));
 }
 
-// A clean emulator: today's rules, no data, no accounts, and a setup code waiting in config/pins.
+// A clean emulator: today's rules, no data, no accounts, the team code in config/team and the owner's login.
 export async function resetEmulators() {
   const rules = fs.readFileSync(path.join(ROOT, "firestore.rules"), "utf8");
   const put = await fetch(`${FS}/emulator/v1/projects/${PROJECT}:securityRules`, { method: "PUT", body: JSON.stringify({ rules: { files: [{ content: rules }] } }) });
   if (!put.ok) throw new Error(`Rules not loaded: ${await put.text()}`);
   await fetch(`${FS}/emulator/v1/projects/${PROJECT}/databases/(default)/documents`, { method: "DELETE" });
   await fetch(`http://127.0.0.1:9099/emulator/v1/projects/${PROJECT}/accounts`, { method: "DELETE" });
-  await adminWrite("config/pins", { setup: { stringValue: SETUP_CODE } });
+  await adminWrite("config/team", { code: { stringValue: TEAM_CODE } });
+  await makeOwner();
+}
+// The owner's login, made the way it exists on the live project: an email/password account, its staff record and
+// its username. Test setup only.
+export async function makeOwner(name = "Olly Owner", username = "olly") {
+  const email = `${username}@users.example.com`;
+  const r = await fetch(`http://127.0.0.1:9099/identitytoolkit.googleapis.com/v1/accounts:signUp?key=fake`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password: OWNER_PW, returnSecureToken: true }) });
+  const { localId: uid } = await r.json();
+  await adminWrite(`staff/${uid}`, { name: { stringValue: name }, username: { stringValue: username }, role: { stringValue: "owner" } });
+  await adminWrite(`usernames/${username}`, { email: { stringValue: email }, uid: { stringValue: uid } });
+  return uid;
 }
 // The emulator treats "Bearer owner" as an admin that skips the rules. Test setup only.
 export const adminWrite = (p, fields) => fetch(`${DOCS}/${p}`, { method: "PATCH", headers: { Authorization: "Bearer owner", "Content-Type": "application/json" }, body: JSON.stringify({ fields }) });
-// A team board post from before the board closed (26 October 2026), written past the rules.
-export const oldPost = (uid, name, text) => adminWrite(`feed/${crypto.randomUUID().replace(/-/g, "").slice(0, 20)}`, {
-  kind: { stringValue: "comment" }, text: { stringValue: text }, uid: { stringValue: uid }, name: { stringValue: name }, at: { timestampValue: new Date().toISOString() } });
 export const adminGet = (p) => fetch(`${DOCS}/${p}`, { headers: { Authorization: "Bearer owner" } });
 // How many logins exist in the Auth emulator, to check that refused writes don't leave stray ones behind.
 export const authAccounts = async () => {
@@ -68,29 +76,34 @@ export async function afterReload(p) {
   await p.waitForFunction(() => LIVE.ready && !LIVE.uid);
 }
 export const toastOf = (p) => p.$eval("#toast", (t) => (t.hidden ? "" : t.textContent));
-// Opens a part of the Team page ("issues", "rota", "live"…) as tapping its card does. "" is the cards.
-export const part = (p, k) => p.evaluate((k) => { show("notices"); openPlace(k); }, k);
+// Opens a card on the Team page ("ask", "incident", "issues"…) as the Features page does.
+export const part = (p, k) => p.evaluate((k) => { show("notices"); openAt(k); }, k);
 // Runs a LIVE.api call in the page and reports "allowed" or the error code, for the rule checks.
 export const attempt = (p, fn, ...args) => p.evaluate(([f, a]) => (0, eval)(f)(...a).then(() => "allowed", (e) => e.code || e.message), [fn.toString(), args]);
 
-// The usual team: an owner set up through the app, plus whoever else the test asks for.
+// The usual team: the owner logged in on one phone, plus whoever else the test asks for: [key, name] joins as staff
+// with the team code, [key, name, username, "manager"] is the manager the owner adds.
 export async function team(browser, site, people = []) {
+  // Phones from an earlier test would rejoin after the emulator is wiped, so they go first.
+  for (const c of browser.contexts()) await c.close();
   const O = await phone(browser, site);
-  await O.evaluate(([pin, code]) => LIVE.api.setup("Olly Owner", "olly", pin, code), [OWNER_PIN, SETUP_CODE]);
-  await O.waitForFunction(() => LIVE.owner && LIVE.staff.length === 1);
+  await O.evaluate((pw) => LIVE.api.login("olly", pw), OWNER_PW);
+  await O.waitForFunction(() => LIVE.owner);
   const out = { O };
   for (const [key, name, username, role] of people) {
-    const pin = role === "staff" ? STAFF_PIN : MANAGER_PIN;
-    await O.evaluate((a) => LIVE.api.addPerson(...a), [name, username, pin, role]);
     const p = await phone(browser, site);
-    await p.evaluate((a) => LIVE.api.login(...a), [username, pin]);
-    await p.waitForFunction((r) => LIVE.role === r, role);
+    if (role === "manager") {
+      await O.evaluate((a) => LIVE.api.addManager(...a), [name, username, MANAGER_PW]);
+      await p.evaluate((a) => LIVE.api.login(...a), [username, MANAGER_PW]);
+      await p.waitForFunction(() => LIVE.role === "manager");
+    } else {
+      await p.evaluate((a) => LIVE.api.join(...a), [TEAM_CODE, name]);
+      await p.waitForFunction((n) => LIVE.me === n, name);
+    }
     out[key] = p;
   }
-  // Every phone has the whole team and tonight's rota before a test starts. A write made while a phone's listeners
-  // were still starting was now and then refused by the emulator ("maximum of 1000 expressions"), and a manager's phone
-  // could still be waiting for the last person added.
-  for (const p of Object.values(out)) await p.waitForFunction((n) => LIVE.directory.length === n && LIVE.loaded.has("shifts") && (!LIVE.admin || LIVE.staff.length === n), people.length + 1);
+  // Every phone has the whole team before a test starts.
+  for (const p of Object.values(out)) await p.waitForFunction((n) => LIVE.staff.length === n, people.length + 1);
   return out;
 }
 // How many team records this phone has saved for offline use.
