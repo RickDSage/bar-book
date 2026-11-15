@@ -72,7 +72,7 @@ test("the floor's lists follow the UK business day, which ends at 6am", async ()
     const p = await open({ start: "#w-floor", at });
     assert.equal(await p.$eval("#shift-title", (e) => e.textContent), "Floor shift", label);
     if (!at.endsWith("07:00:00Z")) assert.equal(await p.evaluate(() => defaultPane()), "fclose", `${label}: late in the day opens on the closing list`);
-    assert.equal(await p.evaluate(() => shown("fclose").some(([, t]) => t.includes("Toilets"))), toilets, label);
+    assert.equal(await p.evaluate(() => shown("fclose").some(([, t]) => t.includes("Toilets bleached"))), toilets, label);
     assert.deepEqual(p.errs, [], label);
     await p.context().close();
   }

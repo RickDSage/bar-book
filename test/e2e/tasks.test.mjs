@@ -98,41 +98,26 @@ test("tasks change on every phone as they happen, with who, when and why, and co
   await pick(T, "close-3", "todo");
   await settled(S, "close-3", "todo");
 
-  // A done item goes back only by whoever did it, or a manager. A mis-tap goes straight back...
-  await T.click('[data-list=close][data-i="0"]');
-  assert.equal(await toastOf(T), "Done by Sam Staff. Only they or a manager can take it back");
-  assert.equal(await attempt(T, () => LIVE.api.setTask("close", 0, "x", "todo", { note: "Not done" })), "permission-denied");
+  // Anyone can take a done item back, straight away and with no reason; whoever did it is told, and the history keeps who.
   let asked = 0;
-  S.on("dialog", () => asked++);
-  await S.click('[data-list=close][data-i="0"]');
-  await settled(T, "close-0", "todo");
-  assert.equal(await row(T, "close", 0), await T.evaluate(() => itemText("close", 0)));
-  assert.equal(asked, 0, "no reason needed straight after");
+  T.on("dialog", () => asked++);
+  await T.click('[data-list=close][data-i="0"]');
+  await waitToast(S, /^Tia Staff took back your item: /);
+  await settled(S, "close-0", "todo");
+  assert.equal(await row(S, "close", 0), await S.evaluate(() => itemText("close", 0)));
+  assert.equal(asked, 0, "no reason asked");
 
-  // ...but one done a while ago needs a reason, which goes on the record.
-  const day = await S.evaluate(() => shiftDay()), sam = await S.evaluate(() => LIVE.uid), l6 = await S.evaluate(() => itemText("close", 6)), t10 = minsAgo(10);
-  await seed(`events/t-${day}-close-6-1`, { kind: "task", day, list: "close", item: 6, label: l6, area: "bar", from: "todo", to: "done", who: null, note: "", v: 1, uid: sam, name: "Sam Staff", at: t10 });
-  await seed(`shift/${day}/tasks/close-6`, { list: "close", item: 6, status: "done", who: null, whoUid: null, note: "", v: 1, uid: sam, name: "Sam Staff", at: t10 });
-  await settled(S, "close-6", "done");
-  S.answer = "";
-  await S.click('[data-list=close][data-i="6"]');
-  assert.equal(await S.evaluate(() => LIVE.tasks["close-6"].status), "done", "no reason, no change");
-  assert.equal(asked, 1);
-  S.answer = "Ticked the wrong one";
-  await S.click('[data-list=close][data-i="6"]');
-  await settled(M, "close-6", "todo");
-  assert.match(await row(M, "close", 6), /^.+ Reopened by Sam Staff, \d\d:\d\d: Ticked the wrong one$/);
-
-  // A manager takes back someone else's, with a reason, and they're told.
-  await T.click('[data-list=close][data-i="1"]');
-  await settled(M, "close-1", "done");
-  M.answer = "Bar top still sticky";
-  await M.click('[data-list=close][data-i="1"]');
-  await waitToast(T, /^Mia Manager took back your item: .+: Bar top still sticky$/);
-  await settled(T, "close-1", "todo");
-  assert.match(await row(T, "close", 1), /Reopened by Mia Manager, \d\d:\d\d: Bar top still sticky$/);
+  // Clear: anyone puts the whole list back to not started on every phone, without a toast for each item.
+  await S.click('[data-list=close][data-i="1"]');
+  await settled(T, "close-1", "done");
+  T.answer = "yes";
+  await T.$eval("[data-clear-list=close]", (b) => b.click());
+  await settled(S, "close-1", "todo");
+  await settled(S, "close-3", "todo");
+  assert.equal(await row(S, "close", 1), await S.evaluate(() => itemText("close", 1)), "no Reopened line on a cleared item");
 
   // Managers give an item to someone, who's told, and everyone sees who it's for.
+  const sam = await S.evaluate(() => LIVE.uid);
   const tia = await T.evaluate(() => LIVE.uid);
   await opts(M, "close-4");
   await M.selectOption('[data-give-task="close-4"]', tia);
@@ -178,13 +163,13 @@ test("a list finishes once everything's done; finishing early takes a manager an
   await waitToast(S, /^Tables and cutlery finished by Mia Manager, with 1 not done$/);
   await S.waitForFunction(() => LIVE.runs.fset?.status === "finished" && !LIVE.runs.fset.pending);
   assert.match(await runBox(S),
-    /^Finished Started by Mia Manager, \d\d:\d\d\. Finished by Mia Manager, \d\d:\d\d, with 1 of 4 not done\. Reason: Short staffed, last table done tomorrow$/);
+    /^Finished Started by Mia Manager, \d\d:\d\d\. Finished by Mia Manager, \d\d:\d\d, with 1 of 4 not done\. Reason: Short staffed, last table done tomorrow Reopen…$/);
   await S.click('[data-list=fset][data-i="4"]');
-  assert.equal(await toastOf(S), "Tables and cutlery is finished. A manager can reopen it");
+  assert.equal(await toastOf(S), "Tables and cutlery is finished. Reopen it to change anything");
   assert.equal(await attempt(S, () => LIVE.api.setTask("fset", 4, "x", "done")), "permission-denied");
-  assert.equal(await attempt(S, () => LIVE.api.setRun("fset", "Tables and cutlery", "started", 3, 4, "Missed one")), "permission-denied");
+  assert.equal(await attempt(S, () => LIVE.api.setRun("fset", "Tables and cutlery", "started", 3, 4, "")), "permission-denied", "reopening needs a reason");
 
-  // Reopening takes a manager and a reason. Then the last item can be done, and anyone can finish it.
+  // Anyone can reopen it, with a reason. Then the last item can be done, and anyone can finish it.
   M.answer = "Last table needs laying";
   await M.click('[data-run="fset"][data-to="reopen"]');
   await waitToast(S, /^Tables and cutlery reopened by Mia Manager$/);
@@ -359,13 +344,13 @@ test("managers follow the night live, filter its history, read and download the 
   assert.equal(before.now.length, 2);
   assert.match(before.now[0], new RegExp(`^Overdue: 35 min ${rx(L[5])} \\(Closing checklist\\) Started by Tia Staff, ${hm(t35)} · Open the list$`));
   assert.match(before.now[1], new RegExp(`^Blocked ${rx(L[3])} \\(Closing checklist\\) No hot water · Sam Staff, \\d\\d:\\d\\d · Open the list$`));
-  assert.match(before.lists[1], /^Closing checklist In progress Bar 1 of 21 done · 1 in progress · 1 blocked · 1 overdue · Started by Sam Staff, \d\d:\d\d$/);
+  assert.match(before.lists[1], /^Closing checklist In progress Bar 1 of 36 done · 1 in progress · 1 blocked · 1 overdue · Started by Sam Staff, \d\d:\d\d$/);
   const lw = await shared(M, "#live", "wa");
   assert.equal(lw.host, "wa.me");
   // Summary first, then each part with how many are in it. WhatsApp shows *this* in bold.
   assert.match(lw.text, /^\*Black Tap Soho tonight · \w{3} \d{1,2} \w{3} · \d\d:\d\d\*\n\u26a0\ufe0f 2 things need a manager\n86'd: .+\n\n/);
   assert.match(lw.text, /\n\*Needs a manager \(2\)\*\n• Overdue: 3[5-7] min: .+ \(Closing checklist\)\. Started by Tia Staff, \d\d:\d\d\n• Blocked: .+ \(Closing checklist\) \(No hot water\)\. Sam Staff, \d\d:\d\d\n/);
-  assert.match(lw.text, /\n• Closing checklist: In progress, 1 of 21 done, 1 blocked\. Started by Sam Staff, \d\d:\d\d\n/);
+  assert.match(lw.text, /\n• Closing checklist: In progress, 1 of 36 done, 1 blocked\. Started by Sam Staff, \d\d:\d\d\n/);
   assert.match(lw.text, /\n\*Restocking open \(1\)\*\n• 2 bags of Limes for the upstairs bar: waiting(\n|$)/);
 
   // A reload shows the same night: it's all saved, not held on the phone.
@@ -441,11 +426,13 @@ test("managers follow the night live, filter its history, read and download the 
   await shift(S, "send");
   const sm = await shared(S, "#tally", "mail");
   assert.match(sm.subject, /^Black Tap Soho · Bar shift · \w{3} \d{1,2} \w{3}$/);
-  assert.match(sm.body, /\n\u26a0\ufe0f Closing checklist: 1 of 21 done, 1 blocked\n86'd: .+\n/);
+  assert.match(sm.body, /\n\u26a0\ufe0f Closing checklist: 1 of 36 done, 1 blocked\n86'd: .+\n/);
+  // Heading by heading with tick boxes, then what is left, each with its own box.
+  assert.match(sm.body, /\n\nClosing checklist, by heading \(8\)\n\u2b1c Service \(\d\/3\)\n/);
   // The opening list wasn't started, so its items stay out unless ticked.
-  assert.match(sm.body, /\n\nClosing checklist: not done \(\d+\)\n• /);
+  assert.match(sm.body, /\n\nClosing checklist: not done \(\d+\)\n\u2b1c /);
   assert.doesNotMatch(sm.body, /Opening checklist: not done/);
-  assert.match(sm.body, new RegExp(`\\nBlocked \\(1\\)\\n• ${rx(L[3])}: No hot water · Closing\\n`));
+  assert.match(sm.body, new RegExp(`\\nBlocked \\(1\\)\\n\u26d4 ${rx(L[3])}: No hot water\\n`));
 
   // Light and dark, on a phone and on a desktop: nothing runs off the side.
   for (const scheme of ["light", "dark"]) for (const width of [390, 1280]) {

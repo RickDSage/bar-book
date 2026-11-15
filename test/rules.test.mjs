@@ -481,24 +481,21 @@ describe("tonight's tasks: statuses, with an event for every change", () => {
     await fails(task(db("staff1"), "staff1", "fclose", 7, "todo"), "staff bringing it back");
     await assertSucceeds(task(db("mgr2"), "mgr2", "fclose", 7, "todo"));
   });
-  test("stopping a task: whoever started it, or a manager", async () => {
+  test("stopping a task: anyone on the team", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "close", 3, "doing"));
-    await fails(task(db("staff2"), "staff2", "close", 3, "todo"), "someone else");
-    await assertSucceeds(task(db("staff1"), "staff1", "close", 3, "todo"));
+    await assertSucceeds(task(db("staff2"), "staff2", "close", 3, "todo"));
     await assertSucceeds(task(db("staff2"), "staff2", "close", 3, "doing"));
     await assertSucceeds(task(db("mgr1"), "mgr1", "close", 3, "todo"));
   });
-  test("taking back a done task: a mis-tap within 5 minutes, otherwise with a reason, and never someone else's unless a manager", async () => {
+  test("taking back a done task (a mis-tap, or clearing the list): anyone on the team, with or without a reason", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "open", 4, "done"));
-    await fails(task(db("staff2"), "staff2", "open", 4, "todo", { note: "Not done properly" }), "another member of staff");
-    await assertSucceeds(task(db("staff1"), "staff1", "open", 4, "todo"));
+    await assertSucceeds(task(db("staff2"), "staff2", "open", 4, "todo"));
     await assertSucceeds(task(db("staff1"), "staff1", "open", 4, "done"));
-    await fails(task(db("mgr1"), "mgr1", "open", 4, "todo"), "a manager without a reason");
     await assertSucceeds(task(db("mgr1"), "mgr1", "open", 4, "todo", { note: "Glasses still cloudy" }));
-    // Done six minutes ago.
-    await seed((s) => setDoc(doc(s, "shift", today(), "tasks", "open-5"), { list: "open", item: 5, status: "done", who: null, whoUid: null, note: "", v: 1, uid: "staff1", name: "Sam Staff", at: Timestamp.fromMillis(Date.now() - 6 * 6e4) }));
-    await fails(task(db("staff1"), "staff1", "open", 5, "todo"), "after 5 minutes without a reason");
-    await assertSucceeds(task(db("staff1"), "staff1", "open", 5, "todo", { note: "Ticked the wrong one" }));
+    // Done an hour ago by someone else.
+    await seed((s) => setDoc(doc(s, "shift", today(), "tasks", "open-5"), { list: "open", item: 5, status: "done", who: null, whoUid: null, note: "", v: 1, uid: "staff1", name: "Sam Staff", at: Timestamp.fromMillis(Date.now() - 60 * 6e4) }));
+    await assertSucceeds(task(db("staff2"), "staff2", "open", 5, "todo"));
+    assert.deepEqual((await eventsOf("open-5")).map((e) => [e.from, e.to, e.name]), [["done", "todo", "Tia Staff"]]);
   });
   test("moves that make no sense are refused", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "open", 6, "done"));
@@ -580,14 +577,13 @@ describe("opening and closing procedures", () => {
     await fails(run(db("staff1"), "staff1", "fset", "finished", { done: 5, required: 5, run: { list: "open" } }), "record for another list");
     await fails(run(db("staff1"), "staff1", "bins", "started"), "unknown list");
   });
-  test("a finished procedure locks its tasks until a manager reopens it, with a reason", async () => {
+  test("a finished procedure locks its tasks until someone reopens it, with a reason", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "fshake", 0, "done"));
     await assertSucceeds(run(db("staff1"), "staff1", "fshake", "finished", { done: 8, required: 8 }));
     await fails(task(db("staff1"), "staff1", "fshake", 0, "todo"), "locked");
     await fails(task(db("mgr1"), "mgr1", "fshake", 1, "done"), "locked for managers too");
-    await fails(run(db("staff1"), "staff1", "fshake", "started", { done: 8, required: 8, note: "Missed one" }), "staff reopening");
-    await fails(run(db("mgr1"), "mgr1", "fshake", "started", { done: 8, required: 8 }), "reopening without a reason");
-    await assertSucceeds(run(db("mgr1"), "mgr1", "fshake", "started", { done: 7, required: 8, note: "Drip tray not cleaned" }));
+    await fails(run(db("staff1"), "staff1", "fshake", "started", { done: 8, required: 8 }), "reopening without a reason");
+    await assertSucceeds(run(db("staff1"), "staff1", "fshake", "started", { done: 7, required: 8, note: "Cleared" }));
     await assertSucceeds(task(db("staff1"), "staff1", "fshake", 7, "done"));
     assert.deepEqual((await runEvents()).map((e) => `${e.from}>${e.to}`), ["todo>finished", "finished>started"]);
   });

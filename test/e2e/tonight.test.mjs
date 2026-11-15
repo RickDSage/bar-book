@@ -20,7 +20,7 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   await O.evaluate(() => show("notices"));
   assert.deepEqual(await forYou(O), []);
   assert.match(await O.$eval("#foryou", (e) => e.innerText), /Nothing new, and nothing waiting on you\./);
-  assert.deepEqual(await tiles(O), ["0/36 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 date labels to change", "Not yet bar report tonight", "Not yet floor report tonight"]);
+  assert.deepEqual(await tiles(O), ["0/51 Bar checklists done", "0 blocked tasks", "0 restocks open", "0 86'd right now", "0 date labels to change", "Not yet bar report tonight", "Not yet floor report tonight"]);
   assert.deepEqual(await O.$$eval("#hub .sec", (x) => x.map((e) => e.textContent)), ["Everyone", "Managers"]);
   assert.deepEqual(await O.$$eval("#hub .place", (x) => x.map((b) => b.dataset.tpane)),
     ["brief", "status", "issues", "guests", "rota", "me", "avail", "chat", "send", "board", "concerns", "shouts", "reports", "call", "refusals", "certs", "live", "handover", "requests", "nights", "kpis", "money", "out", "team", "onboard", "training", "pulse", "feedback", "act"]);
@@ -36,7 +36,7 @@ test("the Team page: what needs you first, tonight's shift, then a card for each
   await O.waitForFunction(() => document.querySelectorAll("#foryou .fy").length === 5);
   assert.deepEqual(await forYou(O), ["Urgent: Glass washer leaking | Raised by Sam Staff. Nobody's on it yet > issues (hot)", "1 thing needs you tonight | Blocked > live (hot)",
     "1 open incident | Close each one with what was done > incidents (hot)", "1 request to answer | Sam Staff > requests", "1 report to sign off > reports"]);
-  assert.deepEqual(await tiles(O), ["1/36 Bar checklists done", "1 blocked task (hot)", "1 restock open", "1 86'd right now (hot)", "0 date labels to change", "Sent bar report tonight", "Not yet floor report tonight"]);
+  assert.deepEqual(await tiles(O), ["1/51 Bar checklists done", "1 blocked task (hot)", "1 restock open", "1 86'd right now (hot)", "0 date labels to change", "Sent bar report tonight", "Not yet floor report tonight"]);
   assert.deepEqual((await cards(O)).filter((c) => /\(/.test(c)), ["issues: Issues and handover | 1 open, 1 urgent (1, hot)", "reports: Reports | 1 report to sign off (2, hot)",
     "live: Live | 1 needs you now (1, hot)", "requests: Requests to answer | 1 request to answer (1)"]);
   // Staff: their own For you, the shift's tiles and the parts for everyone.
