@@ -46,7 +46,7 @@ test("the Black Tap line-up: serve cards, classics, the shelf and My bar", async
   await p.click("nav.tabs [data-tab=drinks]"); await p.click("#subnav [data-tab=make]");
   // The shelf opens on the line-up.
   const shelf = await p.$$eval(".mk-shelf .chip", (x) => x.map((c) => c.textContent));
-  for (const n of ["Smirnoff", "Cîroc Red Berry", "El Jimador Reposado", "Bulleit Bourbon", "Egg white", "Aquafaba", "Guinness", "Camden Off Menu IPA", "Kopparberg Mixed Fruit 0%", "Red Bull Sugarfree", "Coke Zero"])
+  for (const n of ["Sprite", "Fanta Orange Zero", "Monin Salted Caramel", "Funkin peach purée", "Tomato juice", "Smirnoff", "Cîroc Red Berry", "El Jimador Reposado", "Bulleit Bourbon", "Egg white", "Aquafaba", "Guinness", "Camden Off Menu IPA", "Kopparberg Mixed Fruit 0%", "Red Bull Sugarfree", "Coke Zero"])
     assert.ok(shelf.includes(n), n);
   await p.click("[data-mk-pane=bt]");
   const cls = await p.evaluate(() => btClassics("all"));
@@ -57,6 +57,11 @@ test("the Black Tap line-up: serve cards, classics, the shelf and My bar", async
   const t = await p.$eval("#bt-out", (e) => e.innerText);
   assert.match(t, /Guinness\s+4\.2%[\s\S]*Two-part pour/);
   assert.match(t, /Pint, half or two-thirds/);
+  await p.click("[data-bt-view='Postmix (gun)']");
+  assert.match(await p.$eval("#bt-out", (e) => e.innerText), /Coke \(gun\)[\s\S]*Fanta Zero \(gun\)[\s\S]*Hold the gun just above the glass/);
+  await p.click("[data-bt-view='Juices, syrups and purées']");
+  assert.match(await p.$eval("#bt-out", (e) => e.innerText), /Tomato juice[\s\S]*Funkin passion fruit purée/);
+  await p.click("[data-bt-view=Draught]");
   // Drinks with it starts an order from that one item.
   await p.click("[data-bt-use='guinness']");
   assert.deepEqual(await p.evaluate(() => mk.pick), [{ k: "guinness" }]);
