@@ -2,7 +2,7 @@
 // the logins, lists, labels, calendar, games and records stay.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, OWNER_PIN, part } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, OWNER_PIN, part, afterReload } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -86,4 +86,19 @@ test("the owner sees what it clears and keeps, needs their PIN, and every phone 
   await S.evaluate(() => Promise.all([LIVE.api.setTask("close", 0, itemText("close", 0), "done"), LIVE.api.sendReport("bar", "Bar report", "Bar · after")]));
   await M.waitForFunction(() => LIVE.reports.length === 1 && Object.values(LIVE.tasks).some((t) => t.v === 1 && t.status === "done"));
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
+});
+
+test("anyone clears everything on their own phone: what the app keeps goes, it starts as new, and nobody else's phone changes", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  await S.evaluate(() => { store.set("favs", ["Mojito"]); store.set("theme", "dark"); show("info"); });
+  // CLEAR has to be typed.
+  await S.fill("#cp-words", "cle"); await S.click("#cp-go");
+  await waitToast(S, /^Type CLEAR to show you mean it$/);
+  assert.equal(await S.evaluate(() => LIVE.uid !== null), true);
+  await S.fill("#cp-words", "clear"); await S.click("#cp-go");
+  await afterReload(S);
+  assert.deepEqual(await S.evaluate(() => [localStorage.getItem("btbar.favs"), localStorage.getItem("btbar.theme")]), [null, null]);
+  assert.equal(await M.evaluate(() => LIVE.uid !== null && LIVE.staff.length), 3, "the manager's phone is untouched");
+  assert.deepEqual([M.errs, S.errs], [[], []]);
 });

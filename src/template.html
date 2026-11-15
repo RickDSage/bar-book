@@ -2936,8 +2936,24 @@ function renderInfo() {
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>
     <p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
+    <h2 id="clear">Clear everything</h2>
+    <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the language and look, and anything else saved on it. Then the app starts again as new. Nobody else's phone changes, and it can't be undone.</p>
+    <label class="fld">Type ${CLEAR_WORD} to show you mean it<input id="cp-words" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
+    <button class="btn danger wide" id="cp-go">Clear everything on this phone</button>
     <p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p>`;
 }
+/* Clear everything, at the bottom of Info: everything the app keeps on this phone goes, and it starts again as new. */
+const CLEAR_WORD = "CLEAR";
+function clearPhone() {
+  Object.keys(localStorage).filter((k) => k.startsWith("btbar.")).forEach((k) => localStorage.removeItem(k));
+  // Logging out also wipes the team's data saved on the phone, then reloads.
+  if (LIVE.api) LIVE.api.logout(); else location.reload();
+}
+$("#v-info").addEventListener("click", (e) => {
+  if (!e.target.closest("#cp-go")) return;
+  if ($("#cp-words").value.trim().toUpperCase() !== CLEAR_WORD) return toast(`Type ${CLEAR_WORD} to show you mean it`);
+  clearPhone();
+});
 
 /* ---------- Features ----------
    Every feature: what it's for, what staff and managers can do with it, and where it is. The owner can switch the ones
