@@ -67,8 +67,12 @@ const MK_CATS = [
     ["Dry vermouth", "Dry vermouth"], ["Martini Extra Dry", "Dry vermouth", "martini dry"], ["Noilly Prat", "Dry vermouth"], ["Lillet Blanc", "Lillet", "lillet"], ["Fino sherry", "Sherry", "fino", "sherry", "tio pepe"],
     ["Pimm's No.1", "Pimm's", "pimms", "pimm s"], ["Dry white wine", "White wine", "white wine"], ["Red wine", "Red wine"],
     ["Prosecco", "Sparkling wine", "sparkling wine", "fizz"], ["Champagne", "Sparkling wine"], ["Cava", "Sparkling wine"]]],
-  ["Beer", "Beer", [
-    ["Lager", "Lager"], ["Stella Artois", "Lager", "stella"], ["Budweiser", "Lager", "bud"], ["Corona", "Lager"], ["Camden Hells", "Lager", "camden"], ["Guinness", "Stout", "stout"], ["Cider", "Cider", "apple cider"]]],
+  ["Beer and cider", "Beer", [
+    ["Lager", "Lager"], ["Stella Artois", "Lager", "stella"], ["Budweiser", "Lager", "bud"], ["Corona", "Lager"], ["San Miguel", "Lager", "san miguel"], ["Camden Hells", "Lager", "camden", "camden hells lager"],
+    ["IPA", "IPA", "india pale ale", "pale ale"], ["Camden Off Menu IPA", "IPA", "off menu", "camden off menu"], ["Camden Eazy IPA", "IPA", "eazy ipa", "easy ipa", "camden eazy"], ["Goose Island Midway", "IPA", "goose island", "midway", "midway ipa"],
+    ["Guinness", "Stout", "stout"], ["Athletic Run Wild IPA 0%", "Alcohol-free beer", "athletic", "run wild", "alcohol free beer", "0 beer"],
+    ["Cider", "Cider", "apple cider"], ["Kopparberg Crisp Apple", "Cider", "crisp apple", "kopparberg apple"], ["Fruit cider", "Fruit cider"], ["Kopparberg Strawberry & Lime", "Fruit cider", "kopparberg strawberry", "strawberry and lime"],
+    ["Kopparberg Mixed Fruit", "Fruit cider", "kopparberg", "mixed fruit cider"], ["Kopparberg Mixed Fruit 0%", "Alcohol-free cider", "alcohol free cider", "kopparberg 0", "kopparberg alcohol free"]]],
   ["Creams, milk and foam", null, [
     ["Double cream", "Cream", "cream", "whipping cream"], ["Single cream", "Cream"], ["Milk", "Milk", "whole milk"], ["Oat milk", "Milk", "oatly"],
     ["Coco Real", "Coconut cream", "cream of coconut", "coconut cream", "coconut syrup"], ["Coconut milk", "Coconut cream"],
@@ -89,7 +93,7 @@ const MK_CATS = [
   ["Mixers and fizz", null, [
     ["Soda water", "Soda", "soda", "club soda", "sparkling water"], ["Fever-Tree Indian Tonic", "Tonic", "indian tonic", "tonic", "tonic water"], ["Fever-Tree Light Tonic", "Tonic", "light tonic", "slimline tonic"],
     ["Fever-Tree Ginger Ale", "Ginger ale", "ginger ale"], ["Fever-Tree Ginger Beer", "Ginger beer", "ginger beer"], ["Lemonade", "Lemonade", "house lemonade", "sprite", "7up"],
-    ["Coca-Cola", "Cola", "cola", "coke", "coca cola"], ["Diet Coke", "Cola", "coke zero", "pepsi"], ["Red Bull", "Energy drink", "energy drink"], ["Iced tea", "Iced tea", "house iced tea"], ["Water", "Water", "hot water"]]],
+    ["Coca-Cola", "Cola", "cola", "coke", "coca cola"], ["Diet Coke", "Cola", "pepsi"], ["Coke Zero", "Cola", "coca cola zero", "zero sugar coke"], ["Red Bull", "Energy drink", "energy drink"], ["Red Bull Sugarfree", "Energy drink", "red bull sugar free", "sugar free red bull", "red bull zero"], ["Iced tea", "Iced tea", "house iced tea"], ["Water", "Water", "hot water"]]],
   ["Coffee", null, [["Fresh espresso", "Espresso", "espresso", "coffee"], ["Hot Americano", "Hot coffee", "americano", "filter coffee"]]],
   ["Fresh and garnish", null, [
     ["Mint", "Mint", "mint leaves", "mint sprig"], ["Basil", "Basil", "basil leaves"], ["Limes", "Lime", "lime wedge", "lime wedges", "lime", "1 lime"], ["Lemons", "Lemon", "lemon wedge", "lemon"],
@@ -107,7 +111,7 @@ const MK_FAM = {
   "Cherry liqueur": "Cherry", "Maraschino": "Cherry", "Raspberry liqueur": "Berry", "Cassis": "Berry", "Blackberry liqueur": "Berry",
   "White cacao": "Cacao", "Dark cacao": "Cacao", "Yellow Chartreuse": "Herbal", "Green Chartreuse": "Herbal", "Bénédictine": "Herbal", "Drambuie": "Herbal", "Galliano": "Herbal",
   "Absinthe": "Anise", "Sambuca": "Anise", "Pastis": "Anise", "Aperol": "Bitter aperitif", "Campari": "Bitter aperitif", "Sarti Rosa": "Bitter aperitif", "Amaro": "Bitter aperitif", "Gentian liqueur": "Bitter aperitif", "Fernet": "Bitter aperitif", "White wine": "Wine", "Red wine": "Wine",
-  "Sweet vermouth": "Vermouth", "Bianco vermouth": "Vermouth", "Dry vermouth": "Vermouth", "Lillet": "Vermouth", "Sherry": "Vermouth", "Lager": "Beer", "Stout": "Beer", "Cider": "Beer",
+  "Sweet vermouth": "Vermouth", "Bianco vermouth": "Vermouth", "Dry vermouth": "Vermouth", "Lillet": "Vermouth", "Sherry": "Vermouth", "Lager": "Beer", "IPA": "Beer", "Stout": "Beer", "Cider": "Beer", "Fruit cider": "Beer", "Alcohol-free beer": "No-alcohol beer", "Alcohol-free cider": "No-alcohol beer",
   "Cream": "Dairy", "Milk": "Dairy", "Ice cream": "Dairy", "Sugar syrup": "Sweet", "Sugar": "Sweet", "Honey": "Sweet", "Agave syrup": "Sweet",
   "Elderflower": "Elderflower", "Elderflower liqueur": "Elderflower", "Marshmallow liqueur": "Marshmallow", "Marshmallow syrup": "Marshmallow",
   "Lime juice": "Citrus", "Lemon juice": "Citrus", "Tonic": "Tonic", "Lemonade": "Lemony fizz", "Soda": "Fizz", "Ginger ale": "Ginger", "Ginger beer": "Ginger", "Ginger syrup": "Ginger",
@@ -118,7 +122,7 @@ const MK_FAM = {
 const mkNorm = (s) => String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
 const MK = { items: [], byKey: new Map(), reqs: new Map(), unmatched: [], ids: [] };
 for (const [cat, fam, list] of MK_CATS) for (const [n, kind, ...al] of list) {
-  const it = { k: mkNorm(n), n, cat, kind, fam: fam || MK_FAM[kind] || kind, gen: n === kind, al: [...new Set([mkNorm(n), ...al.map(mkNorm)])] };
+  const it = { k: mkNorm(n), n, cat, kind, fam: MK_FAM[kind] || fam || kind, gen: n === kind, al: [...new Set([mkNorm(n), ...al.map(mkNorm)])] };
   MK.items.push(it); MK.byKey.set(it.k, it);
 }
 // Every alias, longest first, so "Smirnoff Vanilla" wins over "Smirnoff" and "lime juice" over "lime".
@@ -155,12 +159,13 @@ const mk = {
   opt: { basics: true, kind: "all", ...store.get("mk.opt", {}) },
   rnd: { mode: "any", mine: false, kind: "all", last: [], cur: null, ...store.get("mk.rnd", {}), cur: null },
   qs: { q: "", kind: "all", mine: false },
+  bt: { view: "classics", kind: "all", house: true, ...store.get("mk.bt", {}) },
   edit: null, // the pick whose ml is being set
-  cat: null, // the ingredient group open on the shelf (null: Popular)
+  cat: "bt", // the ingredient group open on the shelf ("bt": the Black Tap line-up, null: Popular)
   fromBar: false, // showing what My bar can make
   typed: { make: "", bar: "" },
 };
-const mkSave = () => { store.set("mk.pane", mk.pane); store.set("mk.pick", mk.pick); store.set("mk.bar", mk.bar); store.set("mk.opt", mk.opt); store.set("mk.rnd", { mode: mk.rnd.mode, mine: mk.rnd.mine, kind: mk.rnd.kind, last: mk.rnd.last }); };
+const mkSave = () => { store.set("mk.pane", mk.pane); store.set("mk.pick", mk.pick); store.set("mk.bar", mk.bar); store.set("mk.opt", mk.opt); store.set("mk.rnd", { mode: mk.rnd.mode, mine: mk.rnd.mine, kind: mk.rnd.kind, last: mk.rnd.last }); store.set("mk.bt", mk.bt); };
 const mkName = (k) => (k.startsWith("~") ? k.slice(1) : MK.byKey.get(k).n);
 // What a typed item stands for: a list item if it reads like one, so "absolut raspberri vodka" still works as a vodka.
 const mkLike = (k) => (k.startsWith("~") ? mkFind(k.slice(1)) : MK.byKey.get(k));
@@ -219,6 +224,111 @@ function mkMatches() {
 // Can My bar (and the basics) make this drink with nothing missing?
 const mkCanMake = (d) => !mkScore(d, mkHeld([], true, true), new Set(mk.bar)).miss.length;
 
+/* ---------- The Black Tap line-up ----------
+   The house basics behind the Soho bar, as Derek listed them (15 Nov 2026): the speed rail, the foam, the draught,
+   the fridge and the mixers. Each is a serve card (glass, measure, how to pour) and a maker ingredient (k), so one tap
+   lists every drink it goes in. "Black Tap classics" is every drink the line-up makes with what's always on the bar.
+   ABVs are the makers' own (Camden, Kopparberg, Goose Island, Guinness pages, 15 Nov 2026); the rest stay unstated. */
+const BT_DRAUGHT = { glass: "Branded pint glass, clean and cold", measure: "Pint, half or two-thirds (a third too). By law draught is only sold in these",
+  pour: "Glass at 45° under the tap without touching it, open the tap fully, straighten the glass as it fills, finish with a head of about two fingers" };
+const BT_SPIRIT = { glass: "Highball, cubed ice to the top", measure: "25 ml single, 50 ml double", pour: "Ice first, then the spirit, then the mixer. Wedge on the rim if the serve has one" };
+const BT_SOFT = { glass: "Highball, cubed ice", measure: "The whole bottle or can", pour: "Pour slowly down the side of the glass, or a bar spoon, so it keeps its bubbles" };
+const BT_LINEUP = [
+  ["Spirits", [
+    { k: "smirnoff", note: "The house vodka. With Coke, lemonade, cranberry, tonic or Red Bull." },
+    { k: "ciroc red berry", note: "Berry vodka for the London Cosmo. Long with lemonade or soda and a lime wedge." },
+    { k: "tanqueray", note: "The house gin. G&T: Fever-Tree Indian or Light tonic and a lime wedge." },
+    { k: "bacardi carta blanca", note: "White rum. Mojito and Daiquiri, or with Coke and a lime wedge (Cuba Libre)." },
+    { k: "captain morgan spiced gold", note: "Spiced rum. With Coke and a lime wedge, or ginger beer." },
+    { k: "el jimador blanco", note: "House tequila for Margaritas and shots. A shot comes with salt and a lime wedge if asked." },
+    { k: "el jimador reposado", note: "Rested tequila for the signatures. Long with ginger ale and lime." },
+    { k: "buffalo trace", note: "The house bourbon. Neat, over ice, or with Coke or ginger ale." },
+    { k: "bulleit bourbon", note: "Second bourbon, higher rye: Old Fashioned, Whiskey Sour, or with ginger ale." },
+    { k: "cointreau", glass: "Rocks, cubed ice, if served on its own", measure: "15 to 25 ml in cocktails, 50 ml on the rocks", pour: "Measure with the jigger; on its own, pour over ice", note: "Orange liqueur for Margaritas, Cosmos and sours." },
+    { k: "kahlua", glass: "Rocks, cubed ice, if served on its own", measure: "20 to 25 ml in cocktails, 50 ml on the rocks", pour: "Measure with the jigger; with milk, pour the Kahlúa over ice then the milk", note: "Coffee liqueur for Espresso Martinis and Russians." },
+  ]],
+  ["Foam", [
+    { k: "egg white", glass: "As the drink", measure: "20 ml (about half an egg white) instead of 2 drops foamer", pour: "Dry shake hard without ice, then shake again with ice and double strain", note: "Egg is an allergen: tell the guest. Use pasteurised egg white." },
+    { k: "aquafaba", glass: "As the drink", measure: "20 ml instead of 2 drops foamer", pour: "Dry shake hard without ice, then shake again with ice and double strain", note: "Chickpea water: the vegan foam." },
+    { k: "foamer", glass: "As the drink", measure: "2 drops", pour: "Into the tin with everything else, dry shake, shake with ice, double strain", note: "The house foam in every egg-white style drink." },
+  ]],
+  ["Draught", [
+    { k: "stella artois", name: "Stella Artois (draught)", glass: "Stella chalice, rinsed cold", note: "Belgian lager. Skim the head level with the skimmer and serve with the logo facing the guest." },
+    { k: "budweiser", name: "Budweiser (draught)", note: "American lager." },
+    { k: "san miguel", name: "San Miguel (draught)", note: "Spanish lager." },
+    { k: "corona", name: "Corona (draught)", note: "Mexican lager. Lime wedge if the guest wants one." },
+    { k: "camden hells", name: "Camden Hells", abv: "4.6%", note: "London lager: clean, crisp and dry." },
+    { k: "camden off menu ipa", name: "Camden Off Menu IPA", abv: "5.8%", note: "West Coast style IPA: hoppy, clean and tropical." },
+    { k: "camden eazy ipa", name: "Camden Eazy IPA", abv: "5.0%", note: "Hazy IPA: juicy stone fruit, easy drinking." },
+    { k: "goose island midway", name: "Goose Island Midway", abv: "4.1%", note: "Session IPA: light and hoppy." },
+    { k: "guinness", name: "Guinness", abv: "4.2%", glass: "Guinness pint glass, clean and dry", pour: "Two-part pour: glass at 45°, fill to three quarters, let it settle until it's dark, then top up to the brim with the glass upright", note: "Stout. Never top up straight away: the surge has to settle." },
+    { k: "kopparberg crisp apple", name: "Kopparberg Crisp Apple (draught)", abv: "4.0%", pour: "Pour straight, no head needed. Over ice in a pint glass if the guest asks", note: "Apple cider with a touch of sweetness." },
+  ]],
+  ["Bottles and cans", [
+    { k: "corona", name: "Corona (bottle)", glass: "In the bottle", measure: "One bottle", pour: "Ice cold, lime wedge pushed into the neck. A glass on the side if asked" },
+    { k: "san miguel", name: "San Miguel (bottle)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "" },
+    { k: "stella artois", name: "Stella Artois (bottle)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "" },
+    { k: "athletic run wild ipa 0", name: "Athletic Run Wild IPA (alcohol-free)", glass: "Pint glass", measure: "One can", pour: "Pour at 45°, straighten as it fills", note: "Alcohol-free IPA. Say it's the alcohol-free one when it goes down." },
+    { k: "kopparberg strawberry lime", name: "Kopparberg Strawberry & Lime", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "Fruit cider." },
+    { k: "kopparberg mixed fruit", name: "Kopparberg Mixed Fruit", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "Fruit cider: blackcurrant and raspberry." },
+    { k: "kopparberg mixed fruit 0", name: "Kopparberg Mixed Fruit (alcohol-free)", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "The alcohol-free one. Check the label before it goes out." },
+  ]],
+  ["Softs and mixers", [
+    { k: "coca cola", name: "Coca-Cola (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "Leave the bottle with the guest if there's some left." },
+    { k: "diet coke", name: "Diet Coke (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "" },
+    { k: "coke zero", name: "Coke Zero (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "Zero sugar." },
+    { k: "red bull", name: "Red Bull (can)", glass: "Highball, cubed ice", measure: "250 ml can", pour: "Serve the can with the glass of ice", note: "Half a can for each bomb." },
+    { k: "red bull sugarfree", name: "Red Bull Sugarfree (can)", glass: "Highball, cubed ice", measure: "250 ml can", pour: "Serve the can with the glass of ice", note: "No sugar. Check the can before it goes out." },
+    { k: "fever tree indian tonic", glass: "Highball or wine glass, as the serve", measure: "Top up, or the whole bottle on the side", note: "The tonic for the G&T." },
+    { k: "fever tree light tonic", glass: "Highball or wine glass, as the serve", measure: "Top up, or the whole bottle on the side", note: "Fewer calories than Indian tonic." },
+    { k: "fever tree ginger ale", measure: "Top up", note: "Softer and sweeter than ginger beer: whiskey and ginger." },
+    { k: "fever tree ginger beer", measure: "Top up", note: "Spicier: Moscow Mule and spiced rum and ginger." },
+  ]],
+];
+const BT_DEF = { Spirits: BT_SPIRIT, Foam: {}, Draught: BT_DRAUGHT, "Bottles and cans": {}, "Softs and mixers": BT_SOFT };
+const BT = BT_LINEUP.flatMap(([grp, list]) => list.map((x) => {
+  const it = MK.byKey.get(x.k); if (!it) throw new Error("Line-up item not in the maker list: " + x.k);
+  return { ...BT_DEF[grp], ...x, grp, name: x.name || it.n };
+}));
+const BT_KEYS = [...new Set(BT.map((x) => x.k))];
+// What's always on the bar besides the line-up: the bar basics plus the gun's juices and lemonade, sugar and foam.
+const BT_HOUSE = ["orange juice", "pineapple juice", "cranberry juice", "apple juice", "lemonade", "grenadine", "lemons", "mint"];
+function btClassics(kind) {
+  const held = [...new Set([...BT_KEYS, ...(mk.bt.house ? [...MK_BASICS, ...BT_HOUSE] : [])])].map((k) => ({ k }));
+  const anchor = new Set(BT_KEYS);
+  const res = D.filter((d) => mkKindOk(d, kind) && !isOut(d.name)).map((d) => mkScore(d, held, anchor)).filter((r) => r.used > 0);
+  // Exact bottles only: a swap (Smirnoff for Grey Goose) counts as one thing to add, so "Ready" means it's on the rail.
+  const by = (a, b) => (b.d.official ? 1 : 0) - (a.d.official ? 1 : 0) || a.miss.length - b.miss.length || a.swaps.length - b.swaps.length || a.d.name.localeCompare(b.d.name);
+  const house = res.filter((r) => r.d.official);
+  const rest = res.filter((r) => !r.d.official);
+  const ready = rest.filter((r) => !r.miss.length && !r.swaps.length).sort(by);
+  const swap = rest.filter((r) => !r.miss.length && r.swaps.length).sort(by);
+  const one = rest.filter((r) => r.miss.length === 1).sort(by);
+  return { house, ready, swap, one };
+}
+// How many drinks in the book use a line-up item (its exact bottle or the same kind).
+const btUses = (k) => D.filter((d) => MK.reqs.get(d.id).some((r) => mkCover(r, k) >= 0.9)).length;
+
+/* ---------- Send: several specs, or the line-up serves, as one tidy WhatsApp message ----------
+   Each drink is its own tick box on the Send page, so the person picks which go. The first dozen are ticked. */
+const SPEC_MAX = 40, SPEC_ON = 12;
+const specPart = (d, i) => ({ id: "d" + d.id, label: d.name, one: true, off: i >= SPEC_ON,
+  lines: [...d.spec.map((l) => `• ${l}`), [d.glass, d.ice, d.garnish && `Garnish: ${d.garnish}`].filter((x) => x && !/^(Garnish: )?None\b/i.test(x)).join(" · "), `How: ${d.method}`] });
+SHARE.specs = (o) => {
+  const ids = String(o || "").split(",").filter(Boolean).map(Number).filter((i) => D[i]).slice(0, SPEC_MAX);
+  if (!ids.length) return null;
+  const ds = ids.map((i) => D[i]);
+  return { what: `${ds.length} ${ds.length === 1 ? "spec" : "specs"}`, title: "Drink specs · Black Tap Soho",
+    head: [`${ds.length} ${ds.length === 1 ? "drink" : "drinks"}. Jigger everything: 25 ml single, 50 ml double.`],
+    parts: ds.map(specPart), tip: `Tick the drinks to send. The first ${SPEC_ON} are ticked; a long message may be cut short by WhatsApp.` };
+};
+SHARE.lineup = (grp) => {
+  const xs = BT.filter((x) => x.grp === grp); if (!xs.length) return null;
+  return { what: `Line-up: ${grp}`, title: `Black Tap line-up · ${grp}`, head: [`${xs.length} serves`],
+    parts: xs.map((x, i) => ({ id: "s" + i, label: x.name + (x.abv ? ` (${x.abv})` : ""), one: true,
+      lines: [...(x.note ? [x.note] : []), `• Glass: ${x.glass}`, `• Measure: ${x.measure}`, `• Pour: ${x.pour}`] })) };
+};
+
 /* ---------- Looks ---------- */
 document.head.insertAdjacentHTML("beforeend", `<style>
 .seg.mk-seg{grid-template-columns:repeat(4,1fr);margin-top:10px}.seg.mk-seg button{padding:8px 4px}
@@ -272,6 +382,12 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .mk-cats{padding-block:8px 0}.mk-shelf{padding-block:6px 4px}.mk-shelf .chip,.mk-goes .chip{color:var(--fg)}.mk-goes .chip small{color:var(--muted);margin-left:4px}
 .mk-hl b{color:var(--brass);font-weight:700}
 .mk-own{margin:12px 0;padding:14px;border:1px solid var(--brass);border-radius:14px;background:var(--surface)}.mk-own ul{margin:6px 0 0;padding-left:18px}.mk-own li{padding:2px 0}.mk-own .m{margin:8px 0 0;font-size:14.5px}
+.bt-card{padding:12px 0;border-bottom:1px solid var(--line)}
+.bt-card .n{font-weight:700;font-size:17px;display:flex;justify-content:space-between;gap:8px}
+.bt-card .abv{color:var(--brass);font-size:13px;white-space:nowrap}
+.bt-note{margin:4px 0 0;font-size:14.5px;color:var(--muted)}
+.bt-dl{display:grid;gap:4px;margin:8px 0;font-size:14.5px}.bt-dl div{display:grid;grid-template-columns:72px 1fr;gap:8px}.bt-dl dt{color:var(--muted)}.bt-dl dd{margin:0}
+.bt-card .chip small{color:var(--muted);margin-left:4px}
 .mk-row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}
 </style>`);
 const MK_ICON = `<svg viewBox="0 0 24 24"><path d="M8 3h8l-1 4H9z"/><path d="M9 7h6l1.5 13a1 1 0 0 1-1 1h-7a1 1 0 0 1-1-1z"/><path d="M8 12h8"/></svg>`;
@@ -332,7 +448,7 @@ const MK_KINDS = [["all", "Everything"], ["cocktail", "Cocktails"], ["zero", "Mo
    Tap (or type) an ingredient and every drink with it lists straight away. Each tap narrows the list to drinks with all of
    them, and "Goes with" offers the next ingredient from what those drinks use. When nothing in the book has them all,
    it shows the closest and a drink of your own built from the house ratios. */
-const MK_SHORT = { "Rum and cachaça": "Rum", "Tequila and mezcal": "Tequila", "Whisky and whiskey": "Whisky", "Aperitifs, vermouth and wine": "Aperitifs & wine",
+const MK_SHORT = { "Beer and cider": "Beer", "Rum and cachaça": "Rum", "Tequila and mezcal": "Tequila", "Whisky and whiskey": "Whisky", "Aperitifs, vermouth and wine": "Aperitifs & wine",
   "Creams, milk and foam": "Cream & milk", "Syrups and sauces": "Syrups", "Juices and purées": "Juices", "Mixers and fizz": "Mixers", "Fresh and garnish": "Fresh", "Bitters and seasoning": "Bitters" };
 const mkCatName = (c) => MK_SHORT[c] || c;
 // The chip to show for an ingredient: the generic of its kind when there is one (Smirnoff shows as Vodka).
@@ -374,7 +490,7 @@ function mkOwn() {
   const of = (f) => its.filter(({ it }) => f(it));
   const base = of((it) => MK_BASE.has(it.cat)), mod = of((it) => /Liqueurs|Aperitifs/.test(it.cat) && it.kind !== "Sparkling wine"), fizzWine = of((it) => it.kind === "Sparkling wine");
   const citrus = of((it) => /Lime juice|Lemon juice/.test(it.kind)), juice = of((it) => it.cat === "Juices and purées" && !/Lime juice|Lemon juice/.test(it.kind));
-  const syrup = of((it) => it.cat === "Syrups and sauces"), cream = of((it) => it.cat === "Creams, milk and foam"), mixer = of((it) => it.cat === "Mixers and fizz" || it.cat === "Beer");
+  const syrup = of((it) => it.cat === "Syrups and sauces"), cream = of((it) => it.cat === "Creams, milk and foam"), mixer = of((it) => it.cat === "Mixers and fizz" || it.cat === "Beer and cider");
   const fresh = of((it) => it.cat === "Fresh and garnish"), bitters = of((it) => it.cat === "Bitters and seasoning"), coffee = of((it) => it.cat === "Coffee");
   const nm = (x) => mkName(x.p.k), ml = (x, n) => x.p.ml || n;
   const lines = [], add = (n, x) => lines.push(`${ml(x, n)} ml ${nm(x)}`);
@@ -419,8 +535,8 @@ function mkOrderRow(r) {
 }
 function mkShelf(on) {
   const cats = MK_CATS.map(([c]) => c);
-  const its = mk.cat ? MK.items.filter((i) => i.cat === mk.cat) : MK_POP;
-  return `<div class="chips hrow mk-cats" role="toolbar" aria-label="Ingredient groups"><button class="chip" aria-pressed="${!mk.cat}" data-mk-cat="">Popular</button>${cats.map((c) => `<button class="chip" aria-pressed="${mk.cat === c}" data-mk-cat="${esc(c)}">${esc(mkCatName(c))}</button>`).join("")}</div>
+  const its = mk.cat === "bt" ? BT_KEYS.map((k) => MK.byKey.get(k)) : mk.cat ? MK.items.filter((i) => i.cat === mk.cat) : MK_POP;
+  return `<div class="chips hrow mk-cats" role="toolbar" aria-label="Ingredient groups"><button class="chip" aria-pressed="${mk.cat === "bt"}" data-mk-cat="bt">Black Tap</button><button class="chip" aria-pressed="${!mk.cat}" data-mk-cat="">Popular</button>${cats.map((c) => `<button class="chip" aria-pressed="${mk.cat === c}" data-mk-cat="${esc(c)}">${esc(mkCatName(c))}</button>`).join("")}</div>
     <div class="chips hrow mk-shelf" role="toolbar" aria-label="Ingredients">${its.map((i) => mkChip(i, on.has(i.k), "mk-pick")).join("")}</div>`;
 }
 function mkMakePane() {
@@ -439,6 +555,7 @@ function mkMakePane() {
       + (all.length ? `<div class="sec">${all.length} ${all.length === 1 ? "drink" : "drinks"} with ${esc(what)}</div>${all.slice(0, 60).map(mkOrderRow).join("")}${all.length > 60 ? `<p class="note">Add another ingredient to see the rest.</p>` : ""}${all.length <= 3 ? mkOwn() : ""}`
         : `<p class="empty" style="padding:14px 0 4px">No drink in the book has all of ${esc(what)}.</p>${mkOwn()}${near.length ? `<div class="sec">Closest in the book<span class="cnt">${near.length}</span></div>${near.slice(0, 30).map(mkOrderRow).join("")}` : ""}`)
       + (all.length > 3 ? `<details class="mk-cat"><summary>Make your own with these<span>House ratios</span></summary>${mkOwn()}</details>` : "")
+      + (list.length ? `<div class="actions">${sendBtn("specs", "Send these specs", MK.ids.slice(0, SPEC_MAX).join(","))}</div>` : "")
       + `<div class="mk-row2"><button class="btn" data-mk="keep">☆ Keep in My bar</button><button class="btn" data-mk="clear">Clear and start again</button></div>`;
   } else if (mk.fromBar && mk.bar.length) {
     const res = mkMatches();
@@ -449,9 +566,39 @@ function mkMakePane() {
       + (res.length ? block("Make it now", ready) + block("Missing one thing", one) + block("Missing two or more", more) : `<p class="empty">Nothing in the book fits My bar yet.</p>`);
   } else {
     MK.ids = [];
-    out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>${mk.bar.length ? `<button class="btn wide" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
+    out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>
+      <div class="mk-row2"><button class="btn pri" data-mk-pane="bt">Black Tap classics</button><button class="btn" data-mk-pane="rnd">Can't decide? Spin</button></div>
+      ${mk.bar.length ? `<button class="btn wide" style="margin-top:8px" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
   }
   return `${mkTypeBox("make", "Type anything: vodka, 50ml lime…")}${mkShelf(on)}${picks}${kinds}<div id="mk-out">${out}</div>`;
+}
+/* ---------- Line-up pane: Black Tap classics and the house serves ---------- */
+const BT_VIEWS = [["classics", "Black Tap classics"], ...BT_LINEUP.map(([g]) => [g, g])];
+function btServeHtml(x) {
+  const n = btUses(x.k);
+  return `<div class="bt-card"><div class="n"><span translate="no">${esc(x.name)}</span>${x.abv ? `<span class="abv" translate="no">${esc(x.abv)}</span>` : ""}</div>
+    ${x.note ? `<p class="bt-note" translate="no">${esc(x.note)}</p>` : ""}
+    <dl class="bt-dl"><div><dt>Glass</dt><dd translate="no">${esc(x.glass || "")}</dd></div><div><dt>Measure</dt><dd translate="no">${esc(x.measure || "")}</dd></div><div><dt>Pour</dt><dd translate="no">${esc(x.pour || "")}</dd></div></dl>
+    ${n ? `<button class="chip" data-bt-use="${esc(x.k)}">Drinks with it <small>${n}</small></button>` : ""}</div>`;
+}
+function btPane() {
+  const v = mk.bt.view;
+  const chips = `<div class="chips hrow" role="toolbar" aria-label="Line-up">${BT_VIEWS.map(([k, l]) => `<button class="chip" aria-pressed="${v === k}" data-bt-view="${esc(k)}">${esc(l)}</button>`).join("")}</div>`;
+  let out;
+  if (v === "classics") {
+    const { house, ready, swap, one } = btClassics(mk.bt.kind);
+    MK.ids = [...house, ...ready, ...swap, ...one].map((r) => r.d.id);
+    const block = (t, a, max = 80) => a.length ? `<div class="sec">${t}<span class="cnt">${a.length}</span></div>${a.slice(0, max).map(mkResHtml).join("")}` : "";
+    out = `<div class="chips hrow" role="toolbar" aria-label="Show">${MK_KINDS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.bt.kind === k}" data-bt-kind="${k}">${l}</button>`).join("")}<button class="chip" aria-pressed="${mk.bt.house}" data-bt-house="1">+ juices, syrup and fresh</button></div>
+      <p class="note">Ready: every bottle is in the line-up${mk.bt.house ? ", plus the bar's juices, lemonade, sugar syrup, citrus and mint" : ""}.</p>
+      ${block("House cocktails", house)}${block("Ready with the line-up", ready)}${block("Ready with a swap", swap, 40)}${block("Add one thing", one, 40)}
+      ${ready.length ? `<div class="actions">${sendBtn("specs", "Send these specs", MK.ids.slice(0, SPEC_MAX).join(","))}</div>` : ""}`;
+  } else {
+    MK.ids = [];
+    out = BT.filter((x) => x.grp === v).map(btServeHtml).join("") + `<div class="actions">${sendBtn("lineup", "Send these serves", v)}</div>`;
+  }
+  return `${chips}<div id="bt-out">${out}</div>
+    <button class="btn wide" style="margin-top:12px" data-mk="btbar">Put the whole line-up in My bar</button>`;
 }
 function mkBarPane() {
   const on = new Set(mk.bar);
@@ -464,7 +611,8 @@ function mkBarPane() {
     <div class="mk-row2"><button class="btn pri" data-mk="frombar">What can I make?</button><button class="btn" data-mk="clearbar">Clear My bar</button></div>`
     : `<p class="empty" style="padding:16px 0">Nothing kept yet. Add the exact bottles (El Jimador Blanco, Cîroc Red Berry) or just the kind (Vodka).</p>`;
   return `<p class="lead">The bottles you have, at work or at home. Kept on this phone.</p>
-    <div class="mk-row2"><button class="btn" data-mk="bt">Load the Black Tap bar</button><button class="btn" data-mk="frombar"${mk.bar.length ? "" : " disabled"}>Make from My bar</button></div>
+    <div class="mk-row2"><button class="btn" data-mk="btbar">Load the Black Tap line-up</button><button class="btn" data-mk="bt">Load the whole back bar</button></div>
+    <button class="btn wide" style="margin-top:8px" data-mk="frombar"${mk.bar.length ? "" : " disabled"}>Make from My bar</button>
     <div style="margin-top:12px">${mkTypeBox("bar", "Add a bottle, juice or syrup")}</div>${mine}
     <div class="h3">Add from the list</div>${mkCatsHtml(on, "mk-bar")}`;
 }
@@ -483,7 +631,7 @@ function mkRndCard(d) {
 function mkRndPane() {
   const pool = mkPool();
   const seg = (k, l) => `<button aria-pressed="${mk.rnd.mode === k}" data-mk-rmode="${k}">${l}</button>`;
-  return `<p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
+  return `<button class="btn" data-mk-pane="make" style="margin-top:4px">‹ Back to Make</button><p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
     <div class="seg" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Alcohol">${seg("alc", "Alcoholic")}${seg("zero", "Alcohol-free")}${seg("any", "Either")}</div>
     ${mk.rnd.mode === "alc" ? `<div class="chips hrow">${[["all", "Any"], ["cocktail", "Cocktail"], ["spritz", "Spritz"], ["shot", "Shot"]].map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.kind === k}" data-mk-rkind="${k}">${l}</button>`).join("")}</div>` : ""}
     <div class="mk-opts"><button class="chip" aria-pressed="${mk.rnd.mine}" data-mk-rmine="1">Only what My bar can make</button></div>
@@ -504,8 +652,8 @@ function mkQsPane() {
     <div id="mk-qlist">${mkQsList()}</div>`;
 }
 function renderMaker() {
-  const tabs = [["make", "Make"], ["bar", "My bar"], ["rnd", "Random"], ["qs", "Specs"]];
-  const pane = { make: mkMakePane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane }[mk.pane] || mkMakePane;
+  const tabs = [["make", "Make"], ["bt", "Black Tap"], ["bar", "My bar"], ["qs", "Specs"]];
+  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane }[mk.pane] || mkMakePane;
   // By the English name, as the open ones may be showing in another language (trWas keeps the English).
   const open = [...$$("#v-make details[open] summary")].map((s) => trWas.get(s.firstChild) ?? s.firstChild.textContent);
   $("#v-make").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cocktail maker</h2>
@@ -584,10 +732,15 @@ $("#v-make").addEventListener("click", (e) => {
   if (ds.mkRmode) { mk.rnd.mode = ds.mkRmode; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.mkRkind) { mk.rnd.kind = ds.mkRkind; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.mkRmine) { mk.rnd.mine = !mk.rnd.mine; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
+  if (ds.btUse) { mk.pick = [{ k: ds.btUse }]; mk.fromBar = false; mk.edit = null; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }
+  if (ds.btView) { mk.bt.view = ds.btView; mkSave(); return mkRedraw(); }
+  if (ds.btKind) { mk.bt.kind = ds.btKind; mkSave(); return mkRedraw(); }
+  if (ds.btHouse) { mk.bt.house = !mk.bt.house; mkSave(); return mkRedraw(); }
   if (ds.mkQkind) { mk.qs.kind = ds.mkQkind; $("#mk-pane").innerHTML = mkQsPane(); return; }
   if (ds.mkQmine) { mk.qs.mine = !mk.qs.mine; $("#mk-pane").innerHTML = mkQsPane(); return; }
   const a = ds.mk;
   if (a === "spin") return mkSpin();
+  if (a === "btbar") { const ks = new Set(mk.bar); for (const k of [...BT_KEYS, ...BT_HOUSE]) ks.add(k); mk.bar = [...ks]; mkSave(); toast(`Line-up loaded: My bar has ${mk.bar.length} items`); return mkRedraw(); }
   if (a === "keep") { for (const p of mk.pick) if (!mk.bar.includes(p.k)) mk.bar.push(p.k); mkSave(); toast(`Kept in My bar (${mk.bar.length})`); return mkRedraw(); }
   if (a === "clear") { mk.pick = []; mk.edit = null; mkSave(); return mkRedraw(); }
   if (a === "clearbar") { if (confirm("Clear everything from My bar on this phone?")) { mk.bar = []; mkSave(); mkRedraw(); } return; }

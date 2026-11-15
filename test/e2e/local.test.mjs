@@ -38,12 +38,12 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   await p.click("[data-tab=info]");
   assert.deepEqual(await p.$$eval("#v-info h2", (x) => x.map((h) => h.textContent)), ["What's in the app", "Measures and the law", "Technique key", "Prep and batches",
     "Shot tray, step by step", "Feedback and ideas", "Language", "Light or dark", "Put this app on your home screen", "Clear everything"]);
-  // The tabs fit a 320px phone, each name on one line: Drinks, Shift, Team, My pay and Info, with Make one, Allergens
-  // and Practise in the row under Drinks.
+  // The tabs fit a 320px phone, each name on one line: Drinks, Shift, Team, My pay and Info, with Rapid fire, Make,
+  // Practise and Allergens in the row under Drinks.
   await p.setViewportSize({ width: 320, height: 640 });
   assert.equal(await p.locator("nav.tabs button:not([hidden])").count(), 5);
   await p.click("nav.tabs [data-tab=drinks]");
-  assert.deepEqual(await p.$$eval("#subnav [data-tab]", (x) => x.map((b) => b.textContent)), ["Menu", "Make one", "Allergens", "Practise", "Cheat sheets"]);
+  assert.deepEqual(await p.$$eval("#subnav [data-tab]", (x) => x.map((b) => b.textContent)), ["⚡ Rapid fire", "Menu", "Make", "Practise", "Allergens", "Cheat sheets"]);
   assert.ok(await p.evaluate(() => [...document.querySelectorAll("nav.tabs button:not([hidden])")].every((b) => { const r = document.createRange(); r.selectNodeContents(b.lastChild); return r.getClientRects().length === 1; })));
   assert.deepEqual(p.errs, []);
 });
