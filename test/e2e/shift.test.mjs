@@ -2,7 +2,7 @@
 // Tasks and restocking have their own file, tasks.test.mjs.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, oldPost, part } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, oldPost, part, handOver } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -58,13 +58,13 @@ test("the next shift sees the last handover, the send page lists what's left, an
   assert.equal(await O.$eval("#todo", (e) => e.open), false, "a long list starts folded");
   await O.click("#todo summary");
   const left = await O.$eval("#todo", (e) => e.innerText);
-  assert.match(left, /Still to do \(35\)\s*Upstairs restaurant floor[\s\S]*Fridges at 5°C/i, "20 closing items, then 15 opening ones");
+  assert.match(left, /Still to do \(50\)\s*Open bar tabs closed[\s\S]*Fridges at 5°C/i, "35 closing items, then 15 opening ones");
   assert.doesNotMatch(left, /Last orders called/);
-  assert.match(await O.$eval("#t-copy", (e) => e.textContent), /Send with 35 not done/);
+  assert.match(await O.$eval("#t-copy", (e) => e.textContent), /Hand over with 50 not done/);
   await O.click('[data-jump="close"][data-jump-i="1"]');
   assert.equal(await O.evaluate(() => pane), "close");
 
-  await S.click(".ptabs [data-pane=send]"); await S.fill("#s-note", "Ice machine slow"); await S.click('[data-closer="Mia Manager"]');
+  await S.click(".ptabs [data-pane=send]"); await S.fill("#s-note", "Ice machine slow"); await S.click('[data-closer="Emily"]');
   await S.evaluate(() => renderTally());
   assert.equal(await S.$eval("#s-note", (e) => e.value), "Ice machine slow", "kept through the night");
   await S.evaluate(() => { store.set("noteDay", "2000-01-01"); renderTally(); });
@@ -140,7 +140,8 @@ test("shift reports are sent once, signed off once, and show on Tonight", async 
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=send]");
   assert.equal(await S.locator("#s-who").count(), 0, "no name box: the login says who");
   await S.click("#t-copy");
-  await waitToast(S, /^Sent to the managers for sign-off$/);
+  await waitToast(S, /^Handover saved for the next shift$/);
+  await S.click("#sh-close"); await S.waitForSelector("#sheet", { state: "hidden" });
   await O.waitForFunction(() => LIVE.reports.length === 1);
   const r = await O.evaluate(() => LIVE.reports[0]);
   assert.equal(r.side, "bar");
@@ -153,7 +154,7 @@ test("shift reports are sent once, signed off once, and show on Tonight", async 
   assert.equal(await attempt(M, (id) => LIVE.api.signOff(id), r.id), "permission-denied", "a signed report can't be signed again");
   await O.waitForFunction(() => /Signed off by Olly Owner/.test(document.querySelector("#reports").textContent));
 
-  await S.evaluate(() => setMode("floor")); await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
+  await S.evaluate(() => setMode("floor")); await S.click(".ptabs [data-pane=send]"); await handOver(S);
   await O.waitForFunction(() => LIVE.reports.length === 2);
   assert.equal(await O.evaluate(() => LIVE.reports[0].side), "floor");
   await part(O, "");

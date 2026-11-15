@@ -102,7 +102,7 @@ test("the owner switches features off for everyone, and switching them on brings
 
   // Staff: no Allergens tab (and off it if they were on it), no Chat or Rota, only Running late in My requests, no My pay.
   assert.equal(await where(S), "drinks");
-  assert.deepEqual(await navTabs(S), ["drinks", "make", "practice", "sheets", "drinks", "tally", "notices", "info"]);
+  assert.deepEqual(await navTabs(S), ["rapid", "drinks", "make", "practice", "sheets", "drinks", "tally", "notices", "info"]);
   assert.equal(await S.evaluate(() => getComputedStyle($("nav.tabs")).gridTemplateColumns.split(" ").length), 4, "Drinks, Shift, Team and Info");
   await S.evaluate(() => show("allergens"));
   assert.equal(await where(S), "drinks", "a switched-off tab can't be opened");
@@ -138,12 +138,12 @@ test("the owner switches features off for everyone, and switching them on brings
 
   // A phone that saw the list keeps it while it connects.
   await S.reload(); await S.click("#w-ok");
-  assert.deepEqual(await navTabs(S), ["drinks", "make", "practice", "sheets", "drinks", "tally", "notices", "info"]);
+  assert.deepEqual(await navTabs(S), ["rapid", "drinks", "make", "practice", "sheets", "drinks", "tally", "notices", "info"]);
 
   // All back on: everything saved is still there.
   await O.evaluate(() => LIVE.api.setOff([]));
   for (const p of [M, S]) await switched(p, []);
-  assert.deepEqual(await navTabs(S), ["drinks", "make", "allergens", "practice", "sheets", "drinks", "tally", "notices", "pay", "info"]);
+  assert.deepEqual(await navTabs(S), ["rapid", "drinks", "make", "practice", "allergens", "sheets", "drinks", "tally", "notices", "pay", "info"]);
   await part(M, "requests");
   await M.waitForFunction(() => /Wedding/.test($("#requests").innerText));
   await part(M, "reports");

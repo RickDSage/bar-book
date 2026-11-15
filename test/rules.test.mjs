@@ -44,6 +44,8 @@ const ukDay = (ms) => {
 };
 const today = () => ukDay(Date.now() - 6 * 36e5);
 const dayFromNow = (n) => ukDay(Date.now() + n * 864e5);
+// A business night n nights from tonight. Before 6am dayFromNow(-1) is tonight, so "another night" counts from today().
+const nightFromTonight = (n) => ukDay(Date.now() - 6 * 36e5 + n * 864e5);
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const autoId = () => doc(collection(db("owner1"), "x")).id;
 
@@ -479,24 +481,21 @@ describe("tonight's tasks: statuses, with an event for every change", () => {
     await fails(task(db("staff1"), "staff1", "fclose", 7, "todo"), "staff bringing it back");
     await assertSucceeds(task(db("mgr2"), "mgr2", "fclose", 7, "todo"));
   });
-  test("stopping a task: whoever started it, or a manager", async () => {
+  test("stopping a task: anyone on the team", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "close", 3, "doing"));
-    await fails(task(db("staff2"), "staff2", "close", 3, "todo"), "someone else");
-    await assertSucceeds(task(db("staff1"), "staff1", "close", 3, "todo"));
+    await assertSucceeds(task(db("staff2"), "staff2", "close", 3, "todo"));
     await assertSucceeds(task(db("staff2"), "staff2", "close", 3, "doing"));
     await assertSucceeds(task(db("mgr1"), "mgr1", "close", 3, "todo"));
   });
-  test("taking back a done task: a mis-tap within 5 minutes, otherwise with a reason, and never someone else's unless a manager", async () => {
+  test("taking back a done task (a mis-tap, or clearing the list): anyone on the team, with or without a reason", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "open", 4, "done"));
-    await fails(task(db("staff2"), "staff2", "open", 4, "todo", { note: "Not done properly" }), "another member of staff");
-    await assertSucceeds(task(db("staff1"), "staff1", "open", 4, "todo"));
+    await assertSucceeds(task(db("staff2"), "staff2", "open", 4, "todo"));
     await assertSucceeds(task(db("staff1"), "staff1", "open", 4, "done"));
-    await fails(task(db("mgr1"), "mgr1", "open", 4, "todo"), "a manager without a reason");
     await assertSucceeds(task(db("mgr1"), "mgr1", "open", 4, "todo", { note: "Glasses still cloudy" }));
-    // Done six minutes ago.
-    await seed((s) => setDoc(doc(s, "shift", today(), "tasks", "open-5"), { list: "open", item: 5, status: "done", who: null, whoUid: null, note: "", v: 1, uid: "staff1", name: "Sam Staff", at: Timestamp.fromMillis(Date.now() - 6 * 6e4) }));
-    await fails(task(db("staff1"), "staff1", "open", 5, "todo"), "after 5 minutes without a reason");
-    await assertSucceeds(task(db("staff1"), "staff1", "open", 5, "todo", { note: "Ticked the wrong one" }));
+    // Done an hour ago by someone else.
+    await seed((s) => setDoc(doc(s, "shift", today(), "tasks", "open-5"), { list: "open", item: 5, status: "done", who: null, whoUid: null, note: "", v: 1, uid: "staff1", name: "Sam Staff", at: Timestamp.fromMillis(Date.now() - 60 * 6e4) }));
+    await assertSucceeds(task(db("staff2"), "staff2", "open", 5, "todo"));
+    assert.deepEqual((await eventsOf("open-5")).map((e) => [e.from, e.to, e.name]), [["done", "todo", "Tia Staff"]]);
   });
   test("moves that make no sense are refused", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "open", 6, "done"));
@@ -578,14 +577,13 @@ describe("opening and closing procedures", () => {
     await fails(run(db("staff1"), "staff1", "fset", "finished", { done: 5, required: 5, run: { list: "open" } }), "record for another list");
     await fails(run(db("staff1"), "staff1", "bins", "started"), "unknown list");
   });
-  test("a finished procedure locks its tasks until a manager reopens it, with a reason", async () => {
+  test("a finished procedure locks its tasks until someone reopens it, with a reason", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "fshake", 0, "done"));
     await assertSucceeds(run(db("staff1"), "staff1", "fshake", "finished", { done: 8, required: 8 }));
     await fails(task(db("staff1"), "staff1", "fshake", 0, "todo"), "locked");
     await fails(task(db("mgr1"), "mgr1", "fshake", 1, "done"), "locked for managers too");
-    await fails(run(db("staff1"), "staff1", "fshake", "started", { done: 8, required: 8, note: "Missed one" }), "staff reopening");
-    await fails(run(db("mgr1"), "mgr1", "fshake", "started", { done: 8, required: 8 }), "reopening without a reason");
-    await assertSucceeds(run(db("mgr1"), "mgr1", "fshake", "started", { done: 7, required: 8, note: "Drip tray not cleaned" }));
+    await fails(run(db("staff1"), "staff1", "fshake", "started", { done: 8, required: 8 }), "reopening without a reason");
+    await assertSucceeds(run(db("staff1"), "staff1", "fshake", "started", { done: 7, required: 8, note: "Cleared" }));
     await assertSucceeds(task(db("staff1"), "staff1", "fshake", 7, "done"));
     assert.deepEqual((await runEvents()).map((e) => `${e.from}>${e.to}`), ["todo>finished", "finished>started"]);
   });
@@ -805,7 +803,7 @@ describe("the rota: managers draft a week and publish it; then every change says
     await fails(act("mgr1", "edited", { id, f: { start: "17:00" }, noEvent: true }), "a change with no event");
     for (const [why, event] of [["another act", { act: "took" }], ["another day", { sday: plusDays(mondayOf(today()), 6) }], ["another start", { start: "19:00" }], ["another person", { who: "Tia Staff" }],
       ["another offer", { offer: "Tia Staff" }], ["a cover reason", { cover: "Sick" }], ["another side", { area: "floor" }], ["another label", { label: "Saturday" }], ["no was", { was: null }],
-      ["another was", { was: { day: today(), start: "18:00", end: "02:00", side: "bar", who: "Sam Staff" } }], ["a note", { note: "Swapped" }], ["an extra field", { whoUid: "staff1" }],
+      ["another was", { was: { day: plusDays(mondayOf(today()), 4), start: "18:00", end: "02:00", side: "bar", who: "Sam Staff" } }], ["a note", { note: "Swapped" }], ["an extra field", { whoUid: "staff1" }],
       ["another night", { day: dayFromNow(-5) }], ["someone else's name", { name: "Max Manager" }], ["phone's clock", { at: Timestamp.now() }]]) {
       await fails(act("mgr1", "edited", { id, f: { start: "17:00" }, event }), why);
     }
@@ -1369,7 +1367,7 @@ describe("how was your shift", () => {
     }
     await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), pu("staff1", { day: dayFromNow(-3) })));
     await assertFails(setDoc(ref("staff1", "staff2"), pu("staff1")));
-    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-1)), pu("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", nightFromTonight(-1)), pu("staff1")));
     await assertFails(setDoc(ref("mgr1", "staff1"), pu("mgr1")));
   });
 });
@@ -1396,7 +1394,7 @@ describe("tonight's quiz", () => {
     }
     await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-3)), qz("staff1", { day: dayFromNow(-3) })));
     await assertFails(setDoc(ref("staff1", "staff2"), qz("staff1")));
-    await assertFails(setDoc(ref("staff1", "staff1", dayFromNow(-1)), qz("staff1")));
+    await assertFails(setDoc(ref("staff1", "staff1", nightFromTonight(-1)), qz("staff1")));
     await assertFails(setDoc(ref("mgr1", "staff1"), qz("mgr1")));
     // A quiz started before 6am and finished after counts for the night it started.
     await assertSucceeds(setDoc(ref("staff1", "staff1", dayFromNow(-1)), qz("staff1", { day: dayFromNow(-1) })));

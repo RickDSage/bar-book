@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { serve, resetEmulators, launch, team, attempt, adminWrite, adminGet, part } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, attempt, adminWrite, adminGet, part, handOver } from "./helpers.mjs";
 
 let site, browser, dir, big, small;
 before(async () => {
@@ -53,7 +53,7 @@ test("a phone photo is shrunk, noted, sent with the report and locked once sent"
   await S.waitForFunction(() => LIVE.myPhotos.length === 1);
   assert.equal(await attempt(O, (id) => LIVE.api.notePhoto(id, "Not yours"), mine), "permission-denied", "nobody else can change a photo before it's sent");
 
-  await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
+  await S.click(".ptabs [data-pane=send]"); await handOver(S);
   await S.waitForFunction(() => LIVE.myPhotos.length === 0);
   await O.waitForFunction(() => LIVE.reports.length === 1);
   assert.match(await O.evaluate(() => LIVE.reports[0].summary), / · 1 photo$/);
@@ -102,7 +102,7 @@ test("photos chosen from the phone go in several at once, and eight is the most 
   assert.equal(await S.$eval("#toast", (e) => e.textContent), "8 photos is the most for one report");
   await S.waitForFunction(() => /8 photos is the most for one report/.test(document.querySelector("#tally").innerText));
   assert.equal(await S.locator("#tally .addph").count(), 0, "no buttons for a ninth");
-  await S.click(".ptabs [data-pane=send]"); await S.click("#t-copy");
+  await S.click(".ptabs [data-pane=send]"); await handOver(S);
   await S.waitForFunction(() => LIVE.myPhotos.length === 0 && LIVE.reports.length === 1 && !LIVE.reports[0].pending);
   assert.equal(await S.evaluate(() => LIVE.reports[0].photos), 8);
   assert.deepEqual(S.errs, []);

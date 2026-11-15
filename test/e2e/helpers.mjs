@@ -105,3 +105,10 @@ export const cachedDocs = (p) => p.evaluate(async () => {
   return n;
 });
 export const ukDay = (t = Date.now()) => new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" }).format(t);
+// Hand over: saves the report for the next shift, then the WhatsApp page opens. Close it to carry on with the shift.
+export async function handOver(p) {
+  await p.click("#t-copy");
+  await p.waitForSelector("#send h2");
+  await p.click("#sh-close");
+  await p.waitForSelector("#sheet", { state: "hidden" });
+}

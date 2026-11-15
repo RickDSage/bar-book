@@ -3,7 +3,7 @@
 // the closing report; and every change stays in the label's history, Activity and the download.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, part } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, part, handOver } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -134,10 +134,10 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=send]");
   assert.match(await text(S, ".sumcard"), /Labels due 2/i);
   assert.deepEqual(await S.$$eval("#todo .todo", (x) => x.slice(0, 2).map((b) => b.textContent)), ["Overdue Date label: Orange juice", "Due today Date label: Cranberry juice"]);
-  assert.match(await S.$eval("#t-text", (e) => e.value), new RegExp(`\\n\\nDate labels:\\n- Overdue: Orange juice \\(use by ${wasName}, opened ${openedName} by Tia Staff\\)\\n- Due today: Cranberry juice \\(use by ${today}, opened today by Sam Staff\\)\\n\\n86'd: nothing`));
-  await S.click("#t-copy");
+  assert.match(await S.evaluate(() => tallyText()), new RegExp(`\\n\\nDate labels:\\n- Overdue: Orange juice \\(use by ${wasName}, opened ${openedName} by Tia Staff\\)\\n- Due today: Cranberry juice \\(use by ${today}, opened today by Sam Staff\\)\\n\\n86'd: nothing`));
+  await handOver(S);
   await O.waitForFunction(() => LIVE.reports[0] && !LIVE.reports[0].pending);
-  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Opening 0\/15 · Closing 0\/21 · 0 86'd · 2 date labels to change$/);
+  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Opening 0\/15 · Closing 0\/36 · 0 86'd · 2 date labels to change$/);
 
   // Sam changes it a day late. Tia's phone (on the bar) is told, and Live keeps it as an exception.
   await labels(T); await labels(S);
