@@ -80,6 +80,11 @@ function listen(uid) {
     sub("notices", query(collection(db, "notices"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.notices = rows(snap); liveChanged("notices"); });
     sub("seen", query(collection(db, "seen"), orderBy("at", "desc"), limit(1000)), (snap) => { LIVE.seen = rows(snap); liveChanged("seen"); });
     sub("templates", collection(db, "templates"), (snap) => { LIVE.templates = rows(snap).reverse(); liveChanged("templates"); });
+    // The manager's versions of the closing lists. A list with none here is the app's standard one.
+    sub("lists", collection(db, "lists"), (snap) => {
+      LIVE.lists = Object.fromEntries(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
+      liveChanged("lists");
+    });
     sub("out", collection(db, "out"), (snap) => {
       LIVE.outInfo = new Map(snap.docs.map((x) => [x.data().itemName, x.data({ serverTimestamps: "estimate" })]));
       LIVE.out = new Set(LIVE.outInfo.keys());
@@ -228,6 +233,16 @@ LIVE.api = {
   ask: (a) => addDoc(collection(db, "asks"), { kind: a.kind, text: a.text, when: a.when, anon: a.anon, status: "new", ...(a.anon ? { at: serverTimestamp() } : me()) }),
   answer: (id, status, reply = "") => updateDoc(doc(db, "asks", id), { status, reply, by: LIVE.me, byAt: serverTimestamp() }),
   dropAsk: (id) => deleteDoc(doc(db, "asks", id)),
+  // The manager's version of a list: its items, the id the next new item gets, and a copy in the list's history, in
+  // one write. The version goes up by one, so a save made from an old copy is refused instead of overwriting.
+  saveList(key, items, next) {
+    const v = (LIVE.lists[key]?.v || 0) + 1, x = { items, next, v, ...me() }, b = writeBatch(db);
+    b.set(doc(db, "lists", key), x);
+    b.set(doc(db, "listlog", `${key}-${v}`), { list: key, ...x });
+    return b.commit();
+  },
+  // Every saved version of a list, newest first, read once when the manager opens its history.
+  listHistory: (key) => getDocs(query(collection(db, "listlog"), where("list", "==", key))).then((s) => rows(s).sort((a, b) => b.v - a.v)),
   // The report and its photos go in one write, so the photos can't end up on the wrong report.
   sendReport(side, text, summary) {
     const b = writeBatch(db), ref = doc(collection(db, "reports")), photos = LIVE.myPhotos.slice(0, MAX_PHOTOS);
@@ -328,7 +343,7 @@ LIVE.api = {
   USER, PASSWORD_MIN, CODE_MIN, MAX_PHOTOS,
 };
 
-const EMPTY = () => ({ uid: null, me: null, username: null, role: null, admin: false, owner: false, anon: false, staff: [], notices: [], seen: [], templates: [], out: new Set(), outInfo: new Map(),
+const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, admin: false, owner: false, anon: false, staff: [], notices: [], seen: [], templates: [], out: new Set(), outInfo: new Map(),
   outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], shouts: [], asks: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;

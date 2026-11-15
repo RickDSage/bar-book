@@ -29,6 +29,8 @@ test("every ingredient in every spec is in the maker's list", async () => {
 
 test("tapping an ingredient lists its drinks straight away, and each tap narrows them", async () => {
   const p = await open();
+  // The shelf opens on the Black Tap line-up; Popular has the generic spirits.
+  await p.click(".mk-cats [data-mk-cat='']");
   await p.click(".mk-shelf [data-mk-pick='vodka']");
   const n1 = await p.evaluate(() => mkOrder().all.length);
   assert.ok(n1 > 30, `every vodka drink lists (${n1})`);

@@ -215,8 +215,9 @@ service cloud.firestore {
     function givenTo(t, from) {
       return isMember() && from in ['todo', 'doing', 'blocked'] && t.whoUid != was('whoUid', null) && teammate(t.who, t.whoUid);
     }
-    // Where a task can go from where it is. Blocked and Not needed need a reason; anyone can put a task back to do.
-    // Only the manager marks a task not needed, or puts one back.
+    // Where a task can go from where it is. Blocked and Not needed need a reason, and only managers mark a task not
+    // needed. Anyone on the team can take a task back to not started (a mis-tap, or clearing a list to start again):
+    // the event still says who and when.
     function taskMove(from, to, note) {
       return (to == 'doing' && from in ['todo', 'blocked'])
         || (to == 'done' && from in ['todo', 'doing', 'blocked'])
@@ -226,8 +227,8 @@ service cloud.firestore {
         || (to == 'todo' && from == 'cancelled' && isManager());
     }
 
-    // One record per list per night: started, then finished. Finishing with tasks left needs a reason (an override),
-    // and so does reopening. done and required are counted by the phone that finishes it: the rules
+    // One record per list per night: started, then finished. Finishing with tasks left needs a manager and a reason
+    // (an override). Anyone can reopen a finished list, with a reason (Cleared, when a list is cleared). done and required are counted by the phone that finishes it: the rules
     // can't count the tasks, so the tasks and their events stay the record of what was done.
     match /shift/{day}/runs/{list} {
       allow read: if isMember();
@@ -241,8 +242,35 @@ service cloud.firestore {
         && r.list == list && isList(list) && r.v == was('v', 0) + 1 && optText(r.note, 300)
         && r.done is int && r.required is int && r.done >= 0 && r.done <= r.required && r.required <= 60
         && ((r.status == 'started' && from == 'todo')
-          || (r.status == 'finished' && from in ['todo', 'started'] && (r.done == r.required || reqText(r.note, 300)))
-          || (r.status == 'started' && from == 'finished' && isMember() && reqText(r.note, 300)));
+          || (r.status == 'finished' && from in ['todo', 'started'] && (r.done == r.required || (isManager() && reqText(r.note, 300))))
+          || (r.status == 'started' && from == 'finished' && reqText(r.note, 300)));
+    }
+
+    // ---------- The lists themselves ----------
+    // Every list starts as the standard version written into the app. The manager changes it in the app (rewords, adds,
+    // moves or removes items, or picks the days one shows) by saving the whole list as lists/{key}, which then takes the
+    // standard one's place on every phone. Each save raises v by one and writes a copy to listlog/{key}-{v} in the same
+    // batch, so every version is kept with who saved it and when, and putting an old one back is a new version. Each
+    // item is {id, t, days}: the id stays with the item, so tonight's tasks stay on the right one, and next is the id
+    // the next new item gets, which never goes down, so no id is used for two items. The rules can't look inside a
+    // list, so the app checks each item when it reads them. Lists can't be deleted, and the history can't be changed.
+    function listDoc(k) { return /databases/$(database)/documents/lists/$(k); }
+    match /lists/{key} {
+      allow read: if isMember();
+      allow create, update: if isManager() && isList(key) && stamped() && exactly(['items', 'next', 'v', 'uid', 'name', 'at'])
+        && incoming().items is list && incoming().items.size() > 0 && incoming().items.size() <= 60
+        && incoming().next is int && incoming().next >= was('next', 0) && incoming().next <= 1000
+        && incoming().v == was('v', 0) + 1
+        && existsAfter(/databases/$(database)/documents/listlog/$(key + '-' + string(incoming().v)));
+    }
+    match /listlog/{id} {
+      allow read: if isManager();
+      allow create: if isManager() && stamped() && exactly(['list', 'items', 'next', 'v', 'uid', 'name', 'at'])
+        && isList(incoming().list) && incoming().v is int && id == incoming().list + '-' + string(incoming().v)
+        && getAfter(listDoc(incoming().list)).data.v == incoming().v
+        && getAfter(listDoc(incoming().list)).data.items == incoming().items
+        && getAfter(listDoc(incoming().list)).data.next == incoming().next
+        && getAfter(listDoc(incoming().list)).data.at == request.time;
     }
 
     // ---------- Date labels for open items ----------
