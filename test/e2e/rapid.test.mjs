@@ -23,12 +23,15 @@ test("Rapid fire is one tap from the start page and lists the house cocktails fi
   await p.click("#w-rapid");
   assert.equal(await p.isVisible("#v-rapid"), true);
   const secs = await p.$$eval("#rp-out .sec", (x) => x.map((s) => s.firstChild.textContent));
-  assert.deepEqual(secs, ["House cocktails", "Guests ask for", "Shots and bombs", "No alcohol", "Serves"]);
+  assert.deepEqual(secs, ["Top 10", "House cocktails", "Guests ask for", "Shots and bombs", "No alcohol", "Serves"]);
   const first = await p.$eval("#rp-out .rp-grid", (g) => [...g.querySelectorAll(".n")].map((n) => n.textContent));
-  assert.ok(first.includes("London Cosmo") && first.includes("The Rockefeller"));
+  assert.ok(first.includes("The Rockefeller"));
+  // The top 10 are big cards with the spec on them, and aren't repeated below.
+  assert.match(await p.$eval("#rp-out .rush", (e) => e.innerText), /London Cosmo\s+35 ml Cîroc Red Berry/i);
+  assert.ok(!first.includes("London Cosmo"));
   // Specs on the page, kept on the phone; search reaches the whole book.
   await p.click("#rp-specs");
-  assert.match(await p.$eval("#rp-out", (e) => e.innerText), /London Cosmo\s+35 ml Cîroc Red Berry · 15 ml Cointreau/);
+  assert.match(await p.$eval("#rp-out", (e) => e.innerText), /The Rockefeller\s+\S/);
   assert.equal(await p.evaluate(() => localStorage.getItem("btbar.rapid.specs")), "true");
   await p.fill("#rp-q", "zombie");
   assert.match(await p.$eval("#rp-out", (e) => e.innerText), /EVERYTHING ELSE[\s\S]*Zombie/i);

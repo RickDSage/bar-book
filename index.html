@@ -850,6 +850,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-rapid" hidden></section>
 
   <section class="view" id="v-sheets" hidden></section>
+  <section class="view" id="v-fun" hidden></section>
 
   <section class="view" id="v-tally" hidden>
     <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
@@ -1231,7 +1232,7 @@ function renderQuick(show) {
   const fl = `<div class="mini">What does the guest fancy?</div><div class="chips hrow">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
   if (flav || sec !== "All" || PL.list) { $("#quick").innerHTML = fl; return; }
   const rec = recent.length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = plDailyHtml() + rec + fl;
+  $("#quick").innerHTML = rec + fl;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
@@ -1258,7 +1259,6 @@ function renderList() {
 }
 $("#q").addEventListener("input", renderList);
 document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
-$("#quick").addEventListener("click", (e) => { const o = e.target.closest(".pl-daily"); if (o) openSheet(+o.dataset.plDaily); });
 
 /* ---------- Spec sheet ---------- */
 const QTY = /^((?:\d+(?:\.\d+)?|half|one|two|three)\s?(?:ml|cl|l|g)\b|(?:\d+|a|half a|one|two|three)\s(?:dash(?:es)?|drops?|slices?|heaped spoons?|spoons?|wedges?|leaves|sprigs?|scoops?|can|cans|shots?|pinch(?:es)?)(?: of)?|dash of|pinch of|half pinch of|top with|top up with)\s+(.*)$/i;
@@ -5412,6 +5412,7 @@ const IC = {
   practice: '<rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v13M8 11l2 2 4-4"/>',
   sheets: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',
   features: '<path d="M12 3l2.6 5.6L20 9.3l-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.4-.7z"/>',
+  fun: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
@@ -5425,7 +5426,8 @@ function renderInfo() {
     <div class="hub">
       ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
       ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards and tonight's quiz")}
-      ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A4 pages to print and laminate")}
+      ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A page per kind of drink, to send to WhatsApp or print")}
+      ${hubRow("fun", 'data-go="fun"', "Just for fun", "Spin for a drink, and the spec of the day")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
@@ -5504,11 +5506,11 @@ const FEATURES = [
     what: "Every drink with its spec, glass, ice, garnish and method, and a picture guide for each step.",
     staff: "Search and filter, star favourites, scale a spec for up to 4 drinks, swipe to the next drink, see the house photo and how-to video, and 86 a drink that's run out." },
   { g: "Drinks", k: "make", n: "Cocktail maker", go: "tab:make", tour: 1,
-    what: "Pick or type what you've got and see every drink you can make, closest first, with swaps. Also a random drink picker and every spec on one line.",
-    staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, spin for an alcoholic or alcohol-free drink, and open any match for the full spec." },
+    what: "Pick or type what you've got and see every drink you can make, closest first, with swaps. Also every spec on one line, and your own recipes in My drinks.",
+    staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, and open any match for the full spec. Spin for a drink is under More, Just for fun." },
   { g: "Drinks", k: "rapid", n: "Rapid fire", go: "tab:rapid", tour: 1,
-    what: "The house cocktails as big tiles, for the busiest moments: tap one for its spec, or show every spec on the page.",
-    staff: "Type a drink or a spirit to narrow them down, and send several specs at once on WhatsApp." },
+    what: "For the busiest moments: the top 10 as big cards with the spec on them, then the house cocktails, shots, alcohol-free and serves as tiles.",
+    staff: "Change the top 10 to your bar's best sellers, type a drink or a spirit to narrow them down, and send several specs at once on WhatsApp." },
   { g: "Drinks", k: "allergens", n: "Allergens", go: "tab:allergens", tour: 1,
     what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
     staff: "Tap an allergen to see every drink with it." },
@@ -6449,7 +6451,7 @@ addEventListener("resize", csFit);
    the top that never scrolls sideways (Rapid fire, Menu, Make). More holds everything used less often: Allergens,
    Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
    Tapping the tab you're on takes you back to its top. */
-const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets"];
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun"];
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
 let cur = "drinks";
 function show(tab) {
@@ -6465,6 +6467,7 @@ function show(tab) {
   if (tab === "allergens") renderAllergens();
   if (tab === "practice" && !pDrink) nextCard();
   if (tab === "sheets") renderSheets();
+  if (tab === "fun") renderFun();
   if (tab === "tally") renderTally();
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();
@@ -7160,8 +7163,7 @@ function mkMakePane() {
   } else {
     MK.ids = [];
     out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>
-      <div class="mk-row2"><button class="btn pri" data-mk-pane="bt">Black Tap classics</button><button class="btn" data-mk-pane="rnd">Can't decide? Spin</button></div>
-      <button class="btn wide" style="margin-top:8px" data-mk-pane="mine">My drinks${mineAll().length ? ` (${mineAll().length})` : ""}</button>
+      <div class="mk-row2"><button class="btn pri" data-mk-pane="bt">Black Tap classics</button><button class="btn" data-mk-pane="mine">My drinks${mineAll().length ? ` (${mineAll().length})` : ""}</button></div>
       ${mk.bar.length ? `<button class="btn wide" style="margin-top:8px" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
   }
   return `${mkTypeBox("make", "Type anything: vodka, 50ml lime…")}${mkShelf(on)}${picks}${kinds}<div id="mk-out">${out}</div>`;
@@ -7241,7 +7243,7 @@ async function mkShakeOn() {
   try { if (typeof DeviceMotionEvent.requestPermission === "function" && (await DeviceMotionEvent.requestPermission()) !== "granted") return; } catch { return; }
   MK_SHAKE.on = true;
   addEventListener("devicemotion", (e) => {
-    const a = e.accelerationIncludingGravity; if (!a || mk.pane !== "rnd" || $("#v-make").hidden || !$("#sheet").hidden) return;
+    const a = e.accelerationIncludingGravity; if (!a || $("#v-fun").hidden || !$("#sheet").hidden) return;
     const g = Math.hypot(a.x || 0, a.y || 0, a.z || 0), now = Date.now();
     if (g > 24 && now - MK_SHAKE.last > 1500) { MK_SHAKE.last = now; mkSpin(); }
   });
@@ -7249,7 +7251,7 @@ async function mkShakeOn() {
 function mkRndPane() {
   const pool = mkPool();
   const seg = (k, l) => `<button aria-pressed="${mk.rnd.mode === k}" data-mk-rmode="${k}">${l}</button>`;
-  return `<button class="btn" data-mk-pane="make" style="margin-top:4px">‹ Back to Make</button><p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
+  return `<div class="h3">Spin for a drink</div><p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
     <div class="seg" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Alcohol">${seg("alc", "Alcoholic")}${seg("zero", "Alcohol-free")}${seg("any", "Either")}</div>
     ${mk.rnd.mode === "alc" ? `<div class="chips hrow">${[["all", "Any"], ["cocktail", "Cocktail"], ["spritz", "Spritz"], ["shot", "Shot"]].map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.kind === k}" data-mk-rkind="${k}">${l}</button>`).join("")}</div>` : ""}
     <div class="mini">Mood</div><div class="chips hrow">${Object.keys(FLAVOURS).map((k) => `<button class="chip" aria-pressed="${mk.rnd.mood === k}" data-mk-rmood="${esc(k)}">${esc(k)}</button>`).join("")}</div>
@@ -7259,6 +7261,21 @@ function mkRndPane() {
     <div id="mk-rcard">${mkRndCard(mk.rnd.cur && D[mk.rnd.cur])}</div>
     <button class="btn pri mk-spin" data-mk="spin"${pool.length ? "" : " disabled"}>${mk.rnd.cur != null ? "Spin again" : "Spin"}</button>`;
 }
+/* Just for fun (under More): the spec of the day and Spin. Nobody needs them mid-shift, so they're off the Drinks tab. */
+function renderFun() {
+  $("#v-fun").innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Just for fun</h2>${plDailyHtml()}<div id="fun-spin">${mkRndPane()}</div>`;
+}
+$("#v-fun").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  const ds = b.dataset, set = (f) => { f(); mk.rnd.cur = null; mkSave(); $("#fun-spin").innerHTML = mkRndPane(); };
+  if (ds.mkOpen || ds.plDaily) return openSheet(+(ds.mkOpen || ds.plDaily));
+  if (ds.mkRmode) return set(() => (mk.rnd.mode = ds.mkRmode));
+  if (ds.mkRkind) return set(() => (mk.rnd.kind = ds.mkRkind));
+  if ("mkRmood" in ds) return set(() => (mk.rnd.mood = mk.rnd.mood === ds.mkRmood ? null : ds.mkRmood));
+  if ("mkRbase" in ds) return set(() => (mk.rnd.base = mk.rnd.base === ds.mkRbase ? null : ds.mkRbase));
+  if (ds.mkRmine) return set(() => (mk.rnd.mine = !mk.rnd.mine));
+  if (ds.mk === "spin") { mkShakeOn(); mkSpin(); }
+});
 function mkQsList() {
   const words = mkNorm(mk.qs.q).split(" ").filter(Boolean);
   const rows = D.filter((d) => mkKindOk(d, mk.qs.kind) && words.every((w) => d._h.includes(w)) && (!mk.qs.mine || mkCanMake(d)));
@@ -7273,7 +7290,7 @@ function mkQsPane() {
 }
 function renderMaker() {
   const tabs = [["make", "Make"], ["bt", "Black Tap"], ["bar", "My bar"], ["qs", "Specs"]];
-  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane, mine: () => minePane() }[mk.pane] || mkMakePane;
+  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, qs: mkQsPane, mine: () => minePane() }[mk.pane] || mkMakePane;
   // By the English name, as the open ones may be showing in another language (trWas keeps the English).
   const open = [...$$("#v-make details[open] summary")].map((s) => trWas.get(s.firstChild) ?? s.firstChild.textContent);
   $("#v-make").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cocktail maker</h2>
@@ -7349,18 +7366,12 @@ $("#v-make").addEventListener("click", (e) => {
   if (ds.mkOpt) { mk.opt[ds.mkOpt] = !mk.opt[ds.mkOpt]; mkSave(); return mkRedraw(); }
   if ("mkCat" in ds) { mk.cat = ds.mkCat || null; return mkRedraw(); }
   if (ds.mkKind) { mk.opt.kind = ds.mkKind; mkSave(); return mkRedraw(); }
-  if (ds.mkRmode) { mk.rnd.mode = ds.mkRmode; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
-  if (ds.mkRkind) { mk.rnd.kind = ds.mkRkind; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
-  if ("mkRmood" in ds) { mk.rnd.mood = mk.rnd.mood === ds.mkRmood ? null : ds.mkRmood; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
-  if ("mkRbase" in ds) { mk.rnd.base = mk.rnd.base === ds.mkRbase ? null : ds.mkRbase; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
-  if (ds.mkRmine) { mk.rnd.mine = !mk.rnd.mine; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.btUse) { mk.pick = [{ k: ds.btUse }]; mk.fromBar = false; mk.edit = null; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }
   if (ds.btView) { mk.bt.view = ds.btView; mkSave(); return mkRedraw(); }
   if (ds.btKind) { mk.bt.kind = ds.btKind; mkSave(); return mkRedraw(); }
   if (ds.mkQkind) { mk.qs.kind = ds.mkQkind; $("#mk-pane").innerHTML = mkQsPane(); return; }
   if (ds.mkQmine) { mk.qs.mine = !mk.qs.mine; $("#mk-pane").innerHTML = mkQsPane(); return; }
   const a = ds.mk;
-  if (a === "spin") { mkShakeOn(); return mkSpin(); }
   if (a === "btbar") { const ks = new Set(mk.bar); for (const k of BT_KEYS) ks.add(k); mk.bar = [...ks]; mkSave(); toast(`Line-up loaded: My bar has ${mk.bar.length} items`); return mkRedraw(); }
   if (a === "keep") { for (const p of mk.pick) if (!mk.bar.includes(p.k)) mk.bar.push(p.k); mkSave(); toast(`Kept in My bar (${mk.bar.length})`); return mkRedraw(); }
   if (a === "clear") { mk.pick = []; mk.edit = null; mkSave(); return mkRedraw(); }
@@ -7385,7 +7396,7 @@ const RAPID_GROUPS = [
   ["No alcohol", ["Virgin Mojito", "No-Star Martini", "Virgin Colada", "Espresso No-tini", "Virgin Margarita", "Virgin Cosmo", "Shirley Temple", "Strawberry Lemonade", "Virgin Hugo", "Lime & Soda"]],
   ["Serves", ["Gin & Tonic", "Vodka Red Bull", "Rum & Coke", "Jack & Coke", "Vodka Lemonade", "Vodka Cranberry", "Jameson, Ginger & Lime", "Malibu & Pineapple", "Pink Gin & Lemonade", "Archers & Lemonade"]],
 ];
-const RAPID = { ids: [], q: "", specs: store.get("rapid.specs", false), rush: store.get("rapid.rush", false), rushEdit: false };
+const RAPID = { ids: [], q: "", specs: store.get("rapid.specs", false), rushEdit: false };
 const rapidList = (f) => (typeof f === "function" ? D.filter(f) : f.map((n) => D.find((d) => d.name === n)).filter(Boolean));
 const rapidSpec = (d) => d.spec.map((s) => s.replace(/^Top about /i, "Top ~")).join(" · ");
 function rapidTile(d) {
@@ -7394,28 +7405,30 @@ function rapidTile(d) {
     ? `<button class="rp-row${out ? " out" : ""}" data-rp="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><span><span class="n" translate="no">${esc(d.name)}${out ? ` <i>86'd</i>` : ""}${out ? "" : plOutTag(d)}</span><span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.garnish)}</span></span></button>`
     : `<button class="rp-tile${out ? " out" : ""}" data-rp="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><span class="n" translate="no">${esc(d.name)}</span>${out ? `<i>86'd</i>` : plOutTag(d)}</button>`;
 }
+// The top 10 come first as big cards with the spec on them; the rest of the house list follows as tiles.
+// Searching drops the ten and reaches the whole book.
 function renderRapid() {
-  $("#rp-rush").setAttribute("aria-pressed", RAPID.rush); $("#rp-specs").hidden = RAPID.rush; $("#rp-q").hidden = RAPID.rush;
-  if (RAPID.rush) { $("#rp-out").innerHTML = rushHtml(); keepAwake(); return; }
+  $("#rp-specs").setAttribute("aria-pressed", RAPID.specs);
+  if (RAPID.rushEdit) { $("#rp-out").innerHTML = rushPickHtml(); return; }
   const words = mkNorm(RAPID.q).split(" ").filter(Boolean);
   const hit = (d) => words.every((w) => d._h.includes(w));
-  const seen = new Set(), groups = [];
+  const top = words.length ? [] : rushNames().map((n) => D.find((d) => d.name === n));
+  const seen = new Set(top.map((d) => d.id)), groups = [];
   for (const [t, f] of RAPID_GROUPS) {
     const ds = rapidList(f).filter((d) => !seen.has(d.id) && hit(d)); ds.forEach((d) => seen.add(d.id));
     if (ds.length) groups.push([t, ds]);
   }
   // Searching reaches the whole book, after the house list.
   if (words.length) { const more = D.filter((d) => !seen.has(d.id) && hit(d)).slice(0, 40); if (more.length) groups.push(["Everything else", more]); }
-  RAPID.ids = groups.flatMap(([, ds]) => ds.map((d) => d.id));
-  $("#rp-out").innerHTML = groups.map(([t, ds]) => `<div class="sec">${esc(t)}<span class="cnt">${ds.length}</span></div><div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${ds.map(rapidTile).join("")}</div>`).join("")
+  RAPID.ids = [...top, ...groups.flatMap(([, ds]) => ds)].map((d) => d.id);
+  $("#rp-out").innerHTML = (top.length ? `<div class="sec">Top 10<span class="cnt"><button class="linkbtn" data-rush="edit">Change</button></span></div>${rushHtml(top)}` : "") + groups.map(([t, ds]) => `<div class="sec">${esc(t)}<span class="cnt">${ds.length}</span></div><div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${ds.map(rapidTile).join("")}</div>`).join("")
     || `<p class="empty">Nothing matches. Try a spirit, like “rum”.</p>`;
-  $("#rp-specs").setAttribute("aria-pressed", RAPID.specs);
 }
 function showRapid() {
   if (!$("#rp-out")) {
     $("#v-rapid").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Rapid fire</h2>
       <div class="search"><input id="rp-q" type="search" placeholder="Type a drink or a spirit" autocomplete="off" enterkeyhint="search" aria-label="Search the house drinks"></div>
-      <div class="chips hrow"><button class="chip" id="rp-rush" aria-pressed="false">🔥 Rush: top 10</button><button class="chip" id="rp-specs" aria-pressed="false">Show specs on the page</button><button class="chip" data-rp-lineup="1">Beer, cider and softs</button></div>
+      <div class="chips hrow"><button class="chip" id="rp-specs" aria-pressed="false">Show specs on the page</button><button class="chip" data-rp-lineup="1">Beer, cider and softs</button></div>
       <div id="rp-out"></div>
       <div class="actions">${sendBtn("specs", "Send the house cocktails", D.filter((d) => d.section === "Black Tap Signatures").map((d) => d.id).join(","))}</div>`;
   }
@@ -7429,7 +7442,6 @@ $("#v-rapid").addEventListener("change", (e) => {
 $("#v-rapid").addEventListener("input", (e) => { if (e.target.id === "rp-q") { RAPID.q = e.target.value; renderRapid(); } });
 $("#v-rapid").addEventListener("click", (e) => {
   const t = e.target.closest("[data-rp]"); if (t) { haptic(); return openSheet(+t.dataset.rp); }
-  if (e.target.closest("#rp-rush")) { RAPID.rush = !RAPID.rush; RAPID.rushEdit = false; store.set("rapid.rush", RAPID.rush); haptic(); if (!RAPID.rush) { lock?.release?.().catch(() => {}); lock = null; } return renderRapid(); }
   const ru = e.target.closest("[data-rush]");
   if (ru) { const a = ru.dataset.rush; if (a === "edit") RAPID.rushEdit = true; if (a === "done") RAPID.rushEdit = false; if (a === "reset") { store.set("rush", RUSH_DEFAULT); RAPID.rushEdit = false; } return renderRapid(); }
   if (e.target.closest("#rp-specs")) { RAPID.specs = !RAPID.specs; store.set("rapid.specs", RAPID.specs); return renderRapid(); }
@@ -7995,21 +8007,16 @@ document.addEventListener("change", (e) => {
   s.learnt = c.checked ? [...new Set([...s.learnt, n])] : s.learnt.filter((x) => x !== n); stSet(s); haptic(); renderStarter();
 });
 
-/* ---------- Rush: the ten that sell, one screen ---------- */
+/* ---------- Top 10: the ten that sell, as big cards at the top of Rapid fire ---------- */
 const RUSH_DEFAULT = ["Pornstar Martini", "Espresso Martini", "London Cosmo", "Mojito", "Aperol Spritz", "Margarita", "Salted Caramel Buzz", "Piña Colada", "Uptown Hustle", "Long Island Iced Tea"];
 const rushNames = () => store.get("rush", RUSH_DEFAULT).filter((n) => D.some((d) => d.name === n));
-function rushHtml() {
-  if (RAPID.rushEdit) {
-    const on = new Set(rushNames()), pool = [...new Set(RAPID_GROUPS.flatMap(([, f]) => rapidList(f)))];
-    return `<p class="lead">Pick your bar's ten best sellers (${on.size} of 10). Saved on this phone.</p>
-      <div class="rush-pick">${pool.map((d) => `<label class="check"><input type="checkbox" data-rush-pick="${esc(d.name)}"${on.has(d.name) ? " checked" : ""}${!on.has(d.name) && on.size >= 10 ? " disabled" : ""}> <span translate="no">${esc(d.name)}</span></label>`).join("")}</div>
-      <div class="actions"><button class="btn pri" data-rush="done">Done</button><button class="btn" data-rush="reset">Back to the usual ten</button></div>`;
-  }
-  const ds = rushNames().map((n) => D.find((d) => d.name === n));
-  RAPID.ids = ds.map((d) => d.id);
-  return `<div class="rush">${ds.map((d) => `<button class="rush-card${isOut(d.name) ? " out" : ""}" data-rp="${d.id}"><span class="n" translate="no">${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</span>${isOut(d.name) ? "" : plOutTag(d)}<span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.method)}</span></button>`).join("")}</div>
-    <button class="btn wide" data-rush="edit" style="margin-top:8px">Change the ten</button><p class="note">The screen stays on while Rush is open.</p>`;
+function rushPickHtml() {
+  const on = new Set(rushNames()), pool = [...new Set(RAPID_GROUPS.flatMap(([, f]) => rapidList(f)))];
+  return `<p class="lead">Pick your bar's ten best sellers (${on.size} of 10). Saved on this phone.</p>
+    <div class="rush-pick">${pool.map((d) => `<label class="check"><input type="checkbox" data-rush-pick="${esc(d.name)}"${on.has(d.name) ? " checked" : ""}${!on.has(d.name) && on.size >= 10 ? " disabled" : ""}> <span translate="no">${esc(d.name)}</span></label>`).join("")}</div>
+    <div class="actions"><button class="btn pri" data-rush="done">Done</button><button class="btn" data-rush="reset">Back to the usual ten</button></div>`;
 }
+const rushHtml = (ds) => `<div class="rush">${ds.map((d) => `<button class="rush-card${isOut(d.name) ? " out" : ""}" data-rp="${d.id}"><span class="n" translate="no">${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</span>${isOut(d.name) ? "" : plOutTag(d)}<span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.method)}</span></button>`).join("")}</div>`;
 document.head.insertAdjacentHTML("beforeend", `<style>
 .rush{display:grid;gap:8px;margin-top:8px}
 .rush-card{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:12px;padding:12px 14px;color:var(--fg)}
@@ -8027,7 +8034,7 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 
 /* ---------- Out of something: one 86 board, every drink adjusts ----------
    An ingredient on the 86 board (Shift, or "We're out" on any drink) flows through the whole app: the drink shows the
-   swap on its spec line and a banner, the menu, Rapid fire and Rush mark it, Make and My bar stop counting on it,
+   swap on its spec line and a banner, the menu and Rapid fire (top 10 too) mark it, Make and My bar stop counting on it,
    Spin and Spec of the day skip drinks with no swap, and picture cards and WhatsApp specs carry the swap.
    On the team it's the shared 86 board, so it's set once for everyone. Off the team it's kept on this phone. */
 const OUT_LOCAL = new Set(store.get("outIng", []));

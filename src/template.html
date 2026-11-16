@@ -850,6 +850,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-rapid" hidden></section>
 
   <section class="view" id="v-sheets" hidden></section>
+  <section class="view" id="v-fun" hidden></section>
 
   <section class="view" id="v-tally" hidden>
     <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
@@ -1156,7 +1157,7 @@ function renderQuick(show) {
   const fl = `<div class="mini">What does the guest fancy?</div><div class="chips hrow">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
   if (flav || sec !== "All" || PL.list) { $("#quick").innerHTML = fl; return; }
   const rec = recent.length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = plDailyHtml() + rec + fl;
+  $("#quick").innerHTML = rec + fl;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
@@ -1183,7 +1184,6 @@ function renderList() {
 }
 $("#q").addEventListener("input", renderList);
 document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
-$("#quick").addEventListener("click", (e) => { const o = e.target.closest(".pl-daily"); if (o) openSheet(+o.dataset.plDaily); });
 
 /* ---------- Spec sheet ---------- */
 const QTY = /^((?:\d+(?:\.\d+)?|half|one|two|three)\s?(?:ml|cl|l|g)\b|(?:\d+|a|half a|one|two|three)\s(?:dash(?:es)?|drops?|slices?|heaped spoons?|spoons?|wedges?|leaves|sprigs?|scoops?|can|cans|shots?|pinch(?:es)?)(?: of)?|dash of|pinch of|half pinch of|top with|top up with)\s+(.*)$/i;
@@ -3512,6 +3512,7 @@ const IC = {
   practice: '<rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v13M8 11l2 2 4-4"/>',
   sheets: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',
   features: '<path d="M12 3l2.6 5.6L20 9.3l-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.4-.7z"/>',
+  fun: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
@@ -3525,7 +3526,8 @@ function renderInfo() {
     <div class="hub">
       ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
       ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards and tonight's quiz")}
-      ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A4 pages to print and laminate")}
+      ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A page per kind of drink, to send to WhatsApp or print")}
+      ${hubRow("fun", 'data-go="fun"', "Just for fun", "Spin for a drink, and the spec of the day")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
@@ -3604,11 +3606,11 @@ const FEATURES = [
     what: "Every drink with its spec, glass, ice, garnish and method, and a picture guide for each step.",
     staff: "Search and filter, star favourites, scale a spec for up to 4 drinks, swipe to the next drink, see the house photo and how-to video, and 86 a drink that's run out." },
   { g: "Drinks", k: "make", n: "Cocktail maker", go: "tab:make", tour: 1,
-    what: "Pick or type what you've got and see every drink you can make, closest first, with swaps. Also a random drink picker and every spec on one line.",
-    staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, spin for an alcoholic or alcohol-free drink, and open any match for the full spec." },
+    what: "Pick or type what you've got and see every drink you can make, closest first, with swaps. Also every spec on one line, and your own recipes in My drinks.",
+    staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, and open any match for the full spec. Spin for a drink is under More, Just for fun." },
   { g: "Drinks", k: "rapid", n: "Rapid fire", go: "tab:rapid", tour: 1,
-    what: "The house cocktails as big tiles, for the busiest moments: tap one for its spec, or show every spec on the page.",
-    staff: "Type a drink or a spirit to narrow them down, and send several specs at once on WhatsApp." },
+    what: "For the busiest moments: the top 10 as big cards with the spec on them, then the house cocktails, shots, alcohol-free and serves as tiles.",
+    staff: "Change the top 10 to your bar's best sellers, type a drink or a spirit to narrow them down, and send several specs at once on WhatsApp." },
   { g: "Drinks", k: "allergens", n: "Allergens", go: "tab:allergens", tour: 1,
     what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
     staff: "Tap an allergen to see every drink with it." },
@@ -4439,7 +4441,7 @@ addEventListener("resize", csFit);
    the top that never scrolls sideways (Rapid fire, Menu, Make). More holds everything used less often: Allergens,
    Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
    Tapping the tab you're on takes you back to its top. */
-const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets"];
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun"];
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
 let cur = "drinks";
 function show(tab) {
@@ -4455,6 +4457,7 @@ function show(tab) {
   if (tab === "allergens") renderAllergens();
   if (tab === "practice" && !pDrink) nextCard();
   if (tab === "sheets") renderSheets();
+  if (tab === "fun") renderFun();
   if (tab === "tally") renderTally();
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();

@@ -541,21 +541,16 @@ document.addEventListener("change", (e) => {
   s.learnt = c.checked ? [...new Set([...s.learnt, n])] : s.learnt.filter((x) => x !== n); stSet(s); haptic(); renderStarter();
 });
 
-/* ---------- Rush: the ten that sell, one screen ---------- */
+/* ---------- Top 10: the ten that sell, as big cards at the top of Rapid fire ---------- */
 const RUSH_DEFAULT = ["Pornstar Martini", "Espresso Martini", "London Cosmo", "Mojito", "Aperol Spritz", "Margarita", "Salted Caramel Buzz", "Piña Colada", "Uptown Hustle", "Long Island Iced Tea"];
 const rushNames = () => store.get("rush", RUSH_DEFAULT).filter((n) => D.some((d) => d.name === n));
-function rushHtml() {
-  if (RAPID.rushEdit) {
-    const on = new Set(rushNames()), pool = [...new Set(RAPID_GROUPS.flatMap(([, f]) => rapidList(f)))];
-    return `<p class="lead">Pick your bar's ten best sellers (${on.size} of 10). Saved on this phone.</p>
-      <div class="rush-pick">${pool.map((d) => `<label class="check"><input type="checkbox" data-rush-pick="${esc(d.name)}"${on.has(d.name) ? " checked" : ""}${!on.has(d.name) && on.size >= 10 ? " disabled" : ""}> <span translate="no">${esc(d.name)}</span></label>`).join("")}</div>
-      <div class="actions"><button class="btn pri" data-rush="done">Done</button><button class="btn" data-rush="reset">Back to the usual ten</button></div>`;
-  }
-  const ds = rushNames().map((n) => D.find((d) => d.name === n));
-  RAPID.ids = ds.map((d) => d.id);
-  return `<div class="rush">${ds.map((d) => `<button class="rush-card${isOut(d.name) ? " out" : ""}" data-rp="${d.id}"><span class="n" translate="no">${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</span>${isOut(d.name) ? "" : plOutTag(d)}<span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.method)}</span></button>`).join("")}</div>
-    <button class="btn wide" data-rush="edit" style="margin-top:8px">Change the ten</button><p class="note">The screen stays on while Rush is open.</p>`;
+function rushPickHtml() {
+  const on = new Set(rushNames()), pool = [...new Set(RAPID_GROUPS.flatMap(([, f]) => rapidList(f)))];
+  return `<p class="lead">Pick your bar's ten best sellers (${on.size} of 10). Saved on this phone.</p>
+    <div class="rush-pick">${pool.map((d) => `<label class="check"><input type="checkbox" data-rush-pick="${esc(d.name)}"${on.has(d.name) ? " checked" : ""}${!on.has(d.name) && on.size >= 10 ? " disabled" : ""}> <span translate="no">${esc(d.name)}</span></label>`).join("")}</div>
+    <div class="actions"><button class="btn pri" data-rush="done">Done</button><button class="btn" data-rush="reset">Back to the usual ten</button></div>`;
 }
+const rushHtml = (ds) => `<div class="rush">${ds.map((d) => `<button class="rush-card${isOut(d.name) ? " out" : ""}" data-rp="${d.id}"><span class="n" translate="no">${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</span>${isOut(d.name) ? "" : plOutTag(d)}<span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.method)}</span></button>`).join("")}</div>`;
 document.head.insertAdjacentHTML("beforeend", `<style>
 .rush{display:grid;gap:8px;margin-top:8px}
 .rush-card{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:12px;padding:12px 14px;color:var(--fg)}

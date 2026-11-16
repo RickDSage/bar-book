@@ -12,7 +12,7 @@ const RAPID_GROUPS = [
   ["No alcohol", ["Virgin Mojito", "No-Star Martini", "Virgin Colada", "Espresso No-tini", "Virgin Margarita", "Virgin Cosmo", "Shirley Temple", "Strawberry Lemonade", "Virgin Hugo", "Lime & Soda"]],
   ["Serves", ["Gin & Tonic", "Vodka Red Bull", "Rum & Coke", "Jack & Coke", "Vodka Lemonade", "Vodka Cranberry", "Jameson, Ginger & Lime", "Malibu & Pineapple", "Pink Gin & Lemonade", "Archers & Lemonade"]],
 ];
-const RAPID = { ids: [], q: "", specs: store.get("rapid.specs", false), rush: store.get("rapid.rush", false), rushEdit: false };
+const RAPID = { ids: [], q: "", specs: store.get("rapid.specs", false), rushEdit: false };
 const rapidList = (f) => (typeof f === "function" ? D.filter(f) : f.map((n) => D.find((d) => d.name === n)).filter(Boolean));
 const rapidSpec = (d) => d.spec.map((s) => s.replace(/^Top about /i, "Top ~")).join(" · ");
 function rapidTile(d) {
@@ -21,28 +21,30 @@ function rapidTile(d) {
     ? `<button class="rp-row${out ? " out" : ""}" data-rp="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><span><span class="n" translate="no">${esc(d.name)}${out ? ` <i>86'd</i>` : ""}${out ? "" : plOutTag(d)}</span><span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.garnish)}</span></span></button>`
     : `<button class="rp-tile${out ? " out" : ""}" data-rp="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><span class="n" translate="no">${esc(d.name)}</span>${out ? `<i>86'd</i>` : plOutTag(d)}</button>`;
 }
+// The top 10 come first as big cards with the spec on them; the rest of the house list follows as tiles.
+// Searching drops the ten and reaches the whole book.
 function renderRapid() {
-  $("#rp-rush").setAttribute("aria-pressed", RAPID.rush); $("#rp-specs").hidden = RAPID.rush; $("#rp-q").hidden = RAPID.rush;
-  if (RAPID.rush) { $("#rp-out").innerHTML = rushHtml(); keepAwake(); return; }
+  $("#rp-specs").setAttribute("aria-pressed", RAPID.specs);
+  if (RAPID.rushEdit) { $("#rp-out").innerHTML = rushPickHtml(); return; }
   const words = mkNorm(RAPID.q).split(" ").filter(Boolean);
   const hit = (d) => words.every((w) => d._h.includes(w));
-  const seen = new Set(), groups = [];
+  const top = words.length ? [] : rushNames().map((n) => D.find((d) => d.name === n));
+  const seen = new Set(top.map((d) => d.id)), groups = [];
   for (const [t, f] of RAPID_GROUPS) {
     const ds = rapidList(f).filter((d) => !seen.has(d.id) && hit(d)); ds.forEach((d) => seen.add(d.id));
     if (ds.length) groups.push([t, ds]);
   }
   // Searching reaches the whole book, after the house list.
   if (words.length) { const more = D.filter((d) => !seen.has(d.id) && hit(d)).slice(0, 40); if (more.length) groups.push(["Everything else", more]); }
-  RAPID.ids = groups.flatMap(([, ds]) => ds.map((d) => d.id));
-  $("#rp-out").innerHTML = groups.map(([t, ds]) => `<div class="sec">${esc(t)}<span class="cnt">${ds.length}</span></div><div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${ds.map(rapidTile).join("")}</div>`).join("")
+  RAPID.ids = [...top, ...groups.flatMap(([, ds]) => ds)].map((d) => d.id);
+  $("#rp-out").innerHTML = (top.length ? `<div class="sec">Top 10<span class="cnt"><button class="linkbtn" data-rush="edit">Change</button></span></div>${rushHtml(top)}` : "") + groups.map(([t, ds]) => `<div class="sec">${esc(t)}<span class="cnt">${ds.length}</span></div><div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${ds.map(rapidTile).join("")}</div>`).join("")
     || `<p class="empty">Nothing matches. Try a spirit, like “rum”.</p>`;
-  $("#rp-specs").setAttribute("aria-pressed", RAPID.specs);
 }
 function showRapid() {
   if (!$("#rp-out")) {
     $("#v-rapid").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Rapid fire</h2>
       <div class="search"><input id="rp-q" type="search" placeholder="Type a drink or a spirit" autocomplete="off" enterkeyhint="search" aria-label="Search the house drinks"></div>
-      <div class="chips hrow"><button class="chip" id="rp-rush" aria-pressed="false">🔥 Rush: top 10</button><button class="chip" id="rp-specs" aria-pressed="false">Show specs on the page</button><button class="chip" data-rp-lineup="1">Beer, cider and softs</button></div>
+      <div class="chips hrow"><button class="chip" id="rp-specs" aria-pressed="false">Show specs on the page</button><button class="chip" data-rp-lineup="1">Beer, cider and softs</button></div>
       <div id="rp-out"></div>
       <div class="actions">${sendBtn("specs", "Send the house cocktails", D.filter((d) => d.section === "Black Tap Signatures").map((d) => d.id).join(","))}</div>`;
   }
@@ -56,7 +58,6 @@ $("#v-rapid").addEventListener("change", (e) => {
 $("#v-rapid").addEventListener("input", (e) => { if (e.target.id === "rp-q") { RAPID.q = e.target.value; renderRapid(); } });
 $("#v-rapid").addEventListener("click", (e) => {
   const t = e.target.closest("[data-rp]"); if (t) { haptic(); return openSheet(+t.dataset.rp); }
-  if (e.target.closest("#rp-rush")) { RAPID.rush = !RAPID.rush; RAPID.rushEdit = false; store.set("rapid.rush", RAPID.rush); haptic(); if (!RAPID.rush) { lock?.release?.().catch(() => {}); lock = null; } return renderRapid(); }
   const ru = e.target.closest("[data-rush]");
   if (ru) { const a = ru.dataset.rush; if (a === "edit") RAPID.rushEdit = true; if (a === "done") RAPID.rushEdit = false; if (a === "reset") { store.set("rush", RUSH_DEFAULT); RAPID.rushEdit = false; } return renderRapid(); }
   if (e.target.closest("#rp-specs")) { RAPID.specs = !RAPID.specs; store.set("rapid.specs", RAPID.specs); return renderRapid(); }

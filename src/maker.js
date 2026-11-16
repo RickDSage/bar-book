@@ -676,8 +676,7 @@ function mkMakePane() {
   } else {
     MK.ids = [];
     out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>
-      <div class="mk-row2"><button class="btn pri" data-mk-pane="bt">Black Tap classics</button><button class="btn" data-mk-pane="rnd">Can't decide? Spin</button></div>
-      <button class="btn wide" style="margin-top:8px" data-mk-pane="mine">My drinks${mineAll().length ? ` (${mineAll().length})` : ""}</button>
+      <div class="mk-row2"><button class="btn pri" data-mk-pane="bt">Black Tap classics</button><button class="btn" data-mk-pane="mine">My drinks${mineAll().length ? ` (${mineAll().length})` : ""}</button></div>
       ${mk.bar.length ? `<button class="btn wide" style="margin-top:8px" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
   }
   return `${mkTypeBox("make", "Type anything: vodka, 50ml lime…")}${mkShelf(on)}${picks}${kinds}<div id="mk-out">${out}</div>`;
@@ -757,7 +756,7 @@ async function mkShakeOn() {
   try { if (typeof DeviceMotionEvent.requestPermission === "function" && (await DeviceMotionEvent.requestPermission()) !== "granted") return; } catch { return; }
   MK_SHAKE.on = true;
   addEventListener("devicemotion", (e) => {
-    const a = e.accelerationIncludingGravity; if (!a || mk.pane !== "rnd" || $("#v-make").hidden || !$("#sheet").hidden) return;
+    const a = e.accelerationIncludingGravity; if (!a || $("#v-fun").hidden || !$("#sheet").hidden) return;
     const g = Math.hypot(a.x || 0, a.y || 0, a.z || 0), now = Date.now();
     if (g > 24 && now - MK_SHAKE.last > 1500) { MK_SHAKE.last = now; mkSpin(); }
   });
@@ -765,7 +764,7 @@ async function mkShakeOn() {
 function mkRndPane() {
   const pool = mkPool();
   const seg = (k, l) => `<button aria-pressed="${mk.rnd.mode === k}" data-mk-rmode="${k}">${l}</button>`;
-  return `<button class="btn" data-mk-pane="make" style="margin-top:4px">‹ Back to Make</button><p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
+  return `<div class="h3">Spin for a drink</div><p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
     <div class="seg" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Alcohol">${seg("alc", "Alcoholic")}${seg("zero", "Alcohol-free")}${seg("any", "Either")}</div>
     ${mk.rnd.mode === "alc" ? `<div class="chips hrow">${[["all", "Any"], ["cocktail", "Cocktail"], ["spritz", "Spritz"], ["shot", "Shot"]].map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.kind === k}" data-mk-rkind="${k}">${l}</button>`).join("")}</div>` : ""}
     <div class="mini">Mood</div><div class="chips hrow">${Object.keys(FLAVOURS).map((k) => `<button class="chip" aria-pressed="${mk.rnd.mood === k}" data-mk-rmood="${esc(k)}">${esc(k)}</button>`).join("")}</div>
@@ -775,6 +774,21 @@ function mkRndPane() {
     <div id="mk-rcard">${mkRndCard(mk.rnd.cur && D[mk.rnd.cur])}</div>
     <button class="btn pri mk-spin" data-mk="spin"${pool.length ? "" : " disabled"}>${mk.rnd.cur != null ? "Spin again" : "Spin"}</button>`;
 }
+/* Just for fun (under More): the spec of the day and Spin. Nobody needs them mid-shift, so they're off the Drinks tab. */
+function renderFun() {
+  $("#v-fun").innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Just for fun</h2>${plDailyHtml()}<div id="fun-spin">${mkRndPane()}</div>`;
+}
+$("#v-fun").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b) return;
+  const ds = b.dataset, set = (f) => { f(); mk.rnd.cur = null; mkSave(); $("#fun-spin").innerHTML = mkRndPane(); };
+  if (ds.mkOpen || ds.plDaily) return openSheet(+(ds.mkOpen || ds.plDaily));
+  if (ds.mkRmode) return set(() => (mk.rnd.mode = ds.mkRmode));
+  if (ds.mkRkind) return set(() => (mk.rnd.kind = ds.mkRkind));
+  if ("mkRmood" in ds) return set(() => (mk.rnd.mood = mk.rnd.mood === ds.mkRmood ? null : ds.mkRmood));
+  if ("mkRbase" in ds) return set(() => (mk.rnd.base = mk.rnd.base === ds.mkRbase ? null : ds.mkRbase));
+  if (ds.mkRmine) return set(() => (mk.rnd.mine = !mk.rnd.mine));
+  if (ds.mk === "spin") { mkShakeOn(); mkSpin(); }
+});
 function mkQsList() {
   const words = mkNorm(mk.qs.q).split(" ").filter(Boolean);
   const rows = D.filter((d) => mkKindOk(d, mk.qs.kind) && words.every((w) => d._h.includes(w)) && (!mk.qs.mine || mkCanMake(d)));
@@ -789,7 +803,7 @@ function mkQsPane() {
 }
 function renderMaker() {
   const tabs = [["make", "Make"], ["bt", "Black Tap"], ["bar", "My bar"], ["qs", "Specs"]];
-  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane, mine: () => minePane() }[mk.pane] || mkMakePane;
+  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, qs: mkQsPane, mine: () => minePane() }[mk.pane] || mkMakePane;
   // By the English name, as the open ones may be showing in another language (trWas keeps the English).
   const open = [...$$("#v-make details[open] summary")].map((s) => trWas.get(s.firstChild) ?? s.firstChild.textContent);
   $("#v-make").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cocktail maker</h2>
@@ -865,18 +879,12 @@ $("#v-make").addEventListener("click", (e) => {
   if (ds.mkOpt) { mk.opt[ds.mkOpt] = !mk.opt[ds.mkOpt]; mkSave(); return mkRedraw(); }
   if ("mkCat" in ds) { mk.cat = ds.mkCat || null; return mkRedraw(); }
   if (ds.mkKind) { mk.opt.kind = ds.mkKind; mkSave(); return mkRedraw(); }
-  if (ds.mkRmode) { mk.rnd.mode = ds.mkRmode; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
-  if (ds.mkRkind) { mk.rnd.kind = ds.mkRkind; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
-  if ("mkRmood" in ds) { mk.rnd.mood = mk.rnd.mood === ds.mkRmood ? null : ds.mkRmood; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
-  if ("mkRbase" in ds) { mk.rnd.base = mk.rnd.base === ds.mkRbase ? null : ds.mkRbase; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
-  if (ds.mkRmine) { mk.rnd.mine = !mk.rnd.mine; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.btUse) { mk.pick = [{ k: ds.btUse }]; mk.fromBar = false; mk.edit = null; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }
   if (ds.btView) { mk.bt.view = ds.btView; mkSave(); return mkRedraw(); }
   if (ds.btKind) { mk.bt.kind = ds.btKind; mkSave(); return mkRedraw(); }
   if (ds.mkQkind) { mk.qs.kind = ds.mkQkind; $("#mk-pane").innerHTML = mkQsPane(); return; }
   if (ds.mkQmine) { mk.qs.mine = !mk.qs.mine; $("#mk-pane").innerHTML = mkQsPane(); return; }
   const a = ds.mk;
-  if (a === "spin") { mkShakeOn(); return mkSpin(); }
   if (a === "btbar") { const ks = new Set(mk.bar); for (const k of BT_KEYS) ks.add(k); mk.bar = [...ks]; mkSave(); toast(`Line-up loaded: My bar has ${mk.bar.length} items`); return mkRedraw(); }
   if (a === "keep") { for (const p of mk.pick) if (!mk.bar.includes(p.k)) mk.bar.push(p.k); mkSave(); toast(`Kept in My bar (${mk.bar.length})`); return mkRedraw(); }
   if (a === "clear") { mk.pick = []; mk.edit = null; mkSave(); return mkRedraw(); }
