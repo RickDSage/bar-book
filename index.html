@@ -514,7 +514,11 @@ details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: v
 .staffrow .actions .btn { padding: 8px 12px; font-size: 15px; min-height: 40px; }
 /* Saving state: shown while a change is waiting to reach the server, or when there's no signal */
 .upd { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 26; padding: 12px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 4px 18px #0005; white-space: nowrap; }
-.net { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 25; padding: 7px 16px; text-align: center; font-size: 14px; font-weight: 700; background: var(--surface); border-bottom: 2px solid var(--brass); }
+/* At the bottom, above the tabs, and never in the way: at the top it covered every page's Back button and the drinks
+   tabs, so with no signal nobody could close the Send page. Pages get room under it so nothing ends up beneath it. */
+.net { position: fixed; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; z-index: 25; pointer-events: none; padding: 7px 16px; text-align: center; font-size: 14px; font-weight: 700; background: var(--surface); border-top: 2px solid var(--brass); }
+body.neton main, body.neton .sheet { padding-bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 90px); }
+body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-area-inset-bottom, 0px)); }
 .net.off { border-color: var(--warn); }
 /* Your name and the account links, spaced rather than dotted, so a line never starts or ends on a dot. */
 .acct { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 16px; }
@@ -1011,6 +1015,7 @@ let unsent = 0, slow = 0;
 function renderNet() {
   const n = $("#net"), off = !navigator.onLine, many = (k) => `${k} change${k > 1 ? "s" : ""}`;
   n.hidden = !LIVE.me || (!off && !slow);
+  document.body.classList.toggle("neton", !n.hidden);
   n.classList.toggle("off", off);
   n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : "No signal. Showing what this phone last saw")
     : `Sending ${many(unsent)}…`;
@@ -2212,43 +2217,80 @@ async function tickAll(k, g) {
 // Clear: everything ticked, started or blocked goes back to not started on every phone, and a finished list opens
 // again. Anyone on shift can do it. Not needed tonight stays as it is (that's a manager's call).
 const CLEARED = "Cleared";
+// A finished list is reopened, then its items go back to not started. Firestore sends one phone's changes in the order
+// they're made, so the items don't wait for the reopen to reach the server: with no signal, the clear still shows
+// straight away and goes when the signal comes back.
+function resetList(k, ids) {
+  const t = LISTS[k].title, p = progress(k), A = LIVE.api, jobs = [];
+  if (isLocked(k)) jobs.push(A.setRun(k, t, "started", p.n, p.of, CLEARED));
+  for (const i of ids) jobs.push(A.setTask(k, i, itemText(k, i), "todo", { note: CLEARED }));
+  return jobs;
+}
+const touched = (k) => shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
 function clearList(k) {
-  const t = LISTS[k].title, ids = shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
+  const t = LISTS[k].title, ids = touched(k);
   if (!ids.length && !isLocked(k)) return toast("Nothing to clear");
   if (!confirm(`Clear the ${t.toLowerCase()}? ${ids.length} item${ids.length === 1 ? "" : "s"} go back to not started, on every phone.`)) return;
-  const p = progress(k), open = isLocked(k) ? LIVE.api.setRun(k, t, "started", p.n, p.of, "Cleared") : Promise.resolve();
-  track(open.then(() => Promise.all(ids.map((i) => LIVE.api.setTask(k, i, itemText(k, i), "todo", { note: CLEARED })))), `${t} cleared`, "Not all cleared. Check your signal and try again");
+  track(Promise.all(resetList(k, ids)), `${t} cleared`, "Not all cleared. Check your signal and try again");
   more = ""; haptic();
 }
-// Clear everything, for a fresh start: both closing lists back to not started, everything back in stock, and this
-// handover, Closed by and unsent photos gone, for both sides. Anyone on the team can. The owner's master clear also cancels open
-// restocks and empties the inbox and issues. Sent handovers stay: the morning reads them.
+/* Clear everything, for a fresh start: both closing lists back to not started, everything back in stock, and tonight's
+   handover, Closed by and unsent photos gone, for both sides. Anyone on the team can. The owner's master clear also
+   cancels open restocks and marks the inbox done (kept, not deleted). Open issues are never cleared: they're faults the
+   next shift needs to see. Sent handovers stay: the morning reads them. Each person's own unsent forms (an incident,
+   a request) stay on their phone.
+   A mis-tap mid-service would put 86'd items back on sale, so whatever was cleared is kept on this phone for 15
+   minutes and Undo clear puts it all back. */
+const UNDO_MINS = 15;
+let undoClear = null;
 async function clearAll(master) {
   const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api;
-  if (!confirm(master ? "Master clear: both closing lists, the 86 board, restocks, the inbox and issues, for everyone. Sent handovers stay. Go ahead?"
-    : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. The handover, Closed by and unsent photos go too, and the drafts on this phone.")) return;
-  const jobs = [];
-  for (const k of lists) {
-    const t = LISTS[k].title, p = progress(k), ids = shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
-    const open = isLocked(k) ? A.setRun(k, t, "started", p.n, p.of, CLEARED) : Promise.resolve();
-    jobs.push(open.then(() => Promise.all(ids.map((i) => A.setTask(k, i, itemText(k, i), "todo", { note: CLEARED })))));
-  }
+  if (!confirm(master ? "Master clear: both closing lists, the 86 board and restocks for everyone, and the inbox marked done. Open issues and sent handovers stay. You can undo it for 15 minutes. Go ahead?"
+    : `Clear everything for a fresh start? On every phone: both closing lists go back to not started, everything 86'd goes back in stock, and tonight's handover, Closed by and unsent photos go. You can undo it for ${UNDO_MINS} minutes.`)) return;
+  // What's about to go, so Undo clear can put it back.
+  undoClear = {
+    until: Date.now() + UNDO_MINS * 6e4,
+    tasks: lists.flatMap((k) => touched(k).map((i) => ({ k, i, status: statusOf(k, i), note: taskOf(k, i).note || "" }))),
+    runs: lists.filter(isLocked).map((k) => ({ k, ...progress(k), note: runOf(k).note || "" })),
+    out: [...outNow()],
+    photos: LIVE.draftPhotos.map((x) => ({ data: x.data, side: x.side || mode, note: x.note || "" })),
+    drafts: Object.keys(MODE_LISTS).map(draftOf).filter(Boolean).map((d) => ({ side: d.side, x: { low: d.low, issues: d.issues, next: d.next, closer: d.closer, noPhotos: d.noPhotos } })),
+    local: { ho: { ...ho }, closer, noPhotos },
+    restock: master ? rsOpen().filter((x) => x.status !== "delivered").map((r) => r.id) : [],
+  };
+  const jobs = lists.flatMap((k) => resetList(k, touched(k)));
   for (const n of outNow()) jobs.push(A.set86(n, false));
   for (const ph of LIVE.draftPhotos) jobs.push(A.deletePhoto(ph.id));
   // A change still waiting to save would put the old handover back after the clear, so it's cancelled first; a draft
   // this phone hasn't heard back about yet is deleted too.
   clearTimeout(draftT); draftT = null;
   for (const side of Object.keys(MODE_LISTS)) jobs.push(A.dropDraft(side));
-  for (const k in DRAFTS) dropDraft(k);
   if (master) {
     for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
-    for (const a of LIVE.asks) jobs.push(A.dropAsk(a.id));
-    for (const x of LIVE.issues) jobs.push(A.withdrawIssue(x.id));
+    for (const a of LIVE.asks.filter((x) => x.status !== "done")) jobs.push(A.answer(a.id, "done", CLEARED));
   }
   ho = { low: "", issues: "", next: "" }; closer = ""; noPhotos = "";
   store.set("ho", ho); store.set("closer", ""); store.set("noPhotos", "");
   more = ""; haptic(); renderTally();
-  track(Promise.all(jobs), master ? "Master clear done" : "All clear for a fresh start", "Not all cleared. Check your signal and try again");
+  track(Promise.all(jobs), master ? "Master clear done. Undo clear is on Shift" : "All clear. Undo clear is there if that was a mistake", "Not all cleared. Check your signal and try again");
+}
+const canUndoClear = () => !!undoClear && Date.now() < undoClear.until;
+// Puts back what the last Clear everything on this phone took: ticks, finished lists, the 86 board, photos (their notes
+// follow once each photo has saved), the handover and the restocks it cancelled. The inbox stays marked done.
+function undoClearAll() {
+  if (!canUndoClear()) { undoClear = null; renderTally(); return toast("Too late to undo"); }
+  const u = undoClear, A = LIVE.api, jobs = [];
+  undoClear = null;
+  for (const x of u.tasks) jobs.push(A.setTask(x.k, x.i, itemText(x.k, x.i), x.status, { note: x.note }));
+  for (const r of u.runs) jobs.push(A.setRun(r.k, LISTS[r.k].title, "finished", r.n, r.of, r.note));
+  for (const n of u.out) if (!outNow().has(n)) jobs.push(A.set86(n, true));
+  for (const ph of u.photos) jobs.push(A.addPhoto(ph.data, ph.side).then((ref) => ph.note && A.notePhoto(ref.id, ph.note)));
+  for (const d of u.drafts) jobs.push(A.saveDraft(d.side, d.x));
+  for (const id of u.restock) { const r = LIVE.restock.find((x) => x.id === id); if (r?.status === "cancelled") jobs.push(A.moveRestock(r, "asked", { note: "Clear undone" })); }
+  ho = u.local.ho; closer = u.local.closer; noPhotos = u.local.noPhotos;
+  store.set("ho", ho); store.set("closer", closer); store.set("noPhotos", noPhotos);
+  haptic(); renderTally();
+  track(Promise.all(jobs), "Put back as it was", "Not all put back. Check what's missing");
 }
 // A reason for the record. Cancelling or leaving it empty means don't make the change.
 const reason = (q) => (prompt(q) || "").trim().slice(0, 200);
@@ -2395,7 +2437,13 @@ const listPane = (k) => (le?.k === k ? editHtml(k) : checklistHtml(k) + listFoot
 const closers = () => [...new Set([...(STAFF[mode] || []), ...STAFF.both, ...Object.values(STAFF).flat(), ...closer.split(", ").filter(Boolean)])];
 const closedBy = () => closer.split(", ").filter(Boolean);
 // The last report this side sent before tonight, for whoever opens: its handover note and what it left undone.
-const lastReport = () => LIVE.reports.find((r) => r.side === mode && !r.pending && ukDay(ms(r.at) - 6 * 36e5) !== shiftDay());
+const reportDay = (r) => ukDay(ms(r.at) - 6 * 36e5);
+const lastReport = () => LIVE.reports.find((r) => r.side === mode && !r.pending && reportDay(r) !== shiftDay());
+// The business day before today. A handover from any earlier day isn't last night's: the closer's phone may still be
+// holding it with no signal, and the morning mustn't read an older night as if it were last night's.
+const lastNight = () => ukDay(Date.parse(shiftDay() + "T12:00:00Z") - 864e5);
+// Tonight's handover from this side: sent, or saved on a phone and still waiting for signal.
+const tonightsReport = () => LIVE.reports.find((r) => r.side === mode && reportDay(r) === shiftDay());
 // How the close is going: when the first item was ticked, how long it's taken (to the finish once it's finished), and
 // who has ticked what, so the duty manager sees at a glance what's behind.
 function closeClock(k) {
@@ -2442,8 +2490,10 @@ const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).m
 function morningHtml() {
   const r = lastReport(), h = r && handoverOf(r), order = orderLines(r);
   const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? ut(v) : "None"}</span></div>`;
+  const stale = r && reportDay(r) !== lastNight();
   const ho = !r ? `<p class="note">No handover from the last close on this side yet.</p>`
-    : `<article class="notice" id="handover"><div class="meta">Last night's handover · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
+    : `${stale ? `<p class="note warnline" id="ho-stale"><b>Last night's handover hasn't arrived.</b> Ask whoever closed to open Bar Book with signal: it may be waiting on their phone. This one is from ${esc(dayName(reportDay(r)))}.</p>` : ""}
+      <article class="notice" id="handover"><div class="meta">${stale ? "Latest handover" : "Last night's handover"} · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
       ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
       ${h.left.length ? `<p class="note">Left from that shift:<br>${h.left.map(esc).join("<br>")}</p>` : ""}
       ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
@@ -2451,7 +2501,7 @@ function morningHtml() {
       <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>
       <div class="actions">${sendBtn("morning", "Checked: send on WhatsApp")}</div>
       <p class="note">Read it, sort what you can, and send the check so the duty manager knows what's still outstanding.</p>`;
-  return `<div class="sec">Last night's handover</div>${ho}
+  return `<div class="sec">${r && reportDay(r) !== lastNight() ? "Handover" : "Last night's handover"}</div>${ho}
     <div class="sec">Today's order</div>
     ${order.length ? `<p class="note" translate="no">${order.map(esc).join(", ")}</p><div class="actions">${sendBtn("order", "Send the order on WhatsApp")}</div>` : `<p class="note">Nothing running low or 86'd.</p>`}
     <div class="sec">Prep to par${busyDay() ? " (busy day)" : ""}</div>
@@ -2791,7 +2841,7 @@ function renderTally() {
   const outList = [...outNow()].sort();
   $("#shift-title").textContent = `${sideName(mode)} shift`;
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
-  const tabs = `<div class="ltools fresh"><span></span><button class="btn" id="clear-all">Clear everything</button></div><div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
+  const tabs = `<div class="ltools fresh">${canUndoClear() ? `<button class="btn pri" id="undo-clear">\u21a9 Undo clear</button>` : "<span></span>"}<button class="btn" id="clear-all">Clear everything</button></div><div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
@@ -2810,6 +2860,9 @@ function renderTally() {
       return `<div class="sumcard">
         ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div><div><span>Labels due</span><b>${toChange([mode]).length}</b></div><div><span>Photos</span><b>${draftPhotos().length}</b></div>
       </div>
+      ${(() => { const t = tonightsReport(); return !t ? "" : t.pending
+        ? `<p class="note warnline" id="ho-wait"><b>Handover not sent yet: no signal.</b> It's saved on this phone and goes as soon as there's signal. Open Bar Book somewhere with signal before you go home, or the morning won't see it.</p>`
+        : `<p class="note" id="ho-sent">\u2705 Handover sent ${hhmm(new Date(ms(t.at)))} by ${esc(t.name)}. The morning team will see it.</p>`; })()}
       ${stillToDoHtml()}
       <div class="fld">Closed by<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${closedBy().includes(m)}">${esc(m)}</button>`).join("")}</div></div>
       <div class="sec">Handover</div>
@@ -2943,6 +2996,7 @@ $("#tally").addEventListener("click", async (e) => {
   const ta = e.target.closest("[data-tick-all]"); if (ta) { tickAll(ta.dataset.tickAll, ta.dataset.g); return; }
   const cr = e.target.closest("[data-clear-list]"); if (cr) { clearList(cr.dataset.clearList); return; }
   if (e.target.closest("#clear-all")) { clearAll(false); return; }
+  if (e.target.closest("#undo-clear")) { undoClearAll(); return; }
   if (e.target.closest("[data-left-only]")) { leftOnly = !leftOnly; store.set("leftOnly", leftOnly); haptic(); renderTally(); return; }
   const mo = e.target.closest("[data-more]"); if (mo) { more = more === mo.dataset.more ? "" : mo.dataset.more; renderTally(); return; }
   const tk = e.target.closest("[data-task]"); if (tk) { const [k, i] = taskKey(tk.dataset.task); changeTask(k, i, tk.dataset.to); return; }
@@ -4847,7 +4901,7 @@ function peopleHtml() {
     ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, change the team code in Firebase and share the new link.</p>` : ""}`;
 }
 function mgrHtml() {
-  return `${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board, restock requests, the inbox and issues for everyone. Sent handovers and their photos stay.</p>
+  return `${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board and restock requests for everyone, and marks the inbox done. Open issues, the inbox's messages and sent handovers stay. Undo clear on Shift puts it back for 15 minutes.</p>
       <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
     <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>
     ${LIVE.owner && LIVE.staff.filter((p) => p.role === "manager").length < 3 ? `<div class="h3">Add a senior</div>
