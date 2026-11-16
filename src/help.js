@@ -4,6 +4,11 @@
    One setting in More (This phone) hides every ? once the team knows the app. Text only: nothing is saved or sent. */
 let helpFrom = null;
 const HELP = {
+  station: { t: "Bar station", what: "One always-on screen for the iPad on the bar: tonight's 86s, the close on both sides, the handover and Rapid fire.",
+    how: ["Tap a box to open that page. Back, then More, then Bar station brings it back.", "Turn on Shared in More, This phone, so it asks who's using it and never stays unlocked.",
+      "Keep it on Bar Book: in the iPad's Settings, Accessibility, Guided Access, turn it on and set a passcode. Open Bar Book, press the top button (or the Home button) three times, tap Start. Three presses and the passcode end it.",
+      "Stop the screen going off: Settings, Display & Brightness, Auto-Lock, Never. Keep the iPad on charge."],
+    behind: ["It's the same live data as every phone: nothing extra is saved.", "It redraws as soon as anything changes, and every minute for the clock."] },
   shift: { t: "The Shift tab", what: "Tonight's work for your side, in the order it happens.",
     how: ["Pick Bar or Floor at the top. Each phone remembers its side.", "Go left to right: Morning, Labels, Stock, Closing, Send.", "The small number on each tab shows what's left there."],
     behind: ["Everything here is shared live: every phone on your side sees the same ticks, 86s and handover.", "The shift day runs 6am to 6am UK time, so a close after midnight still counts as tonight."] },
@@ -116,6 +121,7 @@ const HELP_AT = [
   ["#send > h2", "send"],
   ["#sheet .pl-spech", "drink"],
   ["#v-rapid > h2", "rapid"],
+  ["#v-station > h2", "station"],
   ["#v-make > h2", "make"],
   ["#pay-h", "pay"],
   ['#v-info [data-fold="clear"] summary', "reset"],
