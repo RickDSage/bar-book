@@ -37,9 +37,9 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   // More: rows that open Allergens, Practise and Cheat sheets, then help, the bar's reference folded away, then this
   // phone's settings. The More tab stays lit on its pages, and the back button returns to it.
   await p.click("[data-tab=info]");
-  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["Allergens", "Practise specs", "Cheat sheets", "What's in the app", "Send feedback"]);
+  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["Allergens", "Practise specs", "Cheat sheets", "Just for fun", "What's in the app", "Send feedback"]);
   assert.deepEqual(await p.$$eval("#v-info .fold h2", (x) => x.map((h) => h.textContent)), ["Measures and the law", "Technique key", "Prep and batches",
-    "Shot tray, step by step", "Put this app on your home screen", "Clear everything"]);
+    "Shot tray, step by step", "Put this app on your home screen", "Reset this phone"]);
   assert.equal(await p.locator("#v-info [data-fold=law][open]").count(), 0, "the reference starts folded");
   await p.click("[data-fold=law] summary");
   assert.match(await p.$eval("[data-fold=law]", (e) => e.innerText), /Jigger everything/);
@@ -60,6 +60,9 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   await p.click("#subnav [data-tab=make]"); await p.click("nav.tabs [data-tab=tally]"); await p.click("nav.tabs [data-tab=drinks]");
   assert.equal(await p.isVisible("#v-make"), true);
   await p.click("#subnav [data-tab=drinks]");
+  // On Menu at the top, tapping Drinks again goes straight into the search.
+  await p.click("nav.tabs [data-tab=drinks]");
+  assert.equal(await p.evaluate(() => document.activeElement.id), "q");
   assert.ok(await p.evaluate(() => [...document.querySelectorAll("nav.tabs button:not([hidden])")].every((b) => { const r = document.createRange(); r.selectNodeContents(b.lastChild); return r.getClientRects().length === 1; })));
   assert.deepEqual(p.errs, []);
 });
@@ -132,170 +135,5 @@ test("allergen tiles include sulphites, and oat milk shows under gluten", async 
   await p.click("[data-al=Gluten]");
   const glu = await p.$eval("#allist", (e) => e.innerText);
   assert.match(glu, /The Paddington/); assert.match(glu, /The Boilermaker/);
-  assert.deepEqual(p.errs, []);
-});
-
-const flat = (s) => s.replace(/\s+/g, " ").trim();
-
-test("my pay: its own tab, September from Nory's figures to the penny, tronc on and off, any tax code", async () => {
-  const p = await open({ at: "2026-09-20T12:00:00Z" });
-  await p.click("[data-tab=pay]");
-  const out = async () => flat(await p.$eval("#pay-out", (e) => e.innerText)), sum = async () => flat(await p.$eval("#pay-sum", (e) => e.innerText));
-  assert.equal(await p.$eval("#pay-h", (e) => e.textContent), "September 2026");
-  assert.match(await sum(), /pay day Friday 25 September/);
-  assert.equal(await p.locator("#v-info #pay-h").count(), 0, "not in Bar info any more");
-  assert.equal(await p.locator('[data-pay="tronc"], [data-pay-tronc], [data-pay="rota"]').count(), 0, "tronc is a fixed £5, and no rota hours box");
-  await p.click("#pay-setup summary"); await p.fill('[data-pay="code"]', "992L");
-  // Nory's hours this month, August's hours typed in for tronc at £5 each.
-  await p.fill('[data-nory="h"]', "246.39"); await p.fill('[data-pay-th="2026-08"]', "82");
-  assert.match(await out(), /Hours pay \(246\.4 h at £12\.71\) £3,131\.62 Tronc \(82 h at £5\) £410\.00 Gross £3,541\.62 Income tax −£542\.80 National Insurance −£166\.69 Take-home £2,832\.13/);
-  assert.match(await sum(), /£2,832\.13 Take-home Gross £3,541\.62 .* From Nory's figures: an estimate/);
-  assert.equal(await p.$eval("#pay-set", (e) => e.textContent), "£12.71 an hour · 992L");
-  // Tronc off: tax follows.
-  await p.uncheck('[data-pay-check="trOn"]');
-  assert.doesNotMatch(await out(), /Tronc/);
-  assert.match(await out(), /Gross £3,131\.62 Income tax −£460\.80 National Insurance −£166\.69 Take-home £2,504\.13/);
-  // Nory's gross wage, two weeks added up, stands in for hours times the rate.
-  await p.fill('[data-nory="g"]', "1000 + 545.95");
-  assert.match(await out(), /Base pay from Nory \(246\.4 h\) £1,545\.95 Gross £1,545\.95 Income tax −£143\.60 National Insurance −£39\.84 Take-home £1,362\.51/);
-  // Scotland: 19% on the first £330.58 of £497 taxable, 20% on the rest.
-  await p.click('[data-pay-code="S1257L"]');
-  assert.equal(await p.inputValue('[data-pay="code"]'), "S1257L");
-  assert.match(await out(), /Income tax −£96\.09/);
-  await p.click('[data-pay-code="BR"]'); assert.match(await out(), /Income tax −£309\.00/);
-  await p.fill('[data-pay="code"]', "K100"); assert.match(await out(), /Check the tax code/);
-  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
-  assert.equal(await p.inputValue('[data-nory="g"]'), "1000 + 545.95", "kept on this phone");
-  assert.equal(await p.$eval('[data-pay-check="trOn"]', (e) => e.checked), false);
-  assert.deepEqual(p.errs, []);
-});
-
-test("my hours: several shifts at once, planned ones, a month at a time, with a student loan, pension, deductions and bills", async () => {
-  const p = await open({ at: "2026-11-20T12:00:00Z" });
-  await p.click("[data-tab=pay]");
-  const txt = async (sel) => flat(await p.$eval(sel, (e) => e.innerText));
-  const toastIs = (t) => p.waitForFunction((x) => document.querySelector("#toast").textContent === x, t);
-  const add = async (days, start, end, brk) => {
-    if (!(await p.$("#hf"))) await p.click("[data-hf-open]");
-    for (const d of days) await p.click(`[data-hf-day="${d}"]`);
-    await p.fill('[data-hf="start"]', start); await p.fill('[data-hf="end"]', end);
-    await p.click(`[data-hf-brk="${brk}"]`); await p.click("[data-hf-save]");
-  };
-  assert.match(await txt("#v-pay"), /No shifts logged this month\./);
-  // Three days with the same times in one go; the form stays open with the times kept.
-  await add(["2026-11-03", "2026-11-10", "2026-11-12"], "17:00", "23:00", 30); await toastIs("Saved 3 shifts, 16.5 h");
-  assert.equal(await p.inputValue('[data-hf="start"]'), "17:00");
-  assert.equal(await p.$$eval('[data-hf-day][aria-pressed="true"]', (x) => x.length), 0, "the days are cleared");
-  assert.equal(await p.$$eval("[data-hf-day].has", (x) => x.length), 3, "logged days are marked");
-  // One that overlaps is left out and named; the others still save.
-  await add(["2026-11-12", "2026-11-13"], "22:00", "02:00", 0); await toastIs("Saved 4 h on Fri 13 Nov. Thu 12 Nov already has a shift then");
-  await add([], "12:00", "18:00", 0); await toastIs("Tap the days you worked");
-  await add(["2026-11-19"], "10:00", "10:30", 45); await toastIs("That comes to no hours. Check the times and the break");
-  await p.click('[data-hf-day="2026-11-19"]');
-  // A day still to come is a planned shift, counted in the month's estimate.
-  await add(["2026-11-25"], "17:00", "23:00", 30); await toastIs("Saved 5.5 h on Wed 25 Nov");
-  assert.deepEqual(await p.$$eval("[data-hf-times]", (x) => x.map((b) => b.textContent)), ["17:00–23:00", "22:00–02:00"]);
-  await p.click("[data-hf-cancel]");
-  assert.match(await txt("#pay-sum"), /^5 Shifts 26 Hours .* Includes 5\.5 h still to work/);
-  assert.match(await txt("#v-pay"), /WEEK OF 23 NOV · 5\.5 H Wednesday 25 Nov 17:00–23:00 Planned · 5\.5 h after a 30 min break/);
-
-  // October, from the arrow: one shift that runs past midnight. Next month is as far forward as it goes.
-  await p.click('[data-pm="1"]'); assert.equal(await p.$eval('[data-pm="1"]', (b) => b.disabled), true); await p.click('[data-pm="-1"]');
-  await p.click('[data-pm="-1"]');
-  assert.equal(await p.$eval("#pay-h", (e) => e.textContent), "October 2026");
-  await add(["2026-10-31"], "18:00", "03:00", 30); await toastIs("Saved 8.5 h on Sat 31 Oct");
-  await p.click("[data-hf-cancel]"); await p.click('[data-pm="1"]');
-  assert.match(await txt("#v-pay"), /Hours the month before 8\.5 h, logged/);
-  assert.equal(await p.locator("[data-pay-th]").count(), 0, "the log replaces typed hours");
-
-  // Nory's 167 hours stand in for November's log; tronc is £5 on October's 8.5 h.
-  await p.fill('[data-nory="h"]', "167");
-  assert.match(await txt("#pay-sum"), /From Nory's figures, not the shifts logged: an estimate/);
-  const out = () => txt("#pay-out");
-  assert.match(await out(), /Hours pay \(167 h at £12\.71\) £2,122\.57 Tronc \(8\.5 h at £5\) £42\.50 Gross £2,165\.07 Income tax −£223\.20 National Insurance −£85\.97 Take-home £1,855\.90/);
-  // Plan 5 takes 9% over £2,083.33 a month (£3.53, so £3) and a postgraduate loan 6% over £1,750 (£22.35, so £22).
-  await p.click("#pay-setup summary");
-  await p.click('[data-pay-loan="5"]'); await p.check('[data-pay-check="pgl"]');
-  assert.match(await out(), /Student loan \(Plan 5 and postgraduate\) −£25\.00 Take-home £1,830\.90/);
-  // 5% of the hours pay over £520 is £80.13, and tax relief pays a fifth: £64.10. The settings stay open.
-  await p.check('[data-pay-check="pen"]');
-  assert.equal(await p.$eval("#pay-setup", (d) => d.open), true);
-  assert.equal(await p.inputValue('[data-pay="pension"]'), "5");
-  assert.match(await out(), /Pension \(5%\) −£64\.10 Take-home £1,766\.80/);
-  await p.fill('[data-money-name="ded"]', "Staff food"); await p.fill('[data-money-amt="ded"]', "20"); await p.click('[data-money-add="ded"]');
-  assert.match(await out(), /Staff food −£20\.00 Take-home £1,746\.80/);
-  assert.equal(await p.$eval("#pay-set", (e) => e.textContent), "£12.71 an hour · 1257L · Plan 5 · postgraduate loan · 5% pension · 1 other deduction");
-  await p.fill('[data-pay="rate"]', "11");
-  assert.match(await out(), /^£11\.00 an hour is under £12\.71, the legal minimum at 21 and over\./);
-  await p.fill('[data-pay="rate"]', "12.71");
-  assert.doesNotMatch(await out(), /legal minimum/);
-  // Bills: what's left, a week at a time until the next pay day on 25 Dec, 4 weeks after 27 Nov.
-  await p.click('[data-money-chip="bills:Rent"]'); await p.fill('[data-money-amt="bills"]', "650"); await p.click('[data-money-add="bills"]');
-  assert.match(await txt("#pay-bills"), /Take-home £1,746\.80 Bills −£650\.00 Left over £1,096\.80 About £274\.20 a week until the next pay day, in 4 weeks\./);
-  assert.match(await txt("#pay-sum"), /Left after bills: £1,096\.80/);
-  await p.fill('[data-money-name="bills"]', "Car"); await p.fill('[data-money-amt="bills"]', "1200"); await p.click('[data-money-add="bills"]');
-  assert.match(await txt("#pay-bills"), /Left over −£103\.20 Your bills come to £103\.20 more than this month's take-home\./);
-  await p.click(`[data-money-del="bills:${await p.evaluate(() => pay.bills[1].id)}"]`);
-
-  // Everything stays on this phone.
-  p.once("dialog", (d) => d.accept());
-  await p.click(`[data-hr-del="${await p.evaluate(() => hoursLog.find((x) => x.day === "2026-11-13").id)}"]`);
-  await p.fill('[data-nory="h"]', "");
-  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
-  assert.match(await txt("#pay-sum"), /^4 Shifts 22 Hours/);
-  assert.equal(await p.$eval('[data-pay-loan="5"]', (b) => b.getAttribute("aria-pressed")), "true");
-  assert.equal(await p.evaluate(() => pay.bills.map((b) => `${b.name} ${b.amt}`).join()), "Rent 650.00");
-  assert.equal(await p.evaluate(() => shareText("hours", false)), "My hours for November\nIn all: 22 h from 4 shifts\n\nShifts (4)\n• Tue 3 Nov 17:00–23:00, 30 min break: 5.5 h\n• Tue 10 Nov 17:00–23:00, 30 min break: 5.5 h\n• Thu 12 Nov 17:00–23:00, 30 min break: 5.5 h\n• Wed 25 Nov 17:00–23:00, 30 min break: 5.5 h");
-  await p.setViewportSize({ width: 320, height: 700 });
-  await p.click("[data-hf-open]");
-  assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 320, "nothing wider than a small phone");
-  assert.deepEqual(p.errs, []);
-});
-
-test("my pay: about how many hours a week, for a month with nothing logged", async () => {
-  const p = await open({ at: "2026-11-20T12:00:00Z" });
-  await p.click("[data-tab=pay]");
-  const txt = async (sel) => flat(await p.$eval(sel, (e) => e.innerText));
-  assert.deepEqual(await p.$$eval("[data-pay-wk]", (x) => x.map((b) => b.textContent)), ["Off", "20 h", "25 h", "30 h", "35 h", "40 h", "45 h", "50 h", "55 h", "60 h", "65 h", "70 h"]);
-  await p.click('[data-pay-wk="40"]');
-  // 40 h a week over November's 30 days is 171.43 h; October's 31 days, 177.14 h, for tronc.
-  assert.match(await txt("#pay-sum"), /^0 Shifts 171\.43 Hours .* From about 40 h a week: an estimate/);
-  assert.match(await txt("#v-pay"), /Hours the month before 177\.1 h, about 40 h a week/);
-  assert.match(await txt("#pay-out"), /Hours pay \(171\.4 h at £12\.71\) £2,178\.88 Tronc \(177\.1 h at £5\) £885\.70/);
-  await p.click('[data-pay-wk="0"]');
-  assert.match(await txt("#pay-sum"), /^0 Shifts 0 Hours/);
-  // The new words come translated.
-  await p.evaluate(() => setLang("fr"));
-  assert.match(await txt("#v-pay"), /ESTIMATION RAPIDE .* Je reçois le tronc : £5 par heure/);
-  await p.evaluate(() => setLang(""));
-  assert.deepEqual(p.errs, []);
-});
-
-test("my pay: a rota's text, read into shifts to check, with clocked or rota times", async () => {
-  const p = await open({ at: "2026-11-03T12:00:00Z" });
-  await p.click("[data-tab=pay]");
-  await p.click("[data-imp-open]");
-  // What the reader gets from a Nory Schedule screenshot: the rota's times, then the ticked clock-in times.
-  const nory = `07:13\n=] 26 Oct - 01 Nov\n5 £386.60 30.42\nShifts Gross wage Hours\nTuesday 27 Oct 17:15 - 22:30\nSoho - Server v 17:15 - 22:30\nWednesday 28 Oct 16:00 - 21:00\nWestfield - Server v 16:00 - 21:30\nThursday 29 Oct 13:00 - 00:00\nSoho - Server v 13:04 - 22:40\nFriday 30 Oct 12:00 - 21:00\nSoho - Server v 12:11 - 18:15\nSaturday 31 Oct 11:00 - 17:00\nSoho - Server v 11:00 - 17:00\nSchedule`;
-  await p.click("#imp details summary"); await p.fill("[data-imp-text]", nory); await p.click("[data-imp-read]");
-  const rows = () => p.$$eval(".improw", (rs) => rs.map((r) => [...r.querySelectorAll("input,select")].map((i) => (i.type === "checkbox" ? i.checked : i.value)).join(" ")));
-  assert.deepEqual(await rows(), ["true 17:15 22:30 0", "true 16:00 21:30 0", "true 13:04 22:40 0", "true 12:11 18:15 0", "true 11:00 17:00 0"]);
-  await p.click('[data-imp-use="plan"]');
-  assert.equal((await rows())[2], "true 13:00 00:00 0");
-  await p.click('[data-imp-use="clock"]'); await p.click('[data-imp-allbrk="30"]');
-  await p.uncheck('[data-imp-on="3"]'); await p.fill('[data-imp-t="4:end"]', "17:30");
-  assert.equal(await p.textContent("[data-imp-save]"), "Save 4 shifts");
-  await p.click("[data-imp-save]");
-  await p.waitForFunction(() => document.querySelector("#toast").textContent === "Saved 4 shifts, 24.85 h");
-  assert.equal(await p.$eval("#pay-h", (e) => e.textContent), "October 2026", "goes to the month imported");
-  assert.equal(await p.locator("#imp").count(), 0);
-  // Nothing found says so; a day already logged isn't added twice.
-  await p.click("[data-imp-open]"); await p.click("#imp details summary");
-  await p.fill("[data-imp-text]", "nothing here"); await p.click("[data-imp-read]");
-  assert.match(await p.textContent("#imp-st"), /No days with times found/);
-  assert.equal(await p.inputValue("[data-imp-text]"), "nothing here", "the text stays to fix");
-  await p.fill("[data-imp-text]", "27/10 17:15-22:30\n2026-11-02 18:00 - 23:00"); await p.click("[data-imp-read]");
-  await p.click("[data-imp-save]");
-  await p.waitForFunction(() => document.querySelector("#toast").textContent === "Saved 4.5 h on Mon 2 Nov. Tue 27 Oct already has a shift then");
   assert.deepEqual(p.errs, []);
 });

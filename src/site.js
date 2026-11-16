@@ -10,6 +10,10 @@ const CONFIG_FILE = EMU ? "../test/firebase-config.emu.json" : "../firebase-conf
 const CONFIG = fs.existsSync(CONFIG_FILE) ? fs.readFileSync(CONFIG_FILE, "utf8") : null;
 fs.mkdirSync(OUT, { recursive: true });
 if (CONFIG) require("esbuild").buildSync({ entryPoints: ["live-src.js"], bundle: true, format: "esm", minify: true, target: "es2020", outfile: OUT + "/live.js", define: { __CONFIG__: CONFIG, __EMU__: String(EMU) } });
+// The app's own fonts.
+fs.mkdirSync(OUT + "/fonts", { recursive: true });
+for (const f of fs.readdirSync("fonts")) fs.copyFileSync("fonts/" + f, OUT + "/fonts/" + f);
+const FONTS = fs.readdirSync("fonts").filter((f) => f.endsWith(".woff2")).map((f) => `"fonts/${f}"`).join(", ");
 // A copy of the rules the site can show, so they can be opened on a phone and pasted into the Firebase console.
 fs.copyFileSync("../firestore.rules", OUT + "/firestore.rules.txt");
 
@@ -22,10 +26,12 @@ fs.writeFileSync(OUT + "/manifest.webmanifest", JSON.stringify({
   icons: [{ src: "icon-192.png", sizes: "192x192", type: "image/png" }, { src: "icon-512.png", sizes: "512x512", type: "image/png" }, { src: "icon-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" }],
 }, null, 2));
 
-// Offline: pages come from the network when there is signal (so updates arrive), from the cache when not.
+// Offline first: the app opens from the phone straight away, signal or not, because bars and cellars often have none.
+// Each release changes this file, so the phone fetches the new version in the background, stores all of it, then the
+// page offers a reload.
 fs.writeFileSync(OUT + "/sw.js", `// Bar Book offline support. Version ${VERSION}
 const CACHE = "bar-book-${VERSION}";
-const CORE = ["./", ${CONFIG ? '"live.js", ' : ""}"manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
+const CORE = ["./", ${CONFIG ? '"live.js", ' : ""}"manifest.webmanifest", ${FONTS}, "icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 // Safari refuses to show a page from a response that was redirected, so store a clean copy.
 const clean = (res) => (res.redirected ? res.blob().then((b) => new Response(b, { status: 200, headers: res.headers })) : Promise.resolve(res));
 self.addEventListener("install", (e) => {
@@ -38,16 +44,12 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  const font = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
-  if (url.origin !== location.origin && !font) return;
-  if (font) {
-    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); return res; })));
-    return;
-  }
-  e.respondWith(fetch(req).then(clean).then((res) => {
-    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req.mode === "navigate" ? "./" : req, copy)); }
+  if (url.origin !== location.origin) return;
+  const key = req.mode === "navigate" ? "./" : req;
+  e.respondWith(caches.match(key, { ignoreSearch: true }).then((hit) => hit || fetch(req).then(clean).then((res) => {
+    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(key, copy)); }
     return res;
-  }).catch(() => caches.match(req.mode === "navigate" ? "./" : req, { ignoreSearch: true }).then((hit) => hit || caches.match("./"))));
+  })));
 });
 `);
 

@@ -249,6 +249,8 @@ async function plFont() {
   try { const f = new FontFace("BBOswald", `url(${CHEAT_FONT})`); await f.load(); document.fonts.add(f); PL_FONT = "BBOswald"; } catch { PL_FONT = "Impact"; }
   return PL_FONT;
 }
+// Words that fit a width on a canvas, a line at a time, in the given font.
+const plWrap = (x, t, w, f) => { x.font = f; const out = []; let cur = ""; for (const word of t.split(" ")) { const tt = cur ? cur + " " + word : word; if (x.measureText(tt).width > w && cur) { out.push(cur); cur = word; } else cur = tt; } if (cur) out.push(cur); return out; };
 async function plCardBlob(d, n = 1) {
   const font = await plFont(), W = 1080, c = document.createElement("canvas"), x = c.getContext("2d");
   const keep = mult; mult = n;
@@ -256,7 +258,7 @@ async function plCardBlob(d, n = 1) {
   mult = keep;
   const steps = methodLines(d.method);
   x.font = "34px sans-serif";
-  const wrap = (t, w, f) => { x.font = f; const out = []; let cur = ""; for (const word of t.split(" ")) { const tt = cur ? cur + " " + word : word; if (x.measureText(tt).width > w && cur) { out.push(cur); cur = word; } else cur = tt; } if (cur) out.push(cur); return out; };
+  const wrap = (t, w, f) => plWrap(x, t, w, f);
   const body = "34px system-ui, -apple-system, sans-serif", small = "28px system-ui, -apple-system, sans-serif";
   const stepLines = steps.flatMap((s, i) => wrap(`${i + 1}. ${s}`, W - 160, body));
   const H = Math.max(1080, 420 + plOutOf(d).miss.length * 90 + sl.length * 58 + 70 + stepLines.length * 46 + 220);
@@ -296,6 +298,64 @@ function plPrintCard(d) {
     <h1>${esc(d.name)}</h1><p>${esc(d.glass)} · Ice: ${esc(d.ice)} · Garnish: ${esc(d.garnish)}</p>${plOutLines(d).map((l) => `<p><b>${esc(l)}</b></p>`).join("")}
     <table>${d.spec.map((l) => { const m = l.match(QTY); return `<tr><td>${esc(m ? plOz(m[1]) : "")}</td><td>${esc(m ? m[2] : l)}</td></tr>`; }).join("")}</table><ol>${st}</ol>${d.allergens && d.allergens !== "None" ? `<p><b>Allergens:</b> ${esc(d.allergens)}</p>` : ""}<small>Black Tap Bar Book</small><script>onload=()=>{print()}<\/script>`);
   w.document.close();
+}
+
+/* ---------- Cheat sheets on the phone ----------
+   The A4 laminate is too small to read in WhatsApp, so a sheet goes as a tall phone-width picture: each drink's spec,
+   glass, ice, garnish and method, big enough to read mid-shift, with tonight's swaps on it. The words go with it. */
+const plSheetDrinks = (sh) => sh.names.map((n) => csByName.get(n)).filter(Boolean);
+async function plSheetBlob(sh) {
+  const font = await plFont(), W = 1080, L = 72, R = W - 72, c = document.createElement("canvas"), x = c.getContext("2d");
+  const body = "36px system-ui, -apple-system, sans-serif", small = "29px system-ui, -apple-system, sans-serif";
+  // Lay it out first (each op is [font, colour, text, x, y]), then size the canvas to fit and draw.
+  const ops = []; let y = 100;
+  const put = (f, col, t, px, gap) => { ops.push([f, col, t, px, y]); y += gap; };
+  put(`36px ${font}`, "#e0ad4f", "BLACK TAP SOHO · CHEAT SHEET", L, 100);
+  for (const l of plWrap(x, sh.t.toUpperCase(), R - L, `96px ${font}`)) put(`96px ${font}`, "#f4eee4", l, L, 70);
+  for (const l of plWrap(x, sh.sub, R - L, small)) put(small, "#b3a998", l, L, 40);
+  y += 30;
+  plSheetDrinks(sh).forEach((d, i) => {
+    ops.push(["rule", "#4a4234", "", L, y - 40]);
+    y += 30;
+    for (const l of plWrap(x, `${i + 1}. ${d.name.toUpperCase()}`, R - L, `58px ${font}`)) put(`58px ${font}`, "#f4eee4", l, L, 64);
+    for (const t of plOutLines(d)) for (const l of plWrap(x, t.replace(/^⚠️ /, "! "), R - L, small)) put(small, "#ff8a65", l, L, 40);
+    y += 6;
+    const gone = new Set(plOutOf(d).miss.map((m) => m.i));
+    d.spec.forEach((s, j) => {
+      const m = s.replace(/^batch:\s*/i, "").match(QTY), q = m ? plOz(m[1]) : "", out = gone.has(j);
+      const rest = plWrap(x, m ? m[2] : s, R - L - 230, body);
+      if (q) ops.push([`40px ${font}`, out ? "#6f6656" : "#e0ad4f", q, L, y]);
+      if (out) { x.font = body; ops.push(["strike", "#ff8a65", "", L, y - 12, (q ? 230 : 0) + x.measureText(rest[0]).width]); }
+      rest.forEach((l, k) => put(body, out ? "#6f6656" : "#f4eee4", l, q ? L + 230 : L, k === rest.length - 1 ? 52 : 44));
+    });
+    y += 8;
+    const meta = [d.glass, d.ice && !/^none$/i.test(d.ice) ? `Ice: ${d.ice}` : "", d.garnish && !/^none$/i.test(d.garnish) ? `Garnish: ${d.garnish}` : ""].filter(Boolean).join(" · ");
+    for (const l of plWrap(x, meta, R - L, small)) put(small, "#b3a998", l, L, 40);
+    for (const l of plWrap(x, `How: ${d.method}`, R - L, small)) put(small, "#b3a998", l, L, 40);
+    y += 60;
+  });
+  put(small, "#b3a998", `Black Tap Bar Book · ${new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}`, L, 0);
+  const H = y + 70;
+  c.width = W; c.height = H;
+  x.fillStyle = "#15130f"; x.fillRect(0, 0, W, H);
+  x.fillStyle = "#e0ad4f"; x.fillRect(0, 0, W, 14); x.fillRect(0, H - 14, W, 14);
+  for (const [f, col, t, px, py, w] of ops) {
+    if (f === "rule" || f === "strike") { x.fillStyle = col; x.fillRect(px, py, w || R - L, f === "rule" ? 2 : 3); continue; }
+    x.font = f; x.fillStyle = col; x.fillText(t, px, py);
+  }
+  return new Promise((ok) => c.toBlob(ok, "image/png"));
+}
+SHARE.sheet = (i) => {
+  const sh = CHEAT.SHEETS[+i]; if (!sh) return null;
+  const m = SHARE.specs(plSheetDrinks(sh).map((d) => d.id).join(","));
+  return { ...m, what: `Cheat sheet: ${sh.t}`, title: `${sh.t} · Black Tap Soho`, head: [sh.sub],
+    parts: m.parts.map((p) => ({ ...p, off: false })), tip: "The picture is the whole sheet, easy to read on a phone. Untick drinks to shorten the words.",
+    photos: async () => [{ data: URL.createObjectURL(await plSheetBlob(sh)), file: `cheat-sheet-${sh.id}` }] };
+};
+// On the sheet in the app: what's out tonight and the swap, since the laminate can't change.
+function plSheetOut(sh) {
+  const ds = plSheetDrinks(sh).filter((d) => plOutOf(d).miss.length); if (!ds.length) return "";
+  return `<div class="pl-outbar"><b>Out tonight on this sheet</b>${ds.map((d) => `<div><b translate="no" style="display:inline;color:inherit">${esc(d.name)}</b>: ${plOutOf(d).miss.map((m) => `no <span translate="no">${esc(m.it.n)}</span>, ${m.swap ? esc(m.swap.replace(/^Use /, "use ")) : "offer something close"}`).join("; ")}</div>`).join("")}</div>`;
 }
 
 /* ---------- Shareable lists ---------- */
@@ -481,21 +541,16 @@ document.addEventListener("change", (e) => {
   s.learnt = c.checked ? [...new Set([...s.learnt, n])] : s.learnt.filter((x) => x !== n); stSet(s); haptic(); renderStarter();
 });
 
-/* ---------- Rush: the ten that sell, one screen ---------- */
+/* ---------- Top 10: the ten that sell, as big cards at the top of Rapid fire ---------- */
 const RUSH_DEFAULT = ["Pornstar Martini", "Espresso Martini", "London Cosmo", "Mojito", "Aperol Spritz", "Margarita", "Salted Caramel Buzz", "Piña Colada", "Uptown Hustle", "Long Island Iced Tea"];
 const rushNames = () => store.get("rush", RUSH_DEFAULT).filter((n) => D.some((d) => d.name === n));
-function rushHtml() {
-  if (RAPID.rushEdit) {
-    const on = new Set(rushNames()), pool = [...new Set(RAPID_GROUPS.flatMap(([, f]) => rapidList(f)))];
-    return `<p class="lead">Pick your bar's ten best sellers (${on.size} of 10). Saved on this phone.</p>
-      <div class="rush-pick">${pool.map((d) => `<label class="check"><input type="checkbox" data-rush-pick="${esc(d.name)}"${on.has(d.name) ? " checked" : ""}${!on.has(d.name) && on.size >= 10 ? " disabled" : ""}> <span translate="no">${esc(d.name)}</span></label>`).join("")}</div>
-      <div class="actions"><button class="btn pri" data-rush="done">Done</button><button class="btn" data-rush="reset">Back to the usual ten</button></div>`;
-  }
-  const ds = rushNames().map((n) => D.find((d) => d.name === n));
-  RAPID.ids = ds.map((d) => d.id);
-  return `<div class="rush">${ds.map((d) => `<button class="rush-card${isOut(d.name) ? " out" : ""}" data-rp="${d.id}"><span class="n" translate="no">${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</span>${isOut(d.name) ? "" : plOutTag(d)}<span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.method)}</span></button>`).join("")}</div>
-    <button class="btn wide" data-rush="edit" style="margin-top:8px">Change the ten</button><p class="note">The screen stays on while Rush is open.</p>`;
+function rushPickHtml() {
+  const on = new Set(rushNames()), pool = [...new Set(RAPID_GROUPS.flatMap(([, f]) => rapidList(f)))];
+  return `<p class="lead">Pick your bar's ten best sellers (${on.size} of 10). Saved on this phone.</p>
+    <div class="rush-pick">${pool.map((d) => `<label class="check"><input type="checkbox" data-rush-pick="${esc(d.name)}"${on.has(d.name) ? " checked" : ""}${!on.has(d.name) && on.size >= 10 ? " disabled" : ""}> <span translate="no">${esc(d.name)}</span></label>`).join("")}</div>
+    <div class="actions"><button class="btn pri" data-rush="done">Done</button><button class="btn" data-rush="reset">Back to the usual ten</button></div>`;
 }
+const rushHtml = (ds) => `<div class="rush">${ds.map((d) => `<button class="rush-card${isOut(d.name) ? " out" : ""}" data-rp="${d.id}"><span class="n" translate="no">${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</span>${isOut(d.name) ? "" : plOutTag(d)}<span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.method)}</span></button>`).join("")}</div>`;
 document.head.insertAdjacentHTML("beforeend", `<style>
 .rush{display:grid;gap:8px;margin-top:8px}
 .rush-card{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:12px;padding:12px 14px;color:var(--fg)}

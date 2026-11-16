@@ -15,7 +15,7 @@ export const TEAM_CODE = "test-team-code-0123";
 export const OWNER_PW = "owner-pass-111", SENIOR_PIN = 4821;
 
 // Serves a built site folder on a free port.
-const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".webmanifest": "application/manifest+json", ".txt": "text/plain" };
+const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".webmanifest": "application/manifest+json", ".txt": "text/plain", ".woff2": "font/woff2" };
 export function serve(dir) {
   const base = path.join(ROOT, dir);
   if (!fs.existsSync(path.join(base, "index.html"))) throw new Error(`${dir}/index.html is missing. Run npm run build:emu first`);

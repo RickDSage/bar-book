@@ -1,7 +1,7 @@
 
 /* ---------- Out of something: one 86 board, every drink adjusts ----------
    An ingredient on the 86 board (Shift, or "We're out" on any drink) flows through the whole app: the drink shows the
-   swap on its spec line and a banner, the menu, Rapid fire and Rush mark it, Make and My bar stop counting on it,
+   swap on its spec line and a banner, the menu and Rapid fire (top 10 too) mark it, Make and My bar stop counting on it,
    Spin and Spec of the day skip drinks with no swap, and picture cards and WhatsApp specs carry the swap.
    On the team it's the shared 86 board, so it's set once for everyone. Off the team it's kept on this phone. */
 const OUT_LOCAL = new Set(store.get("outIng", []));
@@ -93,6 +93,7 @@ function plOutRefresh() {
   renderList();
   if (!$("#v-rapid").hidden && $("#rp-out")) renderRapid();
   if (!$("#v-make").hidden) mkRedraw();
+  if (!$("#v-sheets").hidden) renderSheets();
   if (!$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // The spec lines that are out get struck through with the swap under them.

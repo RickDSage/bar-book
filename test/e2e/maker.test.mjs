@@ -94,7 +94,7 @@ test("My bar is kept on the phone and drives the matches", async () => {
 
 test("the randomiser keeps to alcohol-free when asked, and quick specs search", async () => {
   const p = await open();
-  await p.click("[data-mk-pane=rnd]"); await p.click("[data-mk-rmode=zero]");
+  await p.evaluate(() => show("fun")); await p.click("[data-mk-rmode=zero]");
   for (let i = 0; i < 6; i++) {
     await p.click("[data-mk=spin]");
     const id = await p.evaluate(() => mk.rnd.cur);
@@ -102,7 +102,7 @@ test("the randomiser keeps to alcohol-free when asked, and quick specs search", 
   }
   await p.click("[data-mk-rmode=alc]"); await p.click("[data-mk-rkind=spritz]"); await p.click("[data-mk=spin]");
   assert.match(await p.evaluate(() => D[mk.rnd.cur].section), /Spritz/);
-  await p.click("[data-mk-pane=qs]"); await p.fill("#mk-qs", "hugo");
+  await p.evaluate(() => show("make")); await p.click("[data-mk-pane=qs]"); await p.fill("#mk-qs", "hugo");
   assert.match(await p.$eval("#mk-qlist", (e) => e.innerText), /Hugo Spritz[\s\S]*25 ml elderflower cordial/);
   assert.deepEqual(p.errs, []);
 });
