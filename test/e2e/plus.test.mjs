@@ -75,10 +75,8 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
 
 test("spec of the day is the same drink all day, and a shared list opens on just its drinks", async () => {
   const p = await open();
-  // It's for learning, so it sits on More, not in front of the menu.
-  assert.equal(await p.locator("#quick .pl-daily").count(), 0);
-  await p.click("nav.tabs [data-tab=info]");
-  const name = await text(p, "#v-info .pl-daily b");
+  await p.evaluate(() => show("fun"));
+  const name = await text(p, "#v-fun .pl-daily b");
   assert.equal(name, await p.evaluate(() => plDaily().name));
   const url = await p.evaluate(() => plListUrl("Tonight", D.filter((d) => ["Mojito", "Negroni", "Margarita"].includes(d.name)).map((d) => d.id)));
   const q = await open(url.slice(url.indexOf("#")));
@@ -89,21 +87,24 @@ test("spec of the day is the same drink all day, and a shared list opens on just
   assert.deepEqual([...p.errs, ...q.errs], []);
 });
 
-test("Rush shows ten big cards, and Spin takes a mood and a spirit", async () => {
+test("Rapid fire opens on the top 10 as big cards, and Spin (under More) takes a mood and a spirit", async () => {
   const p = await open();
   await p.evaluate(() => show("rapid"));
-  await p.click("#rp-rush");
   assert.equal(await p.$$eval(".rush-card", (x) => x.length), 10);
+  assert.ok(await p.$$eval(".rp-tile", (x) => x.length) > 10);
   await p.click('[data-rush="edit"]');
   await p.uncheck('[data-rush-pick="Mojito"]');
   await p.click('[data-rush="done"]');
   assert.equal(await p.$$eval(".rush-card", (x) => x.length), 9);
-  await p.click("#rp-rush");
-  await p.evaluate(() => show("make"));
-  await p.click('[data-mk-pane="rnd"]');
+  await p.fill("#rp-q", "rum");
+  assert.equal(await p.$$eval(".rush-card", (x) => x.length), 0);
+  await p.click("nav.tabs [data-tab=info]"); await p.click("[data-go=fun]");
+  assert.match(await text(p, "#v-fun .pl-daily b"), /\w/);
   await p.click('[data-mk-rmode="alc"]');
   await p.click('[data-mk-rbase="gin"]');
   assert.ok(await p.evaluate(() => mkPool().every((d) => d._b === "gin")));
+  await p.click('#v-fun [data-mk="spin"]');
+  await p.waitForSelector("#v-fun #mk-card");
   assert.deepEqual(p.errs, []);
 });
 
@@ -143,11 +144,10 @@ test("We're out of Passoa: the drink, the menu, Rapid fire and Make all show the
   // Kept on this phone off the team.
   assert.deepEqual(await p.evaluate(() => store.get("outIng")), ["Passoa"]);
   await p.click("#sh-close");
+  await p.waitForFunction(() => $("#sheet").hidden);
   assert.match(await p.$eval(`#list .row[data-id="${id}"] .s`, (e) => e.textContent), /Swap: no Passoa/);
   await p.evaluate(() => show("rapid"));
-  await p.click("#rp-rush");
   assert.match(await p.$eval(`.rush-card[data-rp="${id}"]`, (e) => e.textContent), /Swap: no Passoa/);
-  await p.click("#rp-rush");
   // Back in stock clears it everywhere.
   await p.evaluate((i) => openSheet(i), id);
   await p.click(`#sheet [data-pl-out="${key}"]`);

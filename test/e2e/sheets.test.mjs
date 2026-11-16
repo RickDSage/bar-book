@@ -26,7 +26,8 @@ test("Cheat sheets: every drink on them is in the app, one sheet previews, and P
   const n = await p.evaluate(() => CHEAT.SHEETS.length);
   assert.equal(await p.$$eval("#v-sheets [data-cs]", (x) => x.length), n);
   assert.equal(await p.$$eval("#cs-view .cs-row", (x) => x.length), 8);
-  assert.match(await p.$eval("#cs-view .cs-page", (e) => e.textContent), /London Cosmo[\s\S]*35 ml/);
+  assert.equal(await p.$eval("#cs-view .cs-title", (e) => e.textContent), "Most Made");
+  assert.match(await p.$eval("#cs-view .cs-page", (e) => e.textContent), /Aperol Spritz[\s\S]*Old Fashioned/);
   await p.click(`#v-sheets [data-cs="${await p.evaluate(() => CHEAT.SHEETS.findIndex((x) => x.id === "shots"))}"]`);
   assert.equal(await p.$eval("#cs-view .cs-title", (e) => e.textContent), "Shots & Bombs");
   assert.equal(await p.$$eval("#cs-view .cs-row", (x) => x.length), 12);
@@ -54,5 +55,22 @@ test("Cheat sheets: no spec, method or garnish runs past its row on any sheet", 
     }).map((r) => r.querySelector("h3").textContent))));
   }
   assert.deepEqual(over, []);
+  assert.deepEqual(p.errs, []);
+});
+
+test("Cheat sheets: a sheet sends to WhatsApp as a phone-size picture with the words, and shows tonight's swaps", async () => {
+  const p = await open();
+  await p.evaluate(() => show("sheets"));
+  await p.evaluate(() => { OUT_LOCAL.add("Passoa"); plOutRefresh(); });
+  assert.match(await p.$eval("#v-sheets .pl-outbar", (e) => e.textContent), /Pornstar Martini: no Passoa, use/);
+  const size = await p.evaluate(async () => { const b = await plSheetBlob(CHEAT.SHEETS[0]); const i = await createImageBitmap(b); return [i.width, i.height]; });
+  assert.equal(size[0], 1080);
+  assert.ok(size[1] > 2400, `height ${size[1]}`);
+  await p.click('#v-sheets [data-send="sheet"]');
+  await p.waitForFunction(() => snd && snd.photos.length === 1);
+  const words = await p.evaluate(() => shareText("sheet", true, "0"));
+  assert.match(words, /^\*Most Made · Black Tap Soho\*/);
+  assert.match(words, /No Passoa tonight/);
+  assert.match(words, /Old Fashioned/);
   assert.deepEqual(p.errs, []);
 });
