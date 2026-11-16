@@ -112,10 +112,12 @@ test("the handover covers the four closing points and needs photos or a reason",
   await waitToast(S, /^Handover saved for the next shift$/);
   const msg = await S.evaluate(() => shareText("shift"));
   assert.match(msg, /📷 No closing photos: Phone camera broken/);
-  assert.match(msg, /\*1\. Cleaning and closing done \(\d+\)\*\n⬜ Service \(0\/3\)/);
-  assert.match(msg, /\*2\. Stock running low\*\nGas \(CO2\), Garnishes/);
-  assert.match(msg, /\*3\. Outstanding issues\*\nNone/);
-  assert.match(msg, /\*4\. For tomorrow\*\nPrep: lime juice/);
+  assert.match(msg, /\*A · 1\. Cleaning and closing done \(\d+\)\*\n⬜ Service \(0\/3\)/);
+  assert.match(msg, /\*A · 2\. Stock running low\*\nGas \(CO2\), Garnishes/);
+  assert.match(msg, /\*A · 3\. Outstanding issues\*\nNone/);
+  assert.match(msg, /\*R · 4\. For tomorrow \(what the morning does first\)\*\nPrep: lime juice/);
+  // Laid out as SBAR: Situation, then Background (filled from tonight's record), then Assessment, then Recommendation.
+  assert.match(msg, /\*S · Situation\*\n.*Closing checklist: \d+ of \d+ done[\s\S]*\*B · Background\*\n📷 No closing photos[\s\S]*\*A · 1\.[\s\S]*\*R · 4\./);
   await O.waitForFunction(() => LIVE.reports.length === 1);
   const text = await O.evaluate(() => LIVE.reports[0].text);
   assert.match(text, /Note for handover:\nRunning low: Gas \(CO2\), Garnishes\nFor tomorrow: Prep: lime juice\n\nClosed by: \(not picked\)\nNo closing photos: Phone camera broken$/);

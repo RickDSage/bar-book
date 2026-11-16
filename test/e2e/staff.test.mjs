@@ -140,7 +140,7 @@ test("the owner adds up to three seniors with their own codes; a senior unlocks 
   for (const p of [A, B]) assert.equal(await p.evaluate(() => LIVE.admin && !LIVE.owner), true);
   // The owner's Manager section, with the seniors' card.
   await O.evaluate(() => show("notices"));
-  assert.match(await O.$eval("#tm-cards", (e) => e.textContent), /Manager.*Nothing waiting.*Bar closing: none yet.*Seniors and their codes.*Owner settings.*Team/s);
+  assert.match(await O.$eval("#tm-cards", (e) => e.textContent), /Manager.*Bar.*Closing: Not started.*Seniors and their codes.*Owner settings.*Team/s);
   await part(O, "seniors");
   // Codes are unique: Illias's is taken.
   await O.fill("#sn-name", "Artur"); await O.fill("#sn-pin", "4821");
@@ -381,4 +381,45 @@ test("changes reach the people they affect, and the Team page says what changed 
   await S.evaluate(() => show("drinks"));
   await S.waitForFunction(() => document.querySelector("#team-n").hidden);
   assert.deepEqual([M.errs, S.errs, T.errs], [[], [], []]);
+});
+
+test("managers see tonight at a glance without anyone sending it: closing, the handover so far, 86s, issues, restocks, who's on", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Kadir"]]);
+  const drink = await S.evaluate(() => D[0].name);
+  await S.evaluate((n) => setOut(n, true), drink);
+  await S.evaluate(() => LIVE.api.saveDraft("bar", { low: "Limes", issues: "Glass washer leaking", next: "", closer: "Kadir", noPhotos: "" }));
+  await S.evaluate(() => LIVE.api.raise({ title: "Heater broken", detail: "", area: "bar", urgent: true }));
+  await M.evaluate(() => show("notices"));
+  await M.waitForFunction((n) => { const t = document.querySelector(".glance")?.textContent || ""; return t.includes(n) && t.includes("Glass washer leaking") && t.includes("Heater broken"); }, drink);
+  const t = await M.$eval(".glance", (e) => e.textContent);
+  assert.match(t, /Bar.*Closing: Not started \(\d+ to do\).*Handover: being written.*Running low: Limes.*Floor.*Closing: Not started.*Handover: not started/s);
+  assert.match(t, /86'd now.*Kadir.*Open issues and faults.*Urgent: Heater broken.*Kadir.*On the team.*3 phones.*Seniors unlocked: Illias/s);
+  // Staff don't get it.
+  await S.evaluate(() => show("notices"));
+  assert.equal(await S.$$eval(".glance", (x) => x.length), 0);
+  assert.deepEqual([M.errs, S.errs], [[], []]);
+});
+
+test("tonight's report: every section in one message, each with a tick box to leave it out", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Kadir"]]);
+  const drink = await S.evaluate(() => D[0].name);
+  await S.evaluate((n) => setOut(n, true), drink);
+  await S.evaluate(() => LIVE.api.saveDraft("bar", { low: "Limes", issues: "Tab 12 left open", next: "Order Prosecco", closer: "Kadir", noPhotos: "" }));
+  await S.evaluate(() => LIVE.api.raise({ title: "Heater broken", detail: "", area: "bar", urgent: true }));
+  await M.evaluate(() => show("notices"));
+  await M.waitForFunction(() => LIVE.out.size === 1 && LIVE.drafts.length && LIVE.issues.length);
+  await M.click('.glance [data-send="tonight"]');
+  await M.waitForSelector("#send-pre");
+  const t = await M.$eval("#send-pre", (e) => e.innerText);
+  assert.match(t, /tonight.*86'd.*1 open issue.*Closing.*Bar: not started.*Handover not sent yet.*Floor: not started.*86'd \(1\).*since.*Kadir.*To order and running low \(1\).*Bar: Limes.*Issues and faults.*URGENT: Heater broken.*Outstanding \(1\).*Bar: Tab 12 left open.*For tomorrow \(1\).*Bar: Order Prosecco/s);
+  assert.doesNotMatch(t, /On the team/);
+  await M.uncheck('[data-send-part="out"]');
+  assert.doesNotMatch(await M.$eval("#send-pre", (e) => e.innerText), /86'd \(1\)/);
+  // Staff can send it too, from Quick WhatsApp messages.
+  await S.evaluate(() => openSend("tonight"));
+  await S.waitForSelector("#send-pre");
+  assert.match(await S.$eval("#send-pre", (e) => e.innerText), /Heater broken/);
+  assert.deepEqual([M.errs, S.errs], [[], []]);
 });

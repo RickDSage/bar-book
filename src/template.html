@@ -500,6 +500,8 @@ a.btn { text-decoration: none; color: inherit; }
 details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: var(--muted); font-weight: 700; padding: 6px 0; }
 .chip.x { min-width: 32px; padding: 0 8px; margin-left: -4px; }
 .tcard > summary .pill { margin-left: 6px; }
+.glance { margin-bottom: 14px; }
+ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; } ul.live .s { color: var(--muted); }
 .warnbox { border: 2px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
 .recent.score .chip { min-width: 40px; justify-content: center; }
 .spin { font-size: 34px; font-weight: 800; text-align: center; padding: 18px 0; color: var(--brass); }
@@ -1022,7 +1024,7 @@ const LINKS = {
   drink: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`, swap: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`,
   specs: (o) => { const ids = String(o || "").split(",").filter((i) => D[+i]).slice(0, 15); return ids.length ? `#list=~${ids.map((i) => plSlug(D[+i].name)).join(".")}` : ""; },
   out: () => "#at=stock", restock: () => "#at=stock", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
-  morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
+  tonight: () => "#at=tab:notices", morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
   contacts: () => "#at=call", games: () => "#at=football", lineup: () => "#at=tab:make", sheet: () => "#at=tab:sheets", allergen: () => "#at=tab:allergens",
 };
 const withLink = (k, o, m) => { const h = m && !m.link && LINKS[k]?.(o); if (h) m.link = appUrl(h); return m; };
@@ -2090,25 +2092,34 @@ SHARE.shift = () => {
   const lbs = LIVE.loaded.has("labels") ? labelsDue([mode]) : [];
   const head = lists.filter((k) => runOf(k) || k === closeList()).map((k) => { const p = progress(k), b = blockedTasks([k]).length; return `${p.n === p.of ? "\u2705" : "\u26a0\ufe0f"} ${LISTS[k].title}: ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${isLocked(k) ? ", finished" : ""}`; });
   head.push(`86'd: ${out.length ? out.join(", ") : "nothing"}`);
-  const ck = closeClock(closeList()); if (ck) head.push(`\u23f1 Closing started ${hhmm(new Date(ck.start))}, ${ck.done ? "took" : "so far"} ${minsText(ck.mins)}`);
-  if (closer) head.push(`Closed by: ${closer}`);
-  if (draftPhotos().length) head.push(`\ud83d\udcf7 ${draftPhotos().length} closing photo${draftPhotos().length > 1 ? "s" : ""}, sent next`);
-  else if (noPhotos) head.push(`\ud83d\udcf7 No closing photos: ${noPhotos}`);
+  // Laid out like an SBAR handover (Situation, Background, Assessment, Recommendation, as the NHS hands over a patient),
+  // around the venue's four closing points. Background is filled from what's already recorded tonight.
+  const bg = [];
+  const ck = closeClock(closeList()); if (ck) bg.push(`\u23f1 Closing started ${hhmm(new Date(ck.start))}, ${ck.done ? "took" : "so far"} ${minsText(ck.mins)}`);
+  if (closer) bg.push(`Closed by: ${closer}`);
+  const crew = [...new Set(LIVE.events.filter((e) => e.kind === "task" && lists.includes(e.list)).map((e) => e.name))].sort();
+  if (crew.length) bg.push(`On the close: ${crew.join(", ")}`);
+  const games = LIVE.fixtures.filter((x) => x.day === shiftDay()).map((x) => `${x.ko} ${x.home} v ${x.away}`);
+  if (games.length) bg.push(`\u26bd Games on: ${games.join("; ")}`);
+  if (draftPhotos().length) bg.push(`\ud83d\udcf7 ${draftPhotos().length} closing photo${draftPhotos().length > 1 ? "s" : ""}, sent next`);
+  else if (noPhotos) bg.push(`\ud83d\udcf7 No closing photos: ${noPhotos}`);
   // The four handover points always show, so "nothing" is said, not left out.
   const point = (id, label, none) => ({ id, label, one: true, lines: hoLines(id).length ? hoLines(id) : [none] });
-  return { what: `${sideName(mode)} shift`, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head, parts: [
+  return { what: `${sideName(mode)} shift`, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
+    { id: "sit", label: "S \u00b7 Situation", one: true, lines: head },
+    { id: "bg", label: "B \u00b7 Background", one: true, lines: bg },
     // The closing list heading by heading, then what's left on each list. A list nobody started is left out unless
     // ticked: its summary line says enough.
-    ...lists.map((k) => ({ id: `heads-${k}`, label: k === closeList() ? "1. Cleaning and closing done" : `${LISTS[k].title}, by heading`, raw: true, lines: heads(k), off: k !== closeList() && !runOf(k) })),
-    ...lists.map((k) => ({ id: `todo-${k}`, label: `${LISTS[k].title}: not done`, raw: true, lines: left(k), off: !runOf(k) })),
-    point("low", "2. Stock running low", "Nothing running low"),
-    { id: "out", label: "86'd", lines: out.map((n) => `${n}${outByText(n) ? `, by ${outByText(n)}` : ""}`) },
-    { id: "restock", label: "Restocks still open", lines: rsOpen().filter((r) => DEST_SIDE[r.dest] === mode).map(rsLine) },
-    point("issues", "3. Outstanding issues", "None"),
-    { id: "blocked", label: "Blocked", raw: true, lines: items(lists, ["blocked"]) },
+    ...lists.map((k) => ({ id: `heads-${k}`, label: k === closeList() ? "A \u00b7 1. Cleaning and closing done" : `A \u00b7 ${LISTS[k].title}, by heading`, raw: true, lines: heads(k), off: k !== closeList() && !runOf(k) })),
+    ...lists.map((k) => ({ id: `todo-${k}`, label: `A \u00b7 ${LISTS[k].title}: not done`, raw: true, lines: left(k), off: !runOf(k) })),
+    point("low", "A \u00b7 2. Stock running low", "Nothing running low"),
+    { id: "out", label: "A \u00b7 86'd", lines: out.map((n) => `${n}${outByText(n) ? `, by ${outByText(n)}` : ""}`) },
+    { id: "restock", label: "A \u00b7 Restocks still open", lines: rsOpen().filter((r) => DEST_SIDE[r.dest] === mode).map(rsLine) },
+    point("issues", "A \u00b7 3. Outstanding issues", "None"),
+    { id: "blocked", label: "A \u00b7 Blocked", raw: true, lines: items(lists, ["blocked"]) },
     { id: "open-issues", label: "Reported issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
-    { id: "labels", label: "Date labels due", lines: lbs.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
-    point("next", "4. For tomorrow", "Nothing extra"),
+    { id: "labels", label: "A \u00b7 Date labels due", lines: lbs.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
+    point("next", "R \u00b7 4. For tomorrow (what the morning does first)", "Nothing extra"),
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
     ...lists.map((k) => ({ id: `all-${k}`, label: `${LISTS[k].title}: every item`, raw: true, lines: shown(k).map(([i, t]) => line(k, i, t)), off: true, opt: true })),
   ], photos: async () => {
@@ -2539,8 +2550,8 @@ function morningHtml() {
       ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
       ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}
       <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>
-      <div class="actions">${sendBtn("morning", "Checked: send on WhatsApp")}${sendBtn("report", r.photos ? `Send the full handover with ${plural(r.photos, "photo")}` : "Send the full handover", r.id)}</div>
-      <p class="note">Read it, sort what you can, and send the check so the duty manager knows what's still outstanding.</p>`;
+      <div class="actions">${store.get("hoRead", "") === r.id ? `<span class="pill ok">Read</span>` : `<button class="btn pri" data-ho-read="${r.id}">Mark as read</button>`}${sendBtn("morning", "Checked: send on WhatsApp")}${sendBtn("report", r.photos ? `Send the full handover with ${plural(r.photos, "photo")}` : "Send the full handover", r.id)}</div>
+      <p class="note">Read it and tap Mark as read: the managers see who read it and when. Sort what you can, and send the check so the duty manager knows what's still outstanding.</p>`;
   return `<div class="sec">${r && reportDay(r) !== lastNight() ? "Handover" : "Last night's handover"}</div>${ho}
     <div class="sec">Today's order</div>
     ${order.length ? `<p class="note" translate="no">${order.map(esc).join(", ")}</p><div class="actions">${sendBtn("order", "Send the order on WhatsApp")}</div>` : `<p class="note">Nothing running low or 86'd.</p>`}
@@ -2994,6 +3005,13 @@ $("#tally").addEventListener("click", async (e) => {
     openSend("shift"); return;
   }
   if (e.target.closest("[data-login]")) { show("notices"); return; }
+  // Mark as read: a note for the managers (in Everything sent) of who read last night's handover and when. Nothing goes on WhatsApp.
+  const hr = e.target.closest("[data-ho-read]");
+  if (hr) {
+    const r = LIVE.reports.find((x) => x.id === hr.dataset.hoRead); if (!r || !LIVE.api || !LIVE.me) return toast("Join the team first");
+    store.set("hoRead", r.id); renderTally(); haptic();
+    return track(LIVE.api.logSent("read", `${sideName(mode)} handover read`, `Black Tap Soho · ${sideName(mode)} morning · read the handover from ${handoverOf(r).by}, sent ${hhmm(new Date(ms(r.at)))}`), "Marked as read", "Not saved. Try again");
+  }
   const rp = e.target.closest("[data-rp-photos]"); if (rp) {
     const id = rp.dataset.rpPhotos, A = LIVE.api;
     return busy(rp, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
@@ -5004,13 +5022,71 @@ function mgrHtml() {
       <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
     <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>`;
 }
-// The top of the manager section: what's waiting and how tonight stands, in one line each.
+// The top of the Manager section: tonight at a glance, for someone who isn't on the bar or the floor. Everything comes
+// from what the team is already doing in the app (nobody has to send it), each with who and when.
+const RS_SAY = { asked: "waiting", given: "given to someone", doing: "on its way", blocked: "blocked", delivered: "brought up, to confirm" };
+// Who and when, short: the time for tonight, the day as well for anything older.
+const shortAt = (t) => { const d = new Date(ms(t)); return bday(t) === shiftDay() ? hhmm(d) : `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${hhmm(d)}`; };
+const byAt = (name, t) => `<span class="s">· ${esc(name)} ${shortAt(t)}</span>`;
+function glanceSide(side) {
+  const k = MODE_LISTS[side][0], r = runOf(k), p = progress(k), d = draftOf(side) || {}, today = (x) => !x.pending && bday(x.at) === shiftDay();
+  const sent = LIVE.reports.find((x) => x.side === side && today(x));
+  const checked = LIVE.sent.find((x) => ["morning", "read"].includes(x.k) && today(x) && x.text.includes(`${sideName(side)} morning`));
+  const close = r?.status === "finished" ? `Finished: <b>${p.n} of ${p.of}</b> done ${byAt(r.name, r.at)}${r.note ? `<br>Why not all done: ${esc(r.note)}` : ""}`
+    : r ? `In progress: <b>${p.n} of ${p.of}</b> done, started ${byAt(r.name, r.at)}` : `Not started (${p.of} to do)`;
+  const blocked = shown(k).filter(([i]) => statusOf(k, i) === "blocked").map(([i]) => `<li>Blocked: ${esc(itemText(k, i))} <span class="s">${taskLine(k, i, taskOf(k, i))}</span></li>`);
+  const ho = HO.filter((f) => (d[f.id] || "").trim()).map((f) => `<li>${esc(f.short)}: ${esc(d[f.id].trim().split("\n").join(", "))}</li>`);
+  return `<div class="mini">${sideName(side)}</div><ul class="live">
+    <li>Closing: ${close}</li>${blocked.join("")}
+    <li>Handover: ${sent ? `sent ${byAt(sent.name, sent.at)}` : ho.length || d.closer ? "being written" : "not started"}</li>${sent ? "" : ho.join("")}
+    ${checked ? `<li>Last night's handover ${checked.k === "read" ? "read" : "checked"} ${byAt(checked.name, checked.at)}</li>` : ""}</ul>`;
+}
+// Tonight's report: everything above as one tidy message, in the order a manager reads it. Each section has its tick
+// box on the Send page, so it can go with or without any of them.
+SHARE.tonight = () => {
+  const today = (x) => !x.pending && bday(x.at) === shiftDay(), rows = [];
+  const side = (sd) => {
+    const k = MODE_LISTS[sd][0], r = runOf(k), p = progress(k), sent = LIVE.reports.find((x) => x.side === sd && today(x));
+    return [`${sideName(sd)}: ${r?.status === "finished" ? `finished, ${p.n} of ${p.of} done, by ${r.name} at ${shortAt(r.at)}` : r ? `in progress, ${p.n} of ${p.of} done` : "not started"}`,
+      `   Handover ${sent ? `sent by ${sent.name} at ${shortAt(sent.at)}` : "not sent yet"}`];
+  };
+  const notDone = ["bar", "floor"].flatMap((sd) => {
+    const k = MODE_LISTS[sd][0], r = runOf(k);
+    const left = shown(k).filter(([i]) => !["done", "cancelled"].includes(statusOf(k, i))).map(([i]) => {
+      const x = taskOf(k, i); return `${sideName(sd)}: ${itemText(k, i)}${x?.status === "blocked" && x.note ? ` (blocked: ${x.note})` : ""}`; });
+    return r?.status === "finished" ? [...(r.note ? [`${sideName(sd)} reason: ${r.note}`] : []), ...left] : left.filter((l) => l.includes("(blocked"));
+  });
+  const ho = (id) => ["bar", "floor"].flatMap((sd) => { const v = (draftOf(sd)?.[id] || "").trim(); return v ? v.split("\n").map((l) => `${sideName(sd)}: ${l.trim()}`).filter((l) => !l.endsWith(": ")) : []; });
+  const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `${n}, since ${shortAt(x.at)}${x.name ? ` (${x.name})` : ""}`);
+  const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status)).map((x) => `${amtOf(x.qty, x.unit, x.item)} for the ${lower(DEST[x.dest] || "")}: ${RS_SAY[x.status]}`);
+  const iss = openIssues().sort((a, b) => b.urgent - a.urgent);
+  rows.push(
+    { id: "close", label: "Closing", raw: true, lines: [...side("bar"), ...side("floor")] },
+    { id: "notdone", label: "Not done and why", lines: notDone },
+    { id: "out", label: "86'd", lines: out },
+    { id: "order", label: "To order and running low", lines: [...ho("low"), ...rs] },
+    { id: "issues", label: "Issues and faults", lines: iss.flatMap((x) => (x.urgent ? [`URGENT: ${issueLines(x)[0]}`, ...issueLines(x).slice(1)] : issueLines(x))) },
+    { id: "outstanding", label: "Outstanding", lines: ho("issues") },
+    { id: "next", label: "For tomorrow", lines: ho("next") },
+    { id: "team", label: "On the team", one: true, lines: [plural(LIVE.staff.length, "phone")], off: true },
+  );
+  return { what: "Tonight's report", title: `Black Tap Soho · tonight · ${dayName(shiftDay())} ${hhmm(new Date())}`,
+    head: [[out.length && `🚫 ${out.length} 86'd`, iss.length && `🔧 ${plural(iss.length, "open issue")}`, notDone.length && `⚠️ ${notDone.length} not done`].filter(Boolean).join(" · ") || "✅ All clear so far"],
+    parts: rows };
+};
 function glanceHtml() {
-  const last = (side) => LIVE.reports.find((r) => r.side === side && !r.pending);
-  const close = ["bar", "floor"].map((side) => { const r = last(side); return `${sideName(side)} closing: ${r ? `sent by ${esc(r.name)} ${when(r.at)}` : "none yet"}`; });
-  const waiting = [newTells().length && `${newTells().length} from the team for you`, newAsks().length && `${newAsks().length} new in the inbox`,
-    openIssues().length && plural(openIssues().length, "open issue"), LIVE.out.size && `${LIVE.out.size} 86'd`].filter(Boolean);
-  return `<p class="note glance">${waiting.length ? waiting.join(" · ") : "Nothing waiting"}<br>${close.join("<br>")}</p>`;
+  const waiting = [newTells().length && `${newTells().length} from the team for you`, newAsks().length && `${newAsks().length} new in the inbox`].filter(Boolean);
+  const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `<li>${esc(n)} ${byAt(x.name || "", x.at)}</li>`);
+  const iss = openIssues().sort((a, b) => b.urgent - a.urgent).map((x) => `<li>${x.urgent ? "<b>Urgent:</b> " : ""}${esc(x.title)} ${byAt(x.name, x.at)}${x.who ? ` <span class="s">· with ${esc(x.who)}</span>` : ""}</li>`);
+  const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status)).map((x) => `<li>${esc(amtOf(x.qty, x.unit, x.item))} for the ${esc(lower(DEST[x.dest] || ""))}: ${RS_SAY[x.status]} ${byAt(x.askedBy, x.askedAt)}</li>`);
+  const seniors = LIVE.staff.filter((x) => x.role === "manager" && x.pin).map((x) => x.name);
+  return `<div class="glance">${waiting.length ? `<p class="note"><b>${waiting.join(" · ")}</b></p>` : ""}
+    ${glanceSide("bar")}${glanceSide("floor")}
+    <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
+    <div class="mini">Open issues and faults</div><ul class="live">${iss.join("") || "<li>None</li>"}</ul>
+    <div class="mini">Restocks waiting</div><ul class="live">${rs.join("") || "<li>None</li>"}</ul>
+    <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Seniors unlocked: ${seniors.map(esc).join(", ")}` : ""}</p>
+    <div class="actions">${sendBtn("tonight", "Send tonight's report")}</div></div>`;
 }
 
 /* ---------- The Team page ----------
@@ -5037,7 +5113,7 @@ const CARDS = () => [
   ["rate", "Team only: rate the shift", rateHtml, draftPill("rate")],
   ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : draftPill("issue")]] : []),
   ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml, draftPill("tell")]] : []),
-  ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") : ""}</div>`],
+  ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") + sendBtn("tonight", "Tonight's report") : ""}</div>`],
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
