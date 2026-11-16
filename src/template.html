@@ -981,14 +981,35 @@ function msgText(m, pick, note = "", wa = true) {
     out.push("", b(p.one ? p.label : `${p.label} (${partItems(p)})`), ...p.lines.map((l) => (p.one || p.raw || /^\s/.test(l) ? l : `• ${l}`)));
   }
   if (note.trim()) out.push("", ...(m.noteHead === null ? [] : [b("Note")]), note.trim());
+  if (m.link) out.push("", `Open in Bar Book: ${m.link}`);
   return out.join("\n");
+}
+/* A link back to the same thing in the app, at the bottom of every message: the drink's spec, the 86 board, tonight's
+   close, the morning. It holds only where to go (the site is public, so never the team code or anything private).
+   Someone not on the team lands on the same page, and the team parts ask them to join. */
+const appUrl = (h) => `${location.origin}${location.pathname}${h}`;
+const LINKS = {
+  drink: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`, swap: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`,
+  specs: (o) => { const ids = String(o || "").split(",").filter((i) => D[+i]).slice(0, 15); return ids.length ? `#list=~${ids.map((i) => plSlug(D[+i].name)).join(".")}` : ""; },
+  out: () => "#at=stock", restock: () => "#at=stock", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
+  morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
+  contacts: () => "#at=call", games: () => "#at=football", lineup: () => "#at=tab:make", sheet: () => "#at=tab:sheets", allergen: () => "#at=tab:allergens",
+};
+const withLink = (k, o, m) => { const h = m && !m.link && LINKS[k]?.(o); if (h) m.link = appUrl(h); return m; };
+// Opens what a shared link points at. Returns false for anything else.
+function openLink(h) {
+  let m = h.match(/^#d=([a-z0-9-]+)$/);
+  if (m) { const d = PL_BY_SLUG.get(m[1]); if (!d) return false; show("drinks"); openSheet(d.id); return true; }
+  m = h.match(/^#at=([a-z0-9:-]+)$/);
+  if (m) { openAt(m[1]); return true; }
+  return plOpenList(h);
 }
 const pickOf = (m) => new Set(m.parts.filter((p) => p.lines.length && !p.off).map((p) => p.id));
 // The message as it goes if nothing is changed.
-const shareText = (k, wa = true, o) => { const m = SHARE[k](o); return m ? msgText(m, pickOf(m), "", wa) : ""; };
+const shareText = (k, wa = true, o) => { const m = withLink(k, o, SHARE[k](o)); return m ? msgText(m, pickOf(m), "", wa) : ""; };
 let snd = null;
 // A builder can offer one choice (how late, which shift, who): SHARE[k](value) builds the message for it.
-const sndMsg = () => snd && SHARE[snd.k](snd.opt);
+const sndMsg = () => snd && withLink(snd.k, snd.opt, SHARE[snd.k](snd.opt));
 function openSend(k, o, note = "") {
   const m = SHARE[k](o); if (!m) return toast("Nothing to send yet");
   if ($("#sheet").hidden) lastFocus = document.activeElement;
@@ -1053,8 +1074,8 @@ function renderSend(m = sndMsg()) {
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
     ${files ? `<div class="actions"><button class="btn" data-send-copy>Copy the words</button><button class="btn pri" data-send-sheet>Send with photos</button></div>
       <ol class="sendhow"><li>Tap Copy the words, then Send with photos.</li><li>Pick WhatsApp, then the chat.</li><li>Press and hold the caption box, tap Paste, then send.</li></ol>` : ""}
-    <div class="actions"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-pic>As a picture</button><button class="btn" data-send-print>Print</button></div>
-    ${ph && !files ? `<p class="note">WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF.</p>` : ""}
+    <div class="actions"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="sms" href="sms:">Text</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-pic>As a picture</button><button class="btn" data-send-print>Print</button></div>
+    ${ph && !files ? `<p class="note">WhatsApp, Text and Email take the words. For the photos too, tap Print and save it as a PDF.</p>` : ""}
     ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
     <p class="note">It goes in English, so everyone can read it.</p>
     <div class="sec">How it will look</div>
@@ -1110,7 +1131,10 @@ document.addEventListener("click", (e) => {
   const a = e.target.closest("a[data-share]");
   if (a) {
     const wa = a.dataset.via === "wa", t = msgText(m, snd.pick, snd.note, wa);
-    a.href = wa ? `https://wa.me/?text=${encodeURIComponent(t)}` : `mailto:?subject=${encodeURIComponent(m.title)}&body=${encodeURIComponent(t)}`;
+    // A text message: iPhones read sms:&body=, Android sms:?body=.
+    a.href = wa ? `https://wa.me/?text=${encodeURIComponent(t)}`
+      : a.dataset.via === "sms" ? `sms:${/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(t)}`
+      : `mailto:?subject=${encodeURIComponent(m.title)}&body=${encodeURIComponent(t)}`;
     logSent(m);
     return;
   }
@@ -1221,7 +1245,7 @@ function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const words = q ? plQuery(q).words : [];
   renderQuick(!q); renderPlf();
-  let rows = D.filter((d) => inSec(d) && words.every((w) => d._h.includes(w)) && (q ? true : flavHit(d)) && plOk(d));
+  let rows = D.filter((d) => inSec(d) && plHits(d, words) && (q ? true : flavHit(d)) && plOk(d));
   rows = q && PL.sort === "menu" ? plRank(rows, words) : plSort(rows);
   const flat = !!q || PL.sort !== "menu";
   $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}`;
@@ -1869,9 +1893,9 @@ function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); pull
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
-  "Bottled beer": ["Stella bottles", "Corona Cero"],
+  "Bottled beer": ["Stella bottles", "Corona bottles", "Corona Cero", "San Miguel 0,0"],
   "Cider": ["Kopparberg Apple (draught)", "Kopparberg Strawberry & Lime (bottle)", "Kopparberg Mixed Fruit (bottle)"],
-  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Red Bull", "Red Bull Zero", "Crodino", "Tonic", "Slimline tonic", "Jarritos Guava", "Jarritos Mandarin", "Jarritos Pineapple", "Jarritos Grapefruit", "Jarritos Strawberry", "Jarritos Lime"],
+  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Coke Zero bottles", "Diet Coke bottles", "Red Bull", "Red Bull Sugarfree", "Crodino", "Tonic", "Light tonic", "Ginger beer", "Ginger ale", "Jarritos Guava", "Jarritos Mandarin", "Jarritos Pineapple", "Jarritos Grapefruit", "Jarritos Strawberry", "Jarritos Lime"],
   "Water": ["Still water, large", "Still water, small", "Sparkling water, large", "Sparkling water, small"],
   "Wine": ["Prosecco bottle"],
   "Bar supplies": ["CO2 gas", "Blue roll", "Bar napkins", "Straws", "Cocktail picks", "Coasters", "Bin bags", "Cling film", "Labels and day dots", "Glass cloths", "Till roll", "Hand soap", "Sanitiser", "Glass washer detergent", "Rinse aid", "Ice"],
@@ -5333,12 +5357,15 @@ renderChips(); renderList();
     const b = e.target.closest("[data-start]"); if (!b) return;
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);
+    if (linkAt && openLink(linkAt)) { linkAt = ""; history.replaceState(null, "", location.pathname); return; }
     if (b.dataset.rapid) show("rapid");
     else if (mode !== "bar") show("tally");
   });
 }
 navCols();
 setLang(lang);
+// A link from a message opens there once Bar or Floor is picked on the start screen.
+let linkAt = /^#(d|at|list)=/.test(location.hash) ? location.hash : "";
 if (!plOpenList(location.hash)) show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
-addEventListener("hashchange", () => plOpenList(location.hash));
+addEventListener("hashchange", () => openLink(location.hash));
 </script>

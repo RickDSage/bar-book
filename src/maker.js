@@ -71,6 +71,7 @@ const MK_CATS = [
     ["Lager", "Lager"], ["Stella Artois", "Lager", "stella"], ["Budweiser", "Lager", "bud"], ["Corona", "Lager"], ["San Miguel", "Lager", "san miguel"], ["Camden Hells", "Lager", "camden", "camden hells lager"],
     ["IPA", "IPA", "india pale ale", "pale ale"], ["Camden Off Menu IPA", "IPA", "off menu", "camden off menu"], ["Camden Eazy IPA", "IPA", "eazy ipa", "easy ipa", "camden eazy"], ["Goose Island Midway", "IPA", "goose island", "midway", "midway ipa"],
     ["Guinness", "Stout", "stout"], ["Athletic Run Wild IPA 0%", "Alcohol-free beer", "athletic", "run wild", "alcohol free beer", "0 beer"],
+    ["Corona Cero", "Alcohol-free beer", "corona 0", "corona 0 0", "corona zero", "corona 0 0 0"], ["San Miguel 0,0", "Alcohol-free beer", "san miguel 0", "san miguel zero", "san miguel cero", "san miguel 0 0"],
     ["Cider", "Cider", "apple cider"], ["Kopparberg Crisp Apple", "Cider", "crisp apple", "kopparberg apple"], ["Fruit cider", "Fruit cider"], ["Kopparberg Strawberry & Lime", "Fruit cider", "kopparberg strawberry", "strawberry and lime"],
     ["Kopparberg Mixed Fruit", "Fruit cider", "kopparberg", "mixed fruit cider"], ["Kopparberg Mixed Fruit 0%", "Alcohol-free cider", "alcohol free cider", "kopparberg 0", "kopparberg alcohol free"]]],
   ["Creams, milk and foam", null, [
@@ -316,6 +317,8 @@ const BT_LINEUP = [
     { k: "corona", name: "Corona (bottle)", glass: "In the bottle", measure: "One bottle", pour: "Ice cold, lime wedge pushed into the neck. A glass on the side if asked" },
     { k: "san miguel", name: "San Miguel (bottle)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "" },
     { k: "stella artois", name: "Stella Artois (bottle)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "" },
+    { k: "corona cero", name: "Corona Cero (alcohol-free)", glass: "In the bottle", measure: "One bottle", pour: "Ice cold, lime wedge pushed into the neck. A glass on the side if asked", note: "Alcohol-free Corona. Say it's the 0.0 when it goes down." },
+    { k: "san miguel 0 0", name: "San Miguel 0,0 (alcohol-free)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "Alcohol-free San Miguel. Say it's the 0,0 when it goes down." },
     { k: "athletic run wild ipa 0", name: "Athletic Run Wild IPA (alcohol-free)", glass: "Pint glass", measure: "One can", pour: "Pour at 45°, straighten as it fills", note: "Alcohol-free IPA. Say it's the alcohol-free one when it goes down." },
     { k: "kopparberg strawberry lime", name: "Kopparberg Strawberry & Lime", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "Fruit cider." },
     { k: "kopparberg mixed fruit", name: "Kopparberg Mixed Fruit", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "Fruit cider: blackcurrant and raspberry." },
@@ -530,11 +533,13 @@ function mkLev(a, b) {
 const mkWordHit = (w, words) => words.some((x) => x.startsWith(w) || (w.length >= 4 && mkLev(w, x.slice(0, w.length + 1)) <= (w.length >= 7 ? 2 : 1)) || (w.length >= 4 && mkLev(w, x) <= (w.length >= 7 ? 2 : 1)));
 function mkSuggest(q) {
   const t = mkNorm(q); if (!t) return [];
-  const qw = t.split(" ");
+  const qw = t.split(" "), ts = t.replace(/ /g, "");
   return MK.items.map((it) => {
     let s = 0;
     for (const a of it.al) {
       if (a === t) s = Math.max(s, 5);
+      // With the spaces typed differently: "redbull", "gingerbeer", "corona0".
+      else if (ts.length >= 4 && a.replace(/ /g, "").startsWith(ts)) s = Math.max(s, ts.length === a.replace(/ /g, "").length ? 5 : 3.5);
       else if (a.startsWith(t)) s = Math.max(s, 4);
       else if (a.includes(t)) s = Math.max(s, 3);
       else if (qw.every((w) => mkWordHit(w, a.split(" ")))) s = Math.max(s, 2);
@@ -800,8 +805,8 @@ $("#v-fun").addEventListener("click", (e) => {
   if (ds.mk === "spin") { mkShakeOn(); mkSpin(); }
 });
 function mkQsList() {
-  const words = mkNorm(mk.qs.q).split(" ").filter(Boolean);
-  const rows = D.filter((d) => mkKindOk(d, mk.qs.kind) && words.every((w) => d._h.includes(w)) && (!mk.qs.mine || mkCanMake(d)));
+  const words = mk.qs.q.trim() ? plQuery(mk.qs.q.trim()).words : [];
+  const rows = D.filter((d) => mkKindOk(d, mk.qs.kind) && plHits(d, words) && (!mk.qs.mine || mkCanMake(d)));
   MK.ids = rows.map((d) => d.id);
   return `<p class="count">${rows.length} ${rows.length === 1 ? "drink" : "drinks"}</p>${rows.map((d) => `<button class="mk-q" data-mk-open="${d.id}"><div class="n">${esc(d.name)}<span>${esc(d.glass)}</span></div><div class="s">${esc(mkShort(d))}</div><div class="m">${esc(d.method)} · ${esc(d.garnish)}</div></button>`).join("") || `<p class="empty">Nothing matches.</p>`}`;
 }
