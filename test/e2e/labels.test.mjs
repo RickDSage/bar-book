@@ -33,12 +33,30 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   assert.equal(await S.locator("#lb-add").count(), 0, "staff don't get the add form");
   assert.equal(await attempt(S, () => LIVE.api.label(null, "added", { item: "Apple juice", side: "bar", life: 3, on: true })), "permission-denied");
 
-  // An idea fills in the name, and asks for the days when Bar Book's lists didn't have them.
+  // Black Tap's list starts open on an empty side, every item ticked, with days only where the venue gives them.
+  assert.equal(await M.$eval("#lb-list", (e) => e.open), true);
+  assert.match(await text(M, "#lb-list summary"), /^Black Tap's list: 27 not added yet$/);
+  assert.equal(await M.inputValue('[data-lbs-life="Maraschino cherries"]'), "28");
+  assert.equal(await M.inputValue('[data-lbs-life="Egg whites"]'), "");
+  // Untick everything but three. None of them has days yet, so it asks for them.
+  await M.$$eval("[data-lbs-on]", (xs) => xs.forEach((x) => { if (!["Egg whites", "Aquafaba", "Mint"].includes(x.dataset.lbsOn)) x.click(); }));
+  await M.click("#lbs-go");
+  assert.equal(await toastOf(M), "Fill in the days it keeps once opened: a whole number from 1 to 365");
+  // Give two of them days and add: those two go in, the third waits for its days.
+  await M.fill('[data-lbs-life="Egg whites"]', "2"); await M.fill('[data-lbs-life="Aquafaba"]', "3");
+  await M.click("#lbs-go");
+  await waitToast(M, /^2 added\. 1 still need their days$/);
+  await S.waitForFunction(() => LIVE.labels.length === 2 && LIVE.labels.every((x) => !x.pending));
+  assert.deepEqual(await S.evaluate(() => LIVE.labels.map((x) => [x.item, x.life, x.side, x.on]).sort()), [["Aquafaba", 3, "bar", true], ["Egg whites", 2, "bar", true]]);
+  await M.evaluate(() => { document.activeElement.blur(); renderTally(); });
+  assert.match(await text(M, "#lb-list summary"), /^Black Tap's list: 25 not added yet$/);
+  assert.equal(await M.locator('[data-lbs-on="Egg whites"]').count(), 0, "added ones leave the list");
+  for (const x of ["Egg whites", "Aquafaba"]) await M.evaluate((n) => LIVE.api.label(LIVE.labels.find((x) => x.item === n), "removed"), x);
+  await S.waitForFunction(() => LIVE.labels.length === 0);
+
+  // Anything else goes in the add form.
   await M.click("#lb-add summary");
-  await M.click('[data-lb-idea="Apple juice"]');
-  assert.equal(await M.inputValue("#lb-item"), "Apple juice");
-  assert.equal(await toastOf(M), "How many days does it keep once opened?");
-  assert.equal(await M.evaluate(() => document.activeElement.id), "lb-life");
+  await M.fill("#lb-item", "Apple juice");
   await M.click("#lb-go");
   assert.equal(await toastOf(M), "Days it keeps once opened: a whole number from 1 to 365");
   await M.fill("#lb-life", "3");
@@ -52,9 +70,9 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   await M.fill("#lb-item", " apple JUICE "); await M.fill("#lb-life", "3"); await M.click("#lb-go");
   assert.equal(await toastOf(M), "apple JUICE is on the list already");
   await S.waitForFunction(() => LIVE.labels.length === 3 && LIVE.labels.every((x) => !x.pending));
-  // (The page isn't redrawn under someone typing, so the ideas catch up once they stop.)
+  // (The page isn't redrawn under someone typing, so the list catches up once they stop.)
   await M.evaluate(() => { document.activeElement.blur(); renderTally(); });
-  assert.deepEqual(await M.$$eval("[data-lb-idea]", (x) => x.map((b) => b.dataset.lbIdea)), ["Pineapple juice", "Tomato juice", "Lime juice", "Lemon juice", "Sugar syrup"]);
+  assert.equal(await M.locator('[data-lbs-on="Apple juice"]').count(), 0, "added by hand, so it leaves Black Tap's list");
   assert.equal(await rowText(S, "Apple juice"), "Apple juice Not opened Keeps 3 days once opened Opened one");
 
   // Opening one: today plus its days, saved with who opened it.
@@ -224,9 +242,9 @@ test("the Labels page fits a small phone", async () => {
   await resetEmulators();
   const { O } = await team(browser, site, []);
   await O.setViewportSize({ width: 320, height: 640 });
-  // The add form open on the floor, with its longest idea, Jammie Dodger ice cream sandwiches · 2 days.
-  await labels(O, "floor"); await O.click("#lb-add summary");
-  assert.ok(await O.$$eval("[data-lb-idea]", (x) => x.length === 13 && x.every((e) => e.getBoundingClientRect().right <= 320)), "every idea is on screen");
+  // Black Tap's list open on the floor: every row and its days box on screen, the boxes 16px so an iPhone doesn't zoom.
+  await labels(O, "floor"); await O.waitForSelector("#lb-list");
+  assert.deepEqual(await O.$$eval("[data-lbs-life]", (x) => [x.length, x.filter((e) => e.getBoundingClientRect().right > 320 || parseFloat(getComputedStyle(e).fontSize) < 16).map((e) => e.dataset.lbsLife)]), [39, []], "every row is on screen");
   await add(O, "Jammie Dodger ice cream sandwiches", 2, "floor");
   await O.waitForFunction(() => LIVE.labels.length === 1 && !LIVE.labels[0].pending);
   for (const side of ["bar", "floor"]) {
