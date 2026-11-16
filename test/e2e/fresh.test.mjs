@@ -1,4 +1,4 @@
-// Clear everything at the bottom of More: everything the app keeps on this phone goes, the phone leaves the team, and
+// Reset this phone at the bottom of More: everything the app keeps on this phone goes, the phone leaves the team, and
 // it starts again as new.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";

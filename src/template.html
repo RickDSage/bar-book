@@ -2,8 +2,14 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="BT Bar Book">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* The fonts come with the app (fonts/, OFL), so it draws straight away with no signal and asks nothing of Google. */
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-display: swap; src: url(fonts/atkinson-400.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-style: italic; font-display: swap; src: url(fonts/atkinson-400-italic.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; font-display: swap; src: url(fonts/atkinson-700.woff2) format("woff2"); }
+@font-face { font-family: "Big Shoulders Display"; font-weight: 700 800; font-display: swap; src: url(fonts/big-shoulders-display.woff2) format("woff2"); }
+</style>
+<link rel="preload" href="fonts/atkinson-400.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 /* Layout: one-column phone app. Sticky search header, scrolling list, full-screen spec sheet, fixed bottom tab bar.
    Dark by default, as it is read behind a dim bar at night. Light is for daytime set-up. Each phone picks one in More,
@@ -440,8 +446,6 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
-.bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
-.utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
 .chrow { display: block; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
 .chrow.new { border-color: var(--brass); }
@@ -507,6 +511,7 @@ details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: v
 .staffrow .actions { margin-top: 8px; }
 .staffrow .actions .btn { padding: 8px 12px; font-size: 15px; min-height: 40px; }
 /* Saving state: shown while a change is waiting to reach the server, or when there's no signal */
+.upd { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 26; padding: 12px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 4px 18px #0005; white-space: nowrap; }
 .net { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 25; padding: 7px 16px; text-align: center; font-size: 14px; font-weight: 700; background: var(--surface); border-bottom: 2px solid var(--brass); }
 .net.off { border-color: var(--warn); }
 /* Your name and the account links, spaced rather than dotted, so a line never starts or ends on a dot. */
@@ -813,7 +818,6 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
   <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
-  <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
@@ -822,8 +826,9 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire: house cocktails</button>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
+<button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <header class="gut" id="hdr">
   <nav class="seg dseg" id="subnav" aria-label="Drinks"><button data-tab="rapid">⚡ Rapid fire</button><button data-tab="drinks">Menu</button><button data-tab="make">Make</button></nav>
   <div id="hdr-drinks">
@@ -904,9 +909,6 @@ function keepOpen(el, fn) {
   new MutationObserver((ms) => ms.forEach((m) => fn({ target: m.target }))).observe(el, { attributes: true, attributeFilter: ["open"], subtree: true });
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-// What people write (messages, notes, titles) goes in its own span: the app's words never change it, and it gets a
-// Translate button (see Language).
-const ut = (x) => `<span data-ut>${esc(x)}</span>`;
 const D = DATA.drinks;
 const SECTIONS = [...new Set(D.map((d) => d.section))];
 // Martini-glass drinks get the V-shaped glass; the step guides still use their coupe pictures.
@@ -944,7 +946,7 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = fal
    summary lines, then its parts, each with a tick box (ticked when it has anything in it), and photos where there are
    some. The person ticks what goes in, adds a note if they like and sees the message as it will look. Bar Book sends
    nothing itself: WhatsApp and Email open the person's own app with the words written in, and they pick who it goes
-   to. Messages are in English, the venue's working language, whatever language the phone shows. */
+   to. */
 const SHARE = {};
 // A note given here starts the Send page's note, for the person to change.
 const sendBtn = (k, label, o, note) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}${note ? ` data-send-note="${esc(note)}"` : ""}>${label}</button>`;
@@ -1188,7 +1190,7 @@ function renderQuick(show) {
   const fl = `<div class="mini">What does the guest fancy?</div><div class="chips hrow">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
   if (flav || sec !== "All" || PL.list) { $("#quick").innerHTML = fl; return; }
   const rec = recent.length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = plDailyHtml() + rec + fl;
+  $("#quick").innerHTML = rec + fl;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
@@ -1593,7 +1595,7 @@ function usual(key, field) {
 }
 let qzUsual = null;
 // Each kind of question: what's asked, the answer and three wrong ones, or nothing where it doesn't fit the drink.
-// app: the answers are the app's own words, so they're translated.
+// app: the answers are the app's own words.
 const QZ_KINDS = {
   glass: (d, r) => {
     const k = glassKey(d.glass); if (k.startsWith("pitcher")) return null;
@@ -2358,7 +2360,7 @@ const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).m
 // The morning: read last night's handover, say it's checked (and what's outstanding) on WhatsApp, send the order, prep to par.
 function morningHtml() {
   const r = lastReport(), h = r && handoverOf(r), order = orderLines(r);
-  const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? ut(v) : "None"}</span></div>`;
+  const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? esc(v) : "None"}</span></div>`;
   const ho = !r ? `<p class="note">No handover from the last close on this side yet.</p>`
     : `<article class="notice" id="handover"><div class="meta">Last night's handover · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
       ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
@@ -2820,7 +2822,7 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("[data-login]")) { show("notices"); return; }
   const rp = e.target.closest("[data-rp-photos]"); if (rp) {
     const id = rp.dataset.rpPhotos, A = LIVE.api;
-    return busy(rp, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
+    return busy(rp, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${esc(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
   }
   const jp = e.target.closest("[data-jump]"); if (jp) {
     pane = jp.dataset.jump; renderTally();
@@ -2990,154 +2992,6 @@ document.addEventListener("click", (e) => {
   store.set("theme", t.dataset.themePick); applyTheme(); haptic();
   $$("[data-theme-pick]").forEach((b) => b.setAttribute("aria-pressed", b === t));
 });
-
-/* ---------- Language ----------
-   Each phone picks its language on the welcome screen or in Info. The app's fixed words (tabs, headings, buttons, the
-   Team page's sections, the checklists) come translated from I18N (src/i18n.json: the languages, then each English
-   phrase with its translations in the same order, "" where there isn't one yet). Whatever is
-   on screen is matched whole against the English, so a word that isn't in the list stays in English, and so do drink
-   names, specs and allergens, which are never in it. Names and what people type are never touched. */
-/*I18N*/
-const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
-let lang = store.get("lang", "");
-const TR = new Map();
-function trBuild() {
-  TR.clear(); TR_PAT = []; trCache.clear(); trFmt = null; const i = LANGS.findIndex(([c]) => c === lang); if (i < 0) return;
-  for (const [en, xs] of Object.entries(I18N.words)) if (xs[i]) { if (/\{[a-d]\}/.test(en)) TR_PAT.push(trPat(en, xs[i])); else TR.set(en, xs[i]); }
-  // The longest phrases are tried first, so "Remove {a} for everyone?" wins over "Remove {a}".
-  TR_PAT.sort((a, b) => b.re.source.length - a.re.source.length);
-  const loc = `${LOCALE[lang] || lang}-u-nu-latn`;
-  // Only where the phone has the language's calendar words: some browsers say they do and give "M11" or the English.
-  const nov = (o) => new Intl.DateTimeFormat(loc, { timeZone: "UTC", ...o }).format(new Date(Date.UTC(2026, 10, 6)));
-  if (Intl.DateTimeFormat.supportedLocalesOf(loc).length && !/November|Nov\b|Fri\b|M11/.test(nov({ month: "long" }) + nov({ weekday: "short", day: "numeric", month: "short" }))) {
-    const fs = new Map(); trFmt = (o) => { const k = JSON.stringify(o); if (!fs.has(k)) fs.set(k, new Intl.DateTimeFormat(loc, o)); return fs.get(k); };
-  }
-}
-// A phrase with numbers in it ("3 of 21 done") is listed with {1}, {2}… for the numbers ("{1} of {2} done"), and the
-// numbers go back in wherever the translation puts them.
-const TR_NUM = /\d+(?:[.,:]\d+)*/g;
-// Dates the app writes in English ("Fri 6 Nov", "Saturday 7 November 2026", "November 2026") are put into the
-// phone's language with the phone's own calendar words. Digits stay 0-9.
-const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MO = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const alt = (xs) => xs.map((x) => (x === "May" ? x : `${x}|${x.slice(0, 3)}`)).join("|");
-const TR_DATE_SRC = `(?:(${alt(WD)}),? )?(\\d{1,2}) (${alt(MO)})(?: (\\d{4}))?|(${MO.join("|")})(?: (\\d{4}))?`;
-const TR_DATE = new RegExp(`^(?:${TR_DATE_SRC})$`);
-const LOCALE = { zh: "zh-CN", pt: "pt-PT", es: "es-ES" };
-let trFmt = null;
-function trDate(k) {
-  const m = k.match(TR_DATE); if (!m || !trFmt) return;
-  const [, wd, d, mo, y, mo2, y2] = m, mi = MO.findIndex((x) => (mo || mo2).startsWith(x.slice(0, 3)));
-  const o = { timeZone: "UTC", month: (mo || mo2).length > 3 ? "long" : "short" };
-  if (d) o.day = "numeric";
-  else if (!y2) o.month = "long";
-  if (y || y2) o.year = "numeric";
-  if (wd) o.weekday = wd.length > 3 ? "long" : "short";
-  // Without a year, the year that puts the day on the weekday shown (this year or the ones either side).
-  const now = new Date().getUTCFullYear(), wi = wd ? WD.findIndex((x) => x.startsWith(wd.slice(0, 3))) : -1;
-  const yr = Number(y || y2) || [now, now + 1, now - 1, now + 2].find((n) => wi < 0 || new Date(Date.UTC(n, mi, Number(d))).getUTCDay() === wi);
-  return trFmt(o).format(new Date(Date.UTC(yr, mi, Number(d) || 1)));
-}
-// A phrase with someone's name, a title or a date in it is listed with {a}, {b}… for the text and {d} for a date
-// ("Accept {a}'s handover"). The text goes back as it was, or translated if it's a phrase of its own.
-let TR_PAT = [];
-const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-function trPat(en, t) {
-  const slots = [], src = en.split(/(\{(?:\d|[a-d])\})/).map((x, i) => {
-    if (!(i % 2)) return reEsc(x);
-    slots.push(x);
-    return x === "{d}" ? `(${TR_DATE_SRC.replace(/\((?!\?)/g, "(?:")})` : /\d/.test(x) ? "(\\d+(?:[.,:]\\d+)*)" : "([\\s\\S]+?)";
-  }).join("");
-  const lits = en.split(/\{(?:\d|[a-d])\}/).filter(Boolean), hint = lits.reduce((a, x) => (x.length > a.length ? x : a), "");
-  return { re: new RegExp(`^${src}$`), slots, t, hint };
-}
-const trCache = new Map();
-function trLook(k) {
-  if (trCache.has(k)) return trCache.get(k);
-  let t = TR.get(k) || trDate(k);
-  if (!t && /\d/.test(k)) { const ns = k.match(TR_NUM); let i = 0; t = TR.get(k.replace(TR_NUM, () => `{${++i}}`))?.replace(/\{(\d)\}/g, (_, j) => ns[j - 1]); }
-  if (!t) for (const p of TR_PAT) {
-    if (p.hint && !k.includes(p.hint)) continue;
-    const m = k.match(p.re); if (!m) continue;
-    const v = {}; p.slots.forEach((x, i) => (v[x] = m[i + 1]));
-    t = p.t.replace(/\{(?:\d|[a-d])\}/g, (x) => (x === "{d}" ? trDate(v[x]) || v[x] : /\d/.test(x) ? v[x] : trLook(v[x]) || v[x]));
-    break;
-  }
-  // A line made of parts ("Bar · Opening 3/8 · Closing 0/12") is put together from the parts it knows.
-  // "Glass washer drained and cleaned (Closing checklist)": both halves have to be known.
-  const pm = !t && k.match(/^(.+) \(([^()]+)\)$/);
-  if (pm) { const x = trLook(pm[1]), y = trLook(pm[2]); if (x && y) t = `${x} (${y})`; }
-  if (!t && k.includes(" · ")) { const ps = k.split(" · "), ts = ps.map((x) => trLook(x)); if (ts.some(Boolean)) t = ps.map((x, i) => ts[i] || x).join(" · "); }
-  trCache.set(k, t);
-  return t;
-}
-// Pop-ups and questions are put through the same words.
-for (const f of ["alert", "confirm", "prompt"]) { const o = window[f]; window[f] = (m, ...r) => o.call(window, trLook(String(m).trim()) || m, ...r); }
-// The English each translated text node or attribute came from, so switching back or to another language works.
-const trWas = new WeakMap();
-function trNode(n) {
-  const was = trWas.get(n) ?? n.textContent, k = was.trim(), t = trLook(k);
-  if (t) { if (!trWas.has(n)) trWas.set(n, was); const v = was.replace(k, t); if (n.textContent !== v) n.textContent = v; }
-  else if (trWas.has(n)) { n.textContent = was; trWas.delete(n); }
-}
-function trAttr(el, a) {
-  const key = "data-en-" + a, was = el.getAttribute(key) ?? el.getAttribute(a), t = trLook(was.trim());
-  if (t) { el.setAttribute(key, was); if (el.getAttribute(a) !== t) el.setAttribute(a, t); }
-  else if (el.hasAttribute(key)) { el.setAttribute(a, was); el.removeAttribute(key); }
-}
-const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no],[data-ut]";
-function trTree(root) {
-  if (root.nodeType === 3) { if (!root.parentElement?.closest(TR_SKIP)) trNode(root); return; }
-  if (root.nodeType !== 1 || root.closest(TR_SKIP)) return;
-  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentElement.closest(TR_SKIP) ? 2 : 1) });
-  for (let n; (n = w.nextNode());) trNode(n);
-  for (const el of [root, ...root.querySelectorAll("[placeholder],[aria-label],[title]")]) for (const a of ["placeholder", "aria-label", "title"]) if (el.hasAttribute(a) && !el.closest("[translate=no]")) trAttr(el, a);
-}
-// Everything drawn later is translated as it lands.
-const trObs = new MutationObserver((ms) => {
-  for (const m of ms) m.addedNodes.forEach((n) => n.nodeType === 1 && utMark(n));
-  if (!TR.size) return;
-  trObs.disconnect();
-  for (const m of ms) if (m.type === "characterData") { trWas.delete(m.target); trTree(m.target); } else m.addedNodes.forEach(trTree);
-  trWatch();
-});
-const trWatch = () => trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
-function setLang(c) {
-  lang = c; store.set("lang", c); if (c) store.set("lang.last", c); trBuild();
-  langBtn(); utMark(document.body);
-  document.documentElement.lang = c || "en-GB"; document.documentElement.dir = LANG_RTL.has(c) ? "rtl" : "ltr";
-  trObs.disconnect(); trTree(document.body); trWatch();
-  $$("select[data-lang]").forEach((s) => (s.value = c));
-}
-/* What people write or send (chat, broadcasts, notes, issues, handovers) isn't in the app's dictionary, so it gets a
-   Translate button that opens Google Translate with the words, into this phone's language (or English, on an English
-   phone). It's free and needs signal; the words go to Google. On an English phone the button shows only for writing
-   with letters outside English (Polish, Arabic, Hindi…), so English messages stay uncluttered. */
-const GT_LANG = { zh: "zh-CN", pt: "pt-PT" };
-function utMark(root) {
-  const els = root.matches?.("[data-ut]") ? [root] : root.querySelectorAll ? root.querySelectorAll("[data-ut]") : [];
-  for (const el of els) {
-    const t = el.textContent.trim(), want = /\p{L}{2}/u.test(t) && (!!lang || /[^\x00-\x7F]/.test(t)), has = el.nextElementSibling?.matches(".utx");
-    if (want && !has) el.insertAdjacentHTML("afterend", `<button class="utx" data-utx>Translate</button>`);
-    else if (!want && has) el.nextElementSibling.remove();
-  }
-}
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-utx]"); if (!b) return;
-  const t = b.previousElementSibling?.textContent.trim(); if (!t) return;
-  window.open(`https://translate.google.com/?sl=auto&tl=${GT_LANG[lang] || lang || "en"}&text=${encodeURIComponent(t)}&op=translate`, "_blank", "noopener");
-});
-// One tap between English and the language picked last, from the top of every page.
-function langBtn() {
-  const b = $("#lang-btn"), last = store.get("lang.last", ""), to = lang ? "" : last, l = LANGS.find(([c]) => c === (lang || last));
-  b.hidden = !l; if (!l) return;
-  b.textContent = to ? to.toUpperCase() : "EN"; b.dataset.to = to;
-  b.setAttribute("aria-label", to ? `${l[1]} (${l[2]})` : "English");
-}
-$("#lang-btn").addEventListener("click", (e) => { setLang(e.currentTarget.dataset.to); haptic(); });
-// The list to pick from: English first, then each language in its own words, with the English name after it.
-const langOptions = () => `<option value="">English</option>${LANGS.map(([c, own, en]) => `<option value="${c}"${c === lang ? " selected" : ""}>${own} (${en})</option>`).join("")}`;
-document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); haptic(); } });
 
 /* ---------- My pay ----------
    Everything about pay in one tab, kept on this phone only: nobody else sees it and it never goes online. Hours come
@@ -4082,6 +3936,7 @@ function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
     <h2 class="pgt">More</h2>
+    ${plDailyHtml()}
     <div class="sec">Drinks</div>
     <div class="hub">
       ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
@@ -4111,8 +3966,6 @@ function renderInfo() {
     ${fold("prep", "Prep and batches", prep)}
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
     <div class="sec">This phone</div>
-    <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
-    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Use Send feedback above.</p>
     <div class="mini" style="margin-top:14px">Light or dark</div>
     <div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. This phone only.</p>
@@ -4131,10 +3984,10 @@ function renderInfo() {
       <li>Tap <b>Install</b>. It now opens like an app.</li>
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>`)}
-    ${fold("clear", "Clear everything", `
-    <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the language and look, and anything else saved on it. Then the app starts again as new. Nobody else's phone changes, and it can't be undone.</p>
+    ${fold("clear", "Reset this phone", `
+    <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the look, and anything else saved on it. Then the app starts again as new. Nobody else's phone changes, and it can't be undone.</p>
     <label class="fld">Type ${CLEAR_WORD} to show you mean it<input id="cp-words" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
-    <button class="btn danger wide" id="cp-go">Clear everything on this phone</button>`, "clear")}
+    <button class="btn danger wide" id="cp-go">Reset this phone</button>`, "clear")}
     ${offlineReady ? `<p class="note">Offline ready ✓</p>` : ""}<p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
     <p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p>`;
 }
@@ -4143,8 +3996,11 @@ keepOpen($("#v-info"), (e) => {
   d.open ? infoOpen.add(d.dataset.fold) : infoOpen.delete(d.dataset.fold);
   store.set("infoOpen", [...infoOpen]);
 });
-$("#v-info").addEventListener("click", (e) => { const b = e.target.closest("[data-go]"); if (b) { haptic(); show(b.dataset.go); } });
-/* Clear everything, at the bottom of More: everything the app keeps on this phone goes, and it starts again as new. */
+$("#v-info").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-go]"); if (b) { haptic(); show(b.dataset.go); }
+  const o = e.target.closest(".pl-daily"); if (o) openSheet(+o.dataset.plDaily);
+});
+/* Reset this phone, at the bottom of More (Shift's Clear everything is the team's lists; this is the phone): everything the app keeps on this phone goes, and it starts again as new. */
 const CLEAR_WORD = "CLEAR";
 function clearPhone() {
   Object.keys(localStorage).filter((k) => k.startsWith("btbar.")).forEach((k) => localStorage.removeItem(k));
@@ -4179,7 +4035,7 @@ const FEATURES = [
   { g: "Drinks", k: "sheets", n: "Cheat sheets", go: "tab:sheets",
     what: "A4 pages to print double-sided and laminate for behind the bar, a section of drinks on each." },
   { g: "Drinks", k: "info", n: "More", go: "tab:info",
-    what: "Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's language, look and home screen icon." },
+    what: "Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's look and home screen icon." },
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", tour: 1,
     what: "Everything about your pay in one tab: your hours, an estimated take-home after tax, National Insurance, student loan and pension, tronc at £5 an hour that you can switch off, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
     staff: "Add shifts, read them from a Nory screenshot, type in Nory's hours or gross wage, or just pick about how many hours a week. Then set your tax code, loan and pension once." },
@@ -4404,7 +4260,7 @@ const ASK = { dayoff: "Day off", swap: "Shift swap", complaint: "Complaint", fau
 const ASK_ST = { new: ["Sent", "wait"], seen: ["Seen", ""], done: ["Done", "ok"] };
 let askF = { kind: "dayoff", text: "", when: "", anon: false }, sentAnon = store.get("sentAnon", []);
 const askLine = (a) => `<article class="notice"><div class="meta"><b>${ASK[a.kind] || "Message"}</b> · ${a.anon ? "anonymous" : esc(a.name)} · ${when(a.at)} <span class="pill ${ASK_ST[a.status][1]}">${ASK_ST[a.status][0]}</span></div>
-  ${a.when ? `<p class="note">When: ${esc(a.when)}</p>` : ""}<p class="txt">${ut(a.text)}</p>${a.reply ? `<p class="note">${esc(a.by)}: ${ut(a.reply)}</p>` : ""}`;
+  ${a.when ? `<p class="note">When: ${esc(a.when)}</p>` : ""}<p class="txt">${esc(a.text)}</p>${a.reply ? `<p class="note">${esc(a.by)}: ${esc(a.reply)}</p>` : ""}`;
 function askHtml() {
   const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
   return `<p class="note">Only the seniors see these, not the rest of the team. For things the team shouldn't share with the seniors, use Team only below.</p>
@@ -4483,9 +4339,9 @@ const fixText = {};
 function issuesHtml() {
   const open = openIssues().sort((a, b) => (b.urgent - a.urgent) || (ms(a.at) - ms(b.at)));
   const fixed = LIVE.issues.filter((x) => x.status === "fixed").slice(0, 10);
-  const row = (x) => `<article class="notice issue${x.urgent ? " new" : ""}"><div class="meta"><b>${ut(x.title)}</b>${x.pending ? " · sending…" : ""}</div>
+  const row = (x) => `<article class="notice issue${x.urgent ? " new" : ""}"><div class="meta"><b>${esc(x.title)}</b>${x.pending ? " · sending…" : ""}</div>
     <div class="tags">${x.urgent ? `<span class="pill no">Urgent</span>` : ""}<span class="pill">${AREA[x.area] || "Other"}</span>${x.status === "taken" ? `<span class="pill wait">On it: ${esc(x.who)}</span>` : `<span class="pill">Nobody on it yet</span>`}${x.again ? `<span class="pill">Raised again</span>` : ""}</div>
-    ${x.detail ? `<p class="txt">${ut(x.detail)}</p>` : ""}
+    ${x.detail ? `<p class="txt">${esc(x.detail)}</p>` : ""}
     <p class="note" style="margin-top:6px">Raised by ${esc(x.name)} · ${when(x.at)}</p>
     <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${sendBtn("issue", "Send on WhatsApp", x.id)}<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}" translate="no">${esc(p.name)}</option>`).join("")}</select>${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
     <div class="rvrow" style="grid-template-columns:1fr auto"><input data-fixt="${x.id}" maxlength="500" placeholder="What was done to fix it" value="${esc(fixText[x.id] || "")}" aria-label="What was done to fix it"><button class="btn pri" data-fix="${x.id}">Fixed</button></div></article>`;
@@ -4497,7 +4353,7 @@ function issuesHtml() {
       ${draftBar("issue")}<div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again && !drafted("issue") ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
     ${open.map(row).join("") || `<p class="note">No open issues.</p>`}
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
-    ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${ut(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${ut(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
+    ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${esc(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${esc(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
 }
 /* ---------- Everything else that goes out from the Send page ----------
    Each builder gives the Send page a message: WhatsApp, email, the share sheet, copy, print or a picture. */
@@ -4635,7 +4491,6 @@ const CALL_UK = [
 ];
 const clF = { t: "", n: "", p: "" };
 const telOf = (p) => `tel:${String(p).replace(/[^\d+]/g, "")}`;
-// Our own numbers' "who" is a name or a company, so it's never translated.
 const callRow = (p, t, sub, cls = "", own = false) => `<a class="callrow${cls}" href="${esc(telOf(p))}"><span>${esc(t)}${sub ? `<small${own ? ' translate="no"' : ""}>${esc(sub)}</small>` : ""}</span><span class="num" translate="no">${esc(p)}</span></a>`;
 function callHtml() {
   const ours = LIVE.contacts;
@@ -4657,7 +4512,7 @@ function callHtml() {
 const TELL = { missing: "Something missing", add: "Add this", wrong: "Something's wrong" };
 const ownerName = () => firstName(LIVE.staff.find((p) => p.role === "owner")?.name) || "Derek";
 let tellF = { kind: "missing", text: "" };
-const tellRow = (x, own) => `<article class="notice"><div class="meta"><b>${TELL[x.kind]}</b> · ${own ? "" : `<span translate="no">${esc(x.name)}</span> · `}${when(x.at)} <span class="pill ${x.status === "done" ? "ok" : "wait"}">${x.status === "done" ? "Done" : "Sent"}</span></div><p class="txt">${ut(x.text)}</p>`;
+const tellRow = (x, own) => `<article class="notice"><div class="meta"><b>${TELL[x.kind]}</b> · ${own ? "" : `<span translate="no">${esc(x.name)}</span> · `}${when(x.at)} <span class="pill ${x.status === "done" ? "ok" : "wait"}">${x.status === "done" ? "Done" : "Sent"}</span></div><p class="txt">${esc(x.text)}</p>`;
 function tellHtml() {
   const mine = LIVE.tells.filter((x) => x.uid === LIVE.uid);
   return `<p class="note">Only ${esc(ownerName())} reads these: what's missing from Bar Book, what to add, or what's wrong in it.</p>
@@ -4918,7 +4773,7 @@ $("#v-notices").addEventListener("click", async (e) => {
   // The manager.
   if ((x = b("[data-rp-photos]"))) {
     const id = x.dataset.rpPhotos;
-    return busy(x, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
+    return busy(x, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${esc(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
   }
   if ((x = b("[data-tm-drop]"))) {
     const p = LIVE.staff.find((s) => s.uid === x.dataset.tmDrop); if (!p) return;
@@ -5088,7 +4943,10 @@ $("nav.tabs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]"); if (!b) return;
   const t = b.dataset.tab;
   // The tab you're on: back to its top. Drinks remembers its last mode; More opens on its own page.
-  if (t === tabOf(cur) && !MORE_TABS.includes(cur)) return window.scrollTo({ top: 0, behavior: "smooth" });
+  if (t === tabOf(cur) && !MORE_TABS.includes(cur)) {
+    if (cur === "drinks" && scrollY < 10) return $("#q").focus();
+    return window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   haptic(); show(t === "drinks" ? store.get("dmode", "drinks") : t);
 });
 document.addEventListener("click", (e) => { if (e.target.closest("[data-back]")) { haptic(); show("info"); } });
@@ -5099,11 +4957,15 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-back]"))
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { offlineReady = !!hit; if (hit && cur === "info") renderInfo(); }).catch(() => {});
+  // The app opens from the phone, so a new release arrives in the background. Once it's stored, say so: a tap reloads
+  // into it, or it's there next time the app opens. Anything half-typed is kept as a draft either way.
+  if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener("controllerchange", () => { $("#upd").hidden = false; }, { once: true });
+  $("#upd").addEventListener("click", () => location.reload());
 }
 renderChips(); renderList();
 {
   const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
-  $("#w-lang").innerHTML = langOptions(); renderWelcomeName();
+  renderWelcomeName();
   w.addEventListener("click", (e) => {
     const b = e.target.closest("[data-start]"); if (!b) return;
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
@@ -5113,7 +4975,6 @@ renderChips(); renderList();
   });
 }
 navCols();
-setLang(lang);
 if (!plOpenList(location.hash)) show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 addEventListener("hashchange", () => plOpenList(location.hash));
 </script>

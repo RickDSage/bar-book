@@ -39,7 +39,7 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   await p.click("[data-tab=info]");
   assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["Allergens", "Practise specs", "Cheat sheets", "What's in the app", "Send feedback"]);
   assert.deepEqual(await p.$$eval("#v-info .fold h2", (x) => x.map((h) => h.textContent)), ["Measures and the law", "Technique key", "Prep and batches",
-    "Shot tray, step by step", "Put this app on your home screen", "Clear everything"]);
+    "Shot tray, step by step", "Put this app on your home screen", "Reset this phone"]);
   assert.equal(await p.locator("#v-info [data-fold=law][open]").count(), 0, "the reference starts folded");
   await p.click("[data-fold=law] summary");
   assert.match(await p.$eval("[data-fold=law]", (e) => e.innerText), /Jigger everything/);
@@ -60,6 +60,9 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   await p.click("#subnav [data-tab=make]"); await p.click("nav.tabs [data-tab=tally]"); await p.click("nav.tabs [data-tab=drinks]");
   assert.equal(await p.isVisible("#v-make"), true);
   await p.click("#subnav [data-tab=drinks]");
+  // On Menu at the top, tapping Drinks again goes straight into the search.
+  await p.click("nav.tabs [data-tab=drinks]");
+  assert.equal(await p.evaluate(() => document.activeElement.id), "q");
   assert.ok(await p.evaluate(() => [...document.querySelectorAll("nav.tabs button:not([hidden])")].every((b) => { const r = document.createRange(); r.selectNodeContents(b.lastChild); return r.getClientRects().length === 1; })));
   assert.deepEqual(p.errs, []);
 });
