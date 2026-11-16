@@ -129,11 +129,11 @@ service cloud.firestore {
 
     // ---------- A copy of everything sent ----------
     // Each message sent from the Send page (WhatsApp, email, share sheet, print) is copied here for the seniors and
-    // the owner. Team only: rate the shift ('rate') goes with no uid and no name; My pay ('hours') and the team link ('team') are never copied.
+    // the owner. Team only: rate the shift ('rate') goes with no uid and no name; My pay ('hours', 'pay') and the team link ('team') are never copied.
     match /sent/{id} {
       allow read: if isManager();
       allow create: if isMember() && incoming().k is string && incoming().k.size() > 0 && incoming().k.size() <= 20
-        && !(incoming().k in ['hours', 'team']) && reqText(incoming().what, 100) && reqText(incoming().text, 8000)
+        && !(incoming().k in ['hours', 'pay', 'team']) && reqText(incoming().what, 100) && reqText(incoming().text, 8000)
         && ((incoming().k == 'rate' && exactly(['k', 'what', 'text', 'anon', 'at']) && incoming().anon == true && incoming().at == request.time)
           || (incoming().k != 'rate' && exactly(['k', 'what', 'text', 'uid', 'name', 'at']) && stamped()));
       allow delete: if isOwner();

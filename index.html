@@ -1097,7 +1097,7 @@ function renderSend(m = sndMsg()) {
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
     ${files ? `<div class="actions"><button class="btn" data-send-copy>Copy the words</button><button class="btn pri" data-send-sheet>Send with photos</button></div>
       <ol class="sendhow"><li>Tap Copy the words, then Send with photos.</li><li>Pick WhatsApp, then the chat.</li><li>Press and hold the caption box, tap Paste, then send.</li></ol>` : ""}
-    <div class="actions"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-print>Print</button></div>
+    <div class="actions"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-pic>As a picture</button><button class="btn" data-send-print>Print</button></div>
     ${ph && !files ? `<p class="note">WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF.</p>` : ""}
     ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
     <p class="note">It goes in English, so everyone can read it.</p>
@@ -1107,6 +1107,28 @@ function renderSend(m = sndMsg()) {
 // The preview shows the bold that WhatsApp will show, not the marks.
 const preHtml = (t) => esc(t).replace(/^\*([^*\n]+)\*$/gm, "<b>$1</b>");
 const sendPreview = () => { const pre = $("#send-pre"), m = sndMsg(); if (pre && m) pre.innerHTML = preHtml(msgText(m, snd.pick, snd.note)); };
+// As a picture: the message drawn as a JPEG card, for a WhatsApp status, a printer by the bar or a phone that can't
+// open PDFs. The share sheet takes it where the phone can; otherwise it opens to be saved.
+async function sendPicture(title, text) {
+  const W = 1080, pad = 64, fs = 34, lh = Math.round(fs * 1.45), c = document.createElement("canvas"), g = c.getContext("2d");
+  const font = (b, z = fs) => `${b ? 700 : 400} ${z}px -apple-system, system-ui, "Segoe UI", Roboto, sans-serif`;
+  g.font = font(false);
+  const rows = text.split("\n").flatMap((l, i) => (l.trim() ? fitLines(g, l, W - pad * 2).map((x) => [x, i === 0]) : [["", false]]));
+  c.width = W; c.height = pad * 2 + rows.length * lh + 40;
+  g.fillStyle = "#111"; g.fillRect(0, 0, W, c.height); g.fillStyle = "#c9a45c"; g.fillRect(0, 0, W, 12);
+  g.textBaseline = "top";
+  rows.forEach(([l, head], i) => { g.font = font(head, head ? fs + 4 : fs); g.fillStyle = head ? "#c9a45c" : "#f4f1ea"; g.fillText(l, pad, pad + i * lh); });
+  g.font = font(false, 22); g.fillStyle = "#8a8579"; g.fillText("Black Tap Bar Book", pad, c.height - pad + 8);
+  const blob = await new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.9));
+  const file = new File([blob], `${title.replace(/[^\w ]+/g, "").trim().slice(0, 40).replace(/ +/g, "-") || "bar-book"}.jpg`, { type: "image/jpeg" });
+  const save = () => {
+    const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = file.name; a.target = "_blank"; a.rel = "noopener";
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000);
+  };
+  // Safari can refuse the share sheet once drawing has taken a moment; the picture opens to be saved instead.
+  if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file] }).catch((e) => { if (e?.name !== "AbortError") save(); });
+  save();
+}
 // Print: the message and its photos on their own, for the venue's printer or to save as a PDF.
 function printMsg(text, photos) {
   $("#print").innerHTML = `<pre>${esc(text)}</pre>${photos.map((x) => `<figure><img src="${x.data}" alt="">${x.note ? `<figcaption>${esc(x.note)}</figcaption>` : ""}</figure>`).join("")}`;
@@ -1114,7 +1136,7 @@ function printMsg(text, photos) {
 }
 /* A copy of everything sent from the Send page (WhatsApp, email, the share sheet or print) goes to the seniors and the
    owner, once per message. Team only: rate the shift goes with no name; My pay and the team link stay on the phone. */
-const PRIVATE_SEND = new Set(["hours", "team"]);
+const PRIVATE_SEND = new Set(["hours", "pay", "team"]);
 function logSent(m) {
   if (!LIVE.me || !LIVE.api || PRIVATE_SEND.has(snd.k)) return;
   const anon = snd.k === "rate", text = msgText(anon ? SHARE.rate(null, true) : m, snd.pick, snd.note, false).slice(0, 8000);
@@ -1151,6 +1173,7 @@ document.addEventListener("click", (e) => {
   }
   const ux = e.target.closest("[data-send-unphoto]");
   if (ux) { snd.photos.splice(+ux.dataset.sendUnphoto, 1); sndFiles(); renderSend(m); return; }
+  if (e.target.closest("[data-send-pic]")) { logSent(m); sendPicture(m.title, msgText(m, snd.pick, snd.note, false)); return; }
   if (e.target.closest("[data-send-print]")) { logSent(m); printMsg(msgText(m, snd.pick, snd.note, false), snd.photos); }
 });
 document.addEventListener("change", (e) => {
@@ -1546,7 +1569,7 @@ function renderAllergens() {
   if (!alSel) { $("#allist").innerHTML = `<p class="note" style="margin-top:14px">Foam on the house cards is foamer drops, never egg white. Check the foamer label for its own allergens.</p>`; return; }
   const re = ALLERGENS.find((a) => a[0] === alSel)[1];
   const rows = D.filter((d) => alHit(d, re));
-  $("#allist").innerHTML = `<div class="sec" translate="no">${esc(alSel)}: ${rows.length}</div>` + rows.map(rowHtml).join("");
+  $("#allist").innerHTML = `<div class="sec" translate="no">${esc(alSel)}: ${rows.length}</div>` + rows.map(rowHtml).join("") + `<div class="actions">${sendBtn("allergen", "Send this list", alSel)}</div>`;
 }
 $("#algrid").addEventListener("click", (e) => { const b = e.target.closest("[data-al]"); if (!b) return; alSel = alSel === b.dataset.al ? null : b.dataset.al; renderAllergens(); });
 
@@ -2503,6 +2526,7 @@ function restockHtml() {
     <label class="fld">Detail (optional)<input id="rs-detail" maxlength="200" value="${esc(rsF.detail)}" placeholder="Running low, the big bottles, for the weekend…"></label>
     ${draftBar("restock")}<div class="actions"><button class="btn pri" id="rs-go">Ask for it</button></div>
     ${open.map(rsCard).join("") || `<p class="note">Nothing waiting to come up.</p>`}
+    ${open.length ? `<div class="actions">${sendBtn("restock", "Send the restock list")}</div>` : ""}
     ${done.length ? `<details class="setup"><summary>Done tonight (${done.length})</summary>${done.map(rsCard).join("")}</details>` : ""}`;
 }
 // How many, asked for in a box with a suggestion filled in. Nothing, or not a sensible amount, means don't make the change.
@@ -2684,6 +2708,7 @@ function labelsHtml(side) {
   if (!LIVE.loaded.has("labels")) return `${head}<p class="note">Loading. It needs signal the first time.</p>`;
   return `${head}<p class="note">Opened one? Tap Opened one and write the date it gives you on the label. Binned the old one and opened a new one? Tap Changed it. Each tap is saved with your name and the time.</p>
     ${sideLabels(side).map(labelRow).join("") || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
+    ${sideLabels(side).some((x) => x.on) ? `<div class="actions">${sendBtn("labels", "Send the date labels", side)}</div>` : ""}
     ${LIVE.admin ? labelAddHtml(side) : ""}`;
 }
 // The reminder at the top of a side's first and last pages: what's overdue, due today and due tomorrow.
@@ -2993,6 +3018,7 @@ function renderFootball() {
   box.innerHTML = `<div class="notice football"><div class="meta"><b>Football tonight</b></div>
     ${now.length ? now.map(fxRow).join("") : `<p class="note">No games on our screens today.</p>`}
     ${soon.length ? `<details><summary>Coming up (${soon.length})</summary>${soon.map((x) => `<div class="s" style="margin-top:8px"><b>${esc(dayName(x.day))}</b></div>${fxRow(x)}`).join("")}</details>` : ""}
+    ${now.length || soon.length ? `<div class="actions">${sendBtn("games", "Send the games")}</div>` : ""}
     ${form}</div>`;
 }
 $("#football").addEventListener("input", (e) => { const k = e.target.dataset.fx; if (k) fxForm[k] = e.target.value; });
@@ -5277,6 +5303,7 @@ function payOutHtml() {
       ${pay.ded.map((x) => row(esc(x.name), "−" + gbp(num(x.amt)))).join("")}
       ${row("Take-home", r.net == null ? "?" : gbp(r.net), ' class="take"')}
     </dl>
+    <div class="actions">${sendBtn("pay", "Send the breakdown")}</div>
     ${H.hours ? `<p class="note">Holiday earned: about ${fmtN(H.hours * HOLIDAY)} h, if you're on irregular hours (12.07% of the hours you work).</p>` : ""}`;
 }
 // Bills, and what's left of the month's take-home after them, a week at a time until the next pay day.
@@ -5864,6 +5891,58 @@ function issuesHtml() {
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
     ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${ut(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${ut(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
 }
+/* ---------- Everything else that goes out from the Send page ----------
+   Each builder gives the Send page a message: WhatsApp, email, the share sheet, copy, print or a picture. */
+SHARE.restock = () => {
+  const o = rsOpen().sort((a, b) => ms(a.askedAt) - ms(b.askedAt)); if (!o.length) return null;
+  return { what: "Restock list", title: `Black Tap Soho restock · ${dayName(shiftDay())} · ${hhmm(new Date())}`,
+    head: [`📦 ${plural(o.length, "thing")} to come up from the cellar`],
+    parts: Object.entries(DEST).map(([k, t]) => ({ id: k, label: t, opt: true, lines: o.filter((r) => r.dest === k)
+      .map((r) => `${r.item}: ${amt(r.qty, r.unit)}, ${lower(RS[r.status])}${r.who && ["given", "doing"].includes(r.status) ? ` (${r.who})` : ""}`) })) };
+};
+SHARE.labels = (side = mode) => {
+  const xs = LIVE.labels.filter((x) => x.on && x.side === side); if (!xs.length) return null;
+  const open = xs.filter((x) => x.state === "open" && x.useBy).sort((a, b) => a.useBy.localeCompare(b.useBy)), due = labelsDue([side]);
+  return { what: "Date labels", title: `Black Tap Soho ${lower(sideName(side))} date labels · ${dayName(shiftDay())}`,
+    head: [due.length ? `🏷️ ${plural(due.length, "label")} to change soon` : "✅ No date labels due"],
+    parts: [
+      { id: "due", label: "Due", lines: due.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
+      { id: "open", label: "Open now", off: !!due.length, lines: open.filter((x) => !due.includes(x)).map((x) => `${x.item}: use by ${dayName(x.useBy)}`) },
+      { id: "keeps", label: "How long each keeps", off: true, lines: xs.filter((x) => x.life).map((x) => `${x.item}: ${plural(x.life, "day")}`) },
+    ] };
+};
+SHARE.contacts = () => ({ what: "Who to call", title: "Black Tap Soho · who to call",
+  head: [], parts: [
+    { id: "ours", label: "Our numbers", lines: LIVE.contacts.map((c) => `${c.t}${c.n ? ` (${c.n})` : ""}: ${c.p}`) },
+    { id: "uk", label: "In an emergency", lines: CALL_UK.map(([p, t]) => `${t}: ${p}`) },
+  ] });
+SHARE.report = (id) => {
+  const r = LIVE.reports.find((x) => x.id === id); if (!r) return null;
+  return { what: "Closing report", title: r.summary, head: [`Sent by ${r.name}, ${when(r.at)}`], noteHead: null,
+    parts: [{ id: "report", label: "Report", one: true, raw: true, lines: r.text.split("\n") }],
+    photos: r.photos ? () => LIVE.api.loadPhotos(r.id) : null };
+};
+SHARE.games = () => {
+  const today = ukDay(Date.now()), xs = LIVE.fixtures.filter((x) => x.day >= today).sort((a, b) => (a.day + a.ko).localeCompare(b.day + b.ko));
+  if (!xs.length) return null;
+  return { what: "Games on", title: "⚽ Games on at Black Tap Soho", head: [],
+    parts: [...new Set(xs.map((x) => x.day))].map((d) => ({ id: d, label: d === today ? "Today" : dayName(d), one: true,
+      lines: xs.filter((x) => x.day === d).map((x) => `${x.ko} ${x.home} v ${x.away}${x.comp ? `, ${x.comp}` : ""}${x.channel ? ` (${x.channel})` : ""}`) })) };
+};
+SHARE.allergen = (n = alSel) => {
+  const a = ALLERGENS.find((x) => x[0] === n); if (!a) return null;
+  const rows = D.filter((d) => alHit(d, a[1]));
+  return { what: `${n} allergen list`, title: `Black Tap Soho · drinks with ${n.toLowerCase()}`, head: [`${plural(rows.length, "drink")} on our specs`],
+    parts: [{ id: "drinks", label: "Drinks", lines: rows.map((d) => d.name) }],
+    tip: "Always check the venue's allergen matrix and the bottle labels: they are the final word." };
+};
+// My pay's estimate as it shows on the page. It stays personal: it's never copied to the seniors.
+SHARE.pay = () => {
+  const box = document.createElement("div"); box.style.cssText = "position:absolute;left:-9999px;width:400px"; box.innerHTML = payOutHtml(); document.body.append(box);
+  const lines = [...box.querySelectorAll("dt")].map((dt) => `${dt.innerText.trim()}: ${dt.nextElementSibling?.innerText.trim() || ""}`); box.remove();
+  return { what: "My pay estimate", title: `My pay estimate for ${mName(pm)}`, head: ["An estimate from Bar Book. The payslip is the final word."],
+    parts: [{ id: "pay", label: "Breakdown", one: true, lines }] };
+};
 SHARE.issues = () => {
   const o = openIssues().sort((a, b) => ms(a.at) - ms(b.at)), u = o.filter((x) => x.urgent);
   return { what: "Open issues", title: `Black Tap Soho issues · ${dayName(shiftDay())}`,
@@ -5949,6 +6028,7 @@ function callHtml() {
     <div class="mini">Our numbers</div>
     ${ours.map((c, i) => `${callRow(c.p, c.t, c.n, "", true)}${LIVE.admin ? `<div class="actions"><button class="btn" data-cl-drop="${i}">Remove</button></div>` : ""}`).join("")
       || `<p class="note">None yet. ${LIVE.admin ? "Add the numbers the team needs on a shift: the duty manager, maintenance, the glass washer engineer." : "The seniors add them."}</p>`}
+    <div class="actions">${sendBtn("contacts", "Send the numbers")}</div>
     ${LIVE.admin ? `<div class="h3">Add a number</div>
       <label class="fld">What for<input data-cl="t" maxlength="40" value="${esc(clF.t)}" placeholder="Duty manager"></label>
       <label class="fld">Who (optional)<input data-cl="n" maxlength="60" value="${esc(clF.n)}" placeholder="The company or the person"></label>
@@ -5994,7 +6074,7 @@ function inboxHtml() {
 }
 function reportsHtml() {
   return LIVE.reports.map((r) => `<details class="setup"><summary>${esc(r.summary)} · ${esc(r.name)}, ${when(r.at)}</summary><pre class="sendpre" translate="no">${esc(r.text)}</pre>
-    ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}</details>`).join("") || `<p class="note">No closing reports yet.</p>`;
+    <div class="actions">${sendBtn("report", "Send this report", r.id)}${r.photos ? `<button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button>` : ""}</div>${r.photos ? `<div id="rp-ph-${r.id}" class="sendph"></div>` : ""}</details>`).join("") || `<p class="note">No closing reports yet.</p>`;
 }
 const outlogHtml = () => LIVE.outlog.slice(0, 60).map((x) => `<div class="staffrow"><div class="n">${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "86'd" : "back on"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">No 86s yet.</p>`;
 const ROLE = { owner: "owner", manager: "senior", staff: "" };

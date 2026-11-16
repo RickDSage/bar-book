@@ -285,6 +285,7 @@ describe("everything sent: a copy for the owner and seniors", () => {
   test("My pay and the team link are never copied, and bad ones are refused", async () => {
     await assertFails(addDoc(collection(db("staff1"), "sent"), sent("staff1", { k: "hours" })));
     await assertFails(addDoc(collection(db("staff1"), "sent"), sent("staff1", { k: "team" })));
+    await assertFails(addDoc(collection(db("staff1"), "sent"), sent("staff1", { k: "pay" })));
     await assertFails(addDoc(collection(db("staff1"), "sent"), { k: "hours", what: "My pay", text: "x", anon: true, at: now() }));
     for (const bad of [{ k: "" }, { k: "x".repeat(21) }, { what: " " }, { text: "x".repeat(8001) }, { name: "Mia Manager" }, { anon: true }, { extra: 1 }]) {
       await fails(addDoc(collection(db("staff1"), "sent"), sent("staff1", bad)), JSON.stringify(bad).slice(0, 40));
