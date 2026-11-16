@@ -3,7 +3,7 @@
    then what guests ask for most, shots, alcohol-free and serves. Tap a button for the full spec; swipe on from there
    through the same list. "Specs on" shows each spec right on the page, so most questions need no tap at all. */
 const RAPID_GROUPS = [
-  ["House cocktails", (d) => d.section === "Black Tap Signatures"],
+  ["Black Tap signatures", (d) => d.section === "Black Tap Signatures"],
   // The classics UK guests ask for most (CGA and trade top-seller lists), in the order the bar hears them.
   ["Guests ask for", ["Pornstar Martini", "Espresso Martini", "Mojito", "Aperol Spritz", "Margarita", "Piña Colada", "Long Island Iced Tea", "Daiquiri", "Strawberry Daiquiri",
     "Sex on the Beach", "Cosmopolitan", "Old Fashioned", "Negroni", "Hugo Spritz", "Spicy Margarita", "Tommy's Margarita", "Paloma", "Moscow Mule", "Whiskey Sour", "Amaretto Sour",
@@ -29,17 +29,26 @@ function renderRapid() {
   // The same search as the menu: typos, "redbull" or "g&t" find what they mean.
   const words = RAPID.q.trim() ? plQuery(RAPID.q.trim()).words : [];
   const hit = (d) => plHits(d, words);
-  const top = words.length ? [] : rushNames().map((n) => D.find((d) => d.name === n));
-  const seen = new Set(top.map((d) => d.id)), groups = [];
-  for (const [t, f] of RAPID_GROUPS) {
+  // Our signatures first, then the Top 10 (without the signatures already above), then the rest.
+  const sigs = rapidList(RAPID_GROUPS[0][1]).filter(hit), seen = new Set(sigs.map((d) => d.id));
+  const top = words.length ? [] : rushNames().map((n) => D.find((d) => d.name === n)).filter((d) => d && !seen.has(d.id));
+  top.forEach((d) => seen.add(d.id));
+  const groups = [];
+  for (const [t, f] of RAPID_GROUPS.slice(1)) {
     const ds = rapidList(f).filter((d) => !seen.has(d.id) && hit(d)); ds.forEach((d) => seen.add(d.id));
     if (ds.length) groups.push([t, ds]);
   }
   // Searching reaches the whole book, after the house list.
   if (words.length) { const more = D.filter((d) => !seen.has(d.id) && hit(d)).slice(0, 40); if (more.length) groups.push(["Everything else", more]); }
-  RAPID.ids = [...top, ...groups.flatMap(([, ds]) => ds)].map((d) => d.id);
-  $("#rp-out").innerHTML = (top.length ? `<div class="sec">Top 10<span class="cnt"><button class="linkbtn" data-rush="edit">Change</button></span></div>${rushHtml(top)}` : "") + groups.map(([t, ds]) => `<div class="sec">${esc(t)}<span class="cnt">${ds.length}</span></div><div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${ds.map(rapidTile).join("")}</div>`).join("")
-    || `<p class="empty">Nothing matches. Try a spirit, like “rum”.</p>`;
+  RAPID.ids = [...sigs, ...top, ...groups.flatMap(([, ds]) => ds)].map((d) => d.id);
+  // Each part gets a heading that sticks while you scroll it, and the bar at the top jumps to any part.
+  const parts = [...(sigs.length ? [["Black Tap signatures", `<div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${sigs.map(rapidTile).join("")}</div>`, sigs.length]] : []),
+    ...(top.length ? [["Top 10", rushHtml(top), `<button class="linkbtn" data-rush="edit">Change</button>`]] : []),
+    ...groups.map(([t, ds]) => [t, `<div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${ds.map(rapidTile).join("")}</div>`, ds.length])];
+  $("#rp-out").innerHTML = parts.length ? (parts.length > 1 ? `<nav class="azbar secbar" aria-label="Jump to a part">${parts.map(([t], i) => `<button data-jump="rp-${i}">${esc(t)}</button>`).join("")}</nav>` : "")
+    + parts.map(([t, html, cnt], i) => `<i class="anc" id="rp-${i}"></i><div class="sec">${esc(t)}<span class="cnt">${cnt}</span></div>${html}`).join("")
+    : `<p class="empty">Nothing matches. Try a spirit, like “rum”.</p>`;
+  $("#rp-out").classList.toggle("jb", parts.length > 1); jumpSync();
 }
 function showRapid() {
   if (!$("#rp-out")) {
@@ -70,14 +79,14 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .rp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:6px 0 4px}
 .rp-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:104px;padding:10px 6px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;color:var(--fg)}
 .rp-tile .g{width:34px;height:40px}.rp-tile .g svg{width:100%;height:100%}
-.rp-tile .n{font-weight:700;font-size:16px;line-height:1.2}
+.rp-tile .n{font-weight:700;font-size:17px;line-height:1.2}
 .rp-tile i,.rp-row i{font-style:normal;font-size:12px;color:var(--warn)}
 .rp-tile.out,.rp-row.out{opacity:.6}
 .rp-tile:active{border-color:var(--brass)}
 .rp-row{display:grid;grid-template-columns:36px 1fr;gap:10px;width:100%;text-align:left;padding:10px 0;border-bottom:1px solid var(--line);color:var(--fg)}
 .rp-row .g{width:36px;height:42px}.rp-row .g svg{width:100%;height:100%}
 .rp-row .n{display:block;font-weight:700;font-size:17px}
-.rp-row .s{display:block;font-size:15px;margin-top:2px}
+.rp-row .s{display:block;font-size:16px;margin-top:2px}
 .rp-row .m{display:block;font-size:13.5px;color:var(--muted);margin-top:2px}
 .wrapid{width:100%;margin-top:8px;min-height:52px;font-size:18px}
 </style>`);

@@ -155,9 +155,11 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .hero { display: grid; grid-template-columns: 64px 1fr; gap: 14px; align-items: center; margin-top: 14px; }
 .hero .g { width: 64px; height: 76px; }
 .hero .g svg { width: 100%; height: 100%; }
-.hero h2 { font-size: 34px; overflow-wrap: anywhere; }
-.hero .sub { color: var(--muted); margin-top: 4px; }
+.hero h2 { font-size: 30px; overflow-wrap: anywhere; }
+/* The blurb stays to two lines so the spec and method fit on one screen of a phone. */
+.hero .sub { color: var(--muted); margin-top: 4px; font-size: 15px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .badges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.hero .badges { margin-top: 6px; }
 .badge { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
 .allergy { margin-top: 14px; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--warn); color: var(--fg); }
 .allergy b { color: var(--warn); }
@@ -745,7 +747,12 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .car { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x pan-y; margin-top: 10px; }
 .car::-webkit-scrollbar { display: none; }
 .car > * { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; margin-top: 0 !important; }
-.car .step .pic svg { max-height: 34vh; }
+.car .step .pic svg { max-height: 40vh; }
+/* One step fills the screen between the step counter and Next, with bigger words, on any phone. */
+.car .step { display: flex; flex-direction: column; min-height: calc(100vh - 300px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); min-height: calc(100svh - 300px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
+.car .step .pic { flex: 1; display: grid; place-items: center; }
+.car .step h4 { font-size: 22px; }
+.car .step p { font-size: 20px; line-height: 1.4; }
 .car .step.done { opacity: 1; }
 .car .step.done .pic { opacity: .5; }
 .fin { display: grid; place-items: center; align-content: center; gap: 12px; text-align: center; border: 1px solid var(--ok); border-radius: 14px; background: var(--surface); padding: 30px 16px; }
@@ -822,10 +829,11 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .azbar::-webkit-scrollbar { display: none; }
 .azbar button { flex: none; min-width: 34px; min-height: 36px; padding: 0 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--brass); font-weight: 700; white-space: nowrap; }
 .secbar button { font-size: 14px; }
-#list { --jb: 0px; }
-#list.jb { --jb: 46px; }
-#list .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
-#list .anc { display: block; scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); }
+#list, #rp-out { --jb: 0px; }
+#list.jb, #rp-out.jb { --jb: 46px; }
+.azbar button[aria-current="true"] { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
+#rp-out .sec, #list .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
+#list .anc, #rp-out .anc { display: block; scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); }
 .azsec { scroll-margin-top: 190px; }
 .pl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .pl-list { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; padding: 8px 10px; margin-top: 10px; }
@@ -1290,7 +1298,7 @@ function renderList() {
   // heading sticks while you scroll its drinks, and the bar at the top jumps straight to any letter or section.
   const az = PL.sort === "az" && rows.length > 12, L = (d) => (/[a-z]/i.test(plNorm(d.name)[0]) ? plNorm(d.name)[0].toUpperCase() : "#");
   const secs = !flat ? [...new Set(rows.map((d) => d.section))] : [], sid = (x) => `sec-${SEC_ORDER.indexOf(x)}`;
-  if (az) html += `<nav class="azbar" aria-label="Jump to a letter">${[...new Set(rows.map(L))].map((l) => `<button data-az="${l}">${l}</button>`).join("")}</nav>`;
+  if (az) html += `<nav class="azbar" aria-label="Jump to a letter">${[...new Set(rows.map(L))].map((l) => `<button data-jump="az-${l}">${l}</button>`).join("")}</nav>`;
   else if (secs.length > 1) html += `<nav class="azbar secbar" aria-label="Jump to a section">${secs.map((x) => `<button data-jump="${sid(x)}">${esc(x)}</button>`).join("")}</nav>`;
   for (const d of rows) {
     if (az && L(d) !== last) { last = L(d); html += `<i class="anc" id="az-${last}"></i><div class="sec azsec">${last}</div>`; }
@@ -1300,13 +1308,42 @@ function renderList() {
   // A filtered list (a section, a flavour or a search) can go out as one WhatsApp message of specs.
   if (sec !== "All" || q || flav || PL.list || PL.fam || plActive().length) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
   $("#list").innerHTML = html;
-  $("#list").classList.toggle("jb", az || secs.length > 1);
+  $("#list").classList.toggle("jb", az || secs.length > 1); jumpSync();
 }
 $("#q").addEventListener("input", renderList);
-$("#list").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-az],[data-jump]"); if (!b) return; haptic();
-  document.getElementById(b.dataset.jump || `az-${b.dataset.az}`).scrollIntoView({ block: "start", behavior: "smooth" });
-});
+/* Jump bars (Menu and Rapid fire): a tap goes to that part, the part you're in lights up in the bar, and a sideways
+   swipe on the page goes to the next or the previous part. */
+const jumpBox = () => (cur === "drinks" ? $("#list") : cur === "rapid" ? $("#rp-out") : null);
+const jumpGo = (a) => { haptic(); a.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }); };
+document.addEventListener("click", (e) => { const b = e.target.closest(".azbar [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
+function jumpAt(box) {
+  const line = $("#hdr").getBoundingClientRect().bottom + 60, ancs = [...box.querySelectorAll(".anc")];
+  let i = 0; ancs.forEach((a, j) => { if (a.getBoundingClientRect().top <= line) i = j; });
+  return [ancs, i];
+}
+function jumpSync() {
+  const box = jumpBox(), bar = box?.querySelector(".azbar"); if (!bar) return;
+  const [ancs, i] = jumpAt(box), on = ancs[i] && bar.querySelector(`[data-jump="${ancs[i].id}"]`);
+  if (!on || on.getAttribute("aria-current") === "true") return;
+  bar.querySelectorAll("[aria-current]").forEach((x) => x.removeAttribute("aria-current"));
+  on.setAttribute("aria-current", "true");
+  bar.scrollTo({ left: on.offsetLeft - bar.clientWidth / 2 + on.offsetWidth / 2, behavior: "auto" });
+}
+let jumpRaf = 0;
+addEventListener("scroll", () => { if (!jumpRaf) jumpRaf = requestAnimationFrame(() => { jumpRaf = 0; jumpSync(); }); }, { passive: true });
+let swStart = null;
+document.addEventListener("touchstart", (e) => {
+  const t = e.touches[0];
+  swStart = e.touches.length > 1 || !jumpBox() || !$("#sheet").hidden || e.target.closest(".hrow,.azbar,.chips,input,textarea,.rush") ? null : [t.clientX, t.clientY];
+}, { passive: true });
+document.addEventListener("touchend", (e) => {
+  if (!swStart) return;
+  const t = e.changedTouches[0], dx = t.clientX - swStart[0], dy = t.clientY - swStart[1]; swStart = null;
+  if (Math.abs(dx) < 70 || Math.abs(dy) > Math.abs(dx) / 2) return;
+  const box = jumpBox(); if (!box) return;
+  const [ancs, i] = jumpAt(box), a = ancs[i + (dx < 0 ? 1 : -1)];
+  if (a) jumpGo(a);
+}, { passive: true });
 // The sticky jump bar and headings sit under the sticky search bar, whatever its height.
 new ResizeObserver(() => document.documentElement.style.setProperty("--hdh", `${$("#hdr").offsetHeight}px`)).observe($("#hdr"));
 document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
@@ -1420,21 +1457,18 @@ function openSheet(id, keepScroll) {
     <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t" translate="no">${esc(d.name)}</span><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></div>
       <div class="seg" role="group" aria-label="View"><button data-view="spec" aria-pressed="${view === "spec"}">Spec</button><button data-view="steps" aria-pressed="${view === "steps"}">Step by step</button></div></div>
     <div class="sw${view === "steps" ? " compact" : ""}" id="sw" dir="ltr">
-    <div class="hero"><span class="g" id="sh-g" aria-hidden="true">${heroArt(d)}</span><div><h2 id="sh-name" translate="no">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div></div></div>
-    <div class="badges" translate="no">
-      ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
-    </div>
+    <div class="hero"><span class="g" id="sh-g" aria-hidden="true">${heroArt(d)}</span><div><h2 id="sh-name" translate="no">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div>
+      <div class="badges" translate="no">${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}</div></div></div>
     ${outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : plOutBanner(d)}
     ${al ? `<div class="allergy"><b>Allergens:</b> <span translate="no">${esc(al)}</span></div>` : ""}
     ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
-    <dl class="facts"><div><dt>Glass</dt><dd translate="no">${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd translate="no">${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd translate="no">${esc(d.garnish)}</dd></div></dl>
     <div class="h3 pl-spech">Spec<span class="mult">${plServesHtml()}</span></div>
     ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.</p>${plBatchNote(d)}` : ""}
     <ul class="spec" translate="no">${d.spec.map(specRow).join("")}</ul>
+    <div class="h3">Method</div>${steps(d.method)}
     ${plOutHtml(d) || (d.subs ? `<details class="subs"><summary>Out of something?<span class="cnt">${d.subs.length}</span></summary><ul translate="no">${d.subs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : "")}
     <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger.</p>
-    <div class="h3">Method</div>${steps(d.method)}
     ${plMistakesHtml(d)}
     <p class="note pl-tickhint">Tap a line or a step to tick it off as you go.</p>
     ${plStatsHtml(d, mult)}
