@@ -61,7 +61,7 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
   const zero = await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent));
   assert.ok(zero.length > 5 && zero.includes("Virgin Mojito"));
   await p.fill("#q", "");
-  await p.click("[data-pl=filters]");
+  await p.click("[data-pl=filters] >> nth=0");
   await p.click('[data-pl-base="gin"]');
   await p.click('[data-pl-how="Stirred"]');
   const gin = await p.evaluate(() => listIds.map((id) => D[id]._b === "gin" && plHowOf(D[id]) === "Stirred"));
@@ -69,8 +69,49 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
   await p.click('[data-pl-sort="strong"]');
   const abvs = await p.evaluate(() => listIds.map((id) => plFacts(D[id]).abv));
   assert.deepEqual(abvs, [...abvs].sort((a, b) => b - a));
+  // What the guest fancies is in the same place; Done shows how many match.
+  await p.click('[data-pl-flav="Sweet"]');
+  assert.ok(await p.evaluate(() => listIds.every((id) => flavHit(D[id]))));
+  assert.match(await text(p, '.pl-row .btn.pri'), /^Show \d+ drinks?$/);
+  await p.click('.pl-row .btn.pri');
+  // Each filter that's on shows as a chip, and a tap takes just that one off.
+  assert.deepEqual(await p.$$eval("#plf .pl-off", (x) => x.map((e) => e.textContent)), ["Gin", "Sweet", "Stirred"]);
+  await p.click('#plf [data-pl-off="flav"]');
+  assert.deepEqual(await p.$$eval("#plf .pl-off", (x) => x.map((e) => e.textContent)), ["Gin", "Stirred"]);
   await p.click('#plf [data-pl="clear"]');
   assert.equal(await p.evaluate(() => listIds.length), await p.evaluate(() => D.length));
+  // A to Z: letters to jump to, and a heading over each letter.
+  await p.click("[data-pl=filters] >> nth=0");
+  await p.click('[data-pl-sort="az"]');
+  await p.click('.pl-row .btn.pri');
+  const letters = await p.$$eval("#list .azbar button", (x) => x.map((e) => e.textContent));
+  assert.ok(letters.includes("A") && letters.includes("M"));
+  await p.click('#list .azbar [data-az="M"]');
+  await p.waitForFunction(() => Math.abs(document.querySelector("#az-M").getBoundingClientRect().top) < 400);
+  assert.match(await text(p, "#secs"), /All \d+/);
+  await p.click("[data-pl=filters] >> nth=0"); await p.click('[data-pl-sort="menu"]');
+  await p.click('.pl-row .btn.pri');
+  // Kinds of drink, one tap above the menu.
+  await p.click('#quick [data-fam="margarita"]');
+  const ritas = await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent));
+  assert.ok(ritas.includes("Margarita") && ritas.includes("Paloma") && !ritas.includes("Mojito"));
+  await p.click('#quick [data-fam="spritz"]');
+  assert.ok((await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent))).includes("Aperol Spritz"));
+  await p.click('#quick [data-fam="spritz"]');
+  assert.equal(await p.evaluate(() => listIds.length), await p.evaluate(() => D.length));
+  // Your own list: saved on the phone, opened in one tap, and deleted.
+  await p.click('#quick [data-fam="martini"]');
+  await p.click("[data-pl-share]");
+  await p.fill("#pl-ln", "Tonight's specials");
+  await p.click('[data-pl-l="save"]');
+  await p.click("#sh-close");
+  await p.click('#quick [data-fam="martini"]');
+  await p.click('#quick [data-mylist="0"]');
+  assert.match(await text(p, "#plf .pl-list"), /Tonight's specials · \d+ drinks/);
+  assert.ok((await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent))).includes("Espresso Martini"));
+  p.once("dialog", (d) => d.accept());
+  await p.click('#plf [data-pl="droplist"]');
+  assert.equal(await p.locator('#quick [data-mylist]').count(), 0);
   assert.deepEqual(p.errs, []);
 });
 
