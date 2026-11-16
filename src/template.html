@@ -326,8 +326,8 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .hero.solo { grid-template-columns: 1fr !important; }
 .row .g { width: 44px; height: 55px; }
 .row { grid-template-columns: 44px 1fr auto; }
-.prep { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15.5px; line-height: 1.35; transition: opacity .2s; }
-.prep .box { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 700; color: var(--brass-ink); transition: background .15s, border-color .15s, transform .15s; }
+.prep { display: grid; grid-template-columns: 32px 1fr; gap: 14px; align-items: center; width: 100%; min-height: 58px; text-align: left; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 16.5px; line-height: 1.35; transition: opacity .2s; }
+.prep .box { width: 30px; height: 30px; border-radius: 8px; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 700; color: var(--brass-ink); transition: background .15s, border-color .15s, transform .15s; }
 .prep.done .box { transform: scale(1.06); }
 .prep.done { opacity: .62; }
 .shift-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; }
@@ -349,6 +349,8 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .btn.next { margin-top: 20px; border-color: var(--brass); color: var(--brass); }
 .football { margin: 0 0 12px; }
 .football .fx { padding: 8px 0; }
+.hopt { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 10px 0; }
+.hopt span { text-align: right; color: var(--muted); }
 .sumcard { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; margin-top: 14px; }
 .sumcard div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
 .sumcard span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
@@ -666,6 +668,7 @@ details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: v
 .lfold > summary { list-style: none; cursor: pointer; }
 .lfold > summary::-webkit-details-marker { display: none; }
 .ltools { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+.draftbar { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; margin: 10px 0 4px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 10px; font-size: 14px; color: var(--muted); }
 .run { margin-top: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .run .n { font-size: 14.5px; }
 .run .s { color: var(--muted); font-size: 13px; margin-top: 4px; }
@@ -1627,23 +1630,6 @@ function renderQuiz() {
 const STAFF = { bar: ["Angel", "Emily", "Kadir"], floor: ["Mounika", "Anub", "PK", "Derek", "Pema", "Vi"], both: ["Tomas"] };
 const sect = (g, xs) => xs.map((x) => (typeof x === "string" ? { t: x, g } : { ...x, g }));
 const LISTS = {
-  open: { title: "Opening checklist", items: [
-    "Fridges at 5°C or below, temperatures logged in Alert65",
-    "Ice well full and clean, ice scoop in its holder (never use a glass)",
-    "Glass washer on, rinse aid and detergent topped up, up to temperature",
-    "Glassware stocked and polished: coupes, rocks, highballs, flutes, shot glasses",
-    "Fresh lemon and lime juice bottles refilled, sugar syrup chilled, all labelled and dated",
-    "Fresh fruit cut and covered: lemon slices, limes, oranges, mint, cherries",
-    "Salted caramel sauce, espresso, foamer and strawberry powder ready",
-    "Red Bull, pickle brine and Prosecco chilled",
-    "Speed rail and back bar stocked, pour spouts on, bottles wiped",
-    "Tools clean and out: tins, jiggers, strainers, bar spoons, muddler",
-    "Beer lines checked, clingfilm off the taps, pour one of each to waste",
-    "Bar mats down, bins lined, surfaces sanitised",
-    "Stock deliveries received and put away",
-    "Table menus and easy-read menus out, allergen folder at the bar",
-    "Read the broadcasts, last night's handover note and the 86'd list",
-  ] },
   // The bar's close, in the order it's done, grouped so two people can split it. Each group has its own Tick all.
   close: { title: "Closing checklist", items: [
     ...sect("Service", [
@@ -1654,9 +1640,10 @@ const LISTS = {
     ...sect("Labelling and fridges", [
       "All prep labelled, dated and in the fridge: juices, syrups, purées",
       "Milk labelled, dated and in the fridge",
-      "Cocktail pickles and garnishes labelled, covered and in the fridge",
-      "Anything past its date binned and logged in Nory",
+      "Garnishes checked, covered, labelled and in the fridge, cocktail pickles too",
+      "Labels and dates checked: anything past its date binned and logged in Nory",
       "Fridges restocked, oldest at the front, doors shut",
+      { id: 36, t: "Fridges wiped and cleaned inside: shelves, seals and doors" },
     ]),
     ...sect("Coffee machine", [
       "Coffee machine emptied: grounds, knock box and drip trays",
@@ -1672,7 +1659,7 @@ const LISTS = {
       "Bottles capped, necks wiped, pour spouts soaking",
       "Ice well emptied, cleaned and left open to dry",
       "Glass washer drained, filters cleaned, door left open",
-      "Bar counter wiped",
+      "Bar counter, stations and work surfaces cleaned and sanitised",
       "Touch points wiped: fridge handles, tills, card machines, door handles",
       "Bar chairs flipped over",
       "Bar floor swept and mopped",
@@ -1680,6 +1667,7 @@ const LISTS = {
     ...sect("Stock", [
       "Bar stock replenished, oldest at the front. Anything we're out of goes on the 86 board",
       "New batch of sugar syrup made for tomorrow",
+      { id: 37, t: "Gas checked: CO2 on, spare bottle ready. Low gas goes in the handover" },
       "Breakages and waste logged in Nory",
       "Bar storage tidied",
     ]),
@@ -1691,53 +1679,43 @@ const LISTS = {
     ...sect("Bins", [
       "Bins emptied and cleaned, fresh bin liners in",
       "Glass and recycling taken to the bin room",
+      { id: 38, t: "Bin room card put back in its place" },
     ]),
     ...sect("Lights and lock-up", [
       "Fridge lights off (the fridges stay on)",
       "Spirits locked away",
-      "Closing photos of the bar taken (below)",
+      "Closing photos of the bar taken (below): the handover needs them",
       "All bar lights off",
     ]),
   ] },
 };
 // Floor lists. An item with days only shows on those days of the week (0 = Sunday).
 Object.assign(LISTS, {
-  fset: { title: "Tables and cutlery", short: "Tables", items: [
-    "Cutlery polished, every piece",
-    "Set tables: two napkins and two forks on each",
-    "Right amount of cutlery for each table",
-    "Side plates dressed and brought to the top floor",
-    "Knives by the kitchen pass",
-  ] },
-  // Set up for service. Closing the milkshake bar is part of the floor close.
-  fshake: { title: "Milkshake station", short: "Shakes", items: [
-    "Shake machine on and clean",
-    "Ice cream refilled, lids on",
-    "Shakers and cup holders replenished",
-    "Toppings stocked: strawberry, raspberry, whipped cream, cherries",
-    "Date labels checked: anything past its date binned",
-  ] },
   fclose: { title: "Floor close", short: "Closing", items: [
     ...sect("Tables and seating", [
-      "Tables wiped, tops and edges",
+      "Tables and chairs wiped: tops, edges and seats",
       "Sofas wiped",
       "Menus wiped",
       "Chairs flipped onto the tables",
       "Cutlery replenished",
       "Side plates and milkshake plates laid with black napkins",
+      { id: 28, t: "Tables, chairs and service stations organised for opening" },
     ]),
     ...sect("Sauces and napkins", [
       "Mustard and ketchup packed into the fridge",
       "Empty sauce bottles replaced",
-      "Napkin dispensers topped up",
+      "Napkin dispensers and napkins topped up",
     ]),
     ...sect("Milkshake bar", [
       "Desserts labelled and dated: opened today plus 2 days",
       "Open items labelled: strawberry, Philadelphia cheese, raspberry syrup, whipped cream",
       "Maraschino cherries labelled: 4 weeks",
+      { id: 29, t: "Labels and dates checked: anything past its date binned" },
       "Shake machine off (back button), ice cream drip tray cleaned",
       "Ice cream lids on, freezer shut",
-      "Milkshake bar wiped down and closed",
+      "Shake station cleaned and sanitised, milkshake bar closed",
+      { id: 31, t: "Ice cream, shakers, cup holders, cups, spoons and straws topped up" },
+      { id: 32, t: "Shake station floor mopped" },
     ]),
     ...sect("Terrace", [
       "Terrace closed: chairs, tables and umbrellas brought in",
@@ -1751,6 +1729,7 @@ Object.assign(LISTS, {
       "Touch points wiped: door handles, card machines, host stand, fridges, counters",
       "Host station restocked and cleaned",
       "Floor swept and mopped",
+      { id: 30, t: "Fridges wiped and cleaned inside: sauces, desserts and milkshake bar" },
       "Toilets checked: paper, soap, nothing left behind",
       { t: "Toilets bleached, swept and mopped", days: [0, 1] },
     ]),
@@ -1758,16 +1737,23 @@ Object.assign(LISTS, {
       "Bins emptied, fresh bin liners in, rubbish taken to the bin room",
       "Bin room card put back in its place",
       "Stock brought up from the cellar",
-      "Closing photos of the floor taken (below)",
+      "Closing photos of the floor taken (below): the handover needs them",
     ]),
   ] },
 });
-LISTS.open.short = "Opening"; LISTS.close.short = "Closing";
-// Each item gets an id, its place in the standard list, which stays with it when a manager changes the list, so
-// tonight's tasks stay on the right item. (So a new standard item still goes at the end.)
-for (const k in LISTS) LISTS[k].items = LISTS[k].items.map((x, id) => (typeof x === "string" ? { id, t: x } : { id, ...x }));
+LISTS.close.short = "Closing";
+// Each item gets an id, which stays with it when a manager changes the list, so tonight's tasks stay on the right item.
+// The first items are numbered in order. One added to the standard list later brings its own id, the next free number,
+// so it can go anywhere without moving anyone's ticks.
+for (const k in LISTS) {
+  let n = 0;
+  LISTS[k].items = LISTS[k].items.map((x) => (typeof x === "string" ? { id: n++, t: x } : x.id == null ? { id: n++, ...x } : x));
+  const ids = LISTS[k].items.map((x) => x.id);
+  if (new Set(ids).size !== ids.length) throw new Error(`${k}: two items share an id`);
+}
 const STANDARD = Object.fromEntries(Object.entries(LISTS).map(([k, l]) => [k, l.items]));
-const MODE_LISTS = { bar: ["open", "close"], floor: ["fset", "fshake", "fclose"] };
+// Each side has one shared checklist, its close. The morning starts from last night's handover instead (Morning page).
+const MODE_LISTS = { bar: ["close"], floor: ["fclose"] };
 const SIDE_NAME = { bar: "Bar", floor: "Floor" };
 const sideName = (s) => SIDE_NAME[s] || "Bar";
 let mode = MODE_LISTS[store.get("mode")] ? store.get("mode") : "bar";
@@ -1778,10 +1764,10 @@ const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
   "Bottled beer": ["Stella bottles", "Corona Cero"],
   "Cider": ["Kopparberg Apple (draught)", "Kopparberg Strawberry & Lime (bottle)", "Kopparberg Mixed Fruit (bottle)"],
-  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Red Bull", "Red Bull Zero", "Crodino", "Tonic", "Slimline tonic"],
+  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Red Bull", "Red Bull Zero", "Crodino", "Tonic", "Slimline tonic", "Jarritos Guava", "Jarritos Mandarin", "Jarritos Pineapple", "Jarritos Grapefruit", "Jarritos Strawberry", "Jarritos Lime"],
   "Water": ["Still water, large", "Still water, small", "Sparkling water, large", "Sparkling water, small"],
   "Wine": ["Prosecco bottle"],
-  "Bar supplies": ["Blue roll", "Bar napkins", "Straws", "Cocktail picks", "Coasters", "Bin bags", "Cling film", "Labels and day dots", "Glass cloths", "Till roll", "Hand soap", "Sanitiser", "Glass washer detergent", "Rinse aid", "Ice"],
+  "Bar supplies": ["CO2 gas", "Blue roll", "Bar napkins", "Straws", "Cocktail picks", "Coasters", "Bin bags", "Cling film", "Labels and day dots", "Glass cloths", "Till roll", "Hand soap", "Sanitiser", "Glass washer detergent", "Rinse aid", "Ice"],
   "Fruit and garnish": ["Limes", "Lemons", "Oranges", "Grapefruit", "Mint", "Basil", "Cherries", "Strawberries", "Passion fruit", "Pineapple", "Cucumber", "Olives", "Jalapeños"],
   "Juices": ["Lime juice", "Lemon juice", "Orange juice", "Pineapple juice", "Cranberry juice", "Apple juice", "Grapefruit juice", "Tomato juice"],
   "Syrups, bitters and prep": ["Sugar syrup", "Coco Real", "Orgeat", "Vanilla syrup", "Marshmallow syrup", "Grenadine", "Elderflower cordial", "Honey syrup", "Salted caramel sauce", "Espresso beans", "Foamer", "Angostura bitters", "Peychaud's bitters", "Cocoa bitters", "Strawberry powder", "Pickle brine"],
@@ -1811,11 +1797,30 @@ const shown = (k) => {
   return LISTS[k].items.filter((x) => !x.days || x.days.includes(day)).map((x) => [x.id, x.t]);
 };
 let closer = store.get("closer", "");
-let shiftNote = store.get("shiftNote", "");
+// The handover follows the venue's daily closing procedure: 1 cleaning done (the ticks say it), 2 stock running low
+// (gas and garnishes too), 3 outstanding issues, 4 what to prepare or follow up tomorrow. Photos are required. Kept on
+// this phone for the night.
+const HO = [
+  { id: "low", label: "Stock running low", short: "Running low", hint: "Drinks, gas, garnishes, anything getting short", join: ", " },
+  { id: "issues", label: "Outstanding issues", short: "Outstanding", hint: "Anything broken, not finished, a guest, a tab", join: "\n" },
+  { id: "next", label: "For tomorrow: prep and follow-up", short: "For tomorrow", hint: "What the opening team needs to prepare or chase", join: "\n" },
+];
+const HO_CHIPS = {
+  low: { bar: ["Gas (CO2)", "Garnishes", "Limes", "Lemons", "Mint", "Ice", "Prosecco", "Red Bull", "Jarritos"], floor: ["Desserts", "Ice cream", "Sauces", "Napkins", "Black napkins", "Side plates", "Shake cups"] },
+  issues: ["Broken or needs fixing: ", "Not finished: ", "Guest to know about: ", "Tabs and cash: "],
+  next: ["Prep: ", "Follow up: ", "Delivery due: ", "Ordered: "],
+};
+const hoChips = (id) => HO_CHIPS[id][mode] || HO_CHIPS[id];
+let ho = { low: "", issues: "", next: "", ...store.get("ho", {}) };
+// Why there are no closing photos, when there really can't be any. It goes in the handover.
+let noPhotos = store.get("noPhotos", "");
+const hoLines = (id) => ho[id].split("\n").map((x) => x.trim()).filter(Boolean);
+const hoNote = () => HO.filter((f) => hoLines(f.id).length).map((f) => `${f.short}: ${hoLines(f.id).join("\n")}`).join("\n");
 // The handover note and closing manager are for one night: at 6am they start empty again.
 function freshNight() {
   if (store.get("noteDay", "") === shiftDay()) return;
-  shiftNote = ""; closer = ""; store.set("shiftNote", ""); store.set("closer", ""); store.set("noteDay", shiftDay());
+  ho = { low: "", issues: "", next: "" }; closer = ""; noPhotos = "";
+  store.set("ho", ho); store.set("closer", ""); store.set("noPhotos", ""); store.set("noteDay", shiftDay());
 }
 function tallyText() {
   const day = stamp(new Date());
@@ -1825,9 +1830,10 @@ function tallyText() {
       const xs = shown(k).filter(([i]) => sts.includes(statusOf(k, i))).map(([i, t]) => { const x = taskOf(k, i); return `- ${t}${x?.status === "doing" ? " (in progress)" : x?.note ? ` (${x.note})` : ""}`; });
       return xs.length ? `\n${title}:\n${xs.join("\n")}` : "";
     };
-    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
+    const c = closeClock(k);
+    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
-  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${shiftNote.trim() || "None"}\n\nClosed by: ${closer || "(not picked)"}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !LIVE.myPhotos.length ? `\nNo closing photos: ${noPhotos}` : ""}`;
 }
 // The shift for the managers' WhatsApp group or email, so nobody needs the app to know where it stands: how each list
 // ended, then everything still open (not done, blocked, 86'd, labels, restocks, issues, guest issues), the handover
@@ -1850,32 +1856,39 @@ SHARE.shift = () => {
   const lbs = LIVE.loaded.has("labels") ? labelsDue([mode]) : [];
   const head = lists.filter((k) => runOf(k) || k === closeList()).map((k) => { const p = progress(k), b = blockedTasks([k]).length; return `${p.n === p.of ? "\u2705" : "\u26a0\ufe0f"} ${LISTS[k].title}: ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${isLocked(k) ? ", finished" : ""}`; });
   head.push(`86'd: ${out.length ? out.join(", ") : "nothing"}`);
+  const ck = closeClock(closeList()); if (ck) head.push(`\u23f1 Closing started ${hhmm(new Date(ck.start))}, ${ck.done ? "took" : "so far"} ${minsText(ck.mins)}`);
   if (closer) head.push(`Closed by: ${closer}`);
+  if (LIVE.myPhotos.length) head.push(`\ud83d\udcf7 ${LIVE.myPhotos.length} closing photo${LIVE.myPhotos.length > 1 ? "s" : ""}, sent next`);
+  else if (noPhotos) head.push(`\ud83d\udcf7 No closing photos: ${noPhotos}`);
+  // The four handover points always show, so "nothing" is said, not left out.
+  const point = (id, label, none) => ({ id, label, one: true, lines: hoLines(id).length ? hoLines(id) : [none] });
   return { what: `${sideName(mode)} shift`, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head, parts: [
     // The closing list heading by heading, then what's left on each list. A list nobody started is left out unless
     // ticked: its summary line says enough.
-    ...lists.map((k) => ({ id: `heads-${k}`, label: `${LISTS[k].title}, by heading`, raw: true, lines: heads(k), off: !runOf(k) })),
+    ...lists.map((k) => ({ id: `heads-${k}`, label: k === closeList() ? "1. Cleaning and closing done" : `${LISTS[k].title}, by heading`, raw: true, lines: heads(k), off: k !== closeList() && !runOf(k) })),
     ...lists.map((k) => ({ id: `todo-${k}`, label: `${LISTS[k].title}: not done`, raw: true, lines: left(k), off: !runOf(k) })),
+    point("low", "2. Stock running low", "Nothing running low"),
+    { id: "out", label: "86'd", lines: out.map((n) => `${n}${outByText(n) ? `, by ${outByText(n)}` : ""}`) },
+    { id: "restock", label: "Restocks still open", lines: rsOpen().filter((r) => DEST_SIDE[r.dest] === mode).map(rsLine) },
+    point("issues", "3. Outstanding issues", "None"),
     { id: "blocked", label: "Blocked", raw: true, lines: items(lists, ["blocked"]) },
+    { id: "open-issues", label: "Reported issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
+    { id: "labels", label: "Date labels due", lines: lbs.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
+    point("next", "4. For tomorrow", "Nothing extra"),
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
     ...lists.map((k) => ({ id: `all-${k}`, label: `${LISTS[k].title}: every item`, raw: true, lines: shown(k).map(([i, t]) => line(k, i, t)), off: true, opt: true })),
-    { id: "out", label: "86'd", lines: out.map((n) => `${n}${outByText(n) ? `, by ${outByText(n)}` : ""}`) },
-    { id: "labels", label: "Date labels due", lines: lbs.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
-    { id: "restock", label: "Restocks still open", lines: rsOpen().filter((r) => DEST_SIDE[r.dest] === mode).map(rsLine) },
-    { id: "issues", label: "Issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
-    { id: "note", label: "Handover", one: true, lines: shiftNote.trim() ? [shiftNote.trim()] : [] },
   ], photos: async () => {
     if (LIVE.myPhotos.length) return LIVE.myPhotos;
     const r = LIVE.reports.find((x) => x.uid === LIVE.uid && x.side === mode && x.photos && bday(x.at) === shiftDay());
     return r ? LIVE.api.loadPhotos(r.id) : [];
   } };
 };
-// The floor's date labels are all at the milkshake station, so they're on its Shakes page; the bar has a page for them.
+// Each side: the morning (last night's handover, prep pars, the order), date labels, stock and 86s, the close, and the handover.
 const PANES = {
-  bar: [["open", "Opening"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Send"]],
-  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["fclose", "Closing"], ["send", "Send"]],
+  bar: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Send"]],
+  floor: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["fclose", "Closing"], ["send", "Send"]],
 };
-const labelPane = (side) => (side === "floor" ? "fshake" : "labels");
+const labelPane = () => "labels";
 // Each side's last list is its close.
 const closeList = () => MODE_LISTS[mode].at(-1);
 const defaultPane = () => (new Date().getHours() >= 6 && new Date().getHours() < 16 ? PANES[mode][0][0] : closeList());
@@ -1979,11 +1992,14 @@ function groupsOf(k) {
 const openOf = (k, ids) => ids.filter((i) => ["todo", "doing", "blocked"].includes(statusOf(k, i)));
 function checklistHtml(k) {
   const p = progress(k), locked = isLocked(k), any = shown(k).some(([i]) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
-  const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn pri" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>`;
+  const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn pri" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>
+    <div class="ltools"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button><span></span></div>
+    ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
     const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button>` : left ? "" : `<span class="pill ok">Done</span>`}</div>` : "";
-    const rows = xs.map(([i, t]) => taskRow(k, i, t)).join("");
+    // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
+    const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
     return g && !left && !xs.some(([i]) => more === `${k}-${i}`) ? `<details class="lfold"><summary>${head}</summary>${rows}</details>` : head + rows;
   };
@@ -2015,10 +2031,39 @@ function clearList(k) {
   track(open.then(() => Promise.all(ids.map((i) => LIVE.api.setTask(k, i, itemText(k, i), "todo", { note: CLEARED })))), `${t} cleared`, "Not all cleared. Check your signal and try again");
   more = ""; haptic();
 }
+// Clear everything, for a fresh start: both closing lists back to not started, everything back in stock, and this
+// phone's handover, Closed by and unsent photos gone. Anyone on the team can. The owner's master clear also cancels open
+// restocks and empties the inbox and issues. Sent handovers stay: the morning reads them.
+async function clearAll(master) {
+  const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api;
+  if (!confirm(master ? "Master clear: both closing lists, the 86 board, restocks, the inbox and issues, for everyone. Sent handovers stay. Go ahead?"
+    : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. Your handover, drafts and photos on this phone go too.")) return;
+  const jobs = [];
+  for (const k of lists) {
+    const t = LISTS[k].title, p = progress(k), ids = shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
+    const open = isLocked(k) ? A.setRun(k, t, "started", p.n, p.of, CLEARED) : Promise.resolve();
+    jobs.push(open.then(() => Promise.all(ids.map((i) => A.setTask(k, i, itemText(k, i), "todo", { note: CLEARED })))));
+  }
+  for (const n of outNow()) jobs.push(A.set86(n, false));
+  for (const ph of LIVE.myPhotos) jobs.push(A.deletePhoto(ph.id));
+  for (const k in DRAFTS) dropDraft(k);
+  if (master) {
+    for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
+    for (const a of LIVE.asks) jobs.push(A.dropAsk(a.id));
+    for (const x of LIVE.issues) jobs.push(A.withdrawIssue(x.id));
+  }
+  ho = { low: "", issues: "", next: "" }; closer = ""; noPhotos = "";
+  store.set("ho", ho); store.set("closer", ""); store.set("noPhotos", "");
+  more = ""; haptic(); renderTally();
+  track(Promise.all(jobs), master ? "Master clear done" : "All clear for a fresh start", "Not all cleared. Check your signal and try again");
+}
 // A reason for the record. Cancelling or leaving it empty means don't make the change.
 const reason = (q) => (prompt(q) || "").trim().slice(0, 200);
+// Ticked items drop out of the way, so what's left stays at the top. The last one ticked can be undone in one tap.
+let leftOnly = store.get("leftOnly", true), justTicked = null;
 function changeTask(k, i, to) {
   const t = itemText(k, i);
+  justTicked = to === "done" ? { k, i, t } : null;
   let note = "";
   if (to === "blocked" && !(note = reason(`What's stopping it?\n${t}`))) return;
   if (to === "cancelled" && !(note = reason(`Why isn't it needed tonight?\n${t}`))) return;
@@ -2056,11 +2101,11 @@ function cleanItems(xs) {
   return out.length ? out : null;
 }
 // A list a manager saved before its standard version was rebuilt gives way to the new one (History can still put it back).
-const LIST_SINCE = { close: Date.parse("2026-11-15T00:00:00Z"), fshake: Date.parse("2026-11-15T00:00:00Z"), fclose: Date.parse("2026-11-15T00:00:00Z") };
+const LIST_SINCE = { close: Date.parse("2026-11-15T00:00:00Z"), fclose: Date.parse("2026-11-15T00:00:00Z") };
 const savedList = (k) => { const x = LIVE.lists[k]; return x && !(LIST_SINCE[k] && x.at && ms(x.at) < LIST_SINCE[k]) ? x.items : null; };
 function applyLists() { for (const k in LISTS) LISTS[k].items = cleanItems(savedList(k)) || STANDARD[k]; }
 // The id the next new item gets: past every id the list has had, so no id is used for two items.
-const nextId = (k) => Math.max(Number.isInteger(LIVE.lists[k]?.next) ? LIVE.lists[k].next : 0, STANDARD[k].length, ...LISTS[k].items.map((x) => x.id + 1));
+const nextId = (k) => Math.max(Number.isInteger(LIVE.lists[k]?.next) ? LIVE.lists[k].next : 0, ...STANDARD[k].map((x) => x.id + 1), ...LISTS[k].items.map((x) => x.id + 1));
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"], WEEK = [1, 2, 3, 4, 5, 6, 0];
 const daysText = (ds) => (ds ? `only on ${WEEK.filter((d) => ds.includes(d)).map((d) => DAYS[d]).join(", ")}` : "every day");
 // The list being changed, kept apart from the page so a teammate's change redrawing the pane doesn't lose it. A new item
@@ -2158,15 +2203,87 @@ const closers = () => [...new Set([...(STAFF[mode] || []), ...STAFF.both, ...Obj
 const closedBy = () => closer.split(", ").filter(Boolean);
 // The last report this side sent before tonight, for whoever opens: its handover note and what it left undone.
 const lastReport = () => LIVE.reports.find((r) => r.side === mode && !r.pending && ukDay(ms(r.at) - 6 * 36e5) !== shiftDay());
-function handoverHtml() {
-  const r = lastReport(); if (!r) return "";
-  const note = r.text.match(/\nNote for handover:\n([\s\S]*?)\n\n(?:Signed off|Closed) by/)?.[1].trim();
-  const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
-  return `<article class="notice" id="handover"><div class="meta">Last handover · <b>${esc(r.name)}</b> · ${when(r.at)}</div>
-    <p class="txt">${note && note !== "None" ? ut(note) : "No note left."}</p>
-    ${left.length ? `<p class="note">Left from that shift:<br>${left.map(esc).join("<br>")}</p>` : ""}
-    <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>`;
+// How the close is going: when the first item was ticked, how long it's taken (to the finish once it's finished), and
+// who has ticked what, so the duty manager sees at a glance what's behind.
+function closeClock(k) {
+  const ts = shown(k).map(([i]) => taskOf(k, i)).filter((x) => x && x.status !== "todo" && !x.pending && x.at).map((x) => ms(x.at));
+  if (!ts.length) return null;
+  const start = Math.min(...ts), end = isLocked(k) && runOf(k)?.at ? ms(runOf(k).at) : Date.now();
+  return { start, mins: Math.max(0, Math.round((end - start) / 6e4)), done: isLocked(k) };
 }
+const minsText = (n) => (n < 60 ? `${n} min` : `${Math.floor(n / 60)} h ${n % 60} min`);
+function closeStatsHtml(k) {
+  const c = closeClock(k); if (!c) return "";
+  const by = {}; for (const [i] of shown(k)) { const x = taskOf(k, i); if (x?.status === "done" && x.name) by[x.name] = (by[x.name] || 0) + 1; }
+  const behind = groupsOf(k).filter(([g]) => g).map(([g, xs]) => [g, openOf(k, xs.map(([i]) => i)).length]).filter(([, n]) => n);
+  return `<div class="sumcard"><div><span>Started</span><b>${hhmm(new Date(c.start))}</b></div><div><span>${c.done ? "Took" : "So far"}</span><b>${minsText(c.mins)}</b></div><div><span>Left</span><b>${progress(k).of - progress(k).n}</b></div></div>
+    ${behind.length ? `<p class="note"><b>Still to do:</b> ${behind.map(([g, n]) => `${esc(g)} ${n}`).join(" · ")}</p>` : ""}
+    ${Object.keys(by).length ? `<p class="note">Ticked: <span translate="no">${Object.entries(by).sort((a, b) => b[1] - a[1]).map(([n, x]) => `${esc(n)} ${x}`).join(" · ")}</span></p>` : ""}`;
+}
+// What last night's handover said, read back from its report: the three written points and what was left undone.
+function handoverOf(r) {
+  const note = r.text.match(/\nNote for handover:\n([\s\S]*?)\n\n(?:Signed off|Closed) by/)?.[1].trim() || "";
+  const pts = { low: "", issues: "", next: "" }, by = Object.fromEntries(HO.map((f) => [f.short, f.id]));
+  let cur = null;
+  for (const l of note === "None" ? [] : note.split("\n")) {
+    const m = l.match(/^(Running low|Outstanding|For tomorrow): (.*)$/);
+    if (m) { cur = by[m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
+  }
+  const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
+  return { ...pts, left, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
+}
+// Prep to par: how much of each thing the morning sets up, more on Friday and Saturday. Starting amounts, for the
+// manager to correct.
+const PARS = {
+  bar: [["Lime juice", "1 litre", "2 litres"], ["Lemon juice", "500 ml", "1 litre"], ["Sugar syrup", "1 litre", "2 litres"],
+    ["Lime wedges", "1 tub", "2 tubs"], ["Lemon slices", "1 tub", "1 tub"], ["Orange slices", "1 tub", "1 tub"],
+    ["Mint, picked, in water", "1 bunch", "2 bunches"], ["Cherries", "1 tub", "1 tub"], ["Salted caramel sauce", "1 bottle", "2 bottles"]],
+  floor: [["Whipped cream", "1 can", "2 cans"], ["Strawberries, cut", "1 tub", "2 tubs"], ["Raspberry syrup", "1 bottle", "1 bottle"],
+    ["Cutlery rolled in napkins", "40", "80"], ["Black napkins", "1 pack", "2 packs"], ["Side plates", "30", "50"]],
+};
+const busyDay = () => [5, 6].includes(new Date(shiftDay()).getUTCDay());
+const parsToday = () => PARS[mode].map(([t, n, b]) => [t, busyDay() ? b : n]);
+// Today's order: what last night said was running low, and anything still 86'd.
+const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).map((x) => x.trim()).filter(Boolean) : []; return [...new Set([...low, ...[...outNow()].sort()])]; };
+// The morning: read last night's handover, say it's checked (and what's outstanding) on WhatsApp, send the order, prep to par.
+function morningHtml() {
+  const r = lastReport(), h = r && handoverOf(r), order = orderLines(r);
+  const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? ut(v) : "None"}</span></div>`;
+  const ho = !r ? `<p class="note">No handover from the last close on this side yet.</p>`
+    : `<article class="notice" id="handover"><div class="meta">Last night's handover · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
+      ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
+      ${h.left.length ? `<p class="note">Left from that shift:<br>${h.left.map(esc).join("<br>")}</p>` : ""}
+      ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
+      ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}
+      <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>
+      <div class="actions">${sendBtn("morning", "Checked: send on WhatsApp")}</div>
+      <p class="note">Read it, sort what you can, and send the check so the duty manager knows what's still outstanding.</p>`;
+  return `<div class="sec">Last night's handover</div>${ho}
+    <div class="sec">Today's order</div>
+    ${order.length ? `<p class="note" translate="no">${order.map(esc).join(", ")}</p><div class="actions">${sendBtn("order", "Send the order on WhatsApp")}</div>` : `<p class="note">Nothing running low or 86'd.</p>`}
+    <div class="sec">Prep to par${busyDay() ? " (busy day)" : ""}</div>
+    <div translate="no">${parsToday().map(([t, n]) => `<div class="hopt"><b>${esc(t)}</b><span>${esc(n)}</span></div>`).join("")}</div>
+    <div class="actions">${sendBtn("pars", "Send the prep list")}</div>
+    <p class="note">Starting amounts. If one's wrong for us, tell the manager.</p>`;
+}
+SHARE.morning = () => {
+  const r = lastReport(); if (!r) return null;
+  const h = handoverOf(r), out = [...outNow()].sort();
+  return { what: "Morning check", title: `Black Tap Soho · ${sideName(mode)} morning · ${dayName(shiftDay())}`,
+    head: [`✅ Last night's handover checked${LIVE.me ? ` by ${LIVE.me}` : ""}`], parts: [
+      { id: "issues", label: "Still outstanding", one: true, lines: [...hoSplit(h.issues), ...h.left].length ? [...hoSplit(h.issues), ...h.left] : ["Nothing"] },
+      { id: "next", label: "For today", one: true, lines: hoSplit(h.next).length ? hoSplit(h.next) : ["Nothing extra"] },
+      { id: "out", label: "86'd now", lines: out },
+    ] };
+};
+const hoSplit = (v) => v.split("\n").map((x) => x.trim()).filter(Boolean);
+SHARE.order = () => {
+  const xs = orderLines(lastReport()); if (!xs.length) return null;
+  return { what: "Order", title: `Black Tap Soho · ${sideName(mode)} order · ${dayName(shiftDay())}`,
+    head: ["To order or bring up today:"], parts: [{ id: "order", label: "Order", lines: xs }] };
+};
+SHARE.pars = () => ({ what: "Prep list", title: `Black Tap Soho · ${sideName(mode)} prep · ${dayName(shiftDay())}`,
+  head: [busyDay() ? "Busy day pars" : "Today's pars"], parts: [{ id: "pars", label: "Prep to par", raw: true, lines: parsToday().map(([t, n]) => `⬜ ${t}: ${n}`) }] });
 // Before sign-off: every item still open tonight, and any list that's all done but not finished. Each one jumps to it.
 function stillToDoHtml() {
   // The closing lists first: they're what's left at the end of the night.
@@ -2181,8 +2298,6 @@ function stillToDoHtml() {
     ${lbs.map((x) => `<button class="todo" data-pane="${labelPane(mode)}"><span class="pill ${LB_DUE[labelDue(x)][1]}">${LB_DUE[labelDue(x)][0]}</span> Date label: ${esc(x.item)}</button>`).join("")}
     ${open.map(([k, i, t]) => `<button class="todo" data-jump="${k}" data-jump-i="${i}">${st(k, i)}${esc(t)} <span class="s">· ${esc(LISTS[k].short)}</span></button>`).join("")}</details>`;
 }
-// Quick starts for a handover line: what the next shift most needs to know.
-const HANDOVER = ["Running low", "Ordered", "Broken or needs fixing", "Left for the morning", "Delivery due", "Guest to know about", "Tabs and cash"];
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
 const OTHER = "Other (write it in)";
 const stockOptions = (skip, pick = "") => Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
@@ -2237,7 +2352,7 @@ function restockHtml() {
     <div class="two"><label class="fld">How many<input id="rs-qty" inputmode="decimal" value="${esc(rsF.qty)}"></label><label class="fld">Unit<select id="rs-unit">${Object.keys(UNIT).map((u) => `<option value="${u}"${u === rsF.unit ? " selected" : ""}>${u === "each" ? "Each" : UNIT[u][1][0].toUpperCase() + UNIT[u][1].slice(1)}</option>`).join("")}</select></label></div>
     <div class="fld">Where it's going<div class="recent" style="margin-top:6px">${Object.entries(DEST).map(([k, t]) => `<button class="chip" data-rs-dest="${k}" aria-pressed="${k === rsDest()}">${t}</button>`).join("")}</div></div>
     <label class="fld">Detail (optional)<input id="rs-detail" maxlength="200" value="${esc(rsF.detail)}" placeholder="Running low, the big bottles, for the weekend…"></label>
-    <div class="actions"><button class="btn pri" id="rs-go">Ask for it</button></div>
+    ${draftBar("restock")}<div class="actions"><button class="btn pri" id="rs-go">Ask for it</button></div>
     ${open.map(rsCard).join("") || `<p class="note">Nothing waiting to come up.</p>`}
     ${done.length ? `<details class="setup"><summary>Done tonight (${done.length})</summary>${done.map(rsCard).join("")}</details>` : ""}`;
 }
@@ -2405,7 +2520,7 @@ function labelAddHtml(side) {
     <label class="fld">What it is<input id="lb-item" maxlength="60" value="${esc(lbF.item)}" placeholder="Apple juice, salted caramel sauce…"></label>
     <label class="fld">Days it keeps once opened<input id="lb-life" inputmode="numeric" maxlength="3" value="${esc(lbF.life)}"></label>
     <label class="check"><input type="checkbox" id="lb-on"${lbF.on ? " checked" : ""}> Needs a date label</label>
-    <div class="actions"><button class="btn pri" id="lb-go">Add it</button></div></details>`;
+    ${draftBar("label")}<div class="actions"><button class="btn pri" id="lb-go">Add it</button></div></details>`;
 }
 function addLabel(side) {
   const item = lbF.item.trim().slice(0, 60), life = Number(lbF.life);
@@ -2481,13 +2596,11 @@ function renderTally() {
   const outList = [...outNow()].sort();
   $("#shift-title").textContent = `${sideName(mode)} shift`;
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
-  const tabs = `<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
+  const tabs = `<div class="ltools fresh"><span></span><button class="btn" id="clear-all">Clear everything</button></div><div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
   const body = {
-    open: () => `${handoverHtml()}${labelsDueHtml("bar")}${listPane("open")}${nextBtn("labels", "Next: date labels")}`,
+    morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
-    fset: () => `${handoverHtml()}${labelsDueHtml("floor")}${listPane("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
-    fshake: () => `${labelsHtml("floor")}<div class="sec">Station checklist</div>${listPane("fshake")}${nextBtn("stock", "Next: stock and 86s")}`,
-    fclose: () => `${labelsDueHtml("floor")}${listPane("fclose")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+    fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
       ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
@@ -2496,7 +2609,7 @@ function renderTally() {
       <label class="fld">Something else ran out?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       <div class="ltools"><input id="s-86-own" maxlength="80" placeholder="Not on the list? Type it, like a burger" aria-label="86 something not on the list"><button class="btn" id="s-86-go">86 it</button></div>
       ${restockHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
-    close: () => `${labelsDueHtml("bar")}${listPane("close")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+    close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
@@ -2504,12 +2617,17 @@ function renderTally() {
       </div>
       ${stillToDoHtml()}
       <div class="fld">Closed by<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${closedBy().includes(m)}">${esc(m)}</button>`).join("")}</div></div>
-      <label class="fld">Handover for the next shift<textarea id="s-note" rows="4" maxlength="1000" placeholder="Tap a heading below to start a line, then write the rest">${esc(shiftNote)}</textarea></label>
-      <div class="recent">${HANDOVER.map((x) => `<button class="chip" data-ho="${esc(x)}: ">${esc(x)}</button>`).join("")}${shiftNote.trim() ? `<button class="chip" data-ho-clear>Clear note</button>` : ""}</div>
+      <div class="sec">Handover</div>
+      <p class="note">Every night: what's cleaned, what's running low, what's outstanding and what tomorrow needs, with photos.</p>
+      <div class="hopt"><b>1. Cleaning completed</b><span>${(() => { const p = progress(closeList()); return p.n === p.of ? "\u2705 Closing all ticked" : `${p.n} of ${p.of} closing items ticked`; })()}</span></div>
+      ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
+      <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
+      <div class="hopt"><b>Closing photos</b><span>${LIVE.myPhotos.length ? `${LIVE.myPhotos.length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
+      ${HO.some((f) => ho[f.id].trim()) ? `<div class="recent"><button class="chip" data-ho-clear>Clear handover</button></div>` : ""}
       <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done` : "Hand over and send on WhatsApp"}</button>
       <p class="note">Saves the handover for the next shift to see here, then opens WhatsApp with the closing in tick boxes. The photos go on their own (iPhones drop photos sent with words).</p>
       <div class="actions">${sendBtn("shift", "Just send on WhatsApp")}</div>
-      <p class="note">The note and Closed by start empty again at 6am.</p>`;
+      <p class="note">The handover and Closed by start empty again at 6am.</p>`;
     },
   }[pane]();
   // The pane slides in when it's switched to, not each time a teammate's change redraws it.
@@ -2568,11 +2686,17 @@ $("#tally").addEventListener("input", (e) => {
   if (e.target.id === "lb-item") { lbF.item = e.target.value; return; }
   if (e.target.id === "lb-life") { lbF.life = e.target.value; return; }
   if (lbe && e.target.dataset.lbe && e.target.type !== "checkbox") { lbe[e.target.dataset.lbe] = e.target.value; return; }
-  if (e.target.id === "s-note") { shiftNote = e.target.value; store.set("shiftNote", shiftNote); }
+  if (e.target.dataset.hoF) { ho[e.target.dataset.hoF] = e.target.value; store.set("ho", ho); }
   if ($("#t-text")) $("#t-text").value = tallyText();
 });
 $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-copy")) {
+    // Closing photos are required. With none, the closer says why or goes and takes them.
+    if (!LIVE.myPhotos.length && !noPhotos) {
+      noPhotos = reason("Closing photos are required for the handover. Cancel to go and take them.\nIf you really can't, say why:");
+      store.set("noPhotos", noPhotos);
+      if (!noPhotos) { pane = closeList(); renderTally(); $(".addph")?.scrollIntoView({ block: "center" }); toast("Take the closing photos, then hand over"); return; }
+    }
     // Firestore queues the write with no signal and sends it when the phone reconnects.
     const done = (k) => `${progress(k).n}/${progress(k).of}`;
     const n = Math.min(LIVE.myPhotos.length, LIVE.api.MAX_PHOTOS);
@@ -2582,6 +2706,10 @@ $("#tally").addEventListener("click", async (e) => {
     openSend("shift"); return;
   }
   if (e.target.closest("[data-login]")) { show("notices"); return; }
+  const rp = e.target.closest("[data-rp-photos]"); if (rp) {
+    const id = rp.dataset.rpPhotos, A = LIVE.api;
+    return busy(rp, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
+  }
   const jp = e.target.closest("[data-jump]"); if (jp) {
     pane = jp.dataset.jump; renderTally();
     const at = jp.dataset.jumpI == null ? $(".run") : document.querySelector(`[data-list="${pane}"][data-i="${jp.dataset.jumpI}"]`);
@@ -2592,7 +2720,11 @@ $("#tally").addEventListener("click", async (e) => {
     closer = (xs.includes(n) ? xs.filter((x) => x !== n) : [...xs, n]).join(", "); store.set("closer", closer); haptic(); renderTally(); return;
   }
   const md = e.target.closest("[data-mode]"); if (md) { haptic(); setMode(md.dataset.mode); return; }
-  const pn = e.target.closest("[data-pane]"); if (pn) { pane = pn.dataset.pane; renderTally(); $("#v-tally").scrollIntoView({ block: "start" }); window.scrollTo(0, 0); return; }
+  const pn = e.target.closest("[data-pane]"); if (pn) {
+    pane = pn.dataset.pane; renderTally();
+    if (pn.dataset.toPhotos != null) { $(".addph")?.scrollIntoView({ block: "center" }); return; }
+    $("#v-tally").scrollIntoView({ block: "start" }); window.scrollTo(0, 0); return;
+  }
   // Changing a list, and its history.
   const lo = e.target.closest("[data-le-open]"); if (lo) { editList(lo.dataset.leOpen); lh = null; renderTally(); return; }
   const hb = e.target.closest("[data-lh-back]"); if (hb) { putBack(hb.dataset.k, +hb.dataset.lhBack); return; }
@@ -2615,6 +2747,8 @@ $("#tally").addEventListener("click", async (e) => {
   }
   const ta = e.target.closest("[data-tick-all]"); if (ta) { tickAll(ta.dataset.tickAll, ta.dataset.g); return; }
   const cr = e.target.closest("[data-clear-list]"); if (cr) { clearList(cr.dataset.clearList); return; }
+  if (e.target.closest("#clear-all")) { clearAll(false); return; }
+  if (e.target.closest("[data-left-only]")) { leftOnly = !leftOnly; store.set("leftOnly", leftOnly); haptic(); renderTally(); return; }
   const mo = e.target.closest("[data-more]"); if (mo) { more = more === mo.dataset.more ? "" : mo.dataset.more; renderTally(); return; }
   const tk = e.target.closest("[data-task]"); if (tk) { const [k, i] = taskKey(tk.dataset.task); changeTask(k, i, tk.dataset.to); return; }
   const rn = e.target.closest("[data-run]"); if (rn) { runTo(rn.dataset.run, rn.dataset.to); return; }
@@ -2665,15 +2799,15 @@ $("#tally").addEventListener("click", async (e) => {
     track(Promise.all(xs.map((n) => LIVE.api.set86(n, false))), "The 86 board is clear", "Not all cleared. Check your signal and try again");
     haptic(); return;
   }
-  const hc = e.target.closest("[data-ho]"); if (hc) {
-    const ta = $("#s-note"), add = hc.dataset.ho;
-    shiftNote = `${shiftNote.trimEnd()}${shiftNote.trim() ? "\n" : ""}${add}`; store.set("shiftNote", shiftNote);
-    ta.value = shiftNote; ta.focus(); ta.setSelectionRange(shiftNote.length, shiftNote.length);
-    if ($("#t-text")) $("#t-text").value = tallyText(); return;
+  // A chip adds to its box: running low is a list, the others start a new line.
+  const hc = e.target.closest("[data-ho-add]"); if (hc) {
+    const id = hc.dataset.hoAdd, f = HO.find((x) => x.id === id), ta = $(`#ho-${id}`), v = ho[id].trimEnd();
+    ho[id] = `${v}${v ? f.join : ""}${hc.dataset.ho}`; store.set("ho", ho);
+    ta.value = ho[id]; ta.focus(); ta.setSelectionRange(ho[id].length, ho[id].length); return;
   }
   if (e.target.closest("[data-ho-clear]")) {
-    if (!shiftNote.trim() || !confirm("Clear the handover note on this phone?")) return;
-    shiftNote = ""; store.set("shiftNote", ""); renderTally(); return;
+    if (!confirm("Clear the handover on this phone?")) return;
+    ho = { low: "", issues: "", next: "" }; store.set("ho", ho); renderTally(); return;
   }
 });
 
@@ -3434,9 +3568,12 @@ const FEATURES = [
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", tour: 1,
     what: "Everything about your pay in one tab: your hours, an estimated take-home after tax, National Insurance, student loan and pension, tronc at £5 an hour that you can switch off, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
     staff: "Add shifts, read them from a Nory screenshot, type in Nory's hours or gross wage, or just pick about how many hours a week. Then set your tax code, loan and pension once." },
-  { g: "Shift", k: "lists", n: "Checklists", go: "shift", team: 1, tour: 1,
-    what: "Opening and closing checklists for the bar and floor, ticked off live on every phone.",
-    staff: "Tick items off, start one, mark one blocked and say why, or give one to someone." },
+  { g: "Shift", k: "morning", n: "Morning", go: "morning", team: 1, tour: 1,
+    what: "Last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
+    staff: "Read the handover, send that it's checked with anything outstanding, send the order and the prep list on WhatsApp." },
+  { g: "Shift", k: "lists", n: "Closing checklists", go: "shift", team: 1, tour: 1,
+    what: "The bar and floor closes, ticked off live on every phone, with how long it's taking and who has ticked what.",
+    staff: "Tick items off or a whole heading at once, mark one blocked and say why, give one to someone, or clear everything for a fresh start.", mgr: "The owner also has a master clear in Owner settings." },
   { g: "Shift", k: "labels", n: "Date labels", go: "labels", team: 1,
     what: "Everything that gets dated once it's opened: when each one needs changing, and what's due tomorrow.",
     staff: "Tap Opened one or Changed it, and add items. Each tap is saved with your name and the time." },
@@ -3504,9 +3641,8 @@ function openFeatures() {
 function openAt(where) {
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where === "shift") return show("tally");
-  if (["stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
+  if (["morning", "stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
   show("notices");
-  if (where === "msgs") return;
   document.activeElement?.blur?.();
   tmOpen.add(where); store.set("tmOpen", [...tmOpen]); renderTeam();
   document.querySelector(`[data-card="${where}"]`)?.scrollIntoView({ block: "start" });
@@ -3661,7 +3797,7 @@ function askHtml() {
     <label class="fld">${askF.kind === "complaint" ? "What happened" : "Message"}<textarea data-ask="text" rows="3" maxlength="2000" placeholder="${{ dayoff: "Family wedding, I can swap with Pema", complaint: "Say what happened, when, and who was there", fault: "Glass washer leaking again", fix: "Bar stool wobbles at table 4" }[askF.kind] || ""}">${esc(askF.text)}</textarea></label>
     <label class="check"><input type="checkbox" data-ask="anon"${askF.anon ? " checked" : ""}> Send it anonymously</label>
     ${askF.anon ? `<p class="note">No name and no phone id go with it, and you won't see a reply here. In a small team the seniors might still guess who sent it from what it says.</p>` : ""}
-    <div class="actions"><button class="btn pri" id="ask-go">Send to the seniors</button></div>
+    ${draftBar("ask")}<div class="actions"><button class="btn pri" id="ask-go">Send to the seniors</button></div>
     ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map(askLine).join("</article>")}</article>` : ""}
     ${sentAnon.length ? `<p class="note">${plural(sentAnon.length, "anonymous message")} sent from this phone.</p>` : ""}`;
 }
@@ -3685,8 +3821,8 @@ function incHtml() {
     <label class="check"><input type="checkbox" data-inc="ambulance"${incF.ambulance ? " checked" : ""}> Ambulance or police called</label>
     <label class="check"><input type="checkbox" data-inc="book"${incF.book ? " checked" : ""}> Written in the accident book</label>
     <label class="check"><input type="checkbox" data-inc="told"${incF.told ? " checked" : ""}> Duty manager told</label>
-    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}${LIVE.me ? `<button class="btn" id="inc-mgr">Send to the seniors</button>` : ""}<button class="btn" id="inc-clear">Clear</button></div>
-    <p class="note">What you type stays on this phone until you tap Clear.</p>`;
+    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}${LIVE.me ? `<button class="btn" id="inc-mgr">Send to the seniors</button>` : ""}</div>${draftBar("incident")}
+    <p class="note">What you type stays on this phone until you tap Discard.</p>`;
 }
 const tickBox = (b) => (b ? "✅" : "⬜");
 const incText = () => [`${INC[incF.kind]} at ${incF.time || "?"}${incF.where ? `, ${incF.where}` : ""}`, incF.who && `Who: ${incF.who}`, `What happened: ${incF.what || "?"}`, incF.done && `What was done: ${incF.done}`,
@@ -3712,7 +3848,7 @@ function rateHtml() {
     <label class="fld">What went well<textarea data-rt="good" rows="2" maxlength="600">${esc(rateF.good)}</textarea></label>
     <label class="fld">What was hard, or should change<textarea data-rt="bad" rows="2" maxlength="600">${esc(rateF.bad)}</textarea></label>
     <label class="fld">Anything else for the team (how you feel, management, anything)<textarea data-rt="feel" rows="2" maxlength="1000">${esc(rateF.feel)}</textarea></label>
-    <div class="actions">${sendBtn("rate", "Send to the team on WhatsApp")}<button class="btn" id="rate-clear">Clear</button></div>`;
+    <div class="actions">${sendBtn("rate", "Send to the team on WhatsApp")}</div>${draftBar("rate")}`;
 }
 // anon: the copy for the seniors and the owner, with no name and no side.
 SHARE.rate = (o, anon = false) => ({ what: "Rate the shift", title: `${rateF.score ? `${rateF.score}/10` : "How was it"} · ${dayName(shiftDay())}${anon ? "" : ` ${sideName(mode).toLowerCase()}`} shift`,
@@ -3742,7 +3878,7 @@ function issuesHtml() {
       <label class="fld">Where<select data-is="area"><option value="">Choose…</option>${AREAS.map(([k, t]) => `<option value="${k}"${k === isF.area ? " selected" : ""}>${t}</option>`).join("")}</select></label>
       <label class="fld">More detail (optional)<textarea data-is="detail" rows="2" maxlength="1000">${esc(isF.detail)}</textarea></label>
       <label class="check"><input type="checkbox" data-is="urgent"${isF.urgent ? " checked" : ""}> Urgent: needs sorting this shift</label>
-      <div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
+      ${draftBar("issue")}<div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again && !drafted("issue") ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
     ${open.map(row).join("") || `<p class="note">No open issues.</p>`}
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
     ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${ut(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${ut(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
@@ -3851,7 +3987,7 @@ function tellHtml() {
   return `<p class="note">Only ${esc(ownerName())} reads these: what's missing from Bar Book, what to add, or what's wrong in it.</p>
     <div class="recent">${Object.entries(TELL).map(([k, v]) => `<button class="chip" data-tell-kind="${k}" aria-pressed="${tellF.kind === k}">${v}</button>`).join("")}</div>
     <label class="fld">What is it?<textarea data-tell="text" rows="3" maxlength="1000" placeholder="${{ missing: "A list for the terrace", add: "The new house spritz", wrong: "The Mojito spec says 50 ml rum, we use 37.5 ml" }[tellF.kind]}">${esc(tellF.text)}</textarea></label>
-    <div class="actions"><button class="btn pri" id="tell-go">Send to ${esc(ownerName())}</button></div>
+    ${draftBar("tell")}<div class="actions"><button class="btn pri" id="tell-go">Send to ${esc(ownerName())}</button></div>
     ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map((x) => tellRow(x, true) + "</article>").join("")}` : ""}`;
 }
 function tellsHtml() {
@@ -3889,7 +4025,8 @@ function peopleHtml() {
     ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, change the team code in Firebase and share the new link.</p>` : ""}`;
 }
 function mgrHtml() {
-  return `<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
+  return `${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board, restock requests, the inbox and issues for everyone. Sent handovers and their photos stay.</p>
+      <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
     <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>
     ${LIVE.owner && LIVE.staff.filter((p) => p.role === "manager").length < 3 ? `<div class="h3">Add a senior</div>
       <p class="note">Up to three. Each gets their own login, with a password you pick and give them in person. They see everything and can change the lists, labels, games, drink photos and numbers. Only you add or remove a senior, and only you read Tell Derek.</p>
@@ -3911,17 +4048,61 @@ const CARDS = () => [
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
     ["outlog", "86 log", outlogHtml],
   ] : []),
-  ...(LIVE.me && !LIVE.admin ? [["ask", "To the seniors", askHtml]] : []),
-  ["incident", "Incident or accident", incHtml],
-  ["rate", "Team only: rate the shift", rateHtml],
-  ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : ""]] : []),
-  ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml]] : []),
+  ...(LIVE.me && !LIVE.admin ? [["ask", "To the seniors", askHtml, draftPill("ask")]] : []),
+  ["incident", "Incident or accident", incHtml, draftPill("incident")],
+  ["rate", "Team only: rate the shift", rateHtml, draftPill("rate")],
+  ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : draftPill("issue")]] : []),
+  ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml, draftPill("tell")]] : []),
   ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") : ""}</div>`],
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml], ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
   ...(LIVE.admin ? [["mgr", LIVE.owner ? "Owner settings" : "Senior settings", mgrHtml]] : []),
 ];
 function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (c && box) box.innerHTML = c[2](); }
+/* ---------- Drafts ----------
+   Whatever someone types in a form stays on this phone as they type, so a guest, a locked phone or closing the app
+   loses nothing. Save draft puts it away to finish later (its card says Draft, and the app says so when it opens);
+   Discard wipes it. Clear everything wipes them all. Nothing here leaves the phone until it's sent. */
+const DRAFTS = {
+  restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", other: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "other", "detail"] },
+  label: { n: "Date label", get: () => lbF, blank: () => ({ item: "", life: "", on: true, open: false }), fs: ["item", "life"] },
+  ask: { n: "To the seniors", get: () => askF, blank: () => ({ kind: askF.kind, text: "", when: "", anon: false }), card: "ask", fs: ["text", "when"] },
+  issue: { n: "Issue", get: () => isF, blank: () => ({ title: "", detail: "", area: "", urgent: false, again: null }), card: "issues", fs: ["title", "detail"] },
+  tell: { get n() { return `Tell ${ownerName()}`; }, get: () => tellF, blank: () => ({ kind: tellF.kind, text: "" }), card: "tell", fs: ["text"] },
+  incident: { n: "Incident", get: () => incF, blank: INC_BLANK, key: "incDraft", card: "incident", fs: ["where", "who", "what", "done", "witnesses"] },
+  rate: { n: "Rate the shift", get: () => rateF, blank: () => ({ score: 0, good: "", bad: "", feel: "" }), key: "rateDraft", card: "rate", fs: ["score", "good", "bad", "feel"] },
+};
+const draftKey = (k) => DRAFTS[k].key || `draft.${k}`;
+for (const k in DRAFTS) if (!DRAFTS[k].key) Object.assign(DRAFTS[k].get(), store.get(draftKey(k), {}));
+const drafted = (k) => DRAFTS[k].fs.some((f) => { const v = DRAFTS[k].get()[f]; return typeof v === "string" ? !!v.trim() : !!v; });
+function saveDrafts() { for (const k in DRAFTS) store.set(draftKey(k), DRAFTS[k].get()); }
+function dropDraft(k) { Object.assign(DRAFTS[k].get(), DRAFTS[k].blank()); store.set(draftKey(k), DRAFTS[k].get()); }
+const draftPill = (k) => (drafted(k) ? { t: "Draft" } : "");
+// Always there, so it's clear before anyone types that nothing is lost.
+const draftBar = (k) => `<div class="draftbar"><span>Saved on this phone as you type</span><button class="btn" data-draft-save="${k}">Save draft</button><button class="btn" data-draft-drop="${k}">Discard</button></div>`;
+const redraw = (k) => (DRAFTS[k].card ? renderCard(DRAFTS[k].card) : renderTally());
+for (const ev of ["input", "change"]) document.addEventListener(ev, saveDrafts);
+document.addEventListener("click", (e) => {
+  setTimeout(saveDrafts);
+  const sv = e.target.closest("[data-draft-save]"), dr = e.target.closest("[data-draft-drop]");
+  if (sv) {
+    const k = sv.dataset.draftSave, c = DRAFTS[k].card; saveDrafts(); haptic();
+    // Put away: the form folds up, and its card says Draft until it's sent or discarded.
+    if (k === "label") { lbF.open = false; renderTally(); }
+    if (k === "issue") tmOpen.delete("is-form");
+    if (c) { tmOpen.delete(c); store.set("tmOpen", [...tmOpen]); renderTeam(); }
+    toast("Draft saved. It's here when you come back");
+  }
+  if (dr) {
+    const k = dr.dataset.draftDrop;
+    if (drafted(k) && !confirm("Discard this draft? What's typed in it goes.")) return;
+    dropDraft(k); haptic(); redraw(k); toast("Draft discarded");
+  }
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden) saveDrafts(); });
+addEventListener("pagehide", saveDrafts);
+// On opening, a reminder of anything left half done.
+setTimeout(() => { const ds = Object.keys(DRAFTS).filter(drafted).map((k) => DRAFTS[k].n); if (ds.length) toast(`Unfinished draft: ${ds.join(", ")}`); }, 600);
 function topHtml() {
   if (!LIVE.api) return `<p class="note">The team side needs signal the first time.</p>`;
   if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span>${teamCode ? `<button class="linkbtn" data-send="team">Share the team link</button>` : ""}<button class="linkbtn" id="tm-leave">Log out</button></p>`;
@@ -4009,7 +4190,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   if ((x = b("[data-ask-drop]"))) { if (confirm("Remove this message?")) track(A.dropAsk(x.dataset.askDrop), "Removed"); return; }
   // Incident.
   if ((x = b("[data-inc-kind]"))) { incF.kind = x.dataset.incKind; saveInc(); return renderCard("incident"); }
-  if (b("#inc-clear")) { if (confirm("Clear the incident form?")) { incF = INC_BLANK(); saveInc(); renderCard("incident"); } return; }
   if (b("#inc-mgr")) {
     if (!incF.what.trim()) return toast("Say what happened first");
     if (rude(incText())) return toast(RUDE);
@@ -4018,7 +4198,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   }
   // Rate the shift.
   if ((x = b("[data-rate]"))) { rateF.score = +x.dataset.rate; store.set("rateDraft", rateF); haptic(); return renderCard("rate"); }
-  if (b("#rate-clear")) { rateF = { score: 0, good: "", bad: "", feel: "" }; store.set("rateDraft", rateF); return renderCard("rate"); }
   // Issues.
   if (b("#is-go")) {
     if (!isF.title.trim() || !isF.area) return toast("Say what's wrong and where");
@@ -4070,6 +4249,7 @@ $("#v-notices").addEventListener("click", async (e) => {
     if (confirm(`Take ${p.name} off the team? Their phone goes back to the drinks only until they join again.`)) track(A.remove(p), `${p.name} is off the team`);
     return;
   }
+  if (b("#master-clear")) { if (LIVE.owner) clearAll(true); return; }
   if (b("#pw-go")) {
     const pw = $("#pw-new").value; if (pw.length < A.PASSWORD_MIN) return toast(`At least ${A.PASSWORD_MIN} characters`);
     return track(A.changePassword(pw).then(() => ($("#pw-new").value = "")), "Password changed", "Not changed. Log out and in again, then try again");
