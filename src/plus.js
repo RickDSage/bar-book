@@ -446,8 +446,8 @@ function renderStarter() {
 }
 function stPassHtml(s) {
   return `<div class="sec">3. Tell the manager</div>
-    <div class="actions">${LIVE.me && !s.told ? `<button class="btn pri" data-st-tell>Tell ${esc(mgrName())}</button>` : ""}${sendBtn("starter", "Post it on WhatsApp")}</div>
-    ${s.told ? `<p class="note">${esc(mgrName())} has been told.</p>` : ""}`;
+    <div class="actions">${LIVE.me && !s.told ? `<button class="btn pri" data-st-tell>Tell the seniors</button>` : ""}${sendBtn("starter", "Post it on WhatsApp")}</div>
+    ${s.told ? `<p class="note">The seniors have been told.</p>` : ""}`;
 }
 SHARE.starter = () => {
   const s = stState(); if (!s.passed) return null;
@@ -470,7 +470,7 @@ document.addEventListener("click", async (e) => {
   const t = e.target.closest("[data-st-tell]");
   if (t) {
     const s = stState(); t.disabled = true;
-    try { await LIVE.api.ask({ kind: "other", text: `New starter path passed: ${s.best} out of 10 on the ${stDrinks().length} house cocktails.`, when: "", anon: false }); s.told = true; stSet(s); toast(`${mgrName()} has been told`); }
+    try { await LIVE.api.ask({ kind: "other", text: `New starter path passed: ${s.best} out of 10 on the ${stDrinks().length} house cocktails.`, when: "", anon: false }); s.told = true; stSet(s); toast("The seniors have been told"); }
     catch { t.disabled = false; toast("Not sent. Try again"); }
     if (qz?.starter) renderPractice(); else renderStarter();
   }
