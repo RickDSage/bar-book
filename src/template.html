@@ -1597,9 +1597,8 @@ const sect = (g, xs) => xs.map((x) => (typeof x === "string" ? { t: x, g } : { .
 const LISTS = {
   open: { title: "Opening checklist", items: [
     { id: 14, t: "Last night's handover, 86 list and messages read. Anything outstanding sorted or reported to the duty manager" },
-    "Fridges at 5°C or below, temperatures logged in Alert65",
     "Ice well full and clean, ice scoop in its holder (never use a glass)",
-    "Glass washer on, rinse aid and detergent topped up, up to temperature",
+    "Glass washer on, rinse aid and detergent topped up",
     "Glassware stocked and polished: coupes, rocks, highballs, flutes, shot glasses",
     "Fresh lemon and lime juice bottles refilled, sugar syrup chilled, all labelled and dated",
     "Fresh fruit cut and covered: lemon slices, limes, oranges, mint, cherries",
@@ -1739,10 +1738,13 @@ Object.assign(LISTS, {
 LISTS.open.short = "Opening"; LISTS.close.short = "Closing";
 // Each item gets an id, which stays with it when a manager changes the list, so tonight's tasks stay on the right item.
 // The first items are numbered in order. One added to the standard list later brings its own id, the next free number,
-// so it can go anywhere without moving anyone's ticks.
+// so it can go anywhere without moving anyone's ticks. An item taken off the standard list leaves its number unused
+// (RETIRED), so the items after it keep theirs.
+const RETIRED = { open: [0] }; // open 0: fridge temperatures (temperature checks are kept out of the app)
 for (const k in LISTS) {
   let n = 0;
-  LISTS[k].items = LISTS[k].items.map((x) => (typeof x === "string" ? { id: n++, t: x } : x.id == null ? { id: n++, ...x } : x));
+  const next = () => { while (RETIRED[k]?.includes(n)) n++; return n++; };
+  LISTS[k].items = LISTS[k].items.map((x) => (typeof x === "string" ? { id: next(), t: x } : x.id == null ? { id: next(), ...x } : x));
   const ids = LISTS[k].items.map((x) => x.id);
   if (new Set(ids).size !== ids.length) throw new Error(`${k}: two items share an id`);
 }

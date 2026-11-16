@@ -58,9 +58,9 @@ test("the next shift sees the last handover, the send page lists what's left, an
   assert.equal(await O.$eval("#todo", (e) => e.open), false, "a long list starts folded");
   await O.click("#todo summary");
   const left = await O.$eval("#todo", (e) => e.innerText);
-  assert.match(left, /Still to do \(52\)\s*Open bar tabs closed[\s\S]*Fridges at 5°C/i, "37 closing items, then 15 opening ones");
+  assert.match(left, /Still to do \(51\)\s*Open bar tabs closed[\s\S]*Ice well full/i, "37 closing items, then 14 opening ones");
   assert.doesNotMatch(left, /Last orders called/);
-  assert.match(await O.$eval("#t-copy", (e) => e.textContent), /Hand over with 52 not done/);
+  assert.match(await O.$eval("#t-copy", (e) => e.textContent), /Hand over with 51 not done/);
   await O.click('[data-jump="close"][data-jump-i="1"]');
   assert.equal(await O.evaluate(() => pane), "close");
 
