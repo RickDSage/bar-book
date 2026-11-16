@@ -309,6 +309,7 @@ const SUBS = [
   [/Jack Daniel's/, "No Jack Daniel's? Use Buffalo Trace."],
   [/Jameson/, "No Jameson? Use Johnnie Walker Black Label."],
   [/Johnnie Walker Black/, "No Johnnie Walker Black? Use Jameson."],
+  [/Hibiki/, "No Hibiki Harmony? Use Hakushu 12 (a little smokier) or Johnnie Walker Black."],
   [/Port Charlotte/, "No Port Charlotte? Use Talisker 10."],
   [/Sheep Dog/, "No Sheep Dog? Use Buffalo Trace plus 10 ml Frangelico."],
   [/Martell VS/, "No Martell? Use Courvoisier VSOP."],

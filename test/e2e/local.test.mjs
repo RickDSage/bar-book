@@ -264,10 +264,6 @@ test("my pay: about how many hours a week, for a month with nothing logged", asy
   assert.match(await txt("#pay-out"), /Hours pay \(171\.4 h at £12\.71\) £2,178\.88 Tronc \(177\.1 h at £5\) £885\.70/);
   await p.click('[data-pay-wk="0"]');
   assert.match(await txt("#pay-sum"), /^0 Shifts 0 Hours/);
-  // The new words come translated.
-  await p.evaluate(() => setLang("fr"));
-  assert.match(await txt("#v-pay"), /ESTIMATION RAPIDE .* Je reçois le tronc : £5 par heure/);
-  await p.evaluate(() => setLang(""));
   assert.deepEqual(p.errs, []);
 });
 

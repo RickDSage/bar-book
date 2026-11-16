@@ -432,8 +432,6 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
-.bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
-.utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
 .chrow { display: block; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
 .chrow.new { border-color: var(--brass); }
@@ -749,6 +747,45 @@ details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: v
   /* What just changed on someone else's phone. */
   .flash { animation: flash 1.6s ease-out; } @keyframes flash { from { background: color-mix(in srgb, var(--brass) 24%, transparent); } }
 }
+/* Bar Book plus: strength, serves, ticks, filters, spec of the day, lists, My drinks */
+.pl-spech { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pl-serve { display: inline-flex; align-items: center; gap: 4px; }
+.pl-serve b { min-width: 40px; text-align: center; font-family: var(--body); font-size: 17px; color: var(--fg); }
+.pl-units { display: inline-flex; gap: 0; margin-left: 6px; }
+.pl-units button { min-width: 40px; border-radius: 0; }
+.pl-units button:first-child { border-radius: 8px 0 0 8px; } .pl-units button:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.mult button:disabled { opacity: .35; }
+.pl-batch { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; color: var(--fg); }
+.pl-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 16px; }
+.pl-stats > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 6px; text-align: center; }
+.pl-stats b { display: block; font-size: 20px; color: var(--brass); line-height: 1.1; }
+.pl-stats b small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+.pl-stats span { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .04em; }
+.pl-est { font-size: 12px; }
+[data-pl-tick] { cursor: pointer; }
+.pl-done { opacity: .45; text-decoration: line-through; text-decoration-color: var(--brass); }
+.pl-done .q::before { content: "\2713 "; color: var(--ok); }
+.pl-tickhint { font-size: 12px; }
+.pl-daily { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--brass); border-radius: 14px; padding: 10px 12px; margin: 10px 0 4px; }
+.pl-daily .g { width: 52px; flex: none; }
+.pl-daily .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pl-daily .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--brass); font-weight: 700; }
+.pl-daily b { font-size: 18px; } .pl-daily small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-daily .go { font-size: 28px; color: var(--brass); }
+.pl-bar { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
+.pl-bar .pl-fbtn { color: var(--fg); } .pl-bar .pl-fbtn span { color: var(--brass); font-weight: 700; }
+.pl-on { color: var(--brass); border-color: var(--brass); }
+.pl-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 12px 12px; margin-top: 8px; }
+.pl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.pl-list { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; padding: 8px 10px; margin-top: 10px; }
+.pl-list > span { flex: 1 1 100%; }
+.pl-fix { margin: 6px 0 0; }
+.pl-qr { display: grid; justify-items: center; gap: 10px; }
+.pl-qr img { width: 220px; height: 220px; image-rendering: pixelated; background: #fff; padding: 8px; border-radius: 10px; }
+.pl-names { columns: 2; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.pl-form { margin-top: 16px; }
+.pl-mine ul.spec { margin: 8px 0; }
+@media (max-width: 360px) { .pl-stats { grid-template-columns: repeat(2, 1fr); } }
 </style>
 <script>
 // Light, dark or auto (the phone's own setting, the default), picked in More.
@@ -765,7 +802,6 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
   <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
-  <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
@@ -774,7 +810,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire: house cocktails</button>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <header class="gut" id="hdr">
   <nav class="seg dseg" id="subnav" aria-label="Drinks"><button data-tab="rapid">⚡ Rapid fire</button><button data-tab="drinks">Menu</button><button data-tab="make">Make</button></nav>
@@ -785,7 +821,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 </header>
 
 <main class="gut">
-  <section class="view" id="v-drinks"><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p></section>
+  <section class="view" id="v-drinks"><div id="plf"></div><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p></section>
 
   <section class="view" id="v-allergens" hidden>
     <button class="back" data-back>‹ More</button>
@@ -798,11 +834,12 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-practice" hidden>
     <button class="back" data-back>‹ More</button>
     <h2 style="font-size:28px">Practise specs</h2>
-    <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button></div>
+    <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button><button data-pmode="starter">New starter</button></div>
     <p class="lead" id="plead"></p>
     <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
     <div id="pcard"></div>
     <div id="pquiz" hidden></div>
+    <div id="pstart" hidden></div>
   </section>
 
   <section class="view" id="v-make" hidden></section>
@@ -855,9 +892,6 @@ function keepOpen(el, fn) {
   new MutationObserver((ms) => ms.forEach((m) => fn({ target: m.target }))).observe(el, { attributes: true, attributeFilter: ["open"], subtree: true });
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-// What people write (messages, notes, titles) goes in its own span: the app's words never change it, and it gets a
-// Translate button (see Language).
-const ut = (x) => `<span data-ut>${esc(x)}</span>`;
 const D = DATA.drinks;
 const SECTIONS = [...new Set(D.map((d) => d.section))];
 // Martini-glass drinks get the V-shaped glass; the step guides still use their coupe pictures.
@@ -895,7 +929,7 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = fal
    summary lines, then its parts, each with a tick box (ticked when it has anything in it), and photos where there are
    some. The person ticks what goes in, adds a note if they like and sees the message as it will look. Bar Book sends
    nothing itself: WhatsApp and Email open the person's own app with the words written in, and they pick who it goes
-   to. Messages are in English, the venue's working language, whatever language the phone shows. */
+   to. */
 const SHARE = {};
 // A note given here starts the Send page's note, for the person to change.
 const sendBtn = (k, label, o, note) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}${note ? ` data-send-note="${esc(note)}"` : ""}>${label}</button>`;
@@ -1101,7 +1135,7 @@ function setOut(name, on) {
 }
 function rowHtml(d) {
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
-  return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)} · ${esc(blurb(d))}</div></div></button>`;
+  return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)} · ${esc(blurb(d))}${plOutTag(d)}</div></div></button>`;
 }
 let recent = store.get("recent", []).filter((id) => D[id]);
 const FLAVOURS = {
@@ -1112,11 +1146,11 @@ const FLAVOURS = {
 let flav = null;
 const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Proof" || d.tags.includes("No alcohol") : d.tags.some((t) => FLAVOURS[flav].includes(t)));
 function renderQuick(show) {
-  if (!show) { $("#quick").innerHTML = ""; return; }
+  if (!show) { const f = PL.sq?.fixed || []; $("#quick").innerHTML = f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : ""; return; }
   const fl = `<div class="mini">What does the guest fancy?</div><div class="chips hrow">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
-  if (flav || sec !== "All") { $("#quick").innerHTML = fl; return; }
+  if (flav || sec !== "All" || PL.list) { $("#quick").innerHTML = fl; return; }
   const rec = recent.length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = rec + fl;
+  $("#quick").innerHTML = plDailyHtml() + rec + fl;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
@@ -1125,22 +1159,25 @@ $("#quick").addEventListener("click", (e) => {
 let listIds = D.map((d) => d.id);
 function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  const words = q.split(/\s+/).filter(Boolean);
-  renderQuick(!q);
-  let rows = D.filter((d) => inSec(d) && words.every((w) => d._h.includes(w)) && (q ? true : flavHit(d)));
+  const words = q ? plQuery(q).words : [];
+  renderQuick(!q); renderPlf();
+  let rows = D.filter((d) => inSec(d) && words.every((w) => d._h.includes(w)) && (q ? true : flavHit(d)) && plOk(d));
+  rows = q && PL.sort === "menu" ? plRank(rows, words) : plSort(rows);
+  const flat = !!q || PL.sort !== "menu";
   $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}`;
   listIds = rows.map((d) => d.id);
   if (!rows.length && sec === CHIPS[1] && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here.</p>`; return; }
-  if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search.</p>`; return; }
+  if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
   let html = "", last = "";
   const per = {}; rows.forEach((d) => (per[d.section] = (per[d.section] || 0) + 1));
-  for (const d of rows) { if (d.section !== last) { html += `<div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; } html += rowHtml(d); }
+  for (const d of rows) { if (!flat && d.section !== last) { html += `<div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; } html += rowHtml(d); }
   // A filtered list (a section, a flavour or a search) can go out as one WhatsApp message of specs.
-  if (sec !== "All" || q || flav) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}</div>`;
+  if (sec !== "All" || q || flav || PL.list || plActive().length) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
   $("#list").innerHTML = html;
 }
 $("#q").addEventListener("input", renderList);
-document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); });
+document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
+$("#quick").addEventListener("click", (e) => { const o = e.target.closest(".pl-daily"); if (o) openSheet(+o.dataset.plDaily); });
 
 /* ---------- Spec sheet ---------- */
 const QTY = /^((?:\d+(?:\.\d+)?|half|one|two|three)\s?(?:ml|cl|l|g)\b|(?:\d+|a|half a|one|two|three)\s(?:dash(?:es)?|drops?|slices?|heaped spoons?|spoons?|wedges?|leaves|sprigs?|scoops?|can|cans|shots?|pinch(?:es)?)(?: of)?|dash of|pinch of|half pinch of|top with|top up with)\s+(.*)$/i;
@@ -1155,7 +1192,7 @@ function scaleQ(q) {
 function specRow(line) {
   const m = line.replace(/^batch:\s*/i, "").match(QTY) || line.match(/^(top(?: about)?(?: \d+ ml)?|half pint|half a|splash of|1 handful|side: \d+ ml|rim:|add to a|\d+(?: to \d+)? (?:mint |cucumber )?(?:leaves|slices)|1 bar spoon)\s+(.*)$/i);
   const [q, rest] = m ? [m[1], m[2]] : ["", line];
-  return `<li><span class="q">${esc(scaleQ(q))}</span><span>${esc(rest)}</span></li>`;
+  return `<li><span class="q">${esc(plOz(scaleQ(q)))}</span><span>${esc(rest)}</span></li>`;
 }
 // The method a step a line, as on the drink.
 const methodLines = (method) => method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i)
@@ -1255,17 +1292,20 @@ function openSheet(id, keepScroll) {
     <div class="badges" translate="no">
       ${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}
     </div>
-    ${outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : ""}
+    ${outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : plOutBanner(d)}
     ${al ? `<div class="allergy"><b>Allergens:</b> <span translate="no">${esc(al)}</span></div>` : ""}
     ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
     <dl class="facts"><div><dt>Glass</dt><dd translate="no">${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd translate="no">${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd translate="no">${esc(d.garnish)}</dd></div></dl>
-    <div class="h3" style="display:flex;justify-content:space-between;align-items:center;gap:8px">Spec<span class="mult" role="group" aria-label="How many">${[1, 2, 3, 4].map((n) => `<button data-mult="${n}" aria-pressed="${n === mult}">\u00d7${n}</button>`).join("")}</span></div>
-    ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.${mult > 2 ? " A tin holds 2 shaken drinks, so split it across tins." : ""}</p>` : ""}
+    <div class="h3 pl-spech">Spec<span class="mult">${plServesHtml()}</span></div>
+    ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.</p>${plBatchNote(d)}` : ""}
     <ul class="spec" translate="no">${d.spec.map(specRow).join("")}</ul>
-    ${d.subs ? `<details class="subs"><summary>Out of something?<span class="cnt">${d.subs.length}</span></summary><ul translate="no">${d.subs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
+    ${plOutHtml(d) || (d.subs ? `<details class="subs"><summary>Out of something?<span class="cnt">${d.subs.length}</span></summary><ul translate="no">${d.subs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : "")}
     <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger.</p>
     <div class="h3">Method</div>${steps(d.method)}
+    ${plMistakesHtml(d)}
+    <p class="note pl-tickhint">Tap a line or a step to tick it off as you go.</p>
+    ${plStatsHtml(d, mult)}
     `}
     <div id="dmedia">${mediaHtml(d)}</div>
     ${tryInstead(d)}
@@ -1274,9 +1314,10 @@ function openSheet(id, keepScroll) {
     <div id="dmedit">${mediaEditHtml(d)}</div>
     ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
-    <div class="actions">${sendBtn("drink", "Send this drink", String(id))}</div>
+    <div class="actions">${sendBtn("drink", "Send this drink", String(id))}<button class="btn" data-pl-card>Picture card</button><button class="btn" data-pl-print>Print card</button></div>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
+  plTickMark(); plOutMark(d);
   if (LIVE.me) LIVE.api?.watchMedia(d.name);
   $("#car")?.addEventListener("scroll", carSync, { passive: true });
   if (!keepScroll) { $("#sheet").scrollTop = 0; $("#sh-close").focus(); if (view === "steps") stepsIntoView(); }
@@ -1371,6 +1412,10 @@ $("#sheet").addEventListener("click", (e) => {
   const op = e.target.closest("[data-open]"); if (op) { mult = 1; openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
   const gb = e.target.closest("[data-go]"); if (gb) { slideTo(+gb.dataset.go); return; }
   const cs = e.target.closest("[data-cs]"); if (cs) { const car = $("#car"); haptic(); carGo(cs.dataset.cs === "0" ? 0 : carIndex(car) + +cs.dataset.cs); return; }
+  const tk = e.target.closest("[data-pl-tick]"); if (tk) { const [k, i] = tk.dataset.plTick.split(":"), set = plTicksFor(curId)[k]; set.has(+i) ? set.delete(+i) : set.add(+i); tk.classList.toggle("pl-done"); haptic(); return; }
+  const oz = e.target.closest("[data-pl-oz]"); if (oz) { const y = $("#sheet").scrollTop; PL.oz = oz.dataset.plOz === "1"; store.set("oz", PL.oz); openSheet(curId, true); $("#sheet").scrollTop = y; return; }
+  if (e.target.closest("[data-pl-card]")) { toast("Making the picture…"); plShareCard(D[curId]).catch(() => toast("Picture not made. Try again")); return; }
+  if (e.target.closest("[data-pl-print]")) { plPrintCard(D[curId]); return; }
   const mb = e.target.closest("[data-mult]"); if (mb) { const y = $("#sheet").scrollTop; mult = +mb.dataset.mult; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
   const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderChips(); renderList(); return; }
   const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name, on = !outNow().has(n); setOut(n, on); toast(on ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
@@ -1435,17 +1480,18 @@ let pool = store.get("pool", "Signatures"); if (!POOLS[pool]) pool = "Signatures
 let pDrink = null, pShown = false, pScore = { got: 0, miss: 0 };
 // Cards or the quiz, and the quiz being taken ({ night, day, qs, i, picks }; see Quiz below).
 const QZ_N = 10;
-let pmode = store.get("pmode", "cards"); if (pmode !== "quiz") pmode = "cards";
+let pmode = store.get("pmode", "cards"); if (!["quiz", "starter"].includes(pmode)) pmode = "cards";
 let qz = null;
 function nextCard() {
   const list = D.filter(POOLS[pool]).filter((d) => d !== pDrink);
   pDrink = list[Math.floor(Math.random() * list.length)]; pShown = false; renderPractice();
 }
 function renderPractice() {
-  const quiz = pmode === "quiz";
+  const st = pmode === "starter" && !qz?.starter, quiz = pmode === "quiz" || (pmode === "starter" && !!qz?.starter);
   $$("#pmode [data-pmode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.pmode === pmode));
-  $("#plead").textContent = quiz ? "Ten questions from our own specs." : "Say the spec out loud, then check it.";
-  $("#ppool").hidden = quiz; $("#pcard").hidden = quiz; $("#pquiz").hidden = !quiz;
+  $("#plead").textContent = pmode === "starter" ? "Your first week: the house cocktails, then a short test." : quiz ? "Ten questions from our own specs." : "Say the spec out loud, then check it.";
+  $("#ppool").hidden = quiz || st; $("#pcard").hidden = quiz || st; $("#pquiz").hidden = !quiz; $("#pstart").hidden = !st;
+  if (st) return renderStarter();
   if (quiz) renderQuiz();
   $("#ppool").innerHTML = Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}</button>`).join("");
   const d = pDrink;
@@ -1457,11 +1503,12 @@ function renderPractice() {
 }
 $("#v-practice").addEventListener("click", (e) => {
   const pb = e.target.closest("[data-pool]"); if (pb) { pool = pb.dataset.pool; store.set("pool", pool); pDrink = null; nextCard(); return; }
-  const pm = e.target.closest("[data-pmode]"); if (pm) { pmode = pm.dataset.pmode; store.set("pmode", pmode); renderPractice(); return; }
+  const pm = e.target.closest("[data-pmode]"); if (pm) { if (qz?.starter) qz = null; pmode = pm.dataset.pmode; store.set("pmode", pmode); renderPractice(); return; }
   const qa = e.target.closest("[data-qz]");
   if (qa) {
     const a = qa.dataset.qz;
-    if (a === "night" || a === "practice") quizStart(a === "night");
+    if (a === "starter") stStartQuiz();
+    else if (a === "night" || a === "practice") quizStart(a === "night");
     else if (a === "next") { qz.i++; qzKeep(); if (qz.i === qz.qs.length) quizDone(); renderPractice(); }
     else { qz = null; renderPractice(); }
     $("#v-practice").scrollIntoView({ block: "start" });
@@ -1508,7 +1555,7 @@ function usual(key, field) {
 }
 let qzUsual = null;
 // Each kind of question: what's asked, the answer and three wrong ones, or nothing where it doesn't fit the drink.
-// app: the answers are the app's own words, so they're translated.
+// app: the answers are the app's own words.
 const QZ_KINDS = {
   glass: (d, r) => {
     const k = glassKey(d.glass); if (k.startsWith("pitcher")) return null;
@@ -1620,7 +1667,8 @@ function renderQuiz() {
   const right = qzScore(qzMarks(qz)), missed = qz.qs.filter((x, j) => qz.picks[j] !== x.answer);
   box.innerHTML = `<div class="card"><h2>${right} out of ${qz.qs.length}</h2><p class="lead" style="margin:6px auto 0">${right === qz.qs.length ? "Perfect." : right >= 8 ? "Strong." : right >= 5 ? "Getting there." : "Practise these, then try again."}</p></div>
     ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n" translate="no">${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div><div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div></div>`).join("")}` : ""}
-    <div class="actions"><button class="btn pri" data-qz="practice">Another practice quiz</button><button class="btn" data-qz="home">Done</button></div>`;
+    ${qz.starter ? stResult(right) : ""}
+    <div class="actions">${qz.starter ? "" : `<button class="btn pri" data-qz="practice">Another practice quiz</button>`}<button class="btn" data-qz="home">Done</button></div>`;
 }
 
 /* ---------- Shift ---------- */
@@ -2247,7 +2295,7 @@ const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).m
 // The morning: read last night's handover, say it's checked (and what's outstanding) on WhatsApp, send the order, prep to par.
 function morningHtml() {
   const r = lastReport(), h = r && handoverOf(r), order = orderLines(r);
-  const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? ut(v) : "None"}</span></div>`;
+  const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? esc(v) : "None"}</span></div>`;
   const ho = !r ? `<p class="note">No handover from the last close on this side yet.</p>`
     : `<article class="notice" id="handover"><div class="meta">Last night's handover · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
       ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
@@ -2707,7 +2755,7 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("[data-login]")) { show("notices"); return; }
   const rp = e.target.closest("[data-rp-photos]"); if (rp) {
     const id = rp.dataset.rpPhotos, A = LIVE.api;
-    return busy(rp, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
+    return busy(rp, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${esc(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
   }
   const jp = e.target.closest("[data-jump]"); if (jp) {
     pane = jp.dataset.jump; renderTally();
@@ -2869,154 +2917,6 @@ document.addEventListener("click", (e) => {
   store.set("theme", t.dataset.themePick); applyTheme(); haptic();
   $$("[data-theme-pick]").forEach((b) => b.setAttribute("aria-pressed", b === t));
 });
-
-/* ---------- Language ----------
-   Each phone picks its language on the welcome screen or in Info. The app's fixed words (tabs, headings, buttons, the
-   Team page's sections, the checklists) come translated from I18N (src/i18n.json: the languages, then each English
-   phrase with its translations in the same order, "" where there isn't one yet). Whatever is
-   on screen is matched whole against the English, so a word that isn't in the list stays in English, and so do drink
-   names, specs and allergens, which are never in it. Names and what people type are never touched. */
-/*I18N*/
-const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
-let lang = store.get("lang", "");
-const TR = new Map();
-function trBuild() {
-  TR.clear(); TR_PAT = []; trCache.clear(); trFmt = null; const i = LANGS.findIndex(([c]) => c === lang); if (i < 0) return;
-  for (const [en, xs] of Object.entries(I18N.words)) if (xs[i]) { if (/\{[a-d]\}/.test(en)) TR_PAT.push(trPat(en, xs[i])); else TR.set(en, xs[i]); }
-  // The longest phrases are tried first, so "Remove {a} for everyone?" wins over "Remove {a}".
-  TR_PAT.sort((a, b) => b.re.source.length - a.re.source.length);
-  const loc = `${LOCALE[lang] || lang}-u-nu-latn`;
-  // Only where the phone has the language's calendar words: some browsers say they do and give "M11" or the English.
-  const nov = (o) => new Intl.DateTimeFormat(loc, { timeZone: "UTC", ...o }).format(new Date(Date.UTC(2026, 10, 6)));
-  if (Intl.DateTimeFormat.supportedLocalesOf(loc).length && !/November|Nov\b|Fri\b|M11/.test(nov({ month: "long" }) + nov({ weekday: "short", day: "numeric", month: "short" }))) {
-    const fs = new Map(); trFmt = (o) => { const k = JSON.stringify(o); if (!fs.has(k)) fs.set(k, new Intl.DateTimeFormat(loc, o)); return fs.get(k); };
-  }
-}
-// A phrase with numbers in it ("3 of 21 done") is listed with {1}, {2}… for the numbers ("{1} of {2} done"), and the
-// numbers go back in wherever the translation puts them.
-const TR_NUM = /\d+(?:[.,:]\d+)*/g;
-// Dates the app writes in English ("Fri 6 Nov", "Saturday 7 November 2026", "November 2026") are put into the
-// phone's language with the phone's own calendar words. Digits stay 0-9.
-const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MO = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-const alt = (xs) => xs.map((x) => (x === "May" ? x : `${x}|${x.slice(0, 3)}`)).join("|");
-const TR_DATE_SRC = `(?:(${alt(WD)}),? )?(\\d{1,2}) (${alt(MO)})(?: (\\d{4}))?|(${MO.join("|")})(?: (\\d{4}))?`;
-const TR_DATE = new RegExp(`^(?:${TR_DATE_SRC})$`);
-const LOCALE = { zh: "zh-CN", pt: "pt-PT", es: "es-ES" };
-let trFmt = null;
-function trDate(k) {
-  const m = k.match(TR_DATE); if (!m || !trFmt) return;
-  const [, wd, d, mo, y, mo2, y2] = m, mi = MO.findIndex((x) => (mo || mo2).startsWith(x.slice(0, 3)));
-  const o = { timeZone: "UTC", month: (mo || mo2).length > 3 ? "long" : "short" };
-  if (d) o.day = "numeric";
-  else if (!y2) o.month = "long";
-  if (y || y2) o.year = "numeric";
-  if (wd) o.weekday = wd.length > 3 ? "long" : "short";
-  // Without a year, the year that puts the day on the weekday shown (this year or the ones either side).
-  const now = new Date().getUTCFullYear(), wi = wd ? WD.findIndex((x) => x.startsWith(wd.slice(0, 3))) : -1;
-  const yr = Number(y || y2) || [now, now + 1, now - 1, now + 2].find((n) => wi < 0 || new Date(Date.UTC(n, mi, Number(d))).getUTCDay() === wi);
-  return trFmt(o).format(new Date(Date.UTC(yr, mi, Number(d) || 1)));
-}
-// A phrase with someone's name, a title or a date in it is listed with {a}, {b}… for the text and {d} for a date
-// ("Accept {a}'s handover"). The text goes back as it was, or translated if it's a phrase of its own.
-let TR_PAT = [];
-const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-function trPat(en, t) {
-  const slots = [], src = en.split(/(\{(?:\d|[a-d])\})/).map((x, i) => {
-    if (!(i % 2)) return reEsc(x);
-    slots.push(x);
-    return x === "{d}" ? `(${TR_DATE_SRC.replace(/\((?!\?)/g, "(?:")})` : /\d/.test(x) ? "(\\d+(?:[.,:]\\d+)*)" : "([\\s\\S]+?)";
-  }).join("");
-  const lits = en.split(/\{(?:\d|[a-d])\}/).filter(Boolean), hint = lits.reduce((a, x) => (x.length > a.length ? x : a), "");
-  return { re: new RegExp(`^${src}$`), slots, t, hint };
-}
-const trCache = new Map();
-function trLook(k) {
-  if (trCache.has(k)) return trCache.get(k);
-  let t = TR.get(k) || trDate(k);
-  if (!t && /\d/.test(k)) { const ns = k.match(TR_NUM); let i = 0; t = TR.get(k.replace(TR_NUM, () => `{${++i}}`))?.replace(/\{(\d)\}/g, (_, j) => ns[j - 1]); }
-  if (!t) for (const p of TR_PAT) {
-    if (p.hint && !k.includes(p.hint)) continue;
-    const m = k.match(p.re); if (!m) continue;
-    const v = {}; p.slots.forEach((x, i) => (v[x] = m[i + 1]));
-    t = p.t.replace(/\{(?:\d|[a-d])\}/g, (x) => (x === "{d}" ? trDate(v[x]) || v[x] : /\d/.test(x) ? v[x] : trLook(v[x]) || v[x]));
-    break;
-  }
-  // A line made of parts ("Bar · Opening 3/8 · Closing 0/12") is put together from the parts it knows.
-  // "Glass washer drained and cleaned (Closing checklist)": both halves have to be known.
-  const pm = !t && k.match(/^(.+) \(([^()]+)\)$/);
-  if (pm) { const x = trLook(pm[1]), y = trLook(pm[2]); if (x && y) t = `${x} (${y})`; }
-  if (!t && k.includes(" · ")) { const ps = k.split(" · "), ts = ps.map((x) => trLook(x)); if (ts.some(Boolean)) t = ps.map((x, i) => ts[i] || x).join(" · "); }
-  trCache.set(k, t);
-  return t;
-}
-// Pop-ups and questions are put through the same words.
-for (const f of ["alert", "confirm", "prompt"]) { const o = window[f]; window[f] = (m, ...r) => o.call(window, trLook(String(m).trim()) || m, ...r); }
-// The English each translated text node or attribute came from, so switching back or to another language works.
-const trWas = new WeakMap();
-function trNode(n) {
-  const was = trWas.get(n) ?? n.textContent, k = was.trim(), t = trLook(k);
-  if (t) { if (!trWas.has(n)) trWas.set(n, was); const v = was.replace(k, t); if (n.textContent !== v) n.textContent = v; }
-  else if (trWas.has(n)) { n.textContent = was; trWas.delete(n); }
-}
-function trAttr(el, a) {
-  const key = "data-en-" + a, was = el.getAttribute(key) ?? el.getAttribute(a), t = trLook(was.trim());
-  if (t) { el.setAttribute(key, was); if (el.getAttribute(a) !== t) el.setAttribute(a, t); }
-  else if (el.hasAttribute(key)) { el.setAttribute(a, was); el.removeAttribute(key); }
-}
-const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no],[data-ut]";
-function trTree(root) {
-  if (root.nodeType === 3) { if (!root.parentElement?.closest(TR_SKIP)) trNode(root); return; }
-  if (root.nodeType !== 1 || root.closest(TR_SKIP)) return;
-  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentElement.closest(TR_SKIP) ? 2 : 1) });
-  for (let n; (n = w.nextNode());) trNode(n);
-  for (const el of [root, ...root.querySelectorAll("[placeholder],[aria-label],[title]")]) for (const a of ["placeholder", "aria-label", "title"]) if (el.hasAttribute(a) && !el.closest("[translate=no]")) trAttr(el, a);
-}
-// Everything drawn later is translated as it lands.
-const trObs = new MutationObserver((ms) => {
-  for (const m of ms) m.addedNodes.forEach((n) => n.nodeType === 1 && utMark(n));
-  if (!TR.size) return;
-  trObs.disconnect();
-  for (const m of ms) if (m.type === "characterData") { trWas.delete(m.target); trTree(m.target); } else m.addedNodes.forEach(trTree);
-  trWatch();
-});
-const trWatch = () => trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
-function setLang(c) {
-  lang = c; store.set("lang", c); if (c) store.set("lang.last", c); trBuild();
-  langBtn(); utMark(document.body);
-  document.documentElement.lang = c || "en-GB"; document.documentElement.dir = LANG_RTL.has(c) ? "rtl" : "ltr";
-  trObs.disconnect(); trTree(document.body); trWatch();
-  $$("select[data-lang]").forEach((s) => (s.value = c));
-}
-/* What people write or send (chat, broadcasts, notes, issues, handovers) isn't in the app's dictionary, so it gets a
-   Translate button that opens Google Translate with the words, into this phone's language (or English, on an English
-   phone). It's free and needs signal; the words go to Google. On an English phone the button shows only for writing
-   with letters outside English (Polish, Arabic, Hindi…), so English messages stay uncluttered. */
-const GT_LANG = { zh: "zh-CN", pt: "pt-PT" };
-function utMark(root) {
-  const els = root.matches?.("[data-ut]") ? [root] : root.querySelectorAll ? root.querySelectorAll("[data-ut]") : [];
-  for (const el of els) {
-    const t = el.textContent.trim(), want = /\p{L}{2}/u.test(t) && (!!lang || /[^\x00-\x7F]/.test(t)), has = el.nextElementSibling?.matches(".utx");
-    if (want && !has) el.insertAdjacentHTML("afterend", `<button class="utx" data-utx>Translate</button>`);
-    else if (!want && has) el.nextElementSibling.remove();
-  }
-}
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-utx]"); if (!b) return;
-  const t = b.previousElementSibling?.textContent.trim(); if (!t) return;
-  window.open(`https://translate.google.com/?sl=auto&tl=${GT_LANG[lang] || lang || "en"}&text=${encodeURIComponent(t)}&op=translate`, "_blank", "noopener");
-});
-// One tap between English and the language picked last, from the top of every page.
-function langBtn() {
-  const b = $("#lang-btn"), last = store.get("lang.last", ""), to = lang ? "" : last, l = LANGS.find(([c]) => c === (lang || last));
-  b.hidden = !l; if (!l) return;
-  b.textContent = to ? to.toUpperCase() : "EN"; b.dataset.to = to;
-  b.setAttribute("aria-label", to ? `${l[1]} (${l[2]})` : "English");
-}
-$("#lang-btn").addEventListener("click", (e) => { setLang(e.currentTarget.dataset.to); haptic(); });
-// The list to pick from: English first, then each language in its own words, with the English name after it.
-const langOptions = () => `<option value="">English</option>${LANGS.map(([c, own, en]) => `<option value="${c}"${c === lang ? " selected" : ""}>${own} (${en})</option>`).join("")}`;
-document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); haptic(); } });
 
 /* ---------- My pay ----------
    Everything about pay in one tab, kept on this phone only: nobody else sees it and it never goes online. The shifts
@@ -3495,8 +3395,6 @@ function renderInfo() {
     ${fold("prep", "Prep and batches", prep)}
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
     <div class="sec">This phone</div>
-    <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
-    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Use Send feedback above.</p>
     <div class="mini" style="margin-top:14px">Light or dark</div>
     <div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. This phone only.</p>
@@ -3516,7 +3414,7 @@ function renderInfo() {
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>`)}
     ${fold("clear", "Clear everything", `
-    <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the language and look, and anything else saved on it. Then the app starts again as new. Nobody else's phone changes, and it can't be undone.</p>
+    <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the look, and anything else saved on it. Then the app starts again as new. Nobody else's phone changes, and it can't be undone.</p>
     <label class="fld">Type ${CLEAR_WORD} to show you mean it<input id="cp-words" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
     <button class="btn danger wide" id="cp-go">Clear everything on this phone</button>`, "clear")}
     ${offlineReady ? `<p class="note">Offline ready ✓</p>` : ""}<p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
@@ -3563,7 +3461,7 @@ const FEATURES = [
   { g: "Drinks", k: "sheets", n: "Cheat sheets", go: "tab:sheets",
     what: "A4 pages to print double-sided and laminate for behind the bar, a section of drinks on each." },
   { g: "Drinks", k: "info", n: "More", go: "tab:info",
-    what: "Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's language, look and home screen icon." },
+    what: "Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's look and home screen icon." },
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", tour: 1,
     what: "Everything about your pay in one tab: your hours, an estimated take-home after tax, National Insurance, student loan and pension, tronc at £5 an hour that you can switch off, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
     staff: "Add shifts, read them from a Nory screenshot, type in Nory's hours or gross wage, or just pick about how many hours a week. Then set your tax code, loan and pension once." },
@@ -3787,7 +3685,7 @@ const ASK = { dayoff: "Day off", swap: "Shift swap", complaint: "Complaint", fau
 const ASK_ST = { new: ["Sent", "wait"], seen: ["Seen", ""], done: ["Done", "ok"] };
 let askF = { kind: "dayoff", text: "", when: "", anon: false }, sentAnon = store.get("sentAnon", []);
 const askLine = (a) => `<article class="notice"><div class="meta"><b>${ASK[a.kind] || "Message"}</b> · ${a.anon ? "anonymous" : esc(a.name)} · ${when(a.at)} <span class="pill ${ASK_ST[a.status][1]}">${ASK_ST[a.status][0]}</span></div>
-  ${a.when ? `<p class="note">When: ${esc(a.when)}</p>` : ""}<p class="txt">${ut(a.text)}</p>${a.reply ? `<p class="note">${esc(a.by)}: ${ut(a.reply)}</p>` : ""}`;
+  ${a.when ? `<p class="note">When: ${esc(a.when)}</p>` : ""}<p class="txt">${esc(a.text)}</p>${a.reply ? `<p class="note">${esc(a.by)}: ${esc(a.reply)}</p>` : ""}`;
 function askHtml() {
   const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
   return `<p class="note">Only the seniors see these, not the rest of the team. For things the team shouldn't share with the seniors, use Team only below.</p>
@@ -3866,9 +3764,9 @@ const fixText = {};
 function issuesHtml() {
   const open = openIssues().sort((a, b) => (b.urgent - a.urgent) || (ms(a.at) - ms(b.at)));
   const fixed = LIVE.issues.filter((x) => x.status === "fixed").slice(0, 10);
-  const row = (x) => `<article class="notice issue${x.urgent ? " new" : ""}"><div class="meta"><b>${ut(x.title)}</b>${x.pending ? " · sending…" : ""}</div>
+  const row = (x) => `<article class="notice issue${x.urgent ? " new" : ""}"><div class="meta"><b>${esc(x.title)}</b>${x.pending ? " · sending…" : ""}</div>
     <div class="tags">${x.urgent ? `<span class="pill no">Urgent</span>` : ""}<span class="pill">${AREA[x.area] || "Other"}</span>${x.status === "taken" ? `<span class="pill wait">On it: ${esc(x.who)}</span>` : `<span class="pill">Nobody on it yet</span>`}${x.again ? `<span class="pill">Raised again</span>` : ""}</div>
-    ${x.detail ? `<p class="txt">${ut(x.detail)}</p>` : ""}
+    ${x.detail ? `<p class="txt">${esc(x.detail)}</p>` : ""}
     <p class="note" style="margin-top:6px">Raised by ${esc(x.name)} · ${when(x.at)}</p>
     <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${sendBtn("issue", "Send on WhatsApp", x.id)}<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}" translate="no">${esc(p.name)}</option>`).join("")}</select>${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
     <div class="rvrow" style="grid-template-columns:1fr auto"><input data-fixt="${x.id}" maxlength="500" placeholder="What was done to fix it" value="${esc(fixText[x.id] || "")}" aria-label="What was done to fix it"><button class="btn pri" data-fix="${x.id}">Fixed</button></div></article>`;
@@ -3880,7 +3778,7 @@ function issuesHtml() {
       ${draftBar("issue")}<div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again && !drafted("issue") ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
     ${open.map(row).join("") || `<p class="note">No open issues.</p>`}
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
-    ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${ut(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${ut(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
+    ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${esc(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${esc(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
 }
 SHARE.issues = () => {
   const o = openIssues().sort((a, b) => ms(a.at) - ms(b.at)), u = o.filter((x) => x.urgent);
@@ -3959,7 +3857,6 @@ const CALL_UK = [
 ];
 const clF = { t: "", n: "", p: "" };
 const telOf = (p) => `tel:${String(p).replace(/[^\d+]/g, "")}`;
-// Our own numbers' "who" is a name or a company, so it's never translated.
 const callRow = (p, t, sub, cls = "", own = false) => `<a class="callrow${cls}" href="${esc(telOf(p))}"><span>${esc(t)}${sub ? `<small${own ? ' translate="no"' : ""}>${esc(sub)}</small>` : ""}</span><span class="num" translate="no">${esc(p)}</span></a>`;
 function callHtml() {
   const ours = LIVE.contacts;
@@ -3980,7 +3877,7 @@ function callHtml() {
 const TELL = { missing: "Something missing", add: "Add this", wrong: "Something's wrong" };
 const ownerName = () => firstName(LIVE.staff.find((p) => p.role === "owner")?.name) || "Derek";
 let tellF = { kind: "missing", text: "" };
-const tellRow = (x, own) => `<article class="notice"><div class="meta"><b>${TELL[x.kind]}</b> · ${own ? "" : `<span translate="no">${esc(x.name)}</span> · `}${when(x.at)} <span class="pill ${x.status === "done" ? "ok" : "wait"}">${x.status === "done" ? "Done" : "Sent"}</span></div><p class="txt">${ut(x.text)}</p>`;
+const tellRow = (x, own) => `<article class="notice"><div class="meta"><b>${TELL[x.kind]}</b> · ${own ? "" : `<span translate="no">${esc(x.name)}</span> · `}${when(x.at)} <span class="pill ${x.status === "done" ? "ok" : "wait"}">${x.status === "done" ? "Done" : "Sent"}</span></div><p class="txt">${esc(x.text)}</p>`;
 function tellHtml() {
   const mine = LIVE.tells.filter((x) => x.uid === LIVE.uid);
   return `<p class="note">Only ${esc(ownerName())} reads these: what's missing from Bar Book, what to add, or what's wrong in it.</p>
@@ -4241,7 +4138,7 @@ $("#v-notices").addEventListener("click", async (e) => {
   // The manager.
   if ((x = b("[data-rp-photos]"))) {
     const id = x.dataset.rpPhotos;
-    return busy(x, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
+    return busy(x, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${esc(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
   }
   if ((x = b("[data-tm-drop]"))) {
     const p = LIVE.staff.find((s) => s.uid === x.dataset.tmDrop); if (!p) return;
@@ -4327,7 +4224,7 @@ function liveChanged(what) {
     }
   }
   renderBell(); renderNet();
-  if (what === "me" || what === "out") renderList();
+  if (what === "me" || what === "out") plOutRefresh();
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
@@ -4417,6 +4314,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-back]"))
 
 /*MAKER*/
 /*RAPID*/
+/*PLUS*/
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { offlineReady = !!hit; if (hit && cur === "info") renderInfo(); }).catch(() => {});
@@ -4424,7 +4322,7 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
 renderChips(); renderList();
 {
   const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
-  $("#w-lang").innerHTML = langOptions(); renderWelcomeName();
+  renderWelcomeName();
   w.addEventListener("click", (e) => {
     const b = e.target.closest("[data-start]"); if (!b) return;
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
@@ -4434,6 +4332,6 @@ renderChips(); renderList();
   });
 }
 navCols();
-setLang(lang);
-show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
+if (!plOpenList(location.hash)) show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
+addEventListener("hashchange", () => plOpenList(location.hash));
 </script>
