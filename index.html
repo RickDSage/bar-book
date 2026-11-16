@@ -86,7 +86,9 @@
   #print figcaption { font-size: 9pt; }
 }
 * { box-sizing: border-box; }
-html, body { height: 100%; }
+html { height: 100%; }
+/* min-height, not height: a body only as tall as the screen lets the sticky search bar scroll away after one screen. */
+body { min-height: 100%; }
 /* An iPhone zooms the page into any field under 16px when it is tapped. */
 input, select, textarea { font-size: 16px; }
 body {
@@ -809,8 +811,14 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .pl-panel .chips { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
 .pl-bar .pl-off::after { content: " ✕"; }
 .chip .cn { font-weight: 400; opacity: .7; margin-left: 2px; }
-.azbar { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
-.azbar button { min-width: 34px; min-height: 34px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--brass); font-weight: 700; }
+.azbar { --jh: 46px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px)); z-index: 4; height: var(--jh); display: flex; gap: 4px; align-items: center; overflow-x: auto; scrollbar-width: none; background: var(--bg); margin: 6px 0 2px; }
+.azbar::-webkit-scrollbar { display: none; }
+.azbar button { flex: none; min-width: 34px; min-height: 36px; padding: 0 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--brass); font-weight: 700; white-space: nowrap; }
+.secbar button { font-size: 14px; }
+#list { --jb: 0px; }
+#list.jb { --jb: 46px; }
+#list .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
+#list .anc { display: block; scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); }
 .azsec { scroll-margin-top: 190px; }
 .pl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .pl-list { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; padding: 8px 10px; margin-top: 10px; }
@@ -1330,13 +1338,15 @@ $("#quick").addEventListener("click", (e) => {
   const ml = e.target.closest("[data-mylist]"); if (ml) { haptic(); plOpenSaved(+ml.dataset.mylist); return; }
 });
 let listIds = D.map((d) => d.id);
+const SEC_ORDER = [...new Set(D.map((d) => d.section))];
 function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const words = q ? plQuery(q).words : [];
   renderQuick(!q);
   let rows = D.filter((d) => inSec(d) && plHits(d, words) && flavHit(d) && plOk(d));
-  rows = q && PL.sort === "menu" ? plRank(rows, words) : plSort(rows);
   const flat = !!q || PL.sort !== "menu";
+  // The menu keeps each section together, in menu order, so nothing hides under a repeated heading further down.
+  rows = q && PL.sort === "menu" ? plRank(rows, words) : flat ? plSort(rows) : rows.slice().sort((a, b) => SEC_ORDER.indexOf(a.section) - SEC_ORDER.indexOf(b.section) || a.id - b.id);
   $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}`;
   listIds = rows.map((d) => d.id);
   renderPlf();
@@ -1344,20 +1354,29 @@ function renderList() {
   if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
   let html = "", last = "";
   const per = {}; rows.forEach((d) => (per[d.section] = (per[d.section] || 0) + 1));
-  // A to Z: a letter heading over each run, and the letters at the top to jump straight to one.
+  // Every drink shows. A to Z puts a letter heading over each run, the menu a heading over each section; the
+  // heading sticks while you scroll its drinks, and the bar at the top jumps straight to any letter or section.
   const az = PL.sort === "az" && rows.length > 12, L = (d) => (/[a-z]/i.test(plNorm(d.name)[0]) ? plNorm(d.name)[0].toUpperCase() : "#");
+  const secs = !flat ? [...new Set(rows.map((d) => d.section))] : [], sid = (x) => `sec-${SEC_ORDER.indexOf(x)}`;
   if (az) html += `<nav class="azbar" aria-label="Jump to a letter">${[...new Set(rows.map(L))].map((l) => `<button data-az="${l}">${l}</button>`).join("")}</nav>`;
+  else if (secs.length > 1) html += `<nav class="azbar secbar" aria-label="Jump to a section">${secs.map((x) => `<button data-jump="${sid(x)}">${esc(x)}</button>`).join("")}</nav>`;
   for (const d of rows) {
-    if (az && L(d) !== last) { last = L(d); html += `<div class="sec azsec" id="az-${last}">${last}</div>`; }
-    else if (!flat && d.section !== last) { html += `<div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; }
+    if (az && L(d) !== last) { last = L(d); html += `<i class="anc" id="az-${last}"></i><div class="sec azsec">${last}</div>`; }
+    else if (!flat && d.section !== last) { html += `<i class="anc" id="${sid(d.section)}"></i><div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; }
     html += rowHtml(d);
   }
   // A filtered list (a section, a flavour or a search) can go out as one WhatsApp message of specs.
   if (sec !== "All" || q || flav || PL.list || PL.fam || plActive().length) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
   $("#list").innerHTML = html;
+  $("#list").classList.toggle("jb", az || secs.length > 1);
 }
 $("#q").addEventListener("input", renderList);
-$("#list").addEventListener("click", (e) => { const b = e.target.closest("[data-az]"); if (!b) return; haptic(); document.getElementById(`az-${b.dataset.az}`)?.scrollIntoView({ block: "start", behavior: "smooth" }); });
+$("#list").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-az],[data-jump]"); if (!b) return; haptic();
+  document.getElementById(b.dataset.jump || `az-${b.dataset.az}`).scrollIntoView({ block: "start", behavior: "smooth" });
+});
+// The sticky jump bar and headings sit under the sticky search bar, whatever its height.
+new ResizeObserver(() => document.documentElement.style.setProperty("--hdh", `${$("#hdr").offsetHeight}px`)).observe($("#hdr"));
 document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
 
 /* ---------- Spec sheet ---------- */
