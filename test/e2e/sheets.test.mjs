@@ -22,7 +22,7 @@ async function open() {
 test("Cheat sheets: every drink on them is in the app, one sheet previews, and Print all prints them all", async () => {
   const p = await open();
   assert.deepEqual(await p.evaluate(() => CHEAT.missing(csByName)), []);
-  await p.click('#subnav [data-tab="sheets"]');
+  await p.click("nav.tabs [data-tab=info]"); await p.click("[data-go=sheets]");
   const n = await p.evaluate(() => CHEAT.SHEETS.length);
   assert.equal(await p.$$eval("#v-sheets [data-cs]", (x) => x.length), n);
   assert.equal(await p.$$eval("#cs-view .cs-row", (x) => x.length), 8);
