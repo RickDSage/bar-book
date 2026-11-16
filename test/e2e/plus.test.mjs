@@ -80,6 +80,15 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
   assert.deepEqual(await p.$$eval("#plf .pl-off", (x) => x.map((e) => e.textContent)), ["Gin", "Stirred"]);
   await p.click('#plf [data-pl="clear"]');
   assert.equal(await p.evaluate(() => listIds.length), await p.evaluate(() => D.length));
+  // The menu shows every drink, each section once with all its drinks, and the bar jumps to any section.
+  assert.equal(await p.$$eval("#list .row", (x) => x.length), await p.evaluate(() => D.length));
+  const heads = await p.$$eval("#list .sec", (x) => x.map((e) => e.firstChild.textContent));
+  assert.deepEqual(heads, [...new Set(heads)]);
+  assert.deepEqual(await p.$$eval("#list .secbar button", (x) => x.map((e) => e.textContent)), heads);
+  await p.click('#list .secbar button:has-text("Zero Proof")');
+  await p.waitForFunction(() => { const z = [...document.querySelectorAll("#list .sec")].find((e) => e.firstChild.textContent === "Zero Proof"); return Math.abs(z.getBoundingClientRect().top - $("#hdr").getBoundingClientRect().bottom) < 80; });
+  // The search bar stays on screen however far down the menu you are.
+  assert.ok(await p.evaluate(() => scrollY > 2000 && $("#hdr").getBoundingClientRect().top >= 0));
   // A to Z: letters to jump to, and a heading over each letter.
   await p.click("[data-pl=filters] >> nth=0");
   await p.click('[data-pl-sort="az"]');
