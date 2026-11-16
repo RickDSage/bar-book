@@ -607,7 +607,8 @@ document.addEventListener("change", (e) => {
 });
 
 /* ---------- Top 10: the ten that sell, as big cards at the top of Rapid fire ---------- */
-const RUSH_DEFAULT = ["Pornstar Martini", "Espresso Martini", "London Cosmo", "Mojito", "Aperol Spritz", "Margarita", "Salted Caramel Buzz", "Piña Colada", "Uptown Hustle", "Long Island Iced Tea"];
+// The signatures sit above the Top 10 in Rapid fire, so the Top 10 is the classics guests ask for most.
+const RUSH_DEFAULT = ["Pornstar Martini", "Espresso Martini", "Mojito", "Aperol Spritz", "Margarita", "Piña Colada", "Long Island Iced Tea", "Daiquiri", "Old Fashioned", "Negroni"];
 const rushNames = () => store.get("rush", RUSH_DEFAULT).filter((n) => D.some((d) => d.name === n));
 function rushPickHtml() {
   const on = new Set(rushNames()), pool = [...new Set(RAPID_GROUPS.flatMap(([, f]) => rapidList(f)))];

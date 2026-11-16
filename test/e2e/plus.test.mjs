@@ -95,7 +95,7 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
   await p.click('.pl-row .btn.pri');
   const letters = await p.$$eval("#list .azbar button", (x) => x.map((e) => e.textContent));
   assert.ok(letters.includes("A") && letters.includes("M"));
-  await p.click('#list .azbar [data-az="M"]');
+  await p.click('#list .azbar [data-jump="az-M"]');
   await p.waitForFunction(() => Math.abs(document.querySelector("#az-M").getBoundingClientRect().top) < 400);
   assert.match(await text(p, "#secs"), /All \d+/);
   await p.click("[data-pl=filters] >> nth=0"); await p.click('[data-pl-sort="menu"]');
