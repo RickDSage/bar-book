@@ -121,6 +121,29 @@ test("my pay: real payslips fill in every month, tronc an hour, the next pay and
   assert.deepEqual(p.errs, []);
 });
 
+test("my pay: payslips saved by the old reader are put right on opening, or named to add again", async () => {
+  const p = await open({ at: "2026-11-16T12:00:00Z" });
+  // How the old reader saved September and October: the rate and the tronc as "hours" lines, the totals as plain
+  // TOTALs, and the take-home as the gross. July's can't be worked out, so it's named.
+  const old = (m, date, rate, tronc, tot, ded, er, tax, ni, net) => ({ m, date, code: "992L", period: 0, ytd: {}, basicH: 0, basicAmt: Math.round((rate + tronc) * 100) / 100, basicRate: 0, holH: 0, holAmt: 0, holRate: 0,
+    tronc: 0, tax, ni, loan: 0, pgl: 0, pen: 0, other: 0, gross: net, net,
+    items: [{ l: "hours", k: "basic", u: 0, r: 0, a: rate }, ...(tronc ? [{ l: "hours", k: "basic", u: 0, r: 0, a: tronc }] : []), { l: "TOTAL", k: "other", u: 0, r: 0, a: tot }, { l: "PAYE", k: "tax", u: 0, r: 0, a: tax },
+      { l: "Employee National Insurance Contribution", k: "ni", u: 0, r: 0, a: ni }, { l: "TOTAL", k: "other", u: 0, r: 0, a: ded }, { l: "Electronic Transfer", k: "net", u: 0, r: 0, a: net }, { l: "TOTAL", k: "other", u: 0, r: 0, a: er }] });
+  await p.evaluate((xs) => { pay.slips = {}; for (const x of xs) pay.slips[x.m] = x; pay.code = "992L"; savePay(); }, [
+    { m: "2026-07", date: "2026-07-31", code: "1257L", period: 0, ytd: {}, items: [{ l: "Basic", k: "basic", u: 0, r: 0, a: 100 }], basicH: 0, basicAmt: 100, basicRate: 0, holH: 0, holAmt: 0, holRate: 0, tronc: 0, tax: 0, ni: 0, loan: 0, pgl: 0, pen: 0, other: 0, gross: 100, net: 100 },
+    old("2026-08", "2026-08-28", 12.71, 0, 1042.22, 0, 93.78, 0, 0, 1042.22),
+    old("2026-09", "2026-09-30", 12.71, 592.95, 3724.57, 746.09, 407.19, 579.4, 166.69, 2978.48),
+    old("2026-10", "2026-10-30", 12.71, 915.59, 2571.19, 397.21, 185.79, 348.6, 48.61, 2173.98),
+  ]);
+  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
+  await p.click('[data-pm="-1"]');
+  assert.match(await txt(p, "#pay-sum"), /^Take-home £2,173\.98 From your payslip · paid Friday 30 October 130\.3 Hours £3\.72 Tronc an hour £2,571\.19 Gross Next pay, Monday 30 November: about £2,126\.78/);
+  assert.match(await txt(p, "#pay-out"), /Regular Hours \(130\.26 h at £12\.71\) £1,655\.60 TRONC \(246\.39 h in September at £3\.72\) £915\.59 Gross £2,571\.19 PAYE −£348\.60 Employee National Insurance Contribution −£48\.61 Take-home £2,173\.98/);
+  assert.match(await txt(p, "#pay-months"), /September payslip 246\.4 h £7\.23\/h £2,978\.48 August payslip 82 h – £1,042\.22/);
+  assert.match(await txt(p, "#pay-old"), /^Your July payslip was read before the payslip reader was fixed, so the hours and tronc are wrong\. Tap Add payslips and pick it again: it replaces the old one\.$/);
+  assert.deepEqual(p.errs, []);
+});
+
 test("my pay: the estimate to the penny, tronc on and off, any tax code", async () => {
   const p = await open({ at: "2026-09-20T12:00:00Z" });
   const out = () => txt(p, "#pay-out");

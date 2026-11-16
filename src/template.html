@@ -3662,6 +3662,11 @@ const SLIP_EARN = new Set(["basic", "hol", "rolled", "tronc", "sick", "ot", "bon
 const SLIP_NAMES = { basic: "Hours pay", hol: "Holiday pay", rolled: "Rolled-up holiday pay", tronc: "Tronc", sick: "Sick pay", ot: "Overtime", bonus: "Bonus",
   tax: "Income tax", ni: "National Insurance", loan: "Student loan", pgl: "Postgraduate loan", pen: "Pension", oded: "Other deduction", gross: "Gross", net: "Take-home" };
 const YTD_OF = { gross: "gross", taxable: "taxable", tax: "tax", ni: "ni", pen: "pen", loan: "loan", pgl: "loan" };
+// The reader's version, kept with each payslip. Payslips read by an older reader (before version 2 the hours and tronc
+// on most real payslips were misread) are named so they can be added again; only the figures are kept, so they can't
+// be read again by themselves.
+const SLIP_V = 2;
+const oldSlips = () => Object.values(pay.slips).filter((S) => (S.v || 0) < SLIP_V).sort((a, b) => a.m.localeCompare(b.m));
 const slipKind = (l) => (SLIP_KINDS.find(([, re]) => re.test(l)) || ["other"])[0];
 // Payslips often put payments and deductions side by side ("Basic 98.00 12.71 1,245.58  PAYE 140.20"), or several
 // figures in a header ("Payment Date: 30/09/2026 Gross Pay: £3,724.57 Net Pay: £2,978.48"): each name with the figures
@@ -3699,7 +3704,7 @@ function slipEarn(v, k) {
 }
 function readSlip(text) {
   const t = dashes(text), items = [], ytd = {};
-  const S = { items, ytd, code: "", basis: "", date: "", period: 0 };
+  const S = { v: SLIP_V, items, ytd, code: "", basis: "", date: "", period: 0 };
   // The tax code: on the tax code line if there is one, otherwise the first code that looks like one.
   const CODE = /\b([SC]?(?:\d{1,4}[LMNT]|BR|D[0-3]|0T|NT|K\d{1,4})(?:\s*(?:W1|M1|X))?)\b/;
   const cl = t.split("\n").find((l) => /tax\s*code/i.test(l));
@@ -3768,6 +3773,24 @@ function readSlip(text) {
   S.m = S.date ? mOf(S.date) : S.period >= 1 && S.period <= 12 ? (() => { const cm = curM(), ty = +cm.slice(5) >= 4 ? +cm.slice(0, 4) : +cm.slice(0, 4) - 1, mo = ((S.period + 2) % 12) + 1, y = mo >= 4 ? ty : ty + 1, k = `${y}-${two(mo)}`; return k > lastPm() ? `${+k.slice(0, 4) - 1}${k.slice(4)}` : k; })() : "";
   return S;
 }
+// Payslips saved by the old reader, put right from what it kept. On the usual payroll layout it saved the rate as an
+// hours line ("hours £12.71"), the tronc as a second one ("hours £592.95") and the totals as plain TOTAL lines: the
+// first TOTAL is the gross, the next the deductions. When the rate is a likely one and the hours pay over it comes to
+// whole hundredths of an hour (as payroll pays them), the payslip is rebuilt; otherwise it's left to be added again.
+function repairSlip(S) {
+  const hs = S.items.filter((x) => x.k === "basic" && /^hours?$/i.test(x.l)), ts = S.items.filter((x) => /^total$/i.test(x.l));
+  const rate = hs[0]?.a, gross = ts[0]?.a, tronc = hs[1]?.a || 0;
+  if (!rate || rate < 5 || rate > 60 || !gross || hs.length > 2) return false;
+  const basicAmt = pence(gross - tronc), basicH = pence(basicAmt / rate);
+  if (basicH <= 0 || Math.abs(basicH * rate - basicAmt) > 0.01) return false;
+  const ded = S.items.filter((x) => SLIP_DED.has(x.k)), net = S.items.find((x) => x.k === "net");
+  S.items = [{ l: "Regular Hours", k: "basic", u: basicH, r: rate, a: basicAmt }, ...(tronc ? [{ l: "TRONC", k: "tronc", u: 0, r: 0, a: tronc }] : []), ...ded,
+    ...(ts[1] ? [{ l: "TOTAL", k: "dedtotal", u: 0, r: 0, a: ts[1].a }] : []), ...(net ? [net] : [])];
+  const D = pence(ded.reduce((n, x) => n + x.a, 0));
+  Object.assign(S, { v: SLIP_V, basicH, basicAmt, basicRate: rate, tronc, troncH: 0, gross, net: net ? net.a : pence(gross - D) });
+  return true;
+}
+if (oldSlips().length) { oldSlips().forEach(repairSlip); savePay(); }
 // What a payslip teaches the estimate: the hourly rate, tax code, loan plan, pension and tronc. Only the latest
 // payslip teaches it, so adding an older one doesn't undo a newer one. Returns what changed.
 function learnSlip(S) {
@@ -4103,16 +4126,17 @@ function payInner() {
   const M = monthPay(pm), H = M.H, open = (k) => (paySec.has(k) ? " open" : ""), ns = Object.keys(pay.slips).length, xs = inM(pm);
   const panel = hf.open ? hfHtml() : slip.open ? slipPanelHtml() : "";
   return `<div class="paymonth"><button class="round" data-pm="-1" aria-label="Month before">‹</button><h2 id="pay-h">${mName(pm, true)}</h2><button class="round" data-pm="1" aria-label="Month after"${pm === lastPm() ? " disabled" : ""}>›</button></div>
+    ${(() => { const os = oldSlips(); return os.length ? `<p class="note warnline" id="pay-old">Your ${listOf(os.map((S) => mName(S.m)))} payslip${os.length === 1 ? " was" : "s were"} read before the payslip reader was fixed, so the hours and tronc are wrong. Tap Add payslips and pick ${os.length === 1 ? "it" : "them"} again: ${os.length === 1 ? "it replaces the old one" : "they replace the old ones"}.</p>` : ""; })()}
     <div class="paycard" id="pay-sum">${paySumHtml()}</div>
+    ${M.slip ? "" : `<div class="paygrid"><label class="fld">Hours in ${mName(pm)}<input data-pay-plan inputmode="decimal" value="${esc(pay.plan[pm] ?? "")}" placeholder="${fmtN(planless(pm))}"></label>
+      ${pay.trOn ? `<label class="fld">Tronc an hour (£)<input data-pay="trRate" inputmode="decimal" value="${esc(pay.trRate ?? "")}" placeholder="${troncAuto(pm).r.toFixed(2)}"></label>` : ""}</div>
+      <p class="note">Put in the hours you expect to work to see what ${mName(pm)} would pay. Clear it to go back to your average. Tronc an hour applies to every month without a payslip.</p>`}
     <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add shifts</button></div>
     <p class="note" id="slip-st" aria-live="polite">${esc(slip.busy)}</p>
     ${slip.learnt.length ? `<p class="note">Updated from your payslip: ${slip.learnt.map((x) => `<b>${esc(x)}</b>`).join(", ")}.</p>` : ""}
     ${panel}
     <div class="sec">${mName(pm)} line by line</div>
     <div id="pay-out">${payOutHtml()}</div>
-    ${M.slip ? "" : `<div class="paygrid"><label class="fld">Hours in ${mName(pm)}<input data-pay-plan inputmode="decimal" value="${esc(pay.plan[pm] ?? "")}" placeholder="${fmtN(planless(pm))}"></label>
-      ${pay.trOn ? `<label class="fld">Tronc an hour (£)<input data-pay="trRate" inputmode="decimal" value="${esc(pay.trRate ?? "")}" placeholder="${troncAuto(pm).r.toFixed(2)}"></label>` : ""}</div>
-      <p class="note">Change them to see what ${mName(pm)} would pay; clear them to go back to the app's figures. Tronc an hour applies to every month without a payslip.</p>`}
     <div class="sec">Month by month</div>
     <div id="pay-months">${monthsHtml()}</div>
     <details class="setup" data-sec="slips"${open("slips")}><summary>Your payslips (${ns})</summary>
