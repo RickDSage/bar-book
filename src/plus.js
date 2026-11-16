@@ -523,7 +523,7 @@ const PL_TIPS = {
   "Aperol Spritz": "Prosecco first, then the Aperol, a splash of soda last. A glass full of ice so it doesn't go flat and warm.",
   "Mojito": "Press the mint gently: shredded mint turns bitter. Churn with crushed ice, then cap with more.",
   "Margarita": "Salt on the outside of the rim only, so it doesn't fall into the drink.",
-  "Long Island Iced Tea": "Five spirits at 10 ml each, not 25: it's already 50 ml of spirit. Just a splash of cola for the colour.",
+  "Long Island Iced Tea": "Five spirits at 15 ml each, not 25: that is already 75 ml. Cola only to the top, for colour and fizz.",
   "Piña Colada": "Shake hard so the coconut whips. Don't skimp on the pineapple juice.",
   "Dry Martini": "Stir, never shake. A chilled glass and a fresh lemon twist or olive.",
   "Dirty Martini": "Stir, and taste the brine first: some jars are much saltier than others.",
