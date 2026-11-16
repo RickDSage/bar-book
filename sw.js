@@ -1,6 +1,6 @@
-// Bar Book offline support. Version 2026-11-16T03:39
-const CACHE = "bar-book-2026-11-16T03:39";
-const CORE = ["./", "live.js", "manifest.webmanifest", "icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
+// Bar Book offline support. Version 2026-11-16T03:44
+const CACHE = "bar-book-2026-11-16T03:44";
+const CORE = ["./", "live.js", "manifest.webmanifest", "fonts/atkinson-400-italic.woff2", "fonts/atkinson-400.woff2", "fonts/atkinson-700.woff2", "fonts/big-shoulders-display.woff2", "icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 // Safari refuses to show a page from a response that was redirected, so store a clean copy.
 const clean = (res) => (res.redirected ? res.blob().then((b) => new Response(b, { status: 200, headers: res.headers })) : Promise.resolve(res));
 self.addEventListener("install", (e) => {
@@ -13,14 +13,10 @@ self.addEventListener("fetch", (e) => {
   const req = e.request;
   if (req.method !== "GET") return;
   const url = new URL(req.url);
-  const font = url.hostname === "fonts.googleapis.com" || url.hostname === "fonts.gstatic.com";
-  if (url.origin !== location.origin && !font) return;
-  if (font) {
-    e.respondWith(caches.match(req).then((hit) => hit || fetch(req).then((res) => { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); return res; })));
-    return;
-  }
-  e.respondWith(fetch(req).then(clean).then((res) => {
-    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req.mode === "navigate" ? "./" : req, copy)); }
+  if (url.origin !== location.origin) return;
+  const key = req.mode === "navigate" ? "./" : req;
+  e.respondWith(caches.match(key, { ignoreSearch: true }).then((hit) => hit || fetch(req).then(clean).then((res) => {
+    if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(key, copy)); }
     return res;
-  }).catch(() => caches.match(req.mode === "navigate" ? "./" : req, { ignoreSearch: true }).then((hit) => hit || caches.match("./"))));
+  })));
 });

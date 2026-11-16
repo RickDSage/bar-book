@@ -2,8 +2,14 @@
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="BT Bar Book">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
+<style>
+/* The fonts come with the app (fonts/, OFL), so it draws straight away with no signal and asks nothing of Google. */
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-display: swap; src: url(fonts/atkinson-400.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 400; font-style: italic; font-display: swap; src: url(fonts/atkinson-400-italic.woff2) format("woff2"); }
+@font-face { font-family: "Atkinson Hyperlegible"; font-weight: 700; font-display: swap; src: url(fonts/atkinson-700.woff2) format("woff2"); }
+@font-face { font-family: "Big Shoulders Display"; font-weight: 700 800; font-display: swap; src: url(fonts/big-shoulders-display.woff2) format("woff2"); }
+</style>
+<link rel="preload" href="fonts/atkinson-400.woff2" as="font" type="font/woff2" crossorigin>
 <style>
 /* Layout: one-column phone app. Sticky search header, scrolling list, full-screen spec sheet, fixed bottom tab bar.
    Dark by default, as it is read behind a dim bar at night. Light is for daytime set-up. Each phone picks one in More,
@@ -497,6 +503,7 @@ details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: v
 .staffrow .actions { margin-top: 8px; }
 .staffrow .actions .btn { padding: 8px 12px; font-size: 15px; min-height: 40px; }
 /* Saving state: shown while a change is waiting to reach the server, or when there's no signal */
+.upd { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 26; padding: 12px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 4px 18px #0005; white-space: nowrap; }
 .net { position: fixed; top: env(safe-area-inset-top, 0px); left: 0; right: 0; z-index: 25; padding: 7px 16px; text-align: center; font-size: 14px; font-weight: 700; background: var(--surface); border-bottom: 2px solid var(--brass); }
 .net.off { border-color: var(--warn); }
 /* Your name and the account links, spaced rather than dotted, so a line never starts or ends on a dot. */
@@ -812,6 +819,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
+<button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <header class="gut" id="hdr">
   <nav class="seg dseg" id="subnav" aria-label="Drinks"><button data-tab="rapid">⚡ Rapid fire</button><button data-tab="drinks">Menu</button><button data-tab="make">Make</button></nav>
   <div id="hdr-drinks">
@@ -4318,6 +4326,10 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-back]"))
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { offlineReady = !!hit; if (hit && cur === "info") renderInfo(); }).catch(() => {});
+  // The app opens from the phone, so a new release arrives in the background. Once it's stored, say so: a tap reloads
+  // into it, or it's there next time the app opens. Anything half-typed is kept as a draft either way.
+  if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener("controllerchange", () => { $("#upd").hidden = false; }, { once: true });
+  $("#upd").addEventListener("click", () => location.reload());
 }
 renderChips(); renderList();
 {
