@@ -140,7 +140,7 @@ test("the owner adds up to three seniors with their own codes; a senior unlocks 
   for (const p of [A, B]) assert.equal(await p.evaluate(() => LIVE.admin && !LIVE.owner), true);
   // The owner's Manager section, with the seniors' card.
   await O.evaluate(() => show("notices"));
-  assert.match(await O.$eval("#tm-cards", (e) => e.textContent), /Manager.*Nothing waiting.*Bar closing: none yet.*Seniors and their codes.*Owner settings.*Team/s);
+  assert.match(await O.$eval("#tm-cards", (e) => e.textContent), /Manager.*Bar.*Closing: Not started.*Seniors and their codes.*Owner settings.*Team/s);
   await part(O, "seniors");
   // Codes are unique: Illias's is taken.
   await O.fill("#sn-name", "Artur"); await O.fill("#sn-pin", "4821");
@@ -383,7 +383,7 @@ test("changes reach the people they affect, and the Team page says what changed 
   assert.deepEqual([M.errs, S.errs, T.errs], [[], [], []]);
 });
 
-test("managers see tonight live without anyone sending it: closing progress, the handover so far, 86s, issues and restocks", async () => {
+test("managers see tonight at a glance without anyone sending it: closing, the handover so far, 86s, issues, restocks, who's on", async () => {
   await resetEmulators();
   const { M, S } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Kadir"]]);
   const drink = await S.evaluate(() => D[0].name);
@@ -391,13 +391,12 @@ test("managers see tonight live without anyone sending it: closing progress, the
   await S.evaluate(() => LIVE.api.saveDraft("bar", { low: "Limes", issues: "Glass washer leaking", next: "", closer: "Kadir", noPhotos: "" }));
   await S.evaluate(() => LIVE.api.raise({ title: "Heater broken", detail: "", area: "bar", urgent: true }));
   await M.evaluate(() => show("notices"));
-  await part(M, "live");
-  await M.waitForFunction((n) => { const t = document.querySelector("#tc-live")?.textContent || ""; return t.includes(n) && t.includes("Glass washer leaking") && t.includes("Heater broken"); }, drink);
-  const t = await M.$eval("#tc-live", (e) => e.textContent);
-  assert.match(t, /Bar.*Closing not started: 0 of \d+ done.*Running low: Limes.*Closed by: Kadir.*Handover not sent yet.*Floor/s);
-  assert.match(t, /Urgent: Heater broken/);
-  // Staff don't get the card.
+  await M.waitForFunction((n) => { const t = document.querySelector(".glance")?.textContent || ""; return t.includes(n) && t.includes("Glass washer leaking") && t.includes("Heater broken"); }, drink);
+  const t = await M.$eval(".glance", (e) => e.textContent);
+  assert.match(t, /Bar.*Closing: Not started \(\d+ to do\).*Handover: being written.*Running low: Limes.*Floor.*Closing: Not started.*Handover: not started/s);
+  assert.match(t, /86'd now.*Kadir.*Open issues and faults.*Urgent: Heater broken.*Kadir.*On the team.*3 phones.*Seniors unlocked: Illias/s);
+  // Staff don't get it.
   await S.evaluate(() => show("notices"));
-  assert.equal(await S.$$eval('[data-card="live"]', (x) => x.length), 0);
+  assert.equal(await S.$$eval(".glance", (x) => x.length), 0);
   assert.deepEqual([M.errs, S.errs], [[], []]);
 });

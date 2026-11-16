@@ -482,6 +482,7 @@ a.btn { text-decoration: none; color: inherit; }
 details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: var(--muted); font-weight: 700; padding: 6px 0; }
 .chip.x { min-width: 32px; padding: 0 8px; margin-left: -4px; }
 .tcard > summary .pill { margin-left: 6px; }
+.glance { margin-bottom: 14px; }
 ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; } ul.live .s { color: var(--muted); }
 .warnbox { border: 2px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
 .recent.score .chip { min-width: 40px; justify-content: center; }
@@ -4813,36 +4814,37 @@ function mgrHtml() {
     <label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
     <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>`;
 }
-// The top of the manager section: what's waiting and how tonight stands, in one line each.
-function glanceHtml() {
-  const last = (side) => LIVE.reports.find((r) => r.side === side && !r.pending);
-  const close = ["bar", "floor"].map((side) => { const r = last(side); return `${sideName(side)} closing: ${r ? `sent by ${esc(r.name)} ${when(r.at)}` : "none yet"}`; });
-  const waiting = [newTells().length && `${newTells().length} from the team for you`, newAsks().length && `${newAsks().length} new in the inbox`,
-    openIssues().length && plural(openIssues().length, "open issue"), LIVE.out.size && `${LIVE.out.size} 86'd`].filter(Boolean);
-  return `<p class="note glance">${waiting.length ? waiting.join(" · ") : "Nothing waiting"}<br>${close.join("<br>")}</p>`;
-}
-
-// Tonight as it stands, without anyone sending anything: each side's close and handover as they're being written,
-// what's 86'd, open issues and restocks. Everything here is already live on the phone.
+// The top of the Manager section: tonight at a glance, for someone who isn't on the bar or the floor. Everything comes
+// from what the team is already doing in the app (nobody has to send it), each with who and when.
 const RS_SAY = { asked: "waiting", given: "given to someone", doing: "on its way", blocked: "blocked", delivered: "brought up, to confirm" };
-function liveHtml() {
-  const sides = ["bar", "floor"].map((side) => {
-    const k = MODE_LISTS[side][0], r = runOf(k), p = progress(k), d = draftOf(side) || {};
-    const sent = LIVE.reports.find((x) => x.side === side && !x.pending && bday(x.at) === shiftDay());
-    const state = r?.status === "finished" ? "finished" : r ? "started" : "not started";
-    const blocked = shown(k).filter(([i]) => statusOf(k, i) === "blocked").map(([i]) => `<li>Blocked: ${esc(itemText(k, i))} <span class="s">${taskLine(k, i, taskOf(k, i))}</span></li>`);
-    const ho = HO.filter((f) => (d[f.id] || "").trim()).map((f) => `<li>${esc(f.short)}: ${esc(d[f.id].trim().split("\n").join(", "))}</li>`);
-    const photos = LIVE.draftPhotos.filter((x) => x.side === side).length;
-    return `<div class="mini">${sideName(side)}</div><ul class="live">
-      <li>Closing ${state}: <b>${p.n} of ${p.of}</b> done${p.skipped ? `, ${p.skipped} not needed` : ""}</li>${blocked.join("")}
-      ${ho.join("")}${d.closer ? `<li>Closed by: ${esc(d.closer)}</li>` : ""}${photos ? `<li>${plural(photos, "photo")} taken</li>` : ""}
-      <li>${sent ? `Handover sent by ${esc(sent.name)} ${when(sent.at)}` : "Handover not sent yet"}</li></ul>`;
-  });
-  const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status));
-  const iss = openIssues().sort((a, b) => b.urgent - a.urgent);
-  return `${sides.join("")}<div class="mini">86'd now</div><p class="note">${LIVE.out.size ? [...LIVE.out].map(esc).join(", ") : "Nothing"}</p>
-    <div class="mini">Open issues</div><ul class="live">${iss.map((x) => `<li>${x.urgent ? "<b>Urgent:</b> " : ""}${esc(x.title)}${x.who ? ` <span class="s">(${esc(x.who)})</span>` : ""}</li>`).join("") || "<li>None</li>"}</ul>
-    <div class="mini">Restocks</div><ul class="live">${rs.map((x) => `<li>${esc(amtOf(x.qty, x.unit, x.item))} for the ${esc(lower(DEST[x.dest] || ""))}: ${RS_SAY[x.status]}</li>`).join("") || "<li>None waiting</li>"}</ul>`;
+// Who and when, short: the time for tonight, the day as well for anything older.
+const shortAt = (t) => { const d = new Date(ms(t)); return bday(t) === shiftDay() ? hhmm(d) : `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })} ${hhmm(d)}`; };
+const byAt = (name, t) => `<span class="s">· ${esc(name)} ${shortAt(t)}</span>`;
+function glanceSide(side) {
+  const k = MODE_LISTS[side][0], r = runOf(k), p = progress(k), d = draftOf(side) || {}, today = (x) => !x.pending && bday(x.at) === shiftDay();
+  const sent = LIVE.reports.find((x) => x.side === side && today(x));
+  const checked = LIVE.sent.find((x) => x.k === "morning" && today(x) && x.text.includes(`${sideName(side)} morning`));
+  const close = r?.status === "finished" ? `Finished: <b>${p.n} of ${p.of}</b> done ${byAt(r.name, r.at)}${r.note ? `<br>Why not all done: ${esc(r.note)}` : ""}`
+    : r ? `In progress: <b>${p.n} of ${p.of}</b> done, started ${byAt(r.name, r.at)}` : `Not started (${p.of} to do)`;
+  const blocked = shown(k).filter(([i]) => statusOf(k, i) === "blocked").map(([i]) => `<li>Blocked: ${esc(itemText(k, i))} <span class="s">${taskLine(k, i, taskOf(k, i))}</span></li>`);
+  const ho = HO.filter((f) => (d[f.id] || "").trim()).map((f) => `<li>${esc(f.short)}: ${esc(d[f.id].trim().split("\n").join(", "))}</li>`);
+  return `<div class="mini">${sideName(side)}</div><ul class="live">
+    <li>Closing: ${close}</li>${blocked.join("")}
+    <li>Handover: ${sent ? `sent ${byAt(sent.name, sent.at)}` : ho.length || d.closer ? "being written" : "not started"}</li>${sent ? "" : ho.join("")}
+    ${checked ? `<li>Last night's handover checked ${byAt(checked.name, checked.at)}</li>` : ""}</ul>`;
+}
+function glanceHtml() {
+  const waiting = [newTells().length && `${newTells().length} from the team for you`, newAsks().length && `${newAsks().length} new in the inbox`].filter(Boolean);
+  const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `<li>${esc(n)} ${byAt(x.name || "", x.at)}</li>`);
+  const iss = openIssues().sort((a, b) => b.urgent - a.urgent).map((x) => `<li>${x.urgent ? "<b>Urgent:</b> " : ""}${esc(x.title)} ${byAt(x.name, x.at)}${x.who ? ` <span class="s">· with ${esc(x.who)}</span>` : ""}</li>`);
+  const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status)).map((x) => `<li>${esc(amtOf(x.qty, x.unit, x.item))} for the ${esc(lower(DEST[x.dest] || ""))}: ${RS_SAY[x.status]} ${byAt(x.askedBy, x.askedAt)}</li>`);
+  const seniors = LIVE.staff.filter((x) => x.role === "manager" && x.pin).map((x) => x.name);
+  return `<div class="glance">${waiting.length ? `<p class="note"><b>${waiting.join(" · ")}</b></p>` : ""}
+    ${glanceSide("bar")}${glanceSide("floor")}
+    <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
+    <div class="mini">Open issues and faults</div><ul class="live">${iss.join("") || "<li>None</li>"}</ul>
+    <div class="mini">Restocks waiting</div><ul class="live">${rs.join("") || "<li>None</li>"}</ul>
+    <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Seniors unlocked: ${seniors.map(esc).join(", ")}` : ""}</p></div>`;
 }
 
 /* ---------- The Team page ----------
@@ -4854,7 +4856,6 @@ const card = (k, title, body, sub = "") => `<details class="setup tcard" data-ca
 const CARDS = () => [
   ...(LIVE.admin ? [
     ["§", "Manager", glanceHtml],
-    ["live", "Tonight, live", liveHtml, ["bar", "floor"].map((x) => `${sideName(x)} ${progress(MODE_LISTS[x][0]).n}/${progress(MODE_LISTS[x][0]).of}`).join(" · ")],
     ...(LIVE.owner ? [["tells", "What the team told you", tellsHtml, newTells().length ? { t: `${newTells().length} new`, hot: 1 } : ""]] : []),
     ["inbox", "Inbox from the team", inboxHtml, newAsks().length ? { t: `${newAsks().length} new`, hot: 1 } : ""],
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
