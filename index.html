@@ -1076,7 +1076,7 @@ const LINKS = {
   drink: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`, swap: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`,
   specs: (o) => { const ids = String(o || "").split(",").filter((i) => D[+i]).slice(0, 15); return ids.length ? `#list=~${ids.map((i) => plSlug(D[+i].name)).join(".")}` : ""; },
   out: () => "#at=stock", restock: () => "#at=stock", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
-  morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
+  tonight: () => "#at=tab:notices", morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
   contacts: () => "#at=call", games: () => "#at=football", lineup: () => "#at=tab:make", sheet: () => "#at=tab:sheets", allergen: () => "#at=tab:allergens",
 };
 const withLink = (k, o, m) => { const h = m && !m.link && LINKS[k]?.(o); if (h) m.link = appUrl(h); return m; };
@@ -5002,6 +5002,39 @@ function glanceSide(side) {
     <li>Handover: ${sent ? `sent ${byAt(sent.name, sent.at)}` : ho.length || d.closer ? "being written" : "not started"}</li>${sent ? "" : ho.join("")}
     ${checked ? `<li>Last night's handover checked ${byAt(checked.name, checked.at)}</li>` : ""}</ul>`;
 }
+// Tonight's report: everything above as one tidy message, in the order a manager reads it. Each section has its tick
+// box on the Send page, so it can go with or without any of them.
+SHARE.tonight = () => {
+  const today = (x) => !x.pending && bday(x.at) === shiftDay(), rows = [];
+  const side = (sd) => {
+    const k = MODE_LISTS[sd][0], r = runOf(k), p = progress(k), sent = LIVE.reports.find((x) => x.side === sd && today(x));
+    return [`${sideName(sd)}: ${r?.status === "finished" ? `finished, ${p.n} of ${p.of} done, by ${r.name} at ${shortAt(r.at)}` : r ? `in progress, ${p.n} of ${p.of} done` : "not started"}`,
+      `   Handover ${sent ? `sent by ${sent.name} at ${shortAt(sent.at)}` : "not sent yet"}`];
+  };
+  const notDone = ["bar", "floor"].flatMap((sd) => {
+    const k = MODE_LISTS[sd][0], r = runOf(k);
+    const left = shown(k).filter(([i]) => !["done", "cancelled"].includes(statusOf(k, i))).map(([i]) => {
+      const x = taskOf(k, i); return `${sideName(sd)}: ${itemText(k, i)}${x?.status === "blocked" && x.note ? ` (blocked: ${x.note})` : ""}`; });
+    return r?.status === "finished" ? [...(r.note ? [`${sideName(sd)} reason: ${r.note}`] : []), ...left] : left.filter((l) => l.includes("(blocked"));
+  });
+  const ho = (id) => ["bar", "floor"].flatMap((sd) => { const v = (draftOf(sd)?.[id] || "").trim(); return v ? v.split("\n").map((l) => `${sideName(sd)}: ${l.trim()}`).filter((l) => !l.endsWith(": ")) : []; });
+  const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `${n}, since ${shortAt(x.at)}${x.name ? ` (${x.name})` : ""}`);
+  const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status)).map((x) => `${amtOf(x.qty, x.unit, x.item)} for the ${lower(DEST[x.dest] || "")}: ${RS_SAY[x.status]}`);
+  const iss = openIssues().sort((a, b) => b.urgent - a.urgent);
+  rows.push(
+    { id: "close", label: "Closing", raw: true, lines: [...side("bar"), ...side("floor")] },
+    { id: "notdone", label: "Not done and why", lines: notDone },
+    { id: "out", label: "86'd", lines: out },
+    { id: "order", label: "To order and running low", lines: [...ho("low"), ...rs] },
+    { id: "issues", label: "Issues and faults", lines: iss.flatMap((x) => (x.urgent ? [`URGENT: ${issueLines(x)[0]}`, ...issueLines(x).slice(1)] : issueLines(x))) },
+    { id: "outstanding", label: "Outstanding", lines: ho("issues") },
+    { id: "next", label: "For tomorrow", lines: ho("next") },
+    { id: "team", label: "On the team", one: true, lines: [plural(LIVE.staff.length, "phone")], off: true },
+  );
+  return { what: "Tonight's report", title: `Black Tap Soho · tonight · ${dayName(shiftDay())} ${hhmm(new Date())}`,
+    head: [[out.length && `🚫 ${out.length} 86'd`, iss.length && `🔧 ${plural(iss.length, "open issue")}`, notDone.length && `⚠️ ${notDone.length} not done`].filter(Boolean).join(" · ") || "✅ All clear so far"],
+    parts: rows };
+};
 function glanceHtml() {
   const waiting = [newTells().length && `${newTells().length} from the team for you`, newAsks().length && `${newAsks().length} new in the inbox`].filter(Boolean);
   const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `<li>${esc(n)} ${byAt(x.name || "", x.at)}</li>`);
@@ -5013,7 +5046,8 @@ function glanceHtml() {
     <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
     <div class="mini">Open issues and faults</div><ul class="live">${iss.join("") || "<li>None</li>"}</ul>
     <div class="mini">Restocks waiting</div><ul class="live">${rs.join("") || "<li>None</li>"}</ul>
-    <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Seniors unlocked: ${seniors.map(esc).join(", ")}` : ""}</p></div>`;
+    <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Seniors unlocked: ${seniors.map(esc).join(", ")}` : ""}</p>
+    <div class="actions">${sendBtn("tonight", "Send tonight's report")}</div></div>`;
 }
 
 /* ---------- The Team page ----------
@@ -5040,7 +5074,7 @@ const CARDS = () => [
   ["rate", "Team only: rate the shift", rateHtml, draftPill("rate")],
   ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : draftPill("issue")]] : []),
   ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml, draftPill("tell")]] : []),
-  ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") : ""}</div>`],
+  ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") + sendBtn("tonight", "Tonight's report") : ""}</div>`],
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
