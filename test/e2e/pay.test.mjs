@@ -31,7 +31,7 @@ const tab = async (p, t) => { if (await p.$(`[data-pay-tab="${t}"][aria-selected
 const sec = async (p, k) => { await tab(p, SEC_TAB[k]); if (k === "check") await sec(p, "lines"); if (!(await p.$eval(`details[data-sec="${k}"]`, (d) => d.open))) await p.click(`details[data-sec="${k}"] > summary`); };
 const go = async (p, sel) => { const k = AT[sel] || (sel.match(/^\[data-sec=(\w+)\]$/) || [])[1]; if (!k) return; if (SEC_TAB[k]) await sec(p, k); else await tab(p, k); };
 // Where each control is.
-const REACH = [[/data-pay-plan|data-pay="trRate"|data-hf-open|data-slip-file|#pay-sum |data-pm=/, "month"], [/data-hol-book/, "hol"], [/data-slip-text|data-slip-read/, "slips"], [/data-hr-del/, "shifts"],
+const REACH = [[/data-pay-plan|data-pay="trRate"|data-hf-open|data-slip-file|#pay-sum |data-pm=/, "month"], [/data-hol-book|data-pay="hol(Day|What|Built|Taken|Carry)"/, "hol"], [/data-slip-text|data-slip-read/, "slips"], [/data-hr-del/, "shifts"],
   [/data-money-[a-z]+="?bills/, "bills"], [/data-pay(-code|-check|-loan|-age|-hol|-wk|-sel)?[=\]"]|data-money-[a-z]+="?ded/, "setup"]];
 async function reach(p, sel) {
   if (typeof sel !== "string" || /data-pay-tab|summary/.test(sel) || (await p.$(sel).catch(() => null))?.isVisible?.().catch?.(() => false)) return;
@@ -120,9 +120,9 @@ test("my pay: real payslips fill in every month, tronc an hour, the next pay and
   await p.fill("[data-pay-plan]", ""); await p.fill('[data-pay="trRate"]', "");
   assert.match(await txt(p, "#pay-sum"), /£2,126\.78/);
   // Holiday from the payslips' hours: 10 + 30 + 16 h.
-  assert.match(await txt(p, "#pay-sum"), /Holiday: 56 h left, worth about £711\.76/);
+  assert.match(await txt(p, "#pay-sum"), /Holiday: 7 days left, worth about £711\.76/);
   await p.click('#pay-sum [data-go="hol"]');
-  assert.match(await txt(p, "#pay-hol"), /^56 Built up 0 Taken or booked 56 h Left/);
+  assert.match(await txt(p, "#pay-hol"), /^7 days Built up 0 days Taken or booked 7 days Left 56 h left/);
   // The tax year so far from October's year-to-date figures; W1/M1 means there's no year-so-far tax to check.
   await sec(p, "year");
   assert.match(await txt(p, "#pay-year"), /So far By April Gross £7,337\.98 £\d/);
@@ -196,6 +196,7 @@ test("my hours: several shifts at once, planned ones, a month at a time, with a 
   const p = await open({ at: "2026-11-20T12:00:00Z" });
   const add = async (days, start, end, brk) => {
     if (!(await p.$("#hf"))) await p.click("[data-hf-open]");
+    if (await p.$('[data-hf-mode="times"][aria-pressed="false"]')) await p.click('[data-hf-mode="times"]');
     for (const d of days) await p.click(`[data-hf-day="${d}"]`);
     await p.fill('[data-hf="start"]', start); await p.fill('[data-hf="end"]', end);
     await p.click(`[data-hf-brk="${brk}"]`); await p.click("[data-hf-save]");
@@ -214,7 +215,7 @@ test("my hours: several shifts at once, planned ones, a month at a time, with a 
   await add(["2026-11-25"], "17:00", "23:00", 30); await toastIs(p, "Saved 5.5 h on Wed 25 Nov");
   assert.deepEqual(await p.$$eval("[data-hf-times]", (x) => x.map((b) => b.textContent)), ["17:00–23:00", "22:00–02:00"]);
   await p.click("[data-hf-cancel]");
-  assert.match(await txt(p, "#pay-sum"), /From 5 shifts logged .* 26 Hours .* Including 5\.5 h still to work/);
+  assert.match(await txt(p, "#pay-sum"), /From 5 shifts logged .* 26 Hours .* Worked so far 20\.5 h .* With your planned shifts 26 h/);
   await sec(p, "shifts");
   assert.match(await txt(p, "[data-sec=shifts]"), /WEEK OF 23 NOV · 5\.5 H Wednesday 25 Nov 17:00–23:00 Planned · 5\.5 h after a 30 min break/i);
 
@@ -332,13 +333,14 @@ test("my pay: other payslip layouts, pasted, checked against the estimate, and a
 
 test("my pay: holiday builds up from the hours worked, and booking it shows what it's worth and adds it to that pay", async () => {
   const p = await open({ at: "2026-11-16T12:00:00Z" });
-  await p.click("[data-hf-open]");
+  await p.click("[data-hf-open]"); await p.click('[data-hf-mode="times"]');
   for (const d of ["2026-11-02", "2026-11-03", "2026-11-05", "2026-11-06", "2026-11-09", "2026-11-10", "2026-11-12", "2026-11-13"]) await p.click(`[data-hf-day="${d}"]`);
   await p.fill('[data-hf="start"]', "16:00"); await p.fill('[data-hf="end"]', "23:30"); await p.click('[data-hf-brk="30"]'); await p.click("[data-hf-save]");
   await p.click("[data-hf-cancel]");
   // 56 h worked: 12.07% is 6.76 h, so 7 h to the nearest hour.
   await tab(p, "hol");
-  assert.match(await txt(p, "#pay-hol"), /^7 Built up 0 Taken or booked 7 h Left Worth about £88\.97 at £12\.71 an hour/);
+  // A day of holiday is the usual shift, 7 h, so that's 1 day.
+  assert.match(await txt(p, "#pay-hol"), /^1 day Built up 0 days Taken or booked 1 day Left 7 h left, worth about £88\.97 A day of holiday is 7 h, your usual shift Holiday is paid at £12\.71 an hour, your hourly rate 1 day × 7 h × £12\.71: £88\.97/);
   await p.click("[data-hol-book]");
   await p.click('[data-hf-day="2026-11-23"]'); await p.click('[data-hf-day="2026-11-24"]');
   assert.equal(await p.textContent("#hf-worth"), "14 h of holiday is worth £177.94 before tax, paid with that month's pay.");
@@ -346,7 +348,7 @@ test("my pay: holiday builds up from the hours worked, and booking it shows what
   assert.equal(await p.textContent("#hf-worth"), "7 h of holiday is worth £88.97 before tax, paid with that month's pay.");
   await p.click("[data-hf-save]");
   await toastIs(p, "Booked 7 h of holiday, worth £88.97");
-  assert.match(await txt(p, "#pay-hol"), /^7 Built up 7 Taken or booked 0 h Left/);
+  assert.match(await txt(p, "#pay-hol"), /^1 day Built up 1 day Taken or booked 0 days Left/);
   assert.match(await txt(p, "#pay-out"), /Holiday pay \(7 h\) £88\.97/);
   // Rolled-up holiday pay: 12.07% on top of every hour's pay, and nothing to book.
   await sec(p, "setup"); await p.click('[data-pay-hol="rolled"]');
@@ -361,6 +363,7 @@ test("my pay: your rights, with the shifts logged checked for breaks, rest and h
   assert.match(await txt(p, "#pay-rights"), /Nothing to flag in November's logged shifts/);
   const add = async (days, start, end, brk) => {
     if (!(await p.$("#hf"))) await p.click("[data-hf-open]");
+    if (await p.$('[data-hf-mode="times"][aria-pressed="false"]')) await p.click('[data-hf-mode="times"]');
     for (const d of days) await p.click(`[data-hf-day="${d}"]`);
     await p.fill('[data-hf="start"]', start); await p.fill('[data-hf="end"]', end); await p.click(`[data-hf-brk="${brk}"]`); await p.click("[data-hf-save]");
   };
@@ -392,5 +395,37 @@ test("my pay: your rights, with the shifts logged checked for breaks, rest and h
   assert.equal(links.length, 9);
   assert.ok(links.every((h) => /^https:\/\/www\.(gov\.uk|acas\.org\.uk)\//.test(h)), links.join());
   await p.click('#pay-sum [data-go="rights"]');
+  assert.deepEqual(p.errs, []);
+});
+
+test("my pay: hours typed in a tap at a time, worked so far beside the month with planned days, and holiday in days to match a rota", async () => {
+  const p = await open({ at: "2026-11-16T17:00:00Z" });
+  await p.evaluate((t) => slipTakeAll([t]), OCT);
+  await toastIs(p, "Payslip for October saved");
+  await p.click('[data-pm="1"]');
+  // Just the hours: tap the days, tap 6.5 h. Days gone are worked; a day to come is planned.
+  await p.click("[data-hf-open]");
+  assert.equal(await p.getAttribute('[data-hf-mode="hours"]', "aria-pressed"), "true", "just the hours is first");
+  for (const d of ["2026-11-09", "2026-11-10", "2026-11-12", "2026-11-13"]) await p.click(`[data-hf-day="${d}"]`);
+  await p.click('[data-hf-hq="6.5"]'); await p.click("[data-hf-save]");
+  await toastIs(p, "Saved 26 h over 4 days");
+  await p.click('[data-hf-day="2026-11-20"]'); await p.fill('[data-hf="h"]', "5"); await p.click("[data-hf-save]");
+  await toastIs(p, "Saved 5 h over 1 day");
+  await p.click('[data-hf-day="2026-11-10"]'); await p.click("[data-hf-save]");
+  await toastIs(p, "Tue 10 Nov already has hours");
+  await p.click("[data-hf-cancel]");
+  // The month with the planned day, and beside it what's been worked so far; tronc is on October's 130.26 h.
+  assert.match(await txt(p, "#pay-sum"), /From 5 shifts logged .* 31 Hours .* Worked so far 26 h .* With your planned shifts 31 h/);
+  assert.match(await txt(p, "#pay-addup"), /^31 h at £12\.71 an hour: £394\.01 Tronc on the 130\.26 h you worked in October/);
+  await sec(p, "shifts");
+  assert.match(await txt(p, "[data-sec=shifts]"), /Friday 20 Nov 5 h Planned, £63\.55 before tax/);
+  // Holiday to match the rota: 8.08 h days, 7.8 built up and 3 taken leave 4.8 days, about £493.
+  await tab(p, "hol");
+  await p.fill('[data-pay="holDay"]', "8.08"); await p.fill('[data-pay="holBuilt"]', "7.8"); await p.fill('[data-pay="holTaken"]', "3");
+  assert.match(await txt(p, "#pay-hol"), /^7\.8 days Built up 3 days Taken or booked 4\.8 days Left 38\.78 h left, worth about £492\.89/);
+  assert.match(await txt(p, "#pay-hol"), /4\.8 days × 8\.08 h × £12\.71: £492\.89 By Thursday 31 December: about [\d.]+ days left/);
+  assert.match(await txt(p, "#pay-sum"), /Holiday: 4\.8 days left, worth about £492\.89/);
+  await p.fill('[data-pay="holBuilt"]', ""); await p.fill('[data-pay="holTaken"]', "");
+  assert.match(await txt(p, "#pay-hol"), /Built up since January 2026/);
   assert.deepEqual(p.errs, []);
 });

@@ -290,6 +290,9 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .paykey li > i { width: 12px; height: 12px; border-radius: 3px; }
 .paykey b { font-variant-numeric: tabular-nums; }
 .paykey .muted { text-align: right; }
+.payboth { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; text-align: center; font-size: 13px; color: var(--muted); }
+.payboth > div { padding: 8px 4px; border: 1px solid var(--line); border-radius: 10px; }
+.payboth b { display: block; font-size: 18px; color: var(--fg); font-variant-numeric: tabular-nums; }
 .payacts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .payacts .btn { min-width: 0; }
 .paylabel { text-align: center; color: var(--muted); font-size: 14px; }
@@ -3390,7 +3393,7 @@ document.addEventListener("change", (e) => { if (e.target.matches("select[data-l
 // age: the minimum wage band. slips: payslips by month. hol: "accrue" or "rolled"; holStart: the leave year's first month;
 // holCarry: holiday hours brought into the leave year.
 const PAY_DEFAULT = { rate: "12.71", code: "1257L", trOn: true, loan: "", pgl: false, pen: false, pension: "5", plan: {}, wk: 0, ded: [], bills: [],
-  age: "21", slips: {}, hol: "accrue", holStart: "01", holCarry: "", trRate: "" };
+  age: "21", slips: {}, hol: "accrue", holStart: "01", holCarry: "", trRate: "", holDay: "", holWhat: "", holBuilt: "", holTaken: "" };
 const num = (v) => { const n = Number(String(v).replace(/[£,\s]/g, "").replace(/^\((.*)\)$/, "$1")); return Number.isFinite(n) && n >= 0 ? n : 0; };
 const payStored = store.get("pay", {});
 let pay = { ...PAY_DEFAULT, ...payStored };
@@ -3471,7 +3474,8 @@ function payDay(m) {
    until the day comes. */
 let hoursLog = store.get("hours", []);
 const BREAKS = [0, 15, 20, 30, 45, 60];
-const logMin = (x) => (x.hol ? Math.round(num(x.h) * 60) : Math.max(0, shiftLen(x) - x.brk));
+// A day logged as just its hours ({ hrs: true, h }) has no times, so it isn't checked for breaks or rest.
+const logMin = (x) => (x.hol || x.hrs ? Math.round(num(x.h) * 60) : Math.max(0, shiftLen(x) - x.brk));
 const sumMin = (xs) => xs.reduce((n, x) => n + logMin(x), 0);
 const mOf = (day) => day.slice(0, 7);
 const prevM = (m) => addDays(m + "-01", -1).slice(0, 7);
@@ -3481,7 +3485,7 @@ const inM = (m) => hoursLog.filter((x) => mOf(x.day) === m).sort((a, b) => (a.da
 const workIn = (m) => inM(m).filter((x) => !x.hol), holIn = (m) => inM(m).filter((x) => x.hol);
 // The month on screen (this month to start with; next month at the most, for planned shifts), and the add form.
 let pm = "";
-const hf = { open: false, hol: false, days: new Set(), start: "", end: "", brk: 0, h: "" };
+const hf = { open: false, hol: false, mode: "hours", days: new Set(), start: "", end: "", brk: 0, h: "" };
 const curM = () => mOf(shiftDay());
 const lastPm = () => nextM(nextM(nextM(curM())));
 // wk: about how many hours a week, picked once; it fills any month with nothing else.
@@ -3561,7 +3565,7 @@ function monthPay(m) {
 // The start and finish times this person logs most, for one tap.
 function hfTimes() {
   const n = new Map();
-  for (const x of hoursLog) if (!x.hol) { const k = `${x.start}-${x.end}`; n.set(k, (n.get(k) || 0) + 1); }
+  for (const x of hoursLog) if (!x.hol && !x.hrs) { const k = `${x.start}-${x.end}`; n.set(k, (n.get(k) || 0) + 1); }
   return [...n].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => k.split("-"));
 }
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -3570,7 +3574,7 @@ function addShifts(list) {
   const add = [], clash = [];
   for (const s of list) {
     const x = { id: newId(), day: s.day, start: s.start, end: s.end, brk: s.brk }, [a, b] = roSpan(x);
-    if ([...hoursLog, ...add].some((y) => !y.hol && roSpan(y)[0] < b && a < roSpan(y)[1])) clash.push(dayName(s.day)); else add.push(x);
+    if ([...hoursLog, ...add].some((y) => !y.hol && !y.hrs && roSpan(y)[0] < b && a < roSpan(y)[1]) || hoursLog.some((y) => y.hrs && y.day === s.day)) clash.push(dayName(s.day)); else add.push(x);
   }
   hoursLog = [...hoursLog, ...add]; store.set("hours", hoursLog);
   const saved = add.length ? `Saved ${add.length === 1 ? `${hrs(logMin(add[0]))} on ${dayName(add[0].day)}` : `${add.length} shifts, ${hrs(sumMin(add))}`}` : "";
@@ -3902,31 +3906,49 @@ function slipPanelHtml() {
    hour, from the start of the leave year, plus any brought in, less holiday taken (on a payslip, or booked here). What's
    left is worth that many hours at the holiday rate. Rolled up: 12.07% is added to each payslip instead. */
 const holYear = () => { const m = curM(), s = pay.holStart || "01", y = m.slice(5) >= s ? +m.slice(0, 4) : +m.slice(0, 4) - 1; return `${y}-${s}`; };
+// Holiday in hours and in days of holDay() hours. Built up is worked out from the payslips and shifts unless the person
+// typed what their rota shows (holBuilt, days); taken is the payslips' holiday hours and the days booked here, unless
+// typed (holTaken, days). The leave year's end is predicted at holWhat hours a month, or the average.
+const leaveEnd = () => addDays(`${+holYear().slice(0, 4) + 1}${holYear().slice(4)}-01`, -1);
 function holiday() {
-  const from = holYear(), cm = curM(), today = shiftDay(), months = [];
-  for (let m = from; m <= lastPm(); m = nextM(m)) months.push(m);
-  let built = 0, taken = 0, booked = 0;
+  const from = holYear(), cm = curM(), today = shiftDay(), end = mOf(leaveEnd()), day = holDay(), months = [];
+  for (let m = from; m <= end; m = nextM(m)) months.push(m);
+  let built = 0, taken = 0, booked = 0, ahead = 0;
+  const per = num(pay.holWhat) || (avgHours(nextM(cm)) || {}).h || 0;
   for (const m of months) {
+    const W = workedOf(m), S = pay.slips[m];
     if (m <= cm) {
-      const W = workedOf(m), h = W.from === "log" ? sumMin(workIn(m).filter((x) => x.day <= today)) / 60 : W.h;
-      built += m === cm && ["week", "avg", "plan"].includes(W.from) ? 0 : Math.round(h * HOLIDAY);
-    }
-    const S = pay.slips[m];
+      const h = W.from === "log" ? sumMin(workIn(m).filter((x) => x.day <= today)) / 60 : W.h;
+      const now = m === cm && ["week", "avg", "plan"].includes(W.from) ? 0 : Math.round(h * HOLIDAY);
+      built += now;
+      // The rest of this month, from the shifts still to come or the hours a month ahead.
+      if (m === cm && !S) ahead += W.from === "log" ? Math.round(sumMin(workIn(m).filter((x) => x.day > today)) / 60 * HOLIDAY) : now ? 0 : Math.round(per * HOLIDAY);
+    } else ahead += Math.round(per * HOLIDAY);
     if (S && S.holH) taken += S.holH;
     else for (const x of holIn(m)) { if (x.day <= today) taken += num(x.h); else booked += num(x.h); }
   }
-  const left = pence(num(pay.holCarry) + built - taken - booked), rate = holRate();
-  return { from, built, taken: pence(taken), booked: pence(booked), left, rate, worth: pence(Math.max(0, left) * rate) };
+  const typed = (k) => pay[k] !== "" && pay[k] != null && Number.isFinite(Number(pay[k]));
+  if (typed("holBuilt")) built = num(pay.holBuilt) * day;
+  if (typed("holTaken")) { taken = num(pay.holTaken) * day; booked = 0; }
+  const left = pence(num(pay.holCarry) + built - taken - booked), rate = holRate(), proj = pence(left + ahead);
+  return { from, end: leaveEnd(), day, per, built: pence(built), taken: pence(taken), booked: pence(booked), left, proj, rate, worth: pence(Math.max(0, left) * rate), projWorth: pence(Math.max(0, proj) * rate) };
 }
+const dys = (h, day) => `${fmtN(pence(h / day))} day${pence(h / day) === 1 ? "" : "s"}`;
 function holHtml() {
   if (pay.hol === "rolled") {
     const r = payCalc(monthHours(pm));
     return `<p class="note">Your holiday pay comes with every payslip: 12.07% on top of your hours pay, ${gbp(r.hol)} in ${mName(pm)}. Time off is still yours to take; it just isn't paid again.</p>`;
   }
-  const h = holiday();
-  return `<div class="paystats"><div><b>${fmtN(h.built)}</b>Built up</div><div><b>${fmtN(h.taken + h.booked)}</b>Taken or booked</div><div><b>${fmtN(h.left)} h</b>Left</div></div>
-    <p class="note" style="text-align:center;margin:6px 0 0">Worth about ${gbp(h.worth)} at ${gbp(h.rate)} an hour</p>
-    <p class="note">Since ${mName(h.from, true)}: 12.07% of the hours on each payslip (or logged), to the nearest hour each month. It updates by itself with every payslip. Book time off below and the holiday pay goes into that month's take-home.</p>`;
+  const h = holiday(), d = h.day;
+  return `<div class="paystats"><div><b>${dys(h.built, d)}</b>Built up</div><div><b>${dys(h.taken + h.booked, d)}</b>Taken or booked</div><div><b>${dys(h.left, d)}</b>Left</div></div>
+    <p class="note" style="text-align:center;margin:6px 0 0">${fmtH(h.left)} h left, worth about <b>${gbp(h.worth)}</b></p>
+    <ol class="paysteps">
+      <li>A day of holiday is ${fmtH(d)} h${num(pay.holDay) ? ", as you set it" : ", your usual shift"}</li>
+      <li>Holiday is paid at ${gbp(h.rate)} an hour, your ${pay.slips && Object.values(pay.slips).some((x) => x.holRate) ? "payslip's holiday rate" : "hourly rate"}</li>
+      <li>${dys(h.left, d)} × ${fmtH(d)} h × ${gbp(h.rate)}: <b>${gbp(h.worth)}</b></li>
+    </ol>
+    <p class="note">By ${longDay(h.end)}: about <b>${dys(h.proj, d)}</b> left, worth ${gbp(h.projWorth)}, if you work ${fmtN(h.per)} h a month and book nothing else.</p>
+    <p class="note">${num(pay.holBuilt) || pay.holBuilt === "0" ? "Built up is the figure you typed." : `Built up since ${mName(h.from, true)}: 12.07% of the hours on each payslip (or logged), to the nearest hour each month.`} ${num(pay.holTaken) || pay.holTaken === "0" ? "Taken is the figure you typed." : "Taken is from your payslips and the days booked here."}</p>`;
 }
 
 /* The tax year (6 April to 5 April): each month from its payslip or the estimate, what's been paid so far, what's
@@ -4062,9 +4084,16 @@ function paySumHtml() {
     <div class="paybig">${r.net == null ? "?" : gbp(r.net)}</div>
     <p class="note" style="text-align:center;margin:0 0 10px">${src} · ${S ? "paid" : "pay day"} ${longDay(payDay(pm))}</p>
     <div class="paystats"><div><b>${fmtN(r.hours || 0)}</b>Hours</div><div><b>${tr ? gbp(tr) : "–"}</b>Tronc an hour</div><div><b>${gbp(r.gross)}</b>Gross</div></div>
-    ${H.planned ? `<p class="note" style="text-align:center;margin:6px 0 0">Including ${hrs(H.planned * 60)} still to work</p>` : ""}
+    ${(() => {
+      // Real and what-if: the pay on the hours worked so far, next to the month's figure with the hours still to come.
+      if (S || pm < curM()) return "";
+      const done = sumMin(H.xs.filter((x) => x.day <= shiftDay())) / 60;
+      if (!done || Math.abs(done - (r.hours || 0)) < 0.01) return "";
+      const D = payCalc({ ...H, hours: done });
+      return `<div class="payboth"><div><b>${gbp(D.net ?? 0)}</b>Worked so far<br>${fmtH(pence(done))} h</div><div><b>${r.net == null ? "?" : gbp(r.net)}</b>${H.src === "log" ? "With your planned shifts" : H.src === "plan" ? "With the hours you set" : "At your average"}<br>${fmtH(pence(r.hours || 0))} h</div></div>`;
+    })()}
     ${pm !== nm ? (() => { const N = monthPay(nm); return N.r.net == null ? "" : `<p class="note" style="text-align:center;margin:8px 0 0">Next pay, ${longDay(payDay(nm))}: about <b>${gbp(N.r.net)}</b> · <button class="linkbtn" data-pm-go="${nm}">See it</button></p>`; })() : ""}
-    ${hol ? `<p class="note" style="text-align:center;margin:4px 0 0">Holiday: <b>${fmtN(hol.left)} h</b> left, worth about ${gbp(hol.worth)} · <button class="linkbtn" data-go="hol">See it</button></p>` : ""}
+    ${hol ? `<p class="note" style="text-align:center;margin:4px 0 0">Holiday: <b>${dys(hol.left, hol.day)}</b> left, worth about ${gbp(hol.worth)} · <button class="linkbtn" data-go="hol">See it</button></p>` : ""}
     ${flags ? `<p style="text-align:center;margin:4px 0 0"><button class="linkbtn warnline" data-go="rights">${flags === 1 ? "1 thing to check in Your rights" : `${flags} things to check in Your rights`}</button></p>` : ""}
     ${pay.bills.length && left != null ? `<p class="note" style="text-align:center;margin:2px 0 0">Left after bills: <b class="${left < 0 ? "neg" : ""}">${sgbp(left)}</b></p>` : ""}`;
 }
@@ -4147,22 +4176,30 @@ function hfHtml() {
   const times = hfTimes(), n = hf.days.size;
   if (hf.hol) return `<div class="notice" id="hf">
       <div class="mini" style="margin-top:0">Tap each day of holiday</div>${hfCal()}
-      <label class="fld">Hours of holiday each day<input data-hf="h" inputmode="decimal" value="${esc(hf.h)}" placeholder="${fmtN(avgShift())}"></label>
+      <label class="fld">Hours of holiday each day<input data-hf="h" inputmode="decimal" value="${esc(hf.h)}" placeholder="${fmtN(holDay())}"></label>
       <p class="note" id="hf-worth">${hfWorth()}</p>
       <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Book ${n} days` : "Book it"}</button><button class="btn" data-hf-cancel>Done</button></div></div>`;
   return `<div class="notice" id="hf">
       <div class="mini" style="margin-top:0">Tap each day you worked or are down to work</div>${hfCal()}
-      <div class="two even"><label class="fld">Start time<input type="time" data-hf="start" value="${esc(hf.start)}"></label><label class="fld">End time<input type="time" data-hf="end" value="${esc(hf.end)}"></label></div>
+      <p class="note" style="margin:6px 0 0">Days gone are what you've worked; days to come are planned, to see what you'd get.</p>
+      <div class="recent" style="margin-top:8px" role="group" aria-label="How to put it in">${[["times", "Start and finish"], ["hours", "Just the hours"]].map(([k, t]) => `<button class="chip" data-hf-mode="${k}" aria-pressed="${hf.mode === k}">${t}</button>`).join("")}</div>
+      ${hf.mode === "hours" ? `<label class="fld">Hours each day<input data-hf="h" inputmode="decimal" value="${esc(hf.h)}" placeholder="8"></label>
+      <div class="recent" style="margin-top:8px" role="group" aria-label="Hours">${[4, 5, 6, 6.5, 7, 8, 9, 10].map((h) => `<button class="chip" data-hf-hq="${h}" aria-pressed="${num(hf.h) === h}">${h} h</button>`).join("")}</div>
+      <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Save ${n} days` : "Save it"}</button><button class="btn" data-hf-cancel>Done</button></div></div>` : `<div class="two even"><label class="fld">Start time<input type="time" data-hf="start" value="${esc(hf.start)}"></label><label class="fld">End time<input type="time" data-hf="end" value="${esc(hf.end)}"></label></div>
       ${times.length ? `<div class="recent" style="margin-top:8px">${times.map(([a, b]) => `<button class="chip" data-hf-times="${esc(a)}-${esc(b)}" aria-pressed="${a === hf.start && b === hf.end}">${esc(a)}–${esc(b)}</button>`).join("")}</div>` : ""}
       <div class="mini">Unpaid break</div>
       <div class="recent">${BREAKS.map((b) => `<button class="chip" data-hf-brk="${b}" aria-pressed="${b === hf.brk}">${b ? `${b} min` : "None"}</button>`).join("")}</div>
-      <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Save ${n} shifts` : "Save the shift"}</button><button class="btn" data-hf-cancel>Done</button></div></div>`;
+      <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Save ${n} shifts` : "Save the shift"}</button><button class="btn" data-hf-cancel>Done</button></div></div>`}`;
 }
 // A usual shift: the average logged, or 8 hours.
 const avgShift = () => { const xs = hoursLog.filter((x) => !x.hol); return xs.length ? pence(sumMin(xs) / 60 / xs.length) : 8; };
-const hfWorth = () => { const h = (num(hf.h) || avgShift()) * Math.max(1, hf.days.size); return `${fmtN(h)} h of holiday is worth ${gbp(pence(h * holRate()))} before tax, paid with that month's pay.`; };
+// A day of holiday in hours: what the person set (their rota's average day), or their usual shift.
+const holDay = () => num(pay.holDay) || avgShift();
+const hfWorth = () => { const h = (num(hf.h) || holDay()) * Math.max(1, hf.days.size); return `${fmtN(h)} h of holiday is worth ${gbp(pence(h * holRate()))} before tax, paid with that month's pay.`; };
 const hrRow = (x) => x.hol ? `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "long", day: "numeric", month: "short" })} <span class="payrt">Holiday</span></div>
   <div class="s"><span>${fmtN(num(x.h))} h, worth ${gbp(pence(num(x.h) * holRate()))}</span> · <button class="linkbtn" data-hr-del="${esc(x.id)}">Remove</button></div></div>`
+  : x.hrs ? `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "long", day: "numeric", month: "short" })} <span class="payrt">${fmtN(num(x.h))} h</span></div>
+  <div class="s"><span>${x.day > shiftDay() ? "Planned" : "Worked"}, ${gbp(pence(num(x.h) * num(pay.rate)))} before tax</span> · <button class="linkbtn" data-hr-del="${esc(x.id)}">Remove</button></div></div>`
   : `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "long", day: "numeric", month: "short" })} <span class="payrt">${esc(x.start)}–${esc(x.end)}</span></div>
   <div class="s"><span>${x.day > shiftDay() ? "Planned · " : ""}${hrs(logMin(x))}${x.brk ? ` after a ${x.brk} min break` : ""}</span> · <button class="linkbtn" data-hr-del="${esc(x.id)}">Remove</button></div></div>`;
 // The month's shifts, a week at a time with each week's hours, like a payslip's timesheet.
@@ -4183,10 +4220,15 @@ function payInner() {
   const tabs = `<div class="recent paytabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button class="chip" role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}" aria-pressed="${payTab === k}">${t}</button>`).join("")}</div>`;
   if (payTab === "months") return `${tabs}
     <div id="pay-months">${monthsHtml()}</div>
-    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add shifts</button></div>`;
+    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add hours</button></div>`;
   if (payTab === "hol") return `${tabs}
     <div class="paycard" id="pay-hol">${holHtml()}</div>
-    ${pay.hol === "rolled" ? "" : `<div class="actions"><button class="btn" data-hol-book>Book holiday</button></div>`}
+    ${pay.hol === "rolled" ? "" : `<div class="actions"><button class="btn" data-hol-book>Book holiday</button></div>
+      <div class="mini">Make it match your rota</div>
+      <p class="note">Leave any blank to let the app work it out. Typed figures stay on this phone.</p>
+      <div class="paygrid">${f("holDay", "Hours in a holiday day", fmtN(avgShift()))}${f("holWhat", "Hours a month from now on", fmtN(holiday().per))}
+        ${f("holBuilt", "Built up so far (days)", "")}${f("holTaken", "Taken so far (days)", "")}</div>
+      <div class="paygrid">${f("holCarry", "Hours brought in", "0")}</div>`}
     ${panel}
     <p class="note">Change how holiday is paid, when the leave year starts and hours brought in under More, Settings.</p>`;
   if (payTab === "more") return `${tabs}
@@ -4228,7 +4270,7 @@ function payInner() {
       <p class="note">Most people are put in at 5%. Tax relief pays a fifth of it, so 5% costs you 4%.</p>
       <div class="mini">Holiday</div>
       <div class="recent" role="group" aria-label="Holiday pay">${[["accrue", "Paid when I take it"], ["rolled", "Rolled up into each payslip"]].map(([k, t]) => `<button class="chip" data-pay-hol="${k}" aria-pressed="${pay.hol === k}">${t}</button>`).join("")}</div>
-      ${pay.hol === "rolled" ? "" : `<div class="paygrid"><label class="fld">Leave year starts<select data-pay-sel="holStart">${MONTHS.map((x, i) => `<option value="${two(i + 1)}"${pay.holStart === two(i + 1) ? " selected" : ""}>${mName(`2026-${two(i + 1)}`)}</option>`).join("")}</select></label>${f("holCarry", "Hours brought in", "0")}</div>`}
+      ${pay.hol === "rolled" ? "" : `<div class="paygrid"><label class="fld">Leave year starts<select data-pay-sel="holStart">${MONTHS.map((x, i) => `<option value="${two(i + 1)}"${pay.holStart === two(i + 1) ? " selected" : ""}>${mName(`2026-${two(i + 1)}`)}</option>`).join("")}</select></label></div>`}
       <div class="mini">No payslips or shifts? About how many hours a week</div>
       <div class="recent" role="group" aria-label="Hours a week">${[0, ...WEEKLY].map((w) => `<button class="chip" data-pay-wk="${w}" aria-pressed="${num(pay.wk) === w}">${w ? `${w} h` : "Off"}</button>`).join("")}</div>
       <div class="mini">Other deductions</div>
@@ -4243,7 +4285,7 @@ function payInner() {
     ${M.slip ? "" : `<div class="paygrid"><label class="fld">Hours in ${mName(pm)}<input data-pay-plan inputmode="decimal" value="${esc(pay.plan[pm] ?? "")}" placeholder="${fmtN(planless(pm))}"></label>
       ${pay.trOn ? `<label class="fld">Tronc an hour (£)<input data-pay="trRate" inputmode="decimal" value="${esc(pay.trRate ?? "")}" placeholder="${troncAuto(pm).r.toFixed(2)}"></label>` : ""}</div>
       <p class="note">Put in the hours you expect to work to see what ${mName(pm)} would pay. Clear it to go back to your average. Tronc an hour applies to every month without a payslip.</p>`}
-    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add shifts</button></div>
+    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add hours</button></div>
     <p class="note" id="slip-st" aria-live="polite">${esc(slip.busy)}</p>
     ${slip.learnt.length ? `<p class="note">Updated from your payslip: ${slip.learnt.map((x) => `<b>${esc(x)}</b>`).join(", ")}.</p>` : ""}
     ${panel}
@@ -4284,17 +4326,24 @@ function billsOutHtml() {
 SHARE.hours = () => {
   const xs = workIn(pm);
   return { what: "My hours", title: `My hours for ${mName(pm)}${LIVE.me ? `, ${LIVE.me}` : ""}`, head: [`In all: ${hrs(sumMin(xs))} from ${nShifts(xs.length)}`],
-    parts: [{ id: "shifts", label: "Shifts", lines: xs.map((x) => `${dayName(x.day)} ${x.start}–${x.end}${x.brk ? `, ${x.brk} min break` : ""}: ${hrs(logMin(x))}`) }] };
+    parts: [{ id: "shifts", label: "Shifts", lines: xs.map((x) => (x.hrs ? `${dayName(x.day)}: ${hrs(logMin(x))}` : `${dayName(x.day)} ${x.start}–${x.end}${x.brk ? `, ${x.brk} min break` : ""}: ${hrs(logMin(x))}`)) }] };
 };
 // Saves one shift (or a day of holiday) for each day picked.
 function hfSave() {
   const days = [...hf.days].sort();
   if (!days.length) return toast(hf.hol ? "Tap the days of holiday" : "Tap the days you worked");
   if (hf.hol) {
-    const h = num(hf.h) || avgShift(), have = new Set(holIn(pm).map((x) => x.day)), add = days.filter((d) => !have.has(d)).map((day) => ({ id: newId(), day, hol: true, h: String(h) }));
+    const h = num(hf.h) || holDay(), have = new Set(holIn(pm).map((x) => x.day)), add = days.filter((d) => !have.has(d)).map((day) => ({ id: newId(), day, hol: true, h: String(h) }));
     hoursLog = [...hoursLog, ...add]; store.set("hours", hoursLog);
     hf.days = new Set(); haptic(); renderPay();
     return toast(add.length ? `Booked ${fmtN(h * add.length)} h of holiday, worth ${gbp(pence(h * add.length * holRate()))}` : "Those days are already booked");
+  }
+  if (hf.mode === "hours") {
+    const h = num(hf.h); if (!h || h > 24) return toast("Put in the hours you worked each day");
+    const have = new Set(workIn(pm).map((x) => x.day)), add = days.filter((d) => !have.has(d)).map((day) => ({ id: newId(), day, hrs: true, h: String(h) })), skip = days.filter((d) => have.has(d));
+    hoursLog = [...hoursLog, ...add]; store.set("hours", hoursLog);
+    hf.days = new Set(); haptic(); renderPay();
+    return toast([add.length && `Saved ${fmtN(h * add.length)} h over ${add.length === 1 ? "1 day" : `${add.length} days`}`, skip.length && `${skip.map((d) => dayName(d)).join(", ")} already ha${skip.length === 1 ? "s" : "ve"} hours`].filter(Boolean).join(". "));
   }
   if (!ISO_TIME.test(hf.start) || !ISO_TIME.test(hf.end)) return toast("Put in when you started and finished");
   if (!logMin({ start: hf.start, end: hf.end, brk: hf.brk })) return toast("That comes to no hours. Check the times and the break");
@@ -4314,7 +4363,7 @@ const paySecGo = (k) => {
   payTab = "more"; paySec.add(k); renderPay(); $(`#v-pay details[data-sec="${k}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
 };
 $("#v-pay").addEventListener("input", (e) => {
-  const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; if (h === "h") $("#hf-worth").textContent = hfWorth(); return; }
+  const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; if (h === "h" && $("#hf-worth")) $("#hf-worth").textContent = hfWorth(); return; }
   if (e.target.matches("[data-slip-text]")) { slip.text = e.target.value; return; }
   if (e.target.matches("[data-pay-plan]")) { const v = e.target.value.trim().slice(0, 6); if (v === "") delete pay.plan[pm]; else pay.plan[pm] = v; savePay(); return paySums(); }
   const k = e.target.dataset.pay; if (!k) return;
@@ -4349,10 +4398,12 @@ $("#v-pay").addEventListener("click", (e) => {
   if (dy) {
     const d = dy.dataset.hfDay; if (hf.days.has(d)) hf.days.delete(d); else hf.days.add(d);
     dy.setAttribute("aria-pressed", hf.days.has(d)); haptic();
-    const n = hf.days.size; $("[data-hf-save]").textContent = hf.hol ? (n > 1 ? `Book ${n} days` : "Book it") : n > 1 ? `Save ${n} shifts` : "Save the shift";
+    const n = hf.days.size; $("[data-hf-save]").textContent = hf.hol ? (n > 1 ? `Book ${n} days` : "Book it") : hf.mode === "hours" ? (n > 1 ? `Save ${n} days` : "Save it") : n > 1 ? `Save ${n} shifts` : "Save the shift";
     if (hf.hol) $("#hf-worth").textContent = hfWorth();
     return;
   }
+  const hq = e.target.closest("[data-hf-hq]"); if (hq) { hf.h = hq.dataset.hfHq; $('[data-hf="h"]').value = hf.h; $$("[data-hf-hq]").forEach((b) => b.setAttribute("aria-pressed", b === hq)); haptic(); return; }
+  const hm2 = e.target.closest("[data-hf-mode]"); if (hm2) { hf.mode = hm2.dataset.hfMode; haptic(); renderPay(); return; }
   const bk = e.target.closest("[data-hf-brk]");
   if (bk) { hf.brk = +bk.dataset.hfBrk; $$("[data-hf-brk]").forEach((b) => b.setAttribute("aria-pressed", b === bk)); haptic(); return; }
   const tm = e.target.closest("[data-hf-times]");
