@@ -65,7 +65,9 @@ const FIX = {
   // 9 Nov 2026 (owner): overlapping classics follow the Classic Cocktail Bible measures, house bottles kept.
   "Amaretto Sour": { drop: ["sugar syrup"] },
   "French 75": { ml: { "Tanqueray": 20, "lemon juice": 10, "sugar syrup": 5, "Prosecco": 100 } },
-  "Dry Martini": { ml: { "Tanqueray, or Grey Goose on request": 70, "Martini Extra Dry": 5 } },
+  // UK law (Weights and Measures (Intoxicating Liquor) Order 1988, art. 3): gin, rum, vodka and whisky mixed with
+  // fewer than two other liquids go out in 25 ml steps here, so 75 ml, not the book's 70.
+  "Dry Martini": { ml: { "Tanqueray, or Grey Goose on request": 75, "Martini Extra Dry": 5 } },
   "Dirty Martini": { ml: { "Tanqueray, or Grey Goose on request": 60, "Martini Extra Dry": 5, "olive brine": 20 } },
   "Moscow Mule": { ml: { "lime juice": 15 }, add: ["3 dashes Angostura"] },
   "Old Fashioned": { rename: { "rich sugar syrup (2:1)": "sugar syrup", "rich sugar syrup": "sugar syrup" }, ml: { "sugar syrup": 10 } },
