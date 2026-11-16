@@ -2218,7 +2218,10 @@ async function clearAll(master) {
   }
   for (const n of outNow()) jobs.push(A.set86(n, false));
   for (const ph of LIVE.draftPhotos) jobs.push(A.deletePhoto(ph.id));
-  for (const side of Object.keys(MODE_LISTS)) if (draftOf(side)) jobs.push(A.dropDraft(side));
+  // A change still waiting to save would put the old handover back after the clear, so it's cancelled first; a draft
+  // this phone hasn't heard back about yet is deleted too.
+  clearTimeout(draftT); draftT = null;
+  for (const side of Object.keys(MODE_LISTS)) jobs.push(A.dropDraft(side));
   for (const k in DRAFTS) dropDraft(k);
   if (master) {
     for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
