@@ -382,3 +382,22 @@ test("changes reach the people they affect, and the Team page says what changed 
   await S.waitForFunction(() => document.querySelector("#team-n").hidden);
   assert.deepEqual([M.errs, S.errs, T.errs], [[], [], []]);
 });
+
+test("managers see tonight live without anyone sending it: closing progress, the handover so far, 86s, issues and restocks", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Kadir"]]);
+  const drink = await S.evaluate(() => D[0].name);
+  await S.evaluate((n) => setOut(n, true), drink);
+  await S.evaluate(() => LIVE.api.saveDraft("bar", { low: "Limes", issues: "Glass washer leaking", next: "", closer: "Kadir", noPhotos: "" }));
+  await S.evaluate(() => LIVE.api.raise({ title: "Heater broken", detail: "", area: "bar", urgent: true }));
+  await M.evaluate(() => show("notices"));
+  await part(M, "live");
+  await M.waitForFunction((n) => { const t = document.querySelector("#tc-live")?.textContent || ""; return t.includes(n) && t.includes("Glass washer leaking") && t.includes("Heater broken"); }, drink);
+  const t = await M.$eval("#tc-live", (e) => e.textContent);
+  assert.match(t, /Bar.*Closing not started: 0 of \d+ done.*Running low: Limes.*Closed by: Kadir.*Handover not sent yet.*Floor/s);
+  assert.match(t, /Urgent: Heater broken/);
+  // Staff don't get the card.
+  await S.evaluate(() => show("notices"));
+  assert.equal(await S.$$eval('[data-card="live"]', (x) => x.length), 0);
+  assert.deepEqual([M.errs, S.errs], [[], []]);
+});

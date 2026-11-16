@@ -482,6 +482,7 @@ a.btn { text-decoration: none; color: inherit; }
 details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: var(--muted); font-weight: 700; padding: 6px 0; }
 .chip.x { min-width: 32px; padding: 0 8px; margin-left: -4px; }
 .tcard > summary .pill { margin-left: 6px; }
+ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; } ul.live .s { color: var(--muted); }
 .warnbox { border: 2px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
 .recent.score .chip { min-width: 40px; justify-content: center; }
 .spin { font-size: 34px; font-weight: 800; text-align: center; padding: 18px 0; color: var(--brass); }
@@ -4821,6 +4822,29 @@ function glanceHtml() {
   return `<p class="note glance">${waiting.length ? waiting.join(" · ") : "Nothing waiting"}<br>${close.join("<br>")}</p>`;
 }
 
+// Tonight as it stands, without anyone sending anything: each side's close and handover as they're being written,
+// what's 86'd, open issues and restocks. Everything here is already live on the phone.
+const RS_SAY = { asked: "waiting", given: "given to someone", doing: "on its way", blocked: "blocked", delivered: "brought up, to confirm" };
+function liveHtml() {
+  const sides = ["bar", "floor"].map((side) => {
+    const k = MODE_LISTS[side][0], r = runOf(k), p = progress(k), d = draftOf(side) || {};
+    const sent = LIVE.reports.find((x) => x.side === side && !x.pending && bday(x.at) === shiftDay());
+    const state = r?.status === "finished" ? "finished" : r ? "started" : "not started";
+    const blocked = shown(k).filter(([i]) => statusOf(k, i) === "blocked").map(([i]) => `<li>Blocked: ${esc(itemText(k, i))} <span class="s">${taskLine(k, i, taskOf(k, i))}</span></li>`);
+    const ho = HO.filter((f) => (d[f.id] || "").trim()).map((f) => `<li>${esc(f.short)}: ${esc(d[f.id].trim().split("\n").join(", "))}</li>`);
+    const photos = LIVE.draftPhotos.filter((x) => x.side === side).length;
+    return `<div class="mini">${sideName(side)}</div><ul class="live">
+      <li>Closing ${state}: <b>${p.n} of ${p.of}</b> done${p.skipped ? `, ${p.skipped} not needed` : ""}</li>${blocked.join("")}
+      ${ho.join("")}${d.closer ? `<li>Closed by: ${esc(d.closer)}</li>` : ""}${photos ? `<li>${plural(photos, "photo")} taken</li>` : ""}
+      <li>${sent ? `Handover sent by ${esc(sent.name)} ${when(sent.at)}` : "Handover not sent yet"}</li></ul>`;
+  });
+  const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status));
+  const iss = openIssues().sort((a, b) => b.urgent - a.urgent);
+  return `${sides.join("")}<div class="mini">86'd now</div><p class="note">${LIVE.out.size ? [...LIVE.out].map(esc).join(", ") : "Nothing"}</p>
+    <div class="mini">Open issues</div><ul class="live">${iss.map((x) => `<li>${x.urgent ? "<b>Urgent:</b> " : ""}${esc(x.title)}${x.who ? ` <span class="s">(${esc(x.who)})</span>` : ""}</li>`).join("") || "<li>None</li>"}</ul>
+    <div class="mini">Restocks</div><ul class="live">${rs.map((x) => `<li>${esc(amtOf(x.qty, x.unit, x.item))} for the ${esc(lower(DEST[x.dest] || ""))}: ${RS_SAY[x.status]}</li>`).join("") || "<li>None waiting</li>"}</ul>`;
+}
+
 /* ---------- The Team page ----------
    Who you are, then posting a message and the messages, then a card for each tool. Cards stay open or shut as left. */
 const tmOpen = new Set(store.get("tmOpen", []));
@@ -4830,6 +4854,7 @@ const card = (k, title, body, sub = "") => `<details class="setup tcard" data-ca
 const CARDS = () => [
   ...(LIVE.admin ? [
     ["§", "Manager", glanceHtml],
+    ["live", "Tonight, live", liveHtml, ["bar", "floor"].map((x) => `${sideName(x)} ${progress(MODE_LISTS[x][0]).n}/${progress(MODE_LISTS[x][0]).of}`).join(" · ")],
     ...(LIVE.owner ? [["tells", "What the team told you", tellsHtml, newTells().length ? { t: `${newTells().length} new`, hot: 1 } : ""]] : []),
     ["inbox", "Inbox from the team", inboxHtml, newAsks().length ? { t: `${newAsks().length} new`, hot: 1 } : ""],
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
