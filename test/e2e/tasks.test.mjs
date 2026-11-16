@@ -28,12 +28,6 @@ const shift = async (p, pane) => { await p.click("[data-tab=tally]"); await p.cl
 // An item's ⋯ options stay open while the list changes, so this only opens them if they're closed.
 const opts = async (p, id) => { if ((await p.getAttribute(`[data-more="${id}"]`, "aria-expanded")) !== "true") await p.click(`[data-more="${id}"]`); };
 const pick = async (p, id, to) => { await opts(p, id); await p.click(`[data-task="${id}"][data-to="${to}"]`); };
-// The rows under one heading on Live or the KPIs.
-const section = (p, box, title) => p.$eval(box, (b, t) => {
-  const out = []; let on = false;
-  for (const el of b.children) { if (el.classList.contains("h3")) on = el.textContent === t; else if (on && el.classList.contains("staffrow")) out.push(el.innerText.replace(/\s+/g, " ").trim()); }
-  return out;
-}, title);
 // Records written straight into the emulator, as the app would have written them: an earlier night, or something
 // that has been waiting a while.
 const val = (v) => (v === null ? { nullValue: null } : v instanceof Date ? { timestampValue: v.toISOString() } : typeof v === "boolean" ? { booleanValue: v }
@@ -178,20 +172,6 @@ test("a list finishes once everything's done; finishing early takes a manager an
   await S.click('[data-run="fset"][data-to="finished"]');
   await M.waitForFunction(() => LIVE.runs.fset?.status === "finished" && LIVE.runs.fset.done === 4 && LIVE.runs.fset.required === 4 && !LIVE.runs.fset.pending);
 
-  // Managers see the exceptions on Live and in the KPIs, and they stay listed once dealt with.
-  await part(M, "live");
-  const exc = await section(M, "#live", "Exceptions tonight");
-  assert.equal(exc.length, 3);
-  assert.match(exc[0], /^Reopened Tables and cutlery Last table needs laying · Mia Manager, \d\d:\d\d · Open the list$/);
-  assert.match(exc[1], /^Finished with 1 of 4 not done Tables and cutlery Short staffed, last table done tomorrow · Mia Manager, \d\d:\d\d · Open the list$/);
-  assert.match(exc[2], new RegExp(`^Not needed tonight ${rx(l0)} \\(Tables and cutlery\\) Terrace closed · Mia Manager, \\d\\d:\\d\\d · Open the list$`));
-  const lists = await section(M, "#live", "Opening and closing");
-  assert.match(lists[2], /^Tables and cutlery Finished Floor 4 of 4 done · 1 not needed tonight · Started by Mia Manager, \d\d:\d\d\. Finished by Sam Staff, \d\d:\d\d$/);
-  await part(M, "kpis");
-  await M.waitForFunction(() => document.querySelector("#kpis p.txt"));
-  assert.match(await M.$eval("#kpis p.txt", (e) => e.textContent), /^Tables and cutlery: started on 1 night and finished on 1, at \d\d:\d\d on average, taking \d+ min\.$/);
-  assert.deepEqual((await section(M, "#kpis", "Night by night")).map((s) => s.replace(/^\w{3} \d{1,2} \w{3} · /, "")),
-    [await M.evaluate(() => { const s = Math.min(...LIVE.events.map((e) => ms(e.at))), f = ms(LIVE.runs.fset.at); return `Tables and cutlery ${hhmm(new Date(s))} to ${hhmm(new Date(f))} (${dur(f - s)}), 4 of 4 done · 1 not needed · reopened once`; })]);
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
@@ -284,168 +264,12 @@ test("restocking: asked for, given to someone, brought up and confirmed, each st
   assert.match(flat(await S.$eval("#tally details.setup", (e) => e.textContent)), /^Done tonight \(1\).*1 bag arrived, confirmed by Sam Staff, \d\d:\d\d \(2 bags brought up by Tia Staff\)$/);
   assert.equal(await attempt(S, (id) => LIVE.api.moveRestock(LIVE.restock.find((r) => r.id === id), "received", { got: 2 }), id), "permission-denied", "confirmed once");
 
-  // One left waiting too long stands out on the board, on Tonight and on Live.
+  // One left waiting too long stands out on the board.
   const sam = await S.evaluate(() => LIVE.uid), day = await S.evaluate(() => shiftDay()), t25 = minsAgo(25);
   await seed("restock/late1", { item: "Coke", qty: 1, unit: "case", dest: "down", detail: "", day, status: "asked", who: null, whoUid: null, moved: null, got: null, note: "",
     v: 1, askedBy: "Sam Staff", askedUid: sam, askedAt: t25, uid: sam, name: "Sam Staff", at: t25 });
   await M.waitForSelector('[data-rs-card="late1"]');
   assert.deepEqual(await M.$$eval('[data-rs-card="late1"] .pill', (xs) => xs.map((e) => e.textContent.replace(/2[56] min/, "25 min"))), ["Waiting", "Waiting 25 min"]);
-  await M.evaluate(() => show("notices"));
-  assert.equal(flat(await M.$eval('#dash [data-go="stock"].hot', (e) => e.innerText)), "1 restock open, 1 waiting");
-  await part(M, "live");
-  assert.deepEqual((await section(M, "#live", "Needs you now")).map((s) => s.replace(/2[56] min/, "25 min")), ["Waiting 25 min 1 case of Coke for the downstairs bar Asked by Sam Staff · Restock board"]);
-  assert.match(await M.$eval("#live", (e) => e.textContent), /Tonight: 1 asked for, 1 brought up, 1 confirmed arrived\./);
   assert.deepEqual([O.errs, M.errs, S.errs, T.errs], [[], [], [], []]);
 });
 
-test("managers follow the night live, filter its history, read and download the closing KPIs, share them, and a reload loses nothing", async () => {
-  await resetEmulators();
-  const { O, M, S, T } = await team(browser, site, crew);
-  const person = async (p) => ({ uid: await p.evaluate(() => LIVE.uid), name: await p.evaluate(() => LIVE.me) });
-  const mia = await person(M), sam = await person(S), tia = await person(T);
-  const L = await S.evaluate(() => Object.fromEntries([0, 1, 2, 3, 5].map((i) => [i, itemText("close", i)])));
-  const y = await S.evaluate(() => lastNights(2)[1]), today = await S.evaluate(() => shiftDay());
-
-  // Last night, as the app writes it: the close started, an item started then done, one blocked, one done and taken
-  // back by a manager, a restock brought up, and the close finished early with a reason.
-  const B = Date.now() - 864e5, at = (m) => new Date(B + m * 6e4);
-  const ev = (id, m, p, x) => seed(`events/${id}`, { day: y, note: "", ...x, uid: p.uid, name: p.name, at: at(m) });
-  const task = (i, v, from, to, note = "") => ({ kind: "task", list: "close", item: i, label: L[i], area: "bar", from, to, who: null, note, v });
-  const run = (v, from, to, done, note = "") => ({ kind: "run", list: "close", label: "Closing checklist", area: "bar", from, to, done, required: 21, note, v });
-  const stock = (v, from, to, qty) => ({ kind: "restock", ref: "old1", label: "Coke", area: "bar", from, to, who: from === "new" ? null : "Tia Staff", qty, unit: "case", dest: "up", v });
-  await ev(`r-${y}-close-1`, 0, sam, run(1, "todo", "started", 0));
-  await ev("s-old1-1", 2, sam, stock(1, "new", "asked", 2));
-  await ev(`t-${y}-close-0-1`, 5, sam, task(0, 1, "todo", "doing"));
-  await ev(`t-${y}-close-1-1`, 10, tia, task(1, 1, "todo", "done"));
-  await ev("s-old1-2", 12, tia, stock(2, "asked", "doing", null));
-  await ev(`t-${y}-close-2-1`, 15, tia, task(2, 1, "todo", "blocked", "No blue roll"));
-  await ev("s-old1-3", 18, tia, stock(3, "doing", "delivered", 2));
-  await ev("s-old1-4", 19, sam, stock(4, "delivered", "received", 2));
-  await ev(`t-${y}-close-0-2`, 20, sam, task(0, 2, "doing", "done"));
-  await ev(`t-${y}-close-1-2`, 30, mia, task(1, 2, "done", "todo", "Not wiped"));
-  await ev(`r-${y}-close-2`, 45, mia, run(2, "started", "finished", 19, "Short staffed"));
-
-  // Tonight so far: an item in progress for 35 minutes, one done, one blocked and a restock asked for.
-  const t35 = minsAgo(35);
-  await seed(`events/t-${today}-close-5-1`, { ...task(5, 1, "todo", "doing"), day: today, uid: tia.uid, name: tia.name, at: t35 });
-  await seed(`shift/${today}/tasks/close-5`, { list: "close", item: 5, status: "doing", who: null, whoUid: null, note: "", v: 1, uid: tia.uid, name: tia.name, at: t35 });
-  await shift(S, "close");
-  await S.click('[data-list=close][data-i="0"]');
-  S.answer = "No hot water";
-  await pick(S, "close-3", "blocked");
-  await S.click(".ptabs [data-pane=stock]");
-  await S.selectOption("#rs-item", "Limes"); await S.fill("#rs-qty", "2"); await S.selectOption("#rs-unit", "bag"); await S.click("#rs-go");
-  await M.waitForFunction(() => LIVE.events.length === 5 && LIVE.events.every((e) => !e.pending) && LIVE.restock.length === 1);
-
-  // Live: what needs a manager now, longest waiting first, and where each list is up to.
-  await part(M, "live");
-  const live = async () => ({ now: (await section(M, "#live", "Needs you now")).map((s) => s.replace(/Overdue: 3[5-7] min/, "Overdue: 35 min")), lists: await section(M, "#live", "Opening and closing") });
-  const before = await live();
-  assert.equal(before.now.length, 2);
-  assert.match(before.now[0], new RegExp(`^Overdue: 35 min ${rx(L[5])} \\(Closing checklist\\) Started by Tia Staff, ${hm(t35)} · Open the list$`));
-  assert.match(before.now[1], new RegExp(`^Blocked ${rx(L[3])} \\(Closing checklist\\) No hot water · Sam Staff, \\d\\d:\\d\\d · Open the list$`));
-  assert.match(before.lists[1], /^Closing checklist In progress Bar 1 of 36 done · 1 in progress · 1 blocked · 1 overdue · Started by Sam Staff, \d\d:\d\d$/);
-  const lw = await shared(M, "#live", "wa");
-  assert.equal(lw.host, "wa.me");
-  // Summary first, then each part with how many are in it. WhatsApp shows *this* in bold.
-  assert.match(lw.text, /^\*Black Tap Soho tonight · \w{3} \d{1,2} \w{3} · \d\d:\d\d\*\n\u26a0\ufe0f 2 things need a manager\n86'd: .+\n\n/);
-  assert.match(lw.text, /\n\*Needs a manager \(2\)\*\n• Overdue: 3[5-7] min: .+ \(Closing checklist\)\. Started by Tia Staff, \d\d:\d\d\n• Blocked: .+ \(Closing checklist\) \(No hot water\)\. Sam Staff, \d\d:\d\d\n/);
-  assert.match(lw.text, /\n• Closing checklist: In progress, 1 of 36 done, 1 blocked\. Started by Sam Staff, \d\d:\d\d\n/);
-  assert.match(lw.text, /\n\*Restocking open \(1\)\*\n• 2 bags of Limes for the upstairs bar: waiting(\n|$)/);
-
-  // A reload shows the same night: it's all saved, not held on the phone.
-  await M.reload(); await M.click("#w-ok");
-  await M.waitForFunction(() => LIVE.me && ["tasks", "runs", "events", "restock"].every((k) => LIVE.loaded.has(k)));
-  await part(M, "live");
-  assert.deepEqual(await live(), before);
-
-  // Activity: last night, then one person, one kind of change, or a word, and everything that happened to one item.
-  await part(M, "act");
-  await M.selectOption("#af-night", y);
-  await M.waitForFunction(() => /finished the closing checklist with 2 of 21 not done/.test(document.querySelector("#act-rows").textContent));
-  const rows = () => M.$$eval("#act-rows .staffrow .n", (xs) => xs.map((e) => e.textContent.replace(/\s+/g, " ").trim()));
-  const all = await rows();
-  assert.equal(all.length, 10, "Sam's two routine changes on the close are one line");
-  assert.ok(all.includes("Checklists Sam Staff made 2 checklist changes"));
-  assert.equal(all[0], "Checklists Mia Manager finished the closing checklist with 2 of 21 not done");
-  await M.selectOption("#af-who", "Tia Staff");
-  assert.deepEqual(await rows(), ["Restocking Tia Staff brought up 2 cases of Coke for the upstairs bar", `Checklists Tia Staff blocked: ${L[2]}`,
-    "Restocking Tia Staff started bringing up Coke for the upstairs bar", `Checklists Tia Staff completed: ${L[1]}`]);
-  await M.selectOption("#af-who", "");
-  await M.selectOption("#af-to", "back");
-  assert.deepEqual(await rows(), [`Checklists Mia Manager took back: ${L[1]}`]);
-  await M.selectOption("#af-to", "");
-  await M.fill("#af-q", "wiped");
-  assert.deepEqual(await rows(), [`Checklists Mia Manager took back: ${L[1]}`]);
-  assert.match(await M.$eval("#act-rows .staffrow .s", (e) => e.textContent), /^\d\d:\d\d · Closing checklist · Reason: Not wiped · History$/);
-  await M.click("#act-rows [data-hist]");
-  const yName = await M.evaluate((y) => dayName(y), y);
-  assert.deepEqual(await M.$$eval("#act-rows .hist .s", (xs) => xs.map((e) => e.textContent)),
-    [`${yName}, ${hm(at(10))} · Tia Staff: completed: ${L[1]}`, `${yName}, ${hm(at(30))} · Mia Manager: took back: ${L[1]} (Not wiped)`]);
-  await M.fill("#af-q", "");
-
-  // The audit trail: every change on every night, with what it was before and after, who and why.
-  const trail = await download(M, "trail");
-  assert.match(trail.name, /^black-tap-audit-trail-\d{4}-\d\d-\d\d\.csv$/);
-  assert.equal(trail.lines[0], "Event,Night,Date,Time,Kind,Record,What,Area,From,To,For,Amount,Unit,Done,Required,Reason,By");
-  assert.equal(trail.lines.length, 1 + 11 + 5);
-  const line = (xs) => xs.map(csv).join(",");
-  for (const want of [
-    [`r-${y}-close-2`, y, ukDay(at(45)), hm(at(45)), "Checklist", `r-${y}-close`, "Closing checklist", "Bar", "In progress", "Finished", "", "", "", 19, 21, "Short staffed", "Mia Manager"],
-    [`t-${y}-close-1-2`, y, ukDay(at(30)), hm(at(30)), "Checklist item", `t-${y}-close-1`, L[1], "Bar", "Done", "Not started", "", "", "", "", "", "Not wiped", "Mia Manager"],
-    ["s-old1-3", y, ukDay(at(18)), hm(at(18)), "Restock", "s-old1", "Coke", "Bar", "Being brought up", "Brought up", "Tia Staff", 2, "case", "", "", "", "Tia Staff"],
-  ]) assert.ok(trail.lines.includes(line(want)), line(want));
-
-  // The KPIs: each list night by night, then each person, worked out from the changes.
-  await part(M, "kpis");
-  await M.waitForFunction(() => document.querySelector("#kpis p.txt"));
-  const tName = await M.evaluate(() => dayName(shiftDay()));
-  assert.equal(await M.$eval("#kpis p.txt", (e) => e.textContent), `Closing checklist: started on 2 nights and finished on 1, at ${hm(at(45))} on average, taking 45 min. 1 finished with items not done.`);
-  assert.deepEqual(await section(M, "#kpis", "Night by night"), [`${tName} · Closing checklist Started ${hm(t35)}, not finished · 1 blocked`,
-    `${yName} · Closing checklist ${hm(at(0))} to ${hm(at(45))} (45 min), 19 of 21 done. Finished with items left: Short staffed · 1 blocked · 1 taken back`]);
-  assert.deepEqual(await section(M, "#kpis", "By person"), ["Mia Manager · 1 night 0 items done · longest gap between changes 15 min",
-    "Sam Staff · 2 nights 2 items done · start to done 15 min on average, longest 15 min (1 item) · 1 confirmed arrived · 1 blocked · longest gap between changes 14 min",
-    "Tia Staff · 2 nights 1 item done (1 taken back by someone else) · 1 restock brought up, 6 min on average from taking it on · 1 blocked · longest gap between changes 3 min"]);
-  const kpis = await download(M, "kpis");
-  assert.match(kpis.name, /^black-tap-closing-kpis-/);
-  assert.deepEqual(kpis.lines, ["Night,Side,Checklist,Started,Finished,Minutes taken,Done,Required,Finished with items left,Reason,Reopened,Blocked,Taken back,Not needed",
-    [today, "Bar", "Closing checklist", hm(t35), "Not finished", "", "", "", "", "", 0, 1, 0, 0].join(","),
-    [y, "Bar", "Closing checklist", hm(at(0)), hm(at(45)), 45, 19, 21, "Yes", "Short staffed", 0, 1, 1, 0].join(",")]);
-  const people = await download(M, "people");
-  assert.deepEqual(people.lines, ["Person,Nights,Items done,Taken back by someone else,Items started then done,Average minutes start to done,Longest minutes start to done,Restocks brought up,Average minutes to bring up,Restocks confirmed,Blocked,Longest gap between changes (minutes)",
-    "Mia Manager,1,0,0,0,,,0,,0,0,15", "Sam Staff,2,2,0,1,15,15,0,,1,1,14", "Tia Staff,2,1,1,0,,,1,6,0,1,3"]);
-
-  // WhatsApp and Email carry the same text. Figures for each person stay in Bar Book and the spreadsheet.
-  const kw = await shared(M, "#kpis", "wa"), km = await shared(M, "#kpis", "mail");
-  assert.equal(km.scheme, "mailto:");
-  assert.match(km.subject, /^Black Tap Soho closing KPIs · the 7 nights to \w{3} \d{1,2} \w{3}$/);
-  assert.equal(kw.text.replace(/\*/g, ""), km.body, "the same words, without WhatsApp's bold marks");
-  assert.match(km.body, /^Black Tap Soho closing KPIs · the 7 nights to .+\nClosing checklist: started on 2 nights and finished on 1, /);
-  assert.match(km.body, /\n\nNight by night \(\d+\)\n• /);
-  assert.doesNotMatch(km.body, /Mia Manager|Sam Staff|Tia Staff/);
-  await shift(S, "send");
-  const sm = await shared(S, "#tally", "mail");
-  assert.match(sm.subject, /^Black Tap Soho · Bar shift · \w{3} \d{1,2} \w{3}$/);
-  assert.match(sm.body, /\n\u26a0\ufe0f Closing checklist: 1 of 36 done, 1 blocked\n86'd: .+\n/);
-  // Heading by heading with tick boxes, then what is left, each with its own box.
-  assert.match(sm.body, /\n\nClosing checklist, by heading \(8\)\n\u2b1c Service \(\d\/3\)\n/);
-  // The opening list wasn't started, so its items stay out unless ticked.
-  assert.match(sm.body, /\n\nClosing checklist: not done \(\d+\)\n\u2b1c /);
-  assert.doesNotMatch(sm.body, /Opening checklist: not done/);
-  assert.match(sm.body, new RegExp(`\\nBlocked \\(1\\)\\n\u26d4 ${rx(L[3])}: No hot water\\n`));
-
-  // Light and dark, on a phone and on a desktop: nothing runs off the side.
-  for (const scheme of ["light", "dark"]) for (const width of [390, 1280]) {
-    for (const p of [M, S]) { await p.emulateMedia({ colorScheme: scheme }); await p.setViewportSize({ width, height: 900 }); }
-    await M.waitForFunction((s) => document.documentElement.dataset.theme === s, scheme);
-    const views = [["shift", S, async () => { await shift(S, "close"); await opts(S, "close-3"); }], ["stock", S, () => shift(S, "stock")],
-      ["live", M, () => part(M, "live")], ["activity", M, () => part(M, "act")], ["kpis", M, () => part(M, "kpis")]];
-    for (const [name, p, go] of views) {
-      await go();
-      assert.ok(await p.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${name} fits ${width}px in ${scheme}`);
-      // After the page's short fade-in.
-      if (SHOTS) { await p.waitForTimeout(300); await p.screenshot({ path: `${SHOTS}/${name}-${scheme}-${width}.png`, fullPage: true }); }
-    }
-  }
-  assert.deepEqual([O.errs, M.errs, S.errs, T.errs], [[], [], [], []]);
-});

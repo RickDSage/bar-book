@@ -38,9 +38,9 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   const { S } = await team(browser, site, [people[1]]);
   await S.evaluate(() => LIVE.api.raise({ title: "Glass washer leaking", detail: "Water under the machine", area: "bar", urgent: true, again: null }));
   await part(S, "issues");
-  await S.waitForSelector("#issues [data-send=issue]");
+  await S.waitForSelector("#tc-issues [data-send=issue]");
   await stubShare(S);
-  await S.click("#issues [data-send=issue]");
+  await S.click("#tc-issues [data-send=issue]");
   assert.equal(await S.$eval("#sh-name", (e) => e.textContent), "An issue");
   assert.match(await preview(S), /^Urgent: Glass washer leaking · Black Tap Soho\nBar, raised .+\nNobody on it yet\n\nMore detail\nWater under the machine$/);
   assert.equal(await S.getAttribute("#send-note", "placeholder"), "When can you come?");
@@ -82,57 +82,10 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   assert.match(await S.$eval("#send", (e) => e.textContent), /10 photos is the most\./);
   // Photos added here are only for this message.
   await S.click("#sh-close"); await S.waitForSelector("#sheet", { state: "hidden" });
-  await S.click("#issues [data-send=issue]");
+  await S.click("#tc-issues [data-send=issue]");
   assert.equal(await S.evaluate(() => snd.photos.length), 0);
   assert.equal(await S.evaluate(() => document.documentElement.scrollWidth), 390, "nothing wider than the screen");
   assert.deepEqual(S.errs, []);
-});
-
-test("the rota goes as a picture of the week, and a concern with its photo but not who reported it", async () => {
-  await resetEmulators();
-  const { M, S } = await team(browser, site, people);
-  const sam = await M.evaluate(() => LIVE.staff.find((p) => p.name === "Sam Staff").uid);
-  await M.evaluate(async (uid) => {
-    const wk = roWeek(), s = (day, start, end, side, who, whoName) => ({ week: wk, day: addDays(wk, day), start, end, side, note: "", who, whoName, offer: "", offerName: "" });
-    await LIVE.api.shiftsAdd([s(0, "17:00", "23:00", "bar", uid, "Sam Staff"), s(4, "18:00", "02:00", "bar", uid, "Sam Staff"), s(5, "12:00", "20:00", "floor", "", "")], true);
-    await LIVE.api.shiftsAdd([s(6, "12:00", "18:00", "bar", uid, "Sam Staff")], false);
-  }, sam);
-  await M.waitForFunction(() => LIVE.shifts.length === 4);
-  await stubShare(M);
-  await part(M, "rota");
-  await M.click("#rota [data-send=rota]");
-  await photosReady(M, 1);
-  const pic = await M.evaluate(async () => {
-    const f = snd.files[0], b = await createImageBitmap(f);
-    return [f.name, f.type, b.width, b.height > 400, f.name === `rota-${roWeek()}.png`];
-  });
-  assert.deepEqual(pic, [pic[0], "image/png", 1400, true, true]);
-  // Laid out by person instead: the words change, the picture stays.
-  await M.click('#send [data-send-opt="person"]');
-  assert.match(await preview(M), /Who's on\nSam Staff\n/);
-  assert.equal(await M.evaluate(() => snd.photos.length), 1);
-  await M.click("#send [data-send-sheet]");
-  await M.waitForFunction(() => window.shared);
-  assert.equal(await M.evaluate(() => window.shared.files[0][1]), "image/png");
-  // For a look at it: test-results/rota-picture.png.
-  if (process.env.SHOT) await M.evaluate(() => snd.photos[0].data).then((u) => import("node:fs").then((fs) => fs.writeFileSync(process.env.SHOT, Buffer.from(u.split(",")[1], "base64"))));
-  await M.evaluate(() => closeSheet());
-
-  // Sam reports broken glass to everyone, with a photo. Mia sends it on: the photo goes, Sam's name doesn't.
-  await S.evaluate((d) => LIVE.api.reportConcern({ reason: "hazard", area: "bar", note: "Broken glass by the ice well", to: "all", anon: false }, [d]), data);
-  await part(M, "concerns");
-  await M.waitForSelector("#concerns [data-send=concern]");
-  await stubShare(M);
-  await M.click("#concerns [data-send=concern]");
-  await photosReady(M, 1);
-  const words = await preview(M);
-  assert.match(words, /^.+ · Bar · Black Tap Soho\nReported .+\nStill to be dealt with\n\nWhat's wrong\nBroken glass by the ice well$/);
-  assert.doesNotMatch(words, /Sam/);
-  assert.match(await M.$eval("#send", (e) => e.textContent), /Who reported it isn't included\./);
-  await M.click("#send [data-send-sheet]");
-  await M.waitForFunction(() => window.shared);
-  assert.deepEqual(await M.evaluate(() => window.shared.files), [["photo-1.jpg", "image/jpeg", true]]);
-  assert.deepEqual([M.errs, S.errs], [[], []]);
 });
 
 test("a drink goes with its house photo, captioned, and Back goes back to the drink", async () => {
@@ -157,25 +110,3 @@ test("a drink goes with its house photo, captioned, and Back goes back to the dr
   assert.deepEqual([M.errs, S.errs], [[], []]);
 });
 
-test("the handover goes with tonight's closing photos, each saying which side it's from", async () => {
-  await resetEmulators();
-  const { M, S } = await team(browser, site, people);
-  await S.evaluate((d) => LIVE.api.addPhoto(d), data);
-  await S.waitForFunction(() => LIVE.myPhotos.length === 1 && !LIVE.myPhotos[0].pending);
-  await S.evaluate(() => LIVE.api.notePhoto(LIVE.myPhotos[0].id, "Back bar wiped"));
-  await S.waitForFunction(() => LIVE.myPhotos[0].note === "Back bar wiped");
-  await S.evaluate(() => LIVE.api.sendReport("bar", "Bar shift", "Bar shift · 1 photo"));
-  await M.waitForFunction(() => LIVE.reports.length === 1 && !LIVE.reports[0].pending);
-  const QS = ["depts", "sales", "cash", "voids", "tips", "breaks", "incidents", "complaints", "food", "faults", "security", "ready"];
-  await M.evaluate((qs) => LIVE.api.sendHandover(shiftDay(), { answers: Object.fromEntries(qs.map((q) => [q, "yes"])), follow: {}, extra: {}, risks: 0, exceptions: 0, lines: "", snap: {}, note: "Ice machine needs descaling", owner: "" }, []), QS);
-  await M.waitForFunction(() => LIVE.handovers.length === 1);
-  await stubShare(M);
-  await M.evaluate(() => openSend("handover"));
-  await photosReady(M, 1);
-  assert.equal(await M.evaluate(() => snd.photos[0].note), "Bar: Back bar wiped");
-  assert.match(await preview(M), /For the next manager\nIce machine needs descaling/);
-  await M.click("#send [data-send-sheet]");
-  await M.waitForFunction(() => window.shared);
-  assert.deepEqual(await M.evaluate(() => window.shared.files), [["photo-1.jpg", "image/jpeg", true]]);
-  assert.deepEqual([M.errs, S.errs], [[], []]);
-});

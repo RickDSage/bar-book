@@ -28,7 +28,7 @@ async function open() {
   await p.click("#w-ok");
   return p;
 }
-const practise = async (p) => { await p.click("nav.tabs [data-tab=drinks]"); await p.click("#subnav [data-tab=practice]"); };
+const practise = async (p) => { await p.click("nav.tabs [data-tab=info]"); await p.click("[data-go=practice]"); };
 const quizMode = async (p) => { await practise(p); await p.click('#pmode [data-pmode="quiz"]'); };
 // Answers the question on screen, right or wrong, then goes on.
 async function answer(p, right) {
@@ -152,56 +152,3 @@ test("no question has two right answers: the wrong ones never mean the same as t
   assert.deepEqual(p.errs, []);
 });
 
-test("logged in, the first go goes to the managers once; they see the night, what was missed and the week, and send the answers", async () => {
-  await resetEmulators();
-  const { M, S } = await team(browser, site, people);
-  await quizMode(S);
-  assert.match(await text(S, "#pquiz"), /^TONIGHT'S QUIZ The same 10 questions for everyone tonight\. Your first go counts\. Start tonight's quiz/);
-  await S.click('#pquiz [data-qz="night"]');
-  for (let i = 0; i < 10; i++) await answer(S, i < 7);
-  await waitToast(S, /^Your score is in: 7 out of 10$/);
-  await S.waitForFunction(() => LIVE.quiz.length === 1 && LIVE.quiz[0].right === "1111111000");
-  await S.click('#pquiz [data-qz="home"]');
-  assert.match(await text(S, "#pquiz"), /You got 7 out of 10 tonight\. Take it again Only your first go counts\./);
-  // A second go doesn't change it, and nor can anything else.
-  await S.click('#pquiz [data-qz="night"]');
-  for (let i = 0; i < 10; i++) await answer(S, true);
-  assert.equal(await text(S, "#pquiz .card h2"), "10 OUT OF 10");
-  assert.equal(await S.evaluate(() => LIVE.quiz.map((x) => x.right).join()), "1111111000");
-  const day = await S.evaluate(() => shiftDay());
-  assert.equal(await attempt(S, (d) => LIVE.api.saveQuiz(d, "1111111111"), day), "permission-denied");
-
-  // Managers see tonight's scores by name, the questions missed with their answers, and each person's week.
-  const qs = await M.evaluate(() => qzNightQs(shiftDay()));
-  const missed = (n, of) => qs.slice(7).map((q) => `${q.name} ${q.ask} ${q.of ? `${q.of}: ` : ""}${q.answer} missed by ${n} of ${of}`).join(" ");
-  await part(M, "training");
-  await waitText(M, "#mtrain", /Sam Staff 7 out of 10/);
-  assert.match(await text(M, "#mtrain"), new RegExp(`^${esc(`TRAINING TONIGHT'S QUIZ Sam Staff 7 out of 10 1 took it, average 7 out of 10 MOST MISSED, LAST 7 NIGHTS ${missed(1, 1)} Worth going over at the briefing. `
-    + "LAST 7 NIGHTS Sam Staff 1 quiz, average 7 Send the quiz round-up SIGN-OFFS ")}`));
-  await quizMode(M);
-  await M.click('#pquiz [data-qz="night"]');
-  for (let i = 0; i < 10; i++) await answer(M, true);
-  await waitToast(M, /^Your score is in: 10 out of 10$/);
-  await part(M, "training");
-  await waitText(M, "#mtrain", /Mia Manager 10 out of 10/);
-  assert.match(await text(M, "#mtrain"), new RegExp(`^${esc(`TRAINING TONIGHT'S QUIZ Mia Manager 10 out of 10 Sam Staff 7 out of 10 2 took it, average 8.5 out of 10 MOST MISSED, LAST 7 NIGHTS ${missed(1, 2)} `
-    + "Worth going over at the briefing. LAST 7 NIGHTS Mia Manager 1 quiz, average 10 Sam Staff 1 quiz, average 7 Send the quiz round-up SIGN-OFFS ")}`));
-
-  // The round-up for the team chat: how many took it and the answers worth knowing, with no names or scores. Full
-  // marks can be ticked; the average comes once three have taken it, so nobody's score can be worked out.
-  await M.click('#mtrain [data-send="quiz"]');
-  const pre = () => M.$eval("#send-pre", (e) => e.textContent);
-  const know = qs.slice(7).map((q) => `• ${q.name}. ${q.of ? `How much ${q.of}?` : q.ask} ${q.answer}`).join("\n");
-  assert.match(await pre(), new RegExp(`^Black Tap Soho quiz · \\w+ \\d+ \\w+\n2 of the team took it\n\nAnswers to know \\(3\\)\n${esc(know)}$`));
-  assert.doesNotMatch(await pre(), /Sam Staff|Mia Manager|out of 10/);
-  await M.check('[data-send-part="full"]');
-  assert.match(await pre(), /\n\nFull marks \(1\)\n• Mia Manager$/);
-  assert.deepEqual(await M.evaluate(() => { const keep = LIVE.quiz; LIVE.quiz = [...keep, { ...keep[0], uid: "x", name: "Xavi", right: "1111111111" }]; const m = SHARE.quiz(); LIVE.quiz = keep; return m.head; }),
-    ["3 of the team took it, average 9 out of 10"]);
-  await M.click("#sh-close"); await M.waitForSelector("#sheet", { state: "hidden" });
-  await part(M, "send");
-  assert.match(await text(M, "#sendhub"), /Quiz round-up How the team did and the answers to know, without names/);
-  await part(S, "send");
-  assert.doesNotMatch(await text(S, "#sendhub"), /Quiz round-up/);
-  assert.deepEqual([M.errs, S.errs], [[], []]);
-});

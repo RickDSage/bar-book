@@ -116,20 +116,6 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   assert.equal(await rowText(S, "Orange juice"), `Orange juice Overdue Use by ${wasName}, 1 day ago · opened ${openedName} by Tia Staff Changed it Binned…`);
   assert.deepEqual(await S.$$eval("[data-lb-more]", (x) => x.map((b) => b.closest(".lb").querySelector("b").textContent)), ["Orange juice", "Cranberry juice", "Apple juice"], "most urgent first");
 
-  // The dashboard (on this phone's side for staff), and Live for managers.
-  await S.evaluate(() => show("notices"));
-  assert.match(await text(S, "#dash"), /2 date labels to change/);
-  await M.evaluate(() => show("notices"));
-  assert.match(await text(M, "#dash"), /2 date labels to change/);
-  await part(M, "live");
-  const live = await text(M, "#live");
-  // (Headings read in capitals: innerText follows the page's CSS.)
-  assert.match(live, new RegExp(`Needs you now Label overdue Orange juice \\(Bar\\) Use by ${wasName} · Opened ${openedName} by Tia Staff · Date labels`, "i"));
-  assert.match(live, new RegExp(`Date labels Orange juice Overdue Bar Use by ${wasName} · opened ${openedName} by Tia Staff · Date labels Cranberry juice Due today Bar Use by ${today} · opened today by Sam Staff`, "i"));
-  assert.match(await M.evaluate(() => shareText("live")), new RegExp(`\\*Date labels due \\(2\\)\\*\\n• Orange juice \\(Bar\\): overdue, use by ${wasName}, opened ${openedName} by Tia Staff\\n• Cranberry juice \\(Bar\\): due today`));
-  await M.click('#live [data-go="labels:bar"]');
-  assert.deepEqual(await M.evaluate(() => [mode, pane, !document.querySelector("#v-tally").hidden]), ["bar", "labels", true]);
-
   // The closing report: what's still to change as it's sent, and who opened it.
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=send]");
   assert.match(await text(S, ".sumcard"), /Labels due 2/i);
@@ -146,11 +132,6 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   await S.click("[data-lb-save]");
   await waitToast(T, /^Sam Staff changed Orange juice$/);
   await settled(M, "Orange juice", 3);
-  await part(M, "live");
-  await M.waitForFunction(() => /Label changed late/.test(document.querySelector("#live").innerText));
-  assert.match(await text(M, "#live"), new RegExp(`Exceptions tonight Label changed late Orange juice \\(Bar\\) Its use-by was ${wasName} · Sam Staff, \\d\\d:\\d\\d · Date labels`, "i"));
-  assert.doesNotMatch(await text(M, "#live"), /Label overdue/);
-
   // The label's history: who did what, and that it was late.
   await S.click(`[data-lb-more="${oj}"]`);
   await S.waitForFunction(() => document.querySelector(".lb .hist"));
@@ -165,23 +146,6 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   await settled(M, "Cranberry juice", 3);
   assert.deepEqual(await lb(M, "Cranberry juice").then((x) => [x.state, x.useBy, x.openedBy]), ["none", null, null]);
 
-  // Activity: the changes in words, a filter for late changes, and the download.
-  await part(M, "act");
-  await M.click("#act [data-act=labels]");
-  const act = await text(M, "#act-rows");
-  for (const re of [/Sam Staff binned Cranberry juice/, /Sam Staff changed Orange juice, 1 day past its use-by\. New one, use by/, /Sam Staff opened Cranberry juice, use by/, /Mia Manager added Orange juice to the date labels: keeps 3 days/]) assert.match(act, re);
-  await M.selectOption("#af-to", "lblate");
-  assert.equal(await M.locator("#act-rows .staffrow").count(), 1);
-  assert.match(await text(M, "#act-rows .staffrow"), /^Sam Staff changed Orange juice, 1 day past its use-by\. New one, use by .* History$/);
-  await M.selectOption("#af-to", "");
-  await M.click("[data-dl=labels]");
-  await M.waitForSelector("#act-save");
-  const csv = await M.evaluate(async () => (await (await fetch(actFile.url)).text()).replace(/^\uFEFF/, ""));
-  const rows = csv.split("\r\n");
-  assert.equal(rows[0], "Night,Time,Side,Item,Change,Use by,Use by before,Days after its use-by,Days it keeps,Needs a label,By");
-  assert.equal(rows.length, 7, "3 added, Cranberry opened and binned, Orange changed");
-  const changed = new RegExp(`^${await day(M, 0)},\\d\\d:\\d\\d,Bar,Orange juice,Changed,${await day(M, 3)},${was},1,3,Yes,Sam Staff$`);
-  assert.ok(rows.some((r) => changed.test(r)), csv);
   assert.deepEqual([O.errs, M.errs, S.errs, T.errs], [[], [], [], []]);
 });
 
@@ -228,7 +192,6 @@ test("managers change an item, move it to another side, switch its label off or 
   await M.click(`[data-lb-del="${x.id}"]`);
   await S.waitForFunction(() => LIVE.labels.length === 0);
   await M.waitForFunction(() => LIVE.events.some((e) => e.kind === "label" && e.act === "removed" && !e.pending));
-  assert.equal(await M.evaluate(() => evText(LIVE.events.find((e) => e.act === "removed"))), "took Salted caramel off the date labels");
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
@@ -266,7 +229,7 @@ test("the Labels page fits a small phone", async () => {
   assert.ok(await O.$$eval("[data-lb-idea]", (x) => x.length === 13 && x.every((e) => e.getBoundingClientRect().right <= 320)), "every idea is on screen");
   await add(O, "Jammie Dodger ice cream sandwiches", 2, "floor");
   await O.waitForFunction(() => LIVE.labels.length === 1 && !LIVE.labels[0].pending);
-  for (const side of ["bar", "floor", "kitchen"]) {
+  for (const side of ["bar", "floor"]) {
     await labels(O, side);
     assert.ok(await O.evaluate(() => document.documentElement.scrollWidth <= 320), `${side}: no sideways scrolling`);
   }

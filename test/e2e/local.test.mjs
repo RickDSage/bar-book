@@ -1,4 +1,4 @@
-// The app with no team logins: drinks, allergens and practice work; the shift tools need a login.
+// The app without the team side: drinks, allergens and practice work; the shift tools need it.
 // live.js is blocked, so this is exactly the site built without a Firebase config.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -26,24 +26,40 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   assert.equal(await p.evaluate(() => LIVE.api), null);
   await p.evaluate(() => openSheet(D.find((d) => d.name === "Negroni").id));
   assert.match(await p.$eval("#sheet", (e) => e.innerText), /Negroni[\s\S]*Spec/);
-  assert.equal(await p.locator("#sh-86").count(), 0, "no 86 button without a login");
+  assert.equal(await p.locator("#sh-86").count(), 0, "no 86 button off the team");
   await p.evaluate(() => closeSheet());
   await p.click("[data-tab=tally]");
-  assert.match(await p.$eval("#tally", (e) => e.innerText), /need team logins/);
-  assert.equal(await p.locator("[data-list]").count(), 0, "no checklists without a login");
+  assert.match(await p.$eval("#tally", (e) => e.innerText), /need the team side/);
+  assert.equal(await p.locator("[data-list]").count(), 0, "no checklists off the team");
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 390, "nothing wider than the screen");
   await p.evaluate(() => show("notices"));
-  assert.match(await p.$eval("#team", (e) => e.innerText), /Team logins/i);
-  // Bar info: what's in the app, then the bar's own reference, then this phone's settings.
+  assert.match(await p.$eval("#tm-top", (e) => e.innerText), /needs signal the first time/i);
+  // More: rows that open Allergens, Practise and Cheat sheets, then help, the bar's reference folded away, then this
+  // phone's settings. The More tab stays lit on its pages, and the back button returns to it.
   await p.click("[data-tab=info]");
-  assert.deepEqual(await p.$$eval("#v-info h2", (x) => x.map((h) => h.textContent)), ["What's in the app", "Measures and the law", "Technique key", "Prep and batches",
-    "Shot tray, step by step", "Feedback and ideas", "Language", "Light or dark", "Put this app on your home screen", "Clear everything"]);
-  // The tabs fit a 320px phone, each name on one line: Drinks, Shift, Team, My pay and Info, with Rapid fire, Make,
-  // Practise and Allergens in the row under Drinks.
+  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["Allergens", "Practise specs", "Cheat sheets", "What's in the app", "Send feedback"]);
+  assert.deepEqual(await p.$$eval("#v-info .fold h2", (x) => x.map((h) => h.textContent)), ["Measures and the law", "Technique key", "Prep and batches",
+    "Shot tray, step by step", "Put this app on your home screen", "Clear everything"]);
+  assert.equal(await p.locator("#v-info [data-fold=law][open]").count(), 0, "the reference starts folded");
+  await p.click("[data-fold=law] summary");
+  assert.match(await p.$eval("[data-fold=law]", (e) => e.innerText), /Jigger everything/);
+  await p.click("[data-go=allergens]");
+  assert.equal(await p.isVisible("#v-allergens"), true);
+  assert.equal(await p.getAttribute("nav.tabs [data-tab=info]", "aria-current"), "page");
+  await p.click("#v-allergens [data-back]");
+  assert.equal(await p.isVisible("#v-info"), true);
+  assert.equal(await p.locator("#v-info [data-fold=law][open]").count(), 1, "a fold stays open when you come back");
+  // The tabs fit a 320px phone, each name on one line: Drinks, Shift, Team, My pay and More. Drinks has three modes
+  // that fit on one line, never a row that scrolls sideways.
   await p.setViewportSize({ width: 320, height: 640 });
   assert.equal(await p.locator("nav.tabs button:not([hidden])").count(), 5);
   await p.click("nav.tabs [data-tab=drinks]");
-  assert.deepEqual(await p.$$eval("#subnav [data-tab]", (x) => x.map((b) => b.textContent)), ["⚡ Rapid fire", "Menu", "Make", "Practise", "Allergens", "Cheat sheets"]);
+  assert.deepEqual(await p.$$eval("#subnav [data-tab]", (x) => x.map((b) => b.textContent)), ["⚡ Rapid fire", "Menu", "Make"]);
+  assert.ok(await p.$eval("#subnav", (e) => e.scrollWidth <= e.clientWidth), "the Drinks modes fit");
+  // Drinks remembers its mode: Make, then Shift, then Drinks again opens Make.
+  await p.click("#subnav [data-tab=make]"); await p.click("nav.tabs [data-tab=tally]"); await p.click("nav.tabs [data-tab=drinks]");
+  assert.equal(await p.isVisible("#v-make"), true);
+  await p.click("#subnav [data-tab=drinks]");
   assert.ok(await p.evaluate(() => [...document.querySelectorAll("nav.tabs button:not([hidden])")].every((b) => { const r = document.createRange(); r.selectNodeContents(b.lastChild); return r.getClientRects().length === 1; })));
   assert.deepEqual(p.errs, []);
 });
@@ -109,7 +125,7 @@ test("light, dark or the phone's own setting, remembered on this phone", async (
 
 test("allergen tiles include sulphites, and oat milk shows under gluten", async () => {
   const p = await open();
-  await p.click("nav.tabs [data-tab=drinks]"); await p.click("#subnav [data-tab=allergens]");
+  await p.click("nav.tabs [data-tab=info]"); await p.click("[data-go=allergens]");
   await p.click("[data-al=Sulphites]");
   const sul = await p.$eval("#allist", (e) => e.innerText);
   assert.match(sul, /Negroni/); assert.match(sul, /Aperol Spritz/);

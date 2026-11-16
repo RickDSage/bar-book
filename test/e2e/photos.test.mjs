@@ -58,9 +58,9 @@ test("a phone photo is shrunk, noted, sent with the report and locked once sent"
   await O.waitForFunction(() => LIVE.reports.length === 1);
   assert.match(await O.evaluate(() => LIVE.reports[0].summary), / · 1 photo$/);
   assert.equal(await O.evaluate(() => LIVE.reports[0].photos), 1);
-  await part(O, "reports"); await O.click("[data-photos]");
-  await O.waitForSelector("[data-photos-of] img");
-  assert.match(await O.$eval("[data-photos-of]", (e) => e.innerText), /Back bar wiped and restocked/);
+  await part(O, "reports"); await O.click("#tc-reports details summary"); await O.click("[data-rp-photos]");
+  await O.waitForSelector("#tc-reports .sendph img");
+  assert.match(await O.$eval("#tc-reports .sendph", (e) => e.innerText), /Back bar wiped and restocked/);
 
   // After sending, the shift's Send page brings the report's photos. Where the phone can share files (an iPhone can),
   // Copy the words, then Send with photos hands the share sheet the photos alone: an iPhone given both drops the photos
