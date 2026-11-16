@@ -251,8 +251,8 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .paymonth h2 { margin: 0; text-align: center; font-size: 22px; }
 .paymonth .round:disabled { opacity: .3; }
 .paycard { margin-top: 10px; padding: 14px 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
-.paystats { display: grid; grid-template-columns: 1fr 1fr 1.4fr; text-align: center; color: var(--muted); font-size: 14px; }
-.paystats b { display: block; font-size: 24px; color: var(--fg); font-variant-numeric: tabular-nums; }
+.paystats { display: grid; grid-template-columns: .7fr 1.15fr 1.15fr; gap: 4px; text-align: center; color: var(--muted); font-size: 14px; }
+.paystats b { display: block; font-size: clamp(17px, 5.6vw, 24px); color: var(--fg); font-variant-numeric: tabular-nums; }
 .paycal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; margin-top: 6px; text-align: center; }
 .paycal i { font-style: normal; font-size: 12px; color: var(--muted); }
 .calday { min-height: 40px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font-weight: 600; font-variant-numeric: tabular-nums; position: relative; }
@@ -261,10 +261,16 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .calday[aria-pressed="true"].has::after { background: var(--brass-ink); }
 .calday:disabled { opacity: .3; }
 .payrt { float: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-.improw { padding: 10px 0; border-bottom: 1px solid var(--line); }
-.impt { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 6px; }
-.impt select { grid-column: 1 / -1; }
-.impt input, .impt select { width: 100%; min-width: 0; font: inherit; font-size: 16px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px; -webkit-appearance: none; appearance: none; }
+.payacts { display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 8px; margin-top: 12px; }
+.payacts .btn { min-width: 0; }
+.payviews { margin-top: 12px; }
+.slipcard { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.slipcard .kv { margin-top: 6px; }
+.yearkv { grid-template-columns: minmax(0, 1.2fr) auto auto; }
+.yearkv dd { text-align: right; font-variant-numeric: tabular-nums; }
+.yearkv .take { font-weight: 700; color: var(--fg); border-top: 1px solid var(--line); padding-top: 6px; }
+.muted { color: var(--muted); font-weight: 400; }
+.linkbtn.warnline { color: var(--warn); }
 .neg { color: var(--danger, #e5484d); }
 .fld .logv { display: block; margin-top: 4px; padding: 10px 0; font-size: 17px; color: var(--fg); }
 .note.warnline { color: var(--warn); font-weight: 700; }
@@ -1064,7 +1070,7 @@ function printMsg(text, photos) {
 }
 /* A copy of everything sent from the Send page (WhatsApp, email, the share sheet or print) goes to the seniors and the
    owner, once per message. Team only: rate the shift goes with no name; My pay and the team link stay on the phone. */
-const PRIVATE_SEND = new Set(["hours", "pay", "team"]);
+const PRIVATE_SEND = new Set(["hours", "pay", "slip", "team"]);
 function logSent(m) {
   if (!LIVE.me || !LIVE.api || PRIVATE_SEND.has(snd.k)) return;
   const anon = snd.k === "rate", text = msgText(anon ? SHARE.rate(null, true) : m, snd.pick, snd.note, false).slice(0, 8000);
@@ -3134,32 +3140,41 @@ const langOptions = () => `<option value="">English</option>${LANGS.map(([c, own
 document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); haptic(); } });
 
 /* ---------- My pay ----------
-   Everything about pay in one tab, kept on this phone only: nobody else sees it and it never goes online. The shifts
-   this person worked (typed in, or read from a rota screenshot on the phone), what a month of them comes to after tax,
-   and what's left after their bills. An estimate, not a payslip.
+   Everything about pay in one tab, kept on this phone only: nobody else sees it and it never goes online. Hours come
+   from a payslip, Nory's figures, the shifts logged (typed in or read from a Nory screenshot) or about how many hours a
+   week, in that order. Payslips (pasted, a photo or a PDF, read on the phone) are broken down line by line, checked
+   against the estimate, kept as a history, and teach the estimate the rate, tax code, loan plan, pension and tronc.
+   An estimate, not a payslip.
    Hours are paid at the hourly rate. Tronc (service charge) is a fixed £5 for each hour worked the month before,
    paid with this month's pay, and each person can switch it off. Tax is worked out month by month (the Month 1 basis),
    with HMRC's 2026 to 2027 rates and bands for England, Northern Ireland, Wales (C codes) and Scotland (S codes):
    gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027. The bands there apply to pay above the tax-free
-   allowance. Employee National Insurance (category A: 8% from £1,048 to £4,189 a month, 2% above) is on the hours pay
-   only: tronc shared out by a troncmaster carries no National Insurance. A student loan comes out of the same pay as
-   National Insurance, at the thresholds on the same gov.uk page. A pension is paid on qualifying earnings, £520 to
-   £4,189 a month in 2026 to 2027 (gov.uk, "Review of the automatic enrolment earnings trigger and qualifying earnings
-   band for 2026/27": frozen at £6,240 and £50,270 a year). The legal minimum an hour is from gov.uk/national-minimum-wage-rates.
-   Holiday for irregular hours is 12.07% of the hours worked (gov.uk, "Holiday pay and entitlement reforms from 1 January 2024"). */
-// th: hours typed in for a month with no shifts logged, so its tronc can still be worked out ({ "2026-10": "82" }).
+   allowance. Employee National Insurance (category A: 8% from £1,048 to £4,189 a month, 2% above) is on pay from the
+   employer (hours, holiday): tronc shared out by a troncmaster carries no National Insurance. A student loan comes out
+   of the same pay as National Insurance, at the thresholds on the same gov.uk page. A pension is paid on qualifying
+   earnings, £520 to £4,189 a month in 2026 to 2027 (gov.uk, "Review of the automatic enrolment earnings trigger and
+   qualifying earnings band for 2026/27": frozen at £6,240 and £50,270 a year). The legal minimum an hour by age is
+   from gov.uk/national-minimum-wage-rates; tips and service charge can't count towards it (gov.uk/national-minimum-wage).
+   Holiday for irregular hours (leave years from 1 April 2024) is 12.07% of the hours worked in each pay period, to the
+   nearest hour, and is paid at the average pay of the last 52 weeks, or as rolled-up holiday pay: 12.07% on top of each
+   payslip, shown as its own line (gov.uk, "Holiday pay and entitlement reforms from 1 January 2024"). */
+// th: hours typed in for a month with no other hours, so its tronc can still be worked out ({ "2026-10": "82" }).
 // trOn: tronc on or off. pen: paying into the pension, at pension %. ded: other monthly deductions; bills: monthly bills.
-const PAY_DEFAULT = { rate: "12.71", code: "1257L", trOn: true, loan: "", pgl: false, pen: false, pension: "5", th: {}, nory: {}, wk: 0, ded: [], bills: [] };
-const num = (v) => { const n = Number(String(v).replace(",", ".")); return Number.isFinite(n) && n >= 0 ? n : 0; };
+// age: the minimum wage band. slips: payslips by month. hol: "accrue" or "rolled"; holStart: the leave year's first month;
+// holCarry: holiday hours brought into the leave year. view: what the list under the month shows.
+const PAY_DEFAULT = { rate: "12.71", code: "1257L", trOn: true, loan: "", pgl: false, pen: false, pension: "5", th: {}, nory: {}, wk: 0, ded: [], bills: [],
+  age: "21", slips: {}, hol: "accrue", holStart: "01", holCarry: "", view: "shifts" };
+const num = (v) => { const n = Number(String(v).replace(/[£,\s]/g, "").replace(/^\((.*)\)$/, "$1")); return Number.isFinite(n) && n >= 0 ? n : 0; };
 const payStored = store.get("pay", {});
 let pay = { ...PAY_DEFAULT, ...payStored };
 // Before the pension switch, a pension % on its own meant paying in.
 if (typeof payStored.pen !== "boolean") pay.pen = num(payStored.pension) > 0;
 if (!num(pay.pension)) pay.pension = PAY_DEFAULT.pension;
-for (const k of ["th", "nory"]) if (!pay[k] || typeof pay[k] !== "object") pay[k] = {};
+for (const k of ["th", "nory", "slips"]) if (!pay[k] || typeof pay[k] !== "object" || Array.isArray(pay[k])) pay[k] = {};
 for (const k of ["ded", "bills"]) if (!Array.isArray(pay[k])) pay[k] = [];
 const savePay = () => store.set("pay", pay);
 const gbp = (n) => "£" + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const sgbp = (n) => (n < 0 ? "−" : "") + gbp(Math.abs(n));
 const pence = (n) => Math.round(n * 100) / 100;
 // Yearly bands of pay above the allowance, and each one's rate.
 const BANDS = {
@@ -3177,12 +3192,13 @@ function taxCode(code) {
   const m = c.match(/^(\d{1,4})[LMNT]$/);
   return m ? { free: (Number(m[1]) * 10 + 9) / 12, bands } : null;
 }
-// Tax on a month's taxable pay (whole pounds), a twelfth of each yearly band at a time.
-function bandTax(t, bands) {
+// Tax on taxable pay (whole pounds) over n months, n twelfths of each yearly band at a time.
+function bandTax(t, bands, n = 1) {
   let tax = 0, lo = 0;
-  for (const [hi, r] of bands) { const top = hi / 12; if (t > lo) tax += (Math.min(t, top) - lo) * r; lo = top; }
+  for (const [hi, r] of bands) { const top = (hi * n) / 12; if (t > lo) tax += (Math.min(t, top) - lo) * r; lo = top; }
   return tax;
 }
+const taxOn = (gross, code) => (code ? pence(code.flat != null ? Math.floor(gross) * code.flat : bandTax(Math.max(0, Math.floor(gross - code.free)), code.bands)) : null);
 // Codes most people have, one tap each. 1257L is the usual one; BR a second job; 0T an emergency code; S Scotland; C Wales.
 const CODE_CHIPS = ["1257L", "BR", "0T", "D0", "S1257L", "C1257L"];
 // Student loan plans and each one's yearly threshold, 2026 to 2027. 9% of the pay over it is taken, and 6% for a
@@ -3191,26 +3207,18 @@ const CODE_CHIPS = ["1257L", "BR", "0T", "D0", "S1257L", "C1257L"];
 const LOANS = { 1: 26900, 2: 29385, 4: 33795, 5: 25000 }, PGL = 21000;
 const LOAN_CHIPS = [["", "None"], ["1", "Plan 1"], ["2", "Plan 2"], ["4", "Plan 4"], ["5", "Plan 5"]];
 const loanOff = (e, yr, pct) => { const p = Math.round(e * 100) - Math.floor((yr * 100) / 12); return p > 0 ? Math.floor((p * pct) / 10000) : 0; };
-// A pension on the hours pay from £520 to £4,189 a month. For a basic-rate taxpayer tax relief pays a fifth of what
+// A pension on the employer's pay from £520 to £4,189 a month. For a basic-rate taxpayer tax relief pays a fifth of what
 // goes in, whether the scheme takes it before tax or takes the rest after tax and claims the relief, so 5% costs 4%.
-const pensionOff = (e, pct) => pence((Math.min(Math.max(e, 520), 4189) - 520) * (Math.min(pct, 100) / 100) * 0.8);
-// The legal minimum an hour at 21 and over, from 1 April 2026.
-const MIN_WAGE = 12.71;
+const penBase = (e) => Math.min(Math.max(e, 520), 4189) - 520;
+const pensionOff = (e, pct) => pence(penBase(e) * (Math.min(pct, 100) / 100) * 0.8);
+// The legal minimum an hour from 1 April 2026, by age.
+const MIN_WAGES = [["21", "21 and over", 12.71], ["18", "18 to 20", 10.85], ["16", "Under 18", 8], ["app", "Apprentice (under 19 or first year)", 8]];
+const minWage = () => (MIN_WAGES.find(([k]) => k === pay.age) || MIN_WAGES[0])[2];
 // Tronc: a fixed £5 for each hour worked the month before.
 const TRONC = 5;
 // Holiday earned by someone on irregular hours: 12.07% of the hours they work.
 const HOLIDAY = 0.1207;
 const sumAmt = (xs) => pence(xs.reduce((n, x) => n + num(x.amt), 0));
-// hours: paid this month; troncHours: last month's hours, which this month's tronc is paid on.
-function payCalc({ hours, troncHours, base }) {
-  const basic = base != null ? base : pence(hours * num(pay.rate)), tronc = pay.trOn ? pence(troncHours * TRONC) : 0;
-  const gross = pence(basic + tronc), code = taxCode(pay.code);
-  const tax = code ? pence(code.flat != null ? Math.floor(gross) * code.flat : bandTax(Math.max(0, Math.floor(gross - code.free)), code.bands)) : null;
-  const ni = pence(Math.max(0, Math.min(basic, 4189) - 1048) * 0.08 + Math.max(0, basic - 4189) * 0.02);
-  const loan = (LOANS[pay.loan] ? loanOff(basic, LOANS[pay.loan], 9) : 0) + (pay.pgl ? loanOff(basic, PGL, 6) : 0);
-  const pension = pay.pen ? pensionOff(basic, num(pay.pension)) : 0, other = sumAmt(pay.ded);
-  return { hours, basic, tronc, gross, tax, ni, loan, pension, other, net: tax == null ? null : pence(gross - tax - ni - loan - pension - other) };
-}
 // The last Friday of a month ("2026-11"): pay day.
 function lastFriday(m) {
   const [y, mo] = m.split("-").map(Number), d = new Date(Date.UTC(y, mo, 0));
@@ -3218,66 +3226,172 @@ function lastFriday(m) {
   return d.toISOString().slice(0, 10);
 }
 
-/* The shifts log: each shift this person worked or is down to work. A shift counts in the month of the day it started,
-   and one that finishes at or before the time it started finished the next morning. Unpaid breaks come off. A shift on
-   a day after today is planned: it counts towards the month's estimate until the day comes. */
+/* The shifts log: each shift this person worked or is down to work, and holiday booked ({ hol: true, h: hours }). A
+   shift counts in the month of the day it started, and one that finishes at or before the time it started finished the
+   next morning. Unpaid breaks come off. A shift on a day after today is planned: it counts towards the month's estimate
+   until the day comes. */
 let hoursLog = store.get("hours", []);
 const BREAKS = [0, 15, 20, 30, 45, 60];
-const logMin = (x) => Math.max(0, shiftLen(x) - x.brk);
+const logMin = (x) => (x.hol ? Math.round(num(x.h) * 60) : Math.max(0, shiftLen(x) - x.brk));
 const sumMin = (xs) => xs.reduce((n, x) => n + logMin(x), 0);
 const mOf = (day) => day.slice(0, 7);
 const prevM = (m) => addDays(m + "-01", -1).slice(0, 7);
 const nextM = (m) => addDays(m + "-28", 7).slice(0, 7);
 const mName = (m, year) => new Date(m + "-15T12:00").toLocaleDateString("en-GB", year ? { month: "long", year: "numeric" } : { month: "long" });
-const inM = (m) => hoursLog.filter((x) => mOf(x.day) === m).sort((a, b) => (a.day + a.start).localeCompare(b.day + b.start));
+const inM = (m) => hoursLog.filter((x) => mOf(x.day) === m).sort((a, b) => (a.day + (a.start || "")).localeCompare(b.day + (b.start || "")));
+const workIn = (m) => inM(m).filter((x) => !x.hol), holIn = (m) => inM(m).filter((x) => x.hol);
 // The month on screen (this month to start with; next month at the most, for planned shifts), and the add form.
 let pm = "";
-const hf = { open: false, days: new Set(), start: "", end: "", brk: 0 };
+const hf = { open: false, hol: false, days: new Set(), start: "", end: "", brk: 0, h: "" };
 const curM = () => mOf(shiftDay());
 const lastPm = () => nextM(curM());
 // Nory's own figures for a month, typed in: its hours (h) and its gross wage (g). Weeks can be added up with +.
 const addUp = (v) => pence(String(v ?? "").split("+").reduce((n, x) => n + num(x), 0));
 const noryOf = (m) => ({ h: addUp(pay.nory[m]?.h), g: addUp(pay.nory[m]?.g) });
-// Hours a month's pay works from: Nory's hours where typed in, otherwise the log. base: Nory's gross wage, which then
-// stands in for hours times the rate. Tronc uses the month before's hours the same way, or hours typed in for it.
-// wk: about how many hours a week, picked once; it fills any month with no Nory figures and no shifts logged.
+// wk: about how many hours a week, picked once; it fills any month with nothing else.
 const WEEKLY = [20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70];
 const wkHours = (m) => pence((num(pay.wk) * new Date(Date.UTC(+m.slice(0, 4), +m.slice(5), 0)).getUTCDate()) / 7);
+// The hours worked in a month and where they come from: a payslip, Nory's figures, the log, about so many a week, or
+// typed in (for tronc only).
+function workedOf(m) {
+  const S = pay.slips[m], N = noryOf(m), xs = workIn(m);
+  if (S && S.basicH) return { from: "slip", h: S.basicH };
+  if (N.h) return { from: "nory", h: N.h };
+  if (xs.length) return { from: "log", h: sumMin(xs) / 60 };
+  if (num(pay.wk)) return { from: "week", h: wkHours(m) };
+  return { from: "typed", h: num(pay.th[m]) };
+}
+// The hourly rate holiday is paid at: the payslip's own holiday rate where there is one, otherwise the hourly rate.
+// (The law uses the average pay of the last 52 weeks; for someone paid by the hour that's their hourly rate.)
+function holRate() {
+  const s = Object.values(pay.slips).sort((a, b) => b.m.localeCompare(a.m)).find((x) => x.holRate);
+  return s ? s.holRate : num(pay.rate);
+}
+// Everything a month's estimate works from.
 function monthHours(m) {
-  const lm = prevM(m), xs = inM(m), ys = inM(lm), today = shiftDay(), N = noryOf(m), P = noryOf(lm), wk = !N.h && !N.g && !xs.length && num(pay.wk) > 0;
-  const troncFrom = P.h ? "nory" : ys.length ? "log" : num(pay.wk) && !pay.th[lm] ? "week" : "typed";
-  return { xs, ys, nory: !!(N.h || N.g), wk, base: N.g || null, hours: N.h || (wk ? wkHours(m) : sumMin(xs) / 60), planned: N.h || wk ? 0 : sumMin(xs.filter((x) => x.day > today)) / 60,
-    troncFrom, troncHours: { nory: P.h, log: sumMin(ys) / 60, week: wkHours(lm), typed: num(pay.th[lm]) }[troncFrom] };
+  const lm = prevM(m), xs = workIn(m), hs = holIn(m), ys = workIn(lm), today = shiftDay(), N = noryOf(m), W = workedOf(m), P = workedOf(lm);
+  const fromLog = W.from === "log" || W.from === "typed";
+  return { m, xs, hs, ys, src: W.from, nory: !!(N.h || N.g), wk: W.from === "week", base: W.from === "slip" ? null : N.g || null,
+    hours: fromLog ? sumMin(xs) / 60 : W.h, planned: fromLog ? sumMin(xs.filter((x) => x.day > today)) / 60 : 0,
+    holH: sumMin(hs) / 60, troncFrom: P.from, troncHours: P.h };
+}
+// hours: paid this month; troncHours: last month's hours, which this month's tronc is paid on; holH: holiday taken.
+function payCalc({ hours, troncHours, base, holH = 0 }) {
+  const basic = base != null ? base : pence(hours * num(pay.rate)), tronc = pay.trOn ? pence(troncHours * TRONC) : 0;
+  const hol = pay.hol === "rolled" ? pence(basic * HOLIDAY) : pence(holH * holRate());
+  const niable = pence(basic + hol), gross = pence(niable + tronc), code = taxCode(pay.code);
+  const tax = taxOn(gross, code);
+  const ni = pence(Math.max(0, Math.min(niable, 4189) - 1048) * 0.08 + Math.max(0, niable - 4189) * 0.02);
+  const loan = (LOANS[pay.loan] ? loanOff(niable, LOANS[pay.loan], 9) : 0) + (pay.pgl ? loanOff(niable, PGL, 6) : 0);
+  const pension = pay.pen ? pensionOff(niable, num(pay.pension)) : 0, other = sumAmt(pay.ded);
+  return { hours, basic, hol, holH, tronc, gross, tax, ni, loan, pension, other, net: tax == null ? null : pence(gross - tax - ni - loan - pension - other) };
+}
+// A month's figures: its payslip where there is one, otherwise the estimate.
+function monthPay(m) {
+  const S = pay.slips[m], H = monthHours(m), est = payCalc(H);
+  if (!S) return { H, est, r: est, slip: null };
+  const r = { hours: S.basicH, basic: S.basicAmt, hol: S.holAmt, holH: S.holH, tronc: S.tronc, gross: S.gross, tax: S.tax, ni: S.ni, loan: S.loan, pension: S.pen, other: S.other, net: S.net };
+  return { H, est, r, slip: S };
 }
 // The start and finish times this person logs most, for one tap.
 function hfTimes() {
   const n = new Map();
-  for (const x of hoursLog) { const k = `${x.start}-${x.end}`; n.set(k, (n.get(k) || 0) + 1); }
+  for (const x of hoursLog) if (!x.hol) { const k = `${x.start}-${x.end}`; n.set(k, (n.get(k) || 0) + 1); }
   return [...n].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => k.split("-"));
 }
+const newId = () => Math.random().toString(36).slice(2, 10);
 // Adds shifts to the log. One that would overlap a shift already logged is left out and named.
 function addShifts(list) {
   const add = [], clash = [];
   for (const s of list) {
-    const x = { id: Math.random().toString(36).slice(2, 10), day: s.day, start: s.start, end: s.end, brk: s.brk }, [a, b] = roSpan(x);
-    if ([...hoursLog, ...add].some((y) => roSpan(y)[0] < b && a < roSpan(y)[1])) clash.push(dayName(s.day)); else add.push(x);
+    const x = { id: newId(), day: s.day, start: s.start, end: s.end, brk: s.brk }, [a, b] = roSpan(x);
+    if ([...hoursLog, ...add].some((y) => !y.hol && roSpan(y)[0] < b && a < roSpan(y)[1])) clash.push(dayName(s.day)); else add.push(x);
   }
   hoursLog = [...hoursLog, ...add]; store.set("hours", hoursLog);
   const saved = add.length ? `Saved ${add.length === 1 ? `${hrs(logMin(add[0]))} on ${dayName(add[0].day)}` : `${add.length} shifts, ${hrs(sumMin(add))}`}` : "";
   return { add, msg: [saved, clash.length && `${clash.join(", ")} already ha${clash.length === 1 ? "s" : "ve"} a shift then`].filter(Boolean).join(". ") };
 }
 
-/* Import: a rota screenshot (Nory's Schedule page, or any rota showing the day and the times) is read on this phone
-   with Tesseract.js, a free text reader that runs in the browser: the picture is never sent anywhere. Only the reader
-   and its English data are downloaded, from jsDelivr, the first time. Pasted text or a text/CSV file goes through the
-   same reading. Each day found starts a row; the first times after it are the rota's, and a second set (Nory's ticked
-   clock-in times) is what was worked. Everything can be checked and changed before it's saved. */
+/* Reading pictures and PDFs on this phone. Tesseract.js (a free text reader that runs in the browser) reads screenshots
+   and photos; PDF.js (Mozilla's free PDF reader) takes the text out of a PDF. Only the readers are downloaded, from
+   jsDelivr, the first time: the picture or file itself is never sent anywhere. */
 const TESS_URL = "https://cdn.jsdelivr.net/npm/tesseract.js@7.0.0/dist/tesseract.min.js";
-const imp = { open: false, rows: [], use: "clock", brk: 0, busy: "", text: "" };
+const PDF_URL = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs", PDF_WORKER = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+let tessP = null;
+const loadTess = () => (tessP ??= new Promise((ok, no) => {
+  const s = document.createElement("script"); s.src = TESS_URL; s.async = true;
+  s.onload = () => ok(window.Tesseract); s.onerror = () => { tessP = null; s.remove(); no(new Error("The text reader didn't load")); };
+  document.head.append(s);
+}));
+// Each file's text, one at a time; say(text) shows how far it's got.
+// A payslip's table borders read as 1s and |s, so long straight dark lines are rubbed out before it's read.
+// A run of dark pixels longer than 3% of the picture's height (down) or 15% of its width (across) is a line, not a letter.
+// Small screenshots are blown up first: the reader drops decimal points from small print.
+async function unlined(f) {
+  const img = await createImageBitmap(f), z = Math.min(3, Math.max(1, 2000 / img.width)), W = Math.round(img.width * z), H = Math.round(img.height * z), cv = document.createElement("canvas");
+  cv.width = W; cv.height = H;
+  const cx = cv.getContext("2d"); cx.drawImage(img, 0, 0, W, H);
+  const d = cx.getImageData(0, 0, W, H), px = d.data, lum = new Float32Array(W * H);
+  let mean = 0;
+  for (let i = 0; i < W * H; i++) mean += lum[i] = 0.299 * px[i * 4] + 0.587 * px[i * 4 + 1] + 0.114 * px[i * 4 + 2];
+  const dark = (i) => lum[i] < (mean / (W * H)) * 0.6, wipe = new Uint8Array(W * H);
+  const runs = (n, len, at, min) => {
+    for (let a = 0; a < n; a++) for (let b = 0, s = 0; b <= len; b++) {
+      if (b < len && dark(at(a, b))) continue;
+      if (b - s > min) for (let k = s; k < b; k++) wipe[at(a, k)] = 1;
+      s = b + 1;
+    }
+  };
+  runs(W, H, (x, y) => y * W + x, Math.max(25, H * 0.03));
+  runs(H, W, (y, x) => y * W + x, Math.max(60, W * 0.15));
+  for (let i = 0; i < W * H; i++) if (wipe[i]) px[i * 4] = px[i * 4 + 1] = px[i * 4 + 2] = 255;
+  cx.putImageData(d, 0, 0);
+  return cv;
+}
+async function readFiles(files, say, lines = false) {
+  const out = [], pics = files.filter((f) => f.type.startsWith("image/")).length;
+  let w = null, n = 0;
+  try {
+    for (const f of files) {
+      if (f.type.startsWith("image/")) {
+        n++;
+        if (!w) { say("Getting the text reader ready…"); w = await (await loadTess()).createWorker("eng", 1, { logger: (m) => m.status === "recognizing text" && say(`${pics > 1 ? `Reading ${pics} pictures…` : "Reading the picture…"} ${Math.round(m.progress * 100)}%`) }); }
+        out.push((await w.recognize(lines ? await unlined(f) : f)).data.text);
+      } else if (f.type === "application/pdf" || /\.pdf$/i.test(f.name)) {
+        say("Reading the PDF…");
+        const lib = await import(PDF_URL); lib.GlobalWorkerOptions.workerSrc = PDF_WORKER;
+        const doc = await lib.getDocument({ data: new Uint8Array(await f.arrayBuffer()) }).promise;
+        let text = "";
+        for (let i = 1; i <= doc.numPages; i++) {
+          // Words on the same line (the same height on the page) are put back together, left to right.
+          const rows = new Map();
+          for (const it of (await (await doc.getPage(i)).getTextContent()).items) {
+            if (!it.str.trim()) continue;
+            const y = Math.round(it.transform[5] / 3);
+            rows.set(y, [...(rows.get(y) || []), it]);
+          }
+          text += [...rows].sort((a, b) => b[0] - a[0]).map(([, xs]) => xs.sort((a, b) => a.transform[4] - b.transform[4]).map((x) => x.str.trim()).join("  ")).join("\n") + "\n";
+        }
+        out.push(text);
+      } else out.push(await f.text());
+    }
+  } catch (e) {
+    throw new Error("reader");
+  } finally { if (w) await w.terminate(); }
+  return out;
+}
+
+/* Import from Nory: a screenshot of Nory's Schedule page (or any rota with the day and times), or its text pasted.
+   Each day found starts a row; the first times after it are the rota's, and a second set (Nory's ticked clock-in times)
+   is what was worked, so those are used where there are any. Nory's week line ("5 £386.60 30.42": shifts, gross wage,
+   hours) sets the breaks so the week comes to Nory's hours, and its gross over its hours is the hourly rate. The shifts
+   are saved straight away; Undo takes them all back. */
+const imp = { open: false, busy: "", text: "", done: null };
 const MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
-const RD_DATE = /\b(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?(?:\s+(\d{4}))?|\b(\d{4})-(\d{2})-(\d{2})\b|\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2}|\d{4}))?\b/gi;
+const RD_DATE = /\b(?:(?:mon|tue|wed|thu|fri|sat|sun)[a-z]*,?\s+)?(\d{1,2})(?:st|nd|rd|th)?\s+(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?(?:\s+(\d{4}))?|\b(\d{4})-(\d{2})-(\d{2})\b|\b(\d{1,2})[/.-](\d{1,2})(?:[/.-](\d{2}|\d{4}))?\b/gi;
 const RD_TIME = /\b([01]?\d|2[0-3])[:.]([0-5]\d)\s*(?:-|to)\s*([01]?\d|2[0-3])[:.]([0-5]\d)\b/gi;
 const two = (n) => String(n).padStart(2, "0");
+const dashes = (t) => String(t).replace(/[‐-―−]/g, "-");
 // A day with no year is put in the year that brings it closest to today.
 function rdDay(d, m, y) {
   if (m < 1 || m > 12 || d < 1 || d > 31) return null;
@@ -3286,12 +3400,10 @@ function rdDay(d, m, y) {
   const ks = ys.map((yy) => `${yy}-${two(m)}-${two(d)}`).filter((k) => addDays(k, 0) === k);
   return ks.sort((a, b) => Math.abs(Date.parse(a) - Date.parse(today)) - Math.abs(Date.parse(b) - Date.parse(today)))[0] || null;
 }
+const dateOf = (x) => (x[2] ? rdDay(+x[1], MONTHS.indexOf(x[2].toLowerCase()) + 1, x[3] && +x[3]) : x[4] ? rdDay(+x[6], +x[5], +x[4]) : rdDay(+x[7], +x[8], x[9] && +x[9]));
 function readRota(text) {
-  const t = String(text).replace(/[‐-―−]/g, "-"), marks = [];
-  for (const x of t.matchAll(RD_DATE)) {
-    const day = x[2] ? rdDay(+x[1], MONTHS.indexOf(x[2].toLowerCase()) + 1, x[3] && +x[3]) : x[4] ? rdDay(+x[6], +x[5], +x[4]) : rdDay(+x[7], +x[8], x[9] && +x[9]);
-    if (day) marks.push({ at: x.index, day });
-  }
+  const t = dashes(text), marks = [];
+  for (const x of t.matchAll(RD_DATE)) { const day = dateOf(x); if (day) marks.push({ at: x.index, day }); }
   for (const x of t.matchAll(RD_TIME)) marks.push({ at: x.index, times: [`${two(x[1])}:${x[2]}`, `${two(x[3])}:${x[4]}`] });
   marks.sort((a, b) => a.at - b.at);
   const rows = new Map(); let cur = null;
@@ -3301,76 +3413,417 @@ function readRota(text) {
   }
   return [...rows.values()].filter((r) => r.sets.length).map((r) => ({ day: r.day, plan: r.sets[0], clock: r.sets[1] || null }));
 }
-// Sets each row's times from the rota or the clock-in times, as picked.
-const impTimes = (r) => { [r.start, r.end] = imp.use === "clock" && r.clock ? r.clock : r.plan; };
-function impTake(found) {
-  const have = new Set(imp.rows.map((r) => r.day));
-  for (const r of found) if (!have.has(r.day)) { impTimes(r); imp.rows.push({ ...r, on: true, brk: imp.brk }); }
-  imp.rows.sort((a, b) => a.day.localeCompare(b.day));
-  imp.busy = found.length ? "" : "No days with times found. Try a clearer screenshot, or paste the text.";
-  renderPay();
+// Nory's week line: shifts, gross wage and hours ("5 £386.60 30.42"), or just the gross and the hours.
+function readNoryHead(text) {
+  const x = dashes(text).match(/(?:^|\s)(\d{1,2})\s+£\s?(\d{1,3}(?:,\d{3})*\.\d{2})\s+(\d{1,3}(?:\.\d{1,2})?)(?=\s|$)/m) || dashes(text).match(/£\s?(\d{1,3}(?:,\d{3})*\.\d{2})\s+(\d{1,3}\.\d{1,2})(?=\s|$)/m);
+  if (!x) return null;
+  return x.length === 4 ? { n: +x[1], gross: num(x[2]), hours: +x[3] } : { n: 0, gross: num(x[1]), hours: +x[2] };
 }
-let tessP = null;
-const loadTess = () => (tessP ??= new Promise((ok, no) => {
-  const s = document.createElement("script"); s.src = TESS_URL; s.async = true;
-  s.onload = () => ok(window.Tesseract); s.onerror = () => { tessP = null; s.remove(); no(new Error("The text reader didn't load")); };
-  document.head.append(s);
-}));
-const impBusy = (t) => { imp.busy = t; const e = $("#imp-st"); if (e) e.textContent = t; };
-async function impFiles(files) {
-  const pics = files.filter((f) => f.type.startsWith("image/")), texts = files.filter((f) => !f.type.startsWith("image/"));
-  let text = "";
-  for (const f of texts) text += "\n" + (await f.text());
-  if (pics.length) {
-    impBusy("Getting the text reader ready…");
-    let w;
-    try { w = await (await loadTess()).createWorker("eng", 1, { logger: (m) => m.status === "recognizing text" && impBusy(`Reading ${pics.length > 1 ? `${pics.length} pictures` : "the picture"}… ${Math.round(m.progress * 100)}%`) }); }
-    catch { impBusy(""); renderPay(); return toast("The text reader needs signal the first time. Try again with signal, or paste the text"); }
-    for (const f of pics) text += "\n" + (await w.recognize(f)).data.text;
-    await w.terminate();
+// One screenshot's (or one paste's) worth: its shifts, with the breaks set from Nory's hours where it shows them.
+function noryRows(text) {
+  const rows = readRota(text), head = readNoryHead(text), today = shiftDay();
+  const list = rows.map((r) => { const [start, end] = r.clock || r.plan; return { day: r.day, start, end, brk: 0 }; });
+  const worked = list.filter((r) => r.day <= today), total = worked.reduce((n, r) => n + shiftLen(r), 0);
+  let brk = 0;
+  if (head && head.hours && worked.length && total > head.hours * 60) brk = Math.round((total - head.hours * 60) / worked.length);
+  for (const r of worked) r.brk = brk;
+  return { list, head, brk };
+}
+async function impRun(texts) {
+  const all = [], notes = [];
+  let rate = 0;
+  for (const t of texts) {
+    const { list, head, brk } = noryRows(t);
+    all.push(...list);
+    if (brk) notes.push(`Breaks of ${brk} min each so the week matches Nory's ${fmtN(head.hours)} h`);
+    if (head && head.hours) rate = head.gross / head.hours;
   }
-  impTake(readRota(text));
-}
-function impSave() {
-  const rows = imp.rows.filter((r) => r.on);
-  if (!rows.length) return toast("Tick the shifts to save");
-  if (rows.some((r) => !ISO_TIME.test(r.start) || !ISO_TIME.test(r.end))) return toast("Put in when each shift started and finished");
-  const { add, msg } = addShifts(rows);
-  if (add.length) { pm = [mOf(add[0].day), lastPm()].sort()[0]; Object.assign(imp, { open: false, rows: [], text: "" }); }
+  if (!all.length) { imp.busy = "No days with times found. Try a clearer screenshot, or paste the text."; return renderPay(); }
+  const { add, msg: said } = addShifts(all), msg = add.length ? said : "Those shifts are already logged";
+  if (rate >= 5 && rate <= 100 && Math.abs(rate - num(pay.rate)) >= 0.005) { pay.rate = rate.toFixed(2); savePay(); notes.push(`Hourly rate set to £${pay.rate} from Nory`); }
+  if (add.length) pm = [mOf(add[0].day), lastPm()].sort()[0];
+  Object.assign(imp, { busy: "", text: "", done: { ids: add.map((x) => x.id), msg, notes } });
   haptic(); renderPay(); toast(msg);
 }
+async function impFiles(files) {
+  const say = (t) => { imp.busy = t; const e = $("#imp-st"); if (e) e.textContent = t; };
+  let texts;
+  try { texts = await readFiles(files, say); } catch { imp.busy = ""; renderPay(); return toast("The text reader needs signal the first time. Try again with signal, or paste the text"); }
+  impRun(texts);
+}
 function impHtml() {
-  const any = imp.rows.some((r) => r.clock), n = imp.rows.filter((r) => r.on).length;
-  const row = (r, i) => `<div class="improw"><label class="check" style="margin-top:0"><input type="checkbox" data-imp-on="${i}"${r.on ? " checked" : ""}> ${dayName(r.day, { weekday: "long", day: "numeric", month: "short" })}</label>
-    <div class="impt"><input type="time" data-imp-t="${i}:start" value="${esc(r.start)}" aria-label="Start time"><input type="time" data-imp-t="${i}:end" value="${esc(r.end)}" aria-label="End time">
-    <select data-imp-brk="${i}" aria-label="Unpaid break">${BREAKS.map((b) => `<option value="${b}"${b === r.brk ? " selected" : ""}>${b ? `${b} min` : "No break"}</option>`).join("")}</select></div></div>`;
+  const d = imp.done;
   return `<div class="notice" id="imp">
-      <div class="mini" style="margin-top:0">Import from a rota screenshot</div>
-      <p class="note">Screenshot your schedule in Nory (or any rota with the days and times), then pick the screenshots here. They're read on this phone and never sent anywhere.</p>
+      <div class="mini" style="margin-top:0">Import from Nory</div>
+      ${d ? `<p class="note"><b>${esc(d.msg)}</b></p>${d.notes.map((n) => `<p class="note">${esc(n)}</p>`).join("")}
+        <div class="actions">${d.ids.length ? `<button class="btn" data-imp-undo>Undo</button>` : ""}<button class="btn" data-imp-cancel>Done</button></div>`
+      : `<p class="note">Screenshot your schedule in Nory, a week at a time, and pick the screenshots here. The shifts, breaks and your rate are filled in for you. They're read on this phone and never sent anywhere.</p>
       <div class="actions"><label class="btn pri">Pick screenshots<input type="file" accept="image/*,text/plain,.txt,.csv" multiple data-imp-file hidden></label><button class="btn" data-imp-cancel>Done</button></div>
       <details class="setup"${imp.text ? " open" : ""}><summary>Or paste the text</summary>
         <label class="fld">The days and times, as they're written<textarea data-imp-text rows="4" placeholder="Tuesday 27 Oct 17:15 - 22:30">${esc(imp.text)}</textarea></label>
         <div class="actions"><button class="btn" data-imp-read>Read it</button></div></details>
-      <p class="note" id="imp-st" aria-live="polite">${esc(imp.busy)}</p>
-      ${imp.rows.length ? `${any ? `<div class="mini">Times to use</div><div class="recent">${[["clock", "Clocked in and out"], ["plan", "On the rota"]].map(([k, t]) => `<button class="chip" data-imp-use="${k}" aria-pressed="${imp.use === k}">${t}</button>`).join("")}</div>` : ""}
-        <div class="mini">Unpaid break on each</div>
-        <div class="recent">${BREAKS.map((b) => `<button class="chip" data-imp-allbrk="${b}" aria-pressed="${b === imp.brk}">${b ? `${b} min` : "None"}</button>`).join("")}</div>
-        <p class="note">Check each day and its times. Untick any you didn't work.</p>
-        ${imp.rows.map(row).join("")}
-        <div class="actions"><button class="btn pri" data-imp-save>${n === 1 ? "Save the shift" : `Save ${n} shifts`}</button><button class="btn" data-imp-clear>Start again</button></div>` : ""}
+      <details class="setup"${pay.nory[pm] ? " open" : ""}><summary>Or type Nory's totals for ${mName(pm)}</summary>
+        <p class="note">Its hours, its gross wage or both. Add its weeks up with +, like 386.60 + 545.95. Nory's figures are an estimate, so this is too.</p>
+        <div class="paygrid"><label class="fld">Hours Nory shows<input data-nory="h" inputmode="text" value="${esc(pay.nory[pm]?.h ?? "")}" placeholder="30.42"></label><label class="fld">Gross wage Nory shows (£)<input data-nory="g" inputmode="text" value="${esc(pay.nory[pm]?.g ?? "")}" placeholder="386.60"></label></div></details>
+      <p class="note" id="imp-st" aria-live="polite">${esc(imp.busy)}</p>`}
     </div>`;
 }
 
-// The top card: the month, its shifts, hours and take-home, and pay day.
-function paySumHtml() {
-  const H = monthHours(pm), r = payCalc(H), n = H.xs.length, left = r.net == null ? null : pence(r.net - sumAmt(pay.bills));
-  return `<div class="paystats"><div><b>${n}</b>${n === 1 ? "Shift" : "Shifts"}</div><div><b>${+H.hours.toFixed(2)}</b>Hours</div><div><b>${r.net == null ? "?" : gbp(r.net)}</b>Take-home</div></div>
-    <p class="note" style="text-align:center;margin:6px 0 0">Gross ${gbp(r.gross)} · pay day ${longDay(lastFriday(pm))}</p>
-    ${H.nory ? `<p class="note" style="text-align:center;margin:2px 0 0">From Nory's figures${H.xs.length ? ", not the shifts logged" : ""}: an estimate</p>` : H.wk ? `<p class="note" style="text-align:center;margin:2px 0 0">From about ${num(pay.wk)} h a week: an estimate</p>` : ""}
-    ${H.planned ? `<p class="note" style="text-align:center;margin:2px 0 0">Includes ${hrs(H.planned * 60)} still to work</p>` : ""}
-    ${pay.bills.length && left != null ? `<p class="note" style="text-align:center;margin:2px 0 0">Left after bills: <b class="${left < 0 ? "neg" : ""}">${left < 0 ? "−" : ""}${gbp(Math.abs(left))}</b></p>` : ""}`;
+/* Payslips: pasted, a photo or a PDF, read on this phone. Every line with an amount is sorted into pay (hours, holiday,
+   tronc, overtime, sick pay, bonus), deductions (tax, National Insurance, student loan, pension, other), totals and
+   year to date, and the tax code and pay date are picked out. The National Insurance number and anything else are left
+   behind: only the figures are kept. */
+const MONEY = /\(?-?£?\s?\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?\)?|\(?-?£?\s?\d+(?:\.\d{1,2})?\)?/g;
+const SLIP_KINDS = [
+  ["skip", /\b(ni|nat\.? ?ins(urance)?|national insurance)\s*(no|number|letter|cat(egory)?|table)\b|\btax\s*(code|period|ref|week|month|year|credit|district|office)\b|\bemployee\s*(no|number|id)\b|\b(payroll|works|staff)\s*(no|number|id)\b|\bperiod\b|\bpay\s*(date|day)\b|\bdate\b|\bdept\b|\bdepartment\b/],
+  ["er", /\b(employer'?s?|er'?s?)\b.*\b(pension|ni|nic|national insurance|contribution)|\b(pension|ni|nic)\b.*\b(employer|er)\b/],
+  ["ytd", /\b(ytd|y\.t\.d|to date|td|year)\b/],
+  ["taxable", /\btaxable\b|\bgross for tax\b|\bniable\b|\bni(able)? pay\b|\bearnings for ni\b/],
+  ["net", /\bnet\b|take\s*home|amount paid|paid to (you|bank)/],
+  ["gross", /\bgross\b|total (pay(ments)?|earnings)/],
+  ["dedtotal", /total deductions/],
+  ["pgl", /post\s*grad|\bpgl\b|\bpg loan\b/],
+  ["loan", /student\s*loan|\bs\.?l\.?\b|stud(ent)?\.? loan|s\/loan/],
+  ["ni", /national insurance|nat\.? ?ins|\bees?\s*ni\b|\bni\b|\bnic\b/],
+  ["tax", /\bpaye\b|income tax|\btax\b/],
+  ["pen", /pension|\bnest\b|auto.?enrol|\bae\b|salary sacrifice/],
+  ["tronc", /tronc|service\s*charge|\btips?\b|gratuit/],
+  ["rolled", /rolled|12\.07/],
+  ["hol", /holiday|\bhol\b|annual leave|\bal\b|accrued/],
+  ["sick", /\bssp\b|sick/],
+  ["ot", /overtime|\bo\/t\b|\bot\b/],
+  ["bonus", /bonus|commission|incentive/],
+  ["basic", /basic|hourly|\bhours\b|ordinary|salary|normal|standard|wage|\bpay\b/],
+  ["oded", /deduct|advance|uniform|meal|food|charity|union|attachment|repay|loan|cycle|gym|parking/],
+];
+const SLIP_EARN = new Set(["basic", "hol", "rolled", "tronc", "sick", "ot", "bonus"]), SLIP_DED = new Set(["tax", "ni", "loan", "pgl", "pen", "oded"]);
+const SLIP_NAMES = { basic: "Hours pay", hol: "Holiday pay", rolled: "Rolled-up holiday pay", tronc: "Tronc", sick: "Sick pay", ot: "Overtime", bonus: "Bonus",
+  tax: "Income tax", ni: "National Insurance", loan: "Student loan", pgl: "Postgraduate loan", pen: "Pension", oded: "Other deduction", gross: "Gross", net: "Take-home" };
+const YTD_OF = { gross: "gross", taxable: "taxable", tax: "tax", ni: "ni", pen: "pen", loan: "loan", pgl: "loan" };
+const slipKind = (l) => (SLIP_KINDS.find(([, re]) => re.test(l)) || ["other"])[0];
+// Payslips often put payments and deductions side by side ("Basic 98.00 12.71 1,245.58  PAYE 140.20"): each name
+// with the figures after it is read as a line of its own. Percentages ("Pension 5%") aren't amounts, so they go.
+const SLIP_NUM = /^\(?-?£?[\d,]*\d(?:\.\d+)?\)?$/;
+function slipSegs(line) {
+  const out = [];
+  let cur = [], nums = false;
+  for (const w of line.replace(/\b\d+(?:\.\d+)?\s?%/g, " ").split(/\s+/).filter(Boolean)) {
+    const n = SLIP_NUM.test(w) || w === "£";
+    if (!n && nums) { out.push(cur.join(" ")); cur = []; }
+    cur.push(w); nums = n;
+  }
+  if (cur.length) out.push(cur.join(" "));
+  return out;
 }
-// A calendar of the month on screen to pick the days worked or planned, with a dot where a shift is logged.
+function readSlip(text) {
+  const t = dashes(text), items = [], ytd = {};
+  const S = { items, ytd, code: "", date: "", period: 0 };
+  // The tax code: on the tax code line if there is one, otherwise the first code that looks like one.
+  const CODE = /\b([SC]?(?:\d{1,4}[LMNT]|BR|D[0-3]|0T|NT|K\d{1,4})(?:\s*(?:W1|M1|X))?)\b/;
+  const cl = t.split("\n").find((l) => /tax\s*code/i.test(l));
+  S.code = ((cl && cl.replace(/.*tax\s*code\s*:?\s*/i, "").match(CODE)) || t.match(/\b([SC]?\d{3,4}[LMNT])\b/) || [])[1] || "";
+  const dl = t.split("\n").find((l) => /pay(ment)?\s*date|date\s*paid|paid\s*on|process(ed|ing)?\s*date|pay\s*day/i.test(l));
+  const dm = [...((dl || "").matchAll(RD_DATE))][0] || [...t.matchAll(RD_DATE)].find((x) => x[2] || x[4] || x[9]);
+  S.date = dm ? dateOf(dm) || "" : "";
+  S.period = +((t.match(/\b(?:tax\s*)?(?:period|month|mth)\s*(?:no\.?)?\s*:?\s*(\d{1,2})\b/i) || [])[1] || 0);
+  for (const line of t.split("\n").flatMap(slipSegs)) {
+    const lo = line.toLowerCase();
+    const label = line.replace(/^[\d\s.]{1,6}(?=[A-Za-z])/, "").replace(/[\d£(),.\s-]+$/, "").replace(/\s*[:|]\s*$/, "").trim();
+    const ns = (line.slice(line.indexOf(label) + label.length).match(MONEY) || []).map((x) => ({ v: num(x), neg: /^\(|-/.test(x.trim()) }));
+    if (!label || !/[a-z]/i.test(label) || !ns.length || !ns.some((n) => n.v > 0) || !/\d\.\d{2}\b/.test(line.slice(line.indexOf(label) + label.length))) continue;
+    const k = slipKind(lo);
+    if (k === "skip" || k === "er") continue;
+    const v = ns.map((n) => n.v);
+    if (k === "ytd") { const y = slipKind(lo.replace(/\b(ytd|y\.t\.d|to date|td|year)\b/g, "")); if (YTD_OF[y]) ytd[YTD_OF[y]] = pence((ytd[YTD_OF[y]] || 0) + v[v.length - 1]); continue; }
+    let u = 0, r = 0, a = v[v.length - 1];
+    if (SLIP_EARN.has(k) || k === "other") {
+      if (v.length >= 3 && Math.abs(v[0] * v[1] - v[2]) < 1) [u, r, a] = v;
+      else if (v.length === 2 && v[0] > 0 && v[1] / v[0] >= 4 && v[1] / v[0] <= 100) { [u, a] = v; r = pence(a / u); }
+      else if (v.length >= 2) a = v[0];
+    } else if (v.length === 2) { a = v[0]; if (YTD_OF[k]) ytd[YTD_OF[k]] = v[1]; }
+    else a = v[0];
+    items.push({ l: label.slice(0, 40), k, u, r, a: pence(a) });
+  }
+  const sum = (ks) => pence(items.filter((x) => ks.includes(x.k)).reduce((n, x) => n + x.a, 0));
+  const first = (k) => items.find((x) => x.k === k);
+  const bh = items.filter((x) => x.k === "basic"), hh = items.filter((x) => x.k === "hol");
+  Object.assign(S, {
+    basicH: pence(bh.reduce((n, x) => n + x.u, 0)), basicAmt: sum(["basic", "ot", "bonus", "sick"]), basicRate: (bh.find((x) => x.r) || {}).r || 0,
+    holH: pence(hh.reduce((n, x) => n + x.u, 0)), holAmt: sum(["hol", "rolled"]), holRate: (hh.find((x) => x.r) || {}).r || 0,
+    tronc: sum(["tronc"]), tax: sum(["tax"]), ni: sum(["ni"]), loan: sum(["loan", "pgl"]), pgl: sum(["pgl"]), pen: sum(["pen"]), other: sum(["oded"]),
+  });
+  S.gross = first("gross") ? first("gross").a : sum([...SLIP_EARN]);
+  S.net = first("net") ? first("net").a : pence(S.gross - sum([...SLIP_DED]));
+  // The month it's for: the pay date's, or the tax period's (period 1 is April) in the tax year that's nearest.
+  S.m = S.date ? mOf(S.date) : S.period >= 1 && S.period <= 12 ? (() => { const cm = curM(), ty = +cm.slice(5) >= 4 ? +cm.slice(0, 4) : +cm.slice(0, 4) - 1, mo = ((S.period + 2) % 12) + 1, y = mo >= 4 ? ty : ty + 1, k = `${y}-${two(mo)}`; return k > lastPm() ? `${+k.slice(0, 4) - 1}${k.slice(4)}` : k; })() : "";
+  return S;
+}
+// What a payslip teaches the estimate: the hourly rate, tax code, loan plan, pension and tronc. Returns what changed.
+function learnSlip(S) {
+  const done = [], set = (k, v, say) => { if (String(pay[k]) !== String(v)) { pay[k] = v; done.push(say); } };
+  if (S.basicRate >= 5 && S.basicRate <= 100) set("rate", S.basicRate.toFixed(2), `Hourly rate £${S.basicRate.toFixed(2)}`);
+  const code = S.code.toUpperCase().replace(/\s*(W1|M1|X)$/, "");
+  if (code && taxCode(code)) set("code", code, `Tax code ${code}`);
+  const niable = pence(S.gross - S.tronc), sl = pence(S.loan - S.pgl);
+  if (sl > 0) { const p = Object.keys(LOANS).find((k) => Math.abs(loanOff(niable, LOANS[k], 9) - sl) <= 1); if (p) set("loan", p, `Student loan Plan ${p}`); }
+  if (S.pgl > 0) set("pgl", true, "Postgraduate loan");
+  if (S.pen > 0) {
+    set("pen", true, "Pension on");
+    const pct = penBase(niable) ? Math.round((S.pen / (penBase(niable) * 0.8)) * 200) / 2 : 0;
+    if (pct >= 1 && pct <= 15) set("pension", String(pct), `Pension ${pct}%`);
+  }
+  if (S.tronc > 0) {
+    set("trOn", true, "Tronc on");
+    const lm = prevM(S.m);
+    if (["typed", "week"].includes(workedOf(lm).from) && !num(pay.th[lm])) { pay.th[lm] = String(pence(S.tronc / TRONC)); done.push(`${fmtN(S.tronc / TRONC)} h in ${mName(lm)}, from the tronc`); }
+  }
+  if (S.items.some((x) => x.k === "rolled")) set("hol", "rolled", "Rolled-up holiday pay");
+  return done;
+}
+// The payslip against the estimate for its month, line by line, with what's likely behind a gap.
+function slipCheck(S) {
+  // The app's own hours for the month, or the payslip's when there are none, so the tax and deductions still get checked.
+  const W = workedOf(S.m), own = W.from === "slip" ? (workIn(S.m).length ? sumMin(workIn(S.m)) / 60 : noryOf(S.m).h || (num(pay.wk) ? wkHours(S.m) : 0)) : W.h;
+  const est = payCalc({ ...monthHours(S.m), base: null, hours: own || S.basicH || 0, holH: S.holH || monthHours(S.m).holH });
+  const rows = [["Hours pay", S.basicAmt, est.basic], ["Holiday pay", S.holAmt, est.hol], ["Tronc", S.tronc, est.tronc], ["Gross", S.gross, est.gross], ["Income tax", S.tax, est.tax],
+    ["National Insurance", S.ni, est.ni], ["Student loan", S.loan, est.loan], ["Pension", S.pen, est.pension], ["Take-home", S.net, est.net]].filter(([, a, b]) => a || b);
+  const why = [];
+  if (own && S.basicH && Math.abs(S.basicH - est.hours) >= 0.25) why.push(`Your payslip pays ${fmtN(S.basicH)} h; you have ${fmtN(est.hours)} h for ${mName(S.m)}. ${S.basicH < est.hours ? `Check for ${fmtN(est.hours - S.basicH)} h missing (or hours paid next month).` : "Some hours may be from last month."}`);
+  if (S.tronc && est.tronc && Math.abs(S.tronc - est.tronc) >= 1) why.push(`Tronc of ${gbp(S.tronc)} is £5 an hour for ${fmtN(S.tronc / TRONC)} h; the app has ${fmtN(est.tronc / TRONC)} h for ${mName(prevM(S.m))}.`);
+  if (S.code && pay.code && S.code.toUpperCase().replace(/\s*(W1|M1|X)$/, "") !== String(pay.code).toUpperCase()) why.push(`Your payslip's tax code is ${S.code.toUpperCase()}.`);
+  if (/W1|M1|X/i.test(S.code)) why.push("W1, M1 or X after the tax code is an emergency code: ask payroll to update it, and any extra tax comes back.");
+  if (S.loan - S.pgl > 0 && !LOANS[pay.loan]) why.push("Your payslip takes off a student loan. Pick your plan in the settings below so the estimate matches.");
+  if (S.basicRate && S.basicRate < minWage()) why.push(`£${S.basicRate.toFixed(2)} an hour is under the legal minimum of £${minWage().toFixed(2)} for your age.`);
+  return { rows, why, est };
+}
+const slip = { open: false, busy: "", text: "", read: null, m: "", learnt: [] };
+async function slipFiles(files) {
+  const say = (t) => { slip.busy = t; const e = $("#slip-st"); if (e) e.textContent = t; };
+  let texts;
+  try { texts = await readFiles(files, say, true); } catch { slip.busy = ""; renderPay(); return toast("The text reader needs signal the first time. Try again with signal, or paste the text"); }
+  slipTake(texts.join("\n"));
+}
+// A payslip read: saved straight away when its month is clear, otherwise the month is asked for first.
+function slipTake(text) {
+  const S = readSlip(text);
+  if (!S.gross && !S.net) { slip.busy = "No pay figures found. Try a clearer photo, the PDF, or paste the text."; return renderPay(); }
+  Object.assign(slip, { busy: "", read: S, m: S.m || pm });
+  if (S.m) return slipSave();
+  renderPay();
+}
+function slipSave() {
+  const S = { ...slip.read, m: slip.m };
+  pay.slips[S.m] = S;
+  const learnt = learnSlip(S); savePay();
+  Object.assign(slip, { open: false, read: null, text: "", learnt, shown: S.m });
+  pm = [S.m, lastPm()].sort()[0]; pay.view = "slips"; savePay();
+  haptic(); renderPay(); toast(`Payslip for ${mName(S.m)} saved`);
+}
+const cmpRow = ([k, a, b]) => { const d = b == null ? 0 : pence(a - b); return `<dt>${k}</dt><dd>${gbp(a)}${b == null ? "" : ` <span class="${Math.abs(d) >= 1 ? "neg" : "muted"}">(app ${gbp(b)}${Math.abs(d) >= 1 ? `, ${d > 0 ? "+" : "−"}${gbp(Math.abs(d))}` : ""})</span>`}</dd>`; };
+function slipHtml(S, full) {
+  const C = slipCheck(S), lines = S.items.filter((x) => x.k !== "gross" && x.k !== "net" && x.k !== "dedtotal");
+  const it = (x) => `<dt><span translate="no">${esc(x.l)}</span>${x.u ? ` (${fmtN(x.u)} h${x.r ? ` at £${x.r.toFixed(2)}` : ""})` : ""}</dt><dd>${SLIP_DED.has(x.k) ? "−" : ""}${gbp(x.a)}</dd>`;
+  return `<div class="slipcard"><div class="n"><b>${mName(S.m, true)}</b>${S.date ? ` · <span>paid ${dayName(S.date)}</span>` : ""}${S.code ? ` · <span translate="no">${esc(S.code)}</span>` : ""} <span class="payrt">${S.net == null ? "" : gbp(S.net)}</span></div>
+    ${full ? `<div class="mini">Every line</div><dl class="kv paykv">${lines.map(it).join("")}<dt class="take">Take-home</dt><dd class="take">${gbp(S.net)}</dd></dl>
+      ${Object.keys(S.ytd).length ? `<div class="mini">Tax year to date, on this payslip</div><dl class="kv paykv">${Object.entries(S.ytd).map(([k, v]) => `<dt>${SLIP_NAMES[k] || (k === "taxable" ? "Taxable pay" : k)}</dt><dd>${gbp(v)}</dd>`).join("")}</dl>` : ""}
+      <div class="mini">Against the app's estimate</div><dl class="kv paykv">${C.rows.map(cmpRow).join("")}</dl>
+      ${C.why.map((w) => `<p class="note warnline">${esc(w)}</p>`).join("")}
+      ${!C.why.length && C.rows.every(([, a, b]) => b == null || Math.abs(a - b) < 1) ? `<p class="note">Matches the estimate to the pound.</p>` : ""}
+      <div class="actions">${sendBtn("slip", "Send it", S.m)}<button class="btn" data-slip-hide>Close</button><button class="btn" data-slip-del="${S.m}">Remove</button></div>`
+    : `<div class="s">Gross ${gbp(S.gross)} · tax ${gbp(S.tax)} · NI ${gbp(S.ni)}${C.why.length ? ` · <b class="neg">${C.why.length === 1 ? "1 thing to check" : `${C.why.length} things to check`}</b>` : ""} · <button class="linkbtn" data-slip-show="${S.m}">See it all</button></div>`}</div>`;
+}
+function slipPanelHtml() {
+  const R = slip.read;
+  return `<div class="notice" id="slip">
+      <div class="mini" style="margin-top:0">Add a payslip</div>
+      ${R ? `<p class="note">Which month is this payslip for?</p>
+        <label class="fld">Month<select data-slip-m>${Array.from({ length: 15 }, (_, i) => { let m = lastPm(); for (let j = 0; j < i; j++) m = prevM(m); return m; }).map((m) => `<option value="${m}"${m === slip.m ? " selected" : ""}>${mName(m, true)}</option>`).join("")}</select></label>
+        <div class="actions"><button class="btn pri" data-slip-save>Save the payslip</button><button class="btn" data-slip-cancel>Cancel</button></div>`
+      : `<p class="note">A photo, a screenshot or the PDF of your payslip, this month's or an older one. It's read on this phone and never sent anywhere; only the figures are kept. Your rate, tax code, loan plan, pension and tronc are updated from it.</p>
+      <div class="actions"><label class="btn pri">Pick the payslip<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-slip-cancel>Done</button></div>
+      <details class="setup"${slip.text ? " open" : ""}><summary>Or paste the text</summary>
+        <label class="fld">Your payslip's text<textarea data-slip-text rows="6" placeholder="Basic Pay 120.00 12.71 1525.20">${esc(slip.text)}</textarea></label>
+        <div class="actions"><button class="btn" data-slip-read>Read it</button></div></details>
+      <p class="note" id="slip-st" aria-live="polite">${esc(slip.busy)}</p>`}
+    </div>`;
+}
+
+/* Holiday, always on show. Accruing: 12.07% of the hours worked each month, to the nearest hour, from the start of the
+   leave year, plus any brought in, less holiday taken (booked here, or on a payslip). What's left is worth that many
+   hours at the holiday rate. Rolled up: 12.07% is added to each payslip instead. */
+const holYear = () => { const m = curM(), s = pay.holStart || "01", y = m.slice(5) >= s ? +m.slice(0, 4) : +m.slice(0, 4) - 1; return `${y}-${s}`; };
+function holiday() {
+  const from = holYear(), cm = curM(), today = shiftDay(), months = [];
+  for (let m = from; m <= lastPm(); m = nextM(m)) months.push(m);
+  let built = 0, taken = 0, booked = 0;
+  for (const m of months) {
+    if (m <= cm) {
+      const W = workedOf(m), h = W.from === "log" ? sumMin(workIn(m).filter((x) => x.day <= today)) / 60 : W.from === "typed" ? 0 : W.h;
+      built += m === cm && W.from === "week" ? 0 : Math.round(h * HOLIDAY);
+    }
+    const S = pay.slips[m];
+    if (S && S.holH) taken += S.holH;
+    else for (const x of holIn(m)) { if (x.day <= today) taken += num(x.h); else booked += num(x.h); }
+  }
+  const left = pence(num(pay.holCarry) + built - taken - booked), rate = holRate();
+  return { from, built, taken: pence(taken), booked: pence(booked), left, rate, worth: pence(Math.max(0, left) * rate) };
+}
+function holHtml() {
+  if (pay.hol === "rolled") {
+    const r = payCalc(monthHours(pm));
+    return `<p class="note">Your holiday pay comes with every payslip: 12.07% on top of your hours pay, ${gbp(r.hol)} in ${mName(pm)}. Time off is still yours to take; it just isn't paid again.</p>`;
+  }
+  const h = holiday();
+  return `<div class="paystats"><div><b>${fmtN(h.built)}</b>Built up</div><div><b>${fmtN(h.taken + h.booked)}</b>Taken or booked</div><div><b>${fmtN(h.left)} h</b>Left</div></div>
+    <p class="note" style="text-align:center;margin:6px 0 0">Worth about ${gbp(h.worth)} at ${gbp(h.rate)} an hour</p>
+    <p class="note">Since ${mName(h.from, true)}: 12.07% of the hours you work, to the nearest hour each month. Book it below and the holiday pay goes into that month's take-home.</p>`;
+}
+
+/* Day, week and tax-year views. Days and weeks come from the shifts logged: each one's pay before tax, the tronc it earns
+   (paid next month) and about what it leaves after tax, at the month's own rate of take-home to gross. The tax year
+   (6 April to 5 April) shows each month from its payslip or the estimate, what's been paid so far, what's likely by the
+   end, and whether that comes to more or less tax than the year's pay needs. */
+const VIEWS = [["shifts", "Shifts"], ["days", "Days"], ["weeks", "Weeks"], ["year", "Tax year"], ["slips", "Payslips"]];
+const taxYearOf = (m) => (+m.slice(5) >= 4 ? +m.slice(0, 4) : +m.slice(0, 4) - 1);
+function dayRows(xs, r) {
+  const f = r.net != null && r.gross ? r.net / r.gross : 0;
+  return xs.map((x) => { const h = logMin(x) / 60, p = x.hol ? pence(h * holRate()) : pence(h * num(pay.rate)), t = x.hol || !pay.trOn ? 0 : pence(h * TRONC); return { x, h, p, t, net: pence((p + t) * f) }; });
+}
+function viewHtml(H, M) {
+  const v = pay.view, xs = inM(pm);
+  if (v === "shifts") return shiftsHtml(xs);
+  if (v === "slips") {
+    const ss = Object.values(pay.slips).sort((a, b) => b.m.localeCompare(a.m));
+    return ss.length ? ss.map((S) => slipHtml(S, slip.shown === S.m)).join("") : `<p class="note">No payslips yet. Tap Payslip to add this month's or an older one.</p>`;
+  }
+  if (v === "year") return yearHtml();
+  if (!xs.length) return `<p class="note">Days and weeks come from the shifts logged. Add shifts or import them from Nory to see them.</p>`;
+  const D = dayRows(xs, M.est);
+  if (v === "days") return `<dl class="kv paykv">${D.map((d) => `<dt>${dayName(d.x.day)}${d.x.hol ? " (holiday)" : ""} · ${fmtN(d.h)} h</dt><dd>${gbp(d.p)}${d.t ? ` + ${gbp(d.t)} tronc` : ""}</dd>`).join("")}</dl>
+    <p class="note">After tax, about ${gbp(D.reduce((n, d) => n + d.net, 0) / D.length)} a shift. Tronc on these hours is paid next month.</p>`;
+  const wk = new Map();
+  for (const d of D) { const w = weekOf(d.x.day), o = wk.get(w) || { h: 0, p: 0, t: 0, net: 0 }; wk.set(w, { h: o.h + d.h, p: o.p + d.p, t: o.t + d.t, net: o.net + d.net }); }
+  return `<dl class="kv paykv">${[...wk].map(([w, o]) => `<dt>Week of ${dayName(w, { day: "numeric", month: "short" })} · ${fmtN(o.h)} h</dt><dd>${gbp(pence(o.p))}${o.t ? ` + ${gbp(pence(o.t))} tronc` : ""}<br><span class="muted">about ${gbp(pence(o.net))} after tax</span></dd>`).join("")}</dl>`;
+}
+function taxYear(y) {
+  const months = Array.from({ length: 12 }, (_, i) => { const mo = ((i + 3) % 12) + 1; return `${mo >= 4 ? y : y + 1}-${two(mo)}`; }), cm = curM();
+  const rows = months.map((m) => { const M = monthPay(m), any = M.slip || M.H.hours || M.H.troncHours || M.H.holH; return { m, M, src: M.slip ? "slip" : m <= cm && any ? "est" : any ? "plan" : "" }; });
+  // Months still to come with nothing in them: about the average of the months with figures.
+  const known = rows.filter((r) => r.src && r.m <= cm), avgH = known.length ? known.reduce((n, r) => n + (r.M.H.hours || r.M.r.hours || 0), 0) / known.length : 0;
+  for (const r of rows) if (!r.src && r.m > cm && avgH) { r.src = "proj"; r.M = { r: payCalc({ hours: avgH, troncHours: avgH, holH: 0 }) }; }
+  // With a payslip's year-to-date figures, the year so far starts from them, and the app's months after it are added on.
+  const Y0 = Object.values(pay.slips).filter((x) => taxYearOf(x.m) === y && (x.ytd.gross || x.ytd.taxable)).sort((a, b) => b.m.localeCompare(a.m))[0];
+  const YF = { gross: (x) => x.gross || x.taxable, tax: (x) => x.tax, ni: (x) => x.ni, loan: (x) => x.loan, pension: (x) => x.pen };
+  const add = (f, w, from) => rows.filter((r) => w(r) && r.m > from).reduce((n, r) => n + (r.M.r[f] || 0), 0);
+  const tot = (f, w) => {
+    if (f === "net" && Y0) return pence(["gross", "tax", "ni", "loan", "pension"].reduce((n, k, i) => n + (i ? -1 : 1) * tot(k, w), 0));
+    const v = Y0 && YF[f] && YF[f](Y0.ytd);
+    return pence(v != null ? v + add(f, w, Y0.m) : add(f, w, ""));
+  };
+  const done = (r) => r.src === "slip" || r.src === "est", all = (r) => !!r.src;
+  // The check on tax paid: the latest payslip's tax so far this tax year against what's due on its pay so far, worked out
+  // the way payroll does it (a month of tax-free allowance and of each band for every month of the tax year so far).
+  const S = Object.values(pay.slips).filter((x) => taxYearOf(x.m) === y && x.ytd.tax != null && (x.ytd.taxable || x.ytd.gross)).sort((a, b) => b.m.localeCompare(a.m))[0];
+  const c = S && !/W1|M1|X/i.test(S.code || "") && taxCode(S.code || pay.code);
+  let check = null;
+  if (c) {
+    const n = S.period || ((+S.m.slice(5) + 8) % 12) + 1, t = S.ytd.taxable || S.ytd.gross;
+    const due = pence(c.flat != null ? Math.floor(t) * c.flat : bandTax(Math.max(0, Math.floor(t - c.free * n)), c.bands, n));
+    check = { S, t, due, diff: pence(S.ytd.tax - due) };
+  }
+  return { y, rows, tot, done, all, check, Y0 };
+}
+function yearHtml() {
+  const Y = taxYear(taxYearOf(pm)), lab = { slip: "payslip", est: "estimate", plan: "planned", proj: "projected" };
+  const sum = (f) => `<dd>${gbp(Y.tot(f, Y.done))}</dd><dd>${gbp(Y.tot(f, Y.all))}</dd>`;
+  return `<div class="mini">Tax year ${Y.y} to ${Y.y + 1}</div>
+    <dl class="kv paykv">${Y.rows.filter((r) => r.src).map((r) => `<dt>${mName(r.m)} <span class="muted">${lab[r.src]}</span></dt><dd>${r.M.r.net == null ? "?" : gbp(r.M.r.net)}</dd>`).join("")}</dl>
+    <div class="mini">Paid so far, and by the end of the tax year</div>
+    <dl class="kv yearkv"><dt></dt><dd class="muted">So far</dd><dd class="muted">By April</dd>
+      <dt>Gross</dt>${sum("gross")}<dt>Income tax</dt>${sum("tax")}<dt>National Insurance</dt>${sum("ni")}<dt>Student loan</dt>${sum("loan")}<dt>Pension</dt>${sum("pension")}<dt class="take">Take-home</dt>${sum("net")}</dl>
+    ${Y.Y0 ? `<p class="note">So far starts from the year-to-date figures on your ${mName(Y.Y0.m)} payslip.</p>` : ""}
+    ${(() => {
+      const K = Y.check; if (!K) return `<p class="note">Add a payslip with its year-to-date figures to check the tax you've paid so far.</p>`;
+      const head = `Your ${mName(K.S.m)} payslip shows ${gbp(K.S.ytd.tax)} tax paid this tax year on ${gbp(K.t)}. About ${gbp(K.due)} is due on that by now.`;
+      return Math.abs(K.diff) < 20 ? `<p class="note">${head} That looks right.</p>`
+        : `<p class="note warnline">${head} ${K.diff > 0 ? `That's about ${gbp(K.diff)} too much. It usually comes back through your pay once your tax code is right, or from HMRC after April.` : `That's about ${gbp(-K.diff)} too little. HMRC may change your tax code to collect it.`}</p>`;
+    })()}
+    <p class="note">Months to come are an average of the months so far. The check on tax paid uses your payslip's year-to-date figures, the way payroll works it out.</p>`;
+}
+
+// ---------- Your rights: the main UK rules on hours, breaks, rest and pay, from GOV.UK, and checks on the shifts logged ----------
+const RIGHTS_DATE = "16 November 2026";
+const GOV = "https://www.gov.uk/";
+const RIGHTS = [
+  ["Working hours", "No more than 48 hours a week on average, usually over 17 weeks. You can choose to work more by opting out in writing, and you can't be sacked or treated badly for saying no. Under 18: no more than 8 hours a day or 40 hours a week.", "maximum-weekly-working-hours"],
+  ["Breaks", "Working more than 6 hours in a day: one unbroken 20 minute break, away from where you work and not at the start or end of the shift. It doesn't have to be paid. Under 18: 30 minutes when working more than 4 and a half hours.", "rest-breaks-work"],
+  ["Rest between shifts", "11 hours off between working days, and either 24 hours off each week or 48 hours each fortnight. Under 18: 12 hours a day and 48 hours a week. Shift workers who miss rest may be owed the same time off later instead.", "rest-breaks-work"],
+  ["Holiday", "5.6 weeks of paid holiday a year, up to 28 days. If your hours change from week to week, it builds up at 12.07% of the hours you work.", "holiday-entitlement-rights"],
+  ["Minimum wage", "From 1 April 2026: £12.71 an hour at 21 and over, £10.85 at 18 to 20, and £8.00 under 18 or for an apprentice. Tips and tronc can't count towards it.", "national-minimum-wage-rates"],
+  ["Tips and service charge", "Every tip and service charge must go to staff in full, with nothing taken off except tax. It has to be shared fairly, by the end of the month after the customer paid, under a written tipping policy you can read. You can ask to see the records of how tips were shared.", "government/publications/distributing-tips-fairly-statutory-code-of-practice"],
+  ["Payslips", "A payslip on or before pay day, showing your pay before and after deductions, every deduction, and your hours if your pay depends on them.", "payslips"],
+  ["Sick pay", "Statutory Sick Pay from your first day off sick: £123.25 a week or 80% of your usual weekly pay, whichever is lower, for up to 28 weeks. Tell your employer by their deadline, and give them a fit note after 7 days off in a row.", "statutory-sick-pay"],
+];
+const shiftAt = (x) => Date.parse(`${x.day}T${x.start}:00Z`), shiftEnd = (x) => shiftAt(x) + shiftLen(x) * 6e4;
+const hOf = (ms) => fmtN(ms / 36e5);
+// What looks wrong in the month's logged shifts, by the rules above: [day or "", what's wrong].
+function rightsFlags(m) {
+  const young = pay.age === "16", xs = hoursLog.filter((x) => !x.hol && x.start && x.end && shiftLen(x)).sort((a, b) => shiftAt(a) - shiftAt(b));
+  const out = [], rate = num(pay.rate), mw = minWage(), today = shiftDay();
+  if (rate && rate < mw) out.push(["", `£${rate.toFixed(2)} an hour is under £${mw.toFixed(2)}, the legal minimum for your age. Tronc and tips can't count towards it.`]);
+  const byDay = new Map();
+  xs.forEach((x, i) => {
+    byDay.set(x.day, (byDay.get(x.day) || 0) + logMin(x));
+    if (mOf(x.day) !== m) return;
+    const w = logMin(x);
+    if (young ? w > 270 && x.brk < 30 : w > 360 && x.brk < 20) out.push([x.day, x.brk
+      ? `${fmtN(w / 60)} h worked with a ${x.brk} min break. Over ${young ? "4.5" : "6"} hours you should get an unbroken ${young ? 30 : 20} minutes.`
+      : `${fmtN(w / 60)} h worked with no break. Over ${young ? "4.5" : "6"} hours you should get an unbroken ${young ? 30 : 20} minutes.`]);
+    const p = xs[i - 1];
+    if (p && p.day !== x.day) { const gap = shiftAt(x) - shiftEnd(p); if (gap >= 0 && gap < (young ? 12 : 11) * 36e5) out.push([x.day, `Only ${hOf(gap)} h off since your last shift. You should get ${young ? 12 : 11} hours between working days.`]); }
+  });
+  if (young) for (const [d, min] of byDay) if (mOf(d) === m && min > 480) out.push([d, `${fmtN(min / 60)} h worked in one day. Under 18, the most is 8 hours.`]);
+  // Each full week (Monday to Sunday) that starts in the month: its longest time off, and under 18 its hours.
+  for (let w = weekOf(m + "-01"); w < nextM(m) + "-01"; w = addDays(w, 7)) {
+    const end = addDays(w, 7); if (w < m + "-01" || end > today) continue;
+    const a = Date.parse(w + "T00:00Z"), b = Date.parse(end + "T00:00Z"), ys = xs.filter((x) => shiftEnd(x) > a && shiftAt(x) < b);
+    if (young && sumMin(ys) > 2400) out.push([w, `${fmtN(sumMin(ys) / 60)} h worked in the week from this day. Under 18, the most is 40 hours.`]);
+    let t = a, off = 0;
+    for (const x of ys) { off = Math.max(off, shiftAt(x) - t); t = Math.max(t, shiftEnd(x)); }
+    off = Math.max(off, b - t);
+    if (ys.length && off < (young ? 48 : 24) * 36e5) out.push([w, young ? `No 48 hours off in the week from this day. Under 18 you should get 48 hours off each week.` : `No 24 hours off in the week from this day. You should get 24 hours off each week, or 48 hours each fortnight.`]);
+  }
+  // The 48 hour average, over the last 17 weeks up to the end of the month (or today), once there's 4 weeks of shifts.
+  if (!young && xs.length) {
+    const to = Math.min(Date.parse(nextM(m) + "-01T00:00Z"), Date.parse(addDays(today, 1) + "T00:00Z")), from = Math.max(to - 119 * 864e5, shiftAt(xs[0]));
+    const weeks = Math.round((to - from) / 6048e5), min = sumMin(xs.filter((x) => shiftAt(x) >= from && shiftAt(x) < to));
+    if (weeks >= 4 && min / 60 / weeks > 48) out.push(["", `${fmtN(min / 60 / weeks)} h a week on average over the last ${weeks} weeks, more than 48. That's only allowed if you've opted out in writing.`]);
+  }
+  return out;
+}
+function rightsHtml() {
+  const fs = rightsFlags(pm);
+  return fs.length ? `<p class="note warnline" style="margin-top:0">${fs.length === 1 ? "1 thing to check" : `${fs.length} things to check`} in ${mName(pm)}</p>
+      ${fs.map(([d, t]) => `<div class="staffrow">${d ? `<div class="n">${dayName(d, { weekday: "long", day: "numeric", month: "short" })}</div>` : ""}<div class="s">${t}</div></div>`).join("")}
+      <p class="note">If something's wrong, talk to your manager first. Acas gives free, confidential advice on 0300 123 1100.</p>`
+    : `<p class="note" style="margin:0">Nothing to flag in ${mName(pm)}'s logged shifts: breaks, rest between shifts and hours look right.</p>`;
+}
+const rightsListHtml = () => `${RIGHTS.map(([t, x, u]) => `<div class="mini">${t}</div><p class="note">${x}</p><p class="note"><a href="${GOV}${u}" target="_blank" rel="noopener">Read it on GOV.UK</a></p>`).join("")}
+  <div class="mini">Help</div><p class="note">Talk to your manager first. Acas gives free, confidential advice on 0300 123 1100.</p><p class="note"><a href="https://www.acas.org.uk/contact" target="_blank" rel="noopener">Contact Acas</a></p>
+  <p class="note">General information from GOV.UK, checked on ${RIGHTS_DATE}. It isn't legal advice, and your contract may give you more.</p>`;
+
+// The top card: the month, its hours and take-home, where the figures come from, and pay day.
+function paySumHtml() {
+  const M = monthPay(pm), H = M.H, r = M.r, left = r.net == null ? null : pence(r.net - sumAmt(pay.bills)), n = H.xs.length;
+  const src = M.slip ? "From your payslip" : H.nory ? `From Nory's figures${H.xs.length ? ", not the shifts logged" : ""}: an estimate` : H.wk ? `From about ${num(pay.wk)} h a week: an estimate` : "An estimate";
+  const hours = M.slip ? M.slip.basicH : H.hours;
+  return `<div class="paystats"><div><b>${fmtN(hours)}</b>Hours</div><div><b>${gbp(r.gross)}</b>Gross</div><div><b>${r.net == null ? "?" : gbp(r.net)}</b>Take-home</div></div>
+    <p class="note" style="text-align:center;margin:6px 0 0">${src} · pay day ${longDay(lastFriday(pm))}</p>
+    ${n ? `<p class="note" style="text-align:center;margin:2px 0 0">${n === 1 ? "1 shift" : `${n} shifts`}${H.planned ? `, including ${hrs(H.planned * 60)} still to work` : ""}${H.holH ? ` · ${fmtN(H.holH)} h holiday` : ""}</p>` : ""}
+    ${(() => { const n = rightsFlags(pm).length; return n ? `<p style="text-align:center;margin:4px 0 0"><button class="linkbtn warnline" data-rights-go>${n === 1 ? "1 thing to check in Your rights" : `${n} things to check in Your rights`}</button></p>` : ""; })()}
+    ${pay.bills.length && left != null ? `<p class="note" style="text-align:center;margin:2px 0 0">Left after bills: <b class="${left < 0 ? "neg" : ""}">${sgbp(left)}</b></p>` : ""}`;
+}
+// A calendar of the month on screen to pick the days worked, planned or booked off, with a dot where something's logged.
 function hfCal() {
   const first = pm + "-01", logged = new Set(inM(pm).map((x) => x.day));
   const cells = [];
@@ -3382,6 +3835,11 @@ function hfCal() {
 }
 function hfHtml() {
   const times = hfTimes(), n = hf.days.size;
+  if (hf.hol) return `<div class="notice" id="hf">
+      <div class="mini" style="margin-top:0">Tap each day of holiday</div>${hfCal()}
+      <label class="fld">Hours of holiday each day<input data-hf="h" inputmode="decimal" value="${esc(hf.h)}" placeholder="${fmtN(avgShift())}"></label>
+      <p class="note" id="hf-worth">${hfWorth()}</p>
+      <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Book ${n} days` : "Book it"}</button><button class="btn" data-hf-cancel>Done</button></div></div>`;
   return `<div class="notice" id="hf">
       <div class="mini" style="margin-top:0">Tap each day you worked or are down to work</div>${hfCal()}
       <div class="two even"><label class="fld">Start time<input type="time" data-hf="start" value="${esc(hf.start)}"></label><label class="fld">End time<input type="time" data-hf="end" value="${esc(hf.end)}"></label></div>
@@ -3390,28 +3848,34 @@ function hfHtml() {
       <div class="recent">${BREAKS.map((b) => `<button class="chip" data-hf-brk="${b}" aria-pressed="${b === hf.brk}">${b ? `${b} min` : "None"}</button>`).join("")}</div>
       <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Save ${n} shifts` : "Save the shift"}</button><button class="btn" data-hf-cancel>Done</button></div></div>`;
 }
-const hrRow = (x) => `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "long", day: "numeric", month: "short" })} <span class="payrt">${esc(x.start)}–${esc(x.end)}</span></div>
-  <div class="s">${x.day > shiftDay() ? "Planned · " : ""}${hrs(logMin(x))}${x.brk ? ` after a ${x.brk} min break` : ""} · <button class="linkbtn" data-hr-del="${esc(x.id)}">Remove</button></div></div>`;
+// A usual shift: the average logged, or 8 hours.
+const avgShift = () => { const xs = hoursLog.filter((x) => !x.hol); return xs.length ? pence(sumMin(xs) / 60 / xs.length) : 8; };
+const hfWorth = () => { const h = (num(hf.h) || avgShift()) * Math.max(1, hf.days.size); return `${fmtN(h)} h of holiday is worth ${gbp(pence(h * holRate()))} before tax, paid with that month's pay.`; };
+const hrRow = (x) => x.hol ? `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "long", day: "numeric", month: "short" })} <span class="payrt">Holiday</span></div>
+  <div class="s"><span>${fmtN(num(x.h))} h, worth ${gbp(pence(num(x.h) * holRate()))}</span> · <button class="linkbtn" data-hr-del="${esc(x.id)}">Remove</button></div></div>`
+  : `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "long", day: "numeric", month: "short" })} <span class="payrt">${esc(x.start)}–${esc(x.end)}</span></div>
+  <div class="s"><span>${x.day > shiftDay() ? "Planned · " : ""}${hrs(logMin(x))}${x.brk ? ` after a ${x.brk} min break` : ""}</span> · <button class="linkbtn" data-hr-del="${esc(x.id)}">Remove</button></div></div>`;
 // The month's shifts, a week at a time with each week's hours, like a payslip's timesheet.
 function shiftsHtml(xs) {
   if (!xs.length) return `<p class="note">No shifts logged this month. Tap Add shifts, or import them from a screenshot of your rota.</p>`;
   const wk = new Map();
   for (const x of xs) { const w = weekOf(x.day); wk.set(w, [...(wk.get(w) || []), x]); }
-  return [...wk].map(([w, ys]) => `<div class="mini">Week of ${dayName(w, { day: "numeric", month: "short" })} · ${hrs(sumMin(ys))}</div>${ys.map(hrRow).join("")}`).join("");
+  return [...wk].map(([w, ys]) => `<div class="mini">Week of ${dayName(w, { day: "numeric", month: "short" })} · ${hrs(sumMin(ys.filter((x) => !x.hol)))}</div>${ys.map(hrRow).join("")}`).join("");
 }
 function payOutHtml() {
-  const H = monthHours(pm), r = payCalc(H), row = (k, v, cls = "") => `<dt${cls}>${k}</dt><dd${cls}>${v}</dd>`;
+  const M = monthPay(pm), H = M.H, r = M.est, row = (k, v, cls = "") => `<dt${cls}>${k}</dt><dd${cls}>${v}</dd>`;
   const loanName = [LOANS[pay.loan] && `Plan ${pay.loan}`, pay.pgl && "postgraduate"].filter(Boolean).join(" and "), rate = num(pay.rate);
-  return `${rate && rate < MIN_WAGE ? `<p class="note warnline">£${rate.toFixed(2)} an hour is under £12.71, the legal minimum at 21 and over. It's £10.85 at 18 to 20, and £8.00 under 18 or for an apprentice under 19 or in their first year.</p>` : ""}
+  return `${M.slip ? `<p class="note">${mName(pm)} has a payslip: the card above uses it. This is the app's estimate, to compare.</p>` : ""}
     <dl class="kv paykv">
-      ${row(H.base != null ? `Base pay from Nory${r.hours ? ` (${fmtN(r.hours)} h)` : ""}` : `Hours pay (${fmtN(r.hours)} h at ${gbp(rate)})`, gbp(r.basic))}${pay.trOn ? row(`Tronc (${fmtN(H.troncHours)} h at £5)`, gbp(r.tronc)) : ""}${row("Gross", gbp(r.gross))}
+      ${row(H.base != null ? `Base pay from Nory${r.hours ? ` (${fmtN(r.hours)} h)` : ""}` : `Hours pay (${fmtN(r.hours)} h at ${gbp(rate)})`, gbp(r.basic))}
+      ${r.hol ? row(pay.hol === "rolled" ? "Rolled-up holiday pay (12.07%)" : `Holiday pay (${fmtN(r.holH)} h)`, gbp(r.hol)) : ""}
+      ${pay.trOn ? row(`Tronc (${fmtN(H.troncHours)} h at £5)`, gbp(r.tronc)) : ""}${row("Gross", gbp(r.gross))}
       ${row("Income tax", r.tax == null ? "Check the tax code" : "−" + gbp(r.tax))}${row("National Insurance", "−" + gbp(r.ni))}
       ${r.loan ? row(`Student loan (${loanName})`, "−" + gbp(r.loan)) : ""}${r.pension ? row(`Pension (${fmtN(num(pay.pension))}%)`, "−" + gbp(r.pension)) : ""}
       ${pay.ded.map((x) => row(esc(x.name), "−" + gbp(num(x.amt)))).join("")}
       ${row("Take-home", r.net == null ? "?" : gbp(r.net), ' class="take"')}
     </dl>
-    <div class="actions">${sendBtn("pay", "Send the breakdown")}</div>
-    ${H.hours ? `<p class="note">Holiday earned: about ${fmtN(H.hours * HOLIDAY)} h, if you're on irregular hours (12.07% of the hours you work).</p>` : ""}`;
+    <div class="actions">${sendBtn("pay", "Send the breakdown")}</div>`;
 }
 // Bills, and what's left of the month's take-home after them, a week at a time until the next pay day.
 const BILL_CHIPS = ["Rent", "Bills", "Phone", "Travel", "Food", "Subscriptions", "Savings", "Debt"];
@@ -3421,10 +3885,10 @@ const moneyAdd = (k, ph, chips = []) => `${chips.length ? `<div class="recent" s
   <div class="paygrid"><label class="fld">Name<input data-money-name="${k}" maxlength="30" placeholder="${ph}"></label><label class="fld">£ a month<input data-money-amt="${k}" inputmode="decimal" placeholder="0.00"></label></div>
   <div class="actions"><button class="btn" data-money-add="${k}">Add</button></div>`;
 function billsOutHtml() {
-  const r = payCalc(monthHours(pm)), total = sumAmt(pay.bills);
+  const r = monthPay(pm).r, total = sumAmt(pay.bills);
   if (!pay.bills.length || r.net == null) return "";
   const left = pence(r.net - total), from = lastFriday(pm), to = lastFriday(nextM(pm)), weeks = (Date.parse(to) - Date.parse(from)) / 6048e5;
-  return `<dl class="kv paykv">${`<dt>Take-home</dt><dd>${gbp(r.net)}</dd><dt>Bills</dt><dd>−${gbp(total)}</dd>`}<dt class="take">Left over</dt><dd class="take${left < 0 ? " neg" : ""}">${left < 0 ? "−" : ""}${gbp(Math.abs(left))}</dd></dl>
+  return `<dl class="kv paykv"><dt>Take-home</dt><dd>${gbp(r.net)}</dd><dt>Bills</dt><dd>−${gbp(total)}</dd><dt class="take">Left over</dt><dd class="take${left < 0 ? " neg" : ""}">${sgbp(left)}</dd></dl>
     <p class="note">${left < 0 ? `Your bills come to ${gbp(-left)} more than this month's take-home.` : `About ${gbp(pence(left / weeks))} a week until the next pay day, in ${weeks} weeks.`}</p>`;
 }
 // One line saying what the settings are, so they can stay folded away.
@@ -3433,28 +3897,41 @@ const paySet = () => [`${gbp(num(pay.rate))} an hour`, esc(pay.code || "no tax c
 function payInner() {
   if (!pm || pm > lastPm()) pm = curM();
   const f = (k, label, hint = "", mode = "decimal") => `<label class="fld">${label}<input data-pay="${k}" inputmode="${mode}" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
-  const H = monthHours(pm), lm = prevM(pm);
+  const M = monthPay(pm), H = M.H, lm = prevM(pm), open = (k) => (paySec.has(k) ? " open" : "");
+  const panel = hf.open ? hfHtml() : imp.open ? impHtml() : slip.open ? slipPanelHtml() : "";
   return `<div class="paymonth"><button class="round" data-pm="-1" aria-label="Month before">‹</button><h2 id="pay-h">${mName(pm, true)}</h2><button class="round" data-pm="1" aria-label="Month after"${pm === lastPm() ? " disabled" : ""}>›</button></div>
     <div class="paycard" id="pay-sum">${paySumHtml()}</div>
-    ${hf.open ? hfHtml() : imp.open ? impHtml() : `<div class="actions" style="margin-top:12px"><button class="btn pri" data-hf-open>Add shifts</button><button class="btn" data-imp-open>Import a rota screenshot</button></div>`}
-    ${shiftsHtml(H.xs)}
-    <div class="sec">Quick estimate</div>
-    <p class="note">No shifts to log? Pick about how many hours a week you work. It's used for any month with no shifts logged.</p>
-    <div class="recent" role="group" aria-label="Hours a week">${[0, ...WEEKLY].map((w) => `<button class="chip" data-pay-wk="${w}" aria-pressed="${num(pay.wk) === w}">${w ? `${w} h` : "Off"}</button>`).join("")}</div>
-    <div class="mini">From Nory</div>
-    <p class="note">Or type in what Nory shows for the month above: its hours, its gross wage or both. Add its weeks up with +, like 386.60 + 545.95. Nory's figures are an estimate, so this is too.</p>
-    <div class="paygrid"><label class="fld">Hours Nory shows<input data-nory="h" inputmode="text" value="${esc(pay.nory[pm]?.h ?? "")}" placeholder="30.42"></label><label class="fld">Gross wage Nory shows (£)<input data-nory="g" inputmode="text" value="${esc(pay.nory[pm]?.g ?? "")}" placeholder="386.60"></label></div>
-    <div class="sec">Tronc</div>
-    <label class="check"><input type="checkbox" data-pay-check="trOn"${pay.trOn ? " checked" : ""}> I get tronc: £5 for each hour</label>
-    ${pay.trOn ? `<p class="note">Paid with each month's pay, on the hours worked the month before.</p>
-      <div class="paygrid">${H.troncFrom !== "typed" ? `<div class="fld">Hours the month before<b class="logv">${fmtN(H.troncHours)} h, ${{ nory: "from Nory", log: "logged", week: `about ${num(pay.wk)} h a week` }[H.troncFrom]}</b></div>` : `<label class="fld">Hours the month before<input data-pay-th="${lm}" inputmode="decimal" value="${esc(pay.th[lm] ?? "")}" placeholder="0"></label>`}</div>` : ""}
+    ${slip.learnt.length ? `<p class="note">Updated from your payslip: ${slip.learnt.map((x) => `<b>${esc(x)}</b>`).join(", ")}.</p>` : ""}
+    ${panel || `<div class="payacts"><button class="btn pri" data-hf-open>Add shifts</button><button class="btn" data-imp-open>Nory</button><button class="btn" data-slip-open>Payslip</button></div>`}
+    <div class="recent payviews" role="group" aria-label="Show">${VIEWS.map(([k, t]) => `<button class="chip" data-pay-view="${k}" aria-pressed="${pay.view === k}">${t}</button>`).join("")}</div>
+    <div id="pay-view">${viewHtml(H, M)}</div>
     <div class="sec">Take-home</div>
     <div id="pay-out">${payOutHtml()}</div>
-    <details class="setup" id="pay-setup"><summary>Your rate, tax code, student loan, pension and deductions</summary>
+    <label class="check"><input type="checkbox" data-pay-check="trOn"${pay.trOn ? " checked" : ""}> I get tronc: £5 for each hour</label>
+    ${pay.trOn ? `<p class="note">Paid with each month's pay, on the hours worked the month before.</p>
+      ${H.troncFrom !== "typed" ? `<div class="fld">Hours the month before<b class="logv">${fmtN(H.troncHours)} h, ${{ slip: "from your payslip", nory: "from Nory", log: "logged", week: `about ${num(pay.wk)} h a week` }[H.troncFrom]}</b></div>`
+        : `<div class="paygrid"><label class="fld">Hours the month before<input data-pay-th="${lm}" inputmode="decimal" value="${esc(pay.th[lm] ?? "")}" placeholder="0"></label></div>`}` : ""}
+    <div class="sec">Holiday</div>
+    <div class="paycard" id="pay-hol">${holHtml()}</div>
+    ${pay.hol === "rolled" ? "" : `<div class="actions"><button class="btn" data-hol-book>Book holiday</button></div>`}
+    <div class="sec" id="pay-rights-h">Your rights</div>
+    <div class="paycard" id="pay-rights">${rightsHtml()}</div>
+    <details class="setup" data-sec="rights"${open("rights")}><summary>What the law says: hours, breaks, rest, holiday, pay, tips and sick pay</summary>${rightsListHtml()}</details>
+    <details class="setup" data-sec="quick"${open("quick")}><summary>No shifts? Hours a week</summary>
+      <p class="note">Pick about how many hours a week you work. It's used for any month with nothing else.</p>
+      <div class="recent" role="group" aria-label="Hours a week">${[0, ...WEEKLY].map((w) => `<button class="chip" data-pay-wk="${w}" aria-pressed="${num(pay.wk) === w}">${w ? `${w} h` : "Off"}</button>`).join("")}</div>
+    </details>
+    <details class="setup" data-sec="bills"${pay.bills.length ? " open" : open("bills")}><summary>Bills and what's left</summary>
+      <p class="note">Put in what goes out each month to see what's left from this pay.</p>
+      ${moneyRows("bills")}<div id="pay-bills">${billsOutHtml()}</div>${moneyAdd("bills", "Rent", BILL_CHIPS)}
+    </details>
+    <details class="setup" id="pay-setup" data-sec="setup"${open("setup")}><summary>Your rate, age, tax code, student loan, pension, holiday and deductions</summary>
       <p class="note" id="pay-set">${paySet()}</p>
       <div class="paygrid">${f("rate", "Hourly rate (£)")}${f("code", "Tax code", "1257L", "text")}</div>
-      <div class="recent" style="margin-top:8px" role="group" aria-label="Tax code">${CODE_CHIPS.map((c) => `<button class="chip" data-pay-code="${c}" aria-pressed="${String(pay.code).toUpperCase() === c}">${c}</button>`).join("")}</div>
+      <div class="recent" style="margin-top:8px" role="group" aria-label="Tax code">${CODE_CHIPS.map((c) => `<button class="chip" translate="no" data-pay-code="${c}" aria-pressed="${String(pay.code).toUpperCase() === c}">${c}</button>`).join("")}</div>
       <p class="note">Your tax code is on your payslip. 1257L is the usual one. BR is for a second job, 0T is an emergency code, S is for Scotland and C for Wales.</p>
+      <div class="mini">Your age, for the minimum wage</div>
+      <div class="recent" role="group" aria-label="Age">${MIN_WAGES.map(([k, t, w]) => `<button class="chip" data-pay-age="${k}" aria-pressed="${pay.age === k}">${t}: £${w.toFixed(2)}</button>`).join("")}</div>
       <div class="mini">Student loan</div>
       <div class="recent" role="group" aria-label="Student loan">${LOAN_CHIPS.map(([k, t]) => `<button class="chip" data-pay-loan="${k}" aria-pressed="${pay.loan === k}">${t}</button>`).join("")}</div>
       <label class="check"><input type="checkbox" data-pay-check="pgl"${pay.pgl ? " checked" : ""}> A postgraduate loan as well</label>
@@ -3463,30 +3940,41 @@ function payInner() {
       <label class="check"><input type="checkbox" data-pay-check="pen"${pay.pen ? " checked" : ""}> I pay into the workplace pension</label>
       ${pay.pen ? `<div class="paygrid">${f("pension", "What you pay in (%)", "5")}</div>` : ""}
       <p class="note">Most people are put in at 5%. Tax relief pays a fifth of it, so 5% costs you 4%.</p>
+      <div class="mini">Holiday</div>
+      <div class="recent" role="group" aria-label="Holiday pay">${[["accrue", "Paid when I take it"], ["rolled", "Rolled up into each payslip"]].map(([k, t]) => `<button class="chip" data-pay-hol="${k}" aria-pressed="${pay.hol === k}">${t}</button>`).join("")}</div>
+      ${pay.hol === "rolled" ? "" : `<div class="paygrid"><label class="fld">Leave year starts<select data-pay-sel="holStart">${MONTHS.map((x, i) => `<option value="${two(i + 1)}"${pay.holStart === two(i + 1) ? " selected" : ""}>${mName(`2026-${two(i + 1)}`)}</option>`).join("")}</select></label>${f("holCarry", "Hours brought in", "0")}</div>`}
       <div class="mini">Other deductions</div>
       <p class="note">Anything else taken off your pay each month, like staff food or a uniform.</p>
       ${moneyRows("ded")}${moneyAdd("ded", "Uniform")}
     </details>
-    <div class="sec">Bills and what's left</div>
-    <p class="note">Put in what goes out each month to see what's left from this pay.</p>
-    ${moneyRows("bills")}<div id="pay-bills">${billsOutHtml()}</div>${moneyAdd("bills", "Rent", BILL_CHIPS)}
     ${H.xs.length ? `<div class="mini">Send these hours, to check against your payslip</div><div class="actions" style="margin-top:6px">${sendBtn("hours", "Send my hours")}</div>` : ""}
     <p class="note">An estimate, not a payslip. Worked out month by month with the 2026 to 2027 rates from GOV.UK. It stays on this phone: nobody else sees it and it never goes online.</p>`;
 }
+// Which folded sections are open, so redrawing keeps them open.
+const paySec = new Set();
 function renderPay() {
-  const open = $("#pay-setup")?.open; $("#v-pay").innerHTML = payInner(); if (open) $("#pay-setup").open = true;
+  $$("#v-pay details[data-sec]").forEach((d) => (d.open ? paySec.add(d.dataset.sec) : paySec.delete(d.dataset.sec)));
+  $("#v-pay").innerHTML = payInner();
 }
 // Typing only redraws the sums, so the keyboard stays up.
-const paySums = () => { $("#pay-sum").innerHTML = paySumHtml(); $("#pay-out").innerHTML = payOutHtml(); $("#pay-set").innerHTML = paySet(); $("#pay-bills").innerHTML = billsOutHtml(); };
+const paySums = () => {
+  for (const [id, fn] of [["#pay-sum", paySumHtml], ["#pay-out", payOutHtml], ["#pay-set", paySet], ["#pay-bills", billsOutHtml], ["#pay-hol", holHtml], ["#pay-rights", rightsHtml], ["#pay-view", () => viewHtml(monthHours(pm), monthPay(pm))]]) { const e = $(id); if (e) e.innerHTML = fn(); }
+};
 SHARE.hours = () => {
-  const xs = inM(pm);
+  const xs = workIn(pm);
   return { what: "My hours", title: `My hours for ${mName(pm)}${LIVE.me ? `, ${LIVE.me}` : ""}`, head: [`In all: ${hrs(sumMin(xs))} from ${nShifts(xs.length)}`],
     parts: [{ id: "shifts", label: "Shifts", lines: xs.map((x) => `${dayName(x.day)} ${x.start}–${x.end}${x.brk ? `, ${x.brk} min break` : ""}: ${hrs(logMin(x))}`) }] };
 };
-// Saves one shift for each day picked.
+// Saves one shift (or a day of holiday) for each day picked.
 function hfSave() {
   const days = [...hf.days].sort();
-  if (!days.length) return toast("Tap the days you worked");
+  if (!days.length) return toast(hf.hol ? "Tap the days of holiday" : "Tap the days you worked");
+  if (hf.hol) {
+    const h = num(hf.h) || avgShift(), have = new Set(holIn(pm).map((x) => x.day)), add = days.filter((d) => !have.has(d)).map((day) => ({ id: newId(), day, hol: true, h: String(h) }));
+    hoursLog = [...hoursLog, ...add]; store.set("hours", hoursLog);
+    hf.days = new Set(); haptic(); renderPay();
+    return toast(add.length ? `Booked ${fmtN(h * add.length)} h of holiday, worth ${gbp(pence(h * add.length * holRate()))}` : "Those days are already booked");
+  }
   if (!ISO_TIME.test(hf.start) || !ISO_TIME.test(hf.end)) return toast("Put in when you started and finished");
   if (!logMin({ start: hf.start, end: hf.end, brk: hf.brk })) return toast("That comes to no hours. Check the times and the break");
   const { msg } = addShifts(days.map((day) => ({ day, start: hf.start, end: hf.end, brk: hf.brk })));
@@ -3496,12 +3984,13 @@ function moneyAddFrom(k) {
   const name = $(`[data-money-name="${k}"]`).value.trim(), amt = num($(`[data-money-amt="${k}"]`).value);
   if (!name) return toast("Give it a name");
   if (!amt) return toast("Put in how much a month");
-  pay[k] = [...pay[k], { id: Math.random().toString(36).slice(2, 10), name: name.slice(0, 30), amt: amt.toFixed(2) }]; savePay(); haptic(); renderPay();
+  pay[k] = [...pay[k], { id: newId(), name: name.slice(0, 30), amt: amt.toFixed(2) }]; savePay(); haptic(); renderPay();
 }
+const closePanels = () => { Object.assign(hf, { open: false, hol: false, days: new Set() }); Object.assign(imp, { open: false, busy: "", text: "", done: null }); Object.assign(slip, { open: false, busy: "", text: "", read: null }); };
 $("#v-pay").addEventListener("input", (e) => {
-  const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; return; }
+  const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; if (h === "h") $("#hf-worth").textContent = hfWorth(); return; }
   if (e.target.matches("[data-imp-text]")) { imp.text = e.target.value; return; }
-  const it = e.target.dataset.impT; if (it) { const [i, k] = it.split(":"); imp.rows[i][k] = e.target.value; return; }
+  if (e.target.matches("[data-slip-text]")) { slip.text = e.target.value; return; }
   const nk = e.target.dataset.nory;
   if (nk) { pay.nory[pm] = { ...pay.nory[pm], [nk]: e.target.value.trim().slice(0, 60) }; if (!pay.nory[pm].h && !pay.nory[pm].g) delete pay.nory[pm]; savePay(); return paySums(); }
   const th = e.target.dataset.payTh;
@@ -3513,30 +4002,39 @@ $("#v-pay").addEventListener("input", (e) => {
 $("#v-pay").addEventListener("change", (e) => {
   const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; return; }
   if (e.target.matches("[data-imp-file]")) { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) impFiles(fs); return; }
-  const io = e.target.dataset.impOn; if (io) { imp.rows[io].on = e.target.checked; const n = imp.rows.filter((r) => r.on).length; $("[data-imp-save]").textContent = n === 1 ? "Save the shift" : `Save ${n} shifts`; return; }
-  const ib = e.target.dataset.impBrk; if (ib) { imp.rows[ib].brk = +e.target.value; return; }
+  if (e.target.matches("[data-slip-file]")) { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) slipFiles(fs); return; }
+  if (e.target.matches("[data-slip-m]")) { slip.m = e.target.value; return; }
+  const sel = e.target.dataset.paySel; if (sel) { pay[sel] = e.target.value; savePay(); paySums(); return; }
   const c = e.target.dataset.payCheck; if (!c) return;
   pay[c] = e.target.checked; savePay(); haptic();
   if (c === "pgl") paySums(); else renderPay();
 });
 $("#v-pay").addEventListener("click", (e) => {
   const mv = e.target.closest("[data-pm]");
-  if (mv) { pm = +mv.dataset.pm > 0 ? nextM(pm) : prevM(pm); hf.days = new Set(); renderPay(); haptic(); return; }
-  if (e.target.closest("[data-hf-open]")) { hf.open = true; renderPay(); return; }
-  if (e.target.closest("[data-hf-cancel]")) { Object.assign(hf, { open: false, days: new Set() }); renderPay(); return; }
+  if (mv) { pm = +mv.dataset.pm > 0 ? nextM(pm) : prevM(pm); hf.days = new Set(); slip.learnt = []; renderPay(); haptic(); return; }
+  if (e.target.closest("[data-hf-open]")) { closePanels(); hf.open = true; renderPay(); return; }
+  if (e.target.closest("[data-hol-book]")) { closePanels(); Object.assign(hf, { open: true, hol: true }); renderPay(); $("#hf")?.scrollIntoView({ block: "center" }); return; }
+  if (e.target.closest("[data-hf-cancel], [data-imp-cancel], [data-slip-cancel]")) { closePanels(); renderPay(); return; }
   if (e.target.closest("[data-hf-save]")) return hfSave();
-  if (e.target.closest("[data-imp-open]")) { imp.open = true; renderPay(); return; }
-  if (e.target.closest("[data-imp-cancel]")) { Object.assign(imp, { open: false, rows: [], busy: "", text: "" }); renderPay(); return; }
-  if (e.target.closest("[data-imp-clear]")) { Object.assign(imp, { rows: [], busy: "", text: "" }); renderPay(); return; }
-  if (e.target.closest("[data-imp-save]")) return impSave();
-  if (e.target.closest("[data-imp-read]")) { const t = imp.text; if (!t.trim()) return toast("Paste the days and times first"); return impTake(readRota(t)); }
-  const iu = e.target.closest("[data-imp-use]"); if (iu) { imp.use = iu.dataset.impUse; imp.rows.forEach(impTimes); haptic(); renderPay(); return; }
-  const ia = e.target.closest("[data-imp-allbrk]"); if (ia) { imp.brk = +ia.dataset.impAllbrk; imp.rows.forEach((r) => (r.brk = imp.brk)); haptic(); renderPay(); return; }
+  if (e.target.closest("[data-imp-open]")) { closePanels(); imp.open = true; renderPay(); return; }
+  if (e.target.closest("[data-imp-read]")) { if (!imp.text.trim()) return toast("Paste the days and times first"); return impRun([imp.text]); }
+  if (e.target.closest("[data-imp-undo]")) { const ids = new Set(imp.done.ids); hoursLog = hoursLog.filter((x) => !ids.has(x.id)); store.set("hours", hoursLog); imp.done = null; haptic(); renderPay(); return toast("Taken back out"); }
+  if (e.target.closest("[data-slip-open]")) { closePanels(); slip.open = true; slip.learnt = []; renderPay(); return; }
+  if (e.target.closest("[data-slip-read]")) { if (!slip.text.trim()) return toast("Paste your payslip's text first"); return slipTake(slip.text); }
+  if (e.target.closest("[data-slip-save]")) return slipSave();
+  const ss = e.target.closest("[data-slip-show]"); if (ss) { slip.shown = ss.dataset.slipShow; renderPay(); return; }
+  if (e.target.closest("[data-slip-hide]")) { slip.shown = ""; renderPay(); return; }
+  const sd = e.target.closest("[data-slip-del]");
+  if (sd) { if (confirm(`Remove the payslip for ${mName(sd.dataset.slipDel, true)}?`)) { delete pay.slips[sd.dataset.slipDel]; savePay(); renderPay(); } return; }
+  if (e.target.closest("[data-rights-go]")) { $("#pay-rights-h").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+  const vw = e.target.closest("[data-pay-view]"); if (vw) { pay.view = vw.dataset.payView; savePay(); haptic(); renderPay(); return; }
   const dy = e.target.closest("[data-hf-day]");
   if (dy) {
     const d = dy.dataset.hfDay; if (hf.days.has(d)) hf.days.delete(d); else hf.days.add(d);
     dy.setAttribute("aria-pressed", hf.days.has(d)); haptic();
-    const n = hf.days.size; $("[data-hf-save]").textContent = n > 1 ? `Save ${n} shifts` : "Save the shift"; return;
+    const n = hf.days.size; $("[data-hf-save]").textContent = hf.hol ? (n > 1 ? `Book ${n} days` : "Book it") : n > 1 ? `Save ${n} shifts` : "Save the shift";
+    if (hf.hol) $("#hf-worth").textContent = hfWorth();
+    return;
   }
   const bk = e.target.closest("[data-hf-brk]");
   if (bk) { hf.brk = +bk.dataset.hfBrk; $$("[data-hf-brk]").forEach((b) => b.setAttribute("aria-pressed", b === bk)); haptic(); return; }
@@ -3548,11 +4046,13 @@ $("#v-pay").addEventListener("click", (e) => {
   const del = e.target.closest("[data-hr-del]");
   if (del) {
     const x = hoursLog.find((y) => y.id === del.dataset.hrDel);
-    if (x && confirm(`Remove your shift on ${dayName(x.day)}, ${x.start}–${x.end}?`)) { hoursLog = hoursLog.filter((y) => y !== x); store.set("hours", hoursLog); renderPay(); }
+    if (x && confirm(x.hol ? `Remove your holiday on ${dayName(x.day)}?` : `Remove your shift on ${dayName(x.day)}, ${x.start}–${x.end}?`)) { hoursLog = hoursLog.filter((y) => y !== x); store.set("hours", hoursLog); renderPay(); }
     return;
   }
   const ln = e.target.closest("[data-pay-loan]");
   if (ln) { pay.loan = ln.dataset.payLoan; savePay(); haptic(); $$("[data-pay-loan]").forEach((b) => b.setAttribute("aria-pressed", b === ln)); paySums(); return; }
+  const ag = e.target.closest("[data-pay-age]"); if (ag) { pay.age = ag.dataset.payAge; savePay(); haptic(); $$("[data-pay-age]").forEach((b) => b.setAttribute("aria-pressed", b === ag)); paySums(); return; }
+  const hm = e.target.closest("[data-pay-hol]"); if (hm) { pay.hol = hm.dataset.payHol; savePay(); haptic(); renderPay(); return; }
   const wb = e.target.closest("[data-pay-wk]"); if (wb) { pay.wk = +wb.dataset.payWk; savePay(); haptic(); renderPay(); return; }
   const cc = e.target.closest("[data-pay-code]");
   if (cc) { pay.code = cc.dataset.payCode; savePay(); haptic(); $('[data-pay="code"]').value = pay.code; $$("[data-pay-code]").forEach((b) => b.setAttribute("aria-pressed", b === cc)); paySums(); return; }
@@ -4043,6 +4543,13 @@ SHARE.allergen = (n = alSel) => {
   return { what: `${n} allergen list`, title: `Black Tap Soho · drinks with ${n.toLowerCase()}`, head: [`${plural(rows.length, "drink")} on our specs`],
     parts: [{ id: "drinks", label: "Drinks", lines: rows.map((d) => d.name) }],
     tip: "Always check the venue's allergen matrix and the bottle labels: they are the final word." };
+};
+// One payslip, line by line, with anything that doesn't match the estimate. Personal, like the estimate.
+SHARE.slip = (m) => {
+  const S = pay.slips[m]; if (!S) return null;
+  const C = slipCheck(S), lines = S.items.filter((x) => !["gross", "net", "dedtotal"].includes(x.k)).map((x) => `${x.l}: ${SLIP_DED.has(x.k) ? "−" : ""}${gbp(x.a)}`);
+  return { what: "My payslip", title: `My payslip for ${mName(m, true)}`, head: [`Gross ${gbp(S.gross)} · take-home ${gbp(S.net)}`],
+    parts: [{ id: "lines", label: "Every line", lines }, { id: "check", label: "To check", lines: C.why }] };
 };
 // My pay's estimate as it shows on the page. It stays personal: it's never copied to the seniors.
 SHARE.pay = () => {
