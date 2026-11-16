@@ -36,6 +36,13 @@ test("joining: the team link and a name, no login; a wrong code is refused", asy
   assert.notEqual(err, "allowed");
   await q.evaluate(() => show("notices"));
   assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Owner or senior login/i);
+  // Through the form: a refused code says why and gives the form back, instead of hanging on "Joining as…".
+  await q.fill("#j-name", "Vi");
+  await q.fill("#j-code", "wrong-code-456");
+  await q.click("#j-go");
+  await q.waitForSelector("#tm-top [role=alert]");
+  assert.match(await q.$eval("#tm-top [role=alert]", (e) => e.textContent), /team link didn't work/);
+  assert.equal(await q.$$eval("#j-go", (x) => x.length), 1);
   assert.deepEqual([p.errs, q.errs], [[], []]);
 });
 
