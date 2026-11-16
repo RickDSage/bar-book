@@ -1,14 +1,16 @@
-/* Cheat sheets: A4 pages to print and laminate, eight drinks a page (twelve for shots), 22 pages to print double-sided on 11 sheets, drawn from the same specs as the app.
+/* Cheat sheets: A4 pages to print and laminate, eight drinks a page (twelve for shots), 23 pages to print double-sided on 12 sheets, drawn from the same specs as the app.
    The app's Cheat sheets view and the JPEG/PDF generator both use this file, so the paper always matches the phone. */
 const CHEAT = (() => {
   // Families of the most ordered drinks (bestseller lists from Drinks International and UK bar sales), with Black Tap's own first.
   const SHEETS = [
+    // 16 Nov 2026, Derek: the drinks made most come first, on one page. A best guess from the house serves and UK bestsellers; change the names here.
+    { id: "most", t: "Most Made", sub: "The eight we make every shift", names: ["Pornstar Martini", "Espresso Martini", "Aperol Spritz", "Old Fashioned", "Mojito", "Margarita", "Negroni", "London Cosmo"] },
     { id: "signatures", t: "Black Tap Signatures", sub: "Our house cocktails", names: ["London Cosmo", "Uptown Hustle", "Salted Caramel Buzz", "Cali Heatwave", "West Coast Love", "The Paddington", "Marshmallow Boulevard", "The Rockefeller"] },
     { id: "martinis", t: "Martinis", sub: "Chilled martini glass, served up", names: ["Espresso Martini", "Pornstar Martini", "Dry Martini", "Dirty Martini", "French Martini", "Lemon Drop Martini", "Cosmopolitan", "Breakfast Martini"] },
-    { id: "margaritas", t: "Margaritas & Agave", sub: "Ritas, Palomas and Ranch Water", names: ["Margarita", "Tommy's Margarita", "Spicy Margarita", "Mezcal Margarita", "Passion Fruit Margarita", "Watermelon Margarita", "Paloma", "Ranch Water"] },
     { id: "spritz", t: "Spritz & Sparkling", sub: "Spritz: glass full of ice, Prosecco first, gentle lift", names: ["Aperol Spritz", "Hugo Spritz", "Limoncello Spritz", "French 75", "Campari Spritz", "Mimosa", "Negroni Sbagliato", "Bellini"] },
-    { id: "sours", t: "Sours", sub: "Shake hard. Foamer drinks: dry shake first", names: ["Whiskey Sour", "Amaretto Sour", "Daiquiri", "Pisco Sour", "Clover Club", "White Lady", "Penicillin", "Aperol Sour"] },
     { id: "stirred", t: "Stirred & Strong", sub: "Stir cold, never shake", names: ["Old Fashioned", "Negroni", "Manhattan", "Boulevardier", "Mezcal Negroni", "Rum Old Fashioned", "Godfather", "Rob Roy"] },
+    { id: "margaritas", t: "Margaritas & Agave", sub: "Ritas, Palomas and Ranch Water", names: ["Margarita", "Tommy's Margarita", "Spicy Margarita", "Mezcal Margarita", "Passion Fruit Margarita", "Watermelon Margarita", "Paloma", "Ranch Water"] },
+    { id: "sours", t: "Sours", sub: "Shake hard. Foamer drinks: dry shake first", names: ["Whiskey Sour", "Amaretto Sour", "Daiquiri", "Pisco Sour", "Clover Club", "White Lady", "Penicillin", "Aperol Sour"] },
     { id: "long", t: "Long, Tiki & Fresh", sub: "Highballs and party drinks", names: ["Mojito", "Moscow Mule", "Long Island Iced Tea", "Tom Collins", "Piña Colada", "Mai Tai", "Bloody Mary", "Sex on the Beach"] },
     { id: "rum", t: "Rum & Dark 'n' Stormy", sub: "Kraken Storm is our Dark 'n' Stormy", names: ["Kraken Storm", "Cuba Libre", "Rum Punch", "Hurricane", "Zombie", "Jungle Bird", "Painkiller", "Planter's Punch"] },
     { id: "gin", t: "Gin Classics", sub: "Tanqueray unless the guest asks", names: ["Gimlet", "Southside", "Gin Fizz", "Pink Lady", "Fitzgerald", "Elderflower Collins", "Bee's Knees", "Gin Rickey"] },

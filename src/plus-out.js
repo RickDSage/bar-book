@@ -93,6 +93,7 @@ function plOutRefresh() {
   renderList();
   if (!$("#v-rapid").hidden && $("#rp-out")) renderRapid();
   if (!$("#v-make").hidden) mkRedraw();
+  if (!$("#v-sheets").hidden) renderSheets();
   if (!$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // The spec lines that are out get struck through with the swap under them.

@@ -4410,10 +4410,12 @@ function csFit() { const v = $("#cs-view"); if (v) v.style.setProperty("--z", v.
 function renderSheets() {
   if (!$("#cs-css")) { const st = document.createElement("style"); st.id = "cs-css"; st.textContent = CHEAT.css(CHEAT_FONT); document.head.append(st); }
   $("#v-sheets").innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Cheat sheets</h2>
-    <p class="lead">Print them on A4 and laminate them for behind the bar. They use the same specs as the app.</p>
-    <div class="actions"><button class="btn pri" data-cs-all>Print all</button><button class="btn" data-cs-one>Print this one</button></div>
-    <div class="recent" translate="no">${CHEAT.SHEETS.map((x, i) => `<button class="chip" data-cs="${i}" aria-pressed="${i === csPick}">${esc(x.t)}</button>`).join("")}</div>
+    <p class="lead">One page per kind of drink, from the same specs as the app. Send one to WhatsApp as a picture you can read on a phone, or print them on A4 and laminate them for behind the bar.</p>
+    <div class="chips hrow" translate="no">${CHEAT.SHEETS.map((x, i) => `<button class="chip" data-cs="${i}" aria-pressed="${i === csPick}">${esc(x.t)}</button>`).join("")}</div>
+    <div class="actions">${sendBtn("sheet", "Send to WhatsApp", String(csPick))}<button class="btn" data-cs-one>Print this one</button><button class="btn" data-cs-all>Print all</button></div>
+    ${plSheetOut(CHEAT.SHEETS[csPick])}
     <div id="cs-view" class="cs-view"><div class="cs-zoom">${csPage(csPick)}</div></div>`;
+  $(`#v-sheets [data-cs="${csPick}"]`).scrollIntoView({ block: "nearest", inline: "center" });
   csFit();
 }
 function csPrint(list) {

@@ -422,7 +422,7 @@ const btUses = (k) => D.filter((d) => MK.reqs.get(d.id).some((r) => mkCover(r, k
    Each drink is its own tick box on the Send page, so the person picks which go. The first dozen are ticked. */
 const SPEC_MAX = 40, SPEC_ON = 12;
 const specPart = (d, i) => ({ id: "d" + d.id, label: d.name, one: true, off: i >= SPEC_ON,
-  lines: [...d.spec.map((l) => `• ${l}`), [d.glass, d.ice, d.garnish && `Garnish: ${d.garnish}`].filter((x) => x && !/^(Garnish: )?None\b/i.test(x)).join(" · "), `How: ${d.method}`] });
+  lines: [...plOutLines(d), ...d.spec.map((l) => `• ${l}`), [d.glass, d.ice, d.garnish && `Garnish: ${d.garnish}`].filter((x) => x && !/^(Garnish: )?None\b/i.test(x)).join(" · "), `How: ${d.method}`] });
 SHARE.specs = (o) => {
   const ids = String(o || "").split(",").filter(Boolean).map(Number).filter((i) => D[i]).slice(0, SPEC_MAX);
   if (!ids.length) return null;
