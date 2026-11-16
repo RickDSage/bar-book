@@ -146,7 +146,10 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .empty { color: var(--muted); padding: 30px 0; text-align: center; }
 
 /* Spec sheet overlay */
-.sheet { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-block: 0 calc(env(safe-area-inset-bottom, 0px) + 30px); }
+.sheet { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* The room at the end of a drink is a last box, not padding: a scroller's padding also lifts anything sticky off the
+   bottom (the step by step Back / Next bar floated 64px up an iPhone, with the drink showing through underneath). */
+.sheet::after { content: ""; display: block; height: calc(env(safe-area-inset-bottom, 0px) + 30px); }
 .sheet-top { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); padding-top: calc(env(safe-area-inset-top, 0px) + 4px); padding-bottom: 8px; margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .bar1 { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 .bar1 .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
@@ -537,7 +540,8 @@ ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; 
 /* At the bottom, above the tabs, and never in the way: at the top it covered every page's Back button and the drinks
    tabs, so with no signal nobody could close the Send page. Pages get room under it so nothing ends up beneath it. */
 .net { position: fixed; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; z-index: 25; pointer-events: none; padding: 7px 16px; text-align: center; font-size: 14px; font-weight: 700; background: var(--surface); border-top: 2px solid var(--brass); }
-body.neton main, body.neton .sheet { padding-bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 90px); }
+body.neton main { padding-bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 90px); }
+body.neton .sheet::after { height: calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 90px); }
 body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-area-inset-bottom, 0px)); }
 .net.off { border-color: var(--warn); }
 /* Your name and the account links, spaced rather than dotted, so a line never starts or ends on a dot. */
@@ -752,10 +756,12 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .car { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x pan-y; margin-top: 10px; }
 .car::-webkit-scrollbar { display: none; }
 .car > * { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; margin-top: 0 !important; }
-.car .step .pic svg { max-height: 40vh; }
-/* One step fills the screen between the step counter and Next, with bigger words, on any phone. */
-.car .step { display: flex; flex-direction: column; min-height: calc(100vh - 300px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); min-height: calc(100svh - 300px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
-.car .step .pic { flex: 1; display: grid; place-items: center; }
+/* One step fills the screen from the step counter down to the Back / Next bar, with bigger words (fitSteps() measures
+   --steph). The picture takes the room the words and ingredients leave, down to 72px, so a long list isn't hidden under
+   the bar; when even that won't fit (a small phone, a long list) the card grows and the page scrolls. */
+.car .step { display: flex; flex-direction: column; min-height: var(--steph); }
+.car .step .pic { flex: 1 0 72px; position: relative; }
+.car .step .pic svg { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); max-height: 40vh; margin: auto; }
 .car .step h4 { font-size: 22px; }
 .car .step p { font-size: 20px; line-height: 1.4; }
 .car .step.done { opacity: 1; }
@@ -1573,12 +1579,24 @@ function openSheet(id, keepScroll) {
 }
 function nextName(id) { const i = ctx.indexOf(id); return i < 0 || ctx.length < 2 ? "" : D[ctx[(i + 1) % ctx.length]].name; }
 function hint(text) { document.querySelector(".swhint")?.remove(); const h = document.createElement("div"); h.className = "swhint"; h.textContent = text; document.body.append(h); setTimeout(() => h.remove(), 3400); }
-// The phone's back gesture (and Android back button) closes the drink instead of leaving the app.
-// Step by step: scroll so the step counter sits under the sticky bar and the whole step card fits on screen.
-function stepsIntoView() {
-  const sh = $("#sheet"), c = $("#sheet .cprog"); if (!c) return;
-  sh.scrollTop = c.getBoundingClientRect().top - sh.getBoundingClientRect().top + sh.scrollTop - $("#sheet .sheet-top").offsetHeight - 6;
+// Step by step: the step counter sits just under the sticky bar at the top, and each step card is as tall as the rest
+// of the screen down to the Back / Next bar, so a step fits on one screen. Measured, because the bars change height with
+// the phone and the language.
+const stepTop = () => $("#sheet .sheet-top").getBoundingClientRect().height + 6;
+function fitSteps() {
+  const sh = $("#sheet"), c = $("#sheet .cprog"), nav = $("#sheet .cnav"); if (sh.hidden || !c || !nav) return;
+  const above = stepTop() + $("#car").getBoundingClientRect().top - c.getBoundingClientRect().top;
+  sh.style.setProperty("--steph", `${Math.max(0, sh.clientHeight - above - parseFloat(getComputedStyle(nav).marginTop) - nav.getBoundingClientRect().height)}px`);
 }
+addEventListener("resize", fitSteps);
+// Scroll to the steps and fit them; again on the next frame, once a language's words are in (they can make the bars taller).
+function stepsIntoView() { placeSteps(); requestAnimationFrame(placeSteps); }
+function placeSteps() {
+  const sh = $("#sheet"), c = $("#sheet .cprog"); if (sh.hidden || !c) return;
+  fitSteps();
+  sh.scrollTop = c.getBoundingClientRect().top - sh.getBoundingClientRect().top + sh.scrollTop - stepTop();
+}
+// The phone's back gesture (and Android back button) closes the drink instead of leaving the app.
 function showSheet(keepScroll) {
   const sh = $("#sheet"); sh.classList.remove("closing"); sh.hidden = false; document.body.style.overflow = "hidden";
   if (!keepScroll && !history.state?.sheet) history.pushState({ sheet: 1 }, "");
