@@ -220,6 +220,7 @@ test("my pay: a payslip read line by line, checked against the estimate, teachin
   // The estimate, worked out from the payslip's own hours, comes to the same.
   assert.match(card, /Gross £2,064\.17 \(app £2,064\.17\) Income tax £203\.00 \(app £203\.00\)/);
   assert.match(card, /Take-home £1,772\.11 \(app £1,772\.11\) Matches the estimate to the pound\./);
+  assert.match(await p.evaluate(() => shareText("slip", false, "2026-10")), /^My payslip for October 2026\nGross £2,064\.17 · take-home £1,772\.11\n\nEvery line \(\d+\)\n• Basic Pay: £1,525\.20/);
   // The tax year: tax paid so far against what's due on £12,000 by month 7 with 1257L.
   await p.click('[data-pay-view="year"]');
   assert.match(await txt("#pay-view"), /Tax year 2026 to 2027 October payslip £1,772\.11 November estimate £600\.00/i);
