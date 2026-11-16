@@ -9,6 +9,7 @@ after(async () => { await browser.close(); site.close(); });
 
 async function open({ start = "#w-ok", at, width = 390, recent } = {}) {
   const c = await browser.newContext({ viewport: { width, height: 844 }, deviceScaleFactor: 2, isMobile: true, timezoneId: "Europe/London", colorScheme: "dark" });
+  await c.addInitScript(() => localStorage.setItem("btbar.introSeen", "true"));
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = [];
