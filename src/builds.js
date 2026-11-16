@@ -34,16 +34,19 @@ const FIX = {
   "Lemon Drop Martini": { rename: { "Luxardo Limoncello": "Cointreau" }, ml: { "Smirnoff": 40, "Cointreau": 25, "lemon juice": 20 }, drop: ["sugar syrup"] },
   "Boulevardier": { ml: { "Bulleit Bourbon": 35 } },
   "Mojito": { ml: { "sugar syrup": 15 } },
-  "Long Island Iced Tea": { ml: { "Smirnoff": 10, "Tanqueray": 10, "Captain Morgan White": 10, "El Jimador Blanco": 10, "Cointreau": 10, "lemon juice": 15 }, drop: ["sugar syrup"],
-    spec: ["10 ml each: Smirnoff, Tanqueray, Captain Morgan White, El Jimador Blanco, Cointreau", "15 ml lemon juice", "Top Coca-Cola"],
-    text: { pourGlass: "Measure each one with the jigger. Five spirits at 10 ml each, then the lemon." } },
+  // IBA (iba-world.com/long-island-iced-tea, read 16 Nov 2026): 15 ml of each spirit, 25 ml lemon, 30 ml syrup, cola.
+  // Our 25 ml syrup is one jigger and slightly drier.
+  "Long Island Iced Tea": { ml: { "Smirnoff": 15, "Tanqueray": 15, "Captain Morgan White": 15, "El Jimador Blanco": 15, "Cointreau": 15, "lemon juice": 25, "sugar syrup": 25 },
+    spec: ["15 ml each: Smirnoff, Tanqueray, Captain Morgan White, El Jimador Blanco, Cointreau", "25 ml lemon juice", "25 ml sugar syrup", "Top Coca-Cola"],
+    text: { pourGlass: "Measure each one with the jigger. Five spirits at 15 ml each, then the lemon and sugar." } },
   "Mimosa": { ml: { "orange juice": 50, "Prosecco": 80 } },
   // Four of the single serve, and "As Mojito" means the same lime and sugar.
   "Mojito Pitcher": { ml: { "lime juice": 80, "sugar syrup": 60 } },
   "Virgin Mojito": { ml: { "lime juice": 20, "sugar syrup": 15 } },
   // The guide presses a lime wedge with the mint.
   "Hugo Spritz": { spec: ["4 mint leaves", "1 lime wedge", "25 ml elderflower cordial", "100 ml Prosecco", "25 ml soda"] },
-  "Bellini": { ml: { "Funkin peach purée": 35 }, text: { lift: "Lift once with the bar spoon to mix the purée through." } },
+  // IBA: 50 ml peach purée to 100 ml Prosecco, which is the base card.
+  "Bellini": { text: { lift: "Lift once with the bar spoon to mix the purée through." } },
   "Tequila Sunrise": { ml: { "grenadine": 15 } },
   "Lynchburg Lemonade": { ml: { "Cointreau": 25, "lemon juice": 25 } },
   // Camden Hells isn't on our taps.
@@ -55,7 +58,7 @@ const FIX = {
   "Mai Tai": { ml: { "Cointreau": 15, "Giffard Orgeat": 15 } },
   "Paloma": { ml: { "Casamigos Reposado": 50, "agave syrup": 10, "grapefruit juice": 50 }, add: ["Pinch of salt"] },
   "Piña Colada": { ml: { "Coco Real": 25, "pineapple juice": 100, "lime juice": 10 }, drop: ["Malibu"] },
-  "Irish Coffee": { rename: { "demerara syrup": "sugar syrup" }, text: { heat: "Fill the heatproof glass with hot water from the coffee machine's hot water tap. Tip it out after a minute.", pourGlass: "Measure the Jameson and sugar syrup into the warm glass.", top: "Pull an Americano on the coffee machine, pour it in and stir." }, ml: { "Jameson": 25, "sugar syrup": 15, "hot Americano": 120, "double cream, lightly whipped": 50 } },
+  "Irish Coffee": { rename: { "demerara syrup": "sugar syrup" }, text: { heat: "Fill the heatproof glass with hot water from the coffee machine's hot water tap. Tip it out after a minute.", pourGlass: "Measure the Jameson and sugar syrup into the warm glass.", top: "Pull an Americano on the coffee machine, pour it in and stir." }, ml: { "Jameson": 50, "sugar syrup": 15, "hot Americano": 120, "double cream, lightly whipped": 50 } },
   "Midori Sour": { ml: { "lemon juice": 15, "lime juice": 15 } },
   // Back on the list now stock doesn't decide it (owner, 3 Nov). IBA: crème de mûre, not Chambord.
   "Bramble": { rename: { "Chambord": "crème de mûre" }, ml: { "crème de mûre": 15, "sugar syrup": 10 },
@@ -64,7 +67,11 @@ const FIX = {
     text: { half: "Pour a half pint of Stella Artois with a neat head." } },
   // 9 Nov 2026 (owner): overlapping classics follow the Classic Cocktail Bible measures, house bottles kept.
   "Amaretto Sour": { drop: ["sugar syrup"] },
-  "French 75": { ml: { "Tanqueray": 20, "lemon juice": 10, "sugar syrup": 5, "Prosecco": 100 } },
+  // French 75 keeps the base card (25 ml gin, 12.5 lemon, 12.5 syrup, 75 Prosecco), the IBA 30/15/15/60 in our jiggers.
+  // 16 Nov 2026 recipe check: where the book above came in weaker than the classic (Irish Coffee, French 75, Long Island,
+  // Bellini, Hurricane, Zombie, Air Mail), the classic's strength wins.
+  // Hurricane: Pat O'Brien's original is 4 oz (about 120 ml) of rum; the modern build is 2 oz white + 2 oz dark.
+  "Hurricane": { ml: { "Captain Morgan White": 50, "Captain Morgan Dark": 50, "lime juice": 15, "grenadine": 10 } },
   // UK law (Weights and Measures (Intoxicating Liquor) Order 1988, art. 3): gin, rum, vodka and whisky mixed with
   // fewer than two other liquids go out in 25 ml steps here, so 75 ml, not the book's 70.
   "Dry Martini": { ml: { "Tanqueray, or Grey Goose on request": 75, "Martini Extra Dry": 5 } },
