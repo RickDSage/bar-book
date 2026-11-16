@@ -1233,7 +1233,7 @@ function renderQuick(show) {
   const fl = `<div class="mini">What does the guest fancy?</div><div class="chips hrow">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
   if (flav || sec !== "All" || PL.list) { $("#quick").innerHTML = fl; return; }
   const rec = recent.length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = plDailyHtml() + rec + fl;
+  $("#quick").innerHTML = rec + fl;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
@@ -3449,6 +3449,7 @@ function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
     <h2 class="pgt">More</h2>
+    ${plDailyHtml()}
     <div class="sec">Drinks</div>
     <div class="hub">
       ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
@@ -3496,10 +3497,10 @@ function renderInfo() {
       <li>Tap <b>Install</b>. It now opens like an app.</li>
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>`)}
-    ${fold("clear", "Clear everything", `
+    ${fold("clear", "Reset this phone", `
     <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the look, and anything else saved on it. Then the app starts again as new. Nobody else's phone changes, and it can't be undone.</p>
     <label class="fld">Type ${CLEAR_WORD} to show you mean it<input id="cp-words" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
-    <button class="btn danger wide" id="cp-go">Clear everything on this phone</button>`, "clear")}
+    <button class="btn danger wide" id="cp-go">Reset this phone</button>`, "clear")}
     ${offlineReady ? `<p class="note">Offline ready ✓</p>` : ""}<p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
     <p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p>`;
 }
@@ -3508,8 +3509,11 @@ keepOpen($("#v-info"), (e) => {
   d.open ? infoOpen.add(d.dataset.fold) : infoOpen.delete(d.dataset.fold);
   store.set("infoOpen", [...infoOpen]);
 });
-$("#v-info").addEventListener("click", (e) => { const b = e.target.closest("[data-go]"); if (b) { haptic(); show(b.dataset.go); } });
-/* Clear everything, at the bottom of More: everything the app keeps on this phone goes, and it starts again as new. */
+$("#v-info").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-go]"); if (b) { haptic(); show(b.dataset.go); }
+  const o = e.target.closest(".pl-daily"); if (o) openSheet(+o.dataset.plDaily);
+});
+/* Reset this phone, at the bottom of More (Shift's Clear everything is the team's lists; this is the phone): everything the app keeps on this phone goes, and it starts again as new. */
 const CLEAR_WORD = "CLEAR";
 function clearPhone() {
   Object.keys(localStorage).filter((k) => k.startsWith("btbar.")).forEach((k) => localStorage.removeItem(k));
@@ -4498,7 +4502,10 @@ $("nav.tabs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-tab]"); if (!b) return;
   const t = b.dataset.tab;
   // The tab you're on: back to its top. Drinks remembers its last mode; More opens on its own page.
-  if (t === tabOf(cur) && !MORE_TABS.includes(cur)) return window.scrollTo({ top: 0, behavior: "smooth" });
+  if (t === tabOf(cur) && !MORE_TABS.includes(cur)) {
+    if (cur === "drinks" && scrollY < 10) return $("#q").focus();
+    return window.scrollTo({ top: 0, behavior: "smooth" });
+  }
   haptic(); show(t === "drinks" ? store.get("dmode", "drinks") : t);
 });
 document.addEventListener("click", (e) => { if (e.target.closest("[data-back]")) { haptic(); show("info"); } });

@@ -75,7 +75,10 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
 
 test("spec of the day is the same drink all day, and a shared list opens on just its drinks", async () => {
   const p = await open();
-  const name = await text(p, ".pl-daily b");
+  // It's for learning, so it sits on More, not in front of the menu.
+  assert.equal(await p.locator("#quick .pl-daily").count(), 0);
+  await p.click("nav.tabs [data-tab=info]");
+  const name = await text(p, "#v-info .pl-daily b");
   assert.equal(name, await p.evaluate(() => plDaily().name));
   const url = await p.evaluate(() => plListUrl("Tonight", D.filter((d) => ["Mojito", "Negroni", "Margarita"].includes(d.name)).map((d) => d.id)));
   const q = await open(url.slice(url.indexOf("#")));
