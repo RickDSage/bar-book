@@ -48,7 +48,7 @@ const unsubAll = () => { Object.keys(subs).forEach(unsub); if (stop) { stop(); s
 // A listen the rules refuse (a join not confirmed by the server yet) is dropped and retried on the next staff snapshot.
 function sub(k, ref, fn, failed) {
   if (subs[k]) return;
-  subs[k] = onSnapshot(ref, (snap) => { LIVE.loaded.add(k); fn(snap); }, () => { delete subs[k]; failed?.(); });
+  subs[k] = onSnapshot(ref, (snap) => { LIVE.loaded.add(k); fn(snap); }, (e) => { delete subs[k]; failed?.(e); });
 }
 // Ids go into the page's HTML. The app only ever makes plain ones (letters, digits, dashes), so a record with any other
 // id was written some other way and is skipped. The id goes after a record's own fields so a field called id can't
@@ -85,7 +85,9 @@ function listen(uid) {
     sub("staff", collection(db, "staff"), (snap) => {
       LIVE.staff = snap.docs.filter(plain).map((x) => ({ name: x.data().name, role: x.data().role, username: x.data().username || null, pin: x.data().pin || null, at: x.data().at || null, uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
       liveChanged("staff");
-    }, () => { if (!d.metadata.fromCache) { liveChanged("removed"); leave(); } });
+    // Only a refusal means this phone is off the team. Anything else (the free plan's daily limit used up, a server
+    // hiccup) must not sign the phone out and wipe it: it keeps showing what it last saw and listens again later.
+    }, (e) => { if (e?.code === "permission-denied" && !d.metadata.fromCache) { liveChanged("removed"); leave(); } });
     // The seniors, to pick from when unlocking, with how many wrong guesses there have been at each code. A phone
     // unlocked by a senior the owner has since taken off goes back to staff powers (the rules already treat it so).
     sub("seniors", collection(db, "seniors"), (snap) => {
