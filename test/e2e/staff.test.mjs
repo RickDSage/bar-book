@@ -357,3 +357,28 @@ test("everything can be sent: numbers, allergens, pay, games, restock, reports, 
   assert.equal(await O.evaluate(() => LIVE.sent.some((x) => x.k === "pay")), false);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
+
+test("changes reach the people they affect, and the Team page says what changed since you were last here", async () => {
+  await resetEmulators();
+  const { M, S, T } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Kadir"], ["T", "Pema"]]);
+  // Pema works the floor; Kadir the bar. Kadir looks at the Team page, then goes back to the drinks.
+  await T.evaluate(() => setMode("floor"));
+  await S.evaluate(() => { show("notices"); show("drinks"); });
+  const drink = await M.evaluate(() => D[0].name);
+  await M.evaluate(() => LIVE.api.saveList("close", [{ id: 0, t: "Glass washer drained" }], 1));
+  await waitToast(S, /^Illias changed the bar closing checklist$/);
+  await M.evaluate((n) => setOut(n, true), drink);
+  await S.waitForFunction(() => LIVE.out.size === 1);
+  // The bar's list change isn't the floor's business.
+  await T.waitForFunction(() => LIVE.lists.close);
+  assert.doesNotMatch(await T.evaluate(() => changesSince(1).map((x) => x.msg).join("|")), /checklist/);
+  // The Team tab counts both, and the Team page lists them, newest first.
+  await S.waitForFunction(() => document.querySelector("#team-n").textContent === "2");
+  await S.evaluate(() => show("notices"));
+  const since = await S.$eval(".since", (e) => e.textContent);
+  assert.match(since, /Since you were last here 2.*86'd.*Illias.*Illias changed the bar closing checklist/s);
+  // Seen: leaving the page clears it.
+  await S.evaluate(() => show("drinks"));
+  await S.waitForFunction(() => document.querySelector("#team-n").hidden);
+  assert.deepEqual([M.errs, S.errs, T.errs], [[], [], []]);
+});

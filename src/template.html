@@ -4513,8 +4513,11 @@ const RUDE = "That has a slur in it, so it can't go out. Quoting what someone sa
    waiting for the person: new asks for the seniors and the owner, and new Tell Derek notes for the owner. */
 const newAsks = () => (LIVE.admin ? LIVE.asks.filter((a) => a.status === "new") : []);
 const newTells = () => (LIVE.owner ? LIVE.tells.filter((a) => a.status === "new") : []);
+// When this phone last left the Team page, and the time before that (what "Since you were last here" counts from).
+let seenAt = store.get("seenAt", 0), seenBefore = seenAt;
 function renderBell() {
-  const n = newAsks().length + newTells().length;
+  // What's waiting for this person, plus what's changed since they last looked at the Team page.
+  const n = newAsks().length + newTells().length + (LIVE.me && cur !== "notices" && seenAt ? changesSince(seenAt).length : 0);
   $("#team-n").hidden = !n; $("#team-n").textContent = n > 9 ? "9+" : n;
 }
 
@@ -4968,7 +4971,7 @@ function renderTeam() {
   if ($("#v-notices").hidden) return;
   const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if (!typing($("#tm-top"))) $("#tm-top").innerHTML = topHtml();
-  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
+  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = sinceHtml() + CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
   renderBell();
 }
 function renderNotices() { renderTeam(); }
@@ -5155,7 +5158,11 @@ function eventToast(e) {
     return { delivered: `${e.name} brought up ${amtOf(e.qty, e.unit, e.label)}. Tap Got it to confirm`, unavailable: `${e.label} isn't in the cellar (${e.name})`,
       blocked: `Your restock is blocked: ${e.label}${e.note ? `: ${e.note}` : ""}` }[e.to] || "";
   }
-  if (e.kind === "label") return side && ["changed", "binned"].includes(e.act) && e.was && e.was <= e.day ? `${e.name} ${e.act} ${e.label}` : "";
+  if (e.kind === "label") {
+    if (!side) return "";
+    if (["added", "edited", "removed"].includes(e.act)) return `${e.name} ${e.act === "edited" ? "changed" : e.act} a date label: ${e.label}`;
+    return ["changed", "binned"].includes(e.act) && e.was && e.was <= e.day ? `${e.name} ${e.act} ${e.label}` : "";
+  }
   if (e.kind === "task") {
     if (e.from === e.to) return e.who === LIVE.me ? `${e.name} gave you: ${e.label}` : "";
     if (e.to === "blocked") return side ? `Blocked: ${e.label}${e.note ? `: ${e.note}` : ""}` : "";
@@ -5169,11 +5176,31 @@ const TOAST = {
   issues: (x) => (LIVE.admin && x.status === "open" && x.uid !== LIVE.uid && !x.urgent ? `New issue: ${x.title}` : issueToast(x)),
   events: eventToast,
   asks: (x) => (LIVE.admin && x.status === "new" ? `📥 ${ASK[x.kind]} from ${x.anon ? "someone (anonymous)" : x.name}` : x.uid === LIVE.uid && x.status === "done" ? `${x.by} dealt with your ${lower(ASK[x.kind])}` : ""),
-  reports: (x) => (LIVE.admin ? `${x.name} sent the ${x.side} closing` : ""),
+  reports: (x) => `${x.name} sent the ${x.side} closing`,
+  // A senior's or the owner's new version of a closing list, for that side and the managers.
+  lists: (x) => (LISTS[x.id] && (LIVE.admin || MODE_LISTS[mode].includes(x.id)) ? `${x.name} changed the ${lower(sideName(MODE_LISTS.bar.includes(x.id) ? "bar" : "floor"))} ${lower(LISTS[x.id].title)}` : ""),
   tells: (x) => (LIVE.owner && x.status === "new" ? `💡 ${x.name}: ${TELL[x.kind]}` : ""),
   sent: (x) => (LIVE.admin ? `📤 ${x.anon ? "Someone" : x.name} sent: ${x.what}` : ""),
   outlog: (x) => `${x.action === "out" ? "🚫 86'd" : "✅ Back on"}: ${x.itemName} (${x.name})`,
 };
+// What changed since this phone last opened the Team page: the same messages as the pop-ups, from what the app already
+// holds, so nothing is missed while the app was shut or a pop-up went by. The newest 15, other people's only.
+function changesSince(t) {
+  const out = [];
+  for (const what of Object.keys(TOAST)) for (const x of Object.values(LIVE[what])) {
+    const at = x.at ? ms(x.at) : 0;
+    if (x.pending || at <= t || x.uid === LIVE.uid) continue;
+    const msg = TOAST[what](x);
+    if (msg) out.push({ at, t: x.at, msg });
+  }
+  return out.sort((a, b) => b.at - a.at).slice(0, 15);
+}
+function sinceHtml() {
+  if (!LIVE.me || !seenBefore) return "";
+  const c = changesSince(seenBefore);
+  return c.length ? `<details class="setup tcard since" open><summary>Since you were last here <span class="pill">${c.length}</span></summary>
+    ${c.map((x) => `<div class="staffrow"><div class="n">${esc(x.msg)}</div><div class="s">${when(x.t)}</div></div>`).join("")}</details>` : "";
+}
 function liveChanged(what) {
   if (what === "media") renderMedia();
   // Leaving, or being taken off the team by the manager or the owner: the phone forgets the team code (it reloads
@@ -5184,8 +5211,8 @@ function liveChanged(what) {
   if (what === "drafts" || what === "me") pullDraft();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
-    for (const x of LIVE[what]) {
-      const k = what + x.id + (x.status || "") + (x.whoUid || "");
+    for (const x of Object.values(LIVE[what])) {
+      const k = what + x.id + (x.status || "") + (x.whoUid || "") + (x.v ?? "");
       if (x.pending || told.has(k)) continue; told.add(k);
       if (first || (x.uid === LIVE.uid && !["asks", "issues"].includes(what))) continue;
       const msg = TOAST[what](x);
@@ -5257,6 +5284,9 @@ const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) 
 let cur = "drinks";
 function show(tab) {
   if (!TABS.includes(tab)) tab = "drinks";
+  // Leaving the Team page counts as having seen what was on it; the next visit shows what's changed since.
+  if (tab !== "notices" && cur === "notices") { seenBefore = seenAt = Date.now(); store.set("seenAt", seenAt); }
+  if (tab === "notices" && !seenAt) { seenAt = Date.now(); store.set("seenAt", seenAt); }
   cur = tab;
   TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
   $$("nav.tabs [data-tab]").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tabOf(tab) ? "page" : "false"));
