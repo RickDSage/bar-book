@@ -146,7 +146,10 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .empty { color: var(--muted); padding: 30px 0; text-align: center; }
 
 /* Spec sheet overlay */
-.sheet { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; padding-block: 0 calc(env(safe-area-inset-bottom, 0px) + 30px); }
+.sheet { position: fixed; inset: 0; z-index: 20; background: var(--bg); overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+/* The room at the end of a drink is a last box, not padding: a scroller's padding also lifts anything sticky off the
+   bottom (the step by step Back / Next bar floated 64px up an iPhone, with the drink showing through underneath). */
+.sheet::after { content: ""; display: block; height: calc(env(safe-area-inset-bottom, 0px) + 30px); }
 .sheet-top { position: sticky; top: 0; z-index: 2; background: var(--bg); border-bottom: 1px solid var(--line); padding-top: calc(env(safe-area-inset-top, 0px) + 4px); padding-bottom: 8px; margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 .bar1 { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; }
 .bar1 .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: center; }
@@ -278,6 +281,21 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .calday[aria-pressed="true"].has::after { background: var(--brass-ink); }
 .calday:disabled { opacity: .3; }
 .payrt { float: right; font-weight: 600; font-variant-numeric: tabular-nums; }
+.recent.paytabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 10px; overflow: visible; }
+.recent.paytabs .chip { padding: 8px 2px; font-size: 14px; text-align: center; white-space: normal; line-height: 1.15; }
+.paysteps { margin: 8px 0 4px; padding-left: 22px; line-height: 1.5; }
+.paysteps li { margin: 4px 0; }
+.paysteps li:last-child { font-size: 18px; }
+.paybar { display: flex; height: 14px; border-radius: 7px; overflow: hidden; margin: 6px 0 8px; background: var(--line); gap: 2px; }
+.paybar i { min-width: 3px; }
+.paykey { list-style: none; margin: 0 0 6px; padding: 0; font-size: 14px; }
+.paykey li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto 40px; gap: 8px; align-items: center; padding: 3px 0; }
+.paykey li > i { width: 12px; height: 12px; border-radius: 3px; }
+.paykey b { font-variant-numeric: tabular-nums; }
+.paykey .muted { text-align: right; }
+.payboth { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; text-align: center; font-size: 13px; color: var(--muted); }
+.payboth > div { padding: 8px 4px; border: 1px solid var(--line); border-radius: 10px; }
+.payboth b { display: block; font-size: 18px; color: var(--fg); font-variant-numeric: tabular-nums; }
 .payacts { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .payacts .btn { min-width: 0; }
 .paylabel { text-align: center; color: var(--muted); font-size: 14px; }
@@ -288,6 +306,7 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .payrow span:first-child { text-align: left; }
 .payrow i { display: block; font-style: normal; font-size: 12px; color: var(--muted); }
 .payrow.on { background: var(--surface); }
+.payrow.payhead { cursor: default; color: var(--muted); font-size: 12px; padding: 6px 2px; }
 .slipcard { padding: 10px 0; border-bottom: 1px solid var(--line); }
 .slipcard .kv { margin-top: 6px; }
 .yearkv { grid-template-columns: minmax(0, 1.2fr) auto auto; }
@@ -537,7 +556,8 @@ ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; 
 /* At the bottom, above the tabs, and never in the way: at the top it covered every page's Back button and the drinks
    tabs, so with no signal nobody could close the Send page. Pages get room under it so nothing ends up beneath it. */
 .net { position: fixed; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); left: 0; right: 0; z-index: 25; pointer-events: none; padding: 7px 16px; text-align: center; font-size: 14px; font-weight: 700; background: var(--surface); border-top: 2px solid var(--brass); }
-body.neton main, body.neton .sheet { padding-bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 90px); }
+body.neton main { padding-bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 90px); }
+body.neton .sheet::after { height: calc(var(--tabh) + env(safe-area-inset-bottom, 0px) + 90px); }
 body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-area-inset-bottom, 0px)); }
 .net.off { border-color: var(--warn); }
 /* Your name and the account links, spaced rather than dotted, so a line never starts or ends on a dot. */
@@ -752,10 +772,12 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .car { display: flex; gap: 12px; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; overscroll-behavior-x: contain; touch-action: pan-x pan-y; margin-top: 10px; }
 .car::-webkit-scrollbar { display: none; }
 .car > * { flex: 0 0 100%; scroll-snap-align: start; scroll-snap-stop: always; margin-top: 0 !important; }
-.car .step .pic svg { max-height: 40vh; }
-/* One step fills the screen between the step counter and Next, with bigger words, on any phone. */
-.car .step { display: flex; flex-direction: column; min-height: calc(100vh - 300px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); min-height: calc(100svh - 300px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)); }
-.car .step .pic { flex: 1; display: grid; place-items: center; }
+/* One step fills the screen from the step counter down to the Back / Next bar, with bigger words (fitSteps() measures
+   --steph). The picture takes the room the words and ingredients leave, down to 72px, so a long list isn't hidden under
+   the bar; when even that won't fit (a small phone, a long list) the card grows and the page scrolls. */
+.car .step { display: flex; flex-direction: column; min-height: var(--steph); }
+.car .step .pic { flex: 1 0 72px; position: relative; }
+.car .step .pic svg { position: absolute; inset: 6px; width: calc(100% - 12px); height: calc(100% - 12px); max-height: 40vh; margin: auto; }
 .car .step h4 { font-size: 22px; }
 .car .step p { font-size: 20px; line-height: 1.4; }
 .car .step.done { opacity: 1; }
@@ -1573,12 +1595,24 @@ function openSheet(id, keepScroll) {
 }
 function nextName(id) { const i = ctx.indexOf(id); return i < 0 || ctx.length < 2 ? "" : D[ctx[(i + 1) % ctx.length]].name; }
 function hint(text) { document.querySelector(".swhint")?.remove(); const h = document.createElement("div"); h.className = "swhint"; h.textContent = text; document.body.append(h); setTimeout(() => h.remove(), 3400); }
-// The phone's back gesture (and Android back button) closes the drink instead of leaving the app.
-// Step by step: scroll so the step counter sits under the sticky bar and the whole step card fits on screen.
-function stepsIntoView() {
-  const sh = $("#sheet"), c = $("#sheet .cprog"); if (!c) return;
-  sh.scrollTop = c.getBoundingClientRect().top - sh.getBoundingClientRect().top + sh.scrollTop - $("#sheet .sheet-top").offsetHeight - 6;
+// Step by step: the step counter sits just under the sticky bar at the top, and each step card is as tall as the rest
+// of the screen down to the Back / Next bar, so a step fits on one screen. Measured, because the bars change height with
+// the phone and the language.
+const stepTop = () => $("#sheet .sheet-top").getBoundingClientRect().height + 6;
+function fitSteps() {
+  const sh = $("#sheet"), c = $("#sheet .cprog"), nav = $("#sheet .cnav"); if (sh.hidden || !c || !nav) return;
+  const above = stepTop() + $("#car").getBoundingClientRect().top - c.getBoundingClientRect().top;
+  sh.style.setProperty("--steph", `${Math.max(0, sh.clientHeight - above - parseFloat(getComputedStyle(nav).marginTop) - nav.getBoundingClientRect().height)}px`);
 }
+addEventListener("resize", fitSteps);
+// Scroll to the steps and fit them; again on the next frame, once a language's words are in (they can make the bars taller).
+function stepsIntoView() { placeSteps(); requestAnimationFrame(placeSteps); }
+function placeSteps() {
+  const sh = $("#sheet"), c = $("#sheet .cprog"); if (sh.hidden || !c) return;
+  fitSteps();
+  sh.scrollTop = c.getBoundingClientRect().top - sh.getBoundingClientRect().top + sh.scrollTop - stepTop();
+}
+// The phone's back gesture (and Android back button) closes the drink instead of leaving the app.
 function showSheet(keepScroll) {
   const sh = $("#sheet"); sh.classList.remove("closing"); sh.hidden = false; document.body.style.overflow = "hidden";
   if (!keepScroll && !history.state?.sheet) history.pushState({ sheet: 1 }, "");
@@ -3458,7 +3492,7 @@ document.addEventListener("change", (e) => { if (e.target.matches("select[data-l
 // age: the minimum wage band. slips: payslips by month. hol: "accrue" or "rolled"; holStart: the leave year's first month;
 // holCarry: holiday hours brought into the leave year.
 const PAY_DEFAULT = { rate: "12.71", code: "1257L", trOn: true, loan: "", pgl: false, pen: false, pension: "5", plan: {}, wk: 0, ded: [], bills: [],
-  age: "21", slips: {}, hol: "accrue", holStart: "01", holCarry: "", trRate: "" };
+  age: "21", slips: {}, hol: "accrue", holStart: "01", holCarry: "", trRate: "", holDay: "", holWhat: "", holBuilt: "", holTaken: "" };
 const num = (v) => { const n = Number(String(v).replace(/[£,\s]/g, "").replace(/^\((.*)\)$/, "$1")); return Number.isFinite(n) && n >= 0 ? n : 0; };
 const payStored = store.get("pay", {});
 let pay = { ...PAY_DEFAULT, ...payStored };
@@ -3539,7 +3573,8 @@ function payDay(m) {
    until the day comes. */
 let hoursLog = store.get("hours", []);
 const BREAKS = [0, 15, 20, 30, 45, 60];
-const logMin = (x) => (x.hol ? Math.round(num(x.h) * 60) : Math.max(0, shiftLen(x) - x.brk));
+// A day logged as just its hours ({ hrs: true, h }) has no times, so it isn't checked for breaks or rest.
+const logMin = (x) => (x.hol || x.hrs ? Math.round(num(x.h) * 60) : Math.max(0, shiftLen(x) - x.brk));
 const sumMin = (xs) => xs.reduce((n, x) => n + logMin(x), 0);
 const mOf = (day) => day.slice(0, 7);
 const prevM = (m) => addDays(m + "-01", -1).slice(0, 7);
@@ -3549,7 +3584,7 @@ const inM = (m) => hoursLog.filter((x) => mOf(x.day) === m).sort((a, b) => (a.da
 const workIn = (m) => inM(m).filter((x) => !x.hol), holIn = (m) => inM(m).filter((x) => x.hol);
 // The month on screen (this month to start with; next month at the most, for planned shifts), and the add form.
 let pm = "";
-const hf = { open: false, hol: false, days: new Set(), start: "", end: "", brk: 0, h: "" };
+const hf = { open: false, hol: false, mode: "hours", days: new Set(), start: "", end: "", brk: 0, h: "" };
 const curM = () => mOf(shiftDay());
 const lastPm = () => nextM(nextM(nextM(curM())));
 // wk: about how many hours a week, picked once; it fills any month with nothing else.
@@ -3629,7 +3664,7 @@ function monthPay(m) {
 // The start and finish times this person logs most, for one tap.
 function hfTimes() {
   const n = new Map();
-  for (const x of hoursLog) if (!x.hol) { const k = `${x.start}-${x.end}`; n.set(k, (n.get(k) || 0) + 1); }
+  for (const x of hoursLog) if (!x.hol && !x.hrs) { const k = `${x.start}-${x.end}`; n.set(k, (n.get(k) || 0) + 1); }
   return [...n].sort((a, b) => b[1] - a[1]).slice(0, 4).map(([k]) => k.split("-"));
 }
 const newId = () => Math.random().toString(36).slice(2, 10);
@@ -3638,7 +3673,7 @@ function addShifts(list) {
   const add = [], clash = [];
   for (const s of list) {
     const x = { id: newId(), day: s.day, start: s.start, end: s.end, brk: s.brk }, [a, b] = roSpan(x);
-    if ([...hoursLog, ...add].some((y) => !y.hol && roSpan(y)[0] < b && a < roSpan(y)[1])) clash.push(dayName(s.day)); else add.push(x);
+    if ([...hoursLog, ...add].some((y) => !y.hol && !y.hrs && roSpan(y)[0] < b && a < roSpan(y)[1]) || hoursLog.some((y) => y.hrs && y.day === s.day)) clash.push(dayName(s.day)); else add.push(x);
   }
   hoursLog = [...hoursLog, ...add]; store.set("hours", hoursLog);
   const saved = add.length ? `Saved ${add.length === 1 ? `${hrs(logMin(add[0]))} on ${dayName(add[0].day)}` : `${add.length} shifts, ${hrs(sumMin(add))}`}` : "";
@@ -3937,13 +3972,13 @@ async function slipFiles(files) {
 // Payslips read: the dated ones are saved straight away, oldest first, and each undated one asks for its month.
 function slipTakeAll(texts) {
   const read = texts.map(readSlip).filter((S) => S.gross || S.net), dated = read.filter((S) => S.m).sort((a, b) => a.m.localeCompare(b.m)), undated = read.filter((S) => !S.m);
-  if (!read.length) { slip.busy = "No pay figures found. Try a clearer photo, the PDF, or paste the text."; return renderPay(); }
+  if (!read.length) { slip.busy = "No pay figures found. Try a clearer photo, the PDF, or paste the text."; payTab = "month"; return renderPay(); }
   const learnt = [];
   for (const S of dated) { pay.slips[S.m] = S; learnt.push(...learnSlip(S)); }
   savePay();
   Object.assign(slip, { busy: "", text: "", learnt: [...new Set(learnt)], queue: undated.slice(1), open: !!undated.length, read: undated[0] || null });
   if (dated.length) pm = dated[dated.length - 1].m;
-  slip.m = pm;
+  slip.m = pm; payTab = "month";
   haptic(); renderPay();
   toast(read.length === 1 && dated.length ? `Payslip for ${mName(dated[0].m)} saved` : `${dated.length} payslip${dated.length === 1 ? "" : "s"} saved${undated.length ? `, ${undated.length} to put a month to` : ""}`);
 }
@@ -3970,31 +4005,49 @@ function slipPanelHtml() {
    hour, from the start of the leave year, plus any brought in, less holiday taken (on a payslip, or booked here). What's
    left is worth that many hours at the holiday rate. Rolled up: 12.07% is added to each payslip instead. */
 const holYear = () => { const m = curM(), s = pay.holStart || "01", y = m.slice(5) >= s ? +m.slice(0, 4) : +m.slice(0, 4) - 1; return `${y}-${s}`; };
+// Holiday in hours and in days of holDay() hours. Built up is worked out from the payslips and shifts unless the person
+// typed what their rota shows (holBuilt, days); taken is the payslips' holiday hours and the days booked here, unless
+// typed (holTaken, days). The leave year's end is predicted at holWhat hours a month, or the average.
+const leaveEnd = () => addDays(`${+holYear().slice(0, 4) + 1}${holYear().slice(4)}-01`, -1);
 function holiday() {
-  const from = holYear(), cm = curM(), today = shiftDay(), months = [];
-  for (let m = from; m <= lastPm(); m = nextM(m)) months.push(m);
-  let built = 0, taken = 0, booked = 0;
+  const from = holYear(), cm = curM(), today = shiftDay(), end = mOf(leaveEnd()), day = holDay(), months = [];
+  for (let m = from; m <= end; m = nextM(m)) months.push(m);
+  let built = 0, taken = 0, booked = 0, ahead = 0;
+  const per = num(pay.holWhat) || (avgHours(nextM(cm)) || {}).h || 0;
   for (const m of months) {
+    const W = workedOf(m), S = pay.slips[m];
     if (m <= cm) {
-      const W = workedOf(m), h = W.from === "log" ? sumMin(workIn(m).filter((x) => x.day <= today)) / 60 : W.h;
-      built += m === cm && ["week", "avg", "plan"].includes(W.from) ? 0 : Math.round(h * HOLIDAY);
-    }
-    const S = pay.slips[m];
+      const h = W.from === "log" ? sumMin(workIn(m).filter((x) => x.day <= today)) / 60 : W.h;
+      const now = m === cm && ["week", "avg", "plan"].includes(W.from) ? 0 : Math.round(h * HOLIDAY);
+      built += now;
+      // The rest of this month, from the shifts still to come or the hours a month ahead.
+      if (m === cm && !S) ahead += W.from === "log" ? Math.round(sumMin(workIn(m).filter((x) => x.day > today)) / 60 * HOLIDAY) : now ? 0 : Math.round(per * HOLIDAY);
+    } else ahead += Math.round(per * HOLIDAY);
     if (S && S.holH) taken += S.holH;
     else for (const x of holIn(m)) { if (x.day <= today) taken += num(x.h); else booked += num(x.h); }
   }
-  const left = pence(num(pay.holCarry) + built - taken - booked), rate = holRate();
-  return { from, built, taken: pence(taken), booked: pence(booked), left, rate, worth: pence(Math.max(0, left) * rate) };
+  const typed = (k) => pay[k] !== "" && pay[k] != null && Number.isFinite(Number(pay[k]));
+  if (typed("holBuilt")) built = num(pay.holBuilt) * day;
+  if (typed("holTaken")) { taken = num(pay.holTaken) * day; booked = 0; }
+  const left = pence(num(pay.holCarry) + built - taken - booked), rate = holRate(), proj = pence(left + ahead);
+  return { from, end: leaveEnd(), day, per, built: pence(built), taken: pence(taken), booked: pence(booked), left, proj, rate, worth: pence(Math.max(0, left) * rate), projWorth: pence(Math.max(0, proj) * rate) };
 }
+const dys = (h, day) => `${fmtN(pence(h / day))} day${pence(h / day) === 1 ? "" : "s"}`;
 function holHtml() {
   if (pay.hol === "rolled") {
     const r = payCalc(monthHours(pm));
     return `<p class="note">Your holiday pay comes with every payslip: 12.07% on top of your hours pay, ${gbp(r.hol)} in ${mName(pm)}. Time off is still yours to take; it just isn't paid again.</p>`;
   }
-  const h = holiday();
-  return `<div class="paystats"><div><b>${fmtN(h.built)}</b>Built up</div><div><b>${fmtN(h.taken + h.booked)}</b>Taken or booked</div><div><b>${fmtN(h.left)} h</b>Left</div></div>
-    <p class="note" style="text-align:center;margin:6px 0 0">Worth about ${gbp(h.worth)} at ${gbp(h.rate)} an hour</p>
-    <p class="note">Since ${mName(h.from, true)}: 12.07% of the hours on each payslip (or logged), to the nearest hour each month. It updates by itself with every payslip. Book time off below and the holiday pay goes into that month's take-home.</p>`;
+  const h = holiday(), d = h.day;
+  return `<div class="paystats"><div><b>${dys(h.built, d)}</b>Built up</div><div><b>${dys(h.taken + h.booked, d)}</b>Taken or booked</div><div><b>${dys(h.left, d)}</b>Left</div></div>
+    <p class="note" style="text-align:center;margin:6px 0 0">${fmtH(h.left)} h left, worth about <b>${gbp(h.worth)}</b></p>
+    <ol class="paysteps">
+      <li>A day of holiday is ${fmtH(d)} h${num(pay.holDay) ? ", as you set it" : ", your usual shift"}</li>
+      <li>Holiday is paid at ${gbp(h.rate)} an hour, your ${pay.slips && Object.values(pay.slips).some((x) => x.holRate) ? "payslip's holiday rate" : "hourly rate"}</li>
+      <li>${dys(h.left, d)} × ${fmtH(d)} h × ${gbp(h.rate)}: <b>${gbp(h.worth)}</b></li>
+    </ol>
+    <p class="note">By ${longDay(h.end)}: about <b>${dys(h.proj, d)}</b> left, worth ${gbp(h.projWorth)}, if you work ${fmtN(h.per)} h a month and book nothing else.</p>
+    <p class="note">${num(pay.holBuilt) || pay.holBuilt === "0" ? "Built up is the figure you typed." : `Built up since ${mName(h.from, true)}: 12.07% of the hours on each payslip (or logged), to the nearest hour each month.`} ${num(pay.holTaken) || pay.holTaken === "0" ? "Taken is the figure you typed." : "Taken is from your payslips and the days booked here."}</p>`;
 }
 
 /* The tax year (6 April to 5 April): each month from its payslip or the estimate, what's been paid so far, what's
@@ -4130,9 +4183,16 @@ function paySumHtml() {
     <div class="paybig">${r.net == null ? "?" : gbp(r.net)}</div>
     <p class="note" style="text-align:center;margin:0 0 10px">${src} · ${S ? "paid" : "pay day"} ${longDay(payDay(pm))}</p>
     <div class="paystats"><div><b>${fmtN(r.hours || 0)}</b>Hours</div><div><b>${tr ? gbp(tr) : "–"}</b>Tronc an hour</div><div><b>${gbp(r.gross)}</b>Gross</div></div>
-    ${H.planned ? `<p class="note" style="text-align:center;margin:6px 0 0">Including ${hrs(H.planned * 60)} still to work</p>` : ""}
+    ${(() => {
+      // Real and what-if: the pay on the hours worked so far, next to the month's figure with the hours still to come.
+      if (S || pm < curM()) return "";
+      const done = sumMin(H.xs.filter((x) => x.day <= shiftDay())) / 60;
+      if (!done || Math.abs(done - (r.hours || 0)) < 0.01) return "";
+      const D = payCalc({ ...H, hours: done });
+      return `<div class="payboth"><div><b>${gbp(D.net ?? 0)}</b>Worked so far<br>${fmtH(pence(done))} h</div><div><b>${r.net == null ? "?" : gbp(r.net)}</b>${H.src === "log" ? "With your planned shifts" : H.src === "plan" ? "With the hours you set" : "At your average"}<br>${fmtH(pence(r.hours || 0))} h</div></div>`;
+    })()}
     ${pm !== nm ? (() => { const N = monthPay(nm); return N.r.net == null ? "" : `<p class="note" style="text-align:center;margin:8px 0 0">Next pay, ${longDay(payDay(nm))}: about <b>${gbp(N.r.net)}</b> · <button class="linkbtn" data-pm-go="${nm}">See it</button></p>`; })() : ""}
-    ${hol ? `<p class="note" style="text-align:center;margin:4px 0 0">Holiday: <b>${fmtN(hol.left)} h</b> left, worth about ${gbp(hol.worth)} · <button class="linkbtn" data-go="hol">See it</button></p>` : ""}
+    ${hol ? `<p class="note" style="text-align:center;margin:4px 0 0">Holiday: <b>${dys(hol.left, hol.day)}</b> left, worth about ${gbp(hol.worth)} · <button class="linkbtn" data-go="hol">See it</button></p>` : ""}
     ${flags ? `<p style="text-align:center;margin:4px 0 0"><button class="linkbtn warnline" data-go="rights">${flags === 1 ? "1 thing to check in Your rights" : `${flags} things to check in Your rights`}</button></p>` : ""}
     ${pay.bills.length && left != null ? `<p class="note" style="text-align:center;margin:2px 0 0">Left after bills: <b class="${left < 0 ? "neg" : ""}">${sgbp(left)}</b></p>` : ""}`;
 }
@@ -4141,7 +4201,7 @@ function payOutHtml() {
   const M = monthPay(pm), H = M.H, row = (k, v, cls = "") => `<dt${cls}>${k}</dt><dd${cls}>${v}</dd>`;
   if (M.slip) {
     const S = M.slip, T = troncOf(S), C = slipCheck(S), ls = S.items.filter((x) => !["gross", "net", "dedtotal", "total"].includes(x.k));
-    const it = (x) => row(`<span translate="no">${esc(x.l)}</span>${x.k === "tronc" && T ? ` (${fmtH(T.h)} h${S.troncH ? "" : ` in ${mName(prevM(S.m))}`} at ${gbp(T.r)})` : x.u ? ` (${fmtH(x.u)} h${x.r ? ` at ${gbp(x.r)}` : ""})` : ""}`, `${SLIP_DED.has(x.k) ? "−" : ""}${gbp(x.a)}`);
+    const it = (x) => row(`${SLIP_NAMES[x.k] && SLIP_NAMES[x.k].toLowerCase() !== x.l.toLowerCase() ? `${SLIP_NAMES[x.k]} <span class="muted" translate="no">${esc(x.l)}</span>` : `<span translate="no">${esc(x.l)}</span>`}${x.k === "tronc" && T ? ` (${fmtH(T.h)} h${S.troncH ? "" : ` in ${mName(prevM(S.m))}`} at ${gbp(T.r)})` : x.u ? ` (${fmtH(x.u)} h${x.r ? ` at ${gbp(x.r)}` : ""})` : ""}`, `${SLIP_DED.has(x.k) ? "−" : ""}${gbp(x.a)}`);
     return `${rateLine(S.basicRate || num(pay.rate), T ? T.r : 0)}
       <dl class="kv paykv">${ls.filter((x) => !SLIP_DED.has(x.k)).map(it).join("")}${row("Gross", gbp(S.gross))}${ls.filter((x) => SLIP_DED.has(x.k)).map(it).join("")}${row("Take-home", gbp(S.net), ' class="take"')}</dl>
       ${S.code ? `<p class="note">Tax code <span translate="no">${esc(S.code)}</span>${S.basis ? ", W1/M1 basis" : ""}${S.date ? ` · paid ${dayName(S.date)}` : ""}</p>` : ""}
@@ -4167,16 +4227,39 @@ function payOutHtml() {
     ${pay.trOn ? `<p class="note">Tronc is paid on the hours worked the month before, at ${troncFrom(H)}. It's an estimate: the real tronc changes month to month.</p>` : ""}
     <div class="actions">${sendBtn("pay", "Send the breakdown")}</div>`;
 }
+// The month in plain steps, from the hours to the take-home, and two bars: what was earned, and where it goes.
+function addUpHtml() {
+  const M = monthPay(pm), r = M.r, S = M.slip, H = M.H, T = S ? troncOf(S) : null;
+  if (!r.gross) return `<p class="note">Nothing to add up yet. Add a payslip, or put in the hours you expect to work.</p>`;
+  const rate = S ? S.basicRate || num(pay.rate) : num(pay.rate), tr = S ? T?.r : H.troncRate, th = S ? T?.h : H.troncHours;
+  const ded = [["Income tax", r.tax, "var(--warn)"], ["National Insurance", r.ni, "var(--cool)"], ["Student loan", r.loan, "var(--game)"], ["Pension", r.pension, "var(--brass)"], ["Other deductions", r.other, "var(--muted)"]].filter(([, v]) => v > 0);
+  const D = pence(ded.reduce((n, [, v]) => n + v, 0));
+  const steps = [
+    r.hours ? `${fmtH(r.hours)} h at ${gbp(rate)} an hour: <b>${gbp(r.basic)}</b>` : r.basic ? `Hours pay: <b>${gbp(r.basic)}</b>` : "",
+    r.hol ? `Holiday pay${r.holH ? ` for ${fmtH(r.holH)} h` : ""}: <b>${gbp(r.hol)}</b>` : "",
+    r.tronc ? `Tronc on ${th ? `the ${fmtH(th)} h you worked in ${mName(prevM(pm))}, at ${gbp(tr)} an hour` : `the hours you worked in ${mName(prevM(pm))}`}: <b>${gbp(r.tronc)}</b>` : "",
+    `Before tax: <b>${gbp(r.gross)}</b>`,
+    D ? `Taken off: ${ded.map(([k, v]) => `${k.toLowerCase().replace("national insurance", "National Insurance")} ${gbp(v)}`).join(", ")}: <b>−${gbp(D)}</b>` : "Nothing taken off",
+    r.net == null ? "Take-home: check the tax code under More, Settings" : `You take home: <b>${gbp(r.net)}</b>`,
+  ].filter(Boolean);
+  const bar = (xs) => `<div class="paybar" aria-hidden="true">${xs.map(([, v, c]) => `<i style="flex:${v};background:${c}"></i>`).join("")}</div>
+    <ul class="paykey">${xs.map(([k, v, c]) => `<li><i style="background:${c}"></i><span>${k}</span><b>${gbp(v)}</b><span class="muted">${Math.round((v / r.gross) * 100)}%</span></li>`).join("")}</ul>`;
+  const earned = [["Hours pay", r.basic, "var(--brass)"], ["Holiday pay", r.hol, "var(--ok)"], ["Tronc", r.tronc, "var(--game)"]].filter(([, v]) => v > 0);
+  return `<ol class="paysteps">${steps.map((x) => `<li>${x}</li>`).join("")}</ol>
+    ${earned.length > 1 ? `<div class="mini">What you earned</div>${bar(earned)}` : ""}
+    ${r.net != null ? `<div class="mini">Where it goes</div>${bar([["Take-home", r.net, "var(--ok)"], ...ded])}` : ""}
+    ${S ? "" : `<p class="note">${M.H.src === "avg" ? `A prediction from your average hours${pay.trOn ? ` and ${troncFrom(H)} for tronc` : ""}` : "An estimate"}. Change the hours above to see a different month.</p>`}`;
+}
 // Every month with something in it, and the months to come: hours, tronc an hour and take-home, one tap to open.
 function monthsHtml() {
   const ms = [], first = [...Object.keys(pay.slips), ...hoursLog.map((x) => mOf(x.day))].sort()[0] || curM();
   for (let m = lastPm(), i = 0; m >= first && i < 15; m = prevM(m), i++) ms.push(m);
-  return `<div class="paytable" role="list">${ms.map((m) => {
+  return `<div class="paytable" role="list"><div class="payrow payhead" aria-hidden="true"><span>Month</span><span>Hours</span><span>Tronc</span><span>Take-home</span></div>${ms.map((m) => {
     const M = monthPay(m), S = M.slip, T = S && troncOf(S), tr = S ? (T ? T.r : 0) : pay.trOn ? M.H.troncRate : 0;
     const lab = S ? "payslip" : M.H.src === "avg" ? "predicted" : m > curM() || M.H.src === "plan" ? "planned" : "estimate";
     return `<button class="payrow${m === pm ? " on" : ""}" role="listitem" data-pm-go="${m}"><span><b>${mName(m)}</b><i>${lab}</i></span><span>${fmtN(M.r.hours || 0)} h</span><span>${tr ? `${gbp(tr)}/h` : "–"}</span><span><b>${M.r.net == null ? "?" : gbp(M.r.net)}</b></span></button>`;
   }).join("")}</div>
-    <p class="note">Tap a month to see it line by line. Months without a payslip are predicted from your average hours and tronc an hour; change either below a month to see what it would pay.</p>`;
+    <p class="note">Tap a month to see how it adds up. Months without a payslip are predicted from your average hours and tronc an hour; open one to change its hours.</p>`;
 }
 // A calendar of the month on screen to pick the days worked, planned or booked off, with a dot where something's logged.
 function hfCal() {
@@ -4192,22 +4275,30 @@ function hfHtml() {
   const times = hfTimes(), n = hf.days.size;
   if (hf.hol) return `<div class="notice" id="hf">
       <div class="mini" style="margin-top:0">Tap each day of holiday</div>${hfCal()}
-      <label class="fld">Hours of holiday each day<input data-hf="h" inputmode="decimal" value="${esc(hf.h)}" placeholder="${fmtN(avgShift())}"></label>
+      <label class="fld">Hours of holiday each day<input data-hf="h" inputmode="decimal" value="${esc(hf.h)}" placeholder="${fmtN(holDay())}"></label>
       <p class="note" id="hf-worth">${hfWorth()}</p>
       <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Book ${n} days` : "Book it"}</button><button class="btn" data-hf-cancel>Done</button></div></div>`;
   return `<div class="notice" id="hf">
       <div class="mini" style="margin-top:0">Tap each day you worked or are down to work</div>${hfCal()}
-      <div class="two even"><label class="fld">Start time<input type="time" data-hf="start" value="${esc(hf.start)}"></label><label class="fld">End time<input type="time" data-hf="end" value="${esc(hf.end)}"></label></div>
+      <p class="note" style="margin:6px 0 0">Days gone are what you've worked; days to come are planned, to see what you'd get.</p>
+      <div class="recent" style="margin-top:8px" role="group" aria-label="How to put it in">${[["times", "Start and finish"], ["hours", "Just the hours"]].map(([k, t]) => `<button class="chip" data-hf-mode="${k}" aria-pressed="${hf.mode === k}">${t}</button>`).join("")}</div>
+      ${hf.mode === "hours" ? `<label class="fld">Hours each day<input data-hf="h" inputmode="decimal" value="${esc(hf.h)}" placeholder="8"></label>
+      <div class="recent" style="margin-top:8px" role="group" aria-label="Hours">${[4, 5, 6, 6.5, 7, 8, 9, 10].map((h) => `<button class="chip" data-hf-hq="${h}" aria-pressed="${num(hf.h) === h}">${h} h</button>`).join("")}</div>
+      <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Save ${n} days` : "Save it"}</button><button class="btn" data-hf-cancel>Done</button></div></div>` : `<div class="two even"><label class="fld">Start time<input type="time" data-hf="start" value="${esc(hf.start)}"></label><label class="fld">End time<input type="time" data-hf="end" value="${esc(hf.end)}"></label></div>
       ${times.length ? `<div class="recent" style="margin-top:8px">${times.map(([a, b]) => `<button class="chip" data-hf-times="${esc(a)}-${esc(b)}" aria-pressed="${a === hf.start && b === hf.end}">${esc(a)}–${esc(b)}</button>`).join("")}</div>` : ""}
       <div class="mini">Unpaid break</div>
       <div class="recent">${BREAKS.map((b) => `<button class="chip" data-hf-brk="${b}" aria-pressed="${b === hf.brk}">${b ? `${b} min` : "None"}</button>`).join("")}</div>
-      <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Save ${n} shifts` : "Save the shift"}</button><button class="btn" data-hf-cancel>Done</button></div></div>`;
+      <div class="actions"><button class="btn pri" data-hf-save>${n > 1 ? `Save ${n} shifts` : "Save the shift"}</button><button class="btn" data-hf-cancel>Done</button></div></div>`}`;
 }
 // A usual shift: the average logged, or 8 hours.
 const avgShift = () => { const xs = hoursLog.filter((x) => !x.hol); return xs.length ? pence(sumMin(xs) / 60 / xs.length) : 8; };
-const hfWorth = () => { const h = (num(hf.h) || avgShift()) * Math.max(1, hf.days.size); return `${fmtN(h)} h of holiday is worth ${gbp(pence(h * holRate()))} before tax, paid with that month's pay.`; };
+// A day of holiday in hours: what the person set (their rota's average day), or their usual shift.
+const holDay = () => num(pay.holDay) || avgShift();
+const hfWorth = () => { const h = (num(hf.h) || holDay()) * Math.max(1, hf.days.size); return `${fmtN(h)} h of holiday is worth ${gbp(pence(h * holRate()))} before tax, paid with that month's pay.`; };
 const hrRow = (x) => x.hol ? `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "long", day: "numeric", month: "short" })} <span class="payrt">Holiday</span></div>
   <div class="s"><span>${fmtN(num(x.h))} h, worth ${gbp(pence(num(x.h) * holRate()))}</span> · <button class="linkbtn" data-hr-del="${esc(x.id)}">Remove</button></div></div>`
+  : x.hrs ? `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "long", day: "numeric", month: "short" })} <span class="payrt">${fmtN(num(x.h))} h</span></div>
+  <div class="s"><span>${x.day > shiftDay() ? "Planned" : "Worked"}, ${gbp(pence(num(x.h) * num(pay.rate)))} before tax</span> · <button class="linkbtn" data-hr-del="${esc(x.id)}">Remove</button></div></div>`
   : `<div class="staffrow"><div class="n">${dayName(x.day, { weekday: "long", day: "numeric", month: "short" })} <span class="payrt">${esc(x.start)}–${esc(x.end)}</span></div>
   <div class="s"><span>${x.day > shiftDay() ? "Planned · " : ""}${hrs(logMin(x))}${x.brk ? ` after a ${x.brk} min break` : ""}</span> · <button class="linkbtn" data-hr-del="${esc(x.id)}">Remove</button></div></div>`;
 // The month's shifts, a week at a time with each week's hours, like a payslip's timesheet.
@@ -4225,20 +4316,21 @@ function payInner() {
   const f = (k, label, hint = "", mode = "decimal") => `<label class="fld">${label}<input data-pay="${k}" inputmode="${mode}" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
   const M = monthPay(pm), H = M.H, open = (k) => (paySec.has(k) ? " open" : ""), ns = Object.keys(pay.slips).length, xs = inM(pm);
   const panel = hf.open ? hfHtml() : slip.open ? slipPanelHtml() : "";
-  return `<div class="paymonth"><button class="round" data-pm="-1" aria-label="Month before">‹</button><h2 id="pay-h">${mName(pm, true)}</h2><button class="round" data-pm="1" aria-label="Month after"${pm === lastPm() ? " disabled" : ""}>›</button></div>
-    ${(() => { const os = oldSlips(); return os.length ? `<p class="note warnline" id="pay-old">Your ${listOf(os.map((S) => mName(S.m)))} payslip${os.length === 1 ? " was" : "s were"} read before the payslip reader was fixed, so the hours and tronc are wrong. Tap Add payslips and pick ${os.length === 1 ? "it" : "them"} again: ${os.length === 1 ? "it replaces the old one" : "they replace the old ones"}.</p>` : ""; })()}
-    <div class="paycard" id="pay-sum">${paySumHtml()}</div>
-    ${M.slip ? "" : `<div class="paygrid"><label class="fld">Hours in ${mName(pm)}<input data-pay-plan inputmode="decimal" value="${esc(pay.plan[pm] ?? "")}" placeholder="${fmtN(planless(pm))}"></label>
-      ${pay.trOn ? `<label class="fld">Tronc an hour (£)<input data-pay="trRate" inputmode="decimal" value="${esc(pay.trRate ?? "")}" placeholder="${troncAuto(pm).r.toFixed(2)}"></label>` : ""}</div>
-      <p class="note">Put in the hours you expect to work to see what ${mName(pm)} would pay. Clear it to go back to your average. Tronc an hour applies to every month without a payslip.</p>`}
-    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add shifts</button></div>
-    <p class="note" id="slip-st" aria-live="polite">${esc(slip.busy)}</p>
-    ${slip.learnt.length ? `<p class="note">Updated from your payslip: ${slip.learnt.map((x) => `<b>${esc(x)}</b>`).join(", ")}.</p>` : ""}
-    ${panel}
-    <div class="sec">${mName(pm)} line by line</div>
-    <div id="pay-out">${payOutHtml()}</div>
-    <div class="sec">Month by month</div>
+  const tabs = `<div class="recent paytabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button class="chip" role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}" aria-pressed="${payTab === k}">${t}</button>`).join("")}</div>`;
+  if (payTab === "months") return `${tabs}
     <div id="pay-months">${monthsHtml()}</div>
+    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add hours</button></div>`;
+  if (payTab === "hol") return `${tabs}
+    <div class="paycard" id="pay-hol">${holHtml()}</div>
+    ${pay.hol === "rolled" ? "" : `<div class="actions"><button class="btn" data-hol-book>Book holiday</button></div>
+      <div class="mini">Make it match your rota</div>
+      <p class="note">Leave any blank to let the app work it out. Typed figures stay on this phone.</p>
+      <div class="paygrid">${f("holDay", "Hours in a holiday day", fmtN(avgShift()))}${f("holWhat", "Hours a month from now on", fmtN(holiday().per))}
+        ${f("holBuilt", "Built up so far (days)", "")}${f("holTaken", "Taken so far (days)", "")}</div>
+      <div class="paygrid">${f("holCarry", "Hours brought in", "0")}</div>`}
+    ${panel}
+    <p class="note">Change how holiday is paid, when the leave year starts and hours brought in under More, Settings.</p>`;
+  if (payTab === "more") return `${tabs}
     <details class="setup" data-sec="slips"${open("slips")}><summary>Your payslips (${ns})</summary>
       ${ns ? Object.values(pay.slips).sort((a, b) => b.m.localeCompare(a.m)).map((S) => `<div class="staffrow"><div class="n">${mName(S.m, true)} <span class="payrt">${gbp(S.net)}</span></div>
         <div class="s"><span>Gross ${gbp(S.gross)} · ${fmtH(S.basicH)} h${S.tronc ? ` · tronc ${gbp(S.tronc)}` : ""}</span> · <button class="linkbtn" data-pm-go="${S.m}">Open</button></div></div>`).join("")
@@ -4250,10 +4342,6 @@ function payInner() {
     <details class="setup" data-sec="shifts"${open("shifts")}><summary>Shifts in ${mName(pm)} (${xs.filter((x) => !x.hol).length})</summary>
       <div id="pay-shifts">${shiftsHtml(xs)}</div>
       ${H.xs.length ? `<div class="actions">${sendBtn("hours", "Send my hours")}</div>` : ""}
-    </details>
-    <details class="setup" id="pay-holsec" data-sec="hol"${open("hol")}><summary>Holiday</summary>
-      <div id="pay-hol">${holHtml()}</div>
-      ${pay.hol === "rolled" ? "" : `<div class="actions"><button class="btn" data-hol-book>Book holiday</button></div>`}
     </details>
     <details class="setup" data-sec="year"${open("year")}><summary>Tax year ${taxYearOf(pm)} to ${taxYearOf(pm) + 1}</summary><div id="pay-year">${yearHtml()}</div></details>
     <details class="setup" id="pay-rightsec" data-sec="rights"${open("rights")}><summary>Your rights: hours, breaks, rest, holiday, pay, tips and sick pay</summary>
@@ -4281,7 +4369,7 @@ function payInner() {
       <p class="note">Most people are put in at 5%. Tax relief pays a fifth of it, so 5% costs you 4%.</p>
       <div class="mini">Holiday</div>
       <div class="recent" role="group" aria-label="Holiday pay">${[["accrue", "Paid when I take it"], ["rolled", "Rolled up into each payslip"]].map(([k, t]) => `<button class="chip" data-pay-hol="${k}" aria-pressed="${pay.hol === k}">${t}</button>`).join("")}</div>
-      ${pay.hol === "rolled" ? "" : `<div class="paygrid"><label class="fld">Leave year starts<select data-pay-sel="holStart">${MONTHS.map((x, i) => `<option value="${two(i + 1)}"${pay.holStart === two(i + 1) ? " selected" : ""}>${mName(`2026-${two(i + 1)}`)}</option>`).join("")}</select></label>${f("holCarry", "Hours brought in", "0")}</div>`}
+      ${pay.hol === "rolled" ? "" : `<div class="paygrid"><label class="fld">Leave year starts<select data-pay-sel="holStart">${MONTHS.map((x, i) => `<option value="${two(i + 1)}"${pay.holStart === two(i + 1) ? " selected" : ""}>${mName(`2026-${two(i + 1)}`)}</option>`).join("")}</select></label></div>`}
       <div class="mini">No payslips or shifts? About how many hours a week</div>
       <div class="recent" role="group" aria-label="Hours a week">${[0, ...WEEKLY].map((w) => `<button class="chip" data-pay-wk="${w}" aria-pressed="${num(pay.wk) === w}">${w ? `${w} h` : "Off"}</button>`).join("")}</div>
       <div class="mini">Other deductions</div>
@@ -4289,16 +4377,36 @@ function payInner() {
       ${moneyRows("ded")}${moneyAdd("ded", "Uniform")}
     </details>
     <p class="note">An estimate, not a payslip, worked out with the 2026 to 2027 rates from GOV.UK. It stays on this phone: nobody else sees it and it never goes online.</p>`;
+  return `${tabs}
+    <div class="paymonth"><button class="round" data-pm="-1" aria-label="Month before">‹</button><h2 id="pay-h">${mName(pm, true)}</h2><button class="round" data-pm="1" aria-label="Month after"${pm === lastPm() ? " disabled" : ""}>›</button></div>
+    ${(() => { const os = oldSlips(); return os.length ? `<p class="note warnline" id="pay-old">Your ${listOf(os.map((S) => mName(S.m)))} payslip${os.length === 1 ? " was" : "s were"} read before the payslip reader was fixed, so the hours and tronc are wrong. Tap Add payslips and pick ${os.length === 1 ? "it" : "them"} again: ${os.length === 1 ? "it replaces the old one" : "they replace the old ones"}.</p>` : ""; })()}
+    <div class="paycard" id="pay-sum">${paySumHtml()}</div>
+    ${M.slip ? "" : `<div class="paygrid"><label class="fld">Hours in ${mName(pm)}<input data-pay-plan inputmode="decimal" value="${esc(pay.plan[pm] ?? "")}" placeholder="${fmtN(planless(pm))}"></label>
+      ${pay.trOn ? `<label class="fld">Tronc an hour (£)<input data-pay="trRate" inputmode="decimal" value="${esc(pay.trRate ?? "")}" placeholder="${troncAuto(pm).r.toFixed(2)}"></label>` : ""}</div>
+      <p class="note">Put in the hours you expect to work to see what ${mName(pm)} would pay. Clear it to go back to your average. Tronc an hour applies to every month without a payslip.</p>`}
+    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add hours</button></div>
+    <p class="note" id="slip-st" aria-live="polite">${esc(slip.busy)}</p>
+    ${slip.learnt.length ? `<p class="note">Updated from your payslip: ${slip.learnt.map((x) => `<b>${esc(x)}</b>`).join(", ")}.</p>` : ""}
+    ${panel}
+    <div class="sec">How ${mName(pm)} adds up</div>
+    <div id="pay-addup">${addUpHtml()}</div>
+    <details class="setup" data-sec="lines"${open("lines")}><summary>${M.slip ? "Every line on the payslip" : "Every line"}</summary>
+      <div id="pay-out">${payOutHtml()}</div>
+    </details>
+    <p class="note">Every month side by side is under Every month. Payslips, shifts, the tax year, your rights, bills and settings are under More.</p>`;
 }
 // Which folded sections are open, so redrawing keeps them open.
 const paySec = new Set();
+// My pay's four parts: the month on screen, every month side by side, holiday, and the rest.
+const PAY_TABS = [["month", "This month"], ["months", "Every month"], ["hol", "Holiday"], ["more", "More"]];
+let payTab = "month";
 function renderPay() {
   $$("#v-pay details[data-sec]").forEach((d) => (d.open ? paySec.add(d.dataset.sec) : paySec.delete(d.dataset.sec)));
   $("#v-pay").innerHTML = payInner();
 }
 // Typing only redraws the sums, so the keyboard stays up.
 const paySums = () => {
-  for (const [id, fn] of [["#pay-sum", paySumHtml], ["#pay-out", payOutHtml], ["#pay-months", monthsHtml], ["#pay-set", paySet], ["#pay-bills", billsOutHtml], ["#pay-hol", holHtml], ["#pay-rights", rightsHtml], ["#pay-year", yearHtml]]) { const e = $(id); if (e) e.innerHTML = fn(); }
+  for (const [id, fn] of [["#pay-sum", paySumHtml], ["#pay-addup", addUpHtml], ["#pay-out", payOutHtml], ["#pay-months", monthsHtml], ["#pay-set", paySet], ["#pay-bills", billsOutHtml], ["#pay-hol", holHtml], ["#pay-rights", rightsHtml], ["#pay-year", yearHtml]]) { const e = $(id); if (e) e.innerHTML = fn(); }
 };
 // Bills, and what's left of the month's take-home after them, a week at a time until the next pay day.
 const BILL_CHIPS = ["Rent", "Bills", "Phone", "Travel", "Food", "Subscriptions", "Savings", "Debt"];
@@ -4317,17 +4425,24 @@ function billsOutHtml() {
 SHARE.hours = () => {
   const xs = workIn(pm);
   return { what: "My hours", title: `My hours for ${mName(pm)}${LIVE.me ? `, ${LIVE.me}` : ""}`, head: [`In all: ${hrs(sumMin(xs))} from ${nShifts(xs.length)}`],
-    parts: [{ id: "shifts", label: "Shifts", lines: xs.map((x) => `${dayName(x.day)} ${x.start}–${x.end}${x.brk ? `, ${x.brk} min break` : ""}: ${hrs(logMin(x))}`) }] };
+    parts: [{ id: "shifts", label: "Shifts", lines: xs.map((x) => (x.hrs ? `${dayName(x.day)}: ${hrs(logMin(x))}` : `${dayName(x.day)} ${x.start}–${x.end}${x.brk ? `, ${x.brk} min break` : ""}: ${hrs(logMin(x))}`)) }] };
 };
 // Saves one shift (or a day of holiday) for each day picked.
 function hfSave() {
   const days = [...hf.days].sort();
   if (!days.length) return toast(hf.hol ? "Tap the days of holiday" : "Tap the days you worked");
   if (hf.hol) {
-    const h = num(hf.h) || avgShift(), have = new Set(holIn(pm).map((x) => x.day)), add = days.filter((d) => !have.has(d)).map((day) => ({ id: newId(), day, hol: true, h: String(h) }));
+    const h = num(hf.h) || holDay(), have = new Set(holIn(pm).map((x) => x.day)), add = days.filter((d) => !have.has(d)).map((day) => ({ id: newId(), day, hol: true, h: String(h) }));
     hoursLog = [...hoursLog, ...add]; store.set("hours", hoursLog);
     hf.days = new Set(); haptic(); renderPay();
     return toast(add.length ? `Booked ${fmtN(h * add.length)} h of holiday, worth ${gbp(pence(h * add.length * holRate()))}` : "Those days are already booked");
+  }
+  if (hf.mode === "hours") {
+    const h = num(hf.h); if (!h || h > 24) return toast("Put in the hours you worked each day");
+    const have = new Set(workIn(pm).map((x) => x.day)), add = days.filter((d) => !have.has(d)).map((day) => ({ id: newId(), day, hrs: true, h: String(h) })), skip = days.filter((d) => have.has(d));
+    hoursLog = [...hoursLog, ...add]; store.set("hours", hoursLog);
+    hf.days = new Set(); haptic(); renderPay();
+    return toast([add.length && `Saved ${fmtN(h * add.length)} h over ${add.length === 1 ? "1 day" : `${add.length} days`}`, skip.length && `${skip.map((d) => dayName(d)).join(", ")} already ha${skip.length === 1 ? "s" : "ve"} hours`].filter(Boolean).join(". "));
   }
   if (!ISO_TIME.test(hf.start) || !ISO_TIME.test(hf.end)) return toast("Put in when you started and finished");
   if (!logMin({ start: hf.start, end: hf.end, brk: hf.brk })) return toast("That comes to no hours. Check the times and the break");
@@ -4342,9 +4457,12 @@ function moneyAddFrom(k) {
 }
 const closePanels = () => { Object.assign(hf, { open: false, hol: false, days: new Set() }); Object.assign(slip, { open: false, busy: "", read: null, queue: [] }); };
 // Opens a folded section and brings it into view.
-const paySecGo = (k) => { const d = $(`#v-pay details[data-sec="${k}"]`); if (!d) return; d.open = true; paySec.add(k); d.scrollIntoView({ behavior: "smooth", block: "start" }); };
+const paySecGo = (k) => {
+  if (k === "hol") { payTab = "hol"; renderPay(); return $("#pay-hol").scrollIntoView({ behavior: "smooth", block: "start" }); }
+  payTab = "more"; paySec.add(k); renderPay(); $(`#v-pay details[data-sec="${k}"]`)?.scrollIntoView({ behavior: "smooth", block: "start" });
+};
 $("#v-pay").addEventListener("input", (e) => {
-  const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; if (h === "h") $("#hf-worth").textContent = hfWorth(); return; }
+  const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; if (h === "h" && $("#hf-worth")) $("#hf-worth").textContent = hfWorth(); return; }
   if (e.target.matches("[data-slip-text]")) { slip.text = e.target.value; return; }
   if (e.target.matches("[data-pay-plan]")) { const v = e.target.value.trim().slice(0, 6); if (v === "") delete pay.plan[pm]; else pay.plan[pm] = v; savePay(); return paySums(); }
   const k = e.target.dataset.pay; if (!k) return;
@@ -4353,7 +4471,7 @@ $("#v-pay").addEventListener("input", (e) => {
 });
 $("#v-pay").addEventListener("change", (e) => {
   const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; return; }
-  if (e.target.matches("[data-slip-file]")) { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) { closePanels(); slipFiles(fs); } return; }
+  if (e.target.matches("[data-slip-file]")) { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) { closePanels(); payTab = "month"; renderPay(); slipFiles(fs); } return; }
   if (e.target.matches("[data-slip-m]")) { slip.m = e.target.value; return; }
   const sel = e.target.dataset.paySel; if (sel) { pay[sel] = e.target.value; savePay(); paySums(); return; }
   const c = e.target.dataset.payCheck; if (!c) return;
@@ -4364,9 +4482,10 @@ $("#v-pay").addEventListener("click", (e) => {
   const mv = e.target.closest("[data-pm]");
   if (mv) { pm = +mv.dataset.pm > 0 ? nextM(pm) : prevM(pm); hf.days = new Set(); slip.learnt = []; renderPay(); haptic(); return; }
   const mg = e.target.closest("[data-pm-go]");
-  if (mg) { pm = mg.dataset.pmGo; hf.days = new Set(); slip.learnt = []; renderPay(); haptic(); $("#pay-h").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
+  if (mg) { pm = mg.dataset.pmGo; payTab = "month"; hf.days = new Set(); slip.learnt = []; renderPay(); haptic(); $("#pay-h").scrollIntoView({ behavior: "smooth", block: "start" }); return; }
   const go = e.target.closest("[data-go]"); if (go) return paySecGo(go.dataset.go);
-  if (e.target.closest("[data-hf-open]")) { closePanels(); hf.open = true; renderPay(); return; }
+  const tb = e.target.closest("[data-pay-tab]"); if (tb) { payTab = tb.dataset.payTab; closePanels(); haptic(); renderPay(); return; }
+  if (e.target.closest("[data-hf-open]")) { closePanels(); payTab = "month"; hf.open = true; renderPay(); return; }
   if (e.target.closest("[data-hol-book]")) { closePanels(); Object.assign(hf, { open: true, hol: true }); renderPay(); $("#hf")?.scrollIntoView({ block: "center" }); return; }
   if (e.target.closest("[data-hf-cancel], [data-slip-cancel]")) { closePanels(); renderPay(); return; }
   if (e.target.closest("[data-hf-save]")) return hfSave();
@@ -4378,10 +4497,12 @@ $("#v-pay").addEventListener("click", (e) => {
   if (dy) {
     const d = dy.dataset.hfDay; if (hf.days.has(d)) hf.days.delete(d); else hf.days.add(d);
     dy.setAttribute("aria-pressed", hf.days.has(d)); haptic();
-    const n = hf.days.size; $("[data-hf-save]").textContent = hf.hol ? (n > 1 ? `Book ${n} days` : "Book it") : n > 1 ? `Save ${n} shifts` : "Save the shift";
+    const n = hf.days.size; $("[data-hf-save]").textContent = hf.hol ? (n > 1 ? `Book ${n} days` : "Book it") : hf.mode === "hours" ? (n > 1 ? `Save ${n} days` : "Save it") : n > 1 ? `Save ${n} shifts` : "Save the shift";
     if (hf.hol) $("#hf-worth").textContent = hfWorth();
     return;
   }
+  const hq = e.target.closest("[data-hf-hq]"); if (hq) { hf.h = hq.dataset.hfHq; $('[data-hf="h"]').value = hf.h; $$("[data-hf-hq]").forEach((b) => b.setAttribute("aria-pressed", b === hq)); haptic(); return; }
+  const hm2 = e.target.closest("[data-hf-mode]"); if (hm2) { hf.mode = hm2.dataset.hfMode; haptic(); renderPay(); return; }
   const bk = e.target.closest("[data-hf-brk]");
   if (bk) { hf.brk = +bk.dataset.hfBrk; $$("[data-hf-brk]").forEach((b) => b.setAttribute("aria-pressed", b === bk)); haptic(); return; }
   const tm = e.target.closest("[data-hf-times]");
@@ -7636,7 +7757,7 @@ const HELP = {
     how: ["Make: tap ingredients and the matches update.", "My bar: the bottles you have. Specs: every spec on one line.", "Black Tap: our line-up and house serves."],
     behind: ["My bar and My drinks stay on this phone.", "Anything on the 86 board stops counting, so it won't suggest a drink you can't make tonight."] },
   pay: { t: "My pay", what: "An estimate of your take-home, not a payslip.",
-    how: ["Tap Add payslips and pick your payslips (photos, screenshots or PDFs, a year's at once). Every month fills in by itself: hours, rate, tronc an hour, tax, NI and take-home.", "Months without a payslip are predicted from your average hours and tronc an hour. Change either under a month to see what it would pay."],
+    how: ["Tap Add payslips and pick your payslips (photos, screenshots or PDFs, a year's at once). Every month fills in by itself: hours, rate, tronc an hour, tax, NI and take-home.", "This month shows how the month adds up, step by step. Every month puts them side by side; Holiday and More hold the rest.", "Months without a payslip are predicted from your average hours and tronc an hour. Type the hours you expect under the summary to see what it would pay."],
     behind: ["It stays on this phone: nobody else sees it and it never goes online. Payslips are read on the phone.", "Tronc is paid on the hours worked the month before, so its rate an hour is each payslip's tronc over the month before's hours. With no payslips yet it's a suggested £6.", "Tax uses the 2026 to 2027 GOV.UK rates, month by month. Your payslip is always the final word."] },
   reset: { t: "Reset this phone", what: "Wipes what Bar Book keeps on this phone and starts it again as new.",
     how: ["Type CLEAR, then tap Reset this phone."],
