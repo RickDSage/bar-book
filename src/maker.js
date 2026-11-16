@@ -159,7 +159,7 @@ const mk = {
   pick: store.get("mk.pick", []).filter((p) => p.k.startsWith("~") || MK.byKey.has(p.k)),
   bar: store.get("mk.bar", []).filter((k) => k.startsWith("~") || MK.byKey.has(k)),
   opt: { basics: true, kind: "all", ...store.get("mk.opt", {}) },
-  rnd: { mode: "any", mine: false, kind: "all", last: [], cur: null, ...store.get("mk.rnd", {}), cur: null },
+  rnd: { mode: "any", mine: false, kind: "all", mood: null, base: null, last: [], cur: null, ...store.get("mk.rnd", {}), cur: null },
   qs: { q: "", kind: "all", mine: false },
   bt: { view: "classics", kind: "all", ...store.get("mk.bt", {}) },
   edit: null, // the pick whose ml is being set
@@ -167,7 +167,7 @@ const mk = {
   fromBar: false, // showing what My bar can make
   typed: { make: "", bar: "" },
 };
-const mkSave = () => { store.set("mk.pane", mk.pane); store.set("mk.pick", mk.pick); store.set("mk.bar", mk.bar); store.set("mk.opt", mk.opt); store.set("mk.rnd", { mode: mk.rnd.mode, mine: mk.rnd.mine, kind: mk.rnd.kind, last: mk.rnd.last }); store.set("mk.bt", mk.bt); };
+const mkSave = () => { store.set("mk.pane", mk.pane); store.set("mk.pick", mk.pick); store.set("mk.bar", mk.bar); store.set("mk.opt", mk.opt); store.set("mk.rnd", { mode: mk.rnd.mode, mine: mk.rnd.mine, kind: mk.rnd.kind, mood: mk.rnd.mood, base: mk.rnd.base, last: mk.rnd.last }); store.set("mk.bt", mk.bt); };
 const mkName = (k) => (k.startsWith("~") ? k.slice(1) : MK.byKey.get(k).n);
 // What a typed item stands for: a list item if it reads like one, so "absolut raspberri vodka" still works as a vodka.
 const mkLike = (k) => (k.startsWith("~") ? mkFind(k.slice(1)) : MK.byKey.get(k));
@@ -210,8 +210,10 @@ function mkScore(d, held, picked) {
 function mkHeld(picks, withBar, basics) {
   const m = new Map();
   for (const p of picks) m.set(p.k, p);
-  if (withBar) for (const k of mk.bar) if (!m.has(k)) m.set(k, { k });
-  if (basics) for (const k of MK_BASICS) if (!m.has(k)) m.set(k, { k });
+  // Whatever is on the 86 board tonight isn't on the bar, so it doesn't count.
+  const out = plOutKeys();
+  if (withBar) for (const k of mk.bar) if (!m.has(k) && !out.has(k)) m.set(k, { k });
+  if (basics) for (const k of MK_BASICS) if (!m.has(k) && !out.has(k)) m.set(k, { k });
   return [...m.values()];
 }
 const mkKindOk = (d, kind) => kind === "all" || mkKids(d) === kind;
@@ -680,14 +682,23 @@ function mkMakePane() {
     const ready = res.filter((r) => !r.miss.length), one = res.filter((r) => r.miss.length === 1), more = res.filter((r) => r.miss.length > 1).slice(0, 20);
     const block = (t, a) => a.length ? `<div class="sec">${t}<span class="cnt">${a.length}</span></div>${a.slice(0, 40).map(mkResHtml).join("")}` : "";
     out = `<div class="mk-opts"><span class="mini" style="margin:0;align-self:center">From My bar (${mk.bar.length})</span><button class="chip" aria-pressed="${mk.opt.basics}" data-mk-opt="basics">+ bar basics</button><button class="chip" data-mk="unbar">Close</button></div>`
-      + (res.length ? block("Make it now", ready) + block("Missing one thing", one) + block("Missing two or more", more) : `<p class="empty">Nothing in the book fits My bar yet.</p>`);
+      + (res.length ? mkNextHtml(one) + block("Make it now", ready) + block("Missing one thing", one) + block("Missing two or more", more) : `<p class="empty">Nothing in the book fits My bar yet.</p>`);
   } else {
     MK.ids = [];
     out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>
       <div class="mk-row2"><button class="btn pri" data-mk-pane="bt">Black Tap classics</button><button class="btn" data-mk-pane="rnd">Can't decide? Spin</button></div>
+      <button class="btn wide" style="margin-top:8px" data-mk-pane="mine">My drinks${mineAll().length ? ` (${mineAll().length})` : ""}</button>
       ${mk.bar.length ? `<button class="btn wide" style="margin-top:8px" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
   }
   return `${mkTypeBox("make", "Type anything: vodka, 50ml lime…")}${mkShelf(on)}${picks}${kinds}<div id="mk-out">${out}</div>`;
+}
+// The bottles that would open up the most drinks: each "missing one thing" counts for the thing it's missing.
+function mkNextHtml(one) {
+  const n = new Map();
+  for (const r of one) { const it = MK.items.find((i) => i.n === r.miss[0]); if (it) n.set(it, (n.get(it) || 0) + 1); }
+  const top = [...n].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!top.length) return "";
+  return `<div class="mini">Best next bottles</div><div class="chips hrow mk-next">${top.map(([it, c]) => `<button class="chip" data-mk-add="${esc(it.k)}" data-mk-to="bar">+ ${esc(it.n)} <small>${c} more</small></button>`).join("")}</div>`;
 }
 /* ---------- Line-up pane: Black Tap classics and the house serves ---------- */
 const BT_VIEWS = [["classics", "Black Tap classics"], ...BT_LINEUP.map(([g]) => [g, g])];
@@ -736,7 +747,9 @@ function mkBarPane() {
 function mkPool() {
   return D.filter((d) => (mk.rnd.mode === "any" || (mk.rnd.mode === "zero") === (mkKids(d) === "zero"))
     && (mk.rnd.mode !== "alc" || mk.rnd.kind === "all" || (mk.rnd.kind === "spritz" ? /Spritz/.test(d.section) : mkKids(d) === mk.rnd.kind))
-    && !isOut(d.name) && (!mk.rnd.mine || mkCanMake(d)));
+    && (!mk.rnd.mood || d.tags.some((t) => FLAVOURS[mk.rnd.mood].includes(t)))
+    && (!mk.rnd.base || mk.rnd.mode === "zero" || d._b === mk.rnd.base)
+    && !isOut(d.name) && plOutOf(d).ok && (!mk.rnd.mine || mkCanMake(d)));
 }
 function mkRndCard(d) {
   if (!d) return `<div class="mk-rnd"><p class="sub" style="margin:0">Tap Spin and the book picks one for you.</p></div>`;
@@ -745,14 +758,30 @@ function mkRndCard(d) {
     <div class="mk-how"><b>${esc(d.glass)}</b> · ${esc(d.ice)}<br>${esc(d.method)}<br>Garnish: ${esc(d.garnish)}</div>
     <button class="btn wide" data-mk-open="${d.id}">Open the full spec and step by step</button></div>`;
 }
+const MK_SPIRITS = [["vodka", "Vodka"], ["gin", "Gin"], ["rum", "Rum"], ["tequila", "Tequila"], ["whisky", "Whisky"]];
+/* Shake the phone to spin, as on a dice app. iPhones ask once (the first Spin tap is the permission tap); a firm shake,
+   not a walk across the bar, and only while the Spin page is showing. */
+const MK_SHAKE = { can: typeof DeviceMotionEvent !== "undefined" && matchMedia("(pointer:coarse)").matches, on: false, last: 0 };
+async function mkShakeOn() {
+  if (!MK_SHAKE.can || MK_SHAKE.on) return;
+  try { if (typeof DeviceMotionEvent.requestPermission === "function" && (await DeviceMotionEvent.requestPermission()) !== "granted") return; } catch { return; }
+  MK_SHAKE.on = true;
+  addEventListener("devicemotion", (e) => {
+    const a = e.accelerationIncludingGravity; if (!a || mk.pane !== "rnd" || $("#v-make").hidden || !$("#sheet").hidden) return;
+    const g = Math.hypot(a.x || 0, a.y || 0, a.z || 0), now = Date.now();
+    if (g > 24 && now - MK_SHAKE.last > 1500) { MK_SHAKE.last = now; mkSpin(); }
+  });
+}
 function mkRndPane() {
   const pool = mkPool();
   const seg = (k, l) => `<button aria-pressed="${mk.rnd.mode === k}" data-mk-rmode="${k}">${l}</button>`;
   return `<button class="btn" data-mk-pane="make" style="margin-top:4px">‹ Back to Make</button><p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
     <div class="seg" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Alcohol">${seg("alc", "Alcoholic")}${seg("zero", "Alcohol-free")}${seg("any", "Either")}</div>
     ${mk.rnd.mode === "alc" ? `<div class="chips hrow">${[["all", "Any"], ["cocktail", "Cocktail"], ["spritz", "Spritz"], ["shot", "Shot"]].map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.kind === k}" data-mk-rkind="${k}">${l}</button>`).join("")}</div>` : ""}
+    <div class="mini">Mood</div><div class="chips hrow">${Object.keys(FLAVOURS).map((k) => `<button class="chip" aria-pressed="${mk.rnd.mood === k}" data-mk-rmood="${esc(k)}">${esc(k)}</button>`).join("")}</div>
+    ${mk.rnd.mode === "zero" ? "" : `<div class="mini">Spirit</div><div class="chips hrow">${MK_SPIRITS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.base === k}" data-mk-rbase="${k}">${l}</button>`).join("")}</div>`}
     <div class="mk-opts"><button class="chip" aria-pressed="${mk.rnd.mine}" data-mk-rmine="1">Only what My bar can make</button></div>
-    <p class="note">${pool.length} ${pool.length === 1 ? "drink" : "drinks"} in the hat.${mk.rnd.mine && !mk.bar.length ? " My bar is empty, so add your bottles first." : ""}</p>
+    <p class="note">${pool.length} ${pool.length === 1 ? "drink" : "drinks"} in the hat.${mk.rnd.mine && !mk.bar.length ? " My bar is empty, so add your bottles first." : ""}${pool.length ? "" : " Take off a mood or spirit."}${MK_SHAKE.can ? " Or shake the phone." : ""}</p>
     <div id="mk-rcard">${mkRndCard(mk.rnd.cur && D[mk.rnd.cur])}</div>
     <button class="btn pri mk-spin" data-mk="spin"${pool.length ? "" : " disabled"}>${mk.rnd.cur != null ? "Spin again" : "Spin"}</button>`;
 }
@@ -770,7 +799,7 @@ function mkQsPane() {
 }
 function renderMaker() {
   const tabs = [["make", "Make"], ["bt", "Black Tap"], ["bar", "My bar"], ["qs", "Specs"]];
-  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane }[mk.pane] || mkMakePane;
+  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane, mine: () => minePane() }[mk.pane] || mkMakePane;
   // By the English name, as the open ones may be showing in another language (trWas keeps the English).
   const open = [...$$("#v-make details[open] summary")].map((s) => trWas.get(s.firstChild) ?? s.firstChild.textContent);
   $("#v-make").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cocktail maker</h2>
@@ -848,6 +877,8 @@ $("#v-make").addEventListener("click", (e) => {
   if (ds.mkKind) { mk.opt.kind = ds.mkKind; mkSave(); return mkRedraw(); }
   if (ds.mkRmode) { mk.rnd.mode = ds.mkRmode; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.mkRkind) { mk.rnd.kind = ds.mkRkind; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
+  if ("mkRmood" in ds) { mk.rnd.mood = mk.rnd.mood === ds.mkRmood ? null : ds.mkRmood; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
+  if ("mkRbase" in ds) { mk.rnd.base = mk.rnd.base === ds.mkRbase ? null : ds.mkRbase; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.mkRmine) { mk.rnd.mine = !mk.rnd.mine; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.btUse) { mk.pick = [{ k: ds.btUse }]; mk.fromBar = false; mk.edit = null; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }
   if (ds.btView) { mk.bt.view = ds.btView; mkSave(); return mkRedraw(); }
@@ -855,7 +886,7 @@ $("#v-make").addEventListener("click", (e) => {
   if (ds.mkQkind) { mk.qs.kind = ds.mkQkind; $("#mk-pane").innerHTML = mkQsPane(); return; }
   if (ds.mkQmine) { mk.qs.mine = !mk.qs.mine; $("#mk-pane").innerHTML = mkQsPane(); return; }
   const a = ds.mk;
-  if (a === "spin") return mkSpin();
+  if (a === "spin") { mkShakeOn(); return mkSpin(); }
   if (a === "btbar") { const ks = new Set(mk.bar); for (const k of BT_KEYS) ks.add(k); mk.bar = [...ks]; mkSave(); toast(`Line-up loaded: My bar has ${mk.bar.length} items`); return mkRedraw(); }
   if (a === "keep") { for (const p of mk.pick) if (!mk.bar.includes(p.k)) mk.bar.push(p.k); mkSave(); toast(`Kept in My bar (${mk.bar.length})`); return mkRedraw(); }
   if (a === "clear") { mk.pick = []; mk.edit = null; mkSave(); return mkRedraw(); }
