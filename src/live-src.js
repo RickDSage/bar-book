@@ -187,7 +187,7 @@ const SIDE = { open: "bar", close: "bar", fset: "floor", fshake: "floor", fclose
 const DEST_SIDE = { up: "bar", down: "bar", shakes: "floor", floor: "floor" };
 const RS_OPEN = ["asked", "given", "doing", "blocked", "delivered"];
 const joinErr = (e) => err(e.code === "permission-denied" ? "That team link didn't work. Ask for the latest one in the staff group"
-  : e.code === "auth/operation-not-allowed" ? "Joining isn't switched on yet in Firebase (Anonymous sign-in)" : "Couldn't join. Check your signal and try again");
+  : ["auth/operation-not-allowed", "auth/admin-restricted-operation"].includes(e.code) ? "Joining isn't switched on yet in Firebase (Anonymous sign-in)" : "Couldn't join. Check your signal and try again");
 
 LIVE.api = {
   // A staff phone: signs in anonymously if it hasn't yet, then joins (or changes its name) with the team code.
