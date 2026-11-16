@@ -107,7 +107,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: .01e
   .gut:not(.sheet) { max-width: 760px; margin-inline: auto; }
   .sheet > * { max-width: 728px; margin-inline: auto; }
   .sheet > .sheet-top { margin-inline: auto; }
-  nav.tabs { padding-inline: max(env(safe-area-inset-left, 0px), calc((100% - 760px) / 2)); }
+  body nav.tabs { padding-inline: max(env(safe-area-inset-left, 0px), calc((100% - 760px) / 2)); }
 }
 /* Header */
 .brandbar { padding-block: 6px 0; }
@@ -913,6 +913,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-sheets" hidden></section>
   <section class="view" id="v-fun" hidden></section>
 
+  <section class="view" id="v-station" hidden></section>
   <section class="view" id="v-tally" hidden>
     <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
     <div id="football"></div>
@@ -4384,6 +4385,8 @@ function renderInfo() {
     <p class="note">Auto follows your phone. This phone only.</p>
     <div class="mini" style="margin-top:14px">Help buttons (?)</div>
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
+    <button class="btn wide" data-go="station" style="margin-top:14px">Bar station screen</button>
+    <p class="note">One always-on screen for the iPad on the bar: tonight's 86s, how the close is going on both sides, the handover and Rapid fire.</p>
     <div class="mini" style="margin-top:14px">Shared iPad or tablet</div>
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div>
     <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a senior's code or the owner's login locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
@@ -5448,6 +5451,7 @@ function liveChanged(what) {
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
   if (what === "me") { autoJoin(); sharedLock(); }
   if (what === "lists") applyLists();
+  if (cur === "station") renderStation();
   if (what === "drafts" || what === "me") pullDraft();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
@@ -5519,7 +5523,7 @@ addEventListener("resize", csFit);
    the top that never scrolls sideways (Rapid fire, Menu, Make). More holds everything used less often: Allergens,
    Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
    Tapping the tab you're on takes you back to its top. */
-const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun"];
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station"];
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
 let cur = "drinks";
 function show(tab) {
@@ -5539,6 +5543,7 @@ function show(tab) {
   if (tab === "practice" && !pDrink) nextCard();
   if (tab === "sheets") renderSheets();
   if (tab === "fun") renderFun();
+  if (tab === "station") { renderStation(); keepAwake(); }
   if (tab === "tally") renderTally();
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();

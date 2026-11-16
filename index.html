@@ -107,7 +107,7 @@ h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: .01e
   .gut:not(.sheet) { max-width: 760px; margin-inline: auto; }
   .sheet > * { max-width: 728px; margin-inline: auto; }
   .sheet > .sheet-top { margin-inline: auto; }
-  nav.tabs { padding-inline: max(env(safe-area-inset-left, 0px), calc((100% - 760px) / 2)); }
+  body nav.tabs { padding-inline: max(env(safe-area-inset-left, 0px), calc((100% - 760px) / 2)); }
 }
 /* Header */
 .brandbar { padding-block: 6px 0; }
@@ -913,6 +913,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-sheets" hidden></section>
   <section class="view" id="v-fun" hidden></section>
 
+  <section class="view" id="v-station" hidden></section>
   <section class="view" id="v-tally" hidden>
     <div class="shift-top"><h2 id="shift-title">Bar shift</h2><span id="shift-day"></span></div>
     <div id="football"></div>
@@ -4459,6 +4460,8 @@ function renderInfo() {
     <p class="note">Auto follows your phone. This phone only.</p>
     <div class="mini" style="margin-top:14px">Help buttons (?)</div>
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
+    <button class="btn wide" data-go="station" style="margin-top:14px">Bar station screen</button>
+    <p class="note">One always-on screen for the iPad on the bar: tonight's 86s, how the close is going on both sides, the handover and Rapid fire.</p>
     <div class="mini" style="margin-top:14px">Shared iPad or tablet</div>
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div>
     <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a senior's code or the owner's login locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
@@ -5523,6 +5526,7 @@ function liveChanged(what) {
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
   if (what === "me") { autoJoin(); sharedLock(); }
   if (what === "lists") applyLists();
+  if (cur === "station") renderStation();
   if (what === "drafts" || what === "me") pullDraft();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
@@ -5704,7 +5708,7 @@ addEventListener("resize", csFit);
    the top that never scrolls sideways (Rapid fire, Menu, Make). More holds everything used less often: Allergens,
    Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
    Tapping the tab you're on takes you back to its top. */
-const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun"];
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station"];
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
 let cur = "drinks";
 function show(tab) {
@@ -5724,6 +5728,7 @@ function show(tab) {
   if (tab === "practice" && !pDrink) nextCard();
   if (tab === "sheets") renderSheets();
   if (tab === "fun") renderFun();
+  if (tab === "station") { renderStation(); keepAwake(); }
   if (tab === "tally") renderTally();
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();
@@ -6733,7 +6738,47 @@ $("#v-rapid").addEventListener("click", (e) => {
   // The line-up's serve cards live in Make; the subnav's own handler opens the tab, this picks the pane.
   if (e.target.closest("[data-rp-lineup]")) { mk.pane = "bt"; mk.bt.view = "Draught"; mkSave(); show("make"); }
 });
+/* ---------- Bar station: one always-on screen for the iPad on the bar ----------
+   Tonight's 86 board, how the close is going on each side, the handover and Rapid fire, in big type. Everything is the
+   same live data every phone sees; a tap opens the real page. The screen stays on while it's open. */
+function renderStation() {
+  const box = $("#v-station");
+  if (!LIVE.me) { box.innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Bar station</h2><p class="note">Join the team on this iPad first (Team tab): the station shows the team's live 86s, closing and handover.</p>`; return; }
+  const out = [...outNow()].sort(), today = shiftDay();
+  const side = (m) => {
+    const k = MODE_LISTS[m].at(-1), p = progress(k), r = LIVE.reports.find((x) => x.side === m && reportDay(x) === today);
+    const last = LIVE.reports.find((x) => x.side === m && !x.pending && reportDay(x) !== today);
+    return `<button class="st-tile" data-st-side="${m}"><span class="st-k">${esc(sideName(m))} closing</span>
+      <b class="st-big">${p.n}/${p.of}</b><span class="st-bar"><i style="width:${p.pct}%"></i></span>
+      <span class="st-s">${r ? (r.pending ? "Handover saved, waiting for signal" : `\u2705 Handover sent ${hhmm(new Date(ms(r.at)))} by ${esc(r.name)}`) : last ? `Last handover: ${esc(dayName(reportDay(last)))} by ${esc(last.name)}` : "No handover yet"}</span></button>`;
+  };
+  box.innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Bar station</h2>
+    <div class="st-grid">
+      <button class="st-tile st-86" data-st-go="stock"><span class="st-k">86'd tonight</span>
+        ${out.length ? `<span class="st-list" translate="no">${out.map(esc).join("<br>")}</span>` : `<b class="st-big">Nothing</b>`}<span class="st-s">Tap to 86 something or put it back</span></button>
+      ${side("bar")}${side("floor")}
+      <button class="st-tile" data-st-go="rapid"><span class="st-k">Rapid fire</span><b class="st-big">⚡</b><span class="st-s">Signatures and the Top 10, specs one tap away</span></button>
+    </div>`;
+}
+document.addEventListener("click", (e) => {
+  if (cur !== "station") return;
+  const sd = e.target.closest("[data-st-side]"); if (sd) { haptic(); setMode(sd.dataset.stSide); pane = closeList(); show("tally"); return; }
+  const g = e.target.closest("[data-st-go]"); if (!g) return; haptic();
+  if (g.dataset.stGo === "rapid") return show("rapid");
+  pane = "stock"; show("tally");
+});
+// The 86s and the close move on the station as they change; the clock-driven parts (signal, the 6am reset) every minute.
+setInterval(() => { if (cur === "station" && !document.hidden) renderStation(); }, 6e4);
 document.head.insertAdjacentHTML("beforeend", `<style>
+.st-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+@media (min-width:700px){.st-grid{grid-template-columns:1fr 1fr}.st-86{grid-row:span 2}}
+.st-tile{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:160px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--fg);text-align:left}
+.st-tile:active{border-color:var(--brass)}
+.st-k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--brass);font-weight:700}
+.st-big{font-family:var(--display);font-size:52px;line-height:1}
+.st-list{font-size:24px;font-weight:700;line-height:1.35}
+.st-s{color:var(--muted);font-size:16px;margin-top:auto}
+.st-bar{display:block;width:100%;height:10px;border-radius:999px;background:var(--line);overflow:hidden}.st-bar i{display:block;height:100%;background:var(--brass)}
 .rp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:6px 0 4px}
 .rp-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:104px;padding:10px 6px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;color:var(--fg)}
 .rp-tile .g{width:34px;height:40px}.rp-tile .g svg{width:100%;height:100%}
@@ -7516,6 +7561,11 @@ ul.spec li.pl-out{flex-wrap:wrap}.pl-swap{flex-basis:100%;font-style:normal;colo
    One setting in More (This phone) hides every ? once the team knows the app. Text only: nothing is saved or sent. */
 let helpFrom = null;
 const HELP = {
+  station: { t: "Bar station", what: "One always-on screen for the iPad on the bar: tonight's 86s, the close on both sides, the handover and Rapid fire.",
+    how: ["Tap a box to open that page. Back, then More, then Bar station brings it back.", "Turn on Shared in More, This phone, so it asks who's using it and never stays unlocked.",
+      "Keep it on Bar Book: in the iPad's Settings, Accessibility, Guided Access, turn it on and set a passcode. Open Bar Book, press the top button (or the Home button) three times, tap Start. Three presses and the passcode end it.",
+      "Stop the screen going off: Settings, Display & Brightness, Auto-Lock, Never. Keep the iPad on charge."],
+    behind: ["It's the same live data as every phone: nothing extra is saved.", "It redraws as soon as anything changes, and every minute for the clock."] },
   shift: { t: "The Shift tab", what: "Tonight's work for your side, in the order it happens.",
     how: ["Pick Bar or Floor at the top. Each phone remembers its side.", "Go left to right: Morning, Labels, Stock, Closing, Send.", "The small number on each tab shows what's left there."],
     behind: ["Everything here is shared live: every phone on your side sees the same ticks, 86s and handover.", "The shift day runs 6am to 6am UK time, so a close after midnight still counts as tonight."] },
@@ -7628,6 +7678,7 @@ const HELP_AT = [
   ["#send > h2", "send"],
   ["#sheet .pl-spech", "drink"],
   ["#v-rapid > h2", "rapid"],
+  ["#v-station > h2", "station"],
   ["#v-make > h2", "make"],
   ["#pay-h", "pay"],
   ['#v-info [data-fold="clear"] summary', "reset"],

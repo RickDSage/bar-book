@@ -75,7 +75,47 @@ $("#v-rapid").addEventListener("click", (e) => {
   // The line-up's serve cards live in Make; the subnav's own handler opens the tab, this picks the pane.
   if (e.target.closest("[data-rp-lineup]")) { mk.pane = "bt"; mk.bt.view = "Draught"; mkSave(); show("make"); }
 });
+/* ---------- Bar station: one always-on screen for the iPad on the bar ----------
+   Tonight's 86 board, how the close is going on each side, the handover and Rapid fire, in big type. Everything is the
+   same live data every phone sees; a tap opens the real page. The screen stays on while it's open. */
+function renderStation() {
+  const box = $("#v-station");
+  if (!LIVE.me) { box.innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Bar station</h2><p class="note">Join the team on this iPad first (Team tab): the station shows the team's live 86s, closing and handover.</p>`; return; }
+  const out = [...outNow()].sort(), today = shiftDay();
+  const side = (m) => {
+    const k = MODE_LISTS[m].at(-1), p = progress(k), r = LIVE.reports.find((x) => x.side === m && reportDay(x) === today);
+    const last = LIVE.reports.find((x) => x.side === m && !x.pending && reportDay(x) !== today);
+    return `<button class="st-tile" data-st-side="${m}"><span class="st-k">${esc(sideName(m))} closing</span>
+      <b class="st-big">${p.n}/${p.of}</b><span class="st-bar"><i style="width:${p.pct}%"></i></span>
+      <span class="st-s">${r ? (r.pending ? "Handover saved, waiting for signal" : `\u2705 Handover sent ${hhmm(new Date(ms(r.at)))} by ${esc(r.name)}`) : last ? `Last handover: ${esc(dayName(reportDay(last)))} by ${esc(last.name)}` : "No handover yet"}</span></button>`;
+  };
+  box.innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Bar station</h2>
+    <div class="st-grid">
+      <button class="st-tile st-86" data-st-go="stock"><span class="st-k">86'd tonight</span>
+        ${out.length ? `<span class="st-list" translate="no">${out.map(esc).join("<br>")}</span>` : `<b class="st-big">Nothing</b>`}<span class="st-s">Tap to 86 something or put it back</span></button>
+      ${side("bar")}${side("floor")}
+      <button class="st-tile" data-st-go="rapid"><span class="st-k">Rapid fire</span><b class="st-big">⚡</b><span class="st-s">Signatures and the Top 10, specs one tap away</span></button>
+    </div>`;
+}
+document.addEventListener("click", (e) => {
+  if (cur !== "station") return;
+  const sd = e.target.closest("[data-st-side]"); if (sd) { haptic(); setMode(sd.dataset.stSide); pane = closeList(); show("tally"); return; }
+  const g = e.target.closest("[data-st-go]"); if (!g) return; haptic();
+  if (g.dataset.stGo === "rapid") return show("rapid");
+  pane = "stock"; show("tally");
+});
+// The 86s and the close move on the station as they change; the clock-driven parts (signal, the 6am reset) every minute.
+setInterval(() => { if (cur === "station" && !document.hidden) renderStation(); }, 6e4);
 document.head.insertAdjacentHTML("beforeend", `<style>
+.st-grid{display:grid;grid-template-columns:1fr;gap:12px;margin-top:14px}
+@media (min-width:700px){.st-grid{grid-template-columns:1fr 1fr}.st-86{grid-row:span 2}}
+.st-tile{display:flex;flex-direction:column;align-items:flex-start;gap:8px;min-height:160px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--surface);color:var(--fg);text-align:left}
+.st-tile:active{border-color:var(--brass)}
+.st-k{font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:var(--brass);font-weight:700}
+.st-big{font-family:var(--display);font-size:52px;line-height:1}
+.st-list{font-size:24px;font-weight:700;line-height:1.35}
+.st-s{color:var(--muted);font-size:16px;margin-top:auto}
+.st-bar{display:block;width:100%;height:10px;border-radius:999px;background:var(--line);overflow:hidden}.st-bar i{display:block;height:100%;background:var(--brass)}
 .rp-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:6px 0 4px}
 .rp-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-height:104px;padding:10px 6px;border:1px solid var(--line);border-radius:14px;background:var(--surface);text-align:center;color:var(--fg)}
 .rp-tile .g{width:34px;height:40px}.rp-tile .g svg{width:100%;height:100%}
