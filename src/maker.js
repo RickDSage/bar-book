@@ -255,6 +255,7 @@ const BT_LINEUP = [
     { k: "jameson", note: "Irish whiskey. With ginger ale and a lime wedge, Irish Coffee, Pickleback." },
     { k: "johnnie walker black label", note: "Blended Scotch. With soda or ginger ale, Rob Roy, Godfather, Penicillin." },
     { k: "martell vs", note: "Cognac (brandy). Sidecar, Horse's Neck, or with ginger ale." },
+    { k: "pisco", note: "Grape brandy from Peru and Chile. Pisco Sour." },
   ]],
   ["Liqueurs", [
     { k: "cointreau", name: "Cointreau (triple sec)", measure: "15 to 25 ml in cocktails, 50 ml on the rocks", note: "The orange liqueur. Any spec that says triple sec or orange liqueur means Cointreau: Margaritas, Cosmos, Long Islands, Sidecars, Kamikazes." },
@@ -274,6 +275,13 @@ const BT_LINEUP = [
     { k: "jagermeister", glass: "Shot glass, ice cold", measure: "25 ml", pour: "Straight from the freezer or the tap. Jägerbomb: the shot dropped into half a can of Red Bull", note: "Herbal liqueur. Jägerbomb." },
     { k: "ancho reyes", note: "Chilli liqueur. The spicy Margaritas and Smoke & Fire." },
     { k: "yellow chartreuse", note: "Herbal, honeyed liqueur. Naked & Famous, Greenpoint." },
+    { k: "galliano", note: "Vanilla and anise liqueur. Harvey Wallbanger (floated), Golden Dream, Yellow Bird, Galliano Hot Shot." },
+    { k: "sambuca", glass: "Shot glass", measure: "25 ml", pour: "Straight, or layered over the back of a bar spoon. Never set it alight", note: "Anise liqueur. Slippery Nipple, Flatliner." },
+    { k: "blue curacao", name: "Blue curaçao", note: "Blue orange liqueur. Blue Lagoon, Blue Hawaiian, AMF." },
+    { k: "butterscotch schnapps", note: "Buttery Nipple, Oatmeal Cookie." },
+    { k: "white creme de cacao", name: "White crème de cacao", note: "Chocolate liqueur. Rattlesnake." },
+    { k: "green creme de menthe", name: "Crème de menthe (green and white)", note: "Mint liqueur. After Eight and Irish Flag (green), Stinger (white)." },
+    { k: "advocaat", measure: "50 ml in a Snowball", pour: "Shake the bottle first; keep it in the fridge once open", note: "Egg liqueur. Snowball. Egg: tell the guest." },
     { k: "nv absinthe", name: "Absinthe", measure: "A rinse, or as the spec", pour: "Rinse: a few drops in the chilled glass, swirl to coat, tip the rest out", note: "Very strong (high ABV): never as a shot. Monkey Gland, Death in the Afternoon." },
   ]],
   ["Aperitifs, vermouth and wine", [
@@ -282,6 +290,7 @@ const BT_LINEUP = [
     { k: "martini rosso", glass: "As the drink", measure: "25 ml in a Negroni or Manhattan", pour: "Measure with the jigger. Keep it in the fridge once open", note: "Sweet vermouth. Negroni, Manhattan, Americano, Boulevardier." },
     { k: "martini extra dry", glass: "As the drink", measure: "As the spec: from a rinse to 15 ml in a Martini", pour: "Measure with the jigger. Keep it in the fridge once open", note: "Dry vermouth. Dry Martini, Dirty Martini, Gibson, Perfect Manhattan." },
     { k: "pimm s no 1", glass: "Highball or pitcher, cubed ice", measure: "50 ml, topped with lemonade", pour: "Ice, Pimm's, top with lemonade, then cucumber, mint, orange and strawberry", note: "Pimm's Cup and the jug." },
+    { k: "red wine", glass: "As the drink", measure: "As the spec", pour: "From an open bottle; stopper it and date it", note: "New York Sour (floated) and the Sangria jug." },
     { k: "prosecco", glass: "Flute or wine glass, as the drink", measure: "Top up, or as the spec", pour: "Pour slowly down the side so it keeps its bubbles. Stopper the bottle and keep it in the fridge", note: "Spritzes, Bellini, Mimosa, French 75, Rossini." },
   ]],
   ["Foam", [
@@ -320,6 +329,7 @@ const BT_LINEUP = [
     { k: "strawberry syrup", name: "Monin Strawberry syrup", note: "Strawberry drinks, mojitos and lemonades." },
     { k: "monin vanilla", note: "Pornstars and vanilla sours." },
     { k: "monin salted caramel", note: "Salted caramel drinks and espresso martinis." },
+    { k: "watermelon syrup", name: "Monin Watermelon syrup", note: "Watermelon Margarita and Watermelon Cooler." },
     { k: "monin elderflower", note: "Elderflower spritzes, Hugo and fizzes." },
     { k: "passion fruit syrup", name: "Monin Passion Fruit syrup", note: "Pornstars and passion fruit mojitos." },
     { k: "giffard orgeat", note: "Almond syrup for Mai Tais and tiki drinks. Nuts: tell the guest." },
