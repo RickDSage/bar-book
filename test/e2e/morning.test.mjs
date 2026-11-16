@@ -191,3 +191,18 @@ test("the morning never passes an older handover off as last night's, and the cl
   assert.match(await S.$eval("#ho-sent", (e) => e.innerText), /^✅ Handover sent \d\d:\d\d by Sam Staff\. The morning team will see it\.$/);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
+
+test("the bar station shows tonight's 86s and both closes live, and a tap opens the real page", async () => {
+  await resetEmulators();
+  const { O, S } = await team(browser, site, [["S", "Sam Staff"]]);
+  await S.evaluate(() => show("station"));
+  await O.evaluate(() => LIVE.api.set86("Corona", true));
+  await S.waitForFunction(() => /Corona/.test($("#v-station .st-86").innerText));
+  assert.match(await S.$eval("#v-station", (e) => e.innerText), /BAR CLOSING\s*0\/\d+[\s\S]*FLOOR CLOSING\s*0\/\d+/i);
+  await O.evaluate(() => { setMode("bar"); pane = "close"; show("tally"); });
+  await O.click("[data-list=close][data-i=\"0\"]");
+  await S.waitForFunction(() => /BAR CLOSING\s*1\//i.test($("#v-station").innerText));
+  await S.click('[data-st-side="floor"]');
+  assert.equal(await S.evaluate(() => [cur, mode, pane].join()), "tally,floor,fclose");
+  assert.deepEqual([O.errs, S.errs], [[], []]);
+});
