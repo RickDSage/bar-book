@@ -132,45 +132,48 @@ test("tasks change on every phone as they happen, with who, when and why, and co
 test("a list finishes once everything's done; finishing early takes a manager and a reason, and a finished list is locked until it's reopened", async () => {
   await resetEmulators();
   const { O, M, S } = await team(browser, site, crew.slice(0, 2));
-  for (const p of [M, S]) { await p.evaluate(() => setMode("floor")); await shift(p, "fset"); }
-  const l0 = await S.evaluate(() => itemText("fset", 0));
+  for (const p of [M, S]) { await p.evaluate(() => setMode("floor")); await shift(p, "fclose"); }
+  const ids = await S.evaluate(() => shown("fclose").map(([i]) => i)), n = ids.length - 1, last = ids.at(-1);
 
   // Not needed tonight is a manager's call, with a reason. It doesn't count towards what's required.
   M.answer = "Terrace closed";
-  await pick(M, "fset-0", "cancelled");
-  await settled(S, "fset-0", "cancelled");
-  assert.match(await row(S, "fset", 0), /Not needed tonight By Mia Manager, \d\d:\d\d: Terrace closed$/);
-  assert.deepEqual(await S.$$eval(".prog-head > *", (xs) => xs.map((e) => e.textContent)), ["0 of 4 done · 1 not needed tonight", "0%"]);
-  await S.click('[data-list=fset][data-i="0"]');
+  await pick(M, "fclose-0", "cancelled");
+  await settled(S, "fclose-0", "cancelled");
+  assert.match(await row(S, "fclose", 0), /Not needed tonight By Mia Manager, \d\d:\d\d: Terrace closed$/);
+  assert.deepEqual(await S.$$eval(".prog-head > *", (xs) => xs.map((e) => e.textContent)), [`0 of ${n} done · 1 not needed tonight`, "0%"]);
+  await S.click('[data-list=fclose][data-i="0"]');
   assert.equal(await toastOf(S), "Not needed tonight. A manager can bring it back");
 
-  // Three of the four done: staff can't finish it yet, and the rules won't let a list finish short without a manager.
-  for (const i of [1, 2, 3]) await S.click(`[data-list=fset][data-i="${i}"]`);
-  await M.waitForFunction(() => [1, 2, 3].every((i) => LIVE.tasks[`fset-${i}`]?.status === "done" && !LIVE.tasks[`fset-${i}`].pending));
-  assert.equal(await S.locator('[data-run="fset"][data-to="finished"]').count(), 0);
+  // All but one done: staff can't finish it yet, and the rules won't let a list finish short without a manager.
+  const rest = ids.slice(1, -1);
+  await S.evaluate((xs) => Promise.all(xs.map((i) => LIVE.api.setTask("fclose", i, itemText("fclose", i), "done"))), rest);
+  await M.waitForFunction((xs) => xs.every((i) => LIVE.tasks[`fclose-${i}`]?.status === "done" && !LIVE.tasks[`fclose-${i}`].pending), rest);
+  await S.evaluate(() => renderTally());
+  assert.equal(await S.locator('[data-run="fclose"][data-to="finished"]').count(), 0);
   assert.match(await runBox(S), /Finish shows once every item is done/);
-  assert.equal(await attempt(S, () => LIVE.api.setRun("fset", "Tables and cutlery", "finished", 3, 4, "Done enough")), "permission-denied");
+  assert.equal(await attempt(S, () => LIVE.api.setRun("fclose", "Floor close", "finished", 3, 4, "Done enough")), "permission-denied");
 
   // A manager can finish it anyway, saying why. The floor is told, and the list locks.
-  M.answer = "Short staffed, last table done tomorrow";
-  await M.click('[data-run="fset"][data-to="override"]');
-  await waitToast(S, /^Tables and cutlery finished by Mia Manager, with 1 not done$/);
-  await S.waitForFunction(() => LIVE.runs.fset?.status === "finished" && !LIVE.runs.fset.pending);
+  M.answer = "Short staffed, last bit done tomorrow";
+  await M.evaluate(() => renderTally());
+  await M.click('[data-run="fclose"][data-to="override"]');
+  await waitToast(S, /^Floor close finished by Mia Manager, with 1 not done$/);
+  await S.waitForFunction(() => LIVE.runs.fclose?.status === "finished" && !LIVE.runs.fclose.pending);
   assert.match(await runBox(S),
-    /^Finished Started by Mia Manager, \d\d:\d\d\. Finished by Mia Manager, \d\d:\d\d, with 1 of 4 not done\. Reason: Short staffed, last table done tomorrow Reopen…$/);
-  await S.click('[data-list=fset][data-i="4"]');
-  assert.equal(await toastOf(S), "Tables and cutlery is finished. Reopen it to change anything");
-  assert.equal(await attempt(S, () => LIVE.api.setTask("fset", 4, "x", "done")), "permission-denied");
-  assert.equal(await attempt(S, () => LIVE.api.setRun("fset", "Tables and cutlery", "started", 3, 4, "")), "permission-denied", "reopening needs a reason");
+    new RegExp(`^Finished Started by .+, \\d\\d:\\d\\d\\. Finished by Mia Manager, \\d\\d:\\d\\d, with 1 of ${n} not done\\. Reason: Short staffed, last bit done tomorrow Reopen…$`));
+  await S.click(`[data-list=fclose][data-i="${last}"]`);
+  assert.equal(await toastOf(S), "Floor close is finished. Reopen it to change anything");
+  assert.equal(await attempt(S, (i) => LIVE.api.setTask("fclose", i, "x", "done"), last), "permission-denied");
+  assert.equal(await attempt(S, () => LIVE.api.setRun("fclose", "Floor close", "started", 3, 4, "")), "permission-denied", "reopening needs a reason");
 
   // Anyone can reopen it, with a reason. Then the last item can be done, and anyone can finish it.
-  M.answer = "Last table needs laying";
-  await M.click('[data-run="fset"][data-to="reopen"]');
-  await waitToast(S, /^Tables and cutlery reopened by Mia Manager$/);
-  await S.waitForFunction(() => LIVE.runs.fset?.status === "started" && !LIVE.runs.fset.pending);
-  await S.click('[data-list=fset][data-i="4"]');
-  await S.click('[data-run="fset"][data-to="finished"]');
-  await M.waitForFunction(() => LIVE.runs.fset?.status === "finished" && LIVE.runs.fset.done === 4 && LIVE.runs.fset.required === 4 && !LIVE.runs.fset.pending);
+  M.answer = "Last bit needs doing";
+  await M.click('[data-run="fclose"][data-to="reopen"]');
+  await waitToast(S, /^Floor close reopened by Mia Manager$/);
+  await S.waitForFunction(() => LIVE.runs.fclose?.status === "started" && !LIVE.runs.fclose.pending);
+  await S.click(`[data-list=fclose][data-i="${last}"]`);
+  await S.click('[data-run="fclose"][data-to="finished"]');
+  await M.waitForFunction((n) => LIVE.runs.fclose?.status === "finished" && LIVE.runs.fclose.done === n && LIVE.runs.fclose.required === n && !LIVE.runs.fclose.pending, n);
 
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });

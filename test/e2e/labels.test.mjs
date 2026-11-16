@@ -13,7 +13,7 @@ const people = [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff", "sam"
 const flat = (s) => s.replace(/\s+/g, " ").trim();
 const text = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
-const labels = async (p, side = "bar") => { await p.click("[data-tab=tally]"); await p.click(`[data-mode=${side}]`); await p.click(`.ptabs [data-pane=${side === "floor" ? "fshake" : "labels"}]`); };
+const labels = async (p, side = "bar") => { await p.click("[data-tab=tally]"); await p.click(`[data-mode=${side}]`); await p.click(`.ptabs [data-pane=labels]`); };
 const idOf = (p, item) => p.evaluate((n) => LIVE.labels.find((x) => x.item === n)?.id, item);
 const lb = (p, item) => p.evaluate((n) => LIVE.labels.find((x) => x.item === n), item);
 const tap = async (p, item, act) => p.click(`[data-lb="${await idOf(p, item)}"][data-lb-act=${act}]`);
@@ -28,7 +28,7 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   await resetEmulators();
   const { O, M, S, T } = await team(browser, site, people);
   await labels(M); await labels(S);
-  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.firstChild.textContent)), ["Opening", "Labels", "Stock", "Closing", "Send"]);
+  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.firstChild.textContent)), ["Morning", "Labels", "Stock", "Closing", "Send"]);
   assert.match(await text(S, "#tally"), /Nothing here yet\. A manager adds what needs a date label\./);
   assert.equal(await S.locator("#lb-add").count(), 0, "staff don't get the add form");
   assert.equal(await attempt(S, () => LIVE.api.label(null, "added", { item: "Apple juice", side: "bar", life: 3, on: true })), "permission-denied");
@@ -82,8 +82,8 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   assert.deepEqual(await lb(S, "Cranberry juice").then((x) => [x.useBy, x.openedBy]), [d1, "Tia Staff"]);
   assert.match(await rowText(S, "Cranberry juice"), /^Cranberry juice Due tomorrow Use by .* · opened today by Tia Staff Changed it Binned…$/);
 
-  // The day before, the bar's Opening and Closing pages say so, and so does the Labels tab.
-  await S.click(".ptabs [data-pane=open]");
+  // The day before, the bar's Morning and Closing pages say so, and so does the Labels tab.
+  await S.click(".ptabs [data-pane=morning]");
   assert.equal(await text(S, ".lbdue"), "Date labels: 1 due tomorrow Cranberry juice ›");
   assert.equal(await S.$eval(".ptabs [data-pane=labels] small", (e) => e.textContent), "1 due");
   await S.click(".ptabs [data-pane=close]");
@@ -109,7 +109,7 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   const [wasName, openedName, today] = [await dn(S, was), await dn(S, opened), await dn(S, await day(S, 0))];
 
   // The Shift pages.
-  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=open]");
+  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=morning]");
   assert.equal(await text(S, ".lbdue"), "Date labels: 1 overdue, 1 due today Orange juice, Cranberry juice ›");
   assert.equal(await S.$eval(".lbdue", (e) => e.classList.contains("late")), true);
   await S.click(".ptabs [data-pane=labels]");
@@ -123,7 +123,7 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   assert.match(await S.evaluate(() => tallyText()), new RegExp(`\\n\\nDate labels:\\n- Overdue: Orange juice \\(use by ${wasName}, opened ${openedName} by Tia Staff\\)\\n- Due today: Cranberry juice \\(use by ${today}, opened today by Sam Staff\\)\\n\\n86'd: nothing`));
   await handOver(S);
   await O.waitForFunction(() => LIVE.reports[0] && !LIVE.reports[0].pending);
-  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Opening 0\/15 · Closing 0\/36 · 0 86'd · 2 date labels to change$/);
+  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Closing 0\/38 · 0 86'd · 2 date labels to change$/);
 
   // Sam changes it a day late. Tia's phone (on the bar) is told, and Live keeps it as an exception.
   await labels(T); await labels(S);
@@ -173,7 +173,7 @@ test("managers change an item, move it to another side, switch its label off or 
   await settled(S, "Salted caramel", 2);
   assert.match(await text(S, "#tally"), /Nothing here yet/);
   await labels(S, "floor");
-  assert.match(await text(S, "#tally"), /Date labels .* Salted caramel Not opened Keeps 10 days once opened ⋯ Opened one .*Station checklist/i);
+  assert.match(await text(S, "#tally"), /Date labels .* Salted caramel Not opened Keeps 10 days once opened ⋯ Opened one/i);
 
   // Switched off: no label needed, so the team doesn't see it; managers still do.
   await labels(M, "floor");
