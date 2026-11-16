@@ -68,6 +68,17 @@ test("one Send page: tick what goes in, add a note, see it, then WhatsApp with b
   assert.deepEqual(p.errs, []);
 });
 
+test("the Send page reads in the phone's language, and the message goes in English", async () => {
+  const p = await open();
+  await p.evaluate(() => setLang("pl"));
+  await p.click("[data-send=hours]");
+  assert.equal(await p.$eval("#sh-name", (e) => e.textContent), "Moje godziny");
+  assert.match(await p.$eval("#send", (e) => e.textContent), /Co wysłać[\s\S]*Dodaj notatkę \(opcjonalnie\)/);
+  assert.equal(await preview(p), "My hours for November\nIn all: 11 h from 2 shifts\n\nShifts (2)\n• Tue 3 Nov 17:00–23:00, 30 min break: 5.5 h\n• Tue 10 Nov 17:00–23:00, 30 min break: 5.5 h");
+  assert.equal((await link(p, "wa")).searchParams.get("text"), "*My hours for November*\nIn all: 11 h from 2 shifts\n\n*Shifts (2)*\n• Tue 3 Nov 17:00–23:00, 30 min break: 5.5 h\n• Tue 10 Nov 17:00–23:00, 30 min break: 5.5 h");
+  assert.deepEqual(p.errs, []);
+});
+
 // The quick messages, written from the rota. The rota is put straight on the phone: these only read it.
 async function onRota(p, admin = false) {
   await p.evaluate((admin) => {

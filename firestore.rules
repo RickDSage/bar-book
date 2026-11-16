@@ -1,19 +1,24 @@
 rules_version = '2';
 // Black Tap Bar Book: Firestore security rules, version 3 (staff app, 15 November 2026).
 //
-// Two kinds of people, both with a staff/{uid} record:
-// - Bar and floor staff have no login or password. Each phone signs in anonymously (Firebase gives it an id, nothing is
-//   typed) and joins with the team code, which arrives inside the team link shared in the staff WhatsApp group:
-//   staff/{uid} = {name, role: 'staff', code, at}, where code must equal config/team.code. Only the Firebase console can
-//   read or change config/team; changing the code there takes every staff phone off the team at once, and they join
-//   again with the new link.
-// - Sign-in accounts with a username and password: the owner (made at first-time setup, 25 October 2026) and up to
-//   three seniors (role 'manager'), whom the owner adds in the app: staff/{uid} = {name, username, role: 'owner' | 'manager'}, with
-//   usernames/{username} pointing at the account so the login screen can find it.
+// Everyone joins the same way, and a senior unlocks more with their own code (16 November 2026):
+// - Every phone signs in anonymously (Firebase gives it an id, nothing is typed) and joins with the team code, which
+//   arrives inside the team link shared in the staff WhatsApp group: staff/{uid} = {name, role: 'staff', code, at},
+//   where code must equal config/team.code. Only the Firebase console can read or change config/team; changing the code
+//   there takes every phone off the team at once (seniors included), and they join again with the new link.
+// - Up to three seniors (role 'manager'). The owner adds each one by name with their own 4 digit code: seniors/{id} =
+//   {name, tries, lastTry} for the team to pick from, and pins/{id} = {salt, hash}, which only the owner can read. A
+//   senior unlocks on any joined phone by picking their name and typing their code. Guesses are counted by the server:
+//   each one is first saved to unlocks/{uid} together with a +1 on that senior's tries (5 free, then one every 15
+//   minutes, then none after 10 until the owner resets it), and only then checked against the hash. A right code turns
+//   the phone's record into staff/{uid} = {name, role: 'manager', code, at, pin} and sets tries back to 0. Taking the
+//   senior off (deleting seniors/{id}) takes every phone they unlocked back to staff powers at once.
+// - The owner signs in with a username and password (made at first-time setup, 25 October 2026):
+//   staff/{uid} = {name, username, role: 'owner'}, with usernames/{username} pointing the login screen at it.
 //
 // Team only: rate the shift is copied to sent/ with no uid and no name when it's sent, like everything sent from the
-// app. Anything written here can be read by the seniors (role 'manager', up to three) and the owner, except Tell
-// Derek (tells/), which only the owner reads.
+// app. Anything written here can be read by the seniors and the owner, except Tell Derek (tells/), which only the
+// owner reads.
 //
 // Anything not matched below is denied, including every collection that isn't listed.
 service cloud.firestore {
@@ -26,11 +31,18 @@ service cloud.firestore {
     function teamCode() { return get(/databases/$(database)/documents/config/team).data.code; }
     // The caller's staff record, or null when they haven't joined.
     function profile() { return get(staffDoc(request.auth.uid)); }
-    // On the team: the owner, the manager, or staff who joined with the team code that is current now.
+    function seniorDoc(id) { return /databases/$(database)/documents/seniors/$(id); }
+    function pinDoc(id) { return /databases/$(database)/documents/pins/$(id); }
+    function unlockDoc(uid) { return /databases/$(database)/documents/unlocks/$(uid); }
+    // On the team: the owner, or a phone that joined with the team code that is current now.
     function isMember() {
-      return signedIn() && profile() != null && (profile().data.role in ['owner', 'manager'] || profile().data.code == teamCode());
+      return signedIn() && profile() != null && (profile().data.role == 'owner' || profile().data.code == teamCode());
     }
-    function isManager() { return isMember() && profile().data.role in ['owner', 'manager']; }
+    // The owner, or a phone unlocked with a senior's code while that senior is still on the team. Old password logins for
+    // seniors (before 16 November 2026) hold no team code, so they no longer count.
+    function isManager() {
+      return isMember() && (profile().data.role == 'owner' || (profile().data.role == 'manager' && exists(seniorDoc(profile().data.get('pin', '-')))));
+    }
     function isOwner() { return isMember() && profile().data.role == 'owner'; }
 
     // ---------- Field checks ----------
@@ -61,36 +73,82 @@ service cloud.firestore {
     match /config/{id} {
       allow read, write: if false;
     }
-    // A staff phone joins with the team code and a first name. It can change its own name (a shared bar phone passed to
-    // the next person) and leave. Everyone on the team can see who has joined, for "seen by" on messages. The owner adds
-    // the manager's account; the manager and owner can take a staff phone off the team (lost, or someone who has left),
-    // and the owner can remove the manager. Nobody can change or remove the owner's record.
+    // A phone joins with the team code and a first name. It can change its own name (a shared bar phone passed to the
+    // next person), lock itself back to staff powers, and leave. Everyone on the team can see who has joined. A senior or
+    // the owner can take a staff phone off the team (lost, or someone who has left); only the owner takes off a phone a
+    // senior unlocked. Nobody can change or remove the owner's record.
     function validJoin(uid) {
       return exactly(['name', 'role', 'code', 'at']) && reqText(incoming().name, 30) && incoming().role == 'staff'
         && incoming().code is string && incoming().code.size() >= 8 && incoming().code == teamCode()
         && incoming().at == request.time && request.auth.uid == uid;
     }
-    function validManager(uid) {
-      return exactly(['name', 'username', 'role']) && reqText(incoming().name, 30) && incoming().role == 'manager'
-        && incoming().username is string && incoming().username.matches('[a-z0-9.]{2,20}')
-        && getAfter(nameDoc(incoming().username)).data.uid == uid;
+    // A joined phone becomes a senior's: the guess was already saved and counted (unlocks/{uid}, see pins below), it is
+    // the latest guess at that senior's code, and it matches. get() reads the guess as it was saved, before this write.
+    function validUnlock(uid) {
+      let u = get(unlockDoc(uid)).data;
+      let p = get(pinDoc(u.id)).data;
+      return request.auth.uid == uid && resource.data.role == 'staff' && resource.data.code == teamCode()
+        && exactly(['name', 'role', 'code', 'at', 'pin']) && incoming().role == 'manager' && incoming().pin == u.id
+        && incoming().code == resource.data.code && incoming().at == request.time && incoming().name == get(seniorDoc(u.id)).data.name
+        && u.n == get(seniorDoc(u.id)).data.tries && hashing.sha256(u.guess + ':' + p.salt).toHexString().lower() == p.hash;
     }
     match /staff/{uid} {
       allow get: if signedIn() && request.auth.uid == uid;
       allow list: if isMember();
-      allow create: if validJoin(uid) || (isOwner() && validManager(uid));
-      allow update: if validJoin(uid) && resource.data.role == 'staff';
+      allow create: if validJoin(uid);
+      allow update: if (validJoin(uid) && resource.data.role in ['staff', 'manager']) || validUnlock(uid);
       allow delete: if resource.data.role != 'owner'
         && ((signedIn() && request.auth.uid == uid) || (resource.data.role == 'staff' && isManager()) || isOwner());
     }
-    // The login screen looks up a username before signing in, so a single lookup is public. Listing them is not. A record
-    // holds the account's made-up sign-in address (never a real email) and its uid.
+    // The login screen looks up the owner's username before signing in, so a single lookup is public. Listing them is
+    // not. A record holds the account's made-up sign-in address (never a real email) and its uid. The owner can delete the
+    // old senior logins from before 16 November 2026.
     match /usernames/{username} {
       allow get: if true;
-      allow create: if isOwner() && username.matches('[a-z0-9.]{2,20}') && exactly(['email', 'uid'])
-        && incoming().email is string && incoming().email.matches('[a-z0-9.]{2,20}-[a-z0-9]{6,12}@users[.]example[.]com')
-        && getAfter(staffDoc(incoming().uid)).data.username == username && getAfter(staffDoc(incoming().uid)).data.role == 'manager';
       allow delete: if isOwner() && get(staffDoc(resource.data.uid)).data.role != 'owner';
+    }
+
+    // ---------- Seniors and their codes ----------
+    // seniors/{id} = {name, tries, lastTry}: the names the team picks from on "Unlock as a senior", with how many wrong
+    // guesses there have been since the last right one, so the phone can say when it can try again. Each senior's code is
+    // in pins/{id} = {salt, hash} as a salted SHA-256 hash. Nobody but the owner can read pins, so the 10,000 possible codes
+    // can't be tried on a phone: every guess goes through the server and is counted here first. 5 guesses since the last
+    // right one are free, then one every 15 minutes, then none after 10 until the owner sets the count back to 0 (or gives
+    // a new code).
+    function seniorSet() {
+      return isOwner() && exactly(['name', 'tries', 'lastTry']) && reqText(incoming().name, 30)
+        && incoming().tries == 0 && incoming().lastTry == request.time;
+    }
+    function guessCounted(id) {
+      let t = resource.data.tries;
+      return isMember() && changesOnly(['tries', 'lastTry']) && incoming().tries == t + 1 && incoming().lastTry == request.time
+        && (t < 5 || (t < 10 && request.time > resource.data.lastTry + duration.value(15, 'm')))
+        && getAfter(unlockDoc(request.auth.uid)).data.id == id;
+    }
+    // A right code sets the count back to 0, in the same write as the phone becoming the senior's.
+    function rightCode(id) {
+      return isMember() && profile().data.role == 'staff' && changesOnly(['tries', 'lastTry']) && incoming().tries == 0 && incoming().lastTry == request.time
+        && getAfter(staffDoc(request.auth.uid)).data.role == 'manager' && getAfter(staffDoc(request.auth.uid)).data.pin == id;
+    }
+    match /seniors/{id} {
+      allow read: if isMember();
+      allow create: if seniorSet() && id.matches('[a-z0-9-]{1,30}') && existsAfter(pinDoc(id));
+      allow update: if seniorSet() || guessCounted(id) || rightCode(id);
+      allow delete: if isOwner() && !existsAfter(pinDoc(id));
+    }
+    match /pins/{id} {
+      allow read: if isOwner();
+      allow create, update: if isOwner() && exactly(['salt', 'hash']) && incoming().salt is string && incoming().salt.matches('[0-9a-f]{32}')
+        && incoming().hash is string && incoming().hash.matches('[0-9a-f]{64}') && existsAfter(seniorDoc(id));
+      allow delete: if isOwner() && !existsAfter(seniorDoc(id));
+    }
+    // A phone's latest guess, saved with its number so the check above knows it was counted. Nobody reads it back.
+    match /unlocks/{uid} {
+      allow create, update: if isMember() && request.auth.uid == uid && exactly(['id', 'guess', 'n', 'at'])
+        && incoming().id is string && incoming().guess is string && incoming().guess.matches('[0-9]{4}') && incoming().n is int
+        && incoming().n > 0 && incoming().at == request.time && getAfter(seniorDoc(incoming().id)).data.tries == incoming().n
+        && getAfter(seniorDoc(incoming().id)).data.lastTry == request.time;
+      allow delete: if signedIn() && request.auth.uid == uid;
     }
 
     // No messaging inside the app (15 November 2026): the team talks face to face and sends on WhatsApp.

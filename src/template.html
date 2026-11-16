@@ -446,6 +446,8 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+.bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
+.utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
 .chrow { display: block; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 10px; }
 .chrow.new { border-color: var(--brass); }
@@ -818,6 +820,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
   <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
+  <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
   <p class="wip"><button class="linkbtn" data-intro-open>How Bar Book works: what it does, tips and tricks ›</button></p>
@@ -827,7 +830,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire: house cocktails</button>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <header class="gut" id="hdr">
@@ -911,6 +914,9 @@ function keepOpen(el, fn) {
   new MutationObserver((ms) => ms.forEach((m) => fn({ target: m.target }))).observe(el, { attributes: true, attributeFilter: ["open"], subtree: true });
 }
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+// What people write (messages, notes, titles) goes in its own span: the app's words never change it, and it gets a
+// Translate button (see Language).
+const ut = (x) => `<span data-ut>${esc(x)}</span>`;
 const D = DATA.drinks;
 const SECTIONS = [...new Set(D.map((d) => d.section))];
 // Martini-glass drinks get the V-shaped glass; the step guides still use their coupe pictures.
@@ -948,7 +954,7 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = fal
    summary lines, then its parts, each with a tick box (ticked when it has anything in it), and photos where there are
    some. The person ticks what goes in, adds a note if they like and sees the message as it will look. Bar Book sends
    nothing itself: WhatsApp and Email open the person's own app with the words written in, and they pick who it goes
-   to. */
+   to. Messages are in English, the venue's working language, whatever language the phone shows. */
 const SHARE = {};
 // A note given here starts the Send page's note, for the person to change.
 const sendBtn = (k, label, o, note) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}${note ? ` data-send-note="${esc(note)}"` : ""}>${label}</button>`;
@@ -1167,7 +1173,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, admin: false, owner: false, staff: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, pin: null, admin: false, owner: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
 // The 86 board is shared by everyone on the team. Off the team, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -1596,7 +1602,7 @@ function usual(key, field) {
 }
 let qzUsual = null;
 // Each kind of question: what's asked, the answer and three wrong ones, or nothing where it doesn't fit the drink.
-// app: the answers are the app's own words.
+// app: the answers are the app's own words, so they're translated.
 const QZ_KINDS = {
   glass: (d, r) => {
     const k = glassKey(d.glass); if (k.startsWith("pitcher")) return null;
@@ -2361,7 +2367,7 @@ const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).m
 // The morning: read last night's handover, say it's checked (and what's outstanding) on WhatsApp, send the order, prep to par.
 function morningHtml() {
   const r = lastReport(), h = r && handoverOf(r), order = orderLines(r);
-  const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? esc(v) : "None"}</span></div>`;
+  const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? ut(v) : "None"}</span></div>`;
   const ho = !r ? `<p class="note">No handover from the last close on this side yet.</p>`
     : `<article class="notice" id="handover"><div class="meta">Last night's handover · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
       ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
@@ -2823,7 +2829,7 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("[data-login]")) { show("notices"); return; }
   const rp = e.target.closest("[data-rp-photos]"); if (rp) {
     const id = rp.dataset.rpPhotos, A = LIVE.api;
-    return busy(rp, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${esc(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
+    return busy(rp, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
   }
   const jp = e.target.closest("[data-jump]"); if (jp) {
     pane = jp.dataset.jump; renderTally();
@@ -2994,14 +3000,181 @@ document.addEventListener("click", (e) => {
   $$("[data-theme-pick]").forEach((b) => b.setAttribute("aria-pressed", b === t));
 });
 
+/* ---------- Language ----------
+   Each phone picks its language on the welcome screen or in Info. The app's fixed words (tabs, headings, buttons, the
+   Team page's sections, the checklists) come translated from I18N (src/i18n.json: the languages, then each English
+   phrase with its translations in the same order, "" where there isn't one yet). Whatever is
+   on screen is matched whole against the English, so a word that isn't in the list stays in English, and so do drink
+   names, specs and allergens, which are never in it. Names and what people type are never touched. */
+/*I18N*/
+const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
+let lang = store.get("lang", "");
+const TR = new Map();
+/* A language's words are fetched the first time it's picked (lang/<code>.json, about 70 KB), then kept on the phone,
+   so English never carries them and the picked language still works with no signal. A new release with changed words
+   fetches them again when there's signal; until then the saved copy is used. */
+let langMem = null; // the same pack in memory, in case the phone's storage is full
+const langPack = (c) => { const p = langMem || store.get("lang.pack", null); return c && p?.c === c ? p.w : null; };
+async function langLoad(c) {
+  const p = langMem || store.get("lang.pack", null);
+  if (p?.c === c && p.v === I18N.v) return true;
+  try {
+    const r = await fetch(`lang/${c}.json?v=${I18N.v}`); if (!r.ok) throw 0;
+    langMem = { c, v: I18N.v, w: await r.json() }; store.set("lang.pack", langMem); return true;
+  } catch { return p?.c === c; }
+}
+function trBuild() {
+  TR.clear(); TR_PAT = []; trCache.clear(); trFmt = null; const w = langPack(lang); if (!w) return;
+  for (const [en, x] of Object.entries(w)) { if (/\{[a-d]\}/.test(en)) TR_PAT.push(trPat(en, x)); else TR.set(en, x); }
+  // The longest phrases are tried first, so "Remove {a} for everyone?" wins over "Remove {a}".
+  TR_PAT.sort((a, b) => b.re.source.length - a.re.source.length);
+  const loc = `${LOCALE[lang] || lang}-u-nu-latn`;
+  // Only where the phone has the language's calendar words: some browsers say they do and give "M11" or the English.
+  const nov = (o) => new Intl.DateTimeFormat(loc, { timeZone: "UTC", ...o }).format(new Date(Date.UTC(2026, 10, 6)));
+  if (Intl.DateTimeFormat.supportedLocalesOf(loc).length && !/November|Nov\b|Fri\b|M11/.test(nov({ month: "long" }) + nov({ weekday: "short", day: "numeric", month: "short" }))) {
+    const fs = new Map(); trFmt = (o) => { const k = JSON.stringify(o); if (!fs.has(k)) fs.set(k, new Intl.DateTimeFormat(loc, o)); return fs.get(k); };
+  }
+}
+// A phrase with numbers in it ("3 of 21 done") is listed with {1}, {2}… for the numbers ("{1} of {2} done"), and the
+// numbers go back in wherever the translation puts them.
+const TR_NUM = /\d+(?:[.,:]\d+)*/g;
+// Dates the app writes in English ("Fri 6 Nov", "Saturday 7 November 2026", "November 2026") are put into the
+// phone's language with the phone's own calendar words. Digits stay 0-9.
+const WD = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const MO = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const alt = (xs) => xs.map((x) => (x === "May" ? x : `${x}|${x.slice(0, 3)}`)).join("|");
+const TR_DATE_SRC = `(?:(${alt(WD)}),? )?(\\d{1,2}) (${alt(MO)})(?: (\\d{4}))?|(${MO.join("|")})(?: (\\d{4}))?`;
+const TR_DATE = new RegExp(`^(?:${TR_DATE_SRC})$`);
+const LOCALE = { zh: "zh-CN", pt: "pt-PT", es: "es-ES" };
+let trFmt = null;
+function trDate(k) {
+  const m = k.match(TR_DATE); if (!m || !trFmt) return;
+  const [, wd, d, mo, y, mo2, y2] = m, mi = MO.findIndex((x) => (mo || mo2).startsWith(x.slice(0, 3)));
+  const o = { timeZone: "UTC", month: (mo || mo2).length > 3 ? "long" : "short" };
+  if (d) o.day = "numeric";
+  else if (!y2) o.month = "long";
+  if (y || y2) o.year = "numeric";
+  if (wd) o.weekday = wd.length > 3 ? "long" : "short";
+  // Without a year, the year that puts the day on the weekday shown (this year or the ones either side).
+  const now = new Date().getUTCFullYear(), wi = wd ? WD.findIndex((x) => x.startsWith(wd.slice(0, 3))) : -1;
+  const yr = Number(y || y2) || [now, now + 1, now - 1, now + 2].find((n) => wi < 0 || new Date(Date.UTC(n, mi, Number(d))).getUTCDay() === wi);
+  return trFmt(o).format(new Date(Date.UTC(yr, mi, Number(d) || 1)));
+}
+// A phrase with someone's name, a title or a date in it is listed with {a}, {b}… for the text and {d} for a date
+// ("Accept {a}'s handover"). The text goes back as it was, or translated if it's a phrase of its own.
+let TR_PAT = [];
+const reEsc = (x) => x.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+function trPat(en, t) {
+  const slots = [], src = en.split(/(\{(?:\d|[a-d])\})/).map((x, i) => {
+    if (!(i % 2)) return reEsc(x);
+    slots.push(x);
+    return x === "{d}" ? `(${TR_DATE_SRC.replace(/\((?!\?)/g, "(?:")})` : /\d/.test(x) ? "(\\d+(?:[.,:]\\d+)*)" : "([\\s\\S]+?)";
+  }).join("");
+  const lits = en.split(/\{(?:\d|[a-d])\}/).filter(Boolean), hint = lits.reduce((a, x) => (x.length > a.length ? x : a), "");
+  return { re: new RegExp(`^${src}$`), slots, t, hint };
+}
+const trCache = new Map();
+function trLook(k) {
+  if (trCache.has(k)) return trCache.get(k);
+  let t = TR.get(k) || trDate(k);
+  if (!t && /\d/.test(k)) { const ns = k.match(TR_NUM); let i = 0; t = TR.get(k.replace(TR_NUM, () => `{${++i}}`))?.replace(/\{(\d)\}/g, (_, j) => ns[j - 1]); }
+  if (!t) for (const p of TR_PAT) {
+    if (p.hint && !k.includes(p.hint)) continue;
+    const m = k.match(p.re); if (!m) continue;
+    const v = {}; p.slots.forEach((x, i) => (v[x] = m[i + 1]));
+    t = p.t.replace(/\{(?:\d|[a-d])\}/g, (x) => (x === "{d}" ? trDate(v[x]) || v[x] : /\d/.test(x) ? v[x] : trLook(v[x]) || v[x]));
+    break;
+  }
+  // A line made of parts ("Bar · Opening 3/8 · Closing 0/12") is put together from the parts it knows.
+  // "Glass washer drained and cleaned (Closing checklist)": both halves have to be known.
+  const pm = !t && k.match(/^(.+) \(([^()]+)\)$/);
+  if (pm) { const x = trLook(pm[1]), y = trLook(pm[2]); if (x && y) t = `${x} (${y})`; }
+  if (!t && k.includes(" · ")) { const ps = k.split(" · "), ts = ps.map((x) => trLook(x)); if (ts.some(Boolean)) t = ps.map((x, i) => ts[i] || x).join(" · "); }
+  trCache.set(k, t);
+  return t;
+}
+// Pop-ups and questions are put through the same words.
+for (const f of ["alert", "confirm", "prompt"]) { const o = window[f]; window[f] = (m, ...r) => o.call(window, trLook(String(m).trim()) || m, ...r); }
+// The English each translated text node or attribute came from, so switching back or to another language works.
+const trWas = new WeakMap();
+function trNode(n) {
+  const was = trWas.get(n) ?? n.textContent, k = was.trim(), t = trLook(k);
+  if (t) { if (!trWas.has(n)) trWas.set(n, was); const v = was.replace(k, t); if (n.textContent !== v) n.textContent = v; }
+  else if (trWas.has(n)) { n.textContent = was; trWas.delete(n); }
+}
+function trAttr(el, a) {
+  const key = "data-en-" + a, was = el.getAttribute(key) ?? el.getAttribute(a), t = trLook(was.trim());
+  if (t) { el.setAttribute(key, was); if (el.getAttribute(a) !== t) el.setAttribute(a, t); }
+  else if (el.hasAttribute(key)) { el.setAttribute(a, was); el.removeAttribute(key); }
+}
+const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no],[data-ut]";
+function trTree(root) {
+  if (root.nodeType === 3) { if (!root.parentElement?.closest(TR_SKIP)) trNode(root); return; }
+  if (root.nodeType !== 1 || root.closest(TR_SKIP)) return;
+  const w = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, { acceptNode: (n) => (n.parentElement.closest(TR_SKIP) ? 2 : 1) });
+  for (let n; (n = w.nextNode());) trNode(n);
+  for (const el of [root, ...root.querySelectorAll("[placeholder],[aria-label],[title]")]) for (const a of ["placeholder", "aria-label", "title"]) if (el.hasAttribute(a) && !el.closest("[translate=no]")) trAttr(el, a);
+}
+// Everything drawn later is translated as it lands.
+const trObs = new MutationObserver((ms) => {
+  for (const m of ms) m.addedNodes.forEach((n) => n.nodeType === 1 && utMark(n));
+  if (!TR.size) return;
+  trObs.disconnect();
+  for (const m of ms) if (m.type === "characterData") { trWas.delete(m.target); trTree(m.target); } else m.addedNodes.forEach(trTree);
+  trWatch();
+});
+const trWatch = () => trObs.observe(document.body, { childList: true, subtree: true, characterData: true });
+let langWant = "";
+async function setLang(c) {
+  langWant = c;
+  if (c && !(await langLoad(c))) { if (langWant === c) { toast("That language needs signal the first time. Try again with signal"); $$("select[data-lang]").forEach((s) => (s.value = lang)); } return; }
+  if (langWant !== c) return;
+  lang = c; store.set("lang", c); if (c) store.set("lang.last", c); trBuild();
+  langBtn(); utMark(document.body);
+  document.documentElement.lang = c || "en-GB"; document.documentElement.dir = LANG_RTL.has(c) ? "rtl" : "ltr";
+  trObs.disconnect(); trTree(document.body); trWatch();
+  $$("select[data-lang]").forEach((s) => (s.value = c));
+}
+/* What people write or send (chat, broadcasts, notes, issues, handovers) isn't in the app's dictionary, so it gets a
+   Translate button that opens Google Translate with the words, into this phone's language (or English, on an English
+   phone). It's free and needs signal; the words go to Google. On an English phone the button shows only for writing
+   with letters outside English (Polish, Arabic, Hindi…), so English messages stay uncluttered. */
+const GT_LANG = { zh: "zh-CN", pt: "pt-PT" };
+function utMark(root) {
+  const els = root.matches?.("[data-ut]") ? [root] : root.querySelectorAll ? root.querySelectorAll("[data-ut]") : [];
+  for (const el of els) {
+    const t = el.textContent.trim(), want = /\p{L}{2}/u.test(t) && (!!lang || /[^\x00-\x7F]/.test(t)), has = el.nextElementSibling?.matches(".utx");
+    if (want && !has) el.insertAdjacentHTML("afterend", `<button class="utx" data-utx>Translate</button>`);
+    else if (!want && has) el.nextElementSibling.remove();
+  }
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-utx]"); if (!b) return;
+  const t = b.previousElementSibling?.textContent.trim(); if (!t) return;
+  window.open(`https://translate.google.com/?sl=auto&tl=${GT_LANG[lang] || lang || "en"}&text=${encodeURIComponent(t)}&op=translate`, "_blank", "noopener");
+});
+// One tap between English and the language picked last, from the top of every page.
+function langBtn() {
+  const b = $("#lang-btn"), last = store.get("lang.last", ""), to = lang ? "" : last, l = LANGS.find(([c]) => c === (lang || last));
+  b.hidden = !l; if (!l) return;
+  b.textContent = to ? to.toUpperCase() : "EN"; b.dataset.to = to;
+  b.setAttribute("aria-label", to ? `${l[1]} (${l[2]})` : "English");
+}
+$("#lang-btn").addEventListener("click", (e) => { setLang(e.currentTarget.dataset.to); haptic(); });
+// The list to pick from: English first, then each language in its own words, with the English name after it.
+const langOptions = () => `<option value="">English</option>${LANGS.map(([c, own, en]) => `<option value="${c}"${c === lang ? " selected" : ""}>${own} (${en})</option>`).join("")}`;
+document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); haptic(); } });
+
 /* ---------- My pay ----------
    Everything about pay in one tab, kept on this phone only: nobody else sees it and it never goes online. Hours come
    from a payslip, Nory's figures, the shifts logged (typed in or read from a Nory screenshot) or about how many hours a
    week, in that order. Payslips (pasted, a photo or a PDF, read on the phone) are broken down line by line, checked
    against the estimate, kept as a history, and teach the estimate the rate, tax code, loan plan, pension and tronc.
    An estimate, not a payslip.
-   Hours are paid at the hourly rate. Tronc (service charge) is a fixed £5 for each hour worked the month before,
-   paid with this month's pay, and each person can switch it off. Tax is worked out month by month (the Month 1 basis),
+   Hours are paid at the hourly rate. Tronc (service charge) is suggested at £6 for each hour worked the month before,
+   paid with this month's pay: an estimate, not a promise, since the real share changes month to month. Each person
+   can switch it off. A month with nothing in it yet (next month, say) is predicted from the average hours of the
+   last three months with real figures, and anyone can type the hours they expect for a month instead. Tax is worked out month by month (the Month 1 basis),
    with HMRC's 2026 to 2027 rates and bands for England, Northern Ireland, Wales (C codes) and Scotland (S codes):
    gov.uk/guidance/rates-and-thresholds-for-employers-2026-to-2027. The bands there apply to pay above the tax-free
    allowance. Employee National Insurance (category A: 8% from £1,048 to £4,189 a month, 2% above) is on pay from the
@@ -3017,7 +3190,7 @@ document.addEventListener("click", (e) => {
 // trOn: tronc on or off. pen: paying into the pension, at pension %. ded: other monthly deductions; bills: monthly bills.
 // age: the minimum wage band. slips: payslips by month. hol: "accrue" or "rolled"; holStart: the leave year's first month;
 // holCarry: holiday hours brought into the leave year. view: what the list under the month shows.
-const PAY_DEFAULT = { rate: "12.71", code: "1257L", trOn: true, loan: "", pgl: false, pen: false, pension: "5", th: {}, nory: {}, wk: 0, ded: [], bills: [],
+const PAY_DEFAULT = { rate: "12.71", code: "1257L", trOn: true, loan: "", pgl: false, pen: false, pension: "5", th: {}, nory: {}, plan: {}, wk: 0, ded: [], bills: [],
   age: "21", slips: {}, hol: "accrue", holStart: "01", holCarry: "", view: "shifts" };
 const num = (v) => { const n = Number(String(v).replace(/[£,\s]/g, "").replace(/^\((.*)\)$/, "$1")); return Number.isFinite(n) && n >= 0 ? n : 0; };
 const payStored = store.get("pay", {});
@@ -3025,7 +3198,7 @@ let pay = { ...PAY_DEFAULT, ...payStored };
 // Before the pension switch, a pension % on its own meant paying in.
 if (typeof payStored.pen !== "boolean") pay.pen = num(payStored.pension) > 0;
 if (!num(pay.pension)) pay.pension = PAY_DEFAULT.pension;
-for (const k of ["th", "nory", "slips"]) if (!pay[k] || typeof pay[k] !== "object" || Array.isArray(pay[k])) pay[k] = {};
+for (const k of ["th", "nory", "slips", "plan"]) if (!pay[k] || typeof pay[k] !== "object" || Array.isArray(pay[k])) pay[k] = {};
 for (const k of ["ded", "bills"]) if (!Array.isArray(pay[k])) pay[k] = [];
 const savePay = () => store.set("pay", pay);
 const gbp = (n) => "£" + n.toLocaleString("en-GB", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -3070,7 +3243,7 @@ const pensionOff = (e, pct) => pence(penBase(e) * (Math.min(pct, 100) / 100) * 0
 const MIN_WAGES = [["21", "21 and over", 12.71], ["18", "18 to 20", 10.85], ["16", "Under 18", 8], ["app", "Apprentice (under 19 or first year)", 8]];
 const minWage = () => (MIN_WAGES.find(([k]) => k === pay.age) || MIN_WAGES[0])[2];
 // Tronc: a fixed £5 for each hour worked the month before.
-const TRONC = 5;
+const TRONC = 6;
 // Holiday earned by someone on irregular hours: 12.07% of the hours they work.
 const HOLIDAY = 0.1207;
 const sumAmt = (xs) => pence(xs.reduce((n, x) => n + num(x.amt), 0));
@@ -3109,12 +3282,25 @@ const wkHours = (m) => pence((num(pay.wk) * new Date(Date.UTC(+m.slice(0, 4), +m
 // The hours worked in a month and where they come from: a payslip, Nory's figures, the log, about so many a week, or
 // typed in (for tronc only).
 function workedOf(m) {
-  const S = pay.slips[m], N = noryOf(m), xs = workIn(m);
+  const S = pay.slips[m], N = noryOf(m), xs = workIn(m), A = m >= curM() && avgHours(m);
   if (S && S.basicH) return { from: "slip", h: S.basicH };
   if (N.h) return { from: "nory", h: N.h };
+  if (pay.plan[m] != null && pay.plan[m] !== "") return { from: "plan", h: num(pay.plan[m]) };
   if (xs.length) return { from: "log", h: sumMin(xs) / 60 };
   if (num(pay.wk)) return { from: "week", h: wkHours(m) };
+  if (A) return { from: "avg", h: A.h, n: A.n };
   return { from: "typed", h: num(pay.th[m]) };
+}
+// The average hours of the last three months before m with real figures (a payslip, Nory's or shifts logged), going
+// back up to a year: what a month with nothing in it yet is predicted from.
+function avgHours(m) {
+  const hs = [];
+  for (let k = prevM(m), i = 0; i < 12 && hs.length < 3; k = prevM(k), i++) {
+    const S = pay.slips[k], N = noryOf(k), xs = workIn(k);
+    const h = S && S.basicH ? S.basicH : N.h || (xs.length ? sumMin(xs) / 60 : 0);
+    if (h) hs.push(h);
+  }
+  return hs.length ? { h: pence(hs.reduce((a, b) => a + b, 0) / hs.length), n: hs.length } : null;
 }
 // The hourly rate holiday is paid at: the payslip's own holiday rate where there is one, otherwise the hourly rate.
 // (The law uses the average pay of the last 52 weeks; for someone paid by the hour that's their hourly rate.)
@@ -3126,7 +3312,8 @@ function holRate() {
 function monthHours(m) {
   const lm = prevM(m), xs = workIn(m), hs = holIn(m), ys = workIn(lm), today = shiftDay(), N = noryOf(m), W = workedOf(m), P = workedOf(lm);
   const fromLog = W.from === "log" || W.from === "typed";
-  return { m, xs, hs, ys, src: W.from, nory: !!(N.h || N.g), wk: W.from === "week", base: W.from === "slip" ? null : N.g || null,
+  // Only months whose hours come from the shifts logged count those shifts as the hours.
+  return { m, xs, hs, ys, src: W.from, avgN: W.n || 0, nory: !!(N.h || N.g), wk: W.from === "week", base: W.from === "slip" || W.from === "plan" ? null : N.g || null,
     hours: fromLog ? sumMin(xs) / 60 : W.h, planned: fromLog ? sumMin(xs.filter((x) => x.day > today)) / 60 : 0,
     holH: sumMin(hs) / 60, troncFrom: P.from, troncHours: P.h };
 }
@@ -3429,8 +3616,7 @@ function learnSlip(S) {
   }
   if (S.tronc > 0) {
     set("trOn", true, "Tronc on");
-    const lm = prevM(S.m);
-    if (["typed", "week"].includes(workedOf(lm).from) && !num(pay.th[lm])) { pay.th[lm] = String(pence(S.tronc / TRONC)); done.push(`${fmtN(S.tronc / TRONC)} h in ${mName(lm)}, from the tronc`); }
+    // Tronc isn't a fixed rate, so the hours it was paid on can't be worked back from it.
   }
   if (S.items.some((x) => x.k === "rolled")) set("hol", "rolled", "Rolled-up holiday pay");
   return done;
@@ -3444,7 +3630,8 @@ function slipCheck(S) {
     ["National Insurance", S.ni, est.ni], ["Student loan", S.loan, est.loan], ["Pension", S.pen, est.pension], ["Take-home", S.net, est.net]].filter(([, a, b]) => a || b);
   const why = [];
   if (own && S.basicH && Math.abs(S.basicH - est.hours) >= 0.25) why.push(`Your payslip pays ${fmtN(S.basicH)} h; you have ${fmtN(est.hours)} h for ${mName(S.m)}. ${S.basicH < est.hours ? `Check for ${fmtN(est.hours - S.basicH)} h missing (or hours paid next month).` : "Some hours may be from last month."}`);
-  if (S.tronc && est.tronc && Math.abs(S.tronc - est.tronc) >= 1) why.push(`Tronc of ${gbp(S.tronc)} is £5 an hour for ${fmtN(S.tronc / TRONC)} h; the app has ${fmtN(est.tronc / TRONC)} h for ${mName(prevM(S.m))}.`);
+  const th = monthHours(S.m).troncHours;
+  if (S.tronc && th && Math.abs(S.tronc - est.tronc) >= 1) why.push(`Tronc of ${gbp(S.tronc)} works out at ${gbp(pence(S.tronc / th))} an hour on the ${fmtN(th)} h worked in ${mName(prevM(S.m))}. The app suggests £${TRONC}, so this is the real figure.`);
   if (S.code && pay.code && S.code.toUpperCase().replace(/\s*(W1|M1|X)$/, "") !== String(pay.code).toUpperCase()) why.push(`Your payslip's tax code is ${S.code.toUpperCase()}.`);
   if (/W1|M1|X/i.test(S.code)) why.push("W1, M1 or X after the tax code is an emergency code: ask payroll to update it, and any extra tax comes back.");
   if (S.loan - S.pgl > 0 && !LOANS[pay.loan]) why.push("Your payslip takes off a student loan. Pick your plan in the settings below so the estimate matches.");
@@ -3456,7 +3643,21 @@ async function slipFiles(files) {
   const say = (t) => { slip.busy = t; const e = $("#slip-st"); if (e) e.textContent = t; };
   let texts;
   try { texts = await readFiles(files, say, true); } catch { slip.busy = ""; renderPay(); return toast("The text reader needs signal the first time. Try again with signal, or paste the text"); }
-  slipTake(texts.join("\n"));
+  // Each file is its own payslip, so a whole year's can be picked at once. A PDF with one payslip a page is still one.
+  slipTakeAll(texts);
+}
+function slipTakeAll(texts) {
+  const read = texts.map(readSlip).filter((S) => S.gross || S.net), dated = read.filter((S) => S.m), undated = read.filter((S) => !S.m);
+  if (!read.length) { slip.busy = "No pay figures found. Try a clearer photo, the PDF, or paste the text."; return renderPay(); }
+  if (read.length === 1) return slipTake(texts[texts.findIndex((t) => readSlip(t).gross || readSlip(t).net)]);
+  const learnt = [];
+  for (const S of dated.sort((a, b) => a.m.localeCompare(b.m))) { pay.slips[S.m] = S; learnt.push(...learnSlip(S)); }
+  savePay();
+  Object.assign(slip, { learnt: [...new Set(learnt)], queue: undated.slice(1), busy: "" });
+  if (dated.length) { pm = [dated[dated.length - 1].m, lastPm()].sort()[0]; pay.view = "slips"; savePay(); }
+  if (undated.length) { Object.assign(slip, { open: true, read: undated[0], m: pm }); renderPay(); }
+  else { slip.open = false; renderPay(); }
+  haptic(); toast(`${dated.length} payslip${dated.length === 1 ? "" : "s"} saved${undated.length ? `, ${undated.length} to put a month to` : ""}`);
 }
 // A payslip read: saved straight away when its month is clear, otherwise the month is asked for first.
 function slipTake(text) {
@@ -3470,7 +3671,8 @@ function slipSave() {
   const S = { ...slip.read, m: slip.m };
   pay.slips[S.m] = S;
   const learnt = learnSlip(S); savePay();
-  Object.assign(slip, { open: false, read: null, text: "", learnt, shown: S.m });
+  const next = (slip.queue || []).shift();
+  Object.assign(slip, { open: !!next, read: next || null, text: "", learnt, shown: S.m });
   pm = [S.m, lastPm()].sort()[0]; pay.view = "slips"; savePay();
   haptic(); renderPay(); toast(`Payslip for ${mName(S.m)} saved`);
 }
@@ -3494,8 +3696,8 @@ function slipPanelHtml() {
       ${R ? `<p class="note">Which month is this payslip for?</p>
         <label class="fld">Month<select data-slip-m>${Array.from({ length: 15 }, (_, i) => { let m = lastPm(); for (let j = 0; j < i; j++) m = prevM(m); return m; }).map((m) => `<option value="${m}"${m === slip.m ? " selected" : ""}>${mName(m, true)}</option>`).join("")}</select></label>
         <div class="actions"><button class="btn pri" data-slip-save>Save the payslip</button><button class="btn" data-slip-cancel>Cancel</button></div>`
-      : `<p class="note">A photo, a screenshot or the PDF of your payslip, this month's or an older one. It's read on this phone and never sent anywhere; only the figures are kept. Your rate, tax code, loan plan, pension and tronc are updated from it.</p>
-      <div class="actions"><label class="btn pri">Pick the payslip<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-slip-cancel>Done</button></div>
+      : `<p class="note">Photos, screenshots or PDFs of your payslips: this month's, older ones, or a whole year's at once. It's read on this phone and never sent anywhere; only the figures are kept. Your rate, tax code, loan plan, pension and tronc are updated from it.</p>
+      <div class="actions"><label class="btn pri">Pick payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-slip-cancel>Done</button></div>
       <details class="setup"${slip.text ? " open" : ""}><summary>Or paste the text</summary>
         <label class="fld">Your payslip's text<textarea data-slip-text rows="6" placeholder="Basic Pay 120.00 12.71 1525.20">${esc(slip.text)}</textarea></label>
         <div class="actions"><button class="btn" data-slip-read>Read it</button></div></details>
@@ -3514,7 +3716,7 @@ function holiday() {
   for (const m of months) {
     if (m <= cm) {
       const W = workedOf(m), h = W.from === "log" ? sumMin(workIn(m).filter((x) => x.day <= today)) / 60 : W.from === "typed" ? 0 : W.h;
-      built += m === cm && W.from === "week" ? 0 : Math.round(h * HOLIDAY);
+      built += m === cm && ["week", "avg", "plan"].includes(W.from) ? 0 : Math.round(h * HOLIDAY);
     }
     const S = pay.slips[m];
     if (S && S.holH) taken += S.holH;
@@ -3562,10 +3764,8 @@ function viewHtml(H, M) {
 }
 function taxYear(y) {
   const months = Array.from({ length: 12 }, (_, i) => { const mo = ((i + 3) % 12) + 1; return `${mo >= 4 ? y : y + 1}-${two(mo)}`; }), cm = curM();
-  const rows = months.map((m) => { const M = monthPay(m), any = M.slip || M.H.hours || M.H.troncHours || M.H.holH; return { m, M, src: M.slip ? "slip" : m <= cm && any ? "est" : any ? "plan" : "" }; });
-  // Months still to come with nothing in them: about the average of the months with figures.
-  const known = rows.filter((r) => r.src && r.m <= cm), avgH = known.length ? known.reduce((n, r) => n + (r.M.H.hours || r.M.r.hours || 0), 0) / known.length : 0;
-  for (const r of rows) if (!r.src && r.m > cm && avgH) { r.src = "proj"; r.M = { r: payCalc({ hours: avgH, troncHours: avgH, holH: 0 }) }; }
+  // Months with nothing in them yet are predicted from the average hours (see avgHours).
+  const rows = months.map((m) => { const M = monthPay(m), any = M.slip || M.H.hours || M.H.troncHours || M.H.holH; return { m, M, src: M.slip ? "slip" : !any ? "" : M.H.src === "avg" ? "proj" : m <= cm ? "est" : "plan" }; });
   // With a payslip's year-to-date figures, the year so far starts from them, and the app's months after it are added on.
   const Y0 = Object.values(pay.slips).filter((x) => taxYearOf(x.m) === y && (x.ytd.gross || x.ytd.taxable)).sort((a, b) => b.m.localeCompare(a.m))[0];
   const YF = { gross: (x) => x.gross || x.taxable, tax: (x) => x.tax, ni: (x) => x.ni, loan: (x) => x.loan, pension: (x) => x.pen };
@@ -3589,7 +3789,7 @@ function taxYear(y) {
   return { y, rows, tot, done, all, check, Y0 };
 }
 function yearHtml() {
-  const Y = taxYear(taxYearOf(pm)), lab = { slip: "payslip", est: "estimate", plan: "planned", proj: "projected" };
+  const Y = taxYear(taxYearOf(pm)), lab = { slip: "payslip", est: "estimate", plan: "planned", proj: "predicted" };
   const sum = (f) => `<dd>${gbp(Y.tot(f, Y.done))}</dd><dd>${gbp(Y.tot(f, Y.all))}</dd>`;
   return `<div class="mini">Tax year ${Y.y} to ${Y.y + 1}</div>
     <dl class="kv paykv">${Y.rows.filter((r) => r.src).map((r) => `<dt>${mName(r.m)} <span class="muted">${lab[r.src]}</span></dt><dd>${r.M.r.net == null ? "?" : gbp(r.M.r.net)}</dd>`).join("")}</dl>
@@ -3603,7 +3803,7 @@ function yearHtml() {
       return Math.abs(K.diff) < 20 ? `<p class="note">${head} That looks right.</p>`
         : `<p class="note warnline">${head} ${K.diff > 0 ? `That's about ${gbp(K.diff)} too much. It usually comes back through your pay once your tax code is right, or from HMRC after April.` : `That's about ${gbp(-K.diff)} too little. HMRC may change your tax code to collect it.`}</p>`;
     })()}
-    <p class="note">Months to come are an average of the months so far. The check on tax paid uses your payslip's year-to-date figures, the way payroll works it out.</p>`;
+    <p class="note">Months with nothing in them yet are predicted from your average hours. The check on tax paid uses your payslip's year-to-date figures, the way payroll works it out.</p>`;
 }
 
 // ---------- Your rights: the main UK rules on hours, breaks, rest and pay, from GOV.UK, and checks on the shifts logged ----------
@@ -3667,15 +3867,24 @@ const rightsListHtml = () => `${RIGHTS.map(([t, x, u]) => `<div class="mini">${t
   <div class="mini">Help</div><p class="note">Talk to your manager first. Acas gives free, confidential advice on 0300 123 1100.</p><p class="note"><a href="https://www.acas.org.uk/contact" target="_blank" rel="noopener">Contact Acas</a></p>
   <p class="note">General information from GOV.UK, checked on ${RIGHTS_DATE}. It isn't legal advice, and your contract may give you more.</p>`;
 
+// A month's hours without any typed in for it: what clearing the box goes back to.
+function planless(m) {
+  const keep = pay.plan[m]; delete pay.plan[m];
+  const h = monthHours(m).hours;
+  if (keep != null) pay.plan[m] = keep;
+  return h;
+}
 // The top card: the month, its hours and take-home, where the figures come from, and pay day.
 function paySumHtml() {
   const M = monthPay(pm), H = M.H, r = M.r, left = r.net == null ? null : pence(r.net - sumAmt(pay.bills)), n = H.xs.length;
-  const src = M.slip ? "From your payslip" : H.nory ? `From Nory's figures${H.xs.length ? ", not the shifts logged" : ""}: an estimate` : H.wk ? `From about ${num(pay.wk)} h a week: an estimate` : "An estimate";
+  const src = M.slip ? "From your payslip" : H.nory ? `From Nory's figures${H.xs.length ? ", not the shifts logged" : ""}: an estimate` : H.src === "plan" ? "From the hours you set: an estimate"
+    : H.wk ? `From about ${num(pay.wk)} h a week: an estimate` : H.src === "avg" ? `Predicted from your average of the last ${H.avgN === 1 ? "month" : `${H.avgN} months`}` : "An estimate";
   const hours = M.slip ? M.slip.basicH : H.hours;
   return `<div class="paystats"><div><b>${fmtN(hours)}</b>Hours</div><div><b>${gbp(r.gross)}</b>Gross</div><div><b>${r.net == null ? "?" : gbp(r.net)}</b>Take-home</div></div>
     <p class="note" style="text-align:center;margin:6px 0 0">${src} · pay day ${longDay(lastFriday(pm))}</p>
     ${n ? `<p class="note" style="text-align:center;margin:2px 0 0">${n === 1 ? "1 shift" : `${n} shifts`}${H.planned ? `, including ${hrs(H.planned * 60)} still to work` : ""}${H.holH ? ` · ${fmtN(H.holH)} h holiday` : ""}</p>` : ""}
     ${(() => { const n = rightsFlags(pm).length; return n ? `<p style="text-align:center;margin:4px 0 0"><button class="linkbtn warnline" data-rights-go>${n === 1 ? "1 thing to check in Your rights" : `${n} things to check in Your rights`}</button></p>` : ""; })()}
+    ${pm === curM() ? (() => { const nm = nextM(pm), N = monthPay(nm); return N.r.net == null || !N.H.hours ? "" : `<p class="note" style="text-align:center;margin:4px 0 0">Next pay day, ${longDay(lastFriday(nm))}: about <b>${gbp(N.r.net)}</b> · <button class="linkbtn" data-pm="1">See it</button></p>`; })() : ""}
     ${pay.bills.length && left != null ? `<p class="note" style="text-align:center;margin:2px 0 0">Left after bills: <b class="${left < 0 ? "neg" : ""}">${sgbp(left)}</b></p>` : ""}`;
 }
 // A calendar of the month on screen to pick the days worked, planned or booked off, with a dot where something's logged.
@@ -3724,7 +3933,7 @@ function payOutHtml() {
     <dl class="kv paykv">
       ${row(H.base != null ? `Base pay from Nory${r.hours ? ` (${fmtN(r.hours)} h)` : ""}` : `Hours pay (${fmtN(r.hours)} h at ${gbp(rate)})`, gbp(r.basic))}
       ${r.hol ? row(pay.hol === "rolled" ? "Rolled-up holiday pay (12.07%)" : `Holiday pay (${fmtN(r.holH)} h)`, gbp(r.hol)) : ""}
-      ${pay.trOn ? row(`Tronc (${fmtN(H.troncHours)} h at £5)`, gbp(r.tronc)) : ""}${row("Gross", gbp(r.gross))}
+      ${pay.trOn ? row(`Tronc, suggested (${fmtN(H.troncHours)} h at £${TRONC})`, gbp(r.tronc)) : ""}${row("Gross", gbp(r.gross))}
       ${row("Income tax", r.tax == null ? "Check the tax code" : "−" + gbp(r.tax))}${row("National Insurance", "−" + gbp(r.ni))}
       ${r.loan ? row(`Student loan (${loanName})`, "−" + gbp(r.loan)) : ""}${r.pension ? row(`Pension (${fmtN(num(pay.pension))}%)`, "−" + gbp(r.pension)) : ""}
       ${pay.ded.map((x) => row(esc(x.name), "−" + gbp(num(x.amt)))).join("")}
@@ -3756,15 +3965,17 @@ function payInner() {
   const panel = hf.open ? hfHtml() : imp.open ? impHtml() : slip.open ? slipPanelHtml() : "";
   return `<div class="paymonth"><button class="round" data-pm="-1" aria-label="Month before">‹</button><h2 id="pay-h">${mName(pm, true)}</h2><button class="round" data-pm="1" aria-label="Month after"${pm === lastPm() ? " disabled" : ""}>›</button></div>
     <div class="paycard" id="pay-sum">${paySumHtml()}</div>
+    ${M.slip ? "" : `<div class="paygrid" style="margin-top:6px"><label class="fld">Hours for ${mName(pm)}<input data-pay-plan inputmode="decimal" value="${esc(pay.plan[pm] ?? "")}" placeholder="${fmtN(planless(pm))}"></label></div>
+      <p class="note">Change the hours to see what ${mName(pm)} would pay. Clear it to go back to ${pay.plan[pm] != null ? "the app's figure" : `the ${fmtN(planless(pm))} h shown`}.</p>`}
     ${slip.learnt.length ? `<p class="note">Updated from your payslip: ${slip.learnt.map((x) => `<b>${esc(x)}</b>`).join(", ")}.</p>` : ""}
     ${panel || `<div class="payacts"><button class="btn pri" data-hf-open>Add shifts</button><button class="btn" data-imp-open>Nory</button><button class="btn" data-slip-open>Payslip</button></div>`}
     <div class="recent payviews" role="group" aria-label="Show">${VIEWS.map(([k, t]) => `<button class="chip" data-pay-view="${k}" aria-pressed="${pay.view === k}">${t}</button>`).join("")}</div>
     <div id="pay-view">${viewHtml(H, M)}</div>
     <div class="sec">Take-home</div>
     <div id="pay-out">${payOutHtml()}</div>
-    <label class="check"><input type="checkbox" data-pay-check="trOn"${pay.trOn ? " checked" : ""}> I get tronc: £5 for each hour</label>
-    ${pay.trOn ? `<p class="note">Paid with each month's pay, on the hours worked the month before.</p>
-      ${H.troncFrom !== "typed" ? `<div class="fld">Hours the month before<b class="logv">${fmtN(H.troncHours)} h, ${{ slip: "from your payslip", nory: "from Nory", log: "logged", week: `about ${num(pay.wk)} h a week` }[H.troncFrom]}</b></div>`
+    <label class="check"><input type="checkbox" data-pay-check="trOn"${pay.trOn ? " checked" : ""}> I get tronc: about £${TRONC} for each hour</label>
+    ${pay.trOn ? `<p class="note">A suggested estimate, not guaranteed: the real tronc changes month to month with the service charge. Paid with each month's pay, on the hours worked the month before. Your payslip shows the real figure.</p>
+      ${H.troncFrom !== "typed" ? `<div class="fld">Hours the month before<b class="logv">${fmtN(H.troncHours)} h, ${{ slip: "from your payslip", nory: "from Nory", log: "logged", plan: "as you set it", week: `about ${num(pay.wk)} h a week`, avg: "your average" }[H.troncFrom]}</b></div>`
         : `<div class="paygrid"><label class="fld">Hours the month before<input data-pay-th="${lm}" inputmode="decimal" value="${esc(pay.th[lm] ?? "")}" placeholder="0"></label></div>`}` : ""}
     <div class="sec">Holiday</div>
     <div class="paycard" id="pay-hol">${holHtml()}</div>
@@ -3841,13 +4052,14 @@ function moneyAddFrom(k) {
   if (!amt) return toast("Put in how much a month");
   pay[k] = [...pay[k], { id: newId(), name: name.slice(0, 30), amt: amt.toFixed(2) }]; savePay(); haptic(); renderPay();
 }
-const closePanels = () => { Object.assign(hf, { open: false, hol: false, days: new Set() }); Object.assign(imp, { open: false, busy: "", text: "", done: null }); Object.assign(slip, { open: false, busy: "", text: "", read: null }); };
+const closePanels = () => { Object.assign(hf, { open: false, hol: false, days: new Set() }); Object.assign(imp, { open: false, busy: "", text: "", done: null }); Object.assign(slip, { open: false, busy: "", text: "", read: null, queue: [] }); };
 $("#v-pay").addEventListener("input", (e) => {
   const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; if (h === "h") $("#hf-worth").textContent = hfWorth(); return; }
   if (e.target.matches("[data-imp-text]")) { imp.text = e.target.value; return; }
   if (e.target.matches("[data-slip-text]")) { slip.text = e.target.value; return; }
   const nk = e.target.dataset.nory;
   if (nk) { pay.nory[pm] = { ...pay.nory[pm], [nk]: e.target.value.trim().slice(0, 60) }; if (!pay.nory[pm].h && !pay.nory[pm].g) delete pay.nory[pm]; savePay(); return paySums(); }
+  if (e.target.matches("[data-pay-plan]")) { const v = e.target.value.trim().slice(0, 6); if (v === "") delete pay.plan[pm]; else pay.plan[pm] = v; savePay(); return paySums(); }
   const th = e.target.dataset.payTh;
   if (th) { pay.th[th] = e.target.value.trim().slice(0, 8); savePay(); return paySums(); }
   const k = e.target.dataset.pay; if (!k) return;
@@ -3968,6 +4180,8 @@ function renderInfo() {
     ${fold("prep", "Prep and batches", prep)}
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
     <div class="sec">This phone</div>
+    <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
+    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Use Send feedback above.</p>
     <div class="mini" style="margin-top:14px">Light or dark</div>
     <div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. This phone only.</p>
@@ -3989,7 +4203,7 @@ function renderInfo() {
     </ol>
     <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>`)}
     ${fold("clear", "Reset this phone", `
-    <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the look, and anything else saved on it. Then the app starts again as new. Nobody else's phone changes, and it can't be undone.</p>
+    <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the language and look, and anything else saved on it. Then the app starts again as new. Nobody else's phone changes, and it can't be undone.</p>
     <label class="fld">Type ${CLEAR_WORD} to show you mean it<input id="cp-words" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
     <button class="btn danger wide" id="cp-go">Reset this phone</button>`, "clear")}
     ${offlineReady ? `<p class="note">Offline ready ✓</p>` : ""}<p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
@@ -4039,9 +4253,9 @@ const FEATURES = [
   { g: "Drinks", k: "sheets", n: "Cheat sheets", go: "tab:sheets",
     what: "A4 pages to print double-sided and laminate for behind the bar, a section of drinks on each." },
   { g: "Drinks", k: "info", n: "More", go: "tab:info",
-    what: "Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's look and home screen icon." },
+    what: "Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's language, look and home screen icon." },
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", tour: 1,
-    what: "Everything about your pay in one tab: your hours, an estimated take-home after tax, National Insurance, student loan and pension, tronc at £5 an hour that you can switch off, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
+    what: "Everything about your pay in one tab: your hours, an estimated take-home after tax, National Insurance, student loan and pension, tronc suggested at £6 an hour that you can switch off, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
     staff: "Add shifts, read them from a Nory screenshot, type in Nory's hours or gross wage, or just pick about how many hours a week. Then set your tax code, loan and pension once." },
   { g: "Shift", k: "morning", n: "Morning", go: "morning", team: 1, tour: 1,
     what: "Last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
@@ -4089,8 +4303,8 @@ const FEATURES = [
     what: "Emergency and utility numbers, and the venue's own. A tap calls.",
     mgr: "Add and remove the venue's numbers." },
   { g: "Team", k: "people", n: "Who's on the team", go: "people", team: 1,
-    what: "Every phone on the team and the two accounts.",
-    staff: "Share the team link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. The owner adds or removes the seniors." },
+    what: "Every phone on the team. Seniors unlock theirs with their own 4 digit code.",
+    staff: "Share the team link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. The owner adds or removes the seniors and their codes." },
 ];
 const navCols = () => ($("nav.tabs").style.gridTemplateColumns = `repeat(${[...$$("nav.tabs [data-tab]")].filter((b) => !b.hidden).length}, 1fr)`);
 const fUsable = (f) => !f.team || !!LIVE.me;
@@ -4200,7 +4414,7 @@ let myName = store.get("me", ""), teamCode = store.get("team", "");
   if (m) { teamCode = m[1]; store.set("team", teamCode); store.set("kicked", false); history.replaceState(null, "", location.pathname + location.search); }
 }
 const teamLink = () => `${location.origin}${location.pathname}#join=${teamCode}`;
-// Up to three seniors (Illias, Hassan, Artur) have the senior accounts (role "manager" in the data). Everything sent
+// Up to three seniors (Illias, Hassan, Artur) unlock with their own code (role "manager" in the data). Everything sent
 // "to the seniors" reaches all of them and the owner.
 let joining = false, joinErr = store.get("kicked", false) ? "You were taken off the team on this phone. Open the team link from the staff group to join again." : "";
 function autoJoin() {
@@ -4264,7 +4478,7 @@ const ASK = { dayoff: "Day off", swap: "Shift swap", complaint: "Complaint", fau
 const ASK_ST = { new: ["Sent", "wait"], seen: ["Seen", ""], done: ["Done", "ok"] };
 let askF = { kind: "dayoff", text: "", when: "", anon: false }, sentAnon = store.get("sentAnon", []);
 const askLine = (a) => `<article class="notice"><div class="meta"><b>${ASK[a.kind] || "Message"}</b> · ${a.anon ? "anonymous" : esc(a.name)} · ${when(a.at)} <span class="pill ${ASK_ST[a.status][1]}">${ASK_ST[a.status][0]}</span></div>
-  ${a.when ? `<p class="note">When: ${esc(a.when)}</p>` : ""}<p class="txt">${esc(a.text)}</p>${a.reply ? `<p class="note">${esc(a.by)}: ${esc(a.reply)}</p>` : ""}`;
+  ${a.when ? `<p class="note">When: ${esc(a.when)}</p>` : ""}<p class="txt">${ut(a.text)}</p>${a.reply ? `<p class="note">${esc(a.by)}: ${ut(a.reply)}</p>` : ""}`;
 function askHtml() {
   const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
   return `<p class="note">Only the seniors see these, not the rest of the team. For things the team shouldn't share with the seniors, use Team only below.</p>
@@ -4343,9 +4557,9 @@ const fixText = {};
 function issuesHtml() {
   const open = openIssues().sort((a, b) => (b.urgent - a.urgent) || (ms(a.at) - ms(b.at)));
   const fixed = LIVE.issues.filter((x) => x.status === "fixed").slice(0, 10);
-  const row = (x) => `<article class="notice issue${x.urgent ? " new" : ""}"><div class="meta"><b>${esc(x.title)}</b>${x.pending ? " · sending…" : ""}</div>
+  const row = (x) => `<article class="notice issue${x.urgent ? " new" : ""}"><div class="meta"><b>${ut(x.title)}</b>${x.pending ? " · sending…" : ""}</div>
     <div class="tags">${x.urgent ? `<span class="pill no">Urgent</span>` : ""}<span class="pill">${AREA[x.area] || "Other"}</span>${x.status === "taken" ? `<span class="pill wait">On it: ${esc(x.who)}</span>` : `<span class="pill">Nobody on it yet</span>`}${x.again ? `<span class="pill">Raised again</span>` : ""}</div>
-    ${x.detail ? `<p class="txt">${esc(x.detail)}</p>` : ""}
+    ${x.detail ? `<p class="txt">${ut(x.detail)}</p>` : ""}
     <p class="note" style="margin-top:6px">Raised by ${esc(x.name)} · ${when(x.at)}</p>
     <div class="actions">${x.whoUid === LIVE.uid ? "" : `<button class="btn" data-take="${x.id}">I'm on it</button>`}${sendBtn("issue", "Send on WhatsApp", x.id)}<select data-give="${x.id}" aria-label="Give it to someone"><option value="">Give to…</option>${LIVE.staff.filter((p) => p.uid !== x.whoUid).map((p) => `<option value="${p.uid}" translate="no">${esc(p.name)}</option>`).join("")}</select>${x.uid === LIVE.uid && x.status === "open" ? `<button class="btn" data-withdraw="${x.id}">Withdraw</button>` : ""}</div>
     <div class="rvrow" style="grid-template-columns:1fr auto"><input data-fixt="${x.id}" maxlength="500" placeholder="What was done to fix it" value="${esc(fixText[x.id] || "")}" aria-label="What was done to fix it"><button class="btn pri" data-fix="${x.id}">Fixed</button></div></article>`;
@@ -4357,7 +4571,7 @@ function issuesHtml() {
       ${draftBar("issue")}<div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again && !drafted("issue") ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
     ${open.map(row).join("") || `<p class="note">No open issues.</p>`}
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
-    ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${esc(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${esc(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
+    ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${ut(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${ut(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
 }
 /* ---------- Everything else that goes out from the Send page ----------
    Each builder gives the Send page a message: WhatsApp, email, the share sheet, copy, print or a picture. */
@@ -4495,6 +4709,7 @@ const CALL_UK = [
 ];
 const clF = { t: "", n: "", p: "" };
 const telOf = (p) => `tel:${String(p).replace(/[^\d+]/g, "")}`;
+// Our own numbers' "who" is a name or a company, so it's never translated.
 const callRow = (p, t, sub, cls = "", own = false) => `<a class="callrow${cls}" href="${esc(telOf(p))}"><span>${esc(t)}${sub ? `<small${own ? ' translate="no"' : ""}>${esc(sub)}</small>` : ""}</span><span class="num" translate="no">${esc(p)}</span></a>`;
 function callHtml() {
   const ours = LIVE.contacts;
@@ -4516,7 +4731,7 @@ function callHtml() {
 const TELL = { missing: "Something missing", add: "Add this", wrong: "Something's wrong" };
 const ownerName = () => firstName(LIVE.staff.find((p) => p.role === "owner")?.name) || "Derek";
 let tellF = { kind: "missing", text: "" };
-const tellRow = (x, own) => `<article class="notice"><div class="meta"><b>${TELL[x.kind]}</b> · ${own ? "" : `<span translate="no">${esc(x.name)}</span> · `}${when(x.at)} <span class="pill ${x.status === "done" ? "ok" : "wait"}">${x.status === "done" ? "Done" : "Sent"}</span></div><p class="txt">${esc(x.text)}</p>`;
+const tellRow = (x, own) => `<article class="notice"><div class="meta"><b>${TELL[x.kind]}</b> · ${own ? "" : `<span translate="no">${esc(x.name)}</span> · `}${when(x.at)} <span class="pill ${x.status === "done" ? "ok" : "wait"}">${x.status === "done" ? "Done" : "Sent"}</span></div><p class="txt">${ut(x.text)}</p>`;
 function tellHtml() {
   const mine = LIVE.tells.filter((x) => x.uid === LIVE.uid);
   return `<p class="note">Only ${esc(ownerName())} reads these: what's missing from Bar Book, what to add, or what's wrong in it.</p>
@@ -4552,36 +4767,75 @@ function reportsHtml() {
 }
 const outlogHtml = () => LIVE.outlog.slice(0, 60).map((x) => `<div class="staffrow"><div class="n">${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "86'd" : "back on"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">No 86s yet.</p>`;
 const ROLE = { owner: "owner", manager: "senior", staff: "" };
+// A senior's record from before codes (a password login) holds no pin and no longer counts as a senior.
+const oldLogin = (p) => p.role === "manager" && !p.pin;
 function peopleHtml() {
   const canGo = (p) => p.uid !== LIVE.uid && p.role !== "owner" && (LIVE.owner || (LIVE.admin && p.role === "staff"));
-  return `<p class="note">${plural(LIVE.staff.length, "phone or account", "phones and accounts")} on the team.</p>
-    ${LIVE.staff.map((p) => `<div class="staffrow"><div class="n"><b translate="no">${esc(p.name)}</b>${ROLE[p.role] ? ` <span class="pill">${ROLE[p.role]}</span>` : ""}${p.uid === LIVE.uid ? ` <span class="pill ok">this phone</span>` : ""}</div>
+  return `<p class="note">${plural(LIVE.staff.length, "phone", "phones")} on the team.</p>
+    ${LIVE.staff.map((p) => `<div class="staffrow"><div class="n"><b translate="no">${esc(p.name)}</b>${oldLogin(p) ? ` <span class="pill no">old login</span>` : ROLE[p.role] ? ` <span class="pill">${ROLE[p.role]}</span>` : ""}${p.uid === LIVE.uid ? ` <span class="pill ok">this phone</span>` : ""}</div>
       ${p.at ? `<div class="s">Joined ${when(p.at)}</div>` : ""}${canGo(p) ? `<div class="actions"><button class="btn" data-tm-drop="${p.uid}">Take off the team</button></div>` : ""}</div>`).join("")}
     ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, change the team code in Firebase and share the new link.</p>` : ""}`;
 }
+/* ---------- Seniors' codes ----------
+   Up to three seniors. Each unlocks any phone on the team with their own 4 digit code; the server checks it and
+   counts wrong ones (firestore.rules: seniors and pins). Only the owner adds, re-codes or takes off a senior. */
+let unF = { id: "" };
+function unlockHtml() {
+  const S = LIVE.seniors, s = S.find((x) => x.id === unF.id), w = s ? LIVE.api.waitFor(s) : 0;
+  if (!S.length) return `<p class="note">${esc(ownerName())} hasn't added any seniors yet.</p>`;
+  return `<p class="note">Seniors: unlock everything you need on this phone with your own code. Tap Lock before you hand the phone back.</p>
+    <div class="mini">Who are you?</div><div class="recent" translate="no">${S.map((x) => `<button class="chip" data-un-id="${esc(x.id)}" aria-pressed="${x.id === unF.id}">${esc(x.name)}</button>`).join("")}</div>
+    ${w === Infinity ? `<p class="note warn" role="alert">Locked after ${LIVE.api.MAX_TRIES} wrong codes. Ask ${esc(ownerName())} to unlock it.</p>` : w ? `<p class="note warn" role="alert">Too many wrong codes. Try again in ${w} min.</p>` : ""}
+    <label class="fld">Your 4 digit code<input id="un-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></label>
+    <button class="btn pri wide" id="un-go">Unlock</button>`;
+}
+function seniorsHtml() {
+  const S = LIVE.seniors, A = LIVE.api, old = LIVE.staff.filter(oldLogin);
+  const state = (x) => (x.tries >= A.MAX_TRIES ? `<span class="pill no">locked</span>` : x.tries ? `<span class="pill no">${plural(x.tries, "wrong code")}</span>` : "");
+  return `<p class="note">Each senior unlocks any phone on the team with their own 4 digit code and sees and changes everything you do, except Tell ${esc(ownerName())} and this card. 5 wrong codes slow it to one try every 15 minutes; 10 lock it until you unlock it here. Give codes in person.</p>
+    ${S.map((x) => { const on = LIVE.staff.filter((p) => p.pin === x.id).length; return `<div class="staffrow"><div class="n"><b translate="no">${esc(x.name)}</b> ${state(x)}</div>
+      <div class="s">${on ? `Unlocked on ${plural(on, "phone")}` : "Not unlocked on any phone"}</div>
+      <div class="actions">${x.tries ? `<button class="btn pri" data-sn-reset="${esc(x.id)}">Unlock the code</button>` : ""}<button class="btn" data-sn-code="${esc(x.id)}">New code</button><button class="btn" data-sn-drop="${esc(x.id)}">Take off</button></div></div>`; }).join("") || `<p class="note">No seniors yet.</p>`}
+    ${S.length < A.MAX_SENIORS ? `<div class="h3">Add a senior</div>
+      <label class="fld">First name<input id="sn-name" maxlength="30" translate="no"></label>
+      <label class="fld">Their 4 digit code<input id="sn-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></label>
+      <div class="actions"><button class="btn pri" id="sn-go">Add the senior</button></div>` : ""}
+    ${old.length ? `<div class="h3">Old senior logins</div><p class="note">These logins from before codes no longer work. Take them off.</p>
+      ${old.map((p) => `<div class="staffrow"><div class="n"><b translate="no">${esc(p.name)}</b></div><div class="actions"><button class="btn" data-tm-drop="${p.uid}">Take off the team</button></div></div>`).join("")}` : ""}`;
+}
 function mgrHtml() {
-  return `${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board, restock requests, the inbox and issues for everyone. Sent handovers and their photos stay.</p>
-      <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
-    <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>
-    ${LIVE.owner && LIVE.staff.filter((p) => p.role === "manager").length < 3 ? `<div class="h3">Add a senior</div>
-      <p class="note">Up to three. Each gets their own login, with a password you pick and give them in person. They see everything and can change the lists, labels, games, drink photos and numbers. Only you add or remove a senior, and only you read Tell Derek.</p>
-      <label class="fld">First name<input id="am-name" maxlength="30"></label>
-      <label class="fld">Username (lower case letters and numbers)<input id="am-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
-      <label class="fld">Password (6 or more characters)<input id="am-pw" autocomplete="off"></label>
-      <div class="actions"><button class="btn pri" id="am-go">Add the senior</button></div>` : ""}`;
+  return `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board, restock requests, the inbox and issues for everyone. Sent handovers and their photos stay.</p>
+    <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>
+    <label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
+    <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>`;
+}
+// The top of the manager section: what's waiting and how tonight stands, in one line each.
+function glanceHtml() {
+  const last = (side) => LIVE.reports.find((r) => r.side === side && !r.pending);
+  const close = ["bar", "floor"].map((side) => { const r = last(side); return `${sideName(side)} closing: ${r ? `sent by ${esc(r.name)} ${when(r.at)}` : "none yet"}`; });
+  const waiting = [newTells().length && `${newTells().length} from the team for you`, newAsks().length && `${newAsks().length} new in the inbox`,
+    openIssues().length && plural(openIssues().length, "open issue"), LIVE.out.size && `${LIVE.out.size} 86'd`].filter(Boolean);
+  return `<p class="note glance">${waiting.length ? waiting.join(" · ") : "Nothing waiting"}<br>${close.join("<br>")}</p>`;
 }
 
 /* ---------- The Team page ----------
    Who you are, then posting a message and the messages, then a card for each tool. Cards stay open or shut as left. */
 const tmOpen = new Set(store.get("tmOpen", []));
 const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
+// For the owner and seniors, everything they look after comes first under Manager, then the same Team cards as
+// everyone. A ["§", title, html] entry is a heading.
 const CARDS = () => [
   ...(LIVE.admin ? [
+    ["§", "Manager", glanceHtml],
     ...(LIVE.owner ? [["tells", "What the team told you", tellsHtml, newTells().length ? { t: `${newTells().length} new`, hot: 1 } : ""]] : []),
     ["inbox", "Inbox from the team", inboxHtml, newAsks().length ? { t: `${newAsks().length} new`, hot: 1 } : ""],
-    ["sent", "Everything sent", sentHtml, LIVE.sent.length || ""],
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
+    ["sent", "Everything sent", sentHtml, LIVE.sent.length || ""],
     ["outlog", "86 log", outlogHtml],
+    ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""],
+    ...(LIVE.owner ? [["seniors", "Seniors and their codes", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : LIVE.seniors.length || ""],
+      ["mgr", "Owner settings", mgrHtml]] : []),
+    ["§", "Team"],
   ] : []),
   ...(LIVE.me && !LIVE.admin ? [["ask", "To the seniors", askHtml, draftPill("ask")]] : []),
   ["incident", "Incident or accident", incHtml, draftPill("incident")],
@@ -4590,8 +4844,9 @@ const CARDS = () => [
   ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml, draftPill("tell")]] : []),
   ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") : ""}</div>`],
   ["spin", "Spin the wheel", spinHtml],
-  ...(LIVE.me ? [["call", "Who to call", callHtml], ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
-  ...(LIVE.admin ? [["mgr", LIVE.owner ? "Owner settings" : "Senior settings", mgrHtml]] : []),
+  ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
+  ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
+  ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Senior? Unlock with your code", unlockHtml]] : []),
 ];
 function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (c && box) box.innerHTML = c[2](); }
 /* ---------- Drafts ----------
@@ -4640,7 +4895,7 @@ addEventListener("pagehide", saveDrafts);
 setTimeout(() => { const ds = Object.keys(DRAFTS).filter(drafted).map((k) => DRAFTS[k].n); if (ds.length) toast(`Unfinished draft: ${ds.join(", ")}`); }, 600);
 function topHtml() {
   if (!LIVE.api) return `<p class="note">The team side needs signal the first time.</p>`;
-  if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span>${teamCode ? `<button class="linkbtn" data-send="team">Share the team link</button>` : ""}<button class="linkbtn" id="tm-leave">Log out</button></p>`;
+  if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span>${teamCode ? `<button class="linkbtn" data-send="team">Share the team link</button>` : ""}${LIVE.owner ? `<button class="linkbtn" id="tm-leave">Log out</button>` : `<button class="linkbtn" id="tm-lock">Lock</button>`}</p>`;
   if (LIVE.me) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${sideName(mode)}</span><button class="linkbtn" id="tm-rename">Change name</button><button class="linkbtn" data-send="team">Share the team link</button><button class="linkbtn" id="tm-leave">Leave</button></p>`;
   const busyNow = joining || (LIVE.uid && LIVE.anon && myName && teamCode && !joinErr);
   return `<div class="fbbox"><h2 style="margin-top:0">Join the team</h2>
@@ -4651,7 +4906,7 @@ function topHtml() {
     <label class="fld">Or type your first name<input id="j-name" maxlength="30" value="${esc(ALL_STAFF.includes(myName) ? "" : myName)}" translate="no"></label>
     <label class="fld">Team code<input id="j-code" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(teamCode)}"></label>
     <button class="btn pri wide" id="j-go">Join</button>`}</div>
-    <details class="setup"><summary>Owner or senior login</summary>
+    <details class="setup"><summary>Owner login</summary>
       <label class="fld">Username<input id="l-user" autocapitalize="none" autocomplete="username" spellcheck="false"></label>
       <label class="fld">Password<input id="l-pw" type="password" autocomplete="current-password"></label>
       <button class="btn pri wide" id="l-go">Log in</button></details>`;
@@ -4660,7 +4915,7 @@ function renderTeam() {
   if ($("#v-notices").hidden) return;
   const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if (!typing($("#tm-top"))) $("#tm-top").innerHTML = topHtml();
-  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = CARDS().map(([k, t, f, sub]) => card(k, t, f, sub)).join("");
+  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
   renderBell();
 }
 function renderNotices() { renderTeam(); }
@@ -4705,6 +4960,34 @@ $("#v-notices").addEventListener("click", async (e) => {
     const u = val("#l-user").toLowerCase(), pw = $("#l-pw").value;
     if (!u || !pw) return toast("Put in your username and password");
     return busy(b("#l-go"), "Logging in…", A.login(u, pw).then(() => haptic(), (er) => toast(er.message)));
+  }
+  // Seniors' codes.
+  if ((x = b("[data-un-id]"))) { unF.id = x.dataset.unId; renderCard("unlock"); return $("#un-pin")?.focus(); }
+  if (b("#un-go")) {
+    const pin = val("#un-pin");
+    if (!unF.id) return toast("Tap your name first");
+    if (!/^[0-9]{4}$/.test(pin)) return toast("Your code is 4 digits");
+    return busy(b("#un-go"), "Checking…", A.unlock(unF.id, pin).then(() => { haptic(); unF.id = ""; toast("Unlocked. Tap Lock before you hand the phone back"); },
+      (er) => { toast(er.message); renderCard("unlock"); }));
+  }
+  if (b("#tm-lock")) return track(A.lock(myName), "Locked. Back to the team's view", "Not locked. Check your signal");
+  if (b("#sn-go")) {
+    const n = val("#sn-name"), pin = val("#sn-pin");
+    if (!n || !/^[0-9]{4}$/.test(pin)) return toast("A first name and a 4 digit code");
+    if (rude(n)) return toast(RUDE);
+    return busy(b("#sn-go"), "Adding…", A.setSenior(n, pin).then(() => { toast(`${n} can unlock with their code now. Tell them it in person`); renderCard("seniors"); }, (er) => toast(er.message || "Not added")));
+  }
+  if ((x = b("[data-sn-code]"))) {
+    const s = LIVE.seniors.find((y) => y.id === x.dataset.snCode); if (!s) return;
+    const pin = (prompt(`New 4 digit code for ${s.name}`) || "").trim(); if (!pin) return;
+    if (!/^[0-9]{4}$/.test(pin)) return toast("A code is 4 digits");
+    return A.setSenior(s.name, pin, s.id).then(() => toast(`${s.name}'s code changed. Their phones stay unlocked`), (er) => toast(er.message || "Not changed"));
+  }
+  if ((x = b("[data-sn-reset]"))) return track(A.resetTries(x.dataset.snReset), "Unlocked. They can try their code again", "Not changed");
+  if ((x = b("[data-sn-drop]"))) {
+    const s = LIVE.seniors.find((y) => y.id === x.dataset.snDrop); if (!s) return;
+    if (!confirm(`Take ${s.name} off as a senior? Their code stops working and any phone they unlocked goes back to the team's view.`)) return;
+    return track(A.dropSenior(s.id), `${s.name} taken off`, "Not taken off");
   }
   if (b("#tm-leave")) { if (confirm(LIVE.admin ? "Log out on this phone?" : "Leave the team on this phone? Open the team link to join again.")) A.leave(); return; }
   if (b("#tm-rename")) { const n = prompt("Your first name", LIVE.me); if (n && n.trim()) setName(n); return; }
@@ -4777,7 +5060,7 @@ $("#v-notices").addEventListener("click", async (e) => {
   // The manager.
   if ((x = b("[data-rp-photos]"))) {
     const id = x.dataset.rpPhotos;
-    return busy(x, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${esc(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
+    return busy(x, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
   }
   if ((x = b("[data-tm-drop]"))) {
     const p = LIVE.staff.find((s) => s.uid === x.dataset.tmDrop); if (!p) return;
@@ -4788,11 +5071,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   if (b("#pw-go")) {
     const pw = $("#pw-new").value; if (pw.length < A.PASSWORD_MIN) return toast(`At least ${A.PASSWORD_MIN} characters`);
     return track(A.changePassword(pw).then(() => ($("#pw-new").value = "")), "Password changed", "Not changed. Log out and in again, then try again");
-  }
-  if (b("#am-go")) {
-    const n = val("#am-name"), u = val("#am-user").toLowerCase(), pw = $("#am-pw").value;
-    if (!n || !A.USER.test(u) || pw.length < A.PASSWORD_MIN) return toast(`A name, a username of lower case letters and numbers, and a password of ${A.PASSWORD_MIN} or more`);
-    return busy(b("#am-go"), "Adding…", A.addManager(n, u, pw).then(() => { toast(`${n} can log in now. Give them the username and password in person`); renderCard("mgr"); }, (er) => toast(er.message || "Not added")));
   }
 });
 document.addEventListener("click", (e) => {
@@ -4973,7 +5251,7 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
 renderChips(); renderList();
 {
   const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
-  renderWelcomeName();
+  $("#w-lang").innerHTML = langOptions(); renderWelcomeName();
   w.addEventListener("click", (e) => {
     const b = e.target.closest("[data-start]"); if (!b) return;
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
@@ -4983,6 +5261,7 @@ renderChips(); renderList();
   });
 }
 navCols();
+setLang(lang);
 if (!plOpenList(location.hash)) show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
 addEventListener("hashchange", () => plOpenList(location.hash));
 </script>

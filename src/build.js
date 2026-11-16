@@ -69,6 +69,12 @@ for (const d of drinks) {
 }
 const data = { guides, scenes, drinks, prep: src.prep.map((p) => ({ ...p, spec: p.spec.map(clean) })), };
 const tpl = fs.readFileSync("template.html", "utf8");
+// Languages load only when picked (site.js writes lang/<code>.json), so English stays small and fast. The page gets
+// the list of languages and a fingerprint of the words, so a phone knows when its saved copy is out of date.
+function i18nHead() {
+  const raw = fs.readFileSync("i18n.json", "utf8");
+  return { langs: JSON.parse(raw).langs, v: require("crypto").createHash("sha1").update(raw).digest("hex").slice(0, 10) };
+}
 // The cocktail maker (Make tab) goes in near the end of the script, once the drinks and helpers it reads exist.
-fs.writeFileSync("black-tap-bar-app.html", tpl.replace("/*DATA*/", () => "const DATA = " + JSON.stringify(data) + ";\n" + fs.readFileSync("art.js", "utf8")).replace("/*MAKER*/", () => fs.readFileSync("maker.js", "utf8")).replace("/*RAPID*/", () => fs.readFileSync("rapid.js", "utf8")).replace("/*PLUS*/", () => fs.readFileSync("plus.js", "utf8") + fs.readFileSync("plus-out.js", "utf8")).replace("/*HELP*/", () => fs.readFileSync("help.js", "utf8")).replace("/*CHEAT*/", () => "const CHEAT_FONT = \"data:font/woff2;base64," + fs.readFileSync("oswald.woff2").toString("base64") + "\";\n" + fs.readFileSync("cheatsheet.js", "utf8").replace(/\nif \(typeof module[^\n]*/, "")));
+fs.writeFileSync("black-tap-bar-app.html", tpl.replace("/*DATA*/", () => "const DATA = " + JSON.stringify(data) + ";\n" + fs.readFileSync("art.js", "utf8")).replace("/*MAKER*/", () => fs.readFileSync("maker.js", "utf8")).replace("/*RAPID*/", () => fs.readFileSync("rapid.js", "utf8")).replace("/*PLUS*/", () => fs.readFileSync("plus.js", "utf8") + fs.readFileSync("plus-out.js", "utf8")).replace("/*HELP*/", () => fs.readFileSync("help.js", "utf8")).replace("/*CHEAT*/", () => "const CHEAT_FONT = \"data:font/woff2;base64," + fs.readFileSync("oswald.woff2").toString("base64") + "\";\n" + fs.readFileSync("cheatsheet.js", "utf8").replace(/\nif \(typeof module[^\n]*/, "")).replace("/*I18N*/", () => "const I18N = " + JSON.stringify(i18nHead()) + ";"));
 console.log("drinks", drinks.length, "bytes", fs.statSync("black-tap-bar-app.html").size);

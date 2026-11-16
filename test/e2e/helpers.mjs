@@ -12,7 +12,7 @@ const FS = `http://127.0.0.1:8080`;
 const DOCS = `${FS}/v1/projects/${PROJECT}/databases/(default)/documents`;
 // Test-only team code. The real one lives only in the owner's Firebase console (config/team).
 export const TEAM_CODE = "test-team-code-0123";
-export const OWNER_PW = "owner-pass-111", MANAGER_PW = "manager-pass-222";
+export const OWNER_PW = "owner-pass-111", SENIOR_PIN = 4821;
 
 // Serves a built site folder on a free port.
 const TYPES = { ".html": "text/html", ".js": "text/javascript", ".json": "application/json", ".png": "image/png", ".webmanifest": "application/manifest+json", ".txt": "text/plain", ".woff2": "font/woff2" };
@@ -87,7 +87,8 @@ export const part = (p, k) => p.evaluate((k) => { show("notices"); openAt(k); },
 export const attempt = (p, fn, ...args) => p.evaluate(([f, a]) => (0, eval)(f)(...a).then(() => "allowed", (e) => e.code || e.message), [fn.toString(), args]);
 
 // The usual team: the owner logged in on one phone, plus whoever else the test asks for: [key, name] joins as staff
-// with the team code, [key, name, username, "manager"] is the manager the owner adds.
+// with the team code, [key, name, username, "manager"] is a senior the owner adds with a code (SENIOR_PIN plus their
+// place in the list), who joins and then unlocks the phone with it.
 export async function team(browser, site, people = []) {
   // Phones from an earlier test would rejoin after the emulator is wiped, so they go first.
   for (const c of browser.contexts()) await c.close();
@@ -98,8 +99,11 @@ export async function team(browser, site, people = []) {
   for (const [key, name, username, role] of people) {
     const p = await phone(browser, site);
     if (role === "manager") {
-      await O.evaluate((a) => LIVE.api.addManager(...a), [name, username, MANAGER_PW]);
-      await p.evaluate((a) => LIVE.api.login(...a), [username, MANAGER_PW]);
+      const pin = String(SENIOR_PIN + people.indexOf(people.find((x) => x[0] === key))), id = name.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      await O.evaluate((a) => LIVE.api.setSenior(...a), [name, pin]);
+      await p.evaluate((a) => LIVE.api.join(...a), [TEAM_CODE, name]);
+      await p.waitForFunction((id) => LIVE.seniors.some((x) => x.id === id), id);
+      await p.evaluate((a) => LIVE.api.unlock(...a), [id, pin]);
       await p.waitForFunction(() => LIVE.role === "manager");
     } else {
       await p.evaluate((a) => LIVE.api.join(...a), [TEAM_CODE, name]);
