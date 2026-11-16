@@ -16,8 +16,10 @@ test("the morning reads last night's handover back, with today's order and the p
   // Last night's handover, dated the night before (the morning only shows an earlier shift's).
   const sam = await S.evaluate(() => LIVE.uid);
   const text = "Black Tap Soho bar shift, Sun 15 Nov 2026, 01:10\nRun by: Sam Staff\n\nClosing checklist: 37 of 38 done\nNot done:\n- Bar storage tidied\n\n86'd: nothing\n\nNote for handover:\nRunning low: Gas (CO2), Limes\nOutstanding: Tap 3 dripping\nFor tomorrow: Prep: lime juice\n\nClosed by: Angel, Emily\nNo closing photos: Camera broken";
+  // 11pm on the night before today's business day, whatever time the test runs.
+  const night = await O.evaluate(() => Date.parse(lastNight() + "T23:00:00Z"));
   await adminWrite("reports/old", { side: { stringValue: "bar" }, text: { stringValue: text }, summary: { stringValue: "Bar · test" }, photos: { integerValue: "0" },
-    uid: { stringValue: sam }, name: { stringValue: "Sam Staff" }, at: { timestampValue: new Date(Date.now() - 30 * 36e5).toISOString() } });
+    uid: { stringValue: sam }, name: { stringValue: "Sam Staff" }, at: { timestampValue: new Date(night).toISOString() } });
   await O.evaluate(() => setOut("Prosecco bottle", true));
   await shift(O, "morning");
   await O.waitForSelector("#handover");
@@ -27,10 +29,11 @@ test("the morning reads last night's handover back, with today's order and the p
   assert.match(page, /Today's order\s*Gas \(CO2\), Limes, Prosecco bottle/i);
   assert.match(page, /Prep to par[\s\S]*Lime juice/i);
   assert.equal(await O.locator(".ptabs [data-pane=open]").count(), 0, "no opening checklist");
+  assert.equal(await O.locator("#ho-stale").count(), 0);
 
   const msg = await O.evaluate(() => shareText("morning"));
   assert.match(msg, /^\*Black Tap Soho · Bar morning · .*\*\n✅ Last night's handover checked by Olly Owner\n\n\*Still outstanding\*\nTap 3 dripping\nBar storage tidied\n\n\*For today\*\nPrep: lime juice/);
-  assert.match(await O.evaluate(() => shareText("order")), /To order or bring up today:\n\n\*Order \(3\)\*\n• Gas \(CO2\)\n• Limes\n• Prosecco bottle$/);
+  assert.match(await O.evaluate(() => shareText("order")), /To order or bring up today:\n\n\*Order \(3\)\*\n• Gas \(CO2\)\n• Limes\n• Prosecco bottle\n\nOpen in Bar Book: \S+#at=morning$/);
   assert.match(await O.evaluate(() => shareText("pars")), /\*Prep to par \(\d+\)\*\n⬜ Lime juice: /);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
@@ -50,7 +53,7 @@ test("the close shows when it started, how long it's taking and who has ticked w
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
-test("anyone clears everything for a fresh start; the owner's master clear also empties restocks, the inbox and issues", async () => {
+test("anyone clears everything for a fresh start and can undo it; the owner's master clear keeps issues and marks the inbox done", async () => {
   await resetEmulators();
   const { O, S, F } = await team(browser, site, [["S", "Sam Staff"], ["F", "Pema"]]);
   await F.evaluate(() => setMode("floor"));
@@ -59,22 +62,33 @@ test("anyone clears everything for a fresh start; the owner's master clear also 
   await S.evaluate(() => setOut("Limes", true));
   await S.click(".ptabs [data-pane=send]"); await S.fill("#ho-low", "Ice");
   await O.waitForFunction(() => LIVE.tasks["close-0"]?.status === "done" && LIVE.tasks["fclose-0"]?.status === "done" && LIVE.out.has("Limes"));
+  await S.waitForFunction(() => LIVE.drafts.some((d) => d.side === "bar" && d.low === "Ice" && !d.pending));
   assert.equal(await S.locator("#master-clear").count(), 0);
+  assert.equal(await S.locator("#undo-clear").count(), 0);
 
   S.answer = "yes"; await S.click("#clear-all");
-  await waitToast(S, /^All clear for a fresh start$/);
-  await O.waitForFunction(() => ["close-0", "fclose-0"].every((k) => LIVE.tasks[k].status === "todo") && !LIVE.out.size);
+  await waitToast(S, /^All clear\. Undo clear is there if that was a mistake$/);
+  await O.waitForFunction(() => ["close-0", "fclose-0"].every((k) => LIVE.tasks[k].status === "todo") && !LIVE.out.size && !LIVE.drafts.length);
   assert.equal(await S.evaluate(() => ho.low), "");
   assert.equal(await S.$eval("#ho-low", (e) => e.value), "");
 
-  // The owner's master clear: an issue and something for the inbox both go.
+  // A mis-tap: Undo clear puts the ticks, the 86 and the handover back on every phone.
+  await S.click("#undo-clear");
+  await waitToast(S, /^Put back as it was$/);
+  await O.waitForFunction(() => ["close-0", "fclose-0"].every((k) => LIVE.tasks[k].status === "done") && LIVE.out.has("Limes")
+    && LIVE.drafts.some((d) => d.side === "bar" && d.low === "Ice"));
+  assert.equal(await S.evaluate(() => ho.low), "Ice");
+  assert.equal(await S.locator("#undo-clear").count(), 0);
+
+  // The owner's master clear: the open issue stays for the next shift, and the inbox is marked done, not deleted.
   await S.evaluate(() => Promise.all([LIVE.api.raise({ title: "Tap 3 dripping", detail: "", area: "bar", urgent: false }),
     LIVE.api.ask({ kind: "fix", text: "Stool wobbles", when: "", anon: false })]));
   await O.waitForFunction(() => LIVE.issues.length === 1 && LIVE.asks.length === 1);
   await part(O, "mgr");
   O.answer = "yes"; await O.click("#master-clear");
-  await waitToast(O, /^Master clear done$/);
-  await O.waitForFunction(() => !LIVE.issues.length && !LIVE.asks.length);
+  await waitToast(O, /^Master clear done\. Undo clear is on Shift$/);
+  await O.waitForFunction(() => !LIVE.out.size && LIVE.asks.length === 1 && LIVE.asks[0].status === "done" && !LIVE.asks[0].pending);
+  assert.equal(await O.evaluate(() => LIVE.issues.length), 1);
   assert.deepEqual([O.errs, S.errs, F.errs], [[], [], []]);
 });
 
@@ -97,7 +111,7 @@ test("Only what's left: a ticked item gets out of the way and one tap undoes it"
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
-test("drafts: what's typed survives closing the app, Save draft puts it away, Discard and Clear everything wipe it", async () => {
+test("drafts: what's typed survives closing the app, Save draft puts it away, Discard wipes it and Clear everything leaves it", async () => {
   await resetEmulators();
   const { O, S } = await team(browser, site, [["S", "Sam Staff"]]);
   await part(S, "tell");
@@ -117,11 +131,57 @@ test("drafts: what's typed survives closing the app, Save draft puts it away, Di
   await waitToast(S, /^Draft discarded$/);
   assert.equal(await S.$eval('[data-tell="text"]', (e) => e.value), "");
   assert.equal(await S.evaluate(() => JSON.parse(localStorage.getItem("btbar.draft.tell")).text), "");
-  // Clear everything takes this phone's drafts too.
+  // Clear everything is for the team's lists: someone's half-written request or incident stays on their phone.
   await part(S, "ask");
   await S.fill('[data-ask="text"]', "Can I swap Saturday");
   S.answer = "yes"; await S.evaluate(() => { show("tally"); }); await S.click("#clear-all");
-  await waitToast(S, /^All clear for a fresh start$/);
-  assert.equal(await S.evaluate(() => askF.text), "");
+  await waitToast(S, /^All clear\. Undo clear is there if that was a mistake$/);
+  assert.equal(await S.evaluate(() => askF.text), "Can I swap Saturday");
+  assert.deepEqual([O.errs, S.errs], [[], []]);
+});
+
+test("with no signal, Clear everything on a finished list shows straight away and reaches every phone once the signal is back", async () => {
+  await resetEmulators();
+  const { O, S } = await team(browser, site, [["S", "Sam Staff"]]);
+  await S.evaluate(() => setMode("floor")); await shift(S, "fclose");
+  const ids = await S.evaluate(() => shown("fclose").map(([i]) => i));
+  await S.evaluate((xs) => Promise.all(xs.map((i) => LIVE.api.setTask("fclose", i, itemText("fclose", i), "done"))), ids);
+  await S.waitForFunction((xs) => xs.every((i) => LIVE.tasks[`fclose-${i}`]?.status === "done" && !LIVE.tasks[`fclose-${i}`].pending), ids);
+  await S.evaluate((n) => LIVE.api.setRun("fclose", "Floor close", "finished", n, n), ids.length);
+  await O.waitForFunction(() => LIVE.runs.fclose?.status === "finished" && !LIVE.runs.fclose.pending);
+
+  await S.context().setOffline(true);
+  await S.waitForFunction(() => !navigator.onLine);
+  S.answer = "yes"; await S.click("#clear-all");
+  // Before, the items waited for the reopen to reach the server, so with no signal nothing changed on the phone.
+  await S.waitForFunction((xs) => LIVE.runs.fclose.status === "started" && xs.every((i) => LIVE.tasks[`fclose-${i}`].status === "todo"), ids);
+  await S.context().setOffline(false);
+  await O.waitForFunction((xs) => LIVE.runs.fclose.status === "started" && !LIVE.runs.fclose.pending
+    && xs.every((i) => LIVE.tasks[`fclose-${i}`].status === "todo" && !LIVE.tasks[`fclose-${i}`].pending), ids);
+  assert.deepEqual([O.errs, S.errs], [[], []]);
+});
+
+test("the morning never passes an older handover off as last night's, and the closer sees one still waiting for signal", async () => {
+  await resetEmulators();
+  const { O, S } = await team(browser, site, [["S", "Sam Staff"]]);
+  const sam = await S.evaluate(() => LIVE.uid);
+  // The last one that reached the server is from two nights ago: last night's is still on the closer's phone.
+  const old = await O.evaluate(() => Date.parse(lastNight() + "T23:00:00Z") - 864e5);
+  await adminWrite("reports/older", { side: { stringValue: "bar" }, text: { stringValue: "Bar shift\n\nNote for handover:\nRunning low: Ice\n\nClosed by: Sam Staff" },
+    summary: { stringValue: "Bar · test" }, photos: { integerValue: "0" }, uid: { stringValue: sam }, name: { stringValue: "Sam Staff" }, at: { timestampValue: new Date(old).toISOString() } });
+  await shift(O, "morning");
+  await O.waitForSelector("#ho-stale");
+  assert.match(await O.$eval("#ho-stale", (e) => e.innerText), /^Last night's handover hasn't arrived\. .* This one is from \w{3} \d+ \w{3}\.$/);
+  assert.match(await O.$eval("#handover .meta", (e) => e.innerText), /^Latest handover · /);
+
+  // The closer hands over with no signal: the Send page says it hasn't gone, then that it has.
+  await shift(S, "send");
+  await S.context().setOffline(true);
+  await S.waitForFunction(() => !navigator.onLine);
+  await handOver(S);
+  await S.waitForSelector("#ho-wait");
+  await S.context().setOffline(false);
+  await S.waitForSelector("#ho-sent", { timeout: 20000 });
+  assert.match(await S.$eval("#ho-sent", (e) => e.innerText), /^✅ Handover sent \d\d:\d\d by Sam Staff\. The morning team will see it\.$/);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });

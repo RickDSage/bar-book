@@ -45,7 +45,7 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   assert.match(await preview(S), /^Urgent: Glass washer leaking · Black Tap Soho\nBar, raised .+\nNobody on it yet\n\nMore detail\nWater under the machine$/);
   assert.equal(await S.getAttribute("#send-note", "placeholder"), "When can you come?");
   // No photos yet: WhatsApp is the main button and there's nothing to send through the share sheet but the words.
-  assert.deepEqual(await actions(S), ["WhatsApp", "Email", "Other apps…", "Copy", "As a picture", "Print"]);
+  assert.deepEqual(await actions(S), ["WhatsApp", "Text", "Email", "Other apps…", "Copy", "As a picture", "Print"]);
   // Photos come from the camera, or several at once from the phone's photos.
   assert.deepEqual(await addButtons(S), [["send-cam", "Take a photo"], ["send-in", "Choose from your photos"]]);
   assert.deepEqual(await S.evaluate(() => [document.querySelector("#send-cam").getAttribute("capture"), document.querySelector("#send-in").multiple]), ["environment", true]);
@@ -56,7 +56,7 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   await photosReady(S, 3);
   assert.equal(await S.$$eval("#send .sendph img", (x) => x.length), 3);
   assert.equal((await addButtons(S)).length, 2, "both buttons stay for more");
-  assert.deepEqual(await actions(S), ["Copy the words", "Send with photos", "WhatsApp, words only", "Email", "As a picture", "Print"]);
+  assert.deepEqual(await actions(S), ["Copy the words", "Send with photos", "WhatsApp, words only", "Text", "Email", "As a picture", "Print"]);
   assert.deepEqual(await S.$$eval("#send .sendhow li", (x) => x.map((l) => l.textContent)),
     ["Tap Copy the words, then Send with photos.", "Pick WhatsApp, then the chat.", "Press and hold the caption box, tap Paste, then send."]);
   await S.click('[data-send-unphoto="1"]');
@@ -66,7 +66,7 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   // Two taps: Safari opens the share sheet only from a fresh tap, and copying first could use it up.
   await S.click("#send [data-send-copy]");
   await S.waitForFunction(() => window.copied);
-  assert.match(await S.evaluate(() => window.copied), /^\*Urgent: Glass washer leaking · Black Tap Soho\*\n[\s\S]*\n\n\*Note\*\nCan you come before 5\?$/);
+  assert.match(await S.evaluate(() => window.copied), /^\*Urgent: Glass washer leaking · Black Tap Soho\*\n[\s\S]*\n\n\*Note\*\nCan you come before 5\?\n\nOpen in Bar Book: \S+#at=issues$/);
   assert.equal(await S.$eval("#toast", (e) => e.textContent), "Copied. Now tap Send with photos");
   await S.click("#send [data-send-sheet]");
   await S.waitForFunction(() => window.shared);
@@ -98,7 +98,7 @@ test("a drink goes with its house photo, captioned, and Back goes back to the dr
   await S.click("#sheet [data-send=drink]");
   assert.equal(await S.$eval("#sh-name", (e) => e.textContent), "Negroni");
   await photosReady(S, 1);
-  assert.equal(await preview(S), "Negroni · Black Tap Soho\nGlass: Rocks\nIce: 1 large cube\nGarnish: Orange slice\nAllergens: Sulphites (vermouth)\n\nSpec (3)\n• 25 ml Tanqueray\n• 25 ml Campari\n• 25 ml Martini Rosso\n\nMethod (2)\n• Stir 20 seconds\n• Strain over a large cube");
+  assert.equal(await preview(S), `Negroni · Black Tap Soho\nGlass: Rocks\nIce: 1 large cube\nGarnish: Orange slice\nAllergens: Sulphites (vermouth)\n\nSpec (3)\n• 25 ml Tanqueray\n• 25 ml Campari\n• 25 ml Martini Rosso\n\nMethod (2)\n• Stir 20 seconds\n• Strain over a large cube\n\nOpen in Bar Book: ${site.url.replace(/\/$/, "")}/#d=negroni`);
   // The photo carries the drink's name in a strip below it, so it still says what it is in the chat.
   const f = await S.evaluate(async () => { const b = await createImageBitmap(snd.files[0]); return [snd.files[0].name, snd.files[0].type, b.width, b.height]; });
   assert.deepEqual(f.slice(0, 3), ["negroni.jpg", "image/jpeg", 640]);

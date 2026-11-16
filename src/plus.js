@@ -146,7 +146,7 @@ function plTickMark() {
 /* ---------- Smarter search ---------- */
 // Words that mean the same behind the bar, and words that don't narrow anything down.
 const PL_SYN = { whiskey: "whisk", whisky: "whisk", whiskies: "whisk", scotch: "whisk", mocktail: "zero", mocktails: "zero", virgin: "zero", alcoholfree: "zero", "non-alcoholic": "zero",
-  nonalcoholic: "zero", "alcohol-free": "zero", coke: "cola", bubbles: "prosecco", fizz: "prosecco", espresso: "espresso", coffee: "espresso", tequilla: "tequila", margarita: "margarita",
+  nonalcoholic: "zero", "alcohol-free": "zero", coke: "cola", jd: "jack", bubbles: "prosecco", fizz: "prosecco", espresso: "espresso", coffee: "espresso", tequilla: "tequila", margarita: "margarita",
   mojitos: "mojito", martinis: "martini", shots: "shot", bombs: "bomb", jager: "jager", bourbon: "bourbon", lime: "lime", passionfruit: "passion", pornstar: "pornstar" };
 const PL_STOP = new Set(["a", "an", "the", "and", "with", "something", "some", "drink", "drinks", "please", "of", "in", "for", "me", "i", "want", "like", "any", "cocktail", "cocktails"]);
 let PL_VOCAB = null;
@@ -167,17 +167,39 @@ function plLev(a, b, max) {
   }
   return prev[b.length];
 }
+// Does a drink have this search word? A short word has to start a word ("red" isn't the end of "stirred", "gin" isn't in
+// "virgin"); five letters or more can be anywhere ("berry" finds strawberry); six or more also match with the spaces
+// taken out, so "redbull", "red bul" and "gingerbeer" find Red Bull and ginger beer.
+// A word of four letters or fewer that is a whole word somewhere ("gin", "cola") has to be the whole word (or its
+// plural), so "gin" doesn't bring up every ginger beer and "cola" isn't the Piña Colada; one that isn't ("bul", still
+// being typed) can start a word.
+const PL_WHOLE = new Map();
+const plWordAt = (h, i, w) => (i === 0 || !/[a-z0-9]/.test(h[i - 1])) && !/[a-z0-9]/.test(h[i + w.length] || "") || (h[i + w.length] === "s" && !/[a-z0-9]/.test(h[i + w.length + 1] || "") && (i === 0 || !/[a-z0-9]/.test(h[i - 1])));
+function plWhole(w) {
+  if (w.length > 4) return false;
+  if (!PL_WHOLE.has(w)) PL_WHOLE.set(w, D.some((d) => { for (let i = d._h.indexOf(w); i >= 0; i = d._h.indexOf(w, i + 1)) if (plWordAt(d._h, i, w)) return true; return false; }));
+  return PL_WHOLE.get(w);
+}
+function plHit(d, w) {
+  const h = d._h, whole = plWhole(w);
+  // A spirit finds every drink made with it, even when the spec names only the bottle ("gin" finds the Tanqueray ones).
+  if (w.length >= 3 && d._b && d._b.startsWith(w)) return true;
+  if (w.length >= 5 && h.includes(w)) return true;
+  for (let i = h.indexOf(w); i >= 0; i = h.indexOf(w, i + 1)) if (whole ? plWordAt(h, i, w) : i === 0 || !/[a-z0-9]/.test(h[i - 1])) return true;
+  return w.length >= 6 && (d._s ??= h.replace(/[^a-z0-9]/g, "")).includes(w);
+}
+const plHits = (d, words) => words.every((w) => plHit(d, w));
 // The words to look for, with typos fixed ("espreso martni" finds the Espresso Martini) and what was fixed, to show.
 function plQuery(q) {
   if (PL.sq?.q === q) return PL.sq;
-  let words = plNorm(q).replace(/alcohol[- ]free|non[- ]alcoholic|no alcohol/g, "zero").split(/[\s,]+/).filter(Boolean);
+  let words = plNorm(q).replace(/alcohol[- ]free|non[- ]alcoholic|no alcohol/g, "zero").replace(/\bg ?(&|and|n|\+) ?t\b|\bg&ts?\b/g, "tonic").split(/[\s,]+/).filter(Boolean);
   const kept = words.filter((w) => !PL_STOP.has(w)); if (kept.length) words = kept;
   const out = [], fixed = [];
   words.forEach((w, i) => {
     w = PL_SYN[w] || w;
     const last = i === words.length - 1;
-    if (D.some((d) => d._h.includes(w))) return out.push(w);
-    if (w.length > 3 && w.endsWith("s") && D.some((d) => d._h.includes(w.slice(0, -1)))) return out.push(w.slice(0, -1));
+    if (D.some((d) => plHit(d, w))) return out.push(w);
+    if (w.length > 3 && w.endsWith("s") && D.some((d) => plHit(d, w.slice(0, -1)))) return out.push(w.slice(0, -1));
     const max = w.length >= 8 ? 2 : w.length >= 4 ? 1 : 0;
     let best = null, bd = max + 1, bf = 0;
     if (max) for (const [v, f] of plVocab()) { const t = last && v.length > w.length ? v.slice(0, w.length + 1) : v; const dd = Math.min(plLev(w, v, max), last ? plLev(w, t, max) : 9); if (dd < bd || (dd === bd && f > bf)) { best = v; bd = dd; bf = f; } }
