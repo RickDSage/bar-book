@@ -1,14 +1,21 @@
 rules_version = '2';
-// Black Tap Bar Book: Firestore security rules, version 2.
+// Black Tap Bar Book: Firestore security rules, version 3 (staff app, 15 November 2026).
 //
-// Identity is the signed-in Firebase Auth uid. Membership is a staff/{uid} record with a role:
-// owner (one account, claimed once through config/owner), manager, or staff. Removing that record removes
-// all access. Names on records are display snapshots; the uid fields are what these rules check.
+// Two kinds of people, both with a staff/{uid} record:
+// - Bar and floor staff have no login or password. Each phone signs in anonymously (Firebase gives it an id, nothing is
+//   typed) and joins with the team code, which arrives inside the team link shared in the staff WhatsApp group:
+//   staff/{uid} = {name, role: 'staff', code, at}, where code must equal config/team.code. Only the Firebase console can
+//   read or change config/team; changing the code there takes every staff phone off the team at once, and they join
+//   again with the new link.
+// - Sign-in accounts with a username and password: the owner (made at first-time setup, 25 October 2026) and up to
+//   three seniors (role 'manager'), whom the owner adds in the app: staff/{uid} = {name, username, role: 'owner' | 'manager'}, with
+//   usernames/{username} pointing at the account so the login screen can find it.
+//
+// Team only: rate the shift is copied to sent/ with no uid and no name when it's sent, like everything sent from the
+// app. Anything written here can be read by the seniors (role 'manager', up to three) and the owner, except Tell
+// Derek (tells/), which only the owner reads.
 //
 // Anything not matched below is denied, including every collection that isn't listed.
-//
-// Batched writes are kept to 20 document lookups or fewer even if Firestore caches nothing between the
-// writes in a batch (the documented limit). The heaviest is a PIN reset at 15.
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -16,20 +23,15 @@ service cloud.firestore {
     function signedIn() { return request.auth != null; }
     function staffDoc(uid) { return /databases/$(database)/documents/staff/$(uid); }
     function nameDoc(username) { return /databases/$(database)/documents/usernames/$(username); }
-    function ownerDoc() { return /databases/$(database)/documents/config/owner; }
-    function auditDoc(id) { return /databases/$(database)/documents/audit/$(id); }
-    // The caller's staff record, or null when they aren't on the team.
+    function teamCode() { return get(/databases/$(database)/documents/config/team).data.code; }
+    // The caller's staff record, or null when they haven't joined.
     function profile() { return get(staffDoc(request.auth.uid)); }
-    function isMember() { return signedIn() && profile() != null; }
-    function isManager() { return isMember() && profile().data.role in ['manager', 'owner']; }
+    // On the team: the owner, the manager, or staff who joined with the team code that is current now.
+    function isMember() {
+      return signedIn() && profile() != null && (profile().data.role in ['owner', 'manager'] || profile().data.code == teamCode());
+    }
+    function isManager() { return isMember() && profile().data.role in ['owner', 'manager']; }
     function isOwner() { return isMember() && profile().data.role == 'owner'; }
-    // Start fresh (see resets below): the owner within 15 minutes of typing their PIN, and only once this sign-in has
-    // recorded that it's starting fresh, so nothing is ever deleted without everyone seeing a record of it.
-    function recentOwner() { return isOwner() && request.time.toMillis() < request.auth.token.auth_time * 1000 + 15 * 60 * 1000; }
-    function resetId() { return request.auth.uid + '-' + string(request.auth.token.auth_time); }
-    function freshOwner() { return recentOwner() && exists(/databases/$(database)/documents/resets/$(resetId())); }
-    // True unless uid belongs to the owner. Someone who has left counts as not the owner.
-    function notOwner(uid) { let p = get(staffDoc(uid)); return p == null || p.data.role != 'owner'; }
 
     // ---------- Field checks ----------
     function incoming() { return request.resource.data; }
@@ -54,161 +56,103 @@ service cloud.firestore {
     function slug(s) { return s.lower().replace('[^a-z0-9]+', '-'); }
     function autoId(s) { return s is string && s.matches('[A-Za-z0-9]{20}'); }
 
-    // ---------- Owner setup ----------
-    // config/pins {setup} is made by hand in the Firebase console just before first-time setup. No app can read it.
-    // Setup is one batch: config/owner {uid, proof}, the owner's staff and username records, an audit entry and
-    // the deletion of config/pins. config/owner can never be changed or deleted, so only one owner can ever be
-    // claimed, even if two phones try at once, and the setup code is dead the moment setup succeeds.
+    // ---------- Joining the team ----------
+    // config/team {code} is made by hand in the Firebase console. No phone can read it; the rules compare against it.
     match /config/{id} {
-      allow read, update: if false;
-      allow create: if id == 'owner' && signedIn() && exactly(['uid', 'proof'])
-        && incoming().uid == request.auth.uid
-        && incoming().proof is string && incoming().proof.size() >= 16
-        && incoming().proof == get(/databases/$(database)/documents/config/pins).data.setup
-        && getAfter(/databases/$(database)/documents/config/pins) == null
-        && getAfter(staffDoc(request.auth.uid)).data.role == 'owner';
-      allow delete: if id == 'pins' && signedIn() && getAfter(ownerDoc()).data.uid == request.auth.uid;
+      allow read, write: if false;
     }
-
-    // ---------- Team accounts ----------
-    // An account is three things kept in step by one batched write each time: the Firebase Auth login,
-    // staff/{uid} (membership and role) and usernames/{username} (the login lookup). Every add, PIN reset
-    // and removal also writes an audit entry, which these rules require.
-    function validStaff() {
-      return exactly(['name', 'username', 'role']) && reqText(incoming().name, 40)
+    // A staff phone joins with the team code and a first name. It can change its own name (a shared bar phone passed to
+    // the next person) and leave. Everyone on the team can see who has joined, for "seen by" on messages. The owner adds
+    // the manager's account; the manager and owner can take a staff phone off the team (lost, or someone who has left),
+    // and the owner can remove the manager. Nobody can change or remove the owner's record.
+    function validJoin(uid) {
+      return exactly(['name', 'role', 'code', 'at']) && reqText(incoming().name, 30) && incoming().role == 'staff'
+        && incoming().code is string && incoming().code.size() >= 8 && incoming().code == teamCode()
+        && incoming().at == request.time && request.auth.uid == uid;
+    }
+    function validManager(uid) {
+      return exactly(['name', 'username', 'role']) && reqText(incoming().name, 30) && incoming().role == 'manager'
         && incoming().username is string && incoming().username.matches('[a-z0-9.]{2,20}')
-        && incoming().role in ['staff', 'manager', 'owner'];
+        && getAfter(nameDoc(incoming().username)).data.uid == uid;
     }
     match /staff/{uid} {
-      allow get: if signedIn() && (request.auth.uid == uid || isManager());
-      allow list: if isManager();
-      allow create: if validStaff()
-        && getAfter(nameDoc(incoming().username)).data.uid == uid
-        && existsAfter(auditDoc(uid + '-in'))
-        && ((isOwner() && incoming().role in ['staff', 'manager'])
-          || (isManager() && incoming().role == 'staff')
-          // First-time setup: the owner's own record, in the same write that claims config/owner.
-          || (request.auth.uid == uid && incoming().role == 'owner' && getAfter(ownerDoc()).data.uid == uid));
-      // Only the owner changes a role, never their own, and never to or from owner.
-      allow update: if isOwner() && request.auth.uid != uid && changesOnly(['role'])
-        && resource.data.role in ['staff', 'manager'] && incoming().role in ['staff', 'manager'];
-      // Managers remove staff; the owner removes staff and managers; nobody removes the owner or themselves.
-      // The username goes too, or moves to the new account on a PIN reset, in the same write.
-      allow delete: if request.auth.uid != uid && resource.data.role != 'owner'
-        && (isOwner() || (isManager() && resource.data.role == 'staff'))
-        && (getAfter(nameDoc(resource.data.username)) == null || getAfter(nameDoc(resource.data.username)).data.uid != uid)
-        && existsAfter(auditDoc(uid + '-out'));
+      allow get: if signedIn() && request.auth.uid == uid;
+      allow list: if isMember();
+      allow create: if validJoin(uid) || (isOwner() && validManager(uid));
+      allow update: if validJoin(uid) && resource.data.role == 'staff';
+      allow delete: if resource.data.role != 'owner'
+        && ((signedIn() && request.auth.uid == uid) || (resource.data.role == 'staff' && isManager()) || isOwner());
     }
-
-    // Login looks up a username before signing in, so a single lookup is public. Listing them is not.
-    // A record holds the account's made-up sign-in address (never a real email) and its uid.
-    function validLogin(username) {
-      return username.matches('[a-z0-9.]{2,20}') && exactly(['email', 'uid'])
-        && incoming().email is string && incoming().email.matches('[a-z0-9.]{2,20}-[a-z0-9]{6,12}@users[.]example[.]com')
-        && incoming().uid is string
-        && getAfter(staffDoc(incoming().uid)).data.username == username;
-    }
+    // The login screen looks up a username before signing in, so a single lookup is public. Listing them is not. A record
+    // holds the account's made-up sign-in address (never a real email) and its uid.
     match /usernames/{username} {
       allow get: if true;
-      allow create: if validLogin(username)
-        && (isOwner()
-          || (isManager() && getAfter(staffDoc(incoming().uid)).data.role == 'staff')
-          || (incoming().uid == request.auth.uid && getAfter(staffDoc(request.auth.uid)).data.role == 'owner'
-              && getAfter(ownerDoc()).data.uid == request.auth.uid));
-      // PIN reset: the username moves to a new account and the old account is removed in the same write.
-      allow update: if validLogin(username) && getAfter(staffDoc(resource.data.uid)) == null
-        && (isOwner() || (isManager() && getAfter(staffDoc(incoming().uid)).data.role == 'staff'));
-      // Removal: the account goes in the same write. The staff rules decide who may remove whom.
-      allow delete: if isManager() && getAfter(staffDoc(resource.data.uid)) == null;
+      allow create: if isOwner() && username.matches('[a-z0-9.]{2,20}') && exactly(['email', 'uid'])
+        && incoming().email is string && incoming().email.matches('[a-z0-9.]{2,20}-[a-z0-9]{6,12}@users[.]example[.]com')
+        && getAfter(staffDoc(incoming().uid)).data.username == username && getAfter(staffDoc(incoming().uid)).data.role == 'manager';
+      allow delete: if isOwner() && get(staffDoc(resource.data.uid)).data.role != 'owner';
     }
 
-    // ---------- Test staff ----------
-    // Made-up people for trying the app out: a practice team on the rota, by side, to stage a restaurant day. They're
-    // never logins (no Auth account, no staff or username record), so they can't sign in or be given anything a
-    // teammate is. Managers add and remove them; they can't be edited, only removed and added again. The id starts
-    // test- (a real uid never has a dash), so any phone can tell a test person on a shift without reading these.
-    match /teststaff/{id} {
-      allow read: if isManager();
-      allow create: if isManager() && id.matches('test-[A-Za-z0-9]{20}') && exactly(['who', 'side', 'role', 'uid', 'name', 'at'])
-        && reqText(incoming().who, 40) && incoming().side in ['bar', 'floor', 'kitchen'] && incoming().role in ['staff', 'manager']
-        && stamped();
+    // No messaging inside the app (15 November 2026): the team talks face to face and sends on WhatsApp.
+
+    // ---------- To the manager ----------
+    // Days off, swaps, complaints, faults, things to fix, ideas, incidents or anything else, sent to the manager only. An anonymous one
+    // holds no name and no device id, so the manager can't tell who sent it from the record (in a small team they may
+    // still guess, and the app says so). Staff can read back their own named ones. The manager reads all of them and
+    // marks each one seen, or done with a reply.
+    function validAsk() {
+      let a = incoming();
+      return a.kind in ['dayoff', 'swap', 'complaint', 'fault', 'fix', 'idea', 'incident', 'other'] && reqText(a.text, 2000)
+        && optText(a.when, 60) && a.status == 'new' && a.at == request.time
+        && ((a.anon == true && exactly(['kind', 'text', 'when', 'anon', 'status', 'at']))
+          || (a.anon == false && exactly(['kind', 'text', 'when', 'anon', 'status', 'uid', 'name', 'at']) && stamped()));
+    }
+    match /asks/{id} {
+      allow read: if isManager() || (isMember() && resource.data.get('uid', '') == request.auth.uid);
+      allow create: if isMember() && validAsk();
+      allow update: if isManager() && changesOnly(['status', 'reply', 'by', 'byAt'])
+        && incoming().status in ['seen', 'done'] && optText(incoming().reply, 500)
+        && incoming().by == profile().data.name && incoming().byAt == request.time;
       allow delete: if isManager();
     }
 
-    // ---------- Audit of account changes ----------
-    // {uid}-in when an account joins (setup, add, PIN reset), {uid}-out when it leaves (removal, PIN reset),
-    // and an automatic ID for a role change. Each entry must match a change made in the same write.
-    // Nobody can edit or delete an entry.
-    function joins(t) { return get(staffDoc(t)) == null && getAfter(staffDoc(t)) != null; }
-    function leaves(t) { return get(staffDoc(t)) != null && getAfter(staffDoc(t)) == null; }
-    function describes(s) {
-      return incoming().targetName == s.name && incoming().username == s.username && incoming().role == s.role;
-    }
-    match /audit/{id} {
-      allow read: if isManager();
-      allow create: if signedIn()
-        && exactly(['action', 'target', 'targetName', 'username', 'role', 'uid', 'name', 'at'])
-        && incoming().target is string && incoming().uid == request.auth.uid && incoming().at == request.time
-        // Read after the write, so this also covers the owner's first-time setup.
-        && getAfter(staffDoc(request.auth.uid)).data.role in ['manager', 'owner']
-        && incoming().name == getAfter(staffDoc(request.auth.uid)).data.name
-        && ((id == incoming().target + '-in' && joins(incoming().target) && describes(getAfter(staffDoc(incoming().target)).data)
-              && incoming().action in (incoming().role == 'owner' ? ['setup'] : ['add', 'reset']))
-          || (id == incoming().target + '-out' && leaves(incoming().target) && describes(get(staffDoc(incoming().target)).data)
-              && incoming().action in ['remove', 'reset'])
-          || (incoming().action == 'role' && autoId(id) && get(staffDoc(incoming().target)) != null
-              && get(staffDoc(incoming().target)).data.role != getAfter(staffDoc(incoming().target)).data.role
-              && describes(getAfter(staffDoc(incoming().target)).data)));
+    // ---------- Tell Derek ----------
+    // Anyone on the team tells the owner what's missing, what to add or what's wrong. Only the owner reads them all;
+    // each person reads back their own. The owner marks one done or removes it.
+    match /tells/{id} {
+      allow read: if isOwner() || (isMember() && resource.data.uid == request.auth.uid);
+      allow create: if isMember() && exactly(['kind', 'text', 'status', 'uid', 'name', 'at'])
+        && incoming().kind in ['missing', 'add', 'wrong'] && reqText(incoming().text, 1000) && incoming().status == 'new' && stamped();
+      allow update: if isOwner() && changesOnly(['status']) && incoming().status == 'done';
+      allow delete: if isOwner();
     }
 
-    // ---------- Team board and broadcasts ----------
-    // The board is read-only since team chat (26 October 2026): nothing new is posted, and old posts stay until taken down.
-    match /feed/{id} {
-      allow read: if isMember();
-      // The author or a manager can take a post down. Only the owner takes down the owner's posts.
-      allow delete: if isMember() && (resource.data.uid == request.auth.uid || isOwner()
-        || (isManager() && notOwner(resource.data.uid)));
-    }
-    // Broadcasts (stored as notices). They can't be edited: send a new one and remove the old.
-    // side is who it's for: everyone, the bar, the floor or the kitchen. Each phone shows the ones for the side it's set
-    // to, which is about relevance, not privacy. The owner can leave managers out (managers false), and then no manager
-    // can read it, so a manager's phone asks only for the ones with managers true. (No default value for a missing field
-    // here: with one, a query that asks for everything gets through. Broadcasts from before audiences existed are for
-    // staff and the owner only.)
-    match /notices/{id} {
-      allow read: if isMember() && (resource.data.managers == true || profile().data.role != 'manager');
-      allow create: if isManager() && exactly(['text', 'side', 'managers', 'uid', 'name', 'at']) && reqText(incoming().text, 1000)
-        && incoming().side in ['all', 'bar', 'floor', 'kitchen'] && incoming().managers is bool && (incoming().managers || isOwner()) && stamped();
-      allow delete: if isOwner() || (isManager() && notOwner(resource.data.uid));
-    }
-    // "Got it" on a broadcast: one record per person per broadcast, so the team can see who has read it. It copies the
-    // broadcast's managers setting, so managers can't see who read one they were left out of. Records can't be changed.
-    match /seen/{id} {
-      allow read: if isMember() && (resource.data.uid == request.auth.uid || isOwner() || (isManager() && resource.data.managers == true));
-      allow create: if isMember() && exactly(['notice', 'managers', 'uid', 'name', 'at']) && stamped()
-        && incoming().notice is string && id == incoming().notice + '-' + request.auth.uid
-        && incoming().managers == get(/databases/$(database)/documents/notices/$(incoming().notice)).data.get('managers', true);
-      allow delete: if freshOwner();
+    // ---------- A copy of everything sent ----------
+    // Each message sent from the Send page (WhatsApp, email, share sheet, print) is copied here for the seniors and
+    // the owner. Team only: rate the shift ('rate') goes with no uid and no name; My pay ('hours') and the team link ('team') are never copied.
+    match /sent/{id} {
+      allow read: if isManager();
+      allow create: if isMember() && incoming().k is string && incoming().k.size() > 0 && incoming().k.size() <= 20
+        && !(incoming().k in ['hours', 'team']) && reqText(incoming().what, 100) && reqText(incoming().text, 8000)
+        && ((incoming().k == 'rate' && exactly(['k', 'what', 'text', 'anon', 'at']) && incoming().anon == true && incoming().at == request.time)
+          || (incoming().k != 'rate' && exactly(['k', 'what', 'text', 'uid', 'name', 'at']) && stamped()));
+      allow delete: if isOwner();
     }
 
     // ---------- Shift reports and closing photos ----------
-    // A report is sent once, with its photos attached in the same write, then signed off once by a manager.
-    // Nobody can edit a report from the app, or delete one except when the owner starts fresh.
+    // A report is sent once, with its photos attached in the same write. Nobody can edit or delete one from the app.
     match /reports/{id} {
       allow read: if isMember();
       allow create: if isMember() && exactly(['side', 'text', 'summary', 'photos', 'uid', 'name', 'at'])
-        && incoming().side in ['bar', 'floor', 'kitchen']
+        && incoming().side in ['bar', 'floor']
         && reqText(incoming().text, 8000) && reqText(incoming().summary, 200)
         && incoming().photos is int && incoming().photos >= 0 && incoming().photos <= 8
         && stamped();
-      allow update: if isManager() && !('signedBy' in resource.data)
-        && changesOnly(['signedBy', 'signedByUid', 'signedAt']) && signedAs('signedBy', 'signedByUid', 'signedAt');
-      allow delete: if freshOwner();
     }
     function reportDoc(id) { return /databases/$(database)/documents/reports/$(id); }
     match /photos/{id} {
-      // Your own drafts, photos on a sent report, and (for the 30-day clear-out) managers see everything.
-      allow read: if isManager() || (isMember() && (resource.data.uid == request.auth.uid || resource.data.report != null));
+      // Your own drafts and photos on a sent report. The owner and the manager read them all, to clear old ones.
+      allow read: if isMember() && (resource.data.uid == request.auth.uid || resource.data.report != null || isManager());
       allow create: if isMember() && exactly(['data', 'note', 'report', 'uid', 'name', 'at'])
         && incoming().data is string && incoming().data.size() <= 700000
         && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+')
@@ -220,9 +164,9 @@ service cloud.firestore {
           || (changesOnly(['report']) && autoId(incoming().report)
               && getAfter(reportDoc(incoming().report)).data.uid == request.auth.uid
               && getAfter(reportDoc(incoming().report)).data.at == request.time));
-      // Drafts can be binned by whoever took them. Anything over 30 days old is cleared by a manager's app.
-      allow delete: if freshOwner() || (isMember() && ((resource.data.uid == request.auth.uid && resource.data.report == null)
-        || (isManager() && resource.data.at < request.time - duration.value(30, 'd'))));
+      // Drafts can be binned by whoever took them. The owner's or the manager's phone clears photos over 30 days old (to stay free).
+      allow delete: if isMember() && ((resource.data.uid == request.auth.uid && resource.data.report == null)
+        || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
     }
 
     // ---------- Tonight's checklists: tasks and procedures ----------
@@ -231,10 +175,9 @@ service cloud.firestore {
     function nearNow(day) {
       return isDay(day) && dayOf(day) > request.time - duration.value(2, 'd') && dayOf(day) < request.time + duration.value(1, 'd');
     }
-    // Each list is a procedure: the bar's opening and closing, the floor's tables, milkshake station and close, and the
-    // kitchen's opening and closing.
-    function isList(l) { return l in ['open', 'close', 'fset', 'fshake', 'fclose', 'kopen', 'kclose']; }
-    function sideOf(l) { return l in ['open', 'close'] ? 'bar' : l in ['kopen', 'kclose'] ? 'kitchen' : 'floor'; }
+    // Each list is a procedure: the bar's opening and closing, and the floor's tables, milkshake station and close.
+    function isList(l) { return l in ['open', 'close', 'fset', 'fshake', 'fclose']; }
+    function sideOf(l) { return l in ['open', 'close'] ? 'bar' : 'floor'; }
     function taskDoc(day, id) { return /databases/$(database)/documents/shift/$(day)/tasks/$(id); }
     function runDoc(day, list) { return /databases/$(database)/documents/shift/$(day)/runs/$(list); }
     function eventDoc(id) { return /databases/$(database)/documents/events/$(id); }
@@ -242,25 +185,23 @@ service cloud.firestore {
     function was(k, d) { return resource == null ? d : resource.data[k]; }
     // Someone on the team, named as on their staff record, or nobody (both null).
     function teammate(name, uid) { return (name == null && uid == null) || (uid is string && get(staffDoc(uid)).data.name == name); }
-    // A procedure is locked once it's finished, until a manager reopens it.
+    // A procedure is locked once it's finished, until someone reopens it with a reason.
     function unlocked(day, list) { let r = get(runDoc(day, list)); return r == null || r.data.status != 'finished'; }
 
     // Ticks from before tasks (24 and 25 October 2026), kept for the record. Nothing new is written.
     match /shift/{day}/ticks/{id} {
       allow read: if isMember();
-      allow delete: if freshOwner();
     }
 
     // One record per item per night: todo (not started), doing, done, blocked or cancelled (not needed tonight). item is
-    // the item's id in its list, which stays with it when a manager changes the list (see lists below). Each
+    // the item's id in its list. Each
     // change raises v by one and writes events/t-{day}-{list}-{item}-{v} in the same batch, so a change can't happen
     // without its event, an event can't be made up, and a phone working from an old copy (two people at once, or a late
-    // sync) is refused instead of overwriting the newer change. Nobody deletes a task, except when the owner starts fresh.
+    // sync) is refused instead of overwriting the newer change. Nobody deletes a task.
     match /shift/{day}/tasks/{id} {
       allow read: if isMember();
       allow create, update: if isMember() && nearNow(day) && stamped() && validTask(day, id)
         && existsAfter(eventDoc('t-' + day + '-' + id + '-' + string(incoming().v)));
-      allow delete: if freshOwner();
     }
     function validTask(day, id) {
       let t = incoming();
@@ -271,7 +212,7 @@ service cloud.firestore {
         && ((t.status == from && givenTo(t, from))
           || (t.status != from && t.who == was('who', null) && t.whoUid == was('whoUid', null) && taskMove(from, t.status, t.note)));
     }
-    // Managers give a task to someone, or take it off them, without changing where it's up to.
+    // The manager gives a task to someone, or takes it off them, without changing where it's up to.
     function givenTo(t, from) {
       return isManager() && from in ['todo', 'doing', 'blocked'] && t.whoUid != was('whoUid', null) && teammate(t.who, t.whoUid);
     }
@@ -294,7 +235,6 @@ service cloud.firestore {
       allow read: if isMember();
       allow create, update: if isMember() && nearNow(day) && stamped() && validRun(list)
         && existsAfter(eventDoc('r-' + day + '-' + list + '-' + string(incoming().v)));
-      allow delete: if freshOwner();
     }
     function validRun(list) {
       let r = incoming();
@@ -308,7 +248,7 @@ service cloud.firestore {
     }
 
     // ---------- The lists themselves ----------
-    // Every list starts as the standard version written into the app. A manager changes it in the app (rewords, adds,
+    // Every list starts as the standard version written into the app. The manager changes it in the app (rewords, adds,
     // moves or removes items, or picks the days one shows) by saving the whole list as lists/{key}, which then takes the
     // standard one's place on every phone. Each save raises v by one and writes a copy to listlog/{key}-{v} in the same
     // batch, so every version is kept with who saved it and when, and putting an old one back is a new version. Each
@@ -336,7 +276,7 @@ service cloud.firestore {
 
     // ---------- Date labels for open items ----------
     // One record per thing a side dates once it's opened (a juice, a sauce, a cake): what it is, its side, how many days
-    // it keeps once opened, whether it needs a label (on), and where it's up to. Managers add, change and remove them.
+    // it keeps once opened, whether it needs a label (on), and where it's up to. The manager adds, changes and removes them.
     // Anyone on the team opens one (today, with the use-by date its life gives it, or an earlier one when the pack's own
     // date comes first), changes one (the old one binned and a new one opened and labelled) or bins one (used up or
     // thrown away, with no new one opened). Each change raises v and writes events/l-{id}-{v} in the same batch, so every
@@ -353,7 +293,7 @@ service cloud.firestore {
     function validLabel() {
       let l = incoming();
       return exactly(['item', 'side', 'life', 'on', 'state', 'openedOn', 'useBy', 'openedBy', 'openedUid', 'act', 'v', 'uid', 'name', 'at'])
-        && reqText(l.item, 60) && l.side in ['bar', 'floor', 'kitchen'] && l.life is int && l.life >= 1 && l.life <= 365 && l.on is bool;
+        && reqText(l.item, 60) && l.side in ['bar', 'floor'] && l.life is int && l.life >= 1 && l.life <= 365 && l.on is bool;
     }
     function notOpen(l) { return l.state == 'none' && l.openedOn == null && l.useBy == null && l.openedBy == null && l.openedUid == null; }
     // Opened by the caller today, with a use-by date no later than its life allows.
@@ -375,7 +315,7 @@ service cloud.firestore {
 
     // ---------- Restocking from the cellar ----------
     // Someone asks for an item, an amount and where it's going, with any detail (which never changes). Someone takes it
-    // on (or a manager gives it to someone), brings it up saying how much they moved, and the bar, floor or kitchen
+    // on (or gives it to someone), brings it up saying how much they moved, and the bar or floor
     // confirms how much arrived. Asked, moved and received are kept apart, so a request is never taken as proof that the
     // stock arrived, and no stock level changes here. note is the reason for the latest change. Each change raises v and
     // writes events/s-{id}-{v} in the same batch, like tasks.
@@ -385,13 +325,12 @@ service cloud.firestore {
       allow read: if isMember();
       allow create: if isMember() && stamped() && autoId(id) && newRestock() && existsAfter(eventDoc('s-' + id + '-1'));
       allow update: if isMember() && stamped() && restockMove() && existsAfter(eventDoc('s-' + id + '-' + string(incoming().v)));
-      allow delete: if freshOwner();
     }
     function newRestock() {
       let r = incoming();
       return exactly(['item', 'qty', 'unit', 'dest', 'detail', 'day', 'status', 'who', 'whoUid', 'moved', 'got', 'note', 'v', 'askedBy', 'askedUid', 'askedAt', 'uid', 'name', 'at'])
         && reqText(r.item, 80) && amount(r.qty) && r.unit in ['each', 'bottle', 'case', 'box', 'pack', 'bag', 'roll', 'keg', 'tub']
-        && r.dest in ['up', 'down', 'shakes', 'floor', 'kitchen'] && nearNow(r.day) && optText(r.detail, 200) && r.note == ''
+        && r.dest in ['up', 'down', 'shakes', 'floor'] && nearNow(r.day) && optText(r.detail, 200) && r.note == ''
         && r.status == 'asked' && r.who == null && r.whoUid == null && r.moved == null && r.got == null && r.v == 1
         && r.askedBy == profile().data.name && r.askedUid == request.auth.uid && r.askedAt == request.time;
     }
@@ -427,19 +366,16 @@ service cloud.firestore {
     }
 
     // ---------- Audit trail ----------
-    // One event per change to a task, a procedure, a restock, a date label or a published shift, written in the same batch
+    // One event per change to a task, a procedure, a restock or a date label, written in the same batch
     // as the change and matching it (the status before and after, the version, who, the reason and the time; for a
-    // restock, the item, amount and place; for a label, what was done and its dates; for a shift, what was done, its day,
-    // times and people, and its day, times and person before). Nobody edits an event, the owner included: a correction is
-    // a new change with its own event. Ids carry the record's version, so a retried or repeated write can't add a second
-    // event for the same change. They're deleted only when the owner starts fresh, with what they record, and a date
-    // label's stay with the label.
+    // restock, the item, amount and place; for a label, what was done and its dates). Nobody edits or deletes an event:
+    // a correction is a new change with its own event. Ids carry the record's version, so a retried or repeated write
+    // can't add a second event for the same change.
     match /events/{id} {
       allow read: if isMember();
-      allow delete: if freshOwner() && resource.data.kind != 'label';
       allow create: if isMember() && stamped() && nearNow(incoming().day) && reqText(incoming().label, 200) && optText(incoming().note, 300)
         && (incoming().kind == 'task' ? taskEvent(id) : incoming().kind == 'run' ? runEvent(id) : incoming().kind == 'restock' ? restockEvent(id)
-          : incoming().kind == 'label' ? labelEvent(id) : incoming().kind == 'shift' && shiftEvent(id));
+          : incoming().kind == 'label' && labelEvent(id));
     }
     function taskEvent(id) {
       let e = incoming();
@@ -472,7 +408,7 @@ service cloud.firestore {
         && now.item == e.label && now.unit == e.unit && now.dest == e.dest
         && e.from == (before == null ? 'new' : before.data.status)
         && e.qty == (e.to == 'delivered' ? now.moved : e.to == 'received' ? now.got : e.from == 'new' ? now.qty : null)
-        && e.area == (e.dest in ['up', 'down'] ? 'bar' : e.dest == 'kitchen' ? 'kitchen' : 'floor');
+        && e.area == (e.dest in ['up', 'down'] ? 'bar' : 'floor');
     }
     // act is what was done (added, edited, opened, changed, binned or removed). useBy is the label's date after the change
     // and was its date before, so a late change shows on the record. Opening and changing are recorded on the day the
@@ -491,43 +427,13 @@ service cloud.firestore {
         && e.was == (before == null ? null : before.data.useBy)
         && e.label == l.item && e.area == l.side && e.life == l.life && e.on == l.on;
     }
-    // act is what was done (added, edited, wants, unwants, took, declined, cover, kept or removed). who, offer and cover
-    // are the shift's after the change; was is its day, times, side and person before, so a moved or reassigned shift
-    // shows on the record. label is the shift's day and times. Only a published shift has events.
-    function shiftEvent(id) {
-      let e = incoming();
-      let before = get(shiftDoc(e.ref));
-      let after = getAfter(shiftDoc(e.ref));
-      let s = after == null ? before.data : after.data;
-      return exactly(['kind', 'day', 'ref', 'label', 'area', 'act', 'sday', 'start', 'end', 'who', 'offer', 'cover', 'was', 'note', 'v', 'uid', 'name', 'at'])
-        && autoId(e.ref) && id == 'w-' + e.ref + '-' + string(e.v) && e.note == ''
-        && (after == null
-          ? before != null && before.data.pub == true && e.act == 'removed' && e.v == before.data.v + 1
-          : after.data.pub == true && after.data.at == request.time && after.data.v == e.v && after.data.act == e.act)
-        && e.was == (before == null ? null : { 'day': before.data.day, 'start': before.data.start, 'end': before.data.end, 'side': before.data.side, 'who': before.data.whoName })
-        && e.label == s.day + ' ' + s.start + '-' + s.end && e.area == s.side && e.sday == s.day && e.start == s.start && e.end == s.end
-        && e.who == s.whoName && e.offer == s.offerName && e.cover == s.cover;
-    }
-
-    // ---------- Old records: waste and due diligence ----------
-    // Kept read-only as the venue's record since 25 Oct 2026. Temperatures and line cleans are logged in Alert65 and
-    // waste in Nory now, so nothing new is written here and nothing is edited or deleted. Managers download them.
-    match /waste/{id} {
-      allow read: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
-    }
-    match /kit/{id} {
-      allow read: if isMember();
-    }
-    match /safety/{id} {
-      allow read: if isMember();
-    }
 
     // ---------- 86 board ----------
     // out/{item} is what's off tonight and outlog is its history. Each change writes both in one batch and the
     // rules check they match: an 86 creates out/{item} pointing at its new log entry; back in stock deletes it
     // and adds the entry {that log id}-back. So the board and its history can't drift apart, the same item
-    // can't be 86'd twice, and nothing comes back that wasn't out. Log entries can never be edited, or deleted except
-    // with the board when the owner starts fresh.
+    // can't be 86'd twice, and nothing comes back that wasn't out. Anyone on the team 86s an item or brings it back.
+    // Log entries can never be edited or deleted.
     function outDoc(item) { return /databases/$(database)/documents/out/$(item); }
     function logDoc(id) { return /databases/$(database)/documents/outlog/$(id); }
     match /out/{item} {
@@ -536,21 +442,20 @@ service cloud.firestore {
         && reqText(incoming().itemName, 80) && slug(incoming().itemName) == item && autoId(incoming().log)
         && getAfter(logDoc(incoming().log)).data.action == 'out' && getAfter(logDoc(incoming().log)).data.item == item
         && stamped();
-      allow delete: if freshOwner() || (isMember() && existsAfter(logDoc(resource.data.log + '-back')));
+      allow delete: if isMember() && existsAfter(logDoc(resource.data.log + '-back'));
     }
     match /outlog/{id} {
-      allow read: if isManager();
+      allow read: if isMember();
       allow create: if isMember() && exactly(['item', 'itemName', 'action', 'uid', 'name', 'at']) && stamped()
         && reqText(incoming().itemName, 80) && incoming().item == slug(incoming().itemName)
         && ((incoming().action == 'out' && getAfter(outDoc(incoming().item)).data.log == id)
           || (incoming().action == 'back' && get(outDoc(incoming().item)).data.log + '-back' == id
               && getAfter(outDoc(incoming().item)) == null));
-      allow delete: if freshOwner();
     }
 
     // ---------- Drink photos and how-to videos ----------
-    // One record per drink, under the drink's name as the 86 board keys it. Managers add the house photo (a JPEG, like
-    // the closing photos) and a link to a how-to video on a video site, and everyone on the team sees them on the drink.
+    // One record per drink, under the drink's name as the 86 board keys it. The owner or the manager adds the house photo (a JPEG,
+    // like the closing photos) and a link to a how-to video on a video site, and everyone on the team sees them on the drink.
     // Only links to these sites are taken, so a record can't point anyone at a lookalike login page.
     function videoLink(s) {
       return s == '' || (s.size() <= 300
@@ -566,434 +471,12 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
-    // ---------- Stock requests (before restocking from the cellar, 25 October 2026) ----------
-    // Kept for the record. Nothing new is asked for here; managers can still mark old ones ordered or turn them down.
-    match /requests/{id} {
-      allow read: if isMember();
-      // A manager marks it ordered, once. What was asked for never changes.
-      allow update: if isManager() && resource.data.done == false
-        && changesOnly(['done', 'doneBy', 'doneByUid', 'doneAt']) && incoming().done == true
-        && signedAs('doneBy', 'doneByUid', 'doneAt');
-      // Until it's ordered, the person who asked can cancel it and a manager can turn it down.
-      allow delete: if freshOwner() || (isMember() && resource.data.done == false && (resource.data.uid == request.auth.uid || isManager()));
-    }
-
-    // ---------- Old records: stock counts and par levels ----------
-    // Read-only since 25 Oct 2026: stock is counted and ordered in Nory. Each count keeps every item's par as it was
-    // then, so its order list can still be worked out from the download.
-    match /pars/{id} {
-      allow read: if isManager();
-    }
-    match /counts/{id} {
-      allow read: if isManager();
-    }
-
-    // ---------- Running late, time off and shift swaps ----------
-    // A real date from yesterday to about a year ahead.
-    function soonDay(s) {
-      return isDay(s) && dayOf(s) > request.time - duration.value(2, 'd') && dayOf(s) < request.time + duration.value(400, 'd');
-    }
-    function validAsk() {
-      let a = incoming();
-      let base = ['kind', 'note', 'status', 'uid', 'name', 'at'];
-      return a.status == 'pending' && optText(a.note, 300) && stamped()
-        && ((a.kind == 'late' && exactly(base.concat(['eta'])) && isTime(a.eta))
-          || (a.kind == 'off' && exactly(base.concat(['date1', 'date2'])) && soonDay(a.date1) && soonDay(a.date2) && a.date2 >= a.date1)
-          || (a.kind == 'swap' && exactly(base.concat(['date1', 'with'])) && soonDay(a.date1) && reqText(a.with, 40)));
-    }
-    match /asks/{id} {
-      allow read: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
-      allow create: if isMember() && validAsk();
-      // Seen means a manager has read it, and it can still be approved or declined afterwards.
-      // Approved and declined are final. Managers don't decide their own; the owner can decide any.
-      allow update: if isManager() && (resource.data.uid != request.auth.uid || isOwner())
-        && changesOnly(['status', 'by', 'byUid', 'byAt']) && signedAs('by', 'byUid', 'byAt')
-        && ((resource.data.status == 'pending' && incoming().status in ['seen', 'approved', 'declined'])
-          || (resource.data.status == 'seen' && incoming().status in ['approved', 'declined']));
-      // The person who asked can withdraw it until it's decided. The owner can delete any.
-      allow delete: if isOwner() || (isMember() && resource.data.uid == request.auth.uid && resource.data.status in ['pending', 'seen']);
-    }
-
-    // ---------- Features this venue uses ----------
-    // One record, settings/features: the features the owner has switched off for everyone here (a venue that runs its
-    // rota in Nory switches the rota off). Switching one off hides it; nothing saved under it is deleted. Everyone on the
-    // team reads it, only the owner changes it, and it names who changed it last.
+    // ---------- Who to call ----------
+    // settings/contacts {list}: the venue's own numbers (the duty manager, maintenance, engineers), kept by the manager.
     match /settings/{id} {
-      allow read: if isMember();
-      allow create, update: if isOwner() && stamped() && ((id == 'features' && exactly(['off', 'uid', 'name', 'at'])
-          && incoming().off is list && incoming().off.size() <= 20
-          && incoming().off.hasOnly(['allergens', 'practice', 'football', 'chat', 'rota', 'calendar', 'asks', 'incidents', 'kpis', 'training', 'feedback', 'pay', 'handover', 'briefing', 'guests', 'refusals', 'certs', 'shouts', 'pulse', 'onboard']))
-        // How much (in pence) staff and managers may give a guest without asking someone above them.
-        || (id == 'comp' && exactly(['staff', 'manager', 'uid', 'name', 'at']) && optInt(incoming().staff, 100000) && optInt(incoming().manager, 100000)));
-      // The venue's own closing questions, added to the manager close: up to 10, each {id, t (text), crit}. Managers keep them.
-      allow create, update: if isManager() && stamped() && id == 'hoq' && exactly(['qs', 'uid', 'name', 'at'])
-        && incoming().qs is list && incoming().qs.size() <= 10;
-      // Who to call: the venue's own numbers (the DPS, maintenance, the glass washer engineer…), up to 20, each
-      // {t (what for), n (who), p (number)}. Managers keep them; everyone on the team reads them.
-      allow create, update: if isManager() && stamped() && id == 'contacts' && exactly(['list', 'uid', 'name', 'at'])
-        && incoming().list is list && incoming().list.size() <= 20;
-      // New starters: the venue's own checklist for someone's first weeks, up to 30 things. Managers keep it.
-      allow create, update: if isManager() && stamped() && id == 'onboard' && exactly(['list', 'uid', 'name', 'at'])
-        && incoming().list is list && incoming().list.size() > 0 && incoming().list.size() <= 30;
-    }
-
-    // ---------- Manager close and handover ----------
-    // One record per business night, id = the day, made by the manager who closes. Managers and the owner only: it holds
-    // cash figures. Each question is answered yes, no or n/a (a no is something that wasn't right); a no needs its
-    // follow-up answers. A no on food safety, equipment or security also raises an urgent issue, id h-{day}-{question},
-    // in the same write, so the whole team sees it until someone fixes it and it can't be closed away. A no on cash
-    // stays among the managers. risks counts the no answers on those four. Once sent it can't be changed or deleted
-    // (except by Start fresh); the next manager accepts it once, saying what they'll do about any risks.
-    function hoQs() { return ['sales', 'cash', 'voids', 'tips', 'breaks', 'incidents', 'complaints', 'depts', 'food', 'faults', 'security', 'ready']; }
-    function hoNo(a, q) { return a[q] == 'no' ? 1 : 0; }
-    function hoIssue(day, q) { return existsAfter(/databases/$(database)/documents/issues/$('h-' + day + '-' + q)); }
-    // Every question answered yes, no or n/a, where those that can't be n/a aren't.
-    function hoAnswers(a) {
-      return a is map && a.keys().hasAll(hoQs()) && a.keys().hasOnly(hoQs()) && a.values().hasOnly(['yes', 'no', 'na'])
-        && a.cash != 'na' && a.depts != 'na' && a.food != 'na' && a.faults != 'na' && a.security != 'na';
-    }
-    // A no has its follow-ups; food safety, equipment and security have their issue too.
-    function hoFollowed(day, a, f) {
-      return f is map && f.keys().hasOnly(hoQs())
-        && (a.sales != 'no' || 'sales' in f) && (a.cash != 'no' || 'cash' in f)
-        && (a.voids != 'no' || 'voids' in f) && (a.tips != 'no' || 'tips' in f)
-        && (a.breaks != 'no' || 'breaks' in f) && (a.incidents != 'no' || 'incidents' in f)
-        && (a.complaints != 'no' || 'complaints' in f) && (a.depts != 'no' || 'depts' in f)
-        && (a.ready != 'no' || 'ready' in f)
-        && (a.food != 'no' || ('food' in f && hoIssue(day, 'food')))
-        && (a.faults != 'no' || ('faults' in f && hoIssue(day, 'faults')))
-        && (a.security != 'no' || ('security' in f && hoIssue(day, 'security')));
-    }
-    function validHandover(day) {
-      let h = incoming();
-      return exactly(['day', 'answers', 'follow', 'extra', 'risks', 'exceptions', 'lines', 'snap', 'note', 'owner', 'uid', 'name', 'at']) && stamped()
-        && h.day == day && nearNow(day) && hoAnswers(h.answers) && hoFollowed(day, h.answers, h.follow)
-        // The venue's own questions, answered with their text as it was asked; a critical no among them adds to risks.
-        && h.extra is map && h.extra.size() <= 10
-        && h.risks >= hoNo(h.answers, 'cash') + hoNo(h.answers, 'food') + hoNo(h.answers, 'faults') + hoNo(h.answers, 'security')
-        && h.risks <= hoNo(h.answers, 'cash') + hoNo(h.answers, 'food') + hoNo(h.answers, 'faults') + hoNo(h.answers, 'security') + h.extra.size()
-        && h.exceptions is int && h.exceptions >= 0 && h.exceptions <= 500
-        && optText(h.lines, 8000) && h.snap is map && h.snap.size() <= 20
-        && optText(h.note, 2000) && optText(h.owner, 1000);
-    }
-    match /handovers/{day} {
-      allow read: if isManager();
-      allow create: if isManager() && validHandover(day);
-      allow update: if isManager() && !('ackBy' in resource.data)
-        && changesOnly(['ackBy', 'ackByUid', 'ackAt', 'ackNote']) && signedAs('ackBy', 'ackByUid', 'ackAt')
-        && optText(incoming().ackNote, 500) && (resource.data.risks == 0 || reqText(incoming().ackNote, 500));
-      allow delete: if freshOwner();
-    }
-
-    // ---------- Pre-service briefing ----------
-    // One per business night, id = the day: what a manager tells the team before service. Everyone on the team reads it.
-    // Managers write it and can change it; each change raises v, so a read of an older version doesn't count.
-    function optInt(n, max) { return n is int && n >= 0 && n <= max; }
-    match /briefings/{day} {
-      allow read: if isMember();
-      allow create, update: if isManager() && nearNow(day) && stamped()
-        && exactly(['day', 'covers', 'bookings', 'specials', 'allergies', 'sections', 'breaks', 'focus', 'previous', 'v', 'uid', 'name', 'at'])
-        && incoming().day == day && optInt(incoming().covers, 5000)
-        && optText(incoming().bookings, 1000) && optText(incoming().specials, 1000) && optText(incoming().allergies, 1000)
-        && optText(incoming().sections, 1000) && optText(incoming().breaks, 500) && optText(incoming().focus, 1000) && optText(incoming().previous, 1000)
-        && incoming().v == (resource == null ? 1 : resource.data.v + 1);
-      allow delete: if freshOwner();
-    }
-    // ---------- Tonight's status ----------
-    // How each department is doing right now (calm, busy or slammed, with a few words), one record per department per
-    // night, id {day}-{side}, which anyone on the team sets for any department, signed. And bottlenecks: one-tap
-    // reports of what's holding service up, kept so managers can see what keeps happening, by day and hour.
-    match /status/{id} {
-      allow read: if isMember();
-      allow create, update: if isMember() && nearNow(incoming().day) && stamped()
-        && exactly(['day', 'side', 'level', 'note', 'uid', 'name', 'at']) && id == incoming().day + '-' + incoming().side
-        && incoming().side in ['bar', 'floor', 'kitchen'] && incoming().level in ['calm', 'busy', 'slammed'] && optText(incoming().note, 140);
-      allow delete: if freshOwner();
-    }
-    match /blocks/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && autoId(id) && nearNow(incoming().day) && stamped()
-        && exactly(['day', 'side', 'kind', 'note', 'uid', 'name', 'at']) && incoming().side in ['bar', 'floor', 'kitchen']
-        && incoming().kind in ['queue', 'tickets', 'shakes', 'glass', 'staff', 'equipment', 'stock', 'other'] && optText(incoming().note, 140);
-      allow delete: if freshOwner();
-    }
-
-    // ---------- Sales and covers ----------
-    // What each night took, typed in by a manager from the till's end-of-day report: covers, and net sales (without
-    // VAT) for wet and dry, in pence. Managers and the owner only. One record per business night (id = the day), for
-    // any night in the last 400 days so past nights can be put in; a manager can correct it later, signed.
-    match /nights/{day} {
-      allow read: if isManager();
-      allow create, update: if isManager() && isDay(day) && dayOf(day) < request.time + duration.value(1, 'd')
-        && dayOf(day) > request.time - duration.value(400, 'd') && stamped()
-        && exactly(['day', 'covers', 'wet', 'dry', 'note', 'uid', 'name', 'at']) && incoming().day == day
-        && optInt(incoming().covers, 5000) && optInt(incoming().wet, 100000000) && optInt(incoming().dry, 100000000) && optText(incoming().note, 300);
-      allow delete: if freshOwner();
-    }
-
-    // "I've read it": one per person per night, id {day}-{uid}, for the version they read. Managers see everyone's;
-    // staff only their own.
-    match /briefReads/{id} {
-      allow get: if isMember() && (isManager() || id.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}-' + request.auth.uid));
-      allow list: if isManager();
-      allow create, update: if isMember() && exactly(['day', 'v', 'uid', 'name', 'at']) && stamped()
-        && id == incoming().day + '-' + request.auth.uid
-        && incoming().v == get(/databases/$(database)/documents/briefings/$(incoming().day)).data.v;
-      allow delete: if freshOwner();
-    }
-
-    // ---------- Guest recovery ----------
-    // Anyone on the team logs something that went wrong for a guest: what kind, the table (never a name), what happened,
-    // what the guest wants and what was done, and anything given (in pence), no more than their role may give without a
-    // manager (settings/comp; nothing until the owner sets it; the owner has no limit). Needing a manager flags it. A
-    // manager closes it with what was done, anything more given (within their own limit) and whether it needs a follow-up.
-    function compLimit() {
-      let c = get(/databases/$(database)/documents/settings/comp);
-      return isOwner() ? 100000 : c == null ? 0 : c.data[profile().data.role];
-    }
-    match /guests/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && stamped()
-        && exactly(['kind', 'table', 'what', 'wants', 'done', 'comp', 'escalate', 'status', 'uid', 'name', 'at'])
-        && incoming().kind in ['wrong', 'slow', 'cold', 'missing', 'look', 'bill', 'allergy', 'seating', 'service', 'payment', 'other']
-        && optText(incoming().table, 10) && reqText(incoming().what, 500) && optText(incoming().wants, 300) && optText(incoming().done, 300)
-        && optInt(incoming().comp, 100000) && incoming().comp <= compLimit()
-        && incoming().escalate is bool && incoming().status == 'open';
-      allow update: if isManager() && resource.data.status == 'open'
-        && changesOnly(['status', 'resolution', 'extra', 'followUp', 'closedBy', 'closedByUid', 'closedAt'])
-        && incoming().status == 'closed' && reqText(incoming().resolution, 500)
-        && optInt(incoming().extra, 100000) && incoming().extra <= compLimit() && incoming().followUp is bool
-        && signedAs('closedBy', 'closedByUid', 'closedAt');
-      allow delete: if freshOwner();
-    }
-
-    // ---------- Starting fresh ----------
-    // The owner's Start fresh (Managers, Team) clears the shift work for everyone, for a clean start after trying the app
-    // out: the rota, asks, shift reports with their photos and reviews, the checklists and their events, restocking, the
-    // 86 board and its log, manager handovers, briefings and who read them, guest issues, issues, concerns, broadcasts and who read them, the old board and the old stock requests.
-    // Accounts, the audit trail, lists, date labels, drink media, the calendar, games, incidents, training, feedback,
-    // chats and the old records stay. It needs the owner's PIN in the last 15 minutes, and each time is recorded here
-    // first, under the owner's uid and the time they signed in, with how many of each it found: the deletes check for
-    // that record (freshOwner). A record can't be changed or deleted. Every phone watches the latest, so its copies of
-    // what went are dropped.
-    match /resets/{id} {
-      allow read: if isMember();
-      allow create: if recentOwner() && id == resetId() && exactly(['counts', 'total', 'uid', 'name', 'at']) && stamped()
-        && incoming().counts is map && incoming().counts.size() <= 30 && incoming().total is int && incoming().total >= 0;
-    }
-
-    // ---------- Calendar ----------
-    // What managers add to the calendar: school holidays and half terms (they differ by borough, so each venue adds the
-    // ones that matter to its team), events, and days the venue is shut. Everyone on the team reads them. Bank holidays
-    // and the other fixed days are in the app, not here.
-    function calDay(s) {
-      return isDay(s) && dayOf(s) > request.time - duration.value(400, 'd') && dayOf(s) < request.time + duration.value(1100, 'd');
-    }
-    match /calendar/{id} {
-      allow read: if isMember();
-      allow create, update: if isManager() && exactly(['title', 'kind', 'date1', 'date2', 'note', 'uid', 'name', 'at']) && stamped()
-        && reqText(incoming().title, 60) && incoming().kind in ['school', 'event', 'closed']
-        && calDay(incoming().date1) && calDay(incoming().date2) && incoming().date2 >= incoming().date1
-        && optText(incoming().note, 200);
-      allow delete: if isManager();
-    }
-
-    // ---------- Rota ----------
-    // One record per shift: its week (the Monday), day, start and end (an end before the start is after midnight), side,
-    // a short note, who's on it (nobody makes it an open shift), who it's offered to, why its person needs cover, and who
-    // has put their hand up for it (wants: uid to name). Managers make a week as a draft only they can read, then publish
-    // it, and a published shift can't go back to being a draft. Every change to a published shift raises v and writes
-    // events/w-{id}-{v} in the same batch, so the rota keeps who changed what and when; drafts have no events, so a whole
-    // week can be copied or published in one write. Managers are trusted with who goes on a shift (the app picks them from
-    // the team). On a published shift, anyone on the team: puts their hand up for an open shift or one that needs cover,
-    // or takes it down; takes or turns down a shift offered to them; asks for cover for their own shift, or keeps it.
-    function shiftDoc(id) { return /databases/$(database)/documents/shifts/$(id); }
-    match /shifts/{id} {
-      allow read: if isManager() || (isMember() && resource.data.pub == true);
-      allow create: if isManager() && autoId(id) && stamped() && validShift() && incoming().v == 1 && incoming().act == 'added'
-        && (incoming().pub == false || existsAfter(eventDoc('w-' + id + '-1')));
-      allow update: if isMember() && stamped() && validShift() && incoming().v == resource.data.v + 1 && shiftMove()
-        && (incoming().pub == false || incoming().act == 'published' || existsAfter(eventDoc('w-' + id + '-' + string(incoming().v))));
-      allow delete: if freshOwner() || (isManager() && (resource.data.pub == false || existsAfter(eventDoc('w-' + id + '-' + string(resource.data.v + 1)))));
-    }
-    function validShift() {
-      let s = incoming();
-      return exactly(['week', 'day', 'start', 'end', 'side', 'note', 'who', 'whoName', 'offer', 'offerName', 'cover', 'wants', 'pub', 'act', 'v', 'uid', 'name', 'at'])
-        && isDay(s.week) && isDay(s.day) && dayOf(s.week).dayOfWeek() == 1
-        && dayOf(s.day) >= dayOf(s.week) && dayOf(s.day) < dayOf(s.week) + duration.value(7, 'd')
-        && isTime(s.start) && isTime(s.end) && s.start != s.end && s.side in ['bar', 'floor', 'kitchen'] && optText(s.note, 60)
-        && s.who is string && s.who.size() <= 128 && (s.who == '') == (s.whoName == '') && optText(s.whoName, 40)
-        && s.offer is string && s.offer.size() <= 128 && (s.offer == '') == (s.offerName == '') && optText(s.offerName, 40)
-        && (s.offer == '' || s.who == '') && optText(s.cover, 120) && (s.cover == '' || s.who != '')
-        && s.wants is map && s.wants.size() <= 30 && (s.wants.size() == 0 || s.who == '' || s.cover != '')
-        && s.pub is bool && s.v is int;
-    }
-    // Which change this is, and that it's this person's to make. validShift keeps the rest true: a shift with someone
-    // on it and no cover asked has nobody's hand up, and only an open shift is offered.
-    function shiftMove() {
-      let s = incoming();
-      let o = resource.data;
-      let me = request.auth.uid;
-      let base = ['act', 'v', 'uid', 'name', 'at'];
-      let hand = s.wants.diff(o.wants).affectedKeys();
-      return (s.act == 'edited' && isManager() && s.pub == o.pub)
-        || (s.act == 'published' && isManager() && !o.pub && s.pub && changesOnly(base.concat(['pub'])))
-        || (o.pub && s.act == 'wants' && (o.who == '' || o.cover != '') && o.who != me && changesOnly(base.concat(['wants']))
-          && hand.hasOnly([me]) && s.wants[me] == profile().data.name)
-        || (o.pub && s.act == 'unwants' && changesOnly(base.concat(['wants'])) && hand.hasOnly([me]) && !(me in s.wants))
-        || (o.pub && s.act == 'took' && o.who == '' && o.offer == me && s.who == me && s.whoName == profile().data.name
-          && s.offer == '' && changesOnly(base.concat(['who', 'whoName', 'offer', 'offerName', 'wants'])))
-        || (o.pub && s.act == 'declined' && o.offer == me && s.offer == '' && changesOnly(base.concat(['offer', 'offerName'])))
-        || (o.pub && s.act == 'cover' && o.who == me && o.cover == '' && reqText(s.cover, 120) && changesOnly(base.concat(['cover'])))
-        || (o.pub && s.act == 'kept' && o.who == me && o.cover != '' && s.cover == '' && changesOnly(base.concat(['cover', 'wants'])));
-    }
-
-    // ---------- Incidents ----------
-    // Anyone on the team logs one; only managers read them. A manager closes it once, saying what was done.
-    // The original account can't be edited. Only the owner can delete one.
-    match /incidents/{id} {
-      allow read: if isManager();
-      allow create: if isMember() && exactly(['kind', 'text', 'status', 'uid', 'name', 'at'])
-        && reqText(incoming().kind, 40) && reqText(incoming().text, 1000) && incoming().status == 'open' && stamped();
-      allow update: if isManager() && resource.data.status == 'open'
-        && changesOnly(['status', 'outcome', 'closedBy', 'closedByUid', 'closedAt'])
-        && incoming().status == 'closed' && reqText(incoming().outcome, 500)
-        && signedAs('closedBy', 'closedByUid', 'closedAt');
-      allow delete: if isOwner();
-    }
-
-    // ---------- Managers' reviews of shift reports ----------
-    // A thumbs up can stand alone; a flag or a comment must say something. Reviews can't be edited.
-    match /reviews/{id} {
-      allow read: if isManager();
-      allow create: if isManager() && exactly(['report', 'verdict', 'text', 'uid', 'name', 'at']) && stamped()
-        && autoId(incoming().report) && exists(reportDoc(incoming().report))
-        && ((incoming().verdict == 'up' && optText(incoming().text, 500))
-          || (incoming().verdict in ['flag', 'note'] && reqText(incoming().text, 500)));
-      allow delete: if isOwner() || (isManager() && resource.data.uid == request.auth.uid);
-    }
-
-    // ---------- Anonymous feedback between managers ----------
-    // No author is stored, so it can't be traced, withdrawn or limited per person in the app.
-    // The owner reads all of it; a manager reads only what's about them. "Needs improvement" must say why.
-    match /ratings/{id} {
-      allow read: if isOwner() || (isManager() && resource.data.about == request.auth.uid);
-      allow create: if isManager() && exactly(['about', 'aboutName', 'score', 'text', 'at'])
-        && incoming().about is string && incoming().about != request.auth.uid
-        && get(staffDoc(incoming().about)).data.role in ['manager', 'owner']
-        && incoming().aboutName == get(staffDoc(incoming().about)).data.name
-        && ((incoming().score in ['Excellent', 'Efficient', 'Good'] && optText(incoming().text, 500))
-          || (incoming().score == 'Needs improvement' && reqText(incoming().text, 500)))
-        && incoming().at == request.time;
-      allow delete: if isOwner();
-    }
-
-    // ---------- Training ----------
-    // A manager signs someone off on a drink once they've made it to spec in front of them. One record per person per
-    // drink, named after both (drinks are named by their slug, like the 86 board, since the list order changes).
-    // Nobody signs themselves off. Staff see their own; managers see everyone's. Taking a sign-off back deletes it.
-    match /training/{id} {
-      allow read: if isManager() || (isMember() && resource.data.trainee == request.auth.uid);
-      allow create: if isManager() && exactly(['trainee', 'traineeName', 'drinkName', 'uid', 'name', 'at'])
-        && incoming().trainee is string && incoming().trainee != request.auth.uid && reqText(incoming().drinkName, 80)
-        && id == incoming().trainee + '-' + slug(incoming().drinkName)
-        && get(staffDoc(incoming().trainee)).data.name == incoming().traineeName && stamped();
-      allow delete: if isManager();
-    }
-
-    // ---------- Refusals (Challenge 25) ----------
-    // Anyone on the team logs a refusal: why, what they asked for and a few words, never a name. The whole team reads
-    // them, so a guest turned away at the bar isn't served on the floor, and managers can show the log to the licensing
-    // authority or the police. A refusal can't be changed; only the owner deletes one (say, a test).
-    match /refusals/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && exactly(['day', 'reason', 'what', 'note', 'uid', 'name', 'at']) && stamped()
-        && nearNow(incoming().day) && incoming().reason in ['noid', 'badid', 'under18', 'drunk', 'proxy', 'other']
-        && optText(incoming().what, 80) && optText(incoming().note, 300);
-      allow delete: if isOwner();
-    }
-
-    // ---------- Certificates ----------
-    // Each person's training and legal dates, kept by managers: personal licence, food hygiene, first aid and so on,
-    // and the day someone's permission to work in the UK ends, so their right to work is checked again in time. Dates
-    // and a short note only, never copies of documents. Staff see their own; managers see and keep everyone's.
-    function validCert() {
-      let c = incoming();
-      return exactly(['who', 'whoName', 'kind', 'label', 'done', 'ends', 'note', 'uid', 'name', 'at']) && stamped()
-        && c.who is string && get(staffDoc(c.who)).data.name == c.whoName
-        && c.kind in ['plic', 'food', 'allergy', 'faw', 'efaw', 'fire', 'age', 'rtw', 'other']
-        && optText(c.label, 60) && (c.kind != 'other' || reqText(c.label, 60))
-        && (c.done == '' || isDay(c.done)) && (c.ends == '' || isDay(c.ends)) && (c.kind != 'rtw' || isDay(c.ends))
-        && optText(c.note, 200);
-    }
-    match /certs/{id} {
-      allow read: if isManager() || (isMember() && resource.data.who == request.auth.uid);
-      allow create, update: if isManager() && validCert();
-      allow delete: if isManager();
-    }
-
-    // ---------- Availability ----------
-    // When each person can work, one record each, id = their uid: a day for each weekday from Monday, each "" (any
-    // time), "no" or "HH:MM-HH:MM" (only between those times), and a note. Only the person writes theirs; managers read
-    // everyone's for the rota.
-    function avDay(v) { return v is string && v.matches('(no|([01][0-9]|2[0-3]):[0-5][0-9]-([01][0-9]|2[0-3]):[0-5][0-9])?'); }
-    match /avail/{uid} {
-      allow get: if isMember() && (isManager() || uid == request.auth.uid);
-      allow list: if isManager();
-      allow create, update: if isMember() && uid == request.auth.uid && exactly(['days', 'note', 'uid', 'name', 'at']) && stamped()
-        && incoming().days is list && incoming().days.size() == 7
-        && avDay(incoming().days[0]) && avDay(incoming().days[1]) && avDay(incoming().days[2]) && avDay(incoming().days[3])
-        && avDay(incoming().days[4]) && avDay(incoming().days[5]) && avDay(incoming().days[6])
-        && optText(incoming().note, 120);
-    }
-
-    // ---------- Shout-outs ----------
-    // Anyone on the team thanks someone else on it, saying what they did. Everyone reads them. Nobody changes one; whoever
-    // wrote it or a manager takes it down.
-    match /shouts/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && exactly(['to', 'toName', 'text', 'uid', 'name', 'at']) && stamped()
-        && incoming().to is string && incoming().to != request.auth.uid && get(staffDoc(incoming().to)).data.name == incoming().toName
-        && reqText(incoming().text, 200);
-      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
-    }
-
-    // ---------- How was your shift ----------
-    // One answer per person per business night, id = {day}-{uid}: a score from 1 (rough) to 5 (great) and a few words.
-    // They can change it that night. Managers read everyone's; each person their own. Only Start fresh deletes them.
-    match /pulse/{id} {
-      allow get: if isMember() && (isManager() || id.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}-' + request.auth.uid));
-      allow list: if isManager();
-      allow create, update: if isMember() && exactly(['day', 'score', 'note', 'uid', 'name', 'at']) && stamped()
-        && id == incoming().day + '-' + request.auth.uid && nearNow(incoming().day)
-        && incoming().score is int && incoming().score >= 1 && incoming().score <= 5 && optText(incoming().note, 200);
-      allow delete: if freshOwner();
-    }
-
-    // ---------- Tonight's quiz ----------
-    // One result per person per business night, id = {day}-{uid}: which of the night's 10 questions they got right at
-    // their first go, "1" or "0" for each in turn (right). The app makes the questions from the date, so it can tell
-    // managers which ones the team got wrong. Only that first write is allowed, so a second go or another phone can't
-    // replace it. Managers read everyone's; each person their own. Only Start fresh deletes them.
-    match /quiz/{id} {
-      allow get: if isMember() && (isManager() || id.matches('[0-9]{4}-[0-9]{2}-[0-9]{2}-' + request.auth.uid));
-      allow list: if isManager();
-      allow create: if isMember() && exactly(['day', 'right', 'uid', 'name', 'at']) && stamped()
-        && id == incoming().day + '-' + request.auth.uid && nearNow(incoming().day)
-        && incoming().right is string && incoming().right.matches('[01]{10}');
-      allow delete: if freshOwner();
-    }
-
-    // ---------- New starters ----------
-    // Each new person's checklist, id = their uid: their first day, and what's done ({the thing: {day, by}}), ticked by
-    // managers, who read everyone's. The new person reads their own.
-    match /onboard/{who} {
-      allow get: if isMember() && (isManager() || who == request.auth.uid);
-      allow list: if isManager();
-      allow create, update: if isManager() && exactly(['who', 'whoName', 'start', 'done', 'uid', 'name', 'at']) && stamped()
-        && incoming().who == who && get(staffDoc(who)).data.name == incoming().whoName
-        && isDay(incoming().start) && incoming().done is map && incoming().done.size() <= 40;
-      allow delete: if isManager();
+      allow read: if isMember() && id == 'contacts';
+      allow write: if isManager() && id == 'contacts' && exactly(['list', 'uid', 'name', 'at']) && incoming().list is list
+        && incoming().list.size() <= 30 && stamped();
     }
 
     // ---------- Issues and handover ----------
@@ -1003,68 +486,24 @@ service cloud.firestore {
       allow read: if isMember();
       allow create: if isMember() && exactly(['title', 'detail', 'area', 'urgent', 'again', 'status', 'uid', 'name', 'at'])
         && reqText(incoming().title, 120) && optText(incoming().detail, 1000)
-        && incoming().area in ['bar', 'floor', 'kitchen', 'toilets', 'terrace', 'cellar', 'other']
+        && incoming().area in ['bar', 'floor', 'toilets', 'terrace', 'cellar', 'other']
         && incoming().urgent is bool && incoming().status == 'open'
         && (incoming().again == null || (autoId(incoming().again) && exists(/databases/$(database)/documents/issues/$(incoming().again))))
         && stamped();
-      // Take it on yourself (managers can give it to anyone on the team), or mark it fixed saying what was done.
+      // Take it on, or give it to someone on the team, or mark it fixed saying what was done.
       allow update: if isMember() && resource.data.status in ['open', 'taken']
         && ((incoming().status == 'taken' && changesOnly(['status', 'who', 'whoUid', 'setBy', 'setByUid', 'setAt'])
               && signedAs('setBy', 'setByUid', 'setAt') && incoming().whoUid is string
-              && ((incoming().whoUid == request.auth.uid && incoming().who == profile().data.name)
-                || (isManager() && get(staffDoc(incoming().whoUid)).data.name == incoming().who)))
+              && get(staffDoc(incoming().whoUid)).data.name == incoming().who)
           || (incoming().status == 'fixed' && changesOnly(['status', 'fix', 'fixedBy', 'fixedByUid', 'fixedAt'])
               && reqText(incoming().fix, 500) && signedAs('fixedBy', 'fixedByUid', 'fixedAt')));
-      // Whoever raised it can withdraw it before anyone takes it on. The owner can delete any.
-      allow delete: if isOwner() || (isMember() && resource.data.uid == request.auth.uid && resource.data.status == 'open');
-    }
-
-    // ---------- Concerns ----------
-    // Anyone on the team reports something that isn't right (needs cleaning, untidy, broken, a hazard) with up to three
-    // photos, to everyone, the bar, the floor or managers only. An anonymous concern saves no uid or name, so no app
-    // account can see who sent it, the sender included. Bar and floor are about relevance, like broadcasts; managers
-    // only is enforced, for the concern and its photos.
-    function concernDoc(id) { return /databases/$(database)/documents/concerns/$(id); }
-    function validConcern() {
-      let c = incoming();
-      return c.reason in ['cleaning', 'unkempt', 'broken', 'hazard', 'other']
-        && c.area in ['bar', 'floor', 'kitchen', 'toilets', 'terrace', 'cellar', 'other']
-        && optText(c.note, 300) && (c.reason != 'other' || reqText(c.note, 300))
-        && c.to in ['all', 'bar', 'floor', 'managers'] && c.photos is int && c.photos >= 0 && c.photos <= 3
-        && c.status == 'open' && c.at == request.time
-        && ((c.anon == true && exactly(['reason', 'area', 'note', 'to', 'photos', 'anon', 'status', 'at']))
-          || (c.anon == false && exactly(['reason', 'area', 'note', 'to', 'photos', 'anon', 'status', 'uid', 'name', 'at']) && stamped()));
-    }
-    match /concerns/{id} {
-      allow read: if isManager() || (isMember() && (resource.data.to in ['all', 'bar', 'floor'] || resource.data.uid == request.auth.uid));
-      allow create: if isMember() && validConcern();
-      // Dealt with, once, with an optional note. Anyone can for a concern sent to the team; managers only ones need a manager.
-      allow update: if isMember() && resource.data.status == 'open' && (isManager() || resource.data.to in ['all', 'bar', 'floor'])
-        && incoming().status == 'closed' && changesOnly(['status', 'fix', 'fixedBy', 'fixedByUid', 'fixedAt'])
-        && optText(incoming().fix, 300) && signedAs('fixedBy', 'fixedByUid', 'fixedAt');
-      // Managers can take any concern down. Whoever sent a named one can withdraw it while it's open.
-      allow delete: if isManager() || (isMember() && resource.data.get('uid', '') == request.auth.uid && resource.data.status == 'open');
-    }
-    // Photos are added only in the write that creates their concern, numbered from 0, and carry its audience so
-    // managers only photos stay with managers. They go when their concern goes, or after 30 days (a manager's app clears them).
-    match /concernPhotos/{id} {
-      allow read: if isManager() || (isMember() && resource.data.to in ['all', 'bar', 'floor']);
-      allow create: if isMember() && exactly(['concern', 'n', 'to', 'data', 'at'])
-        && incoming().concern is string && incoming().n is int && incoming().n >= 0
-        && id == incoming().concern + '-' + string(incoming().n)
-        && !exists(concernDoc(incoming().concern))
-        && getAfter(concernDoc(incoming().concern)).data.photos > incoming().n
-        && getAfter(concernDoc(incoming().concern)).data.to == incoming().to
-        && incoming().data is string && incoming().data.size() <= 700000
-        && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+') && incoming().at == request.time;
-      // (Removing an old concern also names photos that were already cleared; deleting nothing is allowed.)
-      allow delete: if freshOwner() || (isMember() && (resource == null || !existsAfter(concernDoc(resource.data.concern))
-        || (isManager() && resource.data.at < request.time - duration.value(30, 'd'))));
+      // Whoever raised it can withdraw it before anyone takes it on. The owner and the manager can take any one down.
+      allow delete: if (isMember() && resource.data.uid == request.auth.uid && resource.data.status == 'open') || isManager();
     }
 
     // ---------- Football on the screens ----------
-    // Managers list the games the bar is showing: the day, kick-off, the teams, the competition, the channel and the
-    // screen. Everyone on the team reads them. A wrong one is taken down and added again.
+    // The owner or the manager lists the games the bar is showing: the day, kick-off, the teams, the competition, the channel and
+    // the screen. Everyone on the team reads them. A wrong one is taken down and added again.
     match /fixtures/{id} {
       allow read: if isMember();
       allow create: if isManager() && exactly(['day', 'ko', 'home', 'away', 'comp', 'channel', 'screen', 'uid', 'name', 'at'])
@@ -1075,111 +514,5 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
-    // ---------- Team chat ----------
-    // Who's on the team, for picking someone to message: name and role only. Staff can't list staff records (they hold
-    // usernames), so each phone keeps its own entry up to date and managers' phones keep everyone's. An entry always
-    // matches its staff record, and goes when the person does.
-    match /directory/{uid} {
-      allow read: if isMember();
-      allow create, update: if isMember() && (uid == request.auth.uid || isManager()) && exactly(['name', 'role'])
-        && get(staffDoc(uid)).data.name == incoming().name && get(staffDoc(uid)).data.role == incoming().role;
-      allow delete: if isManager() && get(staffDoc(uid)) == null;
-    }
-    // Three kinds of chat: the team chat (id team, everyone on the team is in it), private chats between two people (one
-    // per pair, named after both uids in order) and groups (anyone starts one, with a name and who's in it). Only the
-    // people in a private chat or a group can read it: managers and the owner can't read other people's chats in the app.
-    // A chat keeps a preview of its latest message (with who it pinged), written in the same batch as the message, and
-    // read {uid: time}, when each person last read it, which is how a phone shows what's unread.
-    function chatDoc(id) { return /databases/$(database)/documents/chats/$(id); }
-    function msgDoc(chat, id) { return /databases/$(database)/documents/chats/$(chat)/msgs/$(id); }
-    function chatPhotoDoc(id) { return /databases/$(database)/documents/chatPhotos/$(id); }
-    function inChat(c) { return c.kind == 'team' || request.auth.uid in c.members; }
-    // Marks only the caller's own read time, at the server's clock.
-    function readNow(c) {
-      return c.read.diff(resource.data.read).affectedKeys().hasOnly([request.auth.uid]) && c.read[request.auth.uid] == request.time;
-    }
-    match /chats/{id} {
-      // Asking for the team chat before anyone has made it is allowed (there's nothing to see). A list must ask only for
-      // chats the caller is in.
-      allow get: if isMember() && (resource == null || inChat(resource.data));
-      allow list: if isMember() && request.auth.uid in resource.data.members;
-      allow create: if isMember() && newChat(id);
-      allow update: if isMember() && inChat(resource.data) && (
-        (changesOnly(['read']) && readNow(incoming()))
-        || newMessage(id)
-        // Unsending your own latest message clears the preview.
-        || (changesOnly(['lastText']) && incoming().lastText == '' && resource.data.lastUid == request.auth.uid
-          && !existsAfter(msgDoc(id, resource.data.lastId)))
-        || groupChange());
-    }
-    function newChat(id) {
-      let c = incoming();
-      return exactly(['kind', 'title', 'members', 'by', 'at', 'lastId', 'lastText', 'lastName', 'lastUid', 'lastAt', 'lastPings', 'read'])
-        && c.by == request.auth.uid && c.at == request.time && c.lastAt == request.time
-        && c.lastId == '' && c.lastText == '' && c.lastName == '' && c.lastUid == '' && c.lastPings == [] && c.read == {}
-        && ((c.kind == 'team' && id == 'team' && c.title == '' && c.members == [])
-          || (c.kind == 'dm' && c.title == '' && c.members is list && c.members.size() == 2 && request.auth.uid in c.members
-            && c.members[0] is string && c.members[1] is string && c.members[0] < c.members[1] && id == c.members[0] + '-' + c.members[1]
-            && get(staffDoc(c.members[0])) != null && get(staffDoc(c.members[1])) != null)
-          || (c.kind == 'group' && autoId(id) && reqText(c.title, 40) && c.members is list
-            && c.members.size() >= 2 && c.members.size() <= 40 && request.auth.uid in c.members));
-    }
-    // The preview of a message the caller sends in the same batch. Sending also marks the chat read for them.
-    function newMessage(id) {
-      let c = incoming();
-      let m = getAfter(msgDoc(id, c.lastId)).data;
-      return changesOnly(['lastId', 'lastText', 'lastName', 'lastUid', 'lastAt', 'lastPings', 'read'])
-        && c.lastUid == request.auth.uid && c.lastName == profile().data.name && c.lastAt == request.time && optText(c.lastText, 200)
-        && readNow(c) && m.uid == request.auth.uid && m.at == request.time && c.lastPings == m.mentions;
-    }
-    // Whoever started a group, or a manager in it, renames it and changes who's in it (staying in it themselves).
-    // Anyone can leave a group.
-    function groupChange() {
-      let c = incoming();
-      return resource.data.kind == 'group' && changesOnly(['title', 'members']) && reqText(c.title, 40)
-        && c.members is list && c.members.size() <= 40
-        && (((resource.data.by == request.auth.uid || isManager()) && request.auth.uid in c.members && c.members.size() >= 2)
-          || (changesOnly(['members']) && c.members == resource.data.members.removeAll([request.auth.uid])));
-    }
-    // Messages can't be edited. Whoever sent one can unsend it, and its photo goes with it. Up to five people are pinged
-    // (mentioned) per message, and they must be in the chat; in a private chat the other person is pinged every time.
-    match /chats/{chat}/msgs/{id} {
-      allow read: if isMember() && inChat(get(chatDoc(chat)).data);
-      allow create: if isMember() && autoId(id) && stamped() && exactly(['text', 'photo', 'mentions', 'uid', 'name', 'at'])
-        && optText(incoming().text, 1000) && incoming().photo is bool && (incoming().photo || incoming().text.trim().size() > 0)
-        && incoming().mentions is list && incoming().mentions.size() <= 5 && !(request.auth.uid in incoming().mentions)
-        && inChat(get(chatDoc(chat)).data)
-        && (get(chatDoc(chat)).data.kind == 'team' || incoming().mentions.hasOnly(get(chatDoc(chat)).data.members))
-        && getAfter(chatDoc(chat)).data.lastId == id
-        && (!incoming().photo || existsAfter(chatPhotoDoc(chat + '-' + id)));
-      allow delete: if isMember() && resource.data.uid == request.auth.uid
-        && (!resource.data.photo || !existsAfter(chatPhotoDoc(chat + '-' + id)));
-    }
-    // A message's photo, kept apart so the chat loads quickly, added only in the write that sends its message. Readable by
-    // the people in that chat. day is the business day it was sent: the sender's phone clears their own after 30 days.
-    match /chatPhotos/{id} {
-      allow read: if isMember() && (resource.data.uid == request.auth.uid || inChat(get(chatDoc(resource.data.chat)).data));
-      allow create: if isMember() && stamped() && exactly(['chat', 'msg', 'day', 'data', 'uid', 'name', 'at'])
-        && incoming().chat is string && incoming().msg is string && id == incoming().chat + '-' + incoming().msg
-        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.uid == request.auth.uid
-        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.at == request.time
-        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.photo == true
-        && nearNow(incoming().day) && incoming().data is string && incoming().data.size() <= 700000
-        && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+');
-      // (Unsending a message names its photo even if it was already cleared; deleting nothing is allowed.)
-      allow delete: if isMember() && (resource == null || resource.data.uid == request.auth.uid);
-    }
-    // Pings: one record per person per chat, {to}-{chat}, pointing at the latest message that pinged them, written in the
-    // same batch as that message. Only the person pinged reads it, and their phone deletes it once they've read the chat.
-    match /pings/{id} {
-      allow read, delete: if isMember() && resource.data.to == request.auth.uid;
-      allow create, update: if isMember() && stamped() && exactly(['to', 'chat', 'msg', 'text', 'uid', 'name', 'at'])
-        && incoming().to is string && incoming().chat is string && incoming().msg is string
-        && id == incoming().to + '-' + incoming().chat && optText(incoming().text, 200)
-        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.uid == request.auth.uid
-        && getAfter(msgDoc(incoming().chat, incoming().msg)).data.at == request.time
-        && incoming().to in getAfter(msgDoc(incoming().chat, incoming().msg)).data.mentions
-        && get(staffDoc(incoming().to)) != null;
-    }
   }
 }
