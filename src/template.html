@@ -1130,7 +1130,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, admin: false, owner: false, staff: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, admin: false, owner: false, staff: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
 // The 86 board is shared by everyone on the team. Off the team, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -1810,7 +1810,7 @@ const SIDE_NAME = { bar: "Bar", floor: "Floor" };
 const sideName = (s) => SIDE_NAME[s] || "Bar";
 let mode = MODE_LISTS[store.get("mode")] ? store.get("mode") : "bar";
 if (!MODE_LISTS[mode]) mode = "bar";
-function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); renderTally(); }
+function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); pullDraft(); renderTally(); }
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
@@ -1850,8 +1850,9 @@ const shown = (k) => {
 };
 let closer = store.get("closer", "");
 // The handover follows the venue's daily closing procedure: 1 cleaning done (the ticks say it), 2 stock running low
-// (gas and garnishes too), 3 outstanding issues, 4 what to prepare or follow up tomorrow. Photos are required. Kept on
-// this phone for the night.
+// (gas and garnishes too), 3 outstanding issues, 4 what to prepare or follow up tomorrow. Photos are required. On the
+// team, the draft (with Closed by and the no-photos reason) is one per side for the night, shared live by every phone
+// closing that side; a phone not on the team keeps its own.
 const HO = [
   { id: "low", label: "Stock running low", short: "Running low", hint: "Drinks, gas, garnishes, anything getting short", join: ", " },
   { id: "issues", label: "Outstanding issues", short: "Outstanding", hint: "Anything broken, not finished, a guest, a tab", join: "\n" },
@@ -1869,6 +1870,25 @@ let noPhotos = store.get("noPhotos", "");
 const hoLines = (id) => ho[id].split("\n").map((x) => x.trim()).filter(Boolean);
 const hoNote = () => HO.filter((f) => hoLines(f.id).length).map((f) => `${f.short}: ${hoLines(f.id).join("\n")}`).join("\n");
 // The handover note and closing manager are for one night: at 6am they start empty again.
+// Tonight's unsent closing photos for this side, whoever took them. Old drafts with no side count for the taker's side.
+const draftPhotos = () => LIVE.draftPhotos.filter((p) => (p.side || (p.uid === LIVE.uid ? mode : "")) === mode);
+const draftOf = (side) => LIVE.drafts.find((x) => x.day === shiftDay() && x.side === side);
+let draftT = null;
+// The shared draft into this phone: not the box being typed in, and not while this phone's own change is waiting to go.
+function pullDraft() {
+  if (!LIVE.me || draftT) return;
+  const d = draftOf(mode) || {}, typing = document.activeElement?.dataset?.hoF;
+  for (const f of HO) if (f.id !== typing) ho[f.id] = d[f.id] || "";
+  closer = d.closer || ""; noPhotos = d.noPhotos || "";
+}
+// Saved on the phone, and on the team for every phone closing this side, half a second after the last change.
+function keepDraft() {
+  store.set("ho", ho); store.set("closer", closer); store.set("noPhotos", noPhotos);
+  if (!LIVE.me || !LIVE.api) return;
+  clearTimeout(draftT);
+  const side = mode, x = { low: ho.low, issues: ho.issues, next: ho.next, closer, noPhotos };
+  draftT = setTimeout(() => { draftT = null; LIVE.api.saveDraft(side, x).catch(() => toast("Handover not saved. Check the signal and try again")); }, 500);
+}
 function freshNight() {
   if (store.get("noteDay", "") === shiftDay()) return;
   ho = { low: "", issues: "", next: "" }; closer = ""; noPhotos = "";
@@ -1885,7 +1905,7 @@ function tallyText() {
     const c = closeClock(k);
     return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
-  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !LIVE.myPhotos.length ? `\nNo closing photos: ${noPhotos}` : ""}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}`;
 }
 // The shift for the managers' WhatsApp group or email, so nobody needs the app to know where it stands: how each list
 // ended, then everything still open (not done, blocked, 86'd, labels, restocks, issues, guest issues), the handover
@@ -1910,7 +1930,7 @@ SHARE.shift = () => {
   head.push(`86'd: ${out.length ? out.join(", ") : "nothing"}`);
   const ck = closeClock(closeList()); if (ck) head.push(`\u23f1 Closing started ${hhmm(new Date(ck.start))}, ${ck.done ? "took" : "so far"} ${minsText(ck.mins)}`);
   if (closer) head.push(`Closed by: ${closer}`);
-  if (LIVE.myPhotos.length) head.push(`\ud83d\udcf7 ${LIVE.myPhotos.length} closing photo${LIVE.myPhotos.length > 1 ? "s" : ""}, sent next`);
+  if (draftPhotos().length) head.push(`\ud83d\udcf7 ${draftPhotos().length} closing photo${draftPhotos().length > 1 ? "s" : ""}, sent next`);
   else if (noPhotos) head.push(`\ud83d\udcf7 No closing photos: ${noPhotos}`);
   // The four handover points always show, so "nothing" is said, not left out.
   const point = (id, label, none) => ({ id, label, one: true, lines: hoLines(id).length ? hoLines(id) : [none] });
@@ -1930,7 +1950,7 @@ SHARE.shift = () => {
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
     ...lists.map((k) => ({ id: `all-${k}`, label: `${LISTS[k].title}: every item`, raw: true, lines: shown(k).map(([i, t]) => line(k, i, t)), off: true, opt: true })),
   ], photos: async () => {
-    if (LIVE.myPhotos.length) return LIVE.myPhotos;
+    if (draftPhotos().length) return draftPhotos();
     const r = LIVE.reports.find((x) => x.uid === LIVE.uid && x.side === mode && x.photos && bday(x.at) === shiftDay());
     return r ? LIVE.api.loadPhotos(r.id) : [];
   } };
@@ -2084,12 +2104,12 @@ function clearList(k) {
   more = ""; haptic();
 }
 // Clear everything, for a fresh start: both closing lists back to not started, everything back in stock, and this
-// phone's handover, Closed by and unsent photos gone. Anyone on the team can. The owner's master clear also cancels open
+// handover, Closed by and unsent photos gone, for both sides. Anyone on the team can. The owner's master clear also cancels open
 // restocks and empties the inbox and issues. Sent handovers stay: the morning reads them.
 async function clearAll(master) {
   const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api;
   if (!confirm(master ? "Master clear: both closing lists, the 86 board, restocks, the inbox and issues, for everyone. Sent handovers stay. Go ahead?"
-    : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. Your handover and photos on this phone go too.")) return;
+    : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. The handover, Closed by and unsent photos go too.")) return;
   const jobs = [];
   for (const k of lists) {
     const t = LISTS[k].title, p = progress(k), ids = shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
@@ -2097,7 +2117,8 @@ async function clearAll(master) {
     jobs.push(open.then(() => Promise.all(ids.map((i) => A.setTask(k, i, itemText(k, i), "todo", { note: CLEARED })))));
   }
   for (const n of outNow()) jobs.push(A.set86(n, false));
-  for (const ph of LIVE.myPhotos) jobs.push(A.deletePhoto(ph.id));
+  for (const ph of LIVE.draftPhotos) jobs.push(A.deletePhoto(ph.id));
+  for (const side of Object.keys(MODE_LISTS)) if (draftOf(side)) jobs.push(A.dropDraft(side));
   if (master) {
     for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
     for (const a of LIVE.asks) jobs.push(A.dropAsk(a.id));
@@ -2606,8 +2627,8 @@ function labelsReport(side) {
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
     <p class="note">The close, or anything you worked on. Take them here or choose from your photos: they go with your report.</p>
-    ${LIVE.myPhotos.map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
-    ${LIVE.myPhotos.length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
+    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
+    ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
       : photoBusy ? `<p class="note" role="status">Adding…</p>`
       : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
 }
@@ -2664,7 +2685,7 @@ function renderTally() {
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
-        ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div><div><span>Labels due</span><b>${toChange([mode]).length}</b></div><div><span>Photos</span><b>${LIVE.myPhotos.length}</b></div>
+        ${MODE_LISTS[mode].map((k) => `<div><span>${LISTS[k].short}</span><b>${progress(k).n}/${progress(k).of}</b></div>`).join("")}<div><span>86'd</span><b>${outNow().size}</b></div><div><span>Labels due</span><b>${toChange([mode]).length}</b></div><div><span>Photos</span><b>${draftPhotos().length}</b></div>
       </div>
       ${stillToDoHtml()}
       <div class="fld">Closed by<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${closedBy().includes(m)}">${esc(m)}</button>`).join("")}</div></div>
@@ -2673,7 +2694,7 @@ function renderTally() {
       <div class="hopt"><b>1. Cleaning completed</b><span>${(() => { const p = progress(closeList()); return p.n === p.of ? "\u2705 Closing all ticked" : `${p.n} of ${p.of} closing items ticked`; })()}</span></div>
       ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
       <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
-      <div class="hopt"><b>Closing photos</b><span>${LIVE.myPhotos.length ? `${LIVE.myPhotos.length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
+      <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
       ${HO.some((f) => ho[f.id].trim()) ? `<div class="recent"><button class="chip" data-ho-clear>Clear handover</button></div>` : ""}
       <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done` : "Hand over and send on WhatsApp"}</button>
       <p class="note">Saves the handover for the next shift to see here, then opens WhatsApp with the closing in tick boxes. The photos go on their own (iPhones drop photos sent with words).</p>
@@ -2691,12 +2712,12 @@ function renderTally() {
 async function addClosingPhotos(e) {
   const fs = [...e.target.files]; e.target.value = "";
   if (!fs.length || !LIVE.me) return;
-  const room = LIVE.api.MAX_PHOTOS - LIVE.myPhotos.length;
+  const room = LIVE.api.MAX_PHOTOS - draftPhotos().length;
   if (fs.length > room) toast(`${LIVE.api.MAX_PHOTOS} photos is the most for one report`);
   if (room <= 0) return;
   photoBusy = true; renderTally();
   for (const f of fs.slice(0, room)) {
-    try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try again"); else { track(LIVE.api.addPhoto(data), null, "Photo not saved. Try again"); haptic(); } }
+    try { const data = await shrink(f); if (data.length > 700000) toast("That photo is too big. Try again"); else { track(LIVE.api.addPhoto(data, mode), null, "Photo not saved. Try again"); haptic(); } }
     catch { toast("Couldn't read that photo"); }
   }
   photoBusy = false; renderTally();
@@ -2737,23 +2758,23 @@ $("#tally").addEventListener("input", (e) => {
   if (e.target.id === "lb-item") { lbF.item = e.target.value; return; }
   if (e.target.id === "lb-life") { lbF.life = e.target.value; return; }
   if (lbe && e.target.dataset.lbe && e.target.type !== "checkbox") { lbe[e.target.dataset.lbe] = e.target.value; return; }
-  if (e.target.dataset.hoF) { ho[e.target.dataset.hoF] = e.target.value; store.set("ho", ho); }
+  if (e.target.dataset.hoF) { ho[e.target.dataset.hoF] = e.target.value; keepDraft(); }
   if ($("#t-text")) $("#t-text").value = tallyText();
 });
 $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#t-copy")) {
     // Closing photos are required. With none, the closer says why or goes and takes them.
-    if (!LIVE.myPhotos.length && !noPhotos) {
+    if (!draftPhotos().length && !noPhotos) {
       noPhotos = reason("Closing photos are required for the handover. Cancel to go and take them.\nIf you really can't, say why:");
-      store.set("noPhotos", noPhotos);
+      keepDraft();
       if (!noPhotos) { pane = closeList(); renderTally(); $(".addph")?.scrollIntoView({ block: "center" }); toast("Take the closing photos, then hand over"); return; }
     }
     // Firestore queues the write with no signal and sends it when the phone reconnects.
     const done = (k) => `${progress(k).n}/${progress(k).of}`;
-    const n = Math.min(LIVE.myPhotos.length, LIVE.api.MAX_PHOTOS);
+    const n = Math.min(draftPhotos().length, LIVE.api.MAX_PHOTOS);
     const lb = toChange([mode]).length;
     const summary = `${sideName(mode)} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${lb ? ` · ${lb} date label${lb > 1 ? "s" : ""} to change` : ""}${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closed by ${closer}` : ""}`;
-    track(LIVE.api.sendReport(mode, tallyText(), summary), "Handover saved for the next shift", "Handover not saved. Try again"); haptic();
+    track(LIVE.api.sendReport(mode, tallyText(), summary, draftPhotos()), "Handover saved for the next shift", "Handover not saved. Try again"); haptic();
     openSend("shift"); return;
   }
   if (e.target.closest("[data-login]")) { show("notices"); return; }
@@ -2768,7 +2789,7 @@ $("#tally").addEventListener("click", async (e) => {
   }
   const cl = e.target.closest("[data-closer]"); if (cl) {
     const n = cl.dataset.closer, xs = closedBy();
-    closer = (xs.includes(n) ? xs.filter((x) => x !== n) : [...xs, n]).join(", "); store.set("closer", closer); haptic(); renderTally(); return;
+    closer = (xs.includes(n) ? xs.filter((x) => x !== n) : [...xs, n]).join(", "); keepDraft(); haptic(); renderTally(); return;
   }
   const md = e.target.closest("[data-mode]"); if (md) { haptic(); setMode(md.dataset.mode); return; }
   const pn = e.target.closest("[data-pane]"); if (pn) {
@@ -2853,12 +2874,12 @@ $("#tally").addEventListener("click", async (e) => {
   // A chip adds to its box: running low is a list, the others start a new line.
   const hc = e.target.closest("[data-ho-add]"); if (hc) {
     const id = hc.dataset.hoAdd, f = HO.find((x) => x.id === id), ta = $(`#ho-${id}`), v = ho[id].trimEnd();
-    ho[id] = `${v}${v ? f.join : ""}${hc.dataset.ho}`; store.set("ho", ho);
+    ho[id] = `${v}${v ? f.join : ""}${hc.dataset.ho}`; keepDraft();
     ta.value = ho[id]; ta.focus(); ta.setSelectionRange(ho[id].length, ho[id].length); return;
   }
   if (e.target.closest("[data-ho-clear]")) {
-    if (!confirm("Clear the handover on this phone?")) return;
-    ho = { low: "", issues: "", next: "" }; store.set("ho", ho); renderTally(); return;
+    if (!confirm(LIVE.me ? "Clear the handover for everyone closing this side?" : "Clear the handover on this phone?")) return;
+    ho = { low: "", issues: "", next: "" }; keepDraft(); renderTally(); return;
   }
 });
 
@@ -4324,6 +4345,7 @@ function liveChanged(what) {
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
   if (what === "me") autoJoin();
   if (what === "lists") applyLists();
+  if (what === "drafts" || what === "me") pullDraft();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
@@ -4341,7 +4363,7 @@ function liveChanged(what) {
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // Overdue times move on with no change to the data, and date labels fall due when the day rolls over at 6am, so the

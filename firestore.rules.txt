@@ -151,22 +151,36 @@ service cloud.firestore {
     }
     function reportDoc(id) { return /databases/$(database)/documents/reports/$(id); }
     match /photos/{id} {
-      // Your own drafts and photos on a sent report. The owner and the manager read them all, to clear old ones.
-      allow read: if isMember() && (resource.data.uid == request.auth.uid || resource.data.report != null || isManager());
-      allow create: if isMember() && exactly(['data', 'note', 'report', 'uid', 'name', 'at'])
+      // Tonight's unsent closing photos are shared by everyone on the team, so phones closing one side together see
+      // the same ones, and photos on a sent report stay readable with it.
+      allow read: if isMember();
+      allow create: if isMember() && exactly(['data', 'note', 'report', 'side', 'uid', 'name', 'at'])
         && incoming().data is string && incoming().data.size() <= 700000
         && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+')
-        && incoming().note == '' && incoming().report == null && stamped();
-      // Until it's sent, the person who took it can change the note. It is attached only inside the write that
-      // creates their report (the report's time is this request's time), so it can't move onto an older report.
-      allow update: if isMember() && resource.data.uid == request.auth.uid && resource.data.report == null
+        && incoming().side in ['bar', 'floor'] && incoming().note == '' && incoming().report == null && stamped();
+      // Until it's sent, anyone on the team can change the note. It is attached only inside the write that creates the
+      // report for its side (the report's time is this request's time), so it can't move onto an older report.
+      allow update: if isMember() && resource.data.report == null
         && ((changesOnly(['note']) && optText(incoming().note, 300))
           || (changesOnly(['report']) && autoId(incoming().report)
               && getAfter(reportDoc(incoming().report)).data.uid == request.auth.uid
-              && getAfter(reportDoc(incoming().report)).data.at == request.time));
-      // Drafts can be binned by whoever took them. The owner's or the manager's phone clears photos over 30 days old (to stay free).
-      allow delete: if isMember() && ((resource.data.uid == request.auth.uid && resource.data.report == null)
+              && getAfter(reportDoc(incoming().report)).data.at == request.time
+              && getAfter(reportDoc(incoming().report)).data.side == resource.data.get('side', getAfter(reportDoc(incoming().report)).data.side)));
+      // Unsent ones can be binned by anyone on the team. The owner's or a senior's phone clears photos over 30 days old (to stay free).
+      allow delete: if isMember() && (resource.data.report == null
         || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
+    }
+
+    // ---------- Tonight's handover draft ----------
+    // One per side for the business day ({day}-{side}), shared live by everyone closing that side until it's sent.
+    match /drafts/{id} {
+      allow read: if isMember();
+      allow create, update: if isMember() && exactly(['day', 'side', 'low', 'issues', 'next', 'closer', 'noPhotos', 'uid', 'name', 'at'])
+        && incoming().side in ['bar', 'floor'] && isDay(incoming().day) && id == incoming().day + '-' + incoming().side
+        && dayOf(incoming().day) > request.time - duration.value(2, 'd') && dayOf(incoming().day) < request.time + duration.value(1, 'd')
+        && optText(incoming().low, 2000) && optText(incoming().issues, 2000) && optText(incoming().next, 2000)
+        && optText(incoming().closer, 300) && optText(incoming().noPhotos, 300) && stamped();
+      allow delete: if isMember();
     }
 
     // ---------- Tonight's checklists: tasks and procedures ----------
