@@ -48,7 +48,8 @@ function showRapid() {
       <div id="rp-out"></div>
       <div class="actions">${sendBtn("specs", "Send the house cocktails", D.filter((d) => d.section === "Black Tap Signatures").map((d) => d.id).join(","))}</div>`;
   }
-  renderRapid();
+  // The screen stays on while Rapid fire is open, so it doesn't lock mid-rush.
+  renderRapid(); keepAwake();
 }
 $("#v-rapid").addEventListener("change", (e) => {
   const c = e.target.closest("[data-rush-pick]"); if (!c) return;
