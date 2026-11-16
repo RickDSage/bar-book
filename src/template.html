@@ -2225,9 +2225,11 @@ function runText(k) {
 function runHtml(k) {
   const r = runOf(k), st = r?.status || "todo", p = progress(k), A = LIVE.admin;
   const b = (to, label, cls = "") => `<button class="btn${cls}" data-run="${k}" data-to="${to}">${label}</button>`;
-  const btns = st === "finished" ? b("reopen", "Reopen…") : [st === "todo" && b("started", "Start"), p.n === p.of ? b("finished", "Finish", " pri") : A && b("override", "Finish anyway…")].filter(Boolean).join("");
+  // Not started yet: nothing to show. The first tick starts the close, so there's no Start button to press first.
+  if (st === "todo" && p.n < p.of && !A) return "";
+  const btns = st === "finished" ? b("reopen", "Reopen…") : [p.n === p.of ? b("finished", "Finish", " pri") : A && b("override", "Finish anyway…")].filter(Boolean).join("");
   const hint = st !== "finished" && p.n < p.of && !A ? `<div class="s">Finish shows once every item is done.</div>` : "";
-  return `<div class="run"><div class="n"><span class="pill ${st === "finished" ? "ok" : st === "started" ? "wait" : ""}">${RUN[st]}</span> ${r ? esc(runText(k)) : "Tap Start when you begin, or just start ticking."}</div>${hint}${btns ? `<div class="actions">${btns}</div>` : ""}</div>`;
+  return `<div class="run"><div class="n"><span class="pill ${st === "finished" ? "ok" : st === "started" ? "wait" : ""}">${RUN[st]}</span> ${r ? esc(runText(k)) : "Not started yet."}</div>${hint}${btns ? `<div class="actions">${btns}</div>` : ""}</div>`;
 }
 // The heading an item sits under, if its list has headings.
 const groupOf = (k, i) => LISTS[k].items.find((x) => x.id === i)?.g || "";

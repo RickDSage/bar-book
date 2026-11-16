@@ -817,11 +817,11 @@ function mkQsPane() {
     <div id="mk-qlist">${mkQsList()}</div>`;
 }
 function renderMaker() {
-  const tabs = [["make", "Make"], ["bt", "Black Tap"], ["bar", "My bar"], ["qs", "Specs"]];
+  const tabs = [["make", "Ingredients"], ["bt", "Black Tap"], ["bar", "My bar"], ["qs", "Specs"]];
   const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, qs: mkQsPane, mine: () => minePane() }[mk.pane] || mkMakePane;
   // By the English name, as the open ones may be showing in another language (trWas keeps the English).
   const open = [...$$("#v-make details[open] summary")].map((s) => trWas.get(s.firstChild) ?? s.firstChild.textContent);
-  $("#v-make").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cocktail maker</h2>
+  $("#v-make").innerHTML = `<h2 style="font-size:28px;margin-top:12px">What can I make?</h2>
     <div class="seg mk-seg" role="group" aria-label="Cocktail maker">${tabs.map(([k, l]) => `<button aria-pressed="${mk.pane === k}" data-mk-pane="${k}">${l}</button>`).join("")}</div>
     <div id="mk-pane">${pane()}</div>`;
   // Keep the same ingredient groups open after a tap.
