@@ -14,6 +14,12 @@ if (CONFIG) require("esbuild").buildSync({ entryPoints: ["live-src.js"], bundle:
 fs.mkdirSync(OUT + "/fonts", { recursive: true });
 for (const f of fs.readdirSync("fonts")) fs.copyFileSync("fonts/" + f, OUT + "/fonts/" + f);
 const FONTS = fs.readdirSync("fonts").filter((f) => f.endsWith(".woff2")).map((f) => `"fonts/${f}"`).join(", ");
+// One file per language, fetched the first time a phone picks it: { "English words": "translation" }.
+fs.mkdirSync(OUT + "/lang", { recursive: true });
+{
+  const { langs, words } = JSON.parse(fs.readFileSync("i18n.json", "utf8"));
+  langs.forEach(([c], i) => fs.writeFileSync(`${OUT}/lang/${c}.json`, JSON.stringify(Object.fromEntries(Object.entries(words).filter(([, xs]) => xs[i]).map(([en, xs]) => [en, xs[i]])))));
+}
 // A copy of the rules the site can show, so they can be opened on a phone and pasted into the Firebase console.
 fs.copyFileSync("../firestore.rules", OUT + "/firestore.rules.txt");
 
