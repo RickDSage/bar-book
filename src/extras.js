@@ -79,9 +79,13 @@ const X = [
   { section: "Long & Refreshing", name: "Cuba Libre", price: 13, tags: ["Easy", "Fizzy"], blurb: "rum and Coke with a proper squeeze of lime", glass: "Highball", ice: "Cubed", colour: "#3b2416",
     method: "Squeeze lime into the glass, add ice and rum, top Coca-Cola", spec: ["50 ml Captain Morgan White", "15 ml lime juice", "Top Coca-Cola"], garnish: "Lime wedge",
     steps: (sp) => [S.ice("cubed", "highball"), S.glass(pick(sp, /ml/)), S.top(pick(sp, TOPS)), S.lift(), S.garnish("Lime wedge")] },
-  { section: "Tiki & Tropical", name: "Zombie", price: 15, tags: ["Tropical", "Strong"], blurb: "Don the Beachcomber's three-rum tiki classic. Limit two per guest", glass: "Hurricane", ice: "Crushed", colour: "#e8762a",
-    method: "Shake, strain over crushed ice, float the absinthe", spec: ["40 ml Captain Morgan Dark", "20 ml Wray & Nephew Overproof", "10 ml Velvet Falernum", "30 ml pineapple juice", "20 ml lime juice", "20 ml grapefruit juice", "10 ml cinnamon syrup", "5 ml grenadine", "2 dashes Angostura", "5 ml NV Absinthe, floated"], garnish: "Mint sprig, pineapple leaf",
-    steps: (sp) => [S.ice("crushed", "hurricane glass"), S.tin(pick(sp, /^(?!.*floated)/)), S.shake(), S.strain("Strain over the crushed ice."), S.float([item("5 ml NV Absinthe")], "Float the absinthe on top over the back of a bar spoon."), S.garnish("Mint sprig, pineapple leaf", "Serve straight away. It is strong: two per guest at most.")] },
+  // IBA (iba-world.com/zombie, read 16 Nov 2026), Don the Beachcomber's 1934 recipe: 45 ml Jamaican dark, 45 ml gold
+  // Puerto Rican and 30 ml 151 Demerara rum (120 ml in all), 20 ml lime, 15 ml falernum, 15 ml Donn's Mix (2 grapefruit
+  // to 1 cinnamon syrup), 1 tsp grenadine, a dash of Angostura, 6 drops Pernod, blended with cracked ice.
+  // Ours: 50 + 50 + 25 in our jiggers (125 ml), Wray & Nephew standing in for the 151, so the strength matches the original.
+  { section: "Tiki & Tropical", name: "Zombie", price: 15, tags: ["Tropical", "Strong"], blurb: "Don the Beachcomber's 1934 three-rum tiki classic, as strong as the original. Limit two per guest", glass: "Hurricane", ice: "Crushed", colour: "#e8762a",
+    method: "Shake with crushed ice, pour everything into the glass, top with crushed ice", spec: ["50 ml Captain Morgan Dark", "50 ml Bacardí Carta Oro", "25 ml Wray & Nephew Overproof", "20 ml lime juice", "15 ml Velvet Falernum", "10 ml grapefruit juice", "5 ml cinnamon syrup", "5 ml grenadine", "1 dash Angostura", "6 drops NV Absinthe"], garnish: "Mint sprig",
+    steps: (sp) => [S.tin(pick(sp, ALL)), S.shake("Add a scoop of crushed ice to the tin. Seal it and shake hard for 8 to 10 seconds."), S.strain("Pour everything, ice and all, into the highball and top with more crushed ice."), S.garnish("Mint sprig", "Serve with a straw. It holds 125 ml of rum: two per guest at most.")] },
   { section: "Martinis", name: "Cosmopolitan", price: 14, tags: ["Fruity", "Sour"], blurb: "the classic Cosmo: vodka, Cointreau, cranberry and lime", glass: "Chilled coupe", ice: "None (served up)", colour: "#e0436a",
     method: "Shake, double strain, lemon zest", spec: ["40 ml Smirnoff", "15 ml Cointreau", "25 ml cranberry juice", "15 ml lime juice"], garnish: "Lemon zest",
     steps: (sp) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.shake(), S.strain("Hawthorne strainer on the tin, fine strainer over the glass. Strain into the chilled coupe.", true), { scene: "zest", title: "Lemon zest", text: "Squeeze the lemon zest over the top, skin side down, then drop it in." }, S.serve("Serve straight away.")] },
@@ -654,8 +658,9 @@ const X = [
     method: "Shake very hard, double strain", spec: ["25 ml Smirnoff", "25 ml Baileys", "15 ml Kahlúa", "30 ml fresh espresso"], garnish: "3 coffee beans", allergens: "Milk",
     steps: (sp) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.shake("Fill the tin with ice. Seal it and shake very hard for 15 seconds for the foam."), S.strain(UP, true), S.garnish("3 coffee beans", "Serve straight away. Contains milk.")] },
   // ---------- Sparkling ----------
+  // Difford's Guide (recipe 27, read 16 Nov 2026): 1.5 fl oz (45 ml) gold rum, 15 ml lime, 15 ml honey syrup, 50 ml brut. 50 ml rum in our jiggers.
   { section: "Spritz & Sparkling", name: "Air Mail", tags: ["Fizzy", "Zesty"], blurb: "gold rum, lime and honey topped with fizz, the rum French 75", glass: "Coupe or flute", ice: "None", colour: "#f2dc8a",
-    method: "Shake, double strain, top Prosecco", spec: ["30 ml Bacardí Carta Oro", "15 ml lime juice", "15 ml honey syrup (2:1)", "Top 40 ml Prosecco"], garnish: "Lime zest",
+    method: "Shake, double strain, top Prosecco", spec: ["50 ml Bacardí Carta Oro", "15 ml lime juice", "15 ml honey syrup (2:1)", "Top 50 ml Prosecco"], garnish: "Lime zest",
     steps: (sp) => [S.tin(pick(sp, /^\d/)), S.shake(), S.strain("Hawthorne strainer on the tin, fine strainer over the glass. Strain into the coupe.", true), S.top(pick(sp, TOPS), "Tilt the glass and top up slowly with Prosecco."), S.garnish("Lime zest")] },
   { section: "Spritz & Sparkling", name: "Pimm's Royale", tags: ["Fruity", "Fizzy"], blurb: "Pimm's topped with Prosecco instead of lemonade", glass: "Coupe or flute", ice: "None", colour: "#b5651d",
     method: "Pimm's first, top Prosecco slowly", spec: ["25 ml Pimm's No.1", "Top 100 ml Prosecco"], garnish: "Strawberry, cucumber slice",
