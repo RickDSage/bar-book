@@ -102,9 +102,13 @@ function listen(uid) {
     };
     sub("restock", query(collection(db, "restock"), where("status", "in", RS_OPEN)), (snap) => { rs.open = rows(snap); mergeRestock(); });
     sub("restock-recent", query(collection(db, "restock"), orderBy("at", "desc"), limit(30)), (snap) => { rs.recent = rows(snap); mergeRestock(); });
-    // Closing photos this person has taken that aren't on a sent report yet.
-    sub("photos", query(collection(db, "photos"), where("uid", "==", uid), where("report", "==", null)), (snap) => {
-      LIVE.myPhotos = rows(snap).reverse(); liveChanged("photos");
+    // Tonight's closing photos that aren't on a sent report yet, whoever took them: the phone shows its side's.
+    sub("photos", query(collection(db, "photos"), where("report", "==", null)), (snap) => {
+      LIVE.draftPhotos = rows(snap).sort((a, b) => ms(a.at) - ms(b.at)); liveChanged("photos");
+    });
+    // Tonight's handover drafts, one per side, shared by everyone closing it.
+    sub("drafts", query(collection(db, "drafts"), orderBy("at", "desc"), limit(6)), (snap) => {
+      LIVE.drafts = rows(snap); liveChanged("drafts");
     });
     // Football: today's games and the ones coming up. Old ones drop off the screen by date.
     sub("fixtures", query(collection(db, "fixtures"), where("day", ">=", ukDay(Date.now() - 864e5)), orderBy("day"), limit(60)), (snap) => { LIVE.fixtures = rows(snap); liveChanged("fixtures"); });
@@ -245,8 +249,8 @@ LIVE.api = {
   // Every saved version of a list, newest first, read once when the manager opens its history.
   listHistory: (key) => getDocs(query(collection(db, "listlog"), where("list", "==", key))).then((s) => rows(s).sort((a, b) => b.v - a.v)),
   // The report and its photos go in one write, so the photos can't end up on the wrong report.
-  sendReport(side, text, summary) {
-    const b = writeBatch(db), ref = doc(collection(db, "reports")), photos = LIVE.myPhotos.slice(0, MAX_PHOTOS);
+  sendReport(side, text, summary, draft) {
+    const b = writeBatch(db), ref = doc(collection(db, "reports")), photos = draft.slice(0, MAX_PHOTOS);
     b.set(ref, { side, text, summary, photos: photos.length, ...me() });
     photos.forEach((p) => b.update(doc(db, "photos", p.id), { report: ref.id }));
     return b.commit();
@@ -308,7 +312,9 @@ LIVE.api = {
       qty: to === "delivered" ? m : to === "received" ? g : null, unit: r.unit, dest: r.dest, note, v, ...me() });
     return b.commit();
   },
-  addPhoto: (data) => addDoc(collection(db, "photos"), { data, note: "", report: null, ...me() }),
+  addPhoto: (data, side) => addDoc(collection(db, "photos"), { data, note: "", report: null, side, ...me() }),
+  saveDraft: (side, x) => { const day = shiftDay(); return setDoc(doc(db, "drafts", `${day}-${side}`), { day, side, ...x, ...me() }); },
+  dropDraft: (side) => deleteDoc(doc(db, "drafts", `${shiftDay()}-${side}`)),
   notePhoto: (id, note) => updateDoc(doc(db, "photos", id), { note }),
   deletePhoto: (id) => deleteDoc(doc(db, "photos", id)),
   loadPhotos: (reportId) => getDocs(query(collection(db, "photos"), where("report", "==", reportId))).then((s) => s.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id })).sort((a, b) => ms(a.at) - ms(b.at))),
@@ -343,7 +349,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, admin: false, owner: false, anon: false, staff: [], out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
+  outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

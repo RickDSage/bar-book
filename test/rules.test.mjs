@@ -76,7 +76,7 @@ function back86(d, uid, itemName, log) {
 }
 const report = (uid, extra = {}) => ({ side: "bar", text: "Opening checklist: 15 of 15 done", summary: "Bar · Opening 15/15", photos: 0, ...by(uid), ...extra });
 const JPEG = "data:image/jpeg;base64," + "A".repeat(2000);
-const photo = (uid, extra = {}) => ({ data: JPEG, note: "", report: null, ...by(uid), ...extra });
+const photo = (uid, extra = {}) => ({ data: JPEG, note: "", report: null, side: "bar", ...by(uid), ...extra });
 function sendReport(d, uid, photoIds, extra = {}) {
   const b = writeBatch(d), ref = doc(collection(d, "reports"));
   b.set(ref, report(uid, { photos: photoIds.length, ...extra }));
@@ -285,6 +285,7 @@ describe("everything sent: a copy for the owner and seniors", () => {
   test("My pay and the team link are never copied, and bad ones are refused", async () => {
     await assertFails(addDoc(collection(db("staff1"), "sent"), sent("staff1", { k: "hours" })));
     await assertFails(addDoc(collection(db("staff1"), "sent"), sent("staff1", { k: "team" })));
+    await assertFails(addDoc(collection(db("staff1"), "sent"), sent("staff1", { k: "pay" })));
     await assertFails(addDoc(collection(db("staff1"), "sent"), { k: "hours", what: "My pay", text: "x", anon: true, at: now() }));
     for (const bad of [{ k: "" }, { k: "x".repeat(21) }, { what: " " }, { text: "x".repeat(8001) }, { name: "Mia Manager" }, { anon: true }, { extra: 1 }]) {
       await fails(addDoc(collection(db("staff1"), "sent"), sent("staff1", bad)), JSON.stringify(bad).slice(0, 40));
@@ -339,7 +340,9 @@ describe("every query the app makes works for the people that make it", () => {
     query(collection(d, "events"), where("ref", "==", autoId())),
     query(collection(d, "restock"), where("status", "in", ["asked", "given", "doing", "blocked", "delivered"])),
     query(collection(d, "restock"), orderBy("at", "desc"), limit(30)),
-    query(collection(d, "photos"), where("uid", "==", uid), where("report", "==", null)),
+    query(collection(d, "photos"), where("report", "==", null)),
+    query(collection(d, "drafts"), orderBy("at", "desc"), limit(6)),
+    query(collection(d, "photos"), where("at", "<", daysAgo(31)), limit(100)),
     query(collection(d, "photos"), where("report", "==", "r1")),
     query(collection(d, "fixtures"), where("day", ">=", dayFromNow(-1)), orderBy("day"), limit(60)),
     query(collection(d, "issues"), where("status", "in", ["open", "taken"])),
@@ -348,7 +351,6 @@ describe("every query the app makes works for the people that make it", () => {
   const managers = (d) => [
     query(collection(d, "asks"), orderBy("at", "desc"), limit(200)),
     query(collection(d, "sent"), orderBy("at", "desc"), limit(150)),
-    query(collection(d, "photos"), where("at", "<", daysAgo(31)), limit(100)),
     query(collection(d, "listlog"), where("list", "==", "close")),
   ];
   test("staff", async () => {
@@ -861,33 +863,60 @@ describe("shift reports and photos", () => {
     await assertFails(updateDoc(doc(d, "photos", p1.id), { report: sent.id }));
     await assertFails(deleteDoc(doc(d, "photos", p1.id)));
   });
-  test("a photo can't be attached to an older report, someone else's report, or by someone else", async () => {
+  test("a photo can't be attached to an older report, someone else's report, or the other side's", async () => {
     const d = db("staff1");
     const old = await addDoc(collection(d, "reports"), report("staff1"));
     const p = await addDoc(collection(d, "photos"), photo("staff1"));
     await assertFails(updateDoc(doc(d, "photos", p.id), { report: old.id }));
     const theirs = sendReport(db("staff2"), "staff2", []); await theirs.b.commit();
     await assertFails(updateDoc(doc(d, "photos", p.id), { report: theirs.id }));
-    await assertFails(sendReport(db("staff2"), "staff2", [p.id]).b.commit());
+    await assertFails(sendReport(db("staff2"), "staff2", [p.id], { side: "floor" }).b.commit());
+    await assertFails(addDoc(collection(d, "photos"), photo("staff1", { side: "kitchen" })));
+    const { side: _s, ...noSide } = photo("staff1");
+    await assertFails(addDoc(collection(d, "photos"), noSide));
   });
-  test("photo privacy: others' drafts are hidden; photos on sent reports are visible to the team", async () => {
+  test("tonight's unsent photos are shared: anyone closing the same side sees them, adds a note and sends them", async () => {
     const p = await addDoc(collection(db("staff1"), "photos"), photo("staff1"));
-    await assertFails(getDoc(doc(db("staff2"), "photos", p.id)));
-    await assertFails(getDocs(collection(db("staff2"), "photos")));
-    await assertSucceeds(getDocs(query(collection(db("staff1"), "photos"), where("uid", "==", "staff1"), where("report", "==", null))));
-    const sent = sendReport(db("staff1"), "staff1", [p.id]); await sent.b.commit();
     await assertSucceeds(getDoc(doc(db("staff2"), "photos", p.id)));
-    await assertSucceeds(getDocs(query(collection(db("staff2"), "photos"), where("report", "==", sent.id))));
+    await assertSucceeds(getDocs(query(collection(db("staff2"), "photos"), where("report", "==", null))));
+    await assertFails(getDocs(collection(db("stranger"), "photos")));
+    await assertSucceeds(updateDoc(doc(db("staff2"), "photos", p.id), { note: "Back bar wiped" }));
+    const sent = sendReport(db("staff2"), "staff2", [p.id]); await sent.b.commit();
+    await assertSucceeds(getDocs(query(collection(db("staff1"), "photos"), where("report", "==", sent.id))));
+    await assertFails(updateDoc(doc(db("staff1"), "photos", p.id), { note: "edited later" }));
+    // An old draft from before photos had a side goes with whichever side sends it.
+    await seed((s) => setDoc(doc(s, "photos/nos1"), { data: JPEG, note: "", report: null, uid: "staff1", name: "Sam Staff", at: now() }));
+    await assertSucceeds(sendReport(db("staff1"), "staff1", ["nos1"], { side: "floor" }).b.commit());
   });
-  test("drafts can be binned by their owner; only photos over 30 days old can be cleared by managers", async () => {
+  test("unsent photos can be binned by anyone on the team; only photos over 30 days old can be cleared by managers", async () => {
     const p = await addDoc(collection(db("staff1"), "photos"), photo("staff1"));
-    await assertFails(deleteDoc(doc(db("staff2"), "photos", p.id)));
-    await assertFails(deleteDoc(doc(db("mgr1"), "photos", p.id)));
-    await assertSucceeds(deleteDoc(doc(db("staff1"), "photos", p.id)));
+    await assertFails(deleteDoc(doc(db("stranger"), "photos", p.id)));
+    await assertSucceeds(deleteDoc(doc(db("staff2"), "photos", p.id)));
     await seed((s) => setDoc(doc(s, "photos/old1"), { ...photo("staff1"), report: "abcdefghijabcdefghij", at: daysAgo(31) }));
     await assertFails(deleteDoc(doc(db("staff2"), "photos/old1")));
     await assertSucceeds(getDocs(query(collection(db("mgr1"), "photos"), where("at", "<", daysAgo(30)), limit(100))));
     await assertSucceeds(deleteDoc(doc(db("mgr1"), "photos/old1")));
+  });
+});
+
+describe("tonight's handover draft, one per side, shared live", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const day = today();
+  const draft = (uid, extra = {}) => ({ day, side: "bar", low: "Limes", issues: "", next: "Prep: mint", closer: "Sam Staff", noPhotos: "", ...by(uid), ...extra });
+  test("anyone on the team writes it, everyone on the team reads it, and anyone clears it", async () => {
+    await assertSucceeds(setDoc(doc(db("staff1"), "drafts", `${day}-bar`), draft("staff1")));
+    await assertSucceeds(setDoc(doc(db("staff2"), "drafts", `${day}-bar`), draft("staff2", { low: "Limes, mint" })));
+    for (const uid of ["staff1", "mgr1", "owner1"]) assert.equal((await getDoc(doc(db(uid), "drafts", `${day}-bar`))).data().low, "Limes, mint");
+    await assertFails(getDoc(doc(db("stranger"), "drafts", `${day}-bar`)));
+    await assertFails(setDoc(doc(db("stranger"), "drafts", `${day}-bar`), draft("stranger")));
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "drafts", `${day}-bar`)));
+  });
+  test("the id matches its night and side; bad ones are refused", async () => {
+    await assertFails(setDoc(doc(db("staff1"), "drafts", `${day}-floor`), draft("staff1")));
+    await assertFails(setDoc(doc(db("staff1"), "drafts", "2020-01-01-bar"), draft("staff1", { day: "2020-01-01" })));
+    for (const bad of [{ side: "kitchen" }, { low: "x".repeat(2001) }, { closer: "x".repeat(301) }, { name: "Mia Manager" }, { at: daysAgo(1) }, { extra: 1 }]) {
+      await fails(setDoc(doc(db("staff1"), "drafts", `${day}-${bad.side || "bar"}`), draft("staff1", bad)), JSON.stringify(bad).slice(0, 40));
+    }
   });
 });
 
