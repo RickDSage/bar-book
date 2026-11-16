@@ -58,8 +58,11 @@ export const authAccounts = async () => {
 
 export const launch = () => chromium.launch();
 // A phone with the app open and the welcome screen dismissed. Each one is a separate person (own storage).
-export async function phone(browser, site, { start = "#w-ok", width = 390 } = {}) {
+export async function phone(browser, site, { start = "#w-ok", width = 390, leftOnly = false } = {}) {
   const c = await browser.newContext({ viewport: { width, height: 844 }, deviceScaleFactor: 2, isMobile: true });
+  // Ticked items hide by default (Only what's left). Most tests look at the whole list, so they start with it off;
+  // morning.test.mjs tests it on.
+  if (!leftOnly) await c.addInitScript(() => { try { if (localStorage.getItem("btbar.leftOnly") == null) localStorage.setItem("btbar.leftOnly", "false"); } catch {} });
   const p = await c.newPage();
   p.errs = [];
   p.on("pageerror", (e) => p.errs.push(e.message));

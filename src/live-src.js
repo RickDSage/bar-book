@@ -77,9 +77,6 @@ function listen(uid) {
       liveChanged("staff");
     }, () => { if (!d.metadata.fromCache) { liveChanged("removed"); leave(); } });
     // Live messages, newest first, and who has tapped Got it on them.
-    sub("notices", query(collection(db, "notices"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.notices = rows(snap); liveChanged("notices"); });
-    sub("seen", query(collection(db, "seen"), orderBy("at", "desc"), limit(1000)), (snap) => { LIVE.seen = rows(snap); liveChanged("seen"); });
-    sub("templates", collection(db, "templates"), (snap) => { LIVE.templates = rows(snap).reverse(); liveChanged("templates"); });
     // The manager's versions of the closing lists. A list with none here is the app's standard one.
     sub("lists", collection(db, "lists"), (snap) => {
       LIVE.lists = Object.fromEntries(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
@@ -224,11 +221,6 @@ LIVE.api = {
     return b.commit();
   },
   // Live messages. side: all, bar or floor. level: urgent, asap or info.
-  post: (text, side, level) => addDoc(collection(db, "notices"), { text, side, level, ...me() }),
-  gotIt: (n) => setDoc(doc(db, "seen", `${n.id}-${auth.currentUser.uid}`), { notice: n.id, ...me() }),
-  unpost: (id) => deleteDoc(doc(db, "notices", id)),
-  saveTemplate: (text, level) => addDoc(collection(db, "templates"), { text, level, ...me() }),
-  dropTemplate: (id) => deleteDoc(doc(db, "templates", id)),
   // To the manager. An anonymous one holds no name and no device id.
   ask: (a) => addDoc(collection(db, "asks"), { kind: a.kind, text: a.text, when: a.when, anon: a.anon, status: "new", ...(a.anon ? { at: serverTimestamp() } : me()) }),
   answer: (id, status, reply = "") => updateDoc(doc(db, "asks", id), { status, reply, by: LIVE.me, byAt: serverTimestamp() }),
@@ -343,7 +335,7 @@ LIVE.api = {
   USER, PASSWORD_MIN, CODE_MIN, MAX_PHOTOS,
 };
 
-const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, admin: false, owner: false, anon: false, staff: [], notices: [], seen: [], templates: [], out: new Set(), outInfo: new Map(),
+const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, admin: false, owner: false, anon: false, staff: [], out: new Set(), outInfo: new Map(),
   outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], shouts: [], asks: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;

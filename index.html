@@ -296,8 +296,8 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .hero.solo { grid-template-columns: 1fr !important; }
 .row .g { width: 44px; height: 55px; }
 .row { grid-template-columns: 44px 1fr auto; }
-.prep { display: grid; grid-template-columns: 28px 1fr; gap: 12px; align-items: center; width: 100%; text-align: left; padding: 11px 0; border-bottom: 1px solid var(--line); font-size: 15.5px; line-height: 1.35; transition: opacity .2s; }
-.prep .box { width: 26px; height: 26px; border-radius: 8px; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 700; color: var(--brass-ink); transition: background .15s, border-color .15s, transform .15s; }
+.prep { display: grid; grid-template-columns: 32px 1fr; gap: 14px; align-items: center; width: 100%; min-height: 58px; text-align: left; padding: 12px 0; border-bottom: 1px solid var(--line); font-size: 16.5px; line-height: 1.35; transition: opacity .2s; }
+.prep .box { width: 30px; height: 30px; border-radius: 8px; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 700; color: var(--brass-ink); transition: background .15s, border-color .15s, transform .15s; }
 .prep.done .box { transform: scale(1.06); }
 .prep.done { opacity: .62; }
 .shift-top { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; margin-top: 10px; }
@@ -444,12 +444,6 @@ a.btn { text-decoration: none; color: inherit; }
 .bcast.lv-out { border-color: var(--line); background: var(--surface); }
 @keyframes redpulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, #d81e1e 35%, transparent); } }
 @media (prefers-reduced-motion: reduce) { .bcast.lv-urgent { animation: none; } }
-html.codered .brandbar { box-shadow: inset 0 -3px 0 #d81e1e; }
-.notice.msg.lv-urgent { border-left: 4px solid #d81e1e; } .notice.msg.lv-asap { border-left: 4px solid #f08c00; }
-.seg.lvl { grid-template-columns: 1fr 1fr 1fr; margin-top: 0; }
-.seg.lvl button[data-lvl="urgent"][aria-pressed="true"] { background: #d81e1e; color: #fff; }
-.seg.lvl button[data-lvl="asap"][aria-pressed="true"] { background: #f08c00; color: #111; }
-details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: var(--muted); font-weight: 700; padding: 6px 0; }
 .chip.x { min-width: 32px; padding: 0 8px; margin-left: -4px; }
 .tcard > summary .pill { margin-left: 6px; }
 .warnbox { border: 2px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
@@ -806,7 +800,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
-    <div id="tm-top"></div><div id="tm-post"></div><div id="tm-msgs"></div><div id="tm-cards"></div>
+    <div id="tm-top"></div><div id="tm-cards"></div>
   </section>
   <section class="view info" id="v-pay" hidden></section>
   <section class="view info" id="v-info" hidden></section>
@@ -1131,7 +1125,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, admin: false, owner: false, staff: [], notices: [], seen: [], templates: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], shouts: [], asks: [], media: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, admin: false, owner: false, staff: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], shouts: [], asks: [], media: null };
 // The 86 board is shared by everyone on the team. Off the team, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -1670,22 +1664,6 @@ function renderQuiz() {
 const STAFF = { bar: ["Angel", "Emily", "Kadir"], floor: ["Mounika", "Anub", "PK", "Derek", "Pema", "Vi"], both: ["Tomas"] };
 const sect = (g, xs) => xs.map((x) => (typeof x === "string" ? { t: x, g } : { ...x, g }));
 const LISTS = {
-  open: { title: "Opening checklist", items: [
-    { id: 14, t: "Last night's handover, 86 list and messages read. Anything outstanding sorted or reported to the duty manager" },
-    "Ice well full and clean, ice scoop in its holder (never use a glass)",
-    "Glass washer on, rinse aid and detergent topped up",
-    "Glassware stocked and polished: coupes, rocks, highballs, flutes, shot glasses",
-    "Fresh lemon and lime juice bottles refilled, sugar syrup chilled, all labelled and dated",
-    "Fresh fruit cut and covered: lemon slices, limes, oranges, mint, cherries",
-    "Salted caramel sauce, espresso, foamer and strawberry powder ready",
-    "Red Bull, pickle brine and Prosecco chilled",
-    "Speed rail and back bar stocked, pour spouts on, bottles wiped",
-    "Tools clean and out: tins, jiggers, strainers, bar spoons, muddler",
-    "Beer lines checked, clingfilm off the taps, pour one of each to waste",
-    "Bar mats down, bins lined, surfaces sanitised",
-    "Stock deliveries received and put away",
-    "Table menus and easy-read menus out, allergen folder at the bar",
-  ] },
   // The bar's close, in the order it's done, grouped so two people can split it. Each group has its own Tick all.
   close: { title: "Closing checklist", items: [
     ...sect("Service", [
@@ -1746,22 +1724,6 @@ const LISTS = {
 };
 // Floor lists. An item with days only shows on those days of the week (0 = Sunday).
 Object.assign(LISTS, {
-  fset: { title: "Tables and cutlery", short: "Tables", items: [
-    { id: 5, t: "Last night's handover, 86 list and messages read. Anything outstanding sorted or reported to the duty manager" },
-    "Cutlery polished, every piece",
-    "Set tables: two napkins and two forks on each",
-    "Right amount of cutlery for each table",
-    "Side plates dressed and brought to the top floor",
-    "Knives by the kitchen pass",
-  ] },
-  // Set up for service. Closing the milkshake bar is part of the floor close.
-  fshake: { title: "Milkshake station", short: "Shakes", items: [
-    "Shake machine on and clean",
-    "Ice cream refilled, lids on",
-    "Shakers and cup holders replenished",
-    "Toppings stocked: strawberry, raspberry, whipped cream, cherries",
-    "Date labels checked: anything past its date binned",
-  ] },
   fclose: { title: "Floor close", short: "Closing", items: [
     ...sect("Tables and seating", [
       "Tables and chairs wiped: tops, edges and seats",
@@ -1775,7 +1737,7 @@ Object.assign(LISTS, {
     ...sect("Sauces and napkins", [
       "Mustard and ketchup packed into the fridge",
       "Empty sauce bottles replaced",
-      "Napkin dispensers topped up",
+      "Napkin dispensers and napkins topped up",
     ]),
     ...sect("Milkshake bar", [
       "Desserts labelled and dated: opened today plus 2 days",
@@ -1785,6 +1747,8 @@ Object.assign(LISTS, {
       "Shake machine off (back button), ice cream drip tray cleaned",
       "Ice cream lids on, freezer shut",
       "Shake station cleaned and sanitised, milkshake bar closed",
+      { id: 31, t: "Ice cream, shakers, cup holders, cups, spoons and straws topped up" },
+      { id: 32, t: "Shake station floor mopped" },
     ]),
     ...sect("Terrace", [
       "Terrace closed: chairs, tables and umbrellas brought in",
@@ -1810,21 +1774,19 @@ Object.assign(LISTS, {
     ]),
   ] },
 });
-LISTS.open.short = "Opening"; LISTS.close.short = "Closing";
+LISTS.close.short = "Closing";
 // Each item gets an id, which stays with it when a manager changes the list, so tonight's tasks stay on the right item.
 // The first items are numbered in order. One added to the standard list later brings its own id, the next free number,
-// so it can go anywhere without moving anyone's ticks. An item taken off the standard list leaves its number unused
-// (RETIRED), so the items after it keep theirs.
-const RETIRED = { open: [0] }; // open 0: fridge temperatures (temperature checks are kept out of the app)
+// so it can go anywhere without moving anyone's ticks.
 for (const k in LISTS) {
   let n = 0;
-  const next = () => { while (RETIRED[k]?.includes(n)) n++; return n++; };
-  LISTS[k].items = LISTS[k].items.map((x) => (typeof x === "string" ? { id: next(), t: x } : x.id == null ? { id: next(), ...x } : x));
+  LISTS[k].items = LISTS[k].items.map((x) => (typeof x === "string" ? { id: n++, t: x } : x.id == null ? { id: n++, ...x } : x));
   const ids = LISTS[k].items.map((x) => x.id);
   if (new Set(ids).size !== ids.length) throw new Error(`${k}: two items share an id`);
 }
 const STANDARD = Object.fromEntries(Object.entries(LISTS).map(([k, l]) => [k, l.items]));
-const MODE_LISTS = { bar: ["open", "close"], floor: ["fset", "fshake", "fclose"] };
+// Each side has one shared checklist, its close. The morning starts from last night's handover instead (Morning page).
+const MODE_LISTS = { bar: ["close"], floor: ["fclose"] };
 const SIDE_NAME = { bar: "Bar", floor: "Floor" };
 const sideName = (s) => SIDE_NAME[s] || "Bar";
 let mode = MODE_LISTS[store.get("mode")] ? store.get("mode") : "bar";
@@ -1901,7 +1863,8 @@ function tallyText() {
       const xs = shown(k).filter(([i]) => sts.includes(statusOf(k, i))).map(([i, t]) => { const x = taskOf(k, i); return `- ${t}${x?.status === "doing" ? " (in progress)" : x?.note ? ` (${x.note})` : ""}`; });
       return xs.length ? `\n${title}:\n${xs.join("\n")}` : "";
     };
-    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
+    const c = closeClock(k);
+    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
   return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !LIVE.myPhotos.length ? `\nNo closing photos: ${noPhotos}` : ""}`;
 }
@@ -1926,6 +1889,7 @@ SHARE.shift = () => {
   const lbs = LIVE.loaded.has("labels") ? labelsDue([mode]) : [];
   const head = lists.filter((k) => runOf(k) || k === closeList()).map((k) => { const p = progress(k), b = blockedTasks([k]).length; return `${p.n === p.of ? "\u2705" : "\u26a0\ufe0f"} ${LISTS[k].title}: ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${isLocked(k) ? ", finished" : ""}`; });
   head.push(`86'd: ${out.length ? out.join(", ") : "nothing"}`);
+  const ck = closeClock(closeList()); if (ck) head.push(`\u23f1 Closing started ${hhmm(new Date(ck.start))}, ${ck.done ? "took" : "so far"} ${minsText(ck.mins)}`);
   if (closer) head.push(`Closed by: ${closer}`);
   if (LIVE.myPhotos.length) head.push(`\ud83d\udcf7 ${LIVE.myPhotos.length} closing photo${LIVE.myPhotos.length > 1 ? "s" : ""}, sent next`);
   else if (noPhotos) head.push(`\ud83d\udcf7 No closing photos: ${noPhotos}`);
@@ -1952,12 +1916,12 @@ SHARE.shift = () => {
     return r ? LIVE.api.loadPhotos(r.id) : [];
   } };
 };
-// The floor's date labels are all at the milkshake station, so they're on its Shakes page; the bar has a page for them.
+// Each side: the morning (last night's handover, prep pars, the order), date labels, stock and 86s, the close, and the handover.
 const PANES = {
-  bar: [["open", "Opening"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Send"]],
-  floor: [["fset", "Tables"], ["fshake", "Shakes"], ["stock", "Stock"], ["fclose", "Closing"], ["send", "Send"]],
+  bar: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Send"]],
+  floor: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["fclose", "Closing"], ["send", "Send"]],
 };
-const labelPane = (side) => (side === "floor" ? "fshake" : "labels");
+const labelPane = () => "labels";
 // Each side's last list is its close.
 const closeList = () => MODE_LISTS[mode].at(-1);
 const defaultPane = () => (new Date().getHours() >= 6 && new Date().getHours() < 16 ? PANES[mode][0][0] : closeList());
@@ -2061,11 +2025,14 @@ function groupsOf(k) {
 const openOf = (k, ids) => ids.filter((i) => ["todo", "doing", "blocked"].includes(statusOf(k, i)));
 function checklistHtml(k) {
   const p = progress(k), locked = isLocked(k), any = shown(k).some(([i]) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
-  const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn pri" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>`;
+  const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn pri" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>
+    <div class="ltools"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button><span></span></div>
+    ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
     const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button>` : left ? "" : `<span class="pill ok">Done</span>`}</div>` : "";
-    const rows = xs.map(([i, t]) => taskRow(k, i, t)).join("");
+    // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
+    const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
     return g && !left && !xs.some(([i]) => more === `${k}-${i}`) ? `<details class="lfold"><summary>${head}</summary>${rows}</details>` : head + rows;
   };
@@ -2097,10 +2064,39 @@ function clearList(k) {
   track(open.then(() => Promise.all(ids.map((i) => LIVE.api.setTask(k, i, itemText(k, i), "todo", { note: CLEARED })))), `${t} cleared`, "Not all cleared. Check your signal and try again");
   more = ""; haptic();
 }
+// Clear everything, for a fresh start: both closing lists back to not started, everything back in stock, and this
+// phone's handover, Closed by and unsent photos gone. Anyone on the team can. The owner's master clear also cancels open
+// restocks and empties the inbox, issues and shout-outs. Sent handovers stay: the morning reads them.
+async function clearAll(master) {
+  const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api;
+  if (!confirm(master ? "Master clear: both closing lists, the 86 board, restocks, the inbox, issues and shout-outs, for everyone. Sent handovers stay. Go ahead?"
+    : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. Your handover and photos on this phone go too.")) return;
+  const jobs = [];
+  for (const k of lists) {
+    const t = LISTS[k].title, p = progress(k), ids = shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
+    const open = isLocked(k) ? A.setRun(k, t, "started", p.n, p.of, CLEARED) : Promise.resolve();
+    jobs.push(open.then(() => Promise.all(ids.map((i) => A.setTask(k, i, itemText(k, i), "todo", { note: CLEARED })))));
+  }
+  for (const n of outNow()) jobs.push(A.set86(n, false));
+  for (const ph of LIVE.myPhotos) jobs.push(A.deletePhoto(ph.id));
+  if (master) {
+    for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
+    for (const a of LIVE.asks) jobs.push(A.dropAsk(a.id));
+    for (const x of LIVE.issues) jobs.push(A.withdrawIssue(x.id));
+    for (const x of LIVE.shouts) jobs.push(A.dropShout(x.id));
+  }
+  ho = { low: "", issues: "", next: "" }; closer = ""; noPhotos = "";
+  store.set("ho", ho); store.set("closer", ""); store.set("noPhotos", "");
+  more = ""; haptic(); renderTally();
+  track(Promise.all(jobs), master ? "Master clear done" : "All clear for a fresh start", "Not all cleared. Check your signal and try again");
+}
 // A reason for the record. Cancelling or leaving it empty means don't make the change.
 const reason = (q) => (prompt(q) || "").trim().slice(0, 200);
+// Ticked items drop out of the way, so what's left stays at the top. The last one ticked can be undone in one tap.
+let leftOnly = store.get("leftOnly", true), justTicked = null;
 function changeTask(k, i, to) {
   const t = itemText(k, i);
+  justTicked = to === "done" ? { k, i, t } : null;
   let note = "";
   if (to === "blocked" && !(note = reason(`What's stopping it?\n${t}`))) return;
   if (to === "cancelled" && !(note = reason(`Why isn't it needed tonight?\n${t}`))) return;
@@ -2138,7 +2134,7 @@ function cleanItems(xs) {
   return out.length ? out : null;
 }
 // A list a manager saved before its standard version was rebuilt gives way to the new one (History can still put it back).
-const LIST_SINCE = { close: Date.parse("2026-11-15T00:00:00Z"), fshake: Date.parse("2026-11-15T00:00:00Z"), fclose: Date.parse("2026-11-15T00:00:00Z") };
+const LIST_SINCE = { close: Date.parse("2026-11-15T00:00:00Z"), fclose: Date.parse("2026-11-15T00:00:00Z") };
 const savedList = (k) => { const x = LIVE.lists[k]; return x && !(LIST_SINCE[k] && x.at && ms(x.at) < LIST_SINCE[k]) ? x.items : null; };
 function applyLists() { for (const k in LISTS) LISTS[k].items = cleanItems(savedList(k)) || STANDARD[k]; }
 // The id the next new item gets: past every id the list has had, so no id is used for two items.
@@ -2240,18 +2236,87 @@ const closers = () => [...new Set([...(STAFF[mode] || []), ...STAFF.both, ...Obj
 const closedBy = () => closer.split(", ").filter(Boolean);
 // The last report this side sent before tonight, for whoever opens: its handover note and what it left undone.
 const lastReport = () => LIVE.reports.find((r) => r.side === mode && !r.pending && ukDay(ms(r.at) - 6 * 36e5) !== shiftDay());
-function handoverHtml() {
-  const r = lastReport(); if (!r) return "";
-  const note = r.text.match(/\nNote for handover:\n([\s\S]*?)\n\n(?:Signed off|Closed) by/)?.[1].trim();
-  const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
-  const nop = r.text.match(/\nNo closing photos: (.*)/)?.[1];
-  return `<article class="notice" id="handover"><div class="meta">Last handover · <b>${esc(r.name)}</b> · ${when(r.at)}${r.photos ? ` · ${r.photos} photo${r.photos > 1 ? "s" : ""}` : ""}</div>
-    <p class="txt">${note && note !== "None" ? ut(note) : "Nothing running low, outstanding or for today."}</p>
-    ${nop ? `<p class="note">No closing photos: ${esc(nop)}</p>` : ""}
-    <p class="note">Opening team: read this, then tick the first item below. Anything outstanding, sort it or tell the duty manager.</p>
-    ${left.length ? `<p class="note">Left from that shift:<br>${left.map(esc).join("<br>")}</p>` : ""}
-    <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>`;
+// How the close is going: when the first item was ticked, how long it's taken (to the finish once it's finished), and
+// who has ticked what, so the duty manager sees at a glance what's behind.
+function closeClock(k) {
+  const ts = shown(k).map(([i]) => taskOf(k, i)).filter((x) => x && x.status !== "todo" && !x.pending && x.at).map((x) => ms(x.at));
+  if (!ts.length) return null;
+  const start = Math.min(...ts), end = isLocked(k) && runOf(k)?.at ? ms(runOf(k).at) : Date.now();
+  return { start, mins: Math.max(0, Math.round((end - start) / 6e4)), done: isLocked(k) };
 }
+const minsText = (n) => (n < 60 ? `${n} min` : `${Math.floor(n / 60)} h ${n % 60} min`);
+function closeStatsHtml(k) {
+  const c = closeClock(k); if (!c) return "";
+  const by = {}; for (const [i] of shown(k)) { const x = taskOf(k, i); if (x?.status === "done" && x.name) by[x.name] = (by[x.name] || 0) + 1; }
+  const behind = groupsOf(k).filter(([g]) => g).map(([g, xs]) => [g, openOf(k, xs.map(([i]) => i)).length]).filter(([, n]) => n);
+  return `<div class="sumcard"><div><span>Started</span><b>${hhmm(new Date(c.start))}</b></div><div><span>${c.done ? "Took" : "So far"}</span><b>${minsText(c.mins)}</b></div><div><span>Left</span><b>${progress(k).of - progress(k).n}</b></div></div>
+    ${behind.length ? `<p class="note"><b>Still to do:</b> ${behind.map(([g, n]) => `${esc(g)} ${n}`).join(" · ")}</p>` : ""}
+    ${Object.keys(by).length ? `<p class="note">Ticked: <span translate="no">${Object.entries(by).sort((a, b) => b[1] - a[1]).map(([n, x]) => `${esc(n)} ${x}`).join(" · ")}</span></p>` : ""}`;
+}
+// What last night's handover said, read back from its report: the three written points and what was left undone.
+function handoverOf(r) {
+  const note = r.text.match(/\nNote for handover:\n([\s\S]*?)\n\n(?:Signed off|Closed) by/)?.[1].trim() || "";
+  const pts = { low: "", issues: "", next: "" }, by = Object.fromEntries(HO.map((f) => [f.short, f.id]));
+  let cur = null;
+  for (const l of note === "None" ? [] : note.split("\n")) {
+    const m = l.match(/^(Running low|Outstanding|For tomorrow): (.*)$/);
+    if (m) { cur = by[m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
+  }
+  const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
+  return { ...pts, left, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
+}
+// Prep to par: how much of each thing the morning sets up, more on Friday and Saturday. Starting amounts, for the
+// manager to correct.
+const PARS = {
+  bar: [["Lime juice", "1 litre", "2 litres"], ["Lemon juice", "500 ml", "1 litre"], ["Sugar syrup", "1 litre", "2 litres"],
+    ["Lime wedges", "1 tub", "2 tubs"], ["Lemon slices", "1 tub", "1 tub"], ["Orange slices", "1 tub", "1 tub"],
+    ["Mint, picked, in water", "1 bunch", "2 bunches"], ["Cherries", "1 tub", "1 tub"], ["Salted caramel sauce", "1 bottle", "2 bottles"]],
+  floor: [["Whipped cream", "1 can", "2 cans"], ["Strawberries, cut", "1 tub", "2 tubs"], ["Raspberry syrup", "1 bottle", "1 bottle"],
+    ["Cutlery rolled in napkins", "40", "80"], ["Black napkins", "1 pack", "2 packs"], ["Side plates", "30", "50"]],
+};
+const busyDay = () => [5, 6].includes(new Date(shiftDay()).getUTCDay());
+const parsToday = () => PARS[mode].map(([t, n, b]) => [t, busyDay() ? b : n]);
+// Today's order: what last night said was running low, and anything still 86'd.
+const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).map((x) => x.trim()).filter(Boolean) : []; return [...new Set([...low, ...[...outNow()].sort()])]; };
+// The morning: read last night's handover, say it's checked (and what's outstanding) on WhatsApp, send the order, prep to par.
+function morningHtml() {
+  const r = lastReport(), h = r && handoverOf(r), order = orderLines(r);
+  const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? ut(v) : "None"}</span></div>`;
+  const ho = !r ? `<p class="note">No handover from the last close on this side yet.</p>`
+    : `<article class="notice" id="handover"><div class="meta">Last night's handover · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
+      ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
+      ${h.left.length ? `<p class="note">Left from that shift:<br>${h.left.map(esc).join("<br>")}</p>` : ""}
+      ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
+      ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}
+      <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>
+      <div class="actions">${sendBtn("morning", "Checked: send on WhatsApp")}</div>
+      <p class="note">Read it, sort what you can, and send the check so the duty manager knows what's still outstanding.</p>`;
+  return `<div class="sec">Last night's handover</div>${ho}
+    <div class="sec">Today's order</div>
+    ${order.length ? `<p class="note" translate="no">${order.map(esc).join(", ")}</p><div class="actions">${sendBtn("order", "Send the order on WhatsApp")}</div>` : `<p class="note">Nothing running low or 86'd.</p>`}
+    <div class="sec">Prep to par${busyDay() ? " (busy day)" : ""}</div>
+    <div translate="no">${parsToday().map(([t, n]) => `<div class="hopt"><b>${esc(t)}</b><span>${esc(n)}</span></div>`).join("")}</div>
+    <div class="actions">${sendBtn("pars", "Send the prep list")}</div>
+    <p class="note">Starting amounts. If one's wrong for us, tell the manager.</p>`;
+}
+SHARE.morning = () => {
+  const r = lastReport(); if (!r) return null;
+  const h = handoverOf(r), out = [...outNow()].sort();
+  return { what: "Morning check", title: `Black Tap Soho · ${sideName(mode)} morning · ${dayName(shiftDay())}`,
+    head: [`✅ Last night's handover checked${LIVE.me ? ` by ${LIVE.me}` : ""}`], parts: [
+      { id: "issues", label: "Still outstanding", one: true, lines: [...hoSplit(h.issues), ...h.left].length ? [...hoSplit(h.issues), ...h.left] : ["Nothing"] },
+      { id: "next", label: "For today", one: true, lines: hoSplit(h.next).length ? hoSplit(h.next) : ["Nothing extra"] },
+      { id: "out", label: "86'd now", lines: out },
+    ] };
+};
+const hoSplit = (v) => v.split("\n").map((x) => x.trim()).filter(Boolean);
+SHARE.order = () => {
+  const xs = orderLines(lastReport()); if (!xs.length) return null;
+  return { what: "Order", title: `Black Tap Soho · ${sideName(mode)} order · ${dayName(shiftDay())}`,
+    head: ["To order or bring up today:"], parts: [{ id: "order", label: "Order", lines: xs }] };
+};
+SHARE.pars = () => ({ what: "Prep list", title: `Black Tap Soho · ${sideName(mode)} prep · ${dayName(shiftDay())}`,
+  head: [busyDay() ? "Busy day pars" : "Today's pars"], parts: [{ id: "pars", label: "Prep to par", raw: true, lines: parsToday().map(([t, n]) => `⬜ ${t}: ${n}`) }] });
 // Before sign-off: every item still open tonight, and any list that's all done but not finished. Each one jumps to it.
 function stillToDoHtml() {
   // The closing lists first: they're what's left at the end of the night.
@@ -2564,13 +2629,11 @@ function renderTally() {
   const outList = [...outNow()].sort();
   $("#shift-title").textContent = `${sideName(mode)} shift`;
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
-  const tabs = `<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
+  const tabs = `<div class="ltools fresh"><span></span><button class="btn" id="clear-all">Clear everything</button></div><div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
   const body = {
-    open: () => `${handoverHtml()}${labelsDueHtml("bar")}${listPane("open")}${nextBtn("labels", "Next: date labels")}`,
+    morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
-    fset: () => `${handoverHtml()}${labelsDueHtml("floor")}${listPane("fset")}${nextBtn("fshake", "Next: milkshake station")}`,
-    fshake: () => `${labelsHtml("floor")}<div class="sec">Station checklist</div>${listPane("fshake")}${nextBtn("stock", "Next: stock and 86s")}`,
-    fclose: () => `${labelsDueHtml("floor")}${listPane("fclose")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+    fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
       ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
@@ -2579,7 +2642,7 @@ function renderTally() {
       <label class="fld">Something else ran out?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       <div class="ltools"><input id="s-86-own" maxlength="80" placeholder="Not on the list? Type it, like a burger" aria-label="86 something not on the list"><button class="btn" id="s-86-go">86 it</button></div>
       ${restockHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
-    close: () => `${labelsDueHtml("bar")}${listPane("close")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+    close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
@@ -2676,6 +2739,10 @@ $("#tally").addEventListener("click", async (e) => {
     openSend("shift"); return;
   }
   if (e.target.closest("[data-login]")) { show("notices"); return; }
+  const rp = e.target.closest("[data-rp-photos]"); if (rp) {
+    const id = rp.dataset.rpPhotos, A = LIVE.api;
+    return busy(rp, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
+  }
   const jp = e.target.closest("[data-jump]"); if (jp) {
     pane = jp.dataset.jump; renderTally();
     const at = jp.dataset.jumpI == null ? $(".run") : document.querySelector(`[data-list="${pane}"][data-i="${jp.dataset.jumpI}"]`);
@@ -2713,6 +2780,8 @@ $("#tally").addEventListener("click", async (e) => {
   }
   const ta = e.target.closest("[data-tick-all]"); if (ta) { tickAll(ta.dataset.tickAll, ta.dataset.g); return; }
   const cr = e.target.closest("[data-clear-list]"); if (cr) { clearList(cr.dataset.clearList); return; }
+  if (e.target.closest("#clear-all")) { clearAll(false); return; }
+  if (e.target.closest("[data-left-only]")) { leftOnly = !leftOnly; store.set("leftOnly", leftOnly); haptic(); renderTally(); return; }
   const mo = e.target.closest("[data-more]"); if (mo) { more = more === mo.dataset.more ? "" : mo.dataset.more; renderTally(); return; }
   const tk = e.target.closest("[data-task]"); if (tk) { const [k, i] = taskKey(tk.dataset.task); changeTask(k, i, tk.dataset.to); return; }
   const rn = e.target.closest("[data-run]"); if (rn) { runTo(rn.dataset.run, rn.dataset.to); return; }
@@ -4562,7 +4631,42 @@ const I18N = {
 "Nothing running low, outstanding or for today.": ["لا شيء ينفد أو معلّق أو لليوم.", "Ոչինչ չի պակասում, չավարտված կամ այսօրվա համար չկա։", "কিছু কমে আসছে না, বাকি নেই বা আজকের জন্য কিছু নেই।", "Нищо не свършва, не е останало или за днес.", "没有快用完的、未完成的或今天要做的。", "Rien qui manque, rien en suspens ni pour aujourd'hui.", "કંઈ ખૂટતું નથી, બાકી નથી કે આજ માટે નથી.", "कुछ कम नहीं, कुछ बाकी नहीं, आज के लिए कुछ नहीं।", "Niente in esaurimento, in sospeso o per oggi.", "Nieko nesibaigia, nieko neliko ir nieko šiandienai.", "केही सकिँदैन, बाँकी छैन वा आजका लागि छैन।", "Nic się nie kończy, nic nie zostało ani nic na dziś.", "Nada a acabar, pendente ou para hoje.", "ਕੁਝ ਘੱਟ ਨਹੀਂ, ਕੁਝ ਬਾਕੀ ਨਹੀਂ, ਅੱਜ ਲਈ ਕੁਝ ਨਹੀਂ।", "Nimic pe terminate, nerezolvat sau pentru azi.", "Nada que se acabe, pendiente ni para hoy.", "குறைவது, நிலுவையில் உள்ளது அல்லது இன்றைக்கு எதுவும் இல்லை.", "Azalan, bekleyen ya da bugün için bir şey yok.", "Нічого не закінчується, не лишилося і нічого на сьогодні.", "کچھ کم نہیں، کچھ باقی نہیں، آج کے لیے کچھ نہیں۔", "Không có gì sắp hết, còn tồn hay cần làm hôm nay.", "Dim byd yn mynd yn isel, heb ei orffen nac ar gyfer heddiw."],
 "Opening team: read this, then tick the first item below. Anything outstanding, sort it or tell the duty manager.": ["فريق الافتتاح: اقرأوا هذا، ثم علّموا البند الأول في الأسفل. أي شيء معلّق، حلّوه أو أخبروا مدير المناوبة.", "Բացման թիմ․ կարդացեք սա, հետո նշեք ներքևի առաջին կետը։ Չավարտված ամեն ինչ լուծեք կամ ասեք հերթափոխի մենեջերին։", "খোলার দল: এটা পড়ুন, তারপর নিচের প্রথম কাজে টিক দিন। কিছু বাকি থাকলে মিটিয়ে ফেলুন বা ডিউটি ম্যানেজারকে বলুন।", "Екип за отваряне: прочетете това, после отметнете първата точка по-долу. Всичко неприключено оправете или кажете на дежурния мениджър.", "开店团队：先读这里，再勾选下面第一项。有未完成的事，处理好或告诉值班经理。", "Équipe d'ouverture : lisez ceci, puis cochez le premier point ci-dessous. Tout ce qui reste, réglez-le ou dites-le au manager de service.", "ખોલનારી ટીમ: આ વાંચો, પછી નીચેની પહેલી બાબત ટિક કરો. કંઈ બાકી હોય તો ઉકેલો અથવા ડ્યુટી મેનેજરને કહો.", "खोलने वाली टीम: इसे पढ़ें, फिर नीचे पहला काम टिक करें। कुछ बाकी हो तो निपटाएँ या ड्यूटी मैनेजर को बताएँ।", "Squadra di apertura: leggete qui, poi spuntate la prima voce qui sotto. Tutto ciò che resta, sistematelo o ditelo al manager di turno.", "Atidarymo komanda: perskaitykite, tada pažymėkite pirmą punktą žemiau. Kas liko, sutvarkykite arba pasakykite budinčiam vadovui.", "खोल्ने टोली: यो पढ्नुहोस्, अनि तलको पहिलो काम टिक गर्नुहोस्। बाँकी केही भए मिलाउनुहोस् वा ड्युटी म्यानेजरलाई भन्नुहोस्।", "Zespół otwierający: przeczytajcie to, potem odhaczcie pierwszy punkt poniżej. Co zostało, załatwcie albo powiedzcie kierownikowi zmiany.", "Equipa de abertura: leiam isto e depois assinalem o primeiro item abaixo. O que estiver pendente, resolvam ou digam ao gerente de serviço.", "ਖੋਲ੍ਹਣ ਵਾਲੀ ਟੀਮ: ਇਹ ਪੜ੍ਹੋ, ਫਿਰ ਹੇਠਾਂ ਪਹਿਲੀ ਚੀਜ਼ ਟਿਕ ਕਰੋ। ਕੁਝ ਬਾਕੀ ਹੋਵੇ ਤਾਂ ਨਿਪਟਾਓ ਜਾਂ ਡਿਊਟੀ ਮੈਨੇਜਰ ਨੂੰ ਦੱਸੋ।", "Echipa de deschidere: citiți asta, apoi bifați primul punct de mai jos. Ce a rămas, rezolvați sau spuneți managerului de tură.", "Equipo de apertura: leed esto y luego marcad la primera tarea de abajo. Lo pendiente, resolvedlo o decídselo al encargado de turno.", "திறக்கும் குழு: இதைப் படித்து, கீழே உள்ள முதல் உருப்படியை டிக் செய்யுங்கள். நிலுவையில் உள்ளதைச் சரிசெய்யுங்கள் அல்லது பணி மேலாளரிடம் சொல்லுங்கள்.", "Açılış ekibi: bunu okuyun, sonra aşağıdaki ilk maddeyi işaretleyin. Bekleyen bir şey varsa halledin ya da vardiya müdürüne söyleyin.", "Команда відкриття: прочитайте це, потім позначте перший пункт нижче. Усе незавершене вирішіть або скажіть черговому менеджеру.", "کھولنے والی ٹیم: یہ پڑھیں، پھر نیچے پہلا کام ٹک کریں۔ کچھ باقی ہو تو نمٹائیں یا ڈیوٹی مینیجر کو بتائیں۔", "Ca mở: đọc phần này rồi đánh dấu mục đầu tiên bên dưới. Việc còn tồn thì xử lý hoặc báo quản lý ca.", "Tîm agor: darllenwch hwn, wedyn ticiwch yr eitem gyntaf isod. Unrhyw beth heb ei orffen, sortiwch e neu dywedwch wrth y rheolwr ar ddyletswydd."],
 "Closing photos are required for the handover. Cancel to go and take them.\nIf you really can't, say why:": ["صور الإغلاق مطلوبة للتسليم. اضغط إلغاء لتذهب وتلتقطها.\nإذا لم تستطع فعلًا، اذكر السبب:", "Փակման լուսանկարները պարտադիր են հանձնման համար։ Սեղմեք Չեղարկել՝ գնալու և նկարելու համար։\nԵթե իսկապես չեք կարող, գրեք՝ ինչու։", "হ্যান্ডওভারের জন্য ক্লোজিং ছবি লাগবেই। ছবি তুলতে বাতিল চাপুন।\nযদি সত্যিই না পারেন, কারণ লিখুন:", "Снимките от затварянето са задължителни за предаването. Натиснете Отказ, за да ги направите.\nАко наистина не можете, напишете защо:", "交接必须附收档照片。点“取消”去拍照。\n如果确实拍不了，请说明原因：", "Les photos de fermeture sont obligatoires pour la passation. Annulez pour aller les prendre.\nSi vous ne pouvez vraiment pas, dites pourquoi :", "હેન્ડઓવર માટે ક્લોઝિંગ ફોટા ફરજિયાત છે. ફોટા લેવા માટે રદ કરો દબાવો.\nજો ખરેખર ન લઈ શકો, તો કારણ લખો:", "हैंडओवर के लिए क्लोज़िंग फ़ोटो ज़रूरी हैं। फ़ोटो लेने के लिए रद्द करें दबाएँ।\nअगर सच में नहीं ले सकते, तो वजह लिखें:", "Le foto di chiusura sono obbligatorie per il passaggio di consegne. Annulla per andare a farle.\nSe proprio non puoi, scrivi perché:", "Uždarymo nuotraukos perdavimui privalomos. Spauskite Atšaukti ir eikite jų padaryti.\nJei tikrai negalite, parašykite kodėl:", "ह्यान्डओभरका लागि बन्द गर्दाका फोटो अनिवार्य छन्। फोटो खिच्न रद्द गर्नुहोस् थिच्नुहोस्।\nसाँच्चै सक्नुहुन्न भने, कारण लेख्नुहोस्:", "Zdjęcia zamknięcia są obowiązkowe do przekazania. Anuluj, żeby je zrobić.\nJeśli naprawdę nie możesz, napisz dlaczego:", "As fotos de fecho são obrigatórias para a passagem de turno. Cancele para as ir tirar.\nSe mesmo não conseguir, diga porquê:", "ਹੈਂਡਓਵਰ ਲਈ ਕਲੋਜ਼ਿੰਗ ਫੋਟੋਆਂ ਲਾਜ਼ਮੀ ਹਨ। ਫੋਟੋਆਂ ਲੈਣ ਲਈ ਰੱਦ ਕਰੋ ਦਬਾਓ।\nਜੇ ਸੱਚਮੁੱਚ ਨਹੀਂ ਲੈ ਸਕਦੇ, ਤਾਂ ਕਾਰਨ ਲਿਖੋ:", "Pozele de la închidere sunt obligatorii pentru predare. Apasă Anulează ca să mergi să le faci.\nDacă chiar nu poți, spune de ce:", "Las fotos del cierre son obligatorias para el traspaso. Cancela para ir a hacerlas.\nSi de verdad no puedes, di por qué:", "ஒப்படைப்புக்கு மூடும் புகைப்படங்கள் கட்டாயம். அவற்றை எடுக்க ரத்து செய் என்பதை அழுத்துங்கள்.\nஉண்மையிலேயே முடியாவிட்டால், காரணத்தைச் சொல்லுங்கள்:", "Devir için kapanış fotoğrafları zorunlu. Gidip çekmek için İptal'e basın.\nGerçekten çekemiyorsanız nedenini yazın:", "Фото закриття обов'язкові для передачі. Натисніть «Скасувати», щоб піти й зробити їх.\nЯкщо справді не можете, напишіть чому:", "ہینڈ اوور کے لیے کلوزنگ تصویریں لازمی ہیں۔ تصویریں لینے کے لیے منسوخ کریں دبائیں۔\nاگر واقعی نہیں لے سکتے تو وجہ لکھیں:", "Bàn giao bắt buộc phải có ảnh đóng ca. Bấm Hủy để đi chụp.\nNếu thật sự không chụp được, hãy ghi lý do:", "Mae lluniau cau yn orfodol ar gyfer y trosglwyddiad. Pwyswch Canslo i fynd i'w tynnu.\nOs na allwch chi wir, dywedwch pam:"],
-"Glass washer on, rinse aid and detergent topped up": ["غسالة الكؤوس تعمل، ومادة الشطف والمنظف معبأتان", "Բաժակալվանը միացված է, ողողիչն ու լվացող միջոցը լցված են", "গ্লাস ওয়াশার চালু, রিন্স এইড ও ডিটারজেন্ট ভরা", "Миялната за чаши е пусната, препаратът и изплакващото добавени", "洗杯机已开,光亮剂和洗涤剂已补满", "Lave-verres allumé, liquide de rinçage et détergent remplis", "ગ્લાસ વૉશર ચાલુ, રિન્સ એઇડ અને ડિટર્જન્ટ ભરેલા", "ग्लास वॉशर चालू, रिंस एड और डिटर्जेंट भरे", "Lavabicchieri acceso, brillantante e detersivo rabboccati", "Taurių plovyklė įjungta, skalavimo priemonė ir ploviklis papildyti", "ग्लास वासर चालु, रिन्स एड र डिटर्जेन्ट भरिएको", "Zmywarka do szkła włączona, nabłyszczacz i detergent uzupełnione", "Máquina de lavar copos ligada, abrilhantador e detergente atestados", "ਗਲਾਸ ਵਾਸ਼ਰ ਚਾਲੂ, ਰਿੰਸ ਏਡ ਅਤੇ ਡਿਟਰਜੈਂਟ ਭਰੇ", "Mașina de pahare pornită, agentul de clătire și detergentul completate", "Lavavasos encendido, abrillantador y detergente rellenos", "கிளாஸ் வாஷர் இயக்கத்தில், ரின்ஸ் எய்டு மற்றும் டிடர்ஜென்ட் நிரப்பப்பட்டது", "Bardak yıkama makinesi açık, parlatıcı ve deterjan dolu", "Склопосудомийка увімкнена, ополіскувач і миючий засіб долиті", "گلاس واشر آن، رِنس ایڈ اور ڈٹرجنٹ بھرے", "Máy rửa ly đã bật, nước làm bóng và chất tẩy đã châm đầy", "Peiriant golchi gwydrau ymlaen, cymorth rinsio a glanedydd wedi'u llenwi"]
+"Glass washer on, rinse aid and detergent topped up": ["غسالة الكؤوس تعمل، ومادة الشطف والمنظف معبأتان", "Բաժակալվանը միացված է, ողողիչն ու լվացող միջոցը լցված են", "গ্লাস ওয়াশার চালু, রিন্স এইড ও ডিটারজেন্ট ভরা", "Миялната за чаши е пусната, препаратът и изплакващото добавени", "洗杯机已开,光亮剂和洗涤剂已补满", "Lave-verres allumé, liquide de rinçage et détergent remplis", "ગ્લાસ વૉશર ચાલુ, રિન્સ એઇડ અને ડિટર્જન્ટ ભરેલા", "ग्लास वॉशर चालू, रिंस एड और डिटर्जेंट भरे", "Lavabicchieri acceso, brillantante e detersivo rabboccati", "Taurių plovyklė įjungta, skalavimo priemonė ir ploviklis papildyti", "ग्लास वासर चालु, रिन्स एड र डिटर्जेन्ट भरिएको", "Zmywarka do szkła włączona, nabłyszczacz i detergent uzupełnione", "Máquina de lavar copos ligada, abrilhantador e detergente atestados", "ਗਲਾਸ ਵਾਸ਼ਰ ਚਾਲੂ, ਰਿੰਸ ਏਡ ਅਤੇ ਡਿਟਰਜੈਂਟ ਭਰੇ", "Mașina de pahare pornită, agentul de clătire și detergentul completate", "Lavavasos encendido, abrillantador y detergente rellenos", "கிளாஸ் வாஷர் இயக்கத்தில், ரின்ஸ் எய்டு மற்றும் டிடர்ஜென்ட் நிரப்பப்பட்டது", "Bardak yıkama makinesi açık, parlatıcı ve deterjan dolu", "Склопосудомийка увімкнена, ополіскувач і миючий засіб долиті", "گلاس واشر آن، رِنس ایڈ اور ڈٹرجنٹ بھرے", "Máy rửa ly đã bật, nước làm bóng và chất tẩy đã châm đầy", "Peiriant golchi gwydrau ymlaen, cymorth rinsio a glanedydd wedi'u llenwi"],
+"Morning": ["الصباح", "Առավոտ", "সকাল", "Сутрин", "早班", "Matin", "સવાર", "सुबह", "Mattina", "Rytas", "बिहान", "Rano", "Manhã", "ਸਵੇਰ", "Dimineață", "Mañana", "காலை", "Sabah", "Ранок", "صبح", "Buổi sáng", "Bore"],
+"Clear everything": ["مسح كل شيء", "Մաքրել ամեն ինչ", "সব মুছুন", "Изчисти всичко", "全部清空", "Tout effacer", "બધું સાફ કરો", "सब साफ करें", "Cancella tutto", "Išvalyti viską", "सबै खाली गर्नुहोस्", "Wyczyść wszystko", "Limpar tudo", "ਸਭ ਸਾਫ਼ ਕਰੋ", "Șterge tot", "Borrar todo", "அனைத்தையும் அழி", "Her şeyi temizle", "Очистити все", "سب صاف کریں", "Xóa tất cả", "Clirio popeth"],
+"Last night's handover": ["تسليم الليلة الماضية", "Անցած գիշերվա հանձնումը", "গত রাতের হ্যান্ডওভার", "Предаването от снощи", "昨晚的交接", "Passation d'hier soir", "ગઈ રાતનું હેન્ડઓવર", "पिछली रात का हैंडओवर", "Passaggio di consegne di ieri sera", "Vakarykštis perdavimas", "हिजो रातिको ह्यान्डओभर", "Przekazanie z wczoraj", "Passagem de turno de ontem à noite", "ਪਿਛਲੀ ਰਾਤ ਦਾ ਹੈਂਡਓਵਰ", "Predarea de aseară", "Traspaso de anoche", "நேற்றிரவு ஒப்படைப்பு", "Dün geceki devir", "Передача з минулої ночі", "پچھلی رات کا ہینڈ اوور", "Bàn giao tối qua", "Trosglwyddiad neithiwr"],
+"Outstanding": ["معلّق", "Չավարտված", "বাকি", "Неприключено", "未完成", "En suspens", "બાકી", "बाकी", "In sospeso", "Neatlikta", "बाँकी", "Do zrobienia", "Pendente", "ਬਾਕੀ", "Nerezolvat", "Pendiente", "நிலுவையில்", "Bekleyen", "Незавершене", "باقی", "Còn tồn", "Heb ei orffen"],
+"For today": ["لليوم", "Այսօրվա համար", "আজকের জন্য", "За днес", "今天", "Pour aujourd'hui", "આજ માટે", "आज के लिए", "Per oggi", "Šiandienai", "आजका लागि", "Na dziś", "Para hoje", "ਅੱਜ ਲਈ", "Pentru azi", "Para hoy", "இன்றைக்கு", "Bugün için", "На сьогодні", "آج کے لیے", "Cho hôm nay", "Ar gyfer heddiw"],
+"Checked: send on WhatsApp": ["تم الفحص: أرسل على واتساب", "Ստուգված է․ ուղարկել WhatsApp-ով", "দেখা হয়েছে: হোয়াটসঅ্যাপে পাঠান", "Проверено: изпрати в WhatsApp", "已检查：用 WhatsApp 发送", "Vérifié : envoyer sur WhatsApp", "તપાસ્યું: WhatsApp પર મોકલો", "जाँच लिया: WhatsApp पर भेजें", "Controllato: invia su WhatsApp", "Patikrinta: siųsti per WhatsApp", "जाँचियो: WhatsApp मा पठाउनुहोस्", "Sprawdzone: wyślij na WhatsApp", "Verificado: enviar no WhatsApp", "ਜਾਂਚ ਲਿਆ: WhatsApp ’ਤੇ ਭੇਜੋ", "Verificat: trimite pe WhatsApp", "Revisado: enviar por WhatsApp", "சரிபார்க்கப்பட்டது: WhatsApp-இல் அனுப்பு", "Kontrol edildi: WhatsApp'tan gönder", "Перевірено: надіслати у WhatsApp", "چیک کر لیا: واٹس ایپ پر بھیجیں", "Đã kiểm tra: gửi qua WhatsApp", "Wedi'i wirio: anfon ar WhatsApp"],
+"Read it, sort what you can, and send the check so the duty manager knows what's still outstanding.": ["اقرأه، وحلّ ما تستطيع، وأرسل الفحص ليعرف مدير المناوبة ما الذي لا يزال معلّقًا.", "Կարդացեք, լուծեք ինչ կարող եք, և ուղարկեք ստուգումը, որ հերթափոխի մենեջերն իմանա, թե ինչն է դեռ չավարտված։", "পড়ুন, যা পারেন মিটিয়ে ফেলুন, আর চেকটা পাঠান যাতে ডিউটি ম্যানেজার জানেন কী এখনো বাকি।", "Прочетете го, оправете каквото можете и изпратете проверката, за да знае дежурният мениджър какво още остава.", "读一遍，能处理的先处理，然后发送检查结果，让值班经理知道还有什么没完成。", "Lisez-la, réglez ce que vous pouvez et envoyez la vérification pour que le manager de service sache ce qui reste.", "વાંચો, જે થઈ શકે તે ઉકેલો, અને તપાસ મોકલો જેથી ડ્યુટી મેનેજરને ખબર પડે કે હજી શું બાકી છે.", "इसे पढ़ें, जो हो सके निपटाएँ, और जाँच भेजें ताकि ड्यूटी मैनेजर को पता रहे कि अभी क्या बाकी है।", "Leggilo, sistema quello che puoi e invia il controllo, così il manager di turno sa cosa resta.", "Perskaitykite, sutvarkykite, ką galite, ir išsiųskite patikrinimą, kad budintis vadovas žinotų, kas dar liko.", "पढ्नुहोस्, सक्ने जति मिलाउनुहोस्, र जाँच पठाउनुहोस् ताकि ड्युटी म्यानेजरलाई अझै के बाँकी छ थाहा होस्।", "Przeczytaj, załatw, co możesz, i wyślij sprawdzenie, żeby kierownik zmiany wiedział, co jeszcze zostało.", "Leia, resolva o que puder e envie a verificação para o gerente de serviço saber o que ainda está pendente.", "ਪੜ੍ਹੋ, ਜੋ ਹੋ ਸਕੇ ਨਿਪਟਾਓ, ਅਤੇ ਜਾਂਚ ਭੇਜੋ ਤਾਂ ਜੋ ਡਿਊਟੀ ਮੈਨੇਜਰ ਨੂੰ ਪਤਾ ਹੋਵੇ ਕਿ ਅਜੇ ਕੀ ਬਾਕੀ ਹੈ।", "Citește-o, rezolvă ce poți și trimite verificarea, ca managerul de tură să știe ce a mai rămas.", "Léelo, resuelve lo que puedas y envía la revisión para que el encargado de turno sepa qué sigue pendiente.", "படித்து, முடிந்ததைச் சரிசெய்து, இன்னும் நிலுவையில் உள்ளது பணி மேலாளருக்குத் தெரிய சரிபார்ப்பை அனுப்புங்கள்.", "Okuyun, yapabildiğinizi halledin ve vardiya müdürü neyin beklediğini bilsin diye kontrolü gönderin.", "Прочитайте, вирішіть, що можете, і надішліть перевірку, щоб черговий менеджер знав, що ще лишилося.", "پڑھیں، جو ہو سکے نمٹائیں، اور چیک بھیجیں تاکہ ڈیوٹی مینیجر کو پتا ہو کہ ابھی کیا باقی ہے۔", "Đọc, xử lý những gì có thể, rồi gửi xác nhận để quản lý ca biết còn tồn gì.", "Darllenwch e, sortiwch beth allwch chi, ac anfonwch y gwiriad fel bod y rheolwr ar ddyletswydd yn gwybod beth sydd heb ei orffen."],
+"No handover from the last close on this side yet.": ["لا يوجد تسليم من آخر إغلاق لهذا القسم بعد.", "Այս կողմի վերջին փակումից հանձնում դեռ չկա։", "এই দিকের শেষ ক্লোজিং থেকে এখনো কোনো হ্যান্ডওভার নেই।", "Още няма предаване от последното затваряне на тази страна.", "这一边上次收档还没有交接。", "Pas encore de passation de la dernière fermeture de ce côté.", "આ બાજુના છેલ્લા ક્લોઝિંગનું હજી કોઈ હેન્ડઓવર નથી.", "इस तरफ़ की पिछली क्लोज़िंग का अभी कोई हैंडओवर नहीं।", "Ancora nessun passaggio di consegne dall'ultima chiusura di questo lato.", "Iš paskutinio šios pusės uždarymo perdavimo dar nėra.", "यो पक्षको पछिल्लो बन्दबाट अझै ह्यान्डओभर छैन।", "Nie ma jeszcze przekazania z ostatniego zamknięcia tej strony.", "Ainda não há passagem de turno do último fecho deste lado.", "ਇਸ ਪਾਸੇ ਦੀ ਪਿਛਲੀ ਕਲੋਜ਼ਿੰਗ ਦਾ ਅਜੇ ਕੋਈ ਹੈਂਡਓਵਰ ਨਹੀਂ।", "Încă nu există predare de la ultima închidere a acestei părți.", "Aún no hay traspaso del último cierre de este lado.", "இந்தப் பக்கத்தின் கடைசி மூடுதலில் இருந்து இன்னும் ஒப்படைப்பு இல்லை.", "Bu tarafın son kapanışından henüz devir yok.", "Ще немає передачі з останнього закриття цієї сторони.", "اس طرف کی پچھلی کلوزنگ کا ابھی کوئی ہینڈ اوور نہیں۔", "Chưa có bàn giao từ lần đóng ca gần nhất của bên này.", "Dim trosglwyddiad o'r cau diwethaf ar yr ochr hon eto."],
+"Today's order": ["طلبية اليوم", "Այսօրվա պատվերը", "আজকের অর্ডার", "Днешната поръчка", "今天的订货", "Commande du jour", "આજનો ઓર્ડર", "आज का ऑर्डर", "Ordine di oggi", "Šiandienos užsakymas", "आजको अर्डर", "Dzisiejsze zamówienie", "Encomenda de hoje", "ਅੱਜ ਦਾ ਆਰਡਰ", "Comanda de azi", "Pedido de hoy", "இன்றைய ஆர்டர்", "Bugünün siparişi", "Сьогоднішнє замовлення", "آج کا آرڈر", "Đơn hàng hôm nay", "Archeb heddiw"],
+"Send the order on WhatsApp": ["أرسل الطلبية على واتساب", "Ուղարկել պատվերը WhatsApp-ով", "অর্ডার হোয়াটসঅ্যাপে পাঠান", "Изпрати поръчката в WhatsApp", "用 WhatsApp 发送订货", "Envoyer la commande sur WhatsApp", "ઓર્ડર WhatsApp પર મોકલો", "ऑर्डर WhatsApp पर भेजें", "Invia l'ordine su WhatsApp", "Siųsti užsakymą per WhatsApp", "अर्डर WhatsApp मा पठाउनुहोस्", "Wyślij zamówienie na WhatsApp", "Enviar a encomenda no WhatsApp", "ਆਰਡਰ WhatsApp ’ਤੇ ਭੇਜੋ", "Trimite comanda pe WhatsApp", "Enviar el pedido por WhatsApp", "ஆர்டரை WhatsApp-இல் அனுப்பு", "Siparişi WhatsApp'tan gönder", "Надіслати замовлення у WhatsApp", "آرڈر واٹس ایپ پر بھیجیں", "Gửi đơn hàng qua WhatsApp", "Anfon yr archeb ar WhatsApp"],
+"Prep to par": ["التحضير حسب الكمية المعتادة", "Նախապատրաստում ըստ նորմայի", "পার অনুযায়ী প্রস্তুতি", "Подготовка до норма", "按标准量备料", "Préparation au niveau standard", "પાર મુજબ તૈયારી", "पार तक तैयारी", "Preparazione al livello standard", "Paruošti iki normos", "पार अनुसार तयारी", "Przygotowanie do normy", "Preparar até ao nível padrão", "ਪਾਰ ਤੱਕ ਤਿਆਰੀ", "Pregătire la nivelul standard", "Preparar hasta el nivel", "பார் அளவுக்குத் தயாரிப்பு", "Standart seviyeye hazırlık", "Заготовки до норми", "پار تک تیاری", "Chuẩn bị đủ định mức", "Paratoi i'r lefel arferol"],
+"Prep to par (busy day)": ["التحضير حسب الكمية المطلوبة (يوم مزدحم)", "Պատրաստում ըստ նորմայի (զբաղված օր)", "পার অনুযায়ী প্রেপ (ব্যস্ত দিন)", "Подготовка до нормата (натоварен ден)", "按标准量备料（忙碌日）", "Mise en place au niveau (jour chargé)", "પાર મુજબ તૈયારી (વ્યસ્ત દિવસ)", "पार तक तैयारी (व्यस्त दिन)", "Preparazione a livello (giornata intensa)", "Paruošimas iki normos (užimta diena)", "पार अनुसार तयारी (व्यस्त दिन)", "Przygotowanie do normy (ruchliwy dzień)", "Preparação até ao nível (dia movimentado)", "ਪਾਰ ਤੱਕ ਤਿਆਰੀ (ਰੁੱਝਿਆ ਦਿਨ)", "Pregătire până la normă (zi aglomerată)", "Preparación hasta el nivel (día de mucho trabajo)", "அளவுக்கு தயாரிப்பு (பிஸியான நாள்)", "Seviyeye kadar hazırlık (yoğun gün)", "Заготовка до норми (завантажений день)", "پار تک تیاری (مصروف دن)", "Chuẩn bị đủ định mức (ngày đông khách)", "Paratoi at y lefel (diwrnod prysur)"],
+"Send the prep list": ["أرسل قائمة التحضير", "Ուղարկել պատրաստման ցուցակը", "প্রেপ তালিকা পাঠান", "Изпрати списъка за подготовка", "发送备料清单", "Envoyer la liste de mise en place", "તૈયારીની યાદી મોકલો", "तैयारी की सूची भेजें", "Invia la lista di preparazione", "Siųsti paruošimo sąrašą", "तयारीको सूची पठाउनुहोस्", "Wyślij listę przygotowania", "Enviar a lista de preparação", "ਤਿਆਰੀ ਦੀ ਸੂਚੀ ਭੇਜੋ", "Trimite lista de pregătire", "Enviar la lista de preparación", "தயாரிப்பு பட்டியலை அனுப்பு", "Hazırlık listesini gönder", "Надіслати список заготовок", "تیاری کی فہرست بھیجیں", "Gửi danh sách chuẩn bị", "Anfon y rhestr paratoi"],
+"Starting amounts. If one's wrong for us, tell the manager.": ["كميات مبدئية. إذا كانت إحداها غير مناسبة لنا، أخبر المدير.", "Սկզբնական քանակներ են։ Եթե որևէ մեկը մեզ չի համապատասխանում, ասեք մենեջերին։", "শুরুর পরিমাণ। কোনোটা আমাদের জন্য ভুল হলে ম্যানেজারকে বলুন।", "Начални количества. Ако някое не е вярно за нас, кажи на мениджъра.", "这些是初始数量。如果哪项不适合我们，请告诉经理。", "Quantités de départ. Si l'une ne nous convient pas, dis-le au manager.", "શરૂઆતની માત્રા છે. જો કોઈ આપણા માટે ખોટી હોય, તો મેનેજરને કહો.", "ये शुरुआती मात्राएँ हैं। अगर कोई हमारे लिए गलत है, तो मैनेजर को बताएँ।", "Quantità iniziali. Se una non va bene per noi, dillo al manager.", "Pradiniai kiekiai. Jei kuris nors mums netinka, pasakyk vadovui.", "सुरुआती मात्रा हुन्। कुनै हाम्रो लागि गलत छ भने म्यानेजरलाई भन्नुहोस्।", "Ilości wyjściowe. Jeśli któraś do nas nie pasuje, powiedz managerowi.", "Quantidades iniciais. Se alguma estiver errada para nós, diz ao gerente.", "ਸ਼ੁਰੂਆਤੀ ਮਾਤਰਾਵਾਂ ਹਨ। ਜੇ ਕੋਈ ਸਾਡੇ ਲਈ ਗਲਤ ਹੈ, ਤਾਂ ਮੈਨੇਜਰ ਨੂੰ ਦੱਸੋ।", "Cantități de pornire. Dacă vreuna nu e potrivită pentru noi, spune-i managerului.", "Cantidades iniciales. Si alguna no nos sirve, díselo al encargado.", "தொடக்க அளவுகள். ஏதாவது நமக்கு தவறாக இருந்தால், மேனேஜரிடம் சொல்லுங்கள்.", "Başlangıç miktarları. Biri bize uymuyorsa müdüre söyle.", "Початкові кількості. Якщо якась нам не підходить, скажи менеджеру.", "ابتدائی مقداریں ہیں۔ اگر کوئی ہمارے لیے غلط ہو تو مینیجر کو بتائیں۔", "Đây là số lượng ban đầu. Nếu có số nào không đúng với quán mình, hãy báo quản lý.", "Symiau cychwynnol. Os yw un yn anghywir i ni, dywed wrth y rheolwr."],
+"So far": ["حتى الآن", "Առայժմ", "এখন পর্যন্ত", "Досега", "目前", "Jusqu'ici", "અત્યાર સુધી", "अब तक", "Finora", "Kol kas", "अहिलेसम्म", "Na razie", "Até agora", "ਹੁਣ ਤੱਕ", "Până acum", "Hasta ahora", "இதுவரை", "Şu ana kadar", "Поки що", "اب تک", "Đến giờ", "Hyd yn hyn"],
+"Took": ["استغرق", "Տևեց", "সময় লেগেছে", "Отне", "用时", "Durée", "સમય લાગ્યો", "समय लगा", "Durata", "Užtruko", "समय लाग्यो", "Trwało", "Demorou", "ਸਮਾਂ ਲੱਗਾ", "A durat", "Duró", "எடுத்த நேரம்", "Sürdü", "Тривало", "وقت لگا", "Mất", "Cymerodd"],
+"Left": ["المتبقي", "Մնացել է", "বাকি", "Остават", "剩余", "Restant", "બાકી", "बाकी", "Rimasti", "Liko", "बाँकी", "Zostało", "Faltam", "ਬਾਕੀ", "Rămase", "Quedan", "மீதம்", "Kalan", "Залишилось", "باقی", "Còn lại", "Ar ôl"],
+"Ticked:": ["تم التأشير:", "Նշել են՝", "টিক দিয়েছেন:", "Отметнали:", "已勾选：", "Cochés :", "ટિક કર્યું:", "टिक किए:", "Spuntati:", "Pažymėjo:", "टिक गरे:", "Odhaczone:", "Marcados:", "ਟਿੱਕ ਕੀਤੇ:", "Bifate:", "Marcados:", "டிக் செய்தவர்கள்:", "İşaretleyen:", "Відмітили:", "ٹک کیے:", "Đã đánh dấu:", "Wedi ticio:"],
+"Still to do:": ["ما زال مطلوبًا:", "Դեռ անելու է՝", "এখনও বাকি:", "Още за правене:", "仍待完成：", "Encore à faire :", "હજી બાકી:", "अभी बाकी:", "Ancora da fare:", "Dar liko padaryti:", "अझै गर्न बाँकी:", "Jeszcze do zrobienia:", "Ainda por fazer:", "ਅਜੇ ਬਾਕੀ:", "Mai e de făcut:", "Aún por hacer:", "இன்னும் செய்ய வேண்டியவை:", "Hâlâ yapılacak:", "Ще треба зробити:", "ابھی باقی:", "Vẫn còn phải làm:", "I'w wneud o hyd:"],
+"Undo": ["تراجع", "Հետարկել", "পূর্বাবস্থায় ফেরান", "Отмени", "撤销", "Annuler", "પાછું કરો", "पूर्ववत करें", "Annulla", "Atšaukti", "पूर्ववत गर्नुहोस्", "Cofnij", "Anular", "ਵਾਪਸ ਕਰੋ", "Anulează", "Deshacer", "செயல்தவிர்", "Geri al", "Скасувати", "واپس کریں", "Hoàn tác", "Dadwneud"],
+"Only what's left": ["المتبقي فقط", "Միայն մնացածը", "শুধু যা বাকি", "Само оставащото", "只看剩余", "Seulement ce qui reste", "ફક્ત બાકી", "सिर्फ़ जो बाकी है", "Solo ciò che resta", "Tik tai, kas liko", "बाँकी मात्र", "Tylko to, co zostało", "Só o que falta", "ਸਿਰਫ਼ ਜੋ ਬਾਕੀ ਹੈ", "Doar ce a rămas", "Solo lo que queda", "மீதமுள்ளவை மட்டும்", "Sadece kalanlar", "Лише те, що залишилось", "صرف جو باقی ہے", "Chỉ phần còn lại", "Dim ond beth sydd ar ôl"],
+"Master clear": ["المسح الرئيسي", "Ընդհանուր մաքրում", "মাস্টার ক্লিয়ার", "Пълно изчистване", "总清空", "Réinitialisation générale", "માસ્ટર ક્લિયર", "मास्टर क्लियर", "Azzeramento generale", "Visiškas išvalymas", "मास्टर क्लियर", "Pełne czyszczenie", "Limpeza geral", "ਮਾਸਟਰ ਕਲੀਅਰ", "Ștergere generală", "Borrado general", "முழு அழிப்பு", "Genel temizleme", "Повне очищення", "ماسٹر کلیئر", "Xóa toàn bộ", "Clirio'r cyfan"],
+"Clears both closing lists, the {1} board, restock requests, the inbox, issues and shout-outs for everyone. Sent handovers and their photos stay.": ["يمسح قائمتي الإغلاق ولوحة {1} وطلبات إعادة التعبئة وصندوق الوارد والمشكلات والإشادات للجميع. تبقى عمليات التسليم المرسلة وصورها.", "Մաքրում է փակման երկու ցուցակները, {1} վահանակը, համալրման հարցումները, մուտքային արկղը, խնդիրները և շնորհակալությունները բոլորի համար։ Ուղարկված հանձնումները և դրանց լուսանկարները մնում են։", "সবার জন্য দুটো ক্লোজিং তালিকা, {1} বোর্ড, রিস্টকের অনুরোধ, ইনবক্স, সমস্যা আর শাউট-আউট মুছে দেয়। পাঠানো হ্যান্ডওভার আর সেগুলোর ছবি থেকে যায়।", "Изчиства двата списъка за затваряне, таблото {1}, заявките за зареждане, входящите, проблемите и похвалите за всички. Изпратените предавания и снимките им остават.", "为所有人清空两份收尾清单、{1} 看板、补货请求、收件箱、问题和表扬。已发送的交接及其照片会保留。", "Efface les deux listes de fermeture, le tableau {1}, les demandes de réassort, la boîte de réception, les problèmes et les remerciements pour tout le monde. Les passations envoyées et leurs photos restent.", "બધા માટે બંને ક્લોઝિંગ યાદીઓ, {1} બોર્ડ, રીસ્ટોક વિનંતીઓ, ઇનબોક્સ, સમસ્યાઓ અને શાબાશી સાફ કરે છે. મોકલેલાં હેન્ડઓવર અને તેના ફોટા રહે છે.", "सबके लिए दोनों क्लोज़िंग सूचियाँ, {1} बोर्ड, रीस्टॉक अनुरोध, इनबॉक्स, समस्याएँ और शाबाशी साफ़ करता है। भेजे गए हैंडओवर और उनकी फ़ोटो रहती हैं।", "Cancella per tutti entrambe le liste di chiusura, la bacheca {1}, le richieste di rifornimento, la posta in arrivo, i problemi e i ringraziamenti. I passaggi di consegne inviati e le loro foto restano.", "Visiems išvalo abu uždarymo sąrašus, {1} lentą, papildymo užklausas, gautus pranešimus, problemas ir padėkas. Išsiųsti perdavimai ir jų nuotraukos lieka.", "सबैका लागि दुवै क्लोजिङ सूची, {1} बोर्ड, रिस्टक अनुरोध, इनबक्स, समस्या र स्याबासी खाली गर्छ। पठाइएका ह्यान्डओभर र तिनका फोटो रहन्छन्।", "Czyści dla wszystkich obie listy zamknięcia, tablicę {1}, prośby o uzupełnienie, skrzynkę, problemy i pochwały. Wysłane przekazania i ich zdjęcia zostają.", "Limpa para todos as duas listas de fecho, o quadro {1}, os pedidos de reposição, a caixa de entrada, os problemas e os elogios. As passagens de turno enviadas e as suas fotos ficam.", "ਸਭ ਲਈ ਦੋਵੇਂ ਕਲੋਜ਼ਿੰਗ ਸੂਚੀਆਂ, {1} ਬੋਰਡ, ਰੀਸਟਾਕ ਬੇਨਤੀਆਂ, ਇਨਬਾਕਸ, ਸਮੱਸਿਆਵਾਂ ਅਤੇ ਸ਼ਾਬਾਸ਼ੀ ਸਾਫ਼ ਕਰਦਾ ਹੈ। ਭੇਜੇ ਹੈਂਡਓਵਰ ਅਤੇ ਉਨ੍ਹਾਂ ਦੀਆਂ ਫੋਟੋਆਂ ਰਹਿੰਦੀਆਂ ਹਨ।", "Șterge pentru toți ambele liste de închidere, panoul {1}, cererile de reaprovizionare, inboxul, problemele și aprecierile. Predările trimise și pozele lor rămân.", "Borra para todos las dos listas de cierre, el tablero {1}, las peticiones de reposición, la bandeja de entrada, las incidencias y las felicitaciones. Los traspasos enviados y sus fotos se quedan.", "அனைவருக்கும் இரண்டு மூடல் பட்டியல்கள், {1} பலகை, மறுநிரப்பு கோரிக்கைகள், இன்பாக்ஸ், சிக்கல்கள் மற்றும் பாராட்டுகளை அழிக்கிறது. அனுப்பிய ஒப்படைப்புகளும் அவற்றின் படங்களும் இருக்கும்.", "Herkes için iki kapanış listesini, {1} panosunu, stok taleplerini, gelen kutusunu, sorunları ve teşekkürleri temizler. Gönderilen devirler ve fotoğrafları kalır.", "Очищає для всіх обидва списки закриття, дошку {1}, запити на поповнення, вхідні, проблеми та подяки. Надіслані передачі та їхні фото залишаються.", "سب کے لیے دونوں کلوزنگ فہرستیں، {1} بورڈ، ری اسٹاک درخواستیں، ان باکس، مسائل اور شاباشیاں صاف کرتا ہے۔ بھیجے گئے ہینڈ اوور اور ان کی تصویریں رہتی ہیں۔", "Xóa cho mọi người cả hai danh sách đóng ca, bảng {1}, yêu cầu bổ sung hàng, hộp thư, sự cố và lời khen. Các bàn giao đã gửi và ảnh của chúng vẫn giữ lại.", "Yn clirio'r ddwy restr cau, bwrdd {1}, ceisiadau ailstocio, y mewnflwch, problemau a chanmoliaeth i bawb. Mae trosglwyddiadau a anfonwyd a'u lluniau'n aros."],
+"Master clear done": ["تم المسح الرئيسي", "Ընդհանուր մաքրումն արված է", "মাস্টার ক্লিয়ার হয়ে গেছে", "Пълното изчистване е готово", "总清空已完成", "Réinitialisation générale faite", "માસ્ટર ક્લિયર થઈ ગયું", "मास्टर क्लियर हो गया", "Azzeramento generale fatto", "Visiškas išvalymas atliktas", "मास्टर क्लियर भयो", "Pełne czyszczenie zrobione", "Limpeza geral feita", "ਮਾਸਟਰ ਕਲੀਅਰ ਹੋ ਗਿਆ", "Ștergerea generală e gata", "Borrado general hecho", "முழு அழிப்பு முடிந்தது", "Genel temizleme tamam", "Повне очищення виконано", "ماسٹر کلیئر ہو گیا", "Đã xóa toàn bộ", "Wedi clirio'r cyfan"],
+"All clear for a fresh start": ["كل شيء جاهز لبداية جديدة", "Ամեն ինչ մաքուր է նոր սկզբի համար", "নতুন শুরুর জন্য সব পরিষ্কার", "Всичко е чисто за ново начало", "已全部清空，重新开始", "Tout est effacé pour repartir à zéro", "નવી શરૂઆત માટે બધું સાફ", "नई शुरुआत के लिए सब साफ़", "Tutto pulito per ripartire da zero", "Viskas išvalyta naujai pradžiai", "नयाँ सुरुवातका लागि सबै खाली", "Wszystko wyczyszczone na nowy start", "Tudo limpo para começar de novo", "ਨਵੀਂ ਸ਼ੁਰੂਆਤ ਲਈ ਸਭ ਸਾਫ਼", "Totul e curat pentru un nou început", "Todo limpio para empezar de cero", "புதிய தொடக்கத்துக்கு எல்லாம் அழிக்கப்பட்டது", "Yeni bir başlangıç için her şey temiz", "Усе чисто для нового початку", "نئی شروعات کے لیے سب صاف", "Đã xóa sạch để bắt đầu lại", "Popeth yn glir ar gyfer dechrau newydd"],
+"Closing checklists": ["قوائم الإغلاق", "Փակման ցուցակներ", "ক্লোজিং চেকলিস্ট", "Списъци за затваряне", "收尾清单", "Listes de fermeture", "ક્લોઝિંગ ચેકલિસ્ટ", "क्लोज़िंग चेकलिस्ट", "Liste di chiusura", "Uždarymo sąrašai", "क्लोजिङ चेकलिस्ट", "Listy zamknięcia", "Listas de fecho", "ਕਲੋਜ਼ਿੰਗ ਚੈੱਕਲਿਸਟ", "Liste de închidere", "Listas de cierre", "மூடல் சரிபார்ப்பு பட்டியல்கள்", "Kapanış listeleri", "Списки закриття", "کلوزنگ چیک لسٹ", "Danh sách đóng ca", "Rhestrau cau"],
+"Last night's handover for the opening team, today's order from what ran low, and the prep pars for today.": ["تسليم الليلة الماضية لفريق الافتتاح، وطلب اليوم مما نفد، وكميات التحضير لليوم.", "Անցած գիշերվա հանձնումը բացող թիմի համար, այսօրվա պատվերը՝ ինչ պակասել է, և այսօրվա պատրաստման նորմաները։", "ওপেনিং টিমের জন্য গত রাতের হ্যান্ডওভার, যা কমে গেছে তা থেকে আজকের অর্ডার, আর আজকের প্রেপ পার।", "Предаването от снощи за отварящия екип, днешната поръчка от това, което е на привършване, и нормите за подготовка за днес.", "给开店团队的昨晚交接、根据库存不足生成的今日订货，以及今天的备料标准量。", "La passation d'hier soir pour l'équipe d'ouverture, la commande du jour d'après ce qui manquait, et les niveaux de mise en place du jour.", "ઓપનિંગ ટીમ માટે ગઈ રાતનું હેન્ડઓવર, જે ઓછું થયું તેમાંથી આજનો ઓર્ડર, અને આજના તૈયારીના પાર.", "ओपनिंग टीम के लिए पिछली रात का हैंडओवर, जो कम पड़ा उससे आज का ऑर्डर, और आज के तैयारी के पार।", "Il passaggio di consegne di ieri sera per chi apre, l'ordine di oggi da ciò che scarseggiava e i livelli di preparazione di oggi.", "Vakarykštis perdavimas atidarančiai komandai, šiandienos užsakymas pagal tai, ko trūko, ir šiandienos paruošimo normos.", "खोल्ने टोलीका लागि हिजो रातिको ह्यान्डओभर, कम भएकोबाट आजको अर्डर, र आजका तयारीका पार।", "Przekazanie z wczoraj dla zespołu otwierającego, dzisiejsze zamówienie z tego, czego brakowało, i normy przygotowania na dziś.", "A passagem de turno de ontem à noite para a equipa de abertura, a encomenda de hoje do que estava a acabar, e os níveis de preparação para hoje.", "ਖੋਲ੍ਹਣ ਵਾਲੀ ਟੀਮ ਲਈ ਪਿਛਲੀ ਰਾਤ ਦਾ ਹੈਂਡਓਵਰ, ਜੋ ਘੱਟ ਗਿਆ ਉਸ ਤੋਂ ਅੱਜ ਦਾ ਆਰਡਰ, ਅਤੇ ਅੱਜ ਦੀ ਤਿਆਰੀ ਦੇ ਪਾਰ।", "Predarea de aseară pentru echipa de deschidere, comanda de azi din ce s-a terminat și normele de pregătire pentru azi.", "El traspaso de anoche para el equipo de apertura, el pedido de hoy de lo que se acababa y los niveles de preparación de hoy.", "திறக்கும் குழுவுக்கு நேற்றிரவு ஒப்படைப்பு, குறைந்தவற்றிலிருந்து இன்றைய ஆர்டர், இன்றைய தயாரிப்பு அளவுகள்.", "Açılış ekibi için dün geceki devir, azalanlardan bugünün siparişi ve bugünün hazırlık seviyeleri.", "Передача з минулої ночі для команди відкриття, сьогоднішнє замовлення з того, що закінчувалось, і норми заготовок на сьогодні.", "اوپننگ ٹیم کے لیے پچھلی رات کا ہینڈ اوور، جو کم پڑا اس سے آج کا آرڈر، اور آج کی تیاری کے پار۔", "Bàn giao tối qua cho ca mở cửa, đơn đặt hàng hôm nay từ những thứ sắp hết, và định mức chuẩn bị hôm nay.", "Trosglwyddiad neithiwr i'r tîm agor, archeb heddiw o'r hyn oedd yn brin, a lefelau paratoi heddiw."],
+"Read the handover, send that it's checked with anything outstanding, send the order and the prep list on WhatsApp.": ["اقرأ التسليم، وأرسل أنه تم فحصه مع أي شيء معلّق، وأرسل الطلب وقائمة التحضير على واتساب.", "Կարդացեք հանձնումը, ուղարկեք, որ այն ստուգված է՝ չավարտվածի հետ, ուղարկեք պատվերը և պատրաստման ցուցակը WhatsApp-ով։", "হ্যান্ডওভার পড়ুন, বাকি থাকা কিছুসহ দেখা হয়েছে বলে পাঠান, অর্ডার আর প্রেপ তালিকা হোয়াটসঅ্যাপে পাঠান।", "Прочети предаването, изпрати, че е проверено, с всичко неприключено, изпрати поръчката и списъка за подготовка в WhatsApp.", "阅读交接，发送已检查的确认及任何未完成事项，再用 WhatsApp 发送订货和备料清单。", "Lis la passation, envoie qu'elle est vérifiée avec ce qui reste en suspens, envoie la commande et la liste de mise en place sur WhatsApp.", "હેન્ડઓવર વાંચો, બાકી હોય તે સાથે તપાસ્યું એમ મોકલો, ઓર્ડર અને તૈયારીની યાદી WhatsApp પર મોકલો.", "हैंडओवर पढ़ें, जो बाकी है उसके साथ भेजें कि जाँच लिया, ऑर्डर और तैयारी की सूची WhatsApp पर भेजें।", "Leggi il passaggio di consegne, invia che è controllato con quello che è in sospeso, invia l'ordine e la lista di preparazione su WhatsApp.", "Perskaityk perdavimą, išsiųsk, kad patikrinta, su tuo, kas neatlikta, išsiųsk užsakymą ir paruošimo sąrašą per WhatsApp.", "ह्यान्डओभर पढ्नुहोस्, बाँकी कुरासहित जाँचियो भनेर पठाउनुहोस्, अर्डर र तयारीको सूची WhatsApp मा पठाउनुहोस्।", "Przeczytaj przekazanie, wyślij, że sprawdzone, razem z tym, co zostało do zrobienia, wyślij zamówienie i listę przygotowania na WhatsApp.", "Lê a passagem de turno, envia que está verificada com o que estiver pendente, envia a encomenda e a lista de preparação no WhatsApp.", "ਹੈਂਡਓਵਰ ਪੜ੍ਹੋ, ਬਾਕੀ ਰਹਿੰਦੇ ਕੰਮ ਨਾਲ ਭੇਜੋ ਕਿ ਜਾਂਚ ਲਿਆ, ਆਰਡਰ ਅਤੇ ਤਿਆਰੀ ਦੀ ਸੂਚੀ WhatsApp 'ਤੇ ਭੇਜੋ।", "Citește predarea, trimite că e verificată cu tot ce e nerezolvat, trimite comanda și lista de pregătire pe WhatsApp.", "Lee el traspaso, envía que está revisado con lo que quede pendiente, envía el pedido y la lista de preparación por WhatsApp.", "ஒப்படைப்பைப் படியுங்கள், நிலுவையில் உள்ளவற்றுடன் சரிபார்த்ததாக அனுப்புங்கள், ஆர்டரையும் தயாரிப்பு பட்டியலையும் WhatsApp-இல் அனுப்புங்கள்.", "Devri oku, bekleyenlerle birlikte kontrol edildiğini gönder, siparişi ve hazırlık listesini WhatsApp'tan gönder.", "Прочитай передачу, надішли, що перевірено, разом із незавершеним, надішли замовлення та список заготовок у WhatsApp.", "ہینڈ اوور پڑھیں، جو باقی ہے اس کے ساتھ بھیجیں کہ جانچ لیا، آرڈر اور تیاری کی فہرست WhatsApp پر بھیجیں۔", "Đọc bàn giao, gửi xác nhận đã kiểm tra kèm những việc còn tồn, gửi đơn hàng và danh sách chuẩn bị qua WhatsApp.", "Darllena'r trosglwyddiad, anfon ei fod wedi'i wirio gydag unrhyw beth heb ei orffen, anfon yr archeb a'r rhestr paratoi ar WhatsApp."],
+"The bar and floor closes, ticked off live on every phone, with how long it's taking and who has ticked what.": ["إغلاق البار والصالة، يُؤشَّر عليه مباشرة على كل هاتف، مع المدة التي يستغرقها ومن أشّر على ماذا.", "Բարի և սրահի փակումը՝ նշվում է ուղիղ եթերում յուրաքանչյուր հեռախոսում, թե որքան է տևում և ով ինչ է նշել։", "বার আর ফ্লোরের ক্লোজ, প্রতিটি ফোনে লাইভ টিক দেওয়া হয়, কতক্ষণ লাগছে আর কে কী টিক দিয়েছে সহ।", "Затварянето на бара и залата, отмятано на живо на всеки телефон, с колко време отнема и кой какво е отметнал.", "吧台和楼面的收尾，在每部手机上实时勾选，显示用了多久以及谁勾了什么。", "Les fermetures du bar et de la salle, cochées en direct sur chaque téléphone, avec le temps que ça prend et qui a coché quoi.", "બાર અને ફ્લોરનું ક્લોઝિંગ, દરેક ફોન પર લાઈવ ટિક થાય છે, કેટલો સમય લાગે છે અને કોણે શું ટિક કર્યું તે સાથે.", "बार और फ़्लोर की क्लोज़िंग, हर फ़ोन पर लाइव टिक होती है, कितना समय लग रहा है और किसने क्या टिक किया, इसके साथ।", "Le chiusure del bar e della sala, spuntate in diretta su ogni telefono, con quanto ci vuole e chi ha spuntato cosa.", "Baro ir salės uždarymas, žymimas gyvai kiekviename telefone, su tuo, kiek laiko užtrunka ir kas ką pažymėjo.", "बार र फ्लोरको क्लोजिङ, हरेक फोनमा लाइभ टिक हुन्छ, कति समय लाग्दैछ र कसले के टिक गर्‍यो सहित।", "Zamknięcie baru i sali, odhaczane na żywo na każdym telefonie, z tym, ile to trwa i kto co odhaczył.", "O fecho do bar e da sala, marcado em direto em cada telemóvel, com quanto tempo está a demorar e quem marcou o quê.", "ਬਾਰ ਅਤੇ ਫਲੋਰ ਦੀ ਕਲੋਜ਼ਿੰਗ, ਹਰ ਫ਼ੋਨ 'ਤੇ ਲਾਈਵ ਟਿੱਕ ਹੁੰਦੀ ਹੈ, ਕਿੰਨਾ ਸਮਾਂ ਲੱਗ ਰਿਹਾ ਹੈ ਅਤੇ ਕਿਸ ਨੇ ਕੀ ਟਿੱਕ ਕੀਤਾ, ਇਸ ਨਾਲ।", "Închiderile barului și ale sălii, bifate live pe fiecare telefon, cu cât durează și cine ce a bifat.", "Los cierres de barra y sala, marcados en directo en cada móvil, con cuánto está tardando y quién ha marcado qué.", "பார் மற்றும் தள மூடல், ஒவ்வொரு போனிலும் நேரலையாக டிக் செய்யப்படுகிறது, எவ்வளவு நேரம் ஆகிறது, யார் எதை டிக் செய்தார்கள் என்பதுடன்.", "Bar ve salon kapanışları, her telefonda canlı işaretlenir, ne kadar sürdüğü ve kimin neyi işaretlediğiyle.", "Закриття бару та залу, відмічається наживо на кожному телефоні, зі скільки часу це займає і хто що відмітив.", "بار اور فلور کی کلوزنگ، ہر فون پر لائیو ٹک ہوتی ہے، کتنا وقت لگ رہا ہے اور کس نے کیا ٹک کیا، اس کے ساتھ۔", "Đóng ca quầy bar và sảnh, đánh dấu trực tiếp trên mọi điện thoại, kèm thời gian đang mất và ai đã đánh dấu gì.", "Cau'r bar a'r llawr, wedi'u ticio'n fyw ar bob ffôn, gyda pha mor hir mae'n ei gymryd a phwy sydd wedi ticio beth."],
+"Tick items off or a whole heading at once, mark one blocked and say why, give one to someone, or clear everything for a fresh start.": ["أشّر على البنود أو على عنوان كامل مرة واحدة، علّم بندًا كمتوقف واذكر السبب، أعطِ بندًا لشخص ما، أو امسح كل شيء لبداية جديدة.", "Նշեք կետերը կամ մի ամբողջ վերնագիր միանգամից, նշեք մեկը որպես արգելափակված և ասեք՝ ինչու, տվեք մեկը ինչ-որ մեկին կամ մաքրեք ամեն ինչ նոր սկզբի համար։", "আইটেম বা পুরো একটা শিরোনাম একসাথে টিক দিন, একটাকে আটকে আছে চিহ্ন দিয়ে কারণ বলুন, কাউকে একটা দিন, অথবা নতুন শুরুর জন্য সব মুছুন।", "Отметни точки или цяло заглавие наведнъж, маркирай една като блокирана и кажи защо, дай една на някого или изчисти всичко за ново начало.", "逐项勾选或一次勾选整个标题，把某项标为受阻并说明原因，把某项交给别人，或全部清空重新开始。", "Coche des points ou toute une rubrique d'un coup, marque-en un bloqué et dis pourquoi, donne-en un à quelqu'un, ou efface tout pour repartir à zéro.", "આઇટમ અથવા આખું મથાળું એક સાથે ટિક કરો, એકને અટકેલું ચિહ્નિત કરી કારણ કહો, કોઈને એક આપો, અથવા નવી શરૂઆત માટે બધું સાફ કરો.", "आइटम या पूरा शीर्षक एक साथ टिक करें, किसी को रुका हुआ चिह्नित करके कारण बताएँ, किसी को एक दें, या नई शुरुआत के लिए सब साफ़ करें।", "Spunta le voci o un'intera sezione in una volta, segna una come bloccata e di' perché, assegnane una a qualcuno, o cancella tutto per ripartire da zero.", "Pažymėk punktus arba visą antraštę iš karto, pažymėk vieną kaip užblokuotą ir pasakyk kodėl, perduok vieną kam nors arba išvalyk viską naujai pradžiai.", "आइटम वा पूरै शीर्षक एकैपटक टिक गर्नुहोस्, एउटालाई रोकिएको चिन्ह लगाएर कारण भन्नुहोस्, कसैलाई एउटा दिनुहोस्, वा नयाँ सुरुवातका लागि सबै खाली गर्नुहोस्।", "Odhaczaj pozycje albo cały nagłówek naraz, oznacz jedną jako zablokowaną i powiedz dlaczego, daj jedną komuś albo wyczyść wszystko na nowy start.", "Marca itens ou um título inteiro de uma vez, marca um como bloqueado e diz porquê, dá um a alguém, ou limpa tudo para começar de novo.", "ਆਈਟਮਾਂ ਜਾਂ ਪੂਰਾ ਸਿਰਲੇਖ ਇੱਕੋ ਵਾਰ ਟਿੱਕ ਕਰੋ, ਇੱਕ ਨੂੰ ਰੁਕਿਆ ਮਾਰਕ ਕਰਕੇ ਕਾਰਨ ਦੱਸੋ, ਕਿਸੇ ਨੂੰ ਇੱਕ ਦਿਓ, ਜਾਂ ਨਵੀਂ ਸ਼ੁਰੂਆਤ ਲਈ ਸਭ ਸਾਫ਼ ਕਰੋ।", "Bifează puncte sau un titlu întreg deodată, marchează unul ca blocat și spune de ce, dă unul cuiva sau șterge tot pentru un nou început.", "Marca elementos o un apartado entero de golpe, marca uno como bloqueado y di por qué, pásale uno a alguien o bórralo todo para empezar de cero.", "உருப்படிகளை அல்லது முழுத் தலைப்பை ஒரே நேரத்தில் டிக் செய்யுங்கள், ஒன்றைத் தடைபட்டதாகக் குறித்து காரணம் சொல்லுங்கள், ஒன்றை யாருக்காவது கொடுங்கள், அல்லது புதிய தொடக்கத்துக்கு எல்லாவற்றையும் அழியுங்கள்.", "Maddeleri ya da bir başlığın tamamını tek seferde işaretle, birini engelli olarak işaretleyip nedenini söyle, birini birine ver ya da yeni bir başlangıç için her şeyi temizle.", "Відмічай пункти або цілий заголовок одразу, познач один як заблокований і скажи чому, дай один комусь або очисти все для нового початку.", "آئٹمز یا پوری سرخی ایک ساتھ ٹک کریں، کسی کو رکا ہوا نشان لگا کر وجہ بتائیں، کسی کو ایک دیں، یا نئی شروعات کے لیے سب صاف کریں۔", "Đánh dấu từng mục hoặc cả một tiêu đề cùng lúc, đánh dấu một mục bị kẹt và nói lý do, giao một mục cho ai đó, hoặc xóa tất cả để bắt đầu lại.", "Ticia eitemau neu bennawd cyfan ar unwaith, marcia un wedi'i rwystro a dweud pam, rho un i rywun, neu clirio popeth ar gyfer dechrau newydd."],
+"The owner also has a master clear in Owner settings.": ["لدى المالك أيضًا مسح رئيسي في إعدادات المالك.", "Սեփականատերը նաև ունի ընդհանուր մաքրում Սեփականատիրոջ կարգավորումներում։", "মালিকের জন্য Owner settings-এ মাস্টার ক্লিয়ারও আছে।", "Собственикът има и пълно изчистване в настройките на собственика.", "店主在店主设置里还有总清空。", "Le propriétaire a aussi une réinitialisation générale dans les réglages du propriétaire.", "માલિક પાસે Owner settings માં માસ્ટર ક્લિયર પણ છે.", "मालिक के पास Owner settings में मास्टर क्लियर भी है।", "Il titolare ha anche un azzeramento generale nelle impostazioni del titolare.", "Savininkas savininko nustatymuose turi ir visišką išvalymą.", "मालिकसँग Owner settings मा मास्टर क्लियर पनि छ।", "Właściciel ma też pełne czyszczenie w ustawieniach właściciela.", "O dono também tem uma limpeza geral nas definições do dono.", "ਮਾਲਕ ਕੋਲ Owner settings ਵਿੱਚ ਮਾਸਟਰ ਕਲੀਅਰ ਵੀ ਹੈ।", "Proprietarul are și o ștergere generală în setările proprietarului.", "El dueño también tiene un borrado general en los ajustes del dueño.", "உரிமையாளருக்கு Owner settings-இல் முழு அழிப்பும் உள்ளது.", "Sahibin, sahip ayarlarında bir de genel temizleme seçeneği var.", "Власник також має повне очищення в налаштуваннях власника.", "مالک کے پاس Owner settings میں ماسٹر کلیئر بھی ہے۔", "Chủ quán còn có nút xóa toàn bộ trong phần cài đặt của chủ.", "Mae gan y perchennog hefyd glirio'r cyfan yng ngosodiadau'r perchennog."],
+"Napkin dispensers and napkins topped up": ["تمت تعبئة موزعات المناديل والمناديل", "Անձեռոցիկների դիսպենսերները և անձեռոցիկները համալրված են", "ন্যাপকিন ডিসপেন্সার আর ন্যাপকিন ভরা হয়েছে", "Диспенсърите за салфетки и салфетките са допълнени", "餐巾纸盒和餐巾纸已补满", "Distributeurs de serviettes et serviettes réapprovisionnés", "નેપકિન ડિસ્પેન્સર અને નેપકિન ભરી દીધા", "नैपकिन डिस्पेंसर और नैपकिन भर दिए", "Dispenser di tovaglioli e tovaglioli riforniti", "Servetėlių dalytuvai ir servetėlės papildyti", "न्यापकिन डिस्पेन्सर र न्यापकिन भरिए", "Pojemniki na serwetki i serwetki uzupełnione", "Dispensadores de guardanapos e guardanapos repostos", "ਨੈਪਕਿਨ ਡਿਸਪੈਂਸਰ ਅਤੇ ਨੈਪਕਿਨ ਭਰ ਦਿੱਤੇ", "Dozatoarele de șervețele și șervețelele completate", "Servilleteros y servilletas repuestos", "நாப்கின் டிஸ்பென்சர்களும் நாப்கின்களும் நிரப்பப்பட்டன", "Peçetelikler ve peçeteler dolduruldu", "Диспенсери для серветок і серветки поповнено", "نیپکن ڈسپنسر اور نیپکن بھر دیے", "Đã châm đầy hộp đựng khăn giấy và khăn giấy", "Dosbarthwyr napcynau a napcynau wedi'u llenwi"],
+"Ice cream, shakers, cup holders, cups, spoons and straws topped up": ["تمت تعبئة الآيس كريم والشيكرات وحوامل الأكواب والأكواب والملاعق والمصاصات", "Պաղպաղակը, շեյքերները, բաժակակալները, բաժակները, գդալները և ծղոտները համալրված են", "আইসক্রিম, শেকার, কাপ হোল্ডার, কাপ, চামচ আর স্ট্র ভরা হয়েছে", "Сладоледът, шейкърите, поставките за чаши, чашите, лъжиците и сламките са допълнени", "冰淇淋、摇壶、杯托、杯子、勺子和吸管已补满", "Glace, shakers, porte-gobelets, gobelets, cuillères et pailles réapprovisionnés", "આઇસક્રીમ, શેકર, કપ હોલ્ડર, કપ, ચમચી અને સ્ટ્રો ભરી દીધા", "आइसक्रीम, शेकर, कप होल्डर, कप, चम्मच और स्ट्रॉ भर दिए", "Gelato, shaker, portabicchieri, bicchieri, cucchiaini e cannucce riforniti", "Ledai, plakikliai, puodelių laikikliai, puodeliai, šaukšteliai ir šiaudeliai papildyti", "आइसक्रिम, सेकर, कप होल्डर, कप, चम्चा र स्ट्र भरिए", "Lody, shakery, uchwyty na kubki, kubki, łyżeczki i słomki uzupełnione", "Gelado, shakers, porta-copos, copos, colheres e palhinhas repostos", "ਆਈਸਕ੍ਰੀਮ, ਸ਼ੇਕਰ, ਕੱਪ ਹੋਲਡਰ, ਕੱਪ, ਚਮਚੇ ਅਤੇ ਸਟ੍ਰਾਅ ਭਰ ਦਿੱਤੇ", "Înghețata, shakerele, suporturile de pahare, paharele, lingurițele și paiele completate", "Helado, cocteleras, portavasos, vasos, cucharas y pajitas repuestos", "ஐஸ்கிரீம், ஷேக்கர்கள், கப் ஹோல்டர்கள், கப்புகள், கரண்டிகள், ஸ்ட்ராக்கள் நிரப்பப்பட்டன", "Dondurma, shaker'lar, bardak tutucular, bardaklar, kaşıklar ve pipetler dolduruldu", "Морозиво, шейкери, підставки для стаканів, стакани, ложки та трубочки поповнено", "آئس کریم، شیکر، کپ ہولڈر، کپ، چمچ اور اسٹرا بھر دیے", "Đã châm đầy kem, bình lắc, giá để ly, ly, thìa và ống hút", "Hufen iâ, ysgydwyr, daliwyr cwpanau, cwpanau, llwyau a gwellt wedi'u llenwi"],
+"Shake station floor mopped": ["تم مسح أرضية محطة الميلك شيك", "Շեյքի կայանի հատակը լվացված է", "শেক স্টেশনের মেঝে মোছা হয়েছে", "Подът на шейк станцията е измит", "奶昔台地面已拖", "Sol du poste à milkshakes lavé", "શેક સ્ટેશનનું ભોંયતળિયું પોતું કર્યું", "शेक स्टेशन का फ़र्श पोंछा", "Pavimento della postazione frappé lavato", "Kokteilių stoties grindys išplautos", "सेक स्टेसनको भुइँ पुछियो", "Podłoga przy stanowisku shake'ów umyta", "Chão da estação de batidos lavado", "ਸ਼ੇਕ ਸਟੇਸ਼ਨ ਦਾ ਫ਼ਰਸ਼ ਪੋਚਾ ਲਾਇਆ", "Podeaua stației de shake-uri spălată", "Suelo de la estación de batidos fregado", "ஷேக் ஸ்டேஷன் தரை துடைக்கப்பட்டது", "Milkshake istasyonunun zemini paspaslandı", "Підлогу біля станції шейків вимито", "شیک اسٹیشن کا فرش پونچھا", "Đã lau sàn khu pha sữa lắc", "Llawr yr orsaf ysgytlaeth wedi'i fopio"],
+"Nothing running low or {1}'d.": ["لا شيء ينفد أو عليه 86.", "Ոչինչ չի պակասում կամ 86 չէ։", "কিছু কমে আসছে না বা 86 হয়নি।", "Нищо не свършва и няма 86.", "没有快用完或 86 的东西。", "Rien ne manque ni n'est en 86.", "કંઈ ખૂટતું નથી કે 86 નથી.", "कुछ कम नहीं पड़ रहा, न 86 है।", "Niente in esaurimento o in 86.", "Nieko nesibaigia ir nėra 86.", "केही सकिँदैन वा 86 छैन।", "Nic się nie kończy ani nie jest 86.", "Nada a acabar nem em 86.", "ਕੁਝ ਘੱਟ ਨਹੀਂ ਅਤੇ ਨਾ ਹੀ 86 ਹੈ।", "Nimic pe terminate sau în 86.", "Nada se acaba ni está en 86.", "எதுவும் குறையவில்லை, 86 இல்லை.", "Azalan ya da 86 olan bir şey yok.", "Нічого не закінчується і немає 86.", "کچھ کم نہیں اور نہ ہی 86 ہے۔", "Không có gì sắp hết hay bị 86.", "Dim byd yn mynd yn isel nac wedi'i 86."]
 }
 };
 const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
@@ -5223,9 +5327,12 @@ const FEATURES = [
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", tour: 1,
     what: "Everything about your pay in one tab: your hours, an estimated take-home after tax, National Insurance, student loan and pension, tronc at £5 an hour that you can switch off, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
     staff: "Add shifts, read them from a Nory screenshot, type in Nory's hours or gross wage, or just pick about how many hours a week. Then set your tax code, loan and pension once." },
-  { g: "Shift", k: "lists", n: "Checklists", go: "shift", team: 1, tour: 1,
-    what: "Opening and closing checklists for the bar and floor, ticked off live on every phone.",
-    staff: "Tick items off, start one, mark one blocked and say why, or give one to someone." },
+  { g: "Shift", k: "morning", n: "Morning", go: "morning", team: 1, tour: 1,
+    what: "Last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
+    staff: "Read the handover, send that it's checked with anything outstanding, send the order and the prep list on WhatsApp." },
+  { g: "Shift", k: "lists", n: "Closing checklists", go: "shift", team: 1, tour: 1,
+    what: "The bar and floor closes, ticked off live on every phone, with how long it's taking and who has ticked what.",
+    staff: "Tick items off or a whole heading at once, mark one blocked and say why, give one to someone, or clear everything for a fresh start.", mgr: "The owner also has a master clear in Owner settings." },
   { g: "Shift", k: "labels", n: "Date labels", go: "labels", team: 1,
     what: "Everything that gets dated once it's opened: when each one needs changing, and what's due tomorrow.",
     staff: "Tap Opened one or Changed it, and add items. Each tap is saved with your name and the time." },
@@ -5238,9 +5345,6 @@ const FEATURES = [
   { g: "Shift", k: "football", n: "Football", go: "football", team: 1,
     what: "Today's and coming games at the top of the Shift tab, so everyone knows what's on the screens.",
     staff: "See the games, and add or remove one." },
-  { g: "Team", k: "msgs", n: "Live messages", go: "msgs", team: 1, tour: 1,
-    what: "Anyone posts to everyone, the bar or the floor: Urgent goes CODE RED at the top of every phone, ASAP goes amber, until each person taps Got it. FYI just lights up the bell. 86 changes show at the top too.",
-    staff: "Post one (from a template, or save your own for everyone), tap Got it, see who has seen it, and send it on WhatsApp too for phones with the app shut." },
   { g: "Team", k: "ask", n: "To the manager", go: "ask", team: 1,
     what: "Days off, swaps, complaints, faults, things to fix, ideas or anything else, straight to the manager, with your name or anonymously.",
     staff: "Send one and see when it's seen or done.", mgr: "Read them all in the Inbox, mark each seen or done, and reply." },
@@ -5293,9 +5397,8 @@ function openFeatures() {
 function openAt(where) {
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where === "shift") return show("tally");
-  if (["stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
+  if (["morning", "stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
   show("notices");
-  if (where === "msgs") return;
   document.activeElement?.blur?.();
   tmOpen.add(where); store.set("tmOpen", [...tmOpen]); renderTeam();
   document.querySelector(`[data-card="${where}"]`)?.scrollIntoView({ block: "start" });
@@ -5417,83 +5520,26 @@ function rude(...xs) {
 }
 const RUDE = "That has a slur in it, so it can't go out. Quoting what someone said, for a complaint or an incident? Write it with stars or as \"the N-word\".";
 
-/* ---------- Live messages ----------
-   Anyone on the team posts a message to everyone, the bar or the floor. Urgent and ASAP ones sit at the top of every
-   page in a CODE RED (or amber) banner on every phone until each person taps Got it. FYI ones only light up the bell.
-   Templates are the usual ones; the team adds its own, which every phone gets. */
-const LEVEL = { urgent: ["Urgent", "🔴"], asap: ["ASAP", "🟠"], info: ["FYI", "⚪"] };
-const MSG_FOR = { all: "Everyone", bar: "Bar", floor: "Floor" };
-const TEMPLATES = [
-  ["urgent", "Need a hand at the bar now"], ["urgent", "Need a hand on the floor now"], ["urgent", "Guest needs first aid. First aider please"],
-  ["urgent", "Broken glass on the floor. Mind out"], ["urgent", "Card machines are down"], ["urgent", "Aggressive guest. Need backup"],
-  ["asap", "Need ice at the bar"], ["asap", "Running low on clean glasses"], ["asap", "Big table just sat down"], ["asap", "Can someone cover my section for 5 minutes?"],
-  ["asap", "Toilets need checking"], ["asap", "Need change for the till"],
-  ["info", "Going on my break"], ["info", "Back from my break"], ["info", "Last orders in 15 minutes"], ["info", "Delivery's arrived"], ["info", "Music's too loud, turning it down"],
-];
-// A built-in template goes through the app's words like any other; anything typed gets the Translate button.
-const msgTxt = (s) => (TEMPLATES.some(([, x]) => x === s) ? esc(s) : ut(s));
-const forSide = (x) => !x.side || x.side === "all" || x.side === mode;
-let msgF = { text: "", level: "asap", side: "all", wa: false };
-const seenBy = (n) => LIVE.seen.filter((s) => s.notice === n.id);
-const mySeen = () => new Set(LIVE.seen.filter((s) => s.uid === LIVE.uid).map((s) => s.notice));
-// Urgent and ASAP messages for this phone's side that this person hasn't tapped Got it on.
-const loud = () => (LIVE.loaded.has("seen") ? LIVE.notices.filter((x) => x.level !== "info" && forSide(x) && x.uid !== LIVE.uid && !x.pending && !mySeen().has(x.id)) : []);
-let feedSeen = store.get("feedSeen", 0);
-const newMsgs = () => LIVE.notices.filter((x) => x.uid !== LIVE.uid && forSide(x) && ms(x.at) > feedSeen);
 const newAsks = () => (LIVE.admin ? LIVE.asks.filter((a) => a.status === "new") : []);
 // 86 changes since this phone last tapped Got it on them, from the last 12 hours, not counting its own.
 let outAck = store.get("outAck", 0);
 const outNews = () => LIVE.outlog.filter((x) => x.uid !== LIVE.uid && !x.pending && ms(x.at) > Math.max(outAck, Date.now() - 12 * 36e5)).slice(0, 8);
 function renderBell() {
-  const n = newMsgs().length + newAsks().length;
+  const n = newAsks().length;
   $("#bell").hidden = !LIVE.me; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
   $("#bell").setAttribute("aria-label", n ? `Team, ${n} new` : "Team");
   $("#team-n").hidden = !n; $("#team-n").textContent = n > 9 ? "9+" : n;
 }
-function markSeen() {
-  const all = LIVE.notices.map((x) => ms(x.at));
-  if (all.length) { feedSeen = Math.max(feedSeen, ...all); store.set("feedSeen", feedSeen); }
-  renderBell();
-}
-// CODE RED: at the top of every page.
+// 86 changes at the top of every page until Got it.
 function renderBcast() {
-  const xs = LIVE.me ? loud() : [], outs = LIVE.me && LIVE.loaded.has("outlog") ? outNews() : [];
-  document.documentElement.classList.toggle("codered", xs.some((x) => x.level === "urgent"));
-  $("#bcast").innerHTML = xs.map((x) => `<article class="bcast lv-${x.level}" role="alert"><div class="meta"><b>${x.level === "urgent" ? "CODE RED" : "ASAP"}</b> · ${esc(x.name)} · ${when(x.at)}${x.side !== "all" ? ` · for the ${MSG_FOR[x.side].toLowerCase()}` : ""}</div>
-      <p>${LEVEL[x.level][1]} ${msgTxt(x.text)}</p><button class="btn pri" data-bc-ok="${x.id}">Got it</button></article>`).join("")
-    + (outs.length ? `<article class="bcast lv-out" role="status"><div class="meta"><b>86 update</b></div><p>${outs.map((x) => `${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "is 86'd" : "is back on"} (${esc(x.name)}, ${hhmm(new Date(ms(x.at)))})`).join("<br>")}</p>
-      <button class="btn pri" id="bc-out-ok">Got it</button></article>` : "");
+  const outs = LIVE.me && LIVE.loaded.has("outlog") ? outNews() : [];
+  $("#bcast").innerHTML = outs.length ? `<article class="bcast lv-out" role="status"><div class="meta"><b>86 update</b></div><p>${outs.map((x) => `${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "is 86'd" : "is back on"} (${esc(x.name)}, ${hhmm(new Date(ms(x.at)))})`).join("<br>")}</p>
+      <button class="btn pri" id="bc-out-ok">Got it</button></article>` : "";
 }
 $("#bcast").addEventListener("click", (e) => {
   if (e.target.closest("#bc-out-ok")) { outAck = Date.now(); store.set("outAck", outAck); haptic(); return renderBcast(); }
-  const b = e.target.closest("[data-bc-ok]"), n = b && LIVE.notices.find((x) => x.id === b.dataset.bcOk); if (!n) return;
-  track(LIVE.api.gotIt(n), null, "Not saved. Try again"); haptic();
 });
-SHARE.msg = (id) => {
-  const x = LIVE.notices.find((n) => n.id === id) || (msgF.text.trim() && { text: msgF.text.trim(), level: msgF.level, side: msgF.side, name: LIVE.me }); if (!x) return null;
-  return { what: "Message", title: `${LEVEL[x.level][1]} ${LEVEL[x.level][0]}${x.side !== "all" ? ` · ${MSG_FOR[x.side]}` : ""}`, head: [x.text, `${x.name}, ${hhmm(new Date(ms(x.at)))}`], parts: [], noteHead: null };
-};
 
-/* ---------- Alerts: sound, buzz and the phone's own notifications ----------
-   While Bar Book is open (or in the background on Android), a new urgent message buzzes and beeps. With alerts switched
-   on, a phone that has Bar Book open in the background also shows a notification. A phone with the app shut gets
-   nothing (that needs a paid server), so urgent messages offer WhatsApp too. */
-let audio = null;
-function beep() {
-  try {
-    audio ||= new AudioContext();
-    const o = audio.createOscillator(), g = audio.createGain(); o.type = "square"; o.frequency.value = 880;
-    g.gain.setValueAtTime(0.0001, audio.currentTime); g.gain.exponentialRampToValueAtTime(0.25, audio.currentTime + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime + 0.5);
-    o.connect(g).connect(audio.destination); o.start(); o.stop(audio.currentTime + 0.55);
-  } catch {}
-}
-const alertsOn = () => "Notification" in window && Notification.permission === "granted";
-function notify(title, body, loudly) {
-  if (loudly) { try { navigator.vibrate?.([250, 120, 250, 120, 250]); } catch {} beep(); }
-  if (!document.hidden || !alertsOn()) return;
-  navigator.serviceWorker?.ready.then((r) => r.showNotification(title, { body, icon: "icon-192.png", tag: title, renotify: true })).catch(() => {});
-}
-document.addEventListener("click", () => { try { audio ||= new AudioContext(); audio.resume?.(); } catch {} }, { once: true });
 
 /* ---------- To the manager ----------
    Days off, swaps, complaints, faults, things to fix, ideas or anything else, straight to the manager. Sent
@@ -5728,7 +5774,8 @@ function peopleHtml() {
     ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, change the team code in Firebase and share the new link.</p>` : ""}`;
 }
 function mgrHtml() {
-  return `<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
+  return `${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board, restock requests, the inbox, issues and shout-outs for everyone. Sent handovers and their photos stay.</p>
+      <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
     <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>
     ${LIVE.owner && !LIVE.staff.some((p) => p.role === "manager") ? `<div class="h3">Add the manager</div>
       <p class="note">Their own login, with a password you pick and give them in person. They see and can do everything you can, except add or remove a manager.</p>
@@ -5740,7 +5787,7 @@ function mgrHtml() {
 
 /* ---------- The Team page ----------
    Who you are, then posting a message and the messages, then a card for each tool. Cards stay open or shut as left. */
-const tmOpen = new Set(store.get("tmOpen", ["msgs"]));
+const tmOpen = new Set(store.get("tmOpen", []));
 const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
 const CARDS = () => [
   ...(LIVE.admin ? [
@@ -5776,35 +5823,11 @@ function topHtml() {
       <label class="fld">Password<input id="l-pw" type="password" autocomplete="current-password"></label>
       <button class="btn pri wide" id="l-go">Log in</button></details>`;
 }
-function postHtml() {
-  if (!LIVE.me) return "";
-  const tpl = [...TEMPLATES.map(([level, text]) => ({ level, text })), ...LIVE.templates].filter((t) => t.level === msgF.level);
-  return `<div class="fbbox post"><div class="seg lvl">${Object.entries(LEVEL).map(([k, [t, e]]) => `<button data-lvl="${k}" aria-pressed="${msgF.level === k}">${e} ${t}</button>`).join("")}</div>
-    <label class="fld">Message<textarea id="m-text" rows="2" maxlength="1000" placeholder="${{ urgent: "Need a hand at the bar now", asap: "Need ice at the bar", info: "Going on my break" }[msgF.level]}">${esc(msgF.text)}</textarea></label>
-    <details class="tpl"><summary>Templates</summary><div class="recent">${tpl.map((t) => `<button class="chip" data-tpl="${esc(t.text)}">${esc(t.text)}</button>${t.id ? `<button class="chip x" data-tpl-drop="${t.id}" aria-label="Remove template">×</button>` : ""}`).join("")}</div>
-      <div class="actions"><button class="btn" id="tpl-save">Save what's typed as a template</button></div></details>
-    <div class="recent">${Object.entries(MSG_FOR).map(([k, t]) => `<button class="chip" data-for="${k}" aria-pressed="${msgF.side === k}">${t}</button>`).join("")}</div>
-    <label class="check"><input type="checkbox" id="m-wa"${msgF.wa || msgF.level === "urgent" ? " checked" : ""}> Send it on WhatsApp too (for phones with the app shut)</label>
-    <div class="actions"><button class="btn pri" id="m-go">Post${msgF.level === "urgent" ? " CODE RED" : ""}</button>${"Notification" in window && !alertsOn() && Notification.permission !== "denied" ? `<button class="btn" id="alerts-on">Turn on alerts on this phone</button>` : ""}</div></div>`;
-}
-function msgsHtml() {
-  if (!LIVE.me) return "";
-  const xs = LIVE.notices.filter((x) => LIVE.admin || forSide(x)), mine = mySeen();
-  return `<div class="sec">Messages</div>${xs.map((x) => {
-    const by = seenBy(x).filter((s) => s.uid !== x.uid);
-    return `<article class="notice msg lv-${x.level || "info"}"><div class="meta"><span class="pill ${x.level === "urgent" ? "no" : x.level === "asap" ? "wait" : ""}">${LEVEL[x.level || "info"][1]} ${LEVEL[x.level || "info"][0]}</span> <b translate="no">${esc(x.name)}</b> · ${when(x.at)}${x.side && x.side !== "all" ? ` · ${MSG_FOR[x.side]}` : ""}${x.pending ? " · sending…" : ""}</div>
-      <p class="txt">${msgTxt(x.text)}</p>${by.length ? `<p class="note">Seen by ${by.map((s) => esc(s.name)).join(", ")}</p>` : ""}
-      <div class="actions">${x.uid !== LIVE.uid && !mine.has(x.id) ? `<button class="btn pri" data-bc-ok2="${x.id}">Got it</button>` : ""}${sendBtn("msg", "WhatsApp", x.id)}<button class="btn" data-unpost="${x.id}">Remove</button></div></article>`;
-  }).join("") || `<p class="note">No messages yet.</p>`}`;
-}
 function renderTeam() {
   if ($("#v-notices").hidden) return;
   const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if (!typing($("#tm-top"))) $("#tm-top").innerHTML = topHtml();
-  if (!typing($("#tm-post"))) $("#tm-post").innerHTML = postHtml();
-  $("#tm-msgs").innerHTML = msgsHtml();
   if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = CARDS().map(([k, t, f, sub]) => card(k, t, f, sub)).join("");
-  markSeen();
 }
 function renderNotices() { renderTeam(); }
 // Opening or shutting a card is remembered, and its inside is drawn as it opens.
@@ -5815,7 +5838,6 @@ $("#v-notices").addEventListener("toggle", (e) => {
 }, true);
 $("#v-notices").addEventListener("input", (e) => {
   const t = e.target;
-  if (t.id === "m-text") msgF.text = t.value;
   if (t.dataset.ask) askF[t.dataset.ask] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.inc) { incF[t.dataset.inc] = t.type === "checkbox" ? t.checked : t.value; saveInc(); }
   if (t.dataset.rt) { rateF[t.dataset.rt] = t.value; store.set("rateDraft", rateF); }
@@ -5828,7 +5850,6 @@ $("#v-notices").addEventListener("input", (e) => {
 });
 $("#v-notices").addEventListener("change", (e) => {
   const t = e.target;
-  if (t.id === "m-wa") msgF.wa = t.checked;
   if (t.dataset.ask === "anon") { askF.anon = t.checked; renderCard("ask"); }
   if (t.dataset.give && t.value) {
     const p = LIVE.staff.find((x) => x.uid === t.value);
@@ -5853,25 +5874,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   }
   if (b("#tm-leave")) { if (confirm(LIVE.admin ? "Log out on this phone?" : "Leave the team on this phone? Open the team link to join again.")) A.leave(); return; }
   if (b("#tm-rename")) { const n = prompt("Your first name", LIVE.me); if (n && n.trim()) setName(n); return; }
-  if (b("#alerts-on")) { Notification.requestPermission().then(() => renderTeam()); return; }
-  // Posting a message.
-  if ((x = b("[data-lvl]"))) { msgF.level = x.dataset.lvl; return renderTeam(); }
-  if ((x = b("[data-for]"))) { msgF.side = x.dataset.for; return renderTeam(); }
-  if ((x = b("[data-tpl]"))) { msgF.text = x.dataset.tpl; $("#m-text").value = msgF.text; return; }
-  if ((x = b("[data-tpl-drop]"))) return track(A.dropTemplate(x.dataset.tplDrop), "Template removed");
-  if (b("#tpl-save")) { const tx = msgF.text.trim(); if (!tx) return toast("Type the message first"); if (rude(tx)) return toast(RUDE); return track(A.saveTemplate(tx.slice(0, 300), msgF.level), "Saved for everyone"); }
-  if (b("#m-go")) {
-    const tx = msgF.text.trim(); if (!tx) return toast("Type a message");
-    if (rude(tx)) return toast(RUDE);
-    const wa = $("#m-wa").checked, p = A.post(tx, msgF.side, msgF.level);
-    track(p, msgF.level === "urgent" ? "CODE RED sent to everyone's phone" : "Posted", "Not sent. Check the signal and try again");
-    haptic();
-    if (wa) openSend("msg", "");
-    p.then(() => { msgF = { ...msgF, text: "", wa: false }; renderTeam(); }, () => {});
-    return;
-  }
-  if ((x = b("[data-bc-ok2]"))) { const n = LIVE.notices.find((m) => m.id === x.dataset.bcOk2); if (n) track(A.gotIt(n), null, "Not saved. Try again"); return; }
-  if ((x = b("[data-unpost]"))) { if (confirm("Take this message down for everyone?")) track(A.unpost(x.dataset.unpost), "Taken down"); return; }
   // To the manager.
   if ((x = b("[data-ask-kind]"))) { askF.kind = x.dataset.askKind; return renderCard("ask"); }
   if (b("#ask-go")) {
@@ -5949,6 +5951,7 @@ $("#v-notices").addEventListener("click", async (e) => {
     if (confirm(`Take ${p.name} off the team? Their phone goes back to the drinks only until they join again.`)) track(A.remove(p), `${p.name} is off the team`);
     return;
   }
+  if (b("#master-clear")) { if (LIVE.owner) clearAll(true); return; }
   if (b("#pw-go")) {
     const pw = $("#pw-new").value; if (pw.length < A.PASSWORD_MIN) return toast(`At least ${A.PASSWORD_MIN} characters`);
     return track(A.changePassword(pw).then(() => ($("#pw-new").value = "")), "Password changed", "Not changed. Log out and in again, then try again");
@@ -5999,7 +6002,6 @@ function eventToast(e) {
   return e.to === "finished" ? `${e.label} finished by ${e.name}${e.done < e.required ? `, with ${e.required - e.done} not done` : ""}` : e.from === "finished" ? `${e.label} reopened by ${e.name}` : "";
 }
 const TOAST = {
-  notices: (x) => (forSide(x) || LIVE.admin ? [`${LEVEL[x.level || "info"][1]} ${x.name}: ${x.text.slice(0, 80)}`, x.level === "urgent"] : ""),
   shouts: (x) => `👏 ${x.name} gave ${x.toName === LIVE.me ? "you" : x.toName} a shout-out`,
   issues: (x) => (LIVE.admin && x.status === "open" && x.uid !== LIVE.uid && !x.urgent ? `New issue: ${x.title}` : issueToast(x)),
   events: eventToast,
@@ -6014,18 +6016,15 @@ function liveChanged(what) {
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
   if (what === "me") autoJoin();
   if (what === "lists") applyLists();
-  if (["notices", "seen", "me", "outlog"].includes(what)) renderBcast();
+  if (["me", "outlog"].includes(what)) renderBcast();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
       const k = what + x.id + (x.status || "") + (x.whoUid || "");
       if (x.pending || told.has(k)) continue; told.add(k);
       if (first || (x.uid === LIVE.uid && !["asks", "issues"].includes(what))) continue;
-      const r = TOAST[what](x), [msg, urgent] = Array.isArray(r) ? r : [r, false];
-      if (!msg) continue;
-      if (urgent || what === "notices" && x.level === "asap") notify(urgent ? "CODE RED" : "ASAP", msg, urgent);
-      else if (LIVE.admin) notify("Bar Book", msg, false);
-      if ($("#v-notices").hidden || what !== "notices") toast(msg);
+      const msg = TOAST[what](x);
+      if (msg) toast(msg);
     }
   }
   renderBell(); renderNet();

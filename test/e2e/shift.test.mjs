@@ -44,10 +44,10 @@ test("the next shift sees the last handover, the send page lists what's left, an
   // Sent 30 hours ago, so always from an earlier shift.
   await adminWrite("reports/old", { side: { stringValue: "bar" }, text: { stringValue: text }, summary: { stringValue: "Bar · test" }, photos: { integerValue: "0" },
     uid: { stringValue: sam }, name: { stringValue: "Sam Staff" }, at: { timestampValue: new Date(Date.now() - 30 * 36e5).toISOString() } });
-  await O.click("[data-tab=tally]"); await O.click(".ptabs [data-pane=open]");
+  await O.click("[data-tab=tally]"); await O.click(".ptabs [data-pane=morning]");
   await O.waitForSelector("#handover");
-  assert.match(await O.$eval("#handover", (e) => e.innerText), /Last handover · Sam Staff[\s\S]*Ice machine slow, engineer booked[\s\S]*Ice well emptied, cleaned and dried[\s\S]*Blocked: Glass washer drained and cleaned \(Part on order\)/);
-  await O.evaluate(() => setMode("floor")); await O.click(".ptabs [data-pane=fset]");
+  assert.match(await O.$eval("#handover", (e) => e.innerText), /Last night's handover · Sam Staff[\s\S]*Outstanding\s*Ice machine slow, engineer booked[\s\S]*Ice well emptied, cleaned and dried[\s\S]*Blocked: Glass washer drained and cleaned \(Part on order\)/);
+  await O.evaluate(() => setMode("floor")); await O.click(".ptabs [data-pane=morning]");
   assert.equal(await O.locator("#handover").count(), 0, "the floor only sees floor reports");
   await O.evaluate(() => setMode("bar"));
 
@@ -58,9 +58,9 @@ test("the next shift sees the last handover, the send page lists what's left, an
   assert.equal(await O.$eval("#todo", (e) => e.open), false, "a long list starts folded");
   await O.click("#todo summary");
   const left = await O.$eval("#todo", (e) => e.innerText);
-  assert.match(left, /Still to do \(51\)\s*Open bar tabs closed[\s\S]*Ice well full/i, "37 closing items, then 14 opening ones");
+  assert.match(left, /Still to do \(37\)\s*Open bar tabs closed/i, "37 closing items left, and no opening list");
   assert.doesNotMatch(left, /Last orders called/);
-  assert.match(await O.$eval("#t-copy", (e) => e.textContent), /Hand over with 51 not done/);
+  assert.match(await O.$eval("#t-copy", (e) => e.textContent), /Hand over with 37 not done/);
   await O.click('[data-jump="close"][data-jump-i="1"]');
   assert.equal(await O.evaluate(() => pane), "close");
 
@@ -85,7 +85,7 @@ test("closing reports are sent once and the owner and manager read them", async 
   await O.waitForFunction(() => LIVE.reports.length === 1);
   const r = await O.evaluate(() => LIVE.reports[0]);
   assert.equal(r.side, "bar");
-  assert.match(r.summary, /^Bar · Opening 0\/\d+ · Closing 0\/\d+ · 0 86'd$/);
+  assert.match(r.summary, /^Bar · Closing 0\/\d+ · 0 86'd$/);
   assert.match(r.text, /Run by: Sam Staff/);
   await S.evaluate(() => setMode("floor")); await S.click(".ptabs [data-pane=send]"); await handOver(S);
   await O.waitForFunction(() => LIVE.reports.length === 2);
@@ -119,14 +119,12 @@ test("the handover covers the four closing points and needs photos or a reason",
   await O.waitForFunction(() => LIVE.reports.length === 1);
   const text = await O.evaluate(() => LIVE.reports[0].text);
   assert.match(text, /Note for handover:\nRunning low: Gas \(CO2\), Garnishes\nFor tomorrow: Prep: lime juice\n\nClosed by: \(not picked\)\nNo closing photos: Phone camera broken$/);
-  // The opening team sees it at the top of their first list, which starts with reading it. (A copy dated last night, as
-  // only an earlier shift's handover shows.)
+  // The opening team sees it on the Morning page. (A copy dated last night, as only an earlier shift's handover shows.)
   const sam = await S.evaluate(() => LIVE.uid);
   await adminWrite("reports/old", { side: { stringValue: "bar" }, text: { stringValue: text }, summary: { stringValue: "Bar · test" }, photos: { integerValue: "0" },
     uid: { stringValue: sam }, name: { stringValue: "Sam Staff" }, at: { timestampValue: new Date(Date.now() - 30 * 36e5).toISOString() } });
-  await O.click("[data-tab=tally]"); await O.click(".ptabs [data-pane=open]");
+  await O.click("[data-tab=tally]"); await O.click(".ptabs [data-pane=morning]");
   await O.waitForSelector("#handover");
-  assert.match(await O.$eval("#handover", (e) => e.innerText), /Running low: Gas \(CO2\), Garnishes[\s\S]*No closing photos: Phone camera broken[\s\S]*Opening team: read this/);
-  assert.match(await O.$eval("[data-list=open]", (e) => `${e.dataset.i} ${e.innerText}`), /^14 Last night's handover/, "the first item keeps its id");
+  assert.match(await O.$eval("#handover", (e) => e.innerText), /Last night's handover · Sam Staff[\s\S]*Running low\s*Gas \(CO2\), Garnishes[\s\S]*For today\s*Prep: lime juice[\s\S]*No closing photos: Phone camera broken/);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
