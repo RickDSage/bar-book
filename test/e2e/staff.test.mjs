@@ -36,6 +36,17 @@ test("joining: the team link and a name, no login; a wrong code is refused", asy
   assert.notEqual(err, "allowed");
   await q.evaluate(() => show("notices"));
   assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Owner or senior login/i);
+  // Through the form: a refused code says why and gives the form back.
+  await q.fill("#j-name", "Vi");
+  await q.fill("#j-code", "wrong-code-456");
+  await q.click("#j-go");
+  await q.waitForSelector("#tm-top [role=alert]");
+  assert.match(await q.$eval("#tm-top [role=alert]", (e) => e.textContent), /team link didn't work/);
+  assert.equal(await q.$$eval("#j-go", (x) => x.length), 1);
+  // And it doesn't keep retrying by itself (it used to, every fraction of a second, for ever).
+  await q.evaluate(() => { window.joins = 0; const j = LIVE.api.join; LIVE.api.join = (...a) => { joins++; return j(...a); }; });
+  await q.waitForTimeout(1500);
+  assert.equal(await q.evaluate(() => joins), 0);
   assert.deepEqual([p.errs, q.errs], [[], []]);
 });
 
