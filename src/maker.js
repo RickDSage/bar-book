@@ -210,8 +210,10 @@ function mkScore(d, held, picked) {
 function mkHeld(picks, withBar, basics) {
   const m = new Map();
   for (const p of picks) m.set(p.k, p);
-  if (withBar) for (const k of mk.bar) if (!m.has(k)) m.set(k, { k });
-  if (basics) for (const k of MK_BASICS) if (!m.has(k)) m.set(k, { k });
+  // Whatever is on the 86 board tonight isn't on the bar, so it doesn't count.
+  const out = plOutKeys();
+  if (withBar) for (const k of mk.bar) if (!m.has(k) && !out.has(k)) m.set(k, { k });
+  if (basics) for (const k of MK_BASICS) if (!m.has(k) && !out.has(k)) m.set(k, { k });
   return [...m.values()];
 }
 const mkKindOk = (d, kind) => kind === "all" || mkKids(d) === kind;
@@ -737,7 +739,7 @@ function mkPool() {
     && (mk.rnd.mode !== "alc" || mk.rnd.kind === "all" || (mk.rnd.kind === "spritz" ? /Spritz/.test(d.section) : mkKids(d) === mk.rnd.kind))
     && (!mk.rnd.mood || d.tags.some((t) => FLAVOURS[mk.rnd.mood].includes(t)))
     && (!mk.rnd.base || mk.rnd.mode === "zero" || d._b === mk.rnd.base)
-    && !isOut(d.name) && (!mk.rnd.mine || mkCanMake(d)));
+    && !isOut(d.name) && plOutOf(d).ok && (!mk.rnd.mine || mkCanMake(d)));
 }
 function mkRndCard(d) {
   if (!d) return `<div class="mk-rnd"><p class="sub" style="margin:0">Tap Spin and the book picks one for you.</p></div>`;

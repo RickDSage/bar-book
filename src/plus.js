@@ -113,7 +113,7 @@ function plStatsHtml(d, n = 1) {
 }
 
 /* ---------- Serves, batching and ml or oz ---------- */
-const PL = { oz: store.get("oz", false), ticks: { id: null, spec: new Set(), steps: new Set() }, base: null, how: null, sort: store.get("sort", "menu"), open: false, list: null, sq: null };
+const PL = { oz: store.get("oz", false), ticks: { id: null, spec: new Set(), steps: new Set() }, base: null, how: null, sort: store.get("sort", "menu"), open: false, list: null, sq: null, can: false };
 const PL_SERVES = [1, 2, 3, 4, 6, 8, 10, 12];
 function plServesHtml() {
   const i = Math.max(0, PL_SERVES.indexOf(mult)), pv = PL_SERVES[Math.max(0, i - 1)], nx = PL_SERVES[Math.min(PL_SERVES.length - 1, i + 1)];
@@ -197,19 +197,19 @@ const PL_HOW = [["Shaken", /shake/], ["Stirred", /\bstir(?!.*short)/], ["Built",
 const PL_SORTS = [["menu", "Menu order"], ["az", "A to Z"], ["quick", "Fewest ingredients"], ["light", "Lightest"], ["strong", "Strongest"], ["kcal", "Fewest calories"]];
 const plHowOf = (d) => { const m = d.method.toLowerCase(); for (const [k, re] of PL_HOW) if (re && re.test(m)) return k; return "Built"; };
 const plBaseOk = (d) => !PL.base || (PL.base === "zero" ? d._k === "zero" || d.tags.includes("No alcohol") : d._b === PL.base || (PL.base === "brandy" && /cognac|brandy|calvados|pisco|hennessy|martell|courvoisier/i.test(d.spec.join(" "))));
-const plOk = (d) => plBaseOk(d) && (!PL.how || plHowOf(d) === PL.how) && (!PL.list || PL.list.names.has(d.name));
+const plOk = (d) => (!PL.can || plOutOf(d).ok) && plBaseOk(d) && (!PL.how || plHowOf(d) === PL.how) && (!PL.list || PL.list.names.has(d.name));
 function plSort(rows) {
   const by = { az: (a, b) => a.name.localeCompare(b.name), quick: (a, b) => a.spec.length - b.spec.length, light: (a, b) => plFacts(a).units - plFacts(b).units,
     strong: (a, b) => plFacts(b).abv - plFacts(a).abv, kcal: (a, b) => plFacts(a).kcal - plFacts(b).kcal }[PL.sort];
   return by ? rows.slice().sort((a, b) => by(a, b) || a.id - b.id) : rows;
 }
-const plActive = () => [PL.base && PL_SPIRITS.find((x) => x[0] === PL.base)[1], PL.how, PL.sort !== "menu" && PL_SORTS.find((x) => x[0] === PL.sort)[1]].filter(Boolean);
+const plActive = () => [PL.can && "What we can make", PL.base && PL_SPIRITS.find((x) => x[0] === PL.base)[1], PL.how, PL.sort !== "menu" && PL_SORTS.find((x) => x[0] === PL.sort)[1]].filter(Boolean);
 function renderPlf() {
   const box = $("#plf"); if (!box) return;
   const on = plActive(), chips = (list, key, cur) => list.map(([k, l]) => `<button class="chip" data-pl-${key}="${esc(k)}" aria-pressed="${cur === k}">${esc(l)}</button>`).join("");
   box.innerHTML = (PL.list ? `<div class="pl-list"><span>📋 <b translate="no">${esc(PL.list.name)}</b> · ${PL.list.names.size} ${PL.list.names.size === 1 ? "drink" : "drinks"}</span><button class="chip" data-pl="savelist">☆ Save to favourites</button><button class="chip" data-pl="endlist" aria-label="Close the list">✕</button></div>` : "")
     + `<div class="pl-bar"><button class="chip pl-fbtn" data-pl="filters" aria-expanded="${PL.open}">Filter and sort${on.length ? ` <span>(${on.length})</span>` : ""}</button>${on.length && !PL.open ? on.map((l) => `<span class="chip pl-on">${esc(l)}</span>`).join("") + `<button class="chip" data-pl="clear">Clear</button>` : ""}</div>`
-    + (PL.open ? `<div class="pl-panel"><div class="mini">Spirit</div><div class="chips hrow">${chips(PL_SPIRITS, "base", PL.base)}</div>
+    + (PL.open ? `<div class="pl-panel">${plOutKeys().size ? `<div class="mini">Tonight</div><div class="chips hrow"><button class="chip" data-pl-can aria-pressed="${PL.can}">Hide what we can't make</button></div>` : ""}<div class="mini">Spirit</div><div class="chips hrow">${chips(PL_SPIRITS, "base", PL.base)}</div>
       <div class="mini">How it's made</div><div class="chips hrow">${chips(PL_HOW.map(([k]) => [k, k]), "how", PL.how)}</div>
       <div class="mini">Sort</div><div class="chips hrow">${chips(PL_SORTS, "sort", PL.sort)}</div>
       <div class="pl-row"><button class="btn" data-pl="clear">Clear all</button><button class="btn pri" data-pl="filters">Done</button></div></div>` : "");
@@ -217,11 +217,12 @@ function renderPlf() {
 document.addEventListener("click", (e) => {
   const b = e.target.closest("#plf button"); if (!b) return;
   const ds = b.dataset;
-  if (ds.plBase) PL.base = PL.base === ds.plBase ? null : ds.plBase;
+  if ("plCan" in ds) PL.can = !PL.can;
+  else if (ds.plBase) PL.base = PL.base === ds.plBase ? null : ds.plBase;
   else if (ds.plHow) PL.how = PL.how === ds.plHow ? null : ds.plHow;
   else if (ds.plSort) { PL.sort = ds.plSort; store.set("sort", PL.sort); }
   else if (ds.pl === "filters") PL.open = !PL.open;
-  else if (ds.pl === "clear") { PL.base = PL.how = null; PL.sort = "menu"; store.set("sort", "menu"); }
+  else if (ds.pl === "clear") { PL.base = PL.how = null; PL.can = false; PL.sort = "menu"; store.set("sort", "menu"); }
   else if (ds.pl === "endlist") { PL.list = null; if (location.hash.startsWith("#list=")) history.replaceState(null, "", location.pathname + location.search); }
   else if (ds.pl === "savelist") { for (const n of PL.list.names) fav.add(n); store.set("fav", [...fav]); renderChips(); toast(`${PL.list.names.size} drinks in your favourites`); return; }
   haptic(); renderList();
@@ -230,7 +231,7 @@ document.addEventListener("click", (e) => {
 /* ---------- Spec of the day ---------- */
 // The same drink for the whole team, changing at midnight UK time: one spec a day to know by heart.
 function plDaily() {
-  const pool = D.filter((d) => d._k === "cocktail" && !isOut(d.name)); if (!pool.length) return null;
+  const pool = D.filter((d) => d._k === "cocktail" && !isOut(d.name) && plOutOf(d).ok); if (!pool.length) return null;
   const day = ukDay(Date.now()); let h = 0; for (const c of day) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return pool[(h * 7 + Math.floor(Date.parse(day) / 864e5)) % pool.length];
 }
@@ -258,7 +259,7 @@ async function plCardBlob(d, n = 1) {
   const wrap = (t, w, f) => { x.font = f; const out = []; let cur = ""; for (const word of t.split(" ")) { const tt = cur ? cur + " " + word : word; if (x.measureText(tt).width > w && cur) { out.push(cur); cur = word; } else cur = tt; } if (cur) out.push(cur); return out; };
   const body = "34px system-ui, -apple-system, sans-serif", small = "28px system-ui, -apple-system, sans-serif";
   const stepLines = steps.flatMap((s, i) => wrap(`${i + 1}. ${s}`, W - 160, body));
-  const H = Math.max(1080, 420 + sl.length * 58 + 70 + stepLines.length * 46 + 220);
+  const H = Math.max(1080, 420 + plOutOf(d).miss.length * 90 + sl.length * 58 + 70 + stepLines.length * 46 + 220);
   c.width = W; c.height = H;
   x.fillStyle = "#15130f"; x.fillRect(0, 0, W, H);
   x.fillStyle = "#e0ad4f"; x.fillRect(0, 0, W, 14);
@@ -266,6 +267,9 @@ async function plCardBlob(d, n = 1) {
   x.fillStyle = "#f4eee4"; let y = 190;
   for (const l of wrap(d.name.toUpperCase(), W - 160, `92px ${font}`)) { x.font = `92px ${font}`; x.fillText(l, 80, y); y += 100; }
   x.fillStyle = "#b3a998"; x.font = small; x.fillText(`${d.glass} · Ice: ${d.ice}${n > 1 ? ` · for ${n}` : ""}`.slice(0, 70), 80, y); y += 70;
+  // Tonight's swaps, in the warning colour, so the card matches what's on the bar.
+  x.fillStyle = "#e0ad4f"; for (const l of plOutLines(d).flatMap((t) => wrap(t.replace(/^⚠️ /, "! "), W - 160, small))) { x.font = small; x.fillText(l, 80, y); y += 40; }
+  if (plOutOf(d).miss.length) y += 20;
   for (const [q, r] of sl) {
     x.fillStyle = "#e0ad4f"; x.font = `40px ${font}`; x.fillText(q || "•", 80, y);
     x.fillStyle = "#f4eee4"; x.font = body; x.fillText(r.length > 44 ? r.slice(0, 43) + "…" : r, 330, y); y += 58;
@@ -289,7 +293,7 @@ function plPrintCard(d) {
   const w = window.open("", "_blank"); if (!w) return toast("Allow pop-ups to print");
   const st = methodLines(d.method).map((s) => `<li>${esc(s)}</li>`).join("");
   w.document.write(`<!doctype html><meta charset="utf-8"><title>${esc(d.name)}</title><style>@page{size:A6;margin:8mm}body{font:12pt system-ui,sans-serif;margin:0;color:#111}h1{font:700 22pt Impact,'Arial Narrow',sans-serif;margin:0 0 2mm;text-transform:uppercase}p{margin:0 0 3mm;color:#444}table{border-collapse:collapse;width:100%;margin-bottom:3mm}td{padding:1.2mm 0;border-bottom:.2mm solid #ccc}td:first-child{font-weight:700;white-space:nowrap;padding-right:4mm}ol{padding-left:5mm;margin:0 0 3mm}small{color:#666}</style>
-    <h1>${esc(d.name)}</h1><p>${esc(d.glass)} · Ice: ${esc(d.ice)} · Garnish: ${esc(d.garnish)}</p>
+    <h1>${esc(d.name)}</h1><p>${esc(d.glass)} · Ice: ${esc(d.ice)} · Garnish: ${esc(d.garnish)}</p>${plOutLines(d).map((l) => `<p><b>${esc(l)}</b></p>`).join("")}
     <table>${d.spec.map((l) => { const m = l.match(QTY); return `<tr><td>${esc(m ? plOz(m[1]) : "")}</td><td>${esc(m ? m[2] : l)}</td></tr>`; }).join("")}</table><ol>${st}</ol>${d.allergens && d.allergens !== "None" ? `<p><b>Allergens:</b> ${esc(d.allergens)}</p>` : ""}<small>Black Tap Bar Book</small><script>onload=()=>{print()}<\/script>`);
   w.document.close();
 }
@@ -394,13 +398,13 @@ const PL_TIPS = {
   "Aperol Spritz": "Prosecco first, then the Aperol, a splash of soda last. A glass full of ice so it doesn't go flat and warm.",
   "Mojito": "Press the mint gently: shredded mint turns bitter. Churn with crushed ice, then cap with more.",
   "Margarita": "Salt on the outside of the rim only, so it doesn't fall into the drink.",
-  "Long Island Iced Tea": "All five spirits at 15 ml, not 25. Just a splash of cola for the colour.",
+  "Long Island Iced Tea": "Five spirits at 10 ml each, not 25: it's already 50 ml of spirit. Just a splash of cola for the colour.",
   "Piña Colada": "Shake hard so the coconut whips. Don't skimp on the pineapple juice.",
   "Dry Martini": "Stir, never shake. A chilled glass and a fresh lemon twist or olive.",
   "Dirty Martini": "Stir, and taste the brine first: some jars are much saltier than others.",
   "Cosmopolitan": "Shake hard and double strain into a chilled glass. Cranberry is for colour, not volume.",
   "Whiskey Sour": "Dry shake first for the foam, then shake again with ice.",
-  "Jägerbomb": "Pour the Red Bull first into the half pint, then the Jägermeister shot alongside to drop.",
+  "Jägerbomb": "Half a can of Red Bull in the rocks glass, the Jäger in the shot glass beside it. The guest drops it, not you.",
   "Baby Guinness": "Layer the Baileys slowly over the back of a bar spoon so it sits on top like a head.",
   "B-52": "Pour slowly over the back of a bar spoon, heaviest first: Kahlúa, Baileys, then Grand Marnier.",
 };
@@ -489,7 +493,7 @@ function rushHtml() {
   }
   const ds = rushNames().map((n) => D.find((d) => d.name === n));
   RAPID.ids = ds.map((d) => d.id);
-  return `<div class="rush">${ds.map((d) => `<button class="rush-card${isOut(d.name) ? " out" : ""}" data-rp="${d.id}"><span class="n" translate="no">${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</span><span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.method)}</span></button>`).join("")}</div>
+  return `<div class="rush">${ds.map((d) => `<button class="rush-card${isOut(d.name) ? " out" : ""}" data-rp="${d.id}"><span class="n" translate="no">${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</span>${isOut(d.name) ? "" : plOutTag(d)}<span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.method)}</span></button>`).join("")}</div>
     <button class="btn wide" data-rush="edit" style="margin-top:8px">Change the ten</button><p class="note">The screen stays on while Rush is open.</p>`;
 }
 document.head.insertAdjacentHTML("beforeend", `<style>

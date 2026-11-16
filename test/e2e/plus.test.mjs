@@ -126,3 +126,47 @@ test("My drinks saves a recipe on the phone, and the new starter path passes at 
   assert.ok(await p.evaluate(() => stState().passed));
   assert.deepEqual(p.errs, []);
 });
+
+test("We're out of Passoa: the drink, the menu, Rapid fire and Make all show the swap, and Back in clears it", async () => {
+  const p = await open();
+  const id = await p.evaluate(() => D.find((d) => d.name === "Pornstar Martini").id);
+  await p.evaluate((i) => openSheet(i), id);
+  await p.click('#sheet details.pl-outs summary');
+  const key = await p.evaluate(() => mkFind("Passoa").k);
+  await p.click(`#sheet [data-pl-out="${key}"]`);
+  assert.match(await text(p, "#sheet .pl-outbar"), /No Passoa: .*Monin Passion Fruit/);
+  assert.equal(await p.$$eval("#sheet ul.spec li.pl-out", (x) => x.length), 1);
+  assert.match(await text(p, "#sheet ul.spec li.pl-out .pl-swap"), /Passion Fruit/);
+  // Kept on this phone off the team.
+  assert.deepEqual(await p.evaluate(() => store.get("outIng")), ["Passoa"]);
+  await p.click("#sh-close");
+  assert.match(await p.$eval(`#list .row[data-id="${id}"] .s`, (e) => e.textContent), /Swap: no Passoa/);
+  await p.evaluate(() => show("rapid"));
+  await p.click("#rp-rush");
+  assert.match(await p.$eval(`.rush-card[data-rp="${id}"]`, (e) => e.textContent), /Swap: no Passoa/);
+  await p.click("#rp-rush");
+  // Back in stock clears it everywhere.
+  await p.evaluate((i) => openSheet(i), id);
+  await p.click(`#sheet [data-pl-out="${key}"]`);
+  assert.equal(await p.$$eval("#sheet .pl-outbar", (x) => x.length), 0);
+  assert.deepEqual(await p.evaluate(() => store.get("outIng")), []);
+  assert.deepEqual(p.errs, []);
+});
+
+test("out of an ingredient with no swap: the drink offers something close, and Spin, Spec of the day and My bar skip it", async () => {
+  const p = await open();
+  await p.evaluate(() => { store.set("outIng", []); OUT_LOCAL.clear(); OUT_LOCAL.add("Espresso beans"); plOutRefresh(); });
+  const r = await p.evaluate(() => { const d = D.find((x) => x.name === "Espresso Martini"); const o = plOutOf(d); return { ok: o.ok, miss: o.miss.map((m) => m.it.n), alts: plAlts(d).map((x) => plOutOf(x).ok) }; });
+  assert.equal(r.ok, false);
+  assert.ok(r.miss.length >= 1);
+  assert.ok(r.alts.length > 0 && r.alts.every(Boolean));
+  await p.evaluate(() => openSheet(D.find((x) => x.name === "Espresso Martini").id));
+  assert.match(await text(p, "#sheet .pl-outbar.no"), /Offer instead/);
+  assert.ok(await p.evaluate(() => mkPool().every((d) => plOutOf(d).ok) && plOutOf(plDaily()).ok));
+  // The filter hides it.
+  await p.evaluate(() => { $("#sheet").hidden = true; PL.can = true; renderList(); });
+  assert.ok(await p.evaluate(() => listIds.length < D.length && listIds.every((i) => plOutOf(D[i]).ok)));
+  // WhatsApp spec carries the warning.
+  assert.match((await p.evaluate(() => SHARE.drink(String(D.find((x) => x.name === "Espresso Martini").id)).head.join("\n"))), /No .* tonight/);
+  assert.deepEqual(p.errs, []);
+});
