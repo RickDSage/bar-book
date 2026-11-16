@@ -25,7 +25,7 @@ async function open() {
   for (const d of ["2026-11-03", "2026-11-10"]) await p.click(`[data-hf-day="${d}"]`);
   await p.fill('[data-hf="start"]', "17:00"); await p.fill('[data-hf="end"]', "23:00");
   await p.click('[data-hf-brk="30"]'); await p.click("[data-hf-save]");
-  await p.click("[data-hf-cancel]"); await p.click("[data-sec=shifts] summary");
+  await p.click("[data-hf-cancel]"); await p.click('[data-pay-tab="more"]'); await p.click("[data-sec=shifts] summary");
   return p;
 }
 const link = async (p, via) => { const a = `#send [data-share][data-via=${via}]`; await p.click(a); return new URL(await p.getAttribute(a, "href")); };

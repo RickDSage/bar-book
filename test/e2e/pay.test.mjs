@@ -18,11 +18,28 @@ async function open({ start = "#w-ok", at, width = 390 } = {}) {
   await p.goto(site.url);
   await p.click(start);
   await p.click("[data-tab=pay]");
+  // Tapping or typing in something goes to the part of My pay it's in first, as a person would.
+  for (const f of ["click", "fill", "check", "uncheck", "inputValue", "getAttribute", "selectOption"]) { const o = p[f].bind(p); p[f] = async (sel, ...a) => { await reach(p, sel); return o(sel, ...a); }; }
   return p;
 }
 
 const flat = (s) => s.replace(/\s+/g, " ").trim();
-const txt = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
+// My pay's parts: the tab each folded section is in, and the tab or section each figure is in. Reading one goes there.
+const SEC_TAB = { lines: "month", check: "month", slips: "more", shifts: "more", year: "more", rights: "more", bills: "more", setup: "more" };
+const AT = { "#pay-sum": "month", "#pay-addup": "month", "#pay-old": "month", "#pay-months": "months", "#pay-hol": "hol", "#pay-out": "lines", "#pay-rights": "rights", "#pay-bills": "bills", "#pay-set": "setup", "#pay-year": "year" };
+const tab = async (p, t) => { if (await p.$(`[data-pay-tab="${t}"][aria-selected="false"]`)) await p.click(`[data-pay-tab="${t}"]`); };
+const sec = async (p, k) => { await tab(p, SEC_TAB[k]); if (k === "check") await sec(p, "lines"); if (!(await p.$eval(`details[data-sec="${k}"]`, (d) => d.open))) await p.click(`details[data-sec="${k}"] > summary`); };
+const go = async (p, sel) => { const k = AT[sel] || (sel.match(/^\[data-sec=(\w+)\]$/) || [])[1]; if (!k) return; if (SEC_TAB[k]) await sec(p, k); else await tab(p, k); };
+// Where each control is.
+const REACH = [[/data-pay-plan|data-pay="trRate"|data-hf-open|data-slip-file|#pay-sum |data-pm=/, "month"], [/data-hol-book/, "hol"], [/data-slip-text|data-slip-read/, "slips"], [/data-hr-del/, "shifts"],
+  [/data-money-[a-z]+="?bills/, "bills"], [/data-pay(-code|-check|-loan|-age|-hol|-wk|-sel)?[=\]"]|data-money-[a-z]+="?ded/, "setup"]];
+async function reach(p, sel) {
+  if (typeof sel !== "string" || /data-pay-tab|summary/.test(sel) || (await p.$(sel).catch(() => null))?.isVisible?.().catch?.(() => false)) return;
+  const hit = REACH.find(([re]) => re.test(sel)); if (!hit) return;
+  if (await p.locator(sel).first().isVisible().catch(() => false)) return;
+  const k = hit[1]; if (SEC_TAB[k]) await sec(p, k); else await tab(p, k);
+}
+const txt = async (p, sel) => { await go(p, sel); return flat(await p.$eval(sel, (e) => e.innerText)); };
 const toastIs = (p, t) => p.waitForFunction((x) => document.querySelector("#toast").textContent === x, t);
 
 // A real payroll layout (the figures from three real payslips; the name, address, NI number and employer are made up),
@@ -77,10 +94,13 @@ test("my pay: real payslips fill in every month, tronc an hour, the next pay and
   assert.equal(await p.evaluate(() => `${pay.code} ${pay.rate} ${pay.trOn}`), "992L 12.71 true");
   // October: paid on the 30th; its tronc is on September's 246.39 h, £3.72 an hour.
   assert.match(await txt(p, "#pay-sum"), /^Take-home £2,173\.98 From your payslip · paid Friday 30 October 130\.3 Hours £3\.72 Tronc an hour £2,571\.19 Gross Next pay, Monday 30 November: about £2,126\.78/);
-  assert.match(await txt(p, "#pay-out"), /^£12\.71 an hour \+ £3\.72 tronc = £16\.43 an hour Regular Hours \(130\.26 h at £12\.71\) £1,655\.60 TRONC \(246\.39 h in September at £3\.72\) £915\.59 Gross £2,571\.19 PAYE −£348\.60 Employee National Insurance Contribution −£48\.61 Take-home £2,173\.98/);
+  assert.match(await txt(p, "#pay-out"), /^£12\.71 an hour \+ £3\.72 tronc = £16\.43 an hour Hours pay Regular Hours \(130\.26 h at £12\.71\) £1,655\.60 TRONC \(246\.39 h in September at £3\.72\) £915\.59 Gross £2,571\.19 Income tax PAYE −£348\.60 National Insurance Employee National Insurance Contribution −£48\.61 Take-home £2,173\.98/);
   assert.match(await txt(p, "#pay-out"), /W1\/M1 \(emergency\) basis/);
+  // The month in plain steps, then what was earned and where it goes, each as a share of the gross.
+  assert.match(await txt(p, "#pay-addup"), /^130\.26 h at £12\.71 an hour: £1,655\.60 Tronc on the 246\.39 h you worked in September, at £3\.72 an hour: £915\.59 Before tax: £2,571\.19 Taken off: income tax £348\.60, National Insurance £48\.61: −£397\.21 You take home: £2,173\.98 What you earned Hours pay £1,655\.60 64% Tronc £915\.59 36% Where it goes Take-home £2,173\.98 85% Income tax £348\.60 14% National Insurance £48\.61 2%$/i);
+  assert.deepEqual(await p.$$eval("[data-pay-tab]", (x) => x.map((b) => b.textContent)), ["This month", "Every month", "Holiday", "More"]);
   // The app's own working comes to the same, to the penny, with the real tronc.
-  await p.click("[data-sec=check] summary");
+  await sec(p, "check");
   assert.match(await txt(p, "[data-sec=check]"), /Matches to the pound\./);
   // Every month, and the months to come: September's tronc is on August's 82 h, £7.23 an hour; August had none.
   assert.match(await txt(p, "#pay-months"), /January predicted 152\.9 h £4\.59\/h £2,209\.81 December predicted 152\.9 h £4\.59\/h £2,209\.81 November predicted 152\.9 h £4\.59\/h £2,126\.78 October payslip 130\.3 h £3\.72\/h £2,173\.98 September payslip 246\.4 h £7\.23\/h £2,978\.48 August payslip 82 h – £1,042\.22/);
@@ -104,10 +124,10 @@ test("my pay: real payslips fill in every month, tronc an hour, the next pay and
   await p.click('#pay-sum [data-go="hol"]');
   assert.match(await txt(p, "#pay-hol"), /^56 Built up 0 Taken or booked 56 h Left/);
   // The tax year so far from October's year-to-date figures; W1/M1 means there's no year-so-far tax to check.
-  await p.click("[data-sec=year] summary");
+  await sec(p, "year");
   assert.match(await txt(p, "#pay-year"), /So far By April Gross £7,337\.98 £\d/);
   assert.match(await txt(p, "#pay-year"), /taxed on a W1\/M1 basis/);
-  await p.click("[data-sec=slips] summary");
+  await sec(p, "slips");
   assert.match(await txt(p, "[data-sec=slips]"), /October 2026 £2,173\.98 Gross £2,571\.19 · 130\.26 h · tronc £915\.59/);
   // An older payslip doesn't undo what the latest one taught.
   await p.evaluate((t) => slipTakeAll([t]), AUG);
@@ -138,7 +158,7 @@ test("my pay: payslips saved by the old reader are put right on opening, or name
   await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
   await p.click('[data-pm="-1"]');
   assert.match(await txt(p, "#pay-sum"), /^Take-home £2,173\.98 From your payslip · paid Friday 30 October 130\.3 Hours £3\.72 Tronc an hour £2,571\.19 Gross Next pay, Monday 30 November: about £2,126\.78/);
-  assert.match(await txt(p, "#pay-out"), /Regular Hours \(130\.26 h at £12\.71\) £1,655\.60 TRONC \(246\.39 h in September at £3\.72\) £915\.59 Gross £2,571\.19 PAYE −£348\.60 Employee National Insurance Contribution −£48\.61 Take-home £2,173\.98/);
+  assert.match(await txt(p, "#pay-out"), /Hours pay Regular Hours \(130\.26 h at £12\.71\) £1,655\.60 TRONC \(246\.39 h in September at £3\.72\) £915\.59 Gross £2,571\.19 Income tax PAYE −£348\.60 National Insurance Employee National Insurance Contribution −£48\.61 Take-home £2,173\.98/);
   assert.match(await txt(p, "#pay-months"), /September payslip 246\.4 h £7\.23\/h £2,978\.48 August payslip 82 h – £1,042\.22/);
   assert.match(await txt(p, "#pay-old"), /^Your July payslip was read before the payslip reader was fixed, so the hours and tronc are wrong\. Tap Add payslips and pick it again: it replaces the old one\.$/);
   assert.deepEqual(p.errs, []);
@@ -149,14 +169,14 @@ test("my pay: the estimate to the penny, tronc on and off, any tax code", async 
   const out = () => txt(p, "#pay-out");
   assert.equal(await p.$eval("#pay-h", (e) => e.textContent), "September 2026");
   assert.match(await txt(p, "#pay-sum"), /pay day Friday 25 September/, "the last Friday with no payslips");
-  await p.click("#pay-setup summary"); await p.fill('[data-pay="code"]', "992L");
+  await sec(p, "setup"); await p.fill('[data-pay="code"]', "992L");
   // August's hours for the tronc, at the suggested £6 with no payslips; September's typed in.
   await p.evaluate(() => { pay.plan["2026-08"] = "82"; savePay(); renderPay(); });
   await p.fill("[data-pay-plan]", "246.39");
   assert.match(await out(), /Hours pay \(246\.4 h at £12\.71\) £3,131\.62 Tronc \(82 h in August at £6\.00\) £492\.00 Gross £3,623\.62 Income tax −£559\.20 National Insurance −£166\.69 Take-home £2,897\.73/);
   assert.match(await out(), /a suggested figure, not guaranteed/);
   assert.match(await txt(p, "#pay-sum"), /^Predicted take-home £2,897\.73 From the hours you set/);
-  assert.equal(await p.$eval("#pay-set", (e) => e.textContent), "£12.71 an hour · 992L");
+  assert.equal(await txt(p, "#pay-set"), "£12.71 an hour · 992L");
   // Tronc off: tax follows.
   await p.uncheck('[data-pay-check="trOn"]');
   assert.doesNotMatch(await out(), /Tronc/);
@@ -195,7 +215,7 @@ test("my hours: several shifts at once, planned ones, a month at a time, with a 
   assert.deepEqual(await p.$$eval("[data-hf-times]", (x) => x.map((b) => b.textContent)), ["17:00–23:00", "22:00–02:00"]);
   await p.click("[data-hf-cancel]");
   assert.match(await txt(p, "#pay-sum"), /From 5 shifts logged .* 26 Hours .* Including 5\.5 h still to work/);
-  await p.click("[data-sec=shifts] summary");
+  await sec(p, "shifts");
   assert.match(await txt(p, "[data-sec=shifts]"), /WEEK OF 23 NOV · 5\.5 H Wednesday 25 Nov 17:00–23:00 Planned · 5\.5 h after a 30 min break/i);
 
   // October, from the arrow: one shift that runs past midnight, the hours November's tronc is paid on.
@@ -209,7 +229,7 @@ test("my hours: several shifts at once, planned ones, a month at a time, with a 
   const out = () => txt(p, "#pay-out");
   assert.match(await out(), /Hours pay \(167 h at £12\.71\) £2,122\.57 Tronc \(8\.5 h in October at £6\.00\) £51\.00 Gross £2,173\.57 Income tax −£225\.00 National Insurance −£85\.97 Take-home £1,862\.60/);
   // Plan 5 takes 9% over £2,083.33 a month (£3.53, so £3) and a postgraduate loan 6% over £1,750 (£22.35, so £22).
-  await p.click("#pay-setup summary");
+  await sec(p, "setup");
   await p.click('[data-pay-loan="5"]'); await p.check('[data-pay-check="pgl"]');
   assert.match(await out(), /Student loan \(Plan 5 and postgraduate\) −£25\.00 Take-home £1,837\.60/);
   // 5% of the hours pay over £520 is £80.13, and tax relief pays a fifth: £64.10. The settings stay open.
@@ -219,15 +239,15 @@ test("my hours: several shifts at once, planned ones, a month at a time, with a 
   assert.match(await out(), /Pension \(5%\) −£64\.10 Take-home £1,773\.50/);
   await p.fill('[data-money-name="ded"]', "Staff food"); await p.fill('[data-money-amt="ded"]', "20"); await p.click('[data-money-add="ded"]');
   assert.match(await out(), /Staff food −£20\.00 Take-home £1,753\.50/);
-  assert.equal(await p.$eval("#pay-set", (e) => e.textContent), "£12.71 an hour · 1257L · Plan 5 · postgraduate loan · 5% pension · 1 other deduction");
-  await p.fill('[data-pay="rate"]', "11"); await p.click("[data-sec=rights] summary");
+  assert.equal(await txt(p, "#pay-set"), "£12.71 an hour · 1257L · Plan 5 · postgraduate loan · 5% pension · 1 other deduction");
+  await p.fill('[data-pay="rate"]', "11"); await sec(p, "rights");
   assert.match(await txt(p, "#pay-rights"), /£11\.00 an hour is under £12\.71, the legal minimum for your age\. Tronc and tips can't count towards it\./);
   assert.match(await txt(p, "#pay-sum"), /1 thing to check in Your rights/);
   await p.click('[data-pay-age="18"]');
   assert.doesNotMatch(await txt(p, "#pay-rights"), /legal minimum/, "£10.85 at 18 to 20");
   await p.click('[data-pay-age="21"]'); await p.fill('[data-pay="rate"]', "12.71");
   // Bills: what's left, a week at a time until the next pay day on 25 Dec, 4 weeks after 27 Nov.
-  await p.click("[data-sec=bills] summary"); await p.click('[data-money-chip="bills:Rent"]'); await p.fill('[data-money-amt="bills"]', "650"); await p.click('[data-money-add="bills"]');
+  await sec(p, "bills"); await p.click('[data-money-chip="bills:Rent"]'); await p.fill('[data-money-amt="bills"]', "650"); await p.click('[data-money-add="bills"]');
   assert.match(await txt(p, "#pay-bills"), /Take-home £1,753\.50 Bills −£650\.00 Left over £1,103\.50 About £275\.88 a week until the next pay day, in 4 weeks\./);
   assert.match(await txt(p, "#pay-sum"), /Left after bills: £1,103\.50/);
   await p.fill('[data-money-name="bills"]', "Car"); await p.fill('[data-money-amt="bills"]', "1200"); await p.click('[data-money-add="bills"]');
@@ -240,7 +260,7 @@ test("my hours: several shifts at once, planned ones, a month at a time, with a 
   await p.fill("[data-pay-plan]", "");
   await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
   assert.match(await txt(p, "#pay-sum"), /From 4 shifts logged .* 22 Hours/);
-  assert.equal(await p.$eval('[data-pay-loan="5"]', (b) => b.getAttribute("aria-pressed")), "true");
+  await sec(p, "setup"); assert.equal(await p.$eval('[data-pay-loan="5"]', (b) => b.getAttribute("aria-pressed")), "true");
   assert.equal(await p.evaluate(() => pay.bills.map((b) => `${b.name} ${b.amt}`).join()), "Rent 650.00");
   assert.equal(await p.evaluate(() => shareText("hours", false)), "My hours for November\nIn all: 22 h from 4 shifts\n\nShifts (4)\n• Tue 3 Nov 17:00–23:00, 30 min break: 5.5 h\n• Tue 10 Nov 17:00–23:00, 30 min break: 5.5 h\n• Thu 12 Nov 17:00–23:00, 30 min break: 5.5 h\n• Wed 25 Nov 17:00–23:00, 30 min break: 5.5 h");
   await p.setViewportSize({ width: 320, height: 700 });
@@ -251,7 +271,7 @@ test("my hours: several shifts at once, planned ones, a month at a time, with a 
 
 test("my pay: about how many hours a week, for a month with nothing logged", async () => {
   const p = await open({ at: "2026-11-20T12:00:00Z" });
-  await p.click("#pay-setup summary");
+  await sec(p, "setup");
   assert.deepEqual(await p.$$eval("[data-pay-wk]", (x) => x.map((b) => b.textContent)), ["Off", "20 h", "25 h", "30 h", "35 h", "40 h", "45 h", "50 h", "55 h", "60 h", "65 h", "70 h"]);
   await p.click('[data-pay-wk="40"]');
   // 40 h a week over November's 30 days is 171.43 h; October's 31 days, 177.14 h, for tronc.
@@ -275,7 +295,7 @@ Taxable Pay YTD 12,000.00   Tax Paid YTD 1,450.00`;
 
 test("my pay: other payslip layouts, pasted, checked against the estimate, and a month asked for when there's no date", async () => {
   const p = await open({ at: "2026-11-16T12:00:00Z" });
-  await p.click("[data-sec=slips] summary");
+  await sec(p, "slips");
   await p.fill("[data-slip-text]", SIDE); await p.click("[data-slip-read]");
   await toastIs(p, "Payslip for October saved");
   assert.equal(await p.$eval("#pay-h", (e) => e.textContent), "October 2026");
@@ -283,12 +303,12 @@ test("my pay: other payslip layouts, pasted, checked against the estimate, and a
   assert.match(await txt(p, "#v-pay"), /Updated from your payslip: Pension on\./);
   assert.equal(await p.evaluate(() => pay.pension), "5", "5% worked out from £43.77");
   const out = await txt(p, "#pay-out");
-  assert.match(out, /Basic Pay \(120 h at £12\.71\) £1,525\.20 Holiday Pay \(7 h at £12\.71\) £88\.97 Tronc £450\.00 Gross £2,064\.17 PAYE Tax −£203\.00 National Insurance −£45\.29 Pension −£43\.77 Take-home £1,772\.11/);
+  assert.match(out, /Hours pay Basic Pay \(120 h at £12\.71\) £1,525\.20 Holiday Pay \(7 h at £12\.71\) £88\.97 Tronc £450\.00 Gross £2,064\.17 Income tax PAYE Tax −£203\.00 National Insurance −£45\.29 Pension −£43\.77 Take-home £1,772\.11/);
   assert.doesNotMatch(out, /Employer/, "the employer's pension isn't taken from pay");
   assert.match(out, /Add your September payslip to work out this tronc an hour/);
   assert.match(await p.evaluate(() => shareText("slip", false, "2026-10")), /^My payslip for October 2026\nGross £2,064\.17 · take-home £1,772\.11\n\nEvery line \(\d+\)\n• Basic Pay: £1,525\.20/);
   // The tax year: tax paid so far against what's due on £12,000 by month 7 with 1257L.
-  await p.click("[data-sec=year] summary");
+  await sec(p, "year");
   assert.match(await txt(p, "#pay-year"), /So far By April Gross £12,000\.00 /);
   assert.match(await txt(p, "#pay-year"), /Your October payslip shows £1,450\.00 tax paid this tax year on £12,000\.00\. About £932\.40 is due on that by now\. That's about £517\.60 too much\./);
   // A payslip with no date asks which month it's for.
@@ -317,7 +337,7 @@ test("my pay: holiday builds up from the hours worked, and booking it shows what
   await p.fill('[data-hf="start"]', "16:00"); await p.fill('[data-hf="end"]', "23:30"); await p.click('[data-hf-brk="30"]'); await p.click("[data-hf-save]");
   await p.click("[data-hf-cancel]");
   // 56 h worked: 12.07% is 6.76 h, so 7 h to the nearest hour.
-  await p.click("[data-sec=hol] summary");
+  await tab(p, "hol");
   assert.match(await txt(p, "#pay-hol"), /^7 Built up 0 Taken or booked 7 h Left Worth about £88\.97 at £12\.71 an hour/);
   await p.click("[data-hol-book]");
   await p.click('[data-hf-day="2026-11-23"]'); await p.click('[data-hf-day="2026-11-24"]');
@@ -329,15 +349,15 @@ test("my pay: holiday builds up from the hours worked, and booking it shows what
   assert.match(await txt(p, "#pay-hol"), /^7 Built up 7 Taken or booked 0 h Left/);
   assert.match(await txt(p, "#pay-out"), /Holiday pay \(7 h\) £88\.97/);
   // Rolled-up holiday pay: 12.07% on top of every hour's pay, and nothing to book.
-  await p.click("[data-hf-cancel]"); await p.click("#pay-setup summary"); await p.click('[data-pay-hol="rolled"]');
+  await sec(p, "setup"); await p.click('[data-pay-hol="rolled"]');
   assert.match(await txt(p, "#pay-out"), /Hours pay \(56 h at £12\.71\) £711\.76 Rolled-up holiday pay \(12\.07%\) £85\.91/);
-  assert.equal(await p.locator("[data-hol-book]").count(), 0);
+  await tab(p, "hol"); assert.equal(await p.locator("[data-hol-book]").count(), 0);
   assert.deepEqual(p.errs, []);
 });
 
 test("my pay: your rights, with the shifts logged checked for breaks, rest and hours", async () => {
   const p = await open({ at: "2026-11-16T12:00:00Z" });
-  await p.click("[data-sec=rights] summary");
+  await sec(p, "rights");
   assert.match(await txt(p, "#pay-rights"), /Nothing to flag in November's logged shifts/);
   const add = async (days, start, end, brk) => {
     if (!(await p.$("#hf"))) await p.click("[data-hf-open]");
@@ -358,7 +378,7 @@ test("my pay: your rights, with the shifts logged checked for breaks, rest and h
   assert.match(r, /Acas gives free, confidential advice on 0300 123 1100/);
   assert.match(await txt(p, "#pay-sum"), /3 things to check in Your rights/);
   // Under 18: 30 minutes over 4.5 hours, 12 hours between days, 48 hours off a week, no more than 8 hours a day.
-  await p.click("#pay-setup summary"); await p.click('[data-pay-age="16"]');
+  await sec(p, "setup"); await p.click('[data-pay-age="16"]');
   const y = await txt(p, "#pay-rights");
   assert.match(y, /Monday 9 Nov 5 h worked with no break\. Over 4\.5 hours you should get an unbroken 30 minutes\./);
   assert.match(y, /You should get 12 hours between working days/);
