@@ -1,10 +1,10 @@
 // The staff-only team: joining with the team link (no login), no messaging inside the app, a copy of everything sent
-// for the owner and seniors (rate the shift with no name), Tell Derek, up to three seniors, messages to the seniors
+// for the owner and seniors (rate the shift with no name), Tell Derek, up to three seniors with their own codes, messages to the seniors
 // (named or anonymous), the incident form and the Team only shift rating, and taking every phone off by changing the
 // team code.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, part, phone, adminWrite, afterReload, TEAM_CODE } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, part, phone, adminWrite, afterReload, attempt, TEAM_CODE } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -35,7 +35,7 @@ test("joining: the team link and a name, no login; a wrong code is refused", asy
   const err = await q.evaluate(() => LIVE.api.join("wrong-code-123", "Vi").then(() => "allowed", (e) => e.message));
   assert.notEqual(err, "allowed");
   await q.evaluate(() => show("notices"));
-  assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Owner or senior login/i);
+  assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Owner login/i);
   // Through the form: a refused code says why and gives the form back.
   await q.fill("#j-name", "Vi");
   await q.fill("#j-code", "wrong-code-456");
@@ -133,18 +133,74 @@ test("Tell Derek: anyone says what's missing, to add or wrong; only the owner re
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
-test("the owner adds up to three seniors, who see everything sent to them", async () => {
+test("the owner adds up to three seniors with their own codes; a senior unlocks a team phone, and locks it again", async () => {
   await resetEmulators();
-  const { O, A, B } = await team(browser, site, [["A", "Illias", "illias", "manager"], ["B", "Hassan", "hassan", "manager"]]);
-  await part(O, "mgr");
-  assert.match(await O.$eval("#tc-mgr", (e) => e.textContent), /Add a senior/);
-  await O.fill("#am-name", "Artur"); await O.fill("#am-user", "artur"); await O.fill("#am-pw", "artur-pass-333");
-  await O.click("#am-go");
-  await waitToast(O, /^Artur can log in now/);
-  await O.waitForFunction(() => LIVE.staff.filter((p) => p.role === "manager").length === 3);
-  await O.waitForFunction(() => !/Add a senior/.test(document.querySelector("#tc-mgr").textContent));
+  const { O, A, B, S } = await team(browser, site, [["A", "Illias", "illias", "manager"], ["B", "Hassan", "hassan", "manager"], ["S", "Artur"]]);
   for (const p of [A, B]) assert.equal(await p.evaluate(() => LIVE.admin && !LIVE.owner), true);
-  assert.deepEqual([O.errs, A.errs, B.errs], [[], [], []]);
+  // The owner's Manager section, with the seniors' card.
+  await O.evaluate(() => show("notices"));
+  assert.match(await O.$eval("#tm-cards", (e) => e.textContent), /Manager.*Nothing waiting.*Bar closing: none yet.*Seniors and their codes.*Owner settings.*Team/s);
+  await part(O, "seniors");
+  // Codes are unique: Illias's is taken.
+  await O.fill("#sn-name", "Artur"); await O.fill("#sn-pin", "4821");
+  await O.click("#sn-go");
+  await waitToast(O, /^Another senior has that code/);
+  await O.fill("#sn-pin", "7305");
+  await O.click("#sn-go");
+  await waitToast(O, /^Artur can unlock with their code now/);
+  await O.waitForFunction(() => LIVE.seniors.length === 3 && !document.querySelector("#sn-go"));
+
+  // Artur's own phone: a wrong code is counted by the server and says how many are left; the right one unlocks.
+  await S.waitForFunction(() => LIVE.seniors.length === 3);
+  await part(S, "unlock");
+  await S.click('[data-un-id="artur"]');
+  await S.fill("#un-pin", "1111");
+  await S.click("#un-go");
+  await waitToast(S, /^Wrong code. 4 more before it slows down$/);
+  await O.waitForFunction(() => LIVE.seniors.find((x) => x.id === "artur").tries === 1);
+  await S.click('[data-un-id="artur"]');
+  await S.fill("#un-pin", "7305");
+  await S.click("#un-go");
+  await S.waitForFunction(() => LIVE.admin && LIVE.role === "manager" && LIVE.me === "Artur");
+  await O.waitForFunction(() => LIVE.seniors.find((x) => x.id === "artur").tries === 0);
+  await S.waitForFunction(() => /Manager/.test(document.querySelector("#tm-cards").textContent) && document.querySelector("#tm-lock"));
+  // Lock: back to the team's view under the phone's own name.
+  await S.click("#tm-lock");
+  await S.waitForFunction(() => !LIVE.admin && LIVE.role === "staff");
+  assert.equal(await S.evaluate(() => LIVE.sent.length), 0);
+
+  // Taking Hassan off as a senior takes his phone back to the team's view.
+  await part(O, "seniors");
+  await O.click('[data-sn-drop="hassan"]');
+  await B.waitForFunction(() => !LIVE.admin && LIVE.role === "staff");
+  assert.deepEqual([O.errs, A.errs, B.errs, S.errs], [[], [], [], []]);
+});
+
+test("guessing a senior's code: slowed after 5, locked after 10 until the owner unlocks it", async () => {
+  await resetEmulators();
+  const { O, S } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Vi"]]);
+  await S.waitForFunction(() => LIVE.seniors.length === 1);
+  for (let i = 1; i <= 5; i++) assert.match(await attempt(S, (g) => LIVE.api.unlock("illias", g), "000" + i), /^Wrong code/);
+  // The phone can't skip the wait by writing round the app: the rules refuse the count.
+  assert.equal(await attempt(S, () => {
+    const s = LIVE.seniors[0]; s.tries = 0; s.lastTry = null;
+    return LIVE.api.unlock("illias", "4821");
+  }), "Couldn't check the code. Check your signal and try again");
+  assert.equal(await S.evaluate(() => LIVE.role), "staff");
+  await S.waitForFunction(() => LIVE.seniors[0].tries === 5);
+  assert.match(await attempt(S, () => LIVE.api.unlock("illias", "4821")), /^Too many wrong codes. Try again in 1[45] min$/);
+  // Locked at 10: only the owner can unlock it.
+  await adminWrite("seniors/illias", { name: { stringValue: "Illias" }, tries: { integerValue: "10" }, lastTry: { timestampValue: new Date(Date.now() - 864e5).toISOString() } });
+  await S.waitForFunction(() => LIVE.seniors[0].tries === 10);
+  assert.match(await attempt(S, () => LIVE.api.unlock("illias", "4821")), /^Locked after 10 wrong codes/);
+  await O.evaluate(() => show("notices"));
+  await O.waitForFunction(() => /locked/.test(document.querySelector('[data-card="seniors"] summary').textContent));
+  await part(O, "seniors");
+  await O.click('[data-sn-reset="illias"]');
+  await S.waitForFunction(() => LIVE.seniors[0].tries === 0);
+  assert.equal(await attempt(S, () => LIVE.api.unlock("illias", "4821")), "allowed");
+  await S.waitForFunction(() => LIVE.admin);
+  assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
 test("to the seniors: named or anonymous, only the seniors see them, and the reply comes back", async () => {
