@@ -67,14 +67,14 @@ test("anyone clears everything for a fresh start; the owner's master clear also 
   assert.equal(await S.evaluate(() => ho.low), "");
   assert.equal(await S.$eval("#ho-low", (e) => e.value), "");
 
-  // The owner's master clear: an issue, a shout-out and something for the inbox all go.
-  await S.evaluate(() => Promise.all([LIVE.api.raise({ title: "Tap 3 dripping", detail: "", area: "bar", urgent: false }), LIVE.api.shout("Pema", "Great close"),
+  // The owner's master clear: an issue and something for the inbox both go.
+  await S.evaluate(() => Promise.all([LIVE.api.raise({ title: "Tap 3 dripping", detail: "", area: "bar", urgent: false }),
     LIVE.api.ask({ kind: "fix", text: "Stool wobbles", when: "", anon: false })]));
-  await O.waitForFunction(() => LIVE.issues.length === 1 && LIVE.shouts.length === 1 && LIVE.asks.length === 1);
+  await O.waitForFunction(() => LIVE.issues.length === 1 && LIVE.asks.length === 1);
   await part(O, "mgr");
   O.answer = "yes"; await O.click("#master-clear");
   await waitToast(O, /^Master clear done$/);
-  await O.waitForFunction(() => !LIVE.issues.length && !LIVE.shouts.length && !LIVE.asks.length);
+  await O.waitForFunction(() => !LIVE.issues.length && !LIVE.asks.length);
   assert.deepEqual([O.errs, S.errs, F.errs], [[], [], []]);
 });
 

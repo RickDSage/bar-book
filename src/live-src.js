@@ -1,5 +1,5 @@
 // Live team layer: who is on the team, live messages, the 86 board, tonight's checklists, date labels, restocking,
-// closing photos and reports, issues, shout-outs, football, who to call and messages to the manager, synced through Firebase.
+// closing photos and reports, issues, football, who to call, asks to the seniors, Tell Derek and a copy of everything sent, synced through Firebase.
 // Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE and calls liveChanged().
 // Every write here has a matching rule in firestore.rules and a test in test/rules.test.mjs.
 //
@@ -71,7 +71,7 @@ function listen(uid) {
       liveChanged("me");
     }
     if (d.metadata.hasPendingWrites) return;
-    // Who is on the team: everyone's phones and the two accounts. Used for "seen by" and for giving someone a job.
+    // Who is on the team: everyone's phones and the owner and seniors. Used for giving someone a job.
     sub("staff", collection(db, "staff"), (snap) => {
       LIVE.staff = snap.docs.filter(plain).map((x) => ({ name: x.data().name, role: x.data().role, at: x.data().at || null, uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
       liveChanged("staff");
@@ -90,7 +90,6 @@ function listen(uid) {
     sub("outlog", query(collection(db, "outlog"), orderBy("at", "desc"), limit(100)), (snap) => { LIVE.outlog = rows(snap); liveChanged("outlog"); });
     sub("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(30)), (snap) => { LIVE.reports = rows(snap); liveChanged("reports"); });
     watchDays();
-    sub("shouts", query(collection(db, "shouts"), orderBy("at", "desc"), limit(50)), (snap) => { LIVE.shouts = rows(snap); liveChanged("shouts"); });
     // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
     sub("labels", collection(db, "labels"), (snap) => { LIVE.labels = rows(snap); liveChanged("labels"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
@@ -118,6 +117,12 @@ function listen(uid) {
     sub("asks", LIVE.admin ? query(collection(db, "asks"), orderBy("at", "desc"), limit(200)) : query(collection(db, "asks"), where("uid", "==", uid)), (snap) => {
       LIVE.asks = rows(snap); liveChanged("asks");
     });
+    // Tell Derek: the owner reads all of them; everyone else reads back their own.
+    sub("tells", LIVE.owner ? query(collection(db, "tells"), orderBy("at", "desc"), limit(200)) : query(collection(db, "tells"), where("uid", "==", uid)), (snap) => {
+      LIVE.tells = rows(snap); liveChanged("tells");
+    });
+    // A copy of everything the team sends on WhatsApp, email or print, for the seniors and the owner.
+    if (LIVE.admin) sub("sent", query(collection(db, "sent"), orderBy("at", "desc"), limit(150)), (snap) => { LIVE.sent = rows(snap); liveChanged("sent"); });
     // Who to call: the venue's own numbers, kept by the manager.
     sub("contacts", doc(db, "settings", "contacts"), (x) => { LIVE.contacts = x.exists() ? x.data().list : []; liveChanged("contacts"); });
     if (LIVE.admin) clearOldPhotos();
@@ -225,6 +230,10 @@ LIVE.api = {
   ask: (a) => addDoc(collection(db, "asks"), { kind: a.kind, text: a.text, when: a.when, anon: a.anon, status: "new", ...(a.anon ? { at: serverTimestamp() } : me()) }),
   answer: (id, status, reply = "") => updateDoc(doc(db, "asks", id), { status, reply, by: LIVE.me, byAt: serverTimestamp() }),
   dropAsk: (id) => deleteDoc(doc(db, "asks", id)),
+  tell: (kind, text) => addDoc(collection(db, "tells"), { kind, text, status: "new", ...me() }),
+  tellDone: (id) => updateDoc(doc(db, "tells", id), { status: "done" }),
+  dropTell: (id) => deleteDoc(doc(db, "tells", id)),
+  logSent: (k, what, text, anon) => addDoc(collection(db, "sent"), anon ? { k, what, text, anon: true, at: serverTimestamp() } : { k, what, text, ...me() }),
   // The manager's version of a list: its items, the id the next new item gets, and a copy in the list's history, in
   // one write. The version goes up by one, so a save made from an old copy is refused instead of overwriting.
   saveList(key, items, next) {
@@ -327,8 +336,6 @@ LIVE.api = {
   fixed: (id, fix) => updateDoc(doc(db, "issues", id), { status: "fixed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
   withdrawIssue: (id) => deleteDoc(doc(db, "issues", id)),
   saveContacts: (list) => setDoc(doc(db, "settings", "contacts"), { list, ...me() }),
-  shout: (toName, text) => addDoc(collection(db, "shouts"), { toName, text, ...me() }),
-  dropShout: (id) => deleteDoc(doc(db, "shouts", id)),
   watchMedia,
   // A drink's photo and video link, saved together. With neither, the record goes.
   setMedia: (drink, photo, video) => (photo || video ? setDoc(doc(db, "drinkMedia", slug(drink)), { drink, photo, video, ...me() }) : deleteDoc(doc(db, "drinkMedia", slug(drink)))),
@@ -336,7 +343,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, admin: false, owner: false, anon: false, staff: [], out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], shouts: [], asks: [], media: null });
+  outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

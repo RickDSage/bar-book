@@ -1,6 +1,7 @@
-// The staff-only team: joining with the team link (no login), live messages with the CODE RED banner, Got it, custom
-// templates, 86 updates in the banner, messages to the manager (named or anonymous), the incident form and the
-// Team only shift rating, and taking every phone off by changing the team code.
+// The staff-only team: joining with the team link (no login), no messaging inside the app, a copy of everything sent
+// for the owner and seniors (rate the shift with no name), Tell Derek, up to three seniors, messages to the seniors
+// (named or anonymous), the incident form and the Team only shift rating, and taking every phone off by changing the
+// team code.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { serve, resetEmulators, launch, team, part, phone, adminWrite, afterReload, TEAM_CODE } from "./helpers.mjs";
@@ -34,40 +35,122 @@ test("joining: the team link and a name, no login; a wrong code is refused", asy
   const err = await q.evaluate(() => LIVE.api.join("wrong-code-123", "Vi").then(() => "allowed", (e) => e.message));
   assert.notEqual(err, "allowed");
   await q.evaluate(() => show("notices"));
-  assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Owner or manager login/i);
+  assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Owner or senior login/i);
   assert.deepEqual([p.errs, q.errs], [[], []]);
 });
 
-test("86 updates show in the banner on the other phones", async () => {
+test("no messaging inside the app: no banner, no bell, no posting", async () => {
   await resetEmulators();
-  const { A, B } = await team(browser, site, [["A", "Angel"], ["B", "Kadir"]]);
+  const { O, A } = await team(browser, site, [["A", "Angel"]]);
+  for (const p of [O, A]) {
+    await p.evaluate(() => show("notices"));
+    assert.equal(await p.$$eval("#bcast, #bell, #m-text, #tm-post, #tm-msgs", (x) => x.length), 0);
+    assert.equal(await p.evaluate(() => ["post", "gotIt", "saveTemplate", "shout"].some((k) => k in LIVE.api)), false);
+  }
+  // An 86 is on the board, not shouted at every phone.
   const drink = await A.evaluate(() => D[0].name);
   await A.evaluate((n) => setOut(n, true), drink);
-  await B.waitForSelector("#bcast .bcast.lv-out");
-  assert.equal(flat(await B.$eval("#bcast .lv-out p", (e) => e.innerText)).startsWith(`🚫 ${drink} is 86'd (Angel,`), true);
-  // Anyone can bring it back.
-  await B.evaluate((n) => setOut(n, false), drink);
-  await A.waitForFunction((n) => !LIVE.out.has(n) && !!document.querySelector("#bcast .lv-out"), drink);
-  await B.click("#bc-out-ok");
-  assert.equal(await B.$$eval("#bcast .bcast", (x) => x.length), 0);
-  assert.deepEqual([A.errs, B.errs], [[], []]);
+  await O.waitForFunction((n) => LIVE.out.has(n), drink);
+  assert.deepEqual([O.errs, A.errs], [[], []]);
 });
 
-test("to the manager: named or anonymous, only the manager sees them, and the reply comes back", async () => {
+// Taps a Send page button without leaving the page.
+const sendVia = (p, sel) => p.evaluate((sel) => {
+  const stop = (e) => e.preventDefault();
+  window.addEventListener("click", stop, { capture: true, once: true });
+  document.querySelector(sel).click();
+}, sel);
+
+test("a copy of everything sent goes to the owner and seniors; rate the shift with no name; My pay never", async () => {
+  await resetEmulators();
+  const { O, M, S, T } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Kadir"], ["T", "Pema"]]);
+  // A sick message on WhatsApp: logged once in Kadir's name, however many times the button is tapped.
+  await S.evaluate(() => openSend("sick"));
+  await sendVia(S, '#send a[data-via="wa"]');
+  await sendVia(S, '#send a[data-via="mail"]');
+  await M.waitForFunction(() => LIVE.sent.length === 1);
+  const one = await M.evaluate(() => LIVE.sent[0]);
+  assert.equal(one.k, "sick"); assert.equal(one.name, "Kadir"); assert.match(one.text, /Off sick/);
+  await S.click("#sh-close");
+
+  // Team only: the rating goes with no name, no side and no uid, and the app says so.
+  await part(S, "rate");
+  assert.match(await S.$eval("#tc-rate", (e) => e.innerText), /Derek and the seniors also get a copy with no name, no side and nothing about this phone/);
+  await S.click('[data-rate="4"]');
+  await S.fill('[data-rt="feel"]', "Short-staffed again");
+  await S.evaluate(() => openSend("rate"));
+  assert.match(await S.$eval("#send-pre", (e) => e.innerText), /from Kadir/); // What goes on WhatsApp still has the name.
+  await sendVia(S, '#send a[data-via="wa"]');
+  await O.waitForFunction(() => LIVE.sent.some((x) => x.k === "rate"));
+  const rate = await O.evaluate(() => LIVE.sent.find((x) => x.k === "rate"));
+  assert.equal(rate.anon, true); assert.equal(rate.uid, undefined); assert.equal(rate.name, undefined);
+  assert.match(rate.text, /4\/10/); assert.match(rate.text, /Short-staffed again/);
+  assert.doesNotMatch(rate.text, /Kadir|bar shift|floor shift/i);
+
+  // My pay and the team link stay on the phone.
+  await S.evaluate(() => { hoursLog = [{ day: shiftDay(), start: "17:00", end: "23:00", brk: 0 }]; openSend("hours"); });
+  await sendVia(S, '#send a[data-via="wa"]');
+  await new Promise((r) => setTimeout(r, 800));
+  assert.equal(await O.evaluate(() => LIVE.sent.length), 2);
+  // The rest of the team sees none of it, and the seniors' card shows it.
+  assert.equal(await T.evaluate(() => LIVE.sent.length), 0);
+  await part(M, "sent");
+  assert.match(await M.$eval("#tc-sent", (e) => e.innerText), /anonymous/);
+  assert.deepEqual([O.errs, M.errs, S.errs, T.errs], [[], [], [], []]);
+});
+
+test("Tell Derek: anyone says what's missing, to add or wrong; only the owner reads them", async () => {
+  await resetEmulators();
+  const { O, M, S } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Vi"]]);
+  await part(S, "tell");
+  await S.click("#tell-go");
+  await waitToast(S, /^Say what it is first$/);
+  await S.click('[data-tell-kind="wrong"]');
+  await S.fill('[data-tell="text"]', "The Mojito spec says 50 ml rum");
+  await S.click("#tell-go");
+  await waitToast(S, /^Sent to Olly$/);
+  await M.evaluate(() => LIVE.api.tell("add", "A list for the terrace"));
+  await O.waitForFunction(() => LIVE.tells.length === 2);
+  await O.waitForFunction(() => document.querySelector("#team-n").textContent === "2");
+  // Each sees only their own.
+  assert.equal(await S.evaluate(() => LIVE.tells.length), 1);
+  assert.equal(await M.evaluate(() => LIVE.tells.length), 1);
+  const id = await O.evaluate(() => LIVE.tells.find((x) => x.kind === "wrong").id);
+  await part(O, "tells");
+  await O.click(`[data-tell-done="${id}"]`);
+  await S.waitForFunction(() => LIVE.tells[0]?.status === "done");
+  assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
+});
+
+test("the owner adds up to three seniors, who see everything sent to them", async () => {
+  await resetEmulators();
+  const { O, A, B } = await team(browser, site, [["A", "Illias", "illias", "manager"], ["B", "Hassan", "hassan", "manager"]]);
+  await part(O, "mgr");
+  assert.match(await O.$eval("#tc-mgr", (e) => e.textContent), /Add a senior/);
+  await O.fill("#am-name", "Artur"); await O.fill("#am-user", "artur"); await O.fill("#am-pw", "artur-pass-333");
+  await O.click("#am-go");
+  await waitToast(O, /^Artur can log in now/);
+  await O.waitForFunction(() => LIVE.staff.filter((p) => p.role === "manager").length === 3);
+  await O.waitForFunction(() => !/Add a senior/.test(document.querySelector("#tc-mgr").textContent));
+  for (const p of [A, B]) assert.equal(await p.evaluate(() => LIVE.admin && !LIVE.owner), true);
+  assert.deepEqual([O.errs, A.errs, B.errs], [[], [], []]);
+});
+
+test("to the seniors: named or anonymous, only the seniors see them, and the reply comes back", async () => {
   await resetEmulators();
   const { M, S, T } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Vi"], ["T", "PK"]]);
   await part(S, "ask");
   await S.waitForSelector("#ask-go");
-  assert.equal(await S.$eval("#ask-go", (b) => b.textContent), "Send to Illias");
+  assert.equal(await S.$eval("#ask-go", (b) => b.textContent), "Send to the seniors");
   await S.fill('[data-ask="when"]', "Sat 22 Nov");
   await S.fill('[data-ask="text"]', "Family wedding");
   await S.click("#ask-go");
-  await waitToast(S, /^Sent to Illias$/);
+  await waitToast(S, /^Sent to the seniors$/);
   await S.click('[data-ask-kind="complaint"]');
   await S.fill('[data-ask="text"]', "Rota changed with no notice");
   await S.check('[data-ask="anon"]');
   await S.click("#ask-go");
-  await waitToast(S, /^Sent to Illias$/);
+  await waitToast(S, /^Sent to the seniors$/);
 
   await M.waitForFunction(() => LIVE.asks.length === 2);
   const asks = await M.evaluate(() => LIVE.asks.map((a) => ({ kind: a.kind, anon: a.anon, name: a.name ?? null, uid: a.uid ?? null })).sort((a, b) => a.kind.localeCompare(b.kind)));
@@ -109,16 +192,16 @@ test("incident report says accident book and duty manager; Team only rating neve
   assert.deepEqual(S.errs, []);
 });
 
-test("changing the team code takes every staff phone off; the owner and manager stay", async () => {
+test("changing the team code takes every staff phone off; the owner and seniors stay", async () => {
   await resetEmulators();
   const { O, S } = await team(browser, site, [["S", "Derek"]]);
   await adminWrite("config/team", { code: { stringValue: "a-brand-new-code-456" } });
-  const r = await S.evaluate(() => LIVE.api.shout("Pema", "Hello").then(() => "allowed", (e) => e.code));
+  const r = await S.evaluate(() => LIVE.api.tell("add", "Hello").then(() => "allowed", (e) => e.code));
   assert.equal(r, "permission-denied");
-  assert.equal(await O.evaluate(() => LIVE.api.shout("Pema", "Owner here").then(() => "allowed", (e) => e.code)), "allowed");
+  assert.equal(await O.evaluate(() => LIVE.api.tell("add", "Owner here").then(() => "allowed", (e) => e.code)), "allowed");
   // The new link lets them back in.
   await S.evaluate(() => LIVE.api.join("a-brand-new-code-456", "Derek"));
-  assert.equal(await S.evaluate(() => LIVE.api.shout("Pema", "Back").then(() => "allowed", (e) => e.code)), "allowed");
+  assert.equal(await S.evaluate(() => LIVE.api.tell("add", "Back").then(() => "allowed", (e) => e.code)), "allowed");
 });
 
 test("a phone taken off the team stays off until it opens the link again", async () => {
@@ -163,7 +246,7 @@ test("issues: raise, take on, give to someone, fix, and raise again", async () =
   assert.deepEqual([O.errs, S.errs, T.errs], [[], [], []]);
 });
 
-test("slurs can't go out to the manager, in a name or anything to the manager; ordinary words that contain them can", async () => {
+test("slurs can't go out in Tell Derek, a name or anything to the seniors; ordinary words that contain them can", async () => {
   await resetEmulators();
   const { S } = await team(browser, site, [["S", "Vi"]]);
   const r = (t) => S.evaluate((t) => rude(t), t);
@@ -171,9 +254,10 @@ test("slurs can't go out to the manager, in a name or anything to the manager; o
   const w = ["n", "i", "g", "g", "e", "r"].join(""), p = ["p", "a", "k", "i"].join("");
   for (const t of [w, `you ${w.toUpperCase()}`, w.replace("i", "1"), w.split("").join(" "), w.split("").join("."), `${p}s`, ["f", "a", "g", "g", "o", "t"].join("")]) assert.equal(await r(t), true, t);
   for (const t of ["Need a hand at the bar", "En retard de 10 minutes", "Pakistan v England tonight", "Going for a fag break", "Pavimento spazzato", "Negroni", "Snigger", "be an error"]) assert.equal(await r(t), false, t);
-  await part(S, "ask");
-  await S.fill('[data-ask="text"]', `Get the ${w} off the bar`);
-  await S.click("#ask-go");
+  await part(S, "tell");
+  await S.fill('[data-tell="text"]', `Get the ${w} off the bar`);
+  await S.click("#tell-go");
   await waitToast(S, /^That has a slur in it, so it can't go out\./);
+  assert.equal(await S.evaluate(() => LIVE.tells.length), 0);
   assert.deepEqual(S.errs, []);
 });

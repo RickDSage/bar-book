@@ -433,17 +433,12 @@ a.btn { text-decoration: none; color: inherit; }
 .two { display: grid; grid-template-columns: 1fr 1.6fr; gap: 10px; }
 .actday { font-family: var(--body); font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 18px 0 0; }
 .staffrow .did { font-weight: 400; }
-.bcast { margin-top: 12px; padding: 14px; border: 2px solid var(--brass); border-radius: 14px; background: color-mix(in srgb, var(--brass) 14%, var(--surface)); }
-.bcast .meta { color: var(--muted); font-size: 14px; }
-.bcast .meta b { color: var(--fg); }
-.bcast p { margin: 6px 0 10px; font-size: 17px; white-space: pre-wrap; overflow-wrap: anywhere; }
 /* Live messages: CODE RED (urgent) and ASAP banners at the top of every page, the 86 update, and the Team page. */
-.bcast.lv-urgent { border-color: #d81e1e; background: color-mix(in srgb, #d81e1e 22%, var(--surface)); animation: redpulse 1.2s ease-in-out infinite; }
-.bcast.lv-urgent .meta b { color: #ff4d4d; letter-spacing: .5px; }
-.bcast.lv-asap { border-color: #f08c00; background: color-mix(in srgb, #f08c00 16%, var(--surface)); }
-.bcast.lv-out { border-color: var(--line); background: var(--surface); }
-@keyframes redpulse { 50% { box-shadow: 0 0 0 4px color-mix(in srgb, #d81e1e 35%, transparent); } }
-@media (prefers-reduced-motion: reduce) { .bcast.lv-urgent { animation: none; } }
+.notice.msg.lv-urgent { border-left: 4px solid #d81e1e; } .notice.msg.lv-asap { border-left: 4px solid #f08c00; }
+.seg.lvl { grid-template-columns: 1fr 1fr 1fr; margin-top: 0; }
+.seg.lvl button[data-lvl="urgent"][aria-pressed="true"] { background: #d81e1e; color: #fff; }
+.seg.lvl button[data-lvl="asap"][aria-pressed="true"] { background: #f08c00; color: #111; }
+details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: var(--muted); font-weight: 700; padding: 6px 0; }
 .chip.x { min-width: 32px; padding: 0 8px; margin-left: -4px; }
 .tcard > summary .pill { margin-left: 6px; }
 .warnbox { border: 2px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
@@ -751,7 +746,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire: house cocktails</button>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="bell" id="bell" hidden aria-label="Notices"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/></svg><span class="dot" id="bell-n" hidden></span></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <header class="gut" id="hdr">
   <div id="hdr-drinks">
@@ -761,7 +756,6 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 </header>
 
 <main class="gut">
-  <div id="bcast"></div>
   <nav class="subnav" id="subnav" aria-label="Drinks"><button class="chip" data-tab="rapid">⚡ Rapid fire</button><button class="chip" data-tab="drinks">Menu</button><button class="chip" data-tab="make">Make</button><button class="chip" data-tab="practice">Practise</button><button class="chip" data-tab="allergens">Allergens</button><button class="chip" data-tab="sheets">Cheat sheets</button></nav>
   <section class="view" id="v-drinks"><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p></section>
 
@@ -973,6 +967,16 @@ function printMsg(text, photos) {
   $("#print").innerHTML = `<pre>${esc(text)}</pre>${photos.map((x) => `<figure><img src="${x.data}" alt="">${x.note ? `<figcaption>${esc(x.note)}</figcaption>` : ""}</figure>`).join("")}`;
   window.print();
 }
+/* A copy of everything sent from the Send page (WhatsApp, email, the share sheet or print) goes to the seniors and the
+   owner, once per message. Team only: rate the shift goes with no name; My pay and the team link stay on the phone. */
+const PRIVATE_SEND = new Set(["hours", "team"]);
+function logSent(m) {
+  if (!LIVE.me || !LIVE.api || PRIVATE_SEND.has(snd.k)) return;
+  const anon = snd.k === "rate", text = msgText(anon ? SHARE.rate(null, true) : m, snd.pick, snd.note, false).slice(0, 8000);
+  if (!text.trim() || snd.logged === text) return;
+  snd.logged = text;
+  LIVE.api.logSent(snd.k.slice(0, 20), String(m.what).slice(0, 100), text, anon).catch(() => { snd.logged = null; });
+}
 document.addEventListener("click", (e) => {
   const o = e.target.closest("[data-send]"); if (o) { haptic(); openSend(o.dataset.send, o.dataset.sendO, o.dataset.sendNote); return; }
   if (!snd || !e.target.closest("#send")) return;
@@ -984,6 +988,7 @@ document.addEventListener("click", (e) => {
   if (a) {
     const wa = a.dataset.via === "wa", t = msgText(m, snd.pick, snd.note, wa);
     a.href = wa ? `https://wa.me/?text=${encodeURIComponent(t)}` : `mailto:?subject=${encodeURIComponent(m.title)}&body=${encodeURIComponent(t)}`;
+    logSent(m);
     return;
   }
   const text = msgText(m, snd.pick, snd.note);
@@ -996,11 +1001,12 @@ document.addEventListener("click", (e) => {
     if (snd.photos.length && !snd.files) return toast("Getting the photos ready. Tap again in a moment");
     const files = snd.files?.length && navigator.canShare?.({ files: snd.files }) ? snd.files : null;
     navigator.share(files ? { files } : { title: m.title, text }).catch(() => {});
+    logSent(m);
     return;
   }
   const ux = e.target.closest("[data-send-unphoto]");
   if (ux) { snd.photos.splice(+ux.dataset.sendUnphoto, 1); sndFiles(); renderSend(m); return; }
-  if (e.target.closest("[data-send-print]")) printMsg(msgText(m, snd.pick, snd.note, false), snd.photos);
+  if (e.target.closest("[data-send-print]")) { logSent(m); printMsg(msgText(m, snd.pick, snd.note, false), snd.photos); }
 });
 document.addEventListener("change", (e) => {
   if (!snd) return;
@@ -1050,7 +1056,7 @@ $("#secs").addEventListener("click", (e) => {
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, admin: false, owner: false, staff: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], shouts: [], asks: [], media: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, admin: false, owner: false, staff: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], myPhotos: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
 // The 86 board is shared by everyone on the team. Off the team, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -1716,7 +1722,7 @@ const SIDE_NAME = { bar: "Bar", floor: "Floor" };
 const sideName = (s) => SIDE_NAME[s] || "Bar";
 let mode = MODE_LISTS[store.get("mode")] ? store.get("mode") : "bar";
 if (!MODE_LISTS[mode]) mode = "bar";
-function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); renderTally(); renderBcast(); }
+function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); renderTally(); }
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
@@ -1991,10 +1997,10 @@ function clearList(k) {
 }
 // Clear everything, for a fresh start: both closing lists back to not started, everything back in stock, and this
 // phone's handover, Closed by and unsent photos gone. Anyone on the team can. The owner's master clear also cancels open
-// restocks and empties the inbox, issues and shout-outs. Sent handovers stay: the morning reads them.
+// restocks and empties the inbox and issues. Sent handovers stay: the morning reads them.
 async function clearAll(master) {
   const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api;
-  if (!confirm(master ? "Master clear: both closing lists, the 86 board, restocks, the inbox, issues and shout-outs, for everyone. Sent handovers stay. Go ahead?"
+  if (!confirm(master ? "Master clear: both closing lists, the 86 board, restocks, the inbox and issues, for everyone. Sent handovers stay. Go ahead?"
     : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. Your handover and photos on this phone go too.")) return;
   const jobs = [];
   for (const k of lists) {
@@ -2008,7 +2014,6 @@ async function clearAll(master) {
     for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
     for (const a of LIVE.asks) jobs.push(A.dropAsk(a.id));
     for (const x of LIVE.issues) jobs.push(A.withdrawIssue(x.id));
-    for (const x of LIVE.shouts) jobs.push(A.dropShout(x.id));
   }
   ho = { low: "", issues: "", next: "" }; closer = ""; noPhotos = "";
   store.set("ho", ho); store.set("closer", ""); store.set("noPhotos", "");
@@ -3512,24 +3517,27 @@ const FEATURES = [
   { g: "Shift", k: "football", n: "Football", go: "football", team: 1,
     what: "Today's and coming games at the top of the Shift tab, so everyone knows what's on the screens.",
     staff: "See the games, and add or remove one." },
-  { g: "Team", k: "ask", n: "To the manager", go: "ask", team: 1,
-    what: "Days off, swaps, complaints, faults, things to fix, ideas or anything else, straight to the manager, with your name or anonymously.",
+  { g: "Team", k: "ask", n: "To the seniors", go: "ask", team: 1,
+    what: "Days off, swaps, complaints, faults, things to fix, ideas or anything else, straight to the seniors, with your name or anonymously.",
     staff: "Send one and see when it's seen or done.", mgr: "Read them all in the Inbox, mark each seen or done, and reply." },
   { g: "Team", k: "incident", n: "Incident or accident", go: "incident",
     what: "Write up what happened while it's fresh, with ticks for first aid, the accident book and telling the duty manager, then send it on WhatsApp or to the manager. The accident book stays the record.",
     staff: "Fill it in, send it, then write it in the accident book." },
   { g: "Team", k: "rate", n: "Team only: rate the shift", go: "rate",
-    what: "Tonight out of 10, what went well, what was hard and anything else for the team. Never saved in the app: it goes on WhatsApp to the chat you pick.",
+    what: "Tonight out of 10, what went well, what was hard and anything else for the team. It goes on WhatsApp to the chat you pick, and Derek and the seniors get a copy with no name.",
     staff: "Rate it and send it to the team's own group." },
+  { g: "Team", k: "tell", n: "Tell Derek", go: "tell", team: 1,
+    what: "What's missing from Bar Book, what to add, or what's wrong in it, straight to Derek. Only Derek reads them.",
+    staff: "Pick one, say what it is, and send it. You see yours again with Done when it's sorted." },
   { g: "Team", k: "issues", n: "Issues and faults", go: "issues", team: 1, tour: 1,
     what: "Anything that needs fixing, from a leaking glass washer to a broken heater, listed until someone fixes it.",
     staff: "Raise one (urgent if it is), take it on or give it to someone, fix it, or raise it again if it's still broken." },
-  { g: "Team", k: "shouts", n: "Shout-outs", go: "shouts", team: 1,
-    what: "Thanking someone in front of the whole team for something they did.",
-    staff: "Give anyone a shout-out and send it on WhatsApp." },
   { g: "Team", k: "quick", n: "Quick WhatsApp messages", go: "quick",
     what: "Running late, off sick and swap a shift, written for you, plus the 86 list and open issues.",
     staff: "Tap one, change it if you like, and send it." },
+  { g: "Team", k: "sent", n: "Everything sent", go: "sent", team: 1,
+    what: "Everything the team sends from Bar Book on WhatsApp, email or print is copied here for Derek and the seniors. Team only ratings come with no name; My pay never leaves the phone.",
+    mgr: "Read any of them again." },
   { g: "Team", k: "spin", n: "Spin the wheel", go: "spin",
     what: "Who does the bins, who goes on break first, who picks the music: tap the names and spin.",
     staff: "Spin, then tell the team on WhatsApp." },
@@ -3538,7 +3546,7 @@ const FEATURES = [
     mgr: "Add and remove the venue's numbers." },
   { g: "Team", k: "people", n: "Who's on the team", go: "people", team: 1,
     what: "Every phone on the team and the two accounts.",
-    staff: "Share the team link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. The owner adds or removes the manager." },
+    staff: "Share the team link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. The owner adds or removes the seniors." },
 ];
 const navCols = () => ($("nav.tabs").style.gridTemplateColumns = `repeat(${[...$$("nav.tabs [data-tab]")].filter((b) => !b.hidden).length}, 1fr)`);
 const fUsable = (f) => !f.team || !!LIVE.me;
@@ -3546,7 +3554,7 @@ function featHtml() {
   const card = (f) => {
     const can = fUsable(f), why = can ? "" : "Join the team first";
     return `<article class="notice feat" data-feat="${f.k}"><div class="fh"><b>${f.n}</b>${why ? ` <span class="pill">${why}</span>` : ""}</div>
-      <p class="txt">${f.what}</p>${f.staff ? `<p class="s"><b>Staff:</b> ${f.staff}</p>` : ""}${f.mgr ? `<p class="s"><b>The manager:</b> ${f.mgr}</p>` : ""}
+      <p class="txt">${f.what}</p>${f.staff ? `<p class="s"><b>Staff:</b> ${f.staff}</p>` : ""}${f.mgr ? `<p class="s"><b>Seniors:</b> ${f.mgr}</p>` : ""}
       ${can ? `<div class="actions"><button class="btn" data-feat-go="${f.k}">Open it</button></div>` : ""}</article>`;
   };
   return `<h2 id="sh-name" style="margin-top:12px">What's in Bar Book</h2>
@@ -3648,8 +3656,8 @@ let myName = store.get("me", ""), teamCode = store.get("team", "");
   if (m) { teamCode = m[1]; store.set("team", teamCode); store.set("kicked", false); history.replaceState(null, "", location.pathname + location.search); }
 }
 const teamLink = () => `${location.origin}${location.pathname}#join=${teamCode}`;
-// The manager's first name, for "To Illias". Before the manager's account is on the team, "the manager".
-const mgrName = () => firstName(LIVE.staff.find((p) => p.role === "manager")?.name) || "the manager";
+// Up to three seniors (Illias, Hassan, Artur) have the senior accounts (role "manager" in the data). Everything sent
+// "to the seniors" reaches all of them and the owner.
 let joining = false, joinErr = store.get("kicked", false) ? "You were taken off the team on this phone. Open the team link from the staff group to join again." : "";
 function autoJoin() {
   if (!LIVE.api || !LIVE.ready || joining || LIVE.admin || !teamCode || !myName) return;
@@ -3687,26 +3695,22 @@ function rude(...xs) {
 }
 const RUDE = "That has a slur in it, so it can't go out. Quoting what someone said, for a complaint or an incident? Write it with stars or as \"the N-word\".";
 
+/* ---------- What's new for the seniors and the owner ----------
+   No messaging inside the app: the team talks face to face and sends on WhatsApp. The Team tab's badge counts what's
+   waiting for the person: new asks for the seniors and the owner, and new Tell Derek notes for the owner. */
 const newAsks = () => (LIVE.admin ? LIVE.asks.filter((a) => a.status === "new") : []);
-// 86 changes since this phone last tapped Got it on them, from the last 12 hours, not counting its own.
-let outAck = store.get("outAck", 0);
-const outNews = () => LIVE.outlog.filter((x) => x.uid !== LIVE.uid && !x.pending && ms(x.at) > Math.max(outAck, Date.now() - 12 * 36e5)).slice(0, 8);
+const newTells = () => (LIVE.owner ? LIVE.tells.filter((a) => a.status === "new") : []);
 function renderBell() {
-  const n = newAsks().length;
-  $("#bell").hidden = !LIVE.me; $("#bell-n").hidden = !n; $("#bell-n").textContent = n > 9 ? "9+" : n;
-  $("#bell").setAttribute("aria-label", n ? `Team, ${n} new` : "Team");
+  const n = newAsks().length + newTells().length;
   $("#team-n").hidden = !n; $("#team-n").textContent = n > 9 ? "9+" : n;
 }
-// 86 changes at the top of every page until Got it.
-function renderBcast() {
-  const outs = LIVE.me && LIVE.loaded.has("outlog") ? outNews() : [];
-  $("#bcast").innerHTML = outs.length ? `<article class="bcast lv-out" role="status"><div class="meta"><b>86 update</b></div><p>${outs.map((x) => `${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "is 86'd" : "is back on"} (${esc(x.name)}, ${hhmm(new Date(ms(x.at)))})`).join("<br>")}</p>
-      <button class="btn pri" id="bc-out-ok">Got it</button></article>` : "";
-}
-$("#bcast").addEventListener("click", (e) => {
-  if (e.target.closest("#bc-out-ok")) { outAck = Date.now(); store.set("outAck", outAck); haptic(); return renderBcast(); }
-});
 
+/* ---------- The phone's own notifications ----------
+   With Bar Book open in the background, a senior's or the owner's phone shows a notification for something new. */
+function notify(title, body) {
+  if (!document.hidden || !("Notification" in window) || Notification.permission !== "granted") return;
+  navigator.serviceWorker?.ready.then((r) => r.showNotification(title, { body, icon: "icon-192.png", tag: title, renotify: true })).catch(() => {});
+}
 
 /* ---------- To the manager ----------
    Days off, swaps, complaints, faults, things to fix, ideas or anything else, straight to the manager. Sent
@@ -3717,14 +3721,14 @@ let askF = { kind: "dayoff", text: "", when: "", anon: false }, sentAnon = store
 const askLine = (a) => `<article class="notice"><div class="meta"><b>${ASK[a.kind] || "Message"}</b> · ${a.anon ? "anonymous" : esc(a.name)} · ${when(a.at)} <span class="pill ${ASK_ST[a.status][1]}">${ASK_ST[a.status][0]}</span></div>
   ${a.when ? `<p class="note">When: ${esc(a.when)}</p>` : ""}<p class="txt">${ut(a.text)}</p>${a.reply ? `<p class="note">${esc(a.by)}: ${ut(a.reply)}</p>` : ""}`;
 function askHtml() {
-  const m = mgrName(), mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
-  return `<p class="note">Only ${esc(m)} sees these, not the rest of the team. For things the team shouldn't share with ${esc(m)}, use Team only below.</p>
+  const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
+  return `<p class="note">Only the seniors see these, not the rest of the team. For things the team shouldn't share with the seniors, use Team only below.</p>
     <div class="recent">${Object.entries(ASK).map(([k, t]) => `<button class="chip" data-ask-kind="${k}" aria-pressed="${askF.kind === k}">${t}</button>`).join("")}</div>
     ${["dayoff", "swap"].includes(askF.kind) ? `<label class="fld">Which day or days<input data-ask="when" maxlength="60" value="${esc(askF.when)}" placeholder="Sat 22 Nov, or 1 to 3 Dec"></label>` : ""}
     <label class="fld">${askF.kind === "complaint" ? "What happened" : "Message"}<textarea data-ask="text" rows="3" maxlength="2000" placeholder="${{ dayoff: "Family wedding, I can swap with Pema", complaint: "Say what happened, when, and who was there", fault: "Glass washer leaking again", fix: "Bar stool wobbles at table 4" }[askF.kind] || ""}">${esc(askF.text)}</textarea></label>
     <label class="check"><input type="checkbox" data-ask="anon"${askF.anon ? " checked" : ""}> Send it anonymously</label>
-    ${askF.anon ? `<p class="note">No name and no phone id go with it, and you won't see a reply here. In a small team ${esc(m)} might still guess who sent it from what it says.</p>` : ""}
-    <div class="actions"><button class="btn pri" id="ask-go">Send to ${esc(m)}</button></div>
+    ${askF.anon ? `<p class="note">No name and no phone id go with it, and you won't see a reply here. In a small team the seniors might still guess who sent it from what it says.</p>` : ""}
+    <div class="actions"><button class="btn pri" id="ask-go">Send to the seniors</button></div>
     ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map(askLine).join("</article>")}</article>` : ""}
     ${sentAnon.length ? `<p class="note">${plural(sentAnon.length, "anonymous message")} sent from this phone.</p>` : ""}`;
 }
@@ -3748,7 +3752,7 @@ function incHtml() {
     <label class="check"><input type="checkbox" data-inc="ambulance"${incF.ambulance ? " checked" : ""}> Ambulance or police called</label>
     <label class="check"><input type="checkbox" data-inc="book"${incF.book ? " checked" : ""}> Written in the accident book</label>
     <label class="check"><input type="checkbox" data-inc="told"${incF.told ? " checked" : ""}> Duty manager told</label>
-    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}${LIVE.me ? `<button class="btn" id="inc-mgr">Send to ${esc(mgrName())}</button>` : ""}<button class="btn" id="inc-clear">Clear</button></div>
+    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}${LIVE.me ? `<button class="btn" id="inc-mgr">Send to the seniors</button>` : ""}<button class="btn" id="inc-clear">Clear</button></div>
     <p class="note">What you type stays on this phone until you tap Clear.</p>`;
 }
 const tickBox = (b) => (b ? "✅" : "⬜");
@@ -3769,7 +3773,7 @@ SHARE.incident = () => ({ what: "Incident or accident", title: `⚠️ ${INC[inc
    except on WhatsApp, and never goes to the manager through the app. */
 let rateF = { score: 0, good: "", bad: "", feel: "", ...store.get("rateDraft", {}) };
 function rateHtml() {
-  return `<p class="note">Never saved in the app and never sent to ${esc(mgrName())} by Bar Book: it goes on WhatsApp, to whichever chat you pick.</p>
+  return `<p class="note">It goes on WhatsApp, to whichever chat you pick. When you send it, Derek and the seniors also get a copy with no name, no side and nothing about this phone, like everything sent from Bar Book. They can't tell who sent it from the app, but in a small team what it says may give it away.</p>
     <div class="mini">Tonight out of 10</div>
     <div class="recent score">${Array.from({ length: 10 }, (_, i) => `<button class="chip" data-rate="${i + 1}" aria-pressed="${rateF.score === i + 1}">${i + 1}</button>`).join("")}</div>
     <label class="fld">What went well<textarea data-rt="good" rows="2" maxlength="600">${esc(rateF.good)}</textarea></label>
@@ -3777,8 +3781,9 @@ function rateHtml() {
     <label class="fld">Anything else for the team (how you feel, management, anything)<textarea data-rt="feel" rows="2" maxlength="1000">${esc(rateF.feel)}</textarea></label>
     <div class="actions">${sendBtn("rate", "Send to the team on WhatsApp")}<button class="btn" id="rate-clear">Clear</button></div>`;
 }
-SHARE.rate = () => ({ what: "Rate the shift", title: `${rateF.score ? `${rateF.score}/10` : "How was it"} · ${dayName(shiftDay())} ${sideName(mode).toLowerCase()} shift`,
-  head: rateF.score ? [`${"★".repeat(Math.round(rateF.score / 2))}${"☆".repeat(5 - Math.round(rateF.score / 2))} ${rateF.score} out of 10${LIVE.me || myName ? ` from ${LIVE.me || myName}` : ""}`] : [],
+// anon: the copy for the seniors and the owner, with no name and no side.
+SHARE.rate = (o, anon = false) => ({ what: "Rate the shift", title: `${rateF.score ? `${rateF.score}/10` : "How was it"} · ${dayName(shiftDay())}${anon ? "" : ` ${sideName(mode).toLowerCase()}`} shift`,
+  head: rateF.score ? [`${"★".repeat(Math.round(rateF.score / 2))}${"☆".repeat(5 - Math.round(rateF.score / 2))} ${rateF.score} out of 10${!anon && (LIVE.me || myName) ? ` from ${LIVE.me || myName}` : ""}`] : [],
   parts: [
     { id: "good", label: "👍 Went well", one: true, lines: rateF.good ? [rateF.good] : [] },
     { id: "bad", label: "👎 Hard, or should change", one: true, lines: rateF.bad ? [rateF.bad] : [] },
@@ -3828,21 +3833,6 @@ SHARE.issue = (id) => {
     notePh: "When can you come?", tip: "Add a photo of it, so whoever fixes it knows what to bring." };
 };
 
-/* ---------- Shout-outs ---------- */
-const shF = { to: "", text: "" };
-function shoutsHtml() {
-  const ppl = ALL_STAFF.filter((n) => n !== LIVE.me);
-  return `<div class="recent" translate="no">${ppl.map((n) => `<button class="chip" data-sh-to="${esc(n)}" aria-pressed="${shF.to === n}">${esc(n)}</button>`).join("")}</div>
-    <label class="fld">What they did<input data-sh="text" maxlength="200" value="${esc(shF.text)}" placeholder="Smashed the Friday rush and helped everyone close"></label>
-    <div class="actions"><button class="btn pri" id="sh-go">Give a shout-out</button></div>
-    ${LIVE.shouts.slice(0, 12).map((x) => `<div class="staffrow"><div class="n">👏 <b translate="no">${esc(x.toName)}</b> from <span translate="no">${esc(x.name)}</span></div><div class="s">${ut(x.text)} · ${when(x.at)}</div>
-      <div class="actions">${sendBtn("shout", "Send on WhatsApp", x.id)}${x.uid === LIVE.uid || LIVE.admin ? `<button class="btn" data-sh-drop="${x.id}">Remove</button>` : ""}</div></div>`).join("") || `<p class="note">No shout-outs yet. Be the first.</p>`}`;
-}
-SHARE.shout = (id) => {
-  const x = LIVE.shouts.find((s) => s.id === id); if (!x) return null;
-  return { what: "Shout-out", title: `Shout-out to ${x.toName} 👏`, head: [x.text, `From ${x.name}`], parts: [], noteHead: null };
-};
-
 /* ---------- Quick WhatsApp messages ---------- */
 const LATE = ["5", "10", "15", "20", "30", "45", "60"];
 SHARE.late = (o = "15") => {
@@ -3859,7 +3849,7 @@ const nextDays = () => Array.from({ length: 14 }, (_, i) => addDays(shiftDay(), 
 SHARE.swap = (o) => {
   const d = o || nextDays()[1];
   return { what: "Swap a shift", title: "Can anyone swap or cover a shift?", choose: { label: "Which day", v: d, opts: nextDays().map((k, i) => [k, i ? dayName(k) : "Today"]) },
-    head: [`${longDay(d)}, ${sideName(mode).toLowerCase()}. Message me if you can take it.`, `${mgrName() === "the manager" ? "The manager" : cap(mgrName())} still has to agree it.`],
+    head: [`${longDay(d)}, ${sideName(mode).toLowerCase()}. Message me if you can take it.`, "The seniors still have to agree it."],
     parts: [], noteHead: null, notePh: "Times, and anything else" };
 };
 SHARE.team = () => (teamCode ? { what: "Team link", title: "Join Bar Book",
@@ -3908,12 +3898,37 @@ function callHtml() {
   return `<div class="mini">In an emergency</div>${CALL_UK.map(([p, t, sub], i) => callRow(p, t, sub, i ? "" : " sos")).join("")}
     <div class="mini">Our numbers</div>
     ${ours.map((c, i) => `${callRow(c.p, c.t, c.n, "", true)}${LIVE.admin ? `<div class="actions"><button class="btn" data-cl-drop="${i}">Remove</button></div>` : ""}`).join("")
-      || `<p class="note">None yet. ${LIVE.admin ? "Add the numbers the team needs on a shift: the duty manager, maintenance, the glass washer engineer." : `${cap(mgrName())} adds them.`}</p>`}
+      || `<p class="note">None yet. ${LIVE.admin ? "Add the numbers the team needs on a shift: the duty manager, maintenance, the glass washer engineer." : "The seniors add them."}</p>`}
     ${LIVE.admin ? `<div class="h3">Add a number</div>
       <label class="fld">What for<input data-cl="t" maxlength="40" value="${esc(clF.t)}" placeholder="Duty manager"></label>
       <label class="fld">Who (optional)<input data-cl="n" maxlength="60" value="${esc(clF.n)}" placeholder="The company or the person"></label>
       <label class="fld">Number<input data-cl="p" type="tel" maxlength="20" value="${esc(clF.p)}" placeholder="020 7946 0000"></label>
       <div class="actions"><button class="btn pri" id="cl-add">Add it</button></div>` : ""}`;
+}
+
+/* ---------- Tell Derek ----------
+   Anyone on the team tells the owner what's missing from the app, what to add or what's wrong. Only the owner reads
+   them; everyone sees their own again. */
+const TELL = { missing: "Something missing", add: "Add this", wrong: "Something's wrong" };
+const ownerName = () => firstName(LIVE.staff.find((p) => p.role === "owner")?.name) || "Derek";
+let tellF = { kind: "missing", text: "" };
+const tellRow = (x, own) => `<article class="notice"><div class="meta"><b>${TELL[x.kind]}</b> · ${own ? "" : `<span translate="no">${esc(x.name)}</span> · `}${when(x.at)} <span class="pill ${x.status === "done" ? "ok" : "wait"}">${x.status === "done" ? "Done" : "Sent"}</span></div><p class="txt">${ut(x.text)}</p>`;
+function tellHtml() {
+  const mine = LIVE.tells.filter((x) => x.uid === LIVE.uid);
+  return `<p class="note">Only ${esc(ownerName())} reads these: what's missing from Bar Book, what to add, or what's wrong in it.</p>
+    <div class="recent">${Object.entries(TELL).map(([k, v]) => `<button class="chip" data-tell-kind="${k}" aria-pressed="${tellF.kind === k}">${v}</button>`).join("")}</div>
+    <label class="fld">What is it?<textarea data-tell="text" rows="3" maxlength="1000" placeholder="${{ missing: "A list for the terrace", add: "The new house spritz", wrong: "The Mojito spec says 50 ml rum, we use 37.5 ml" }[tellF.kind]}">${esc(tellF.text)}</textarea></label>
+    <div class="actions"><button class="btn pri" id="tell-go">Send to ${esc(ownerName())}</button></div>
+    ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map((x) => tellRow(x, true) + "</article>").join("")}` : ""}`;
+}
+function tellsHtml() {
+  return LIVE.tells.map((x) => `${tellRow(x, false)}<div class="actions">${x.status === "new" ? `<button class="btn pri" data-tell-done="${x.id}">Done</button>` : ""}<button class="btn" data-tell-drop="${x.id}">Remove</button></div></article>`).join("")
+    || `<p class="note">Nothing yet.</p>`;
+}
+// Everything the team sent from Bar Book, newest first.
+function sentHtml() {
+  return `<p class="note">A copy of everything sent from Bar Book on WhatsApp, email or print. Team only: rate the shift comes with no name. My pay stays on each phone.</p>
+    ${LIVE.sent.map((x) => `<details class="setup"><summary>${esc(x.what)} · ${x.anon ? "anonymous" : `<span translate="no">${esc(x.name)}</span>`}, ${when(x.at)}</summary><pre class="sendpre" translate="no">${esc(x.text)}</pre></details>`).join("") || `<p class="note">Nothing sent yet.</p>`}`;
 }
 
 /* ---------- The manager's view ----------
@@ -3932,7 +3947,7 @@ function reportsHtml() {
     ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}</details>`).join("") || `<p class="note">No closing reports yet.</p>`;
 }
 const outlogHtml = () => LIVE.outlog.slice(0, 60).map((x) => `<div class="staffrow"><div class="n">${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "86'd" : "back on"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">No 86s yet.</p>`;
-const ROLE = { owner: "owner", manager: "manager", staff: "" };
+const ROLE = { owner: "owner", manager: "senior", staff: "" };
 function peopleHtml() {
   const canGo = (p) => p.uid !== LIVE.uid && p.role !== "owner" && (LIVE.owner || (LIVE.admin && p.role === "staff"));
   return `<p class="note">${plural(LIVE.staff.length, "phone or account", "phones and accounts")} on the team.</p>
@@ -3941,15 +3956,15 @@ function peopleHtml() {
     ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, change the team code in Firebase and share the new link.</p>` : ""}`;
 }
 function mgrHtml() {
-  return `${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board, restock requests, the inbox, issues and shout-outs for everyone. Sent handovers and their photos stay.</p>
+  return `${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board, restock requests, the inbox and issues for everyone. Sent handovers and their photos stay.</p>
       <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
     <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>
-    ${LIVE.owner && !LIVE.staff.some((p) => p.role === "manager") ? `<div class="h3">Add the manager</div>
-      <p class="note">Their own login, with a password you pick and give them in person. They see and can do everything you can, except add or remove a manager.</p>
+    ${LIVE.owner && LIVE.staff.filter((p) => p.role === "manager").length < 3 ? `<div class="h3">Add a senior</div>
+      <p class="note">Up to three. Each gets their own login, with a password you pick and give them in person. They see everything and can change the lists, labels, games, drink photos and numbers. Only you add or remove a senior, and only you read Tell Derek.</p>
       <label class="fld">First name<input id="am-name" maxlength="30"></label>
       <label class="fld">Username (lower case letters and numbers)<input id="am-user" autocapitalize="none" spellcheck="false" maxlength="20"></label>
       <label class="fld">Password (6 or more characters)<input id="am-pw" autocomplete="off"></label>
-      <div class="actions"><button class="btn pri" id="am-go">Add the manager</button></div>` : ""}`;
+      <div class="actions"><button class="btn pri" id="am-go">Add the senior</button></div>` : ""}`;
 }
 
 /* ---------- The Team page ----------
@@ -3958,18 +3973,21 @@ const tmOpen = new Set(store.get("tmOpen", []));
 const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
 const CARDS = () => [
   ...(LIVE.admin ? [
+    ...(LIVE.owner ? [["tells", "What the team told you", tellsHtml, newTells().length ? { t: `${newTells().length} new`, hot: 1 } : ""]] : []),
     ["inbox", "Inbox from the team", inboxHtml, newAsks().length ? { t: `${newAsks().length} new`, hot: 1 } : ""],
+    ["sent", "Everything sent", sentHtml, LIVE.sent.length || ""],
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
     ["outlog", "86 log", outlogHtml],
   ] : []),
-  ...(LIVE.me && !LIVE.admin ? [["ask", `To ${cap(mgrName())}`, askHtml]] : []),
+  ...(LIVE.me && !LIVE.admin ? [["ask", "To the seniors", askHtml]] : []),
   ["incident", "Incident or accident", incHtml],
   ["rate", "Team only: rate the shift", rateHtml],
-  ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : ""], ["shouts", "Shout-outs", shoutsHtml]] : []),
+  ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : ""]] : []),
+  ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml]] : []),
   ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") : ""}</div>`],
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml], ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
-  ...(LIVE.admin ? [["mgr", LIVE.owner ? "Owner settings" : "Manager settings", mgrHtml]] : []),
+  ...(LIVE.admin ? [["mgr", LIVE.owner ? "Owner settings" : "Senior settings", mgrHtml]] : []),
 ];
 function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (c && box) box.innerHTML = c[2](); }
 function topHtml() {
@@ -3985,7 +4003,7 @@ function topHtml() {
     <label class="fld">Or type your first name<input id="j-name" maxlength="30" value="${esc(ALL_STAFF.includes(myName) ? "" : myName)}" translate="no"></label>
     <label class="fld">Team code<input id="j-code" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(teamCode)}"></label>
     <button class="btn pri wide" id="j-go">Join</button>`}</div>
-    <details class="setup"><summary>Owner or manager login</summary>
+    <details class="setup"><summary>Owner or senior login</summary>
       <label class="fld">Username<input id="l-user" autocapitalize="none" autocomplete="username" spellcheck="false"></label>
       <label class="fld">Password<input id="l-pw" type="password" autocomplete="current-password"></label>
       <button class="btn pri wide" id="l-go">Log in</button></details>`;
@@ -3995,6 +4013,7 @@ function renderTeam() {
   const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if (!typing($("#tm-top"))) $("#tm-top").innerHTML = topHtml();
   if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = CARDS().map(([k, t, f, sub]) => card(k, t, f, sub)).join("");
+  renderBell();
 }
 function renderNotices() { renderTeam(); }
 // Opening or shutting a card is remembered, and its inside is drawn as it opens.
@@ -4010,8 +4029,8 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.rt) { rateF[t.dataset.rt] = t.value; store.set("rateDraft", rateF); }
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.fixt) fixText[t.dataset.fixt] = t.value;
-  if (t.dataset.sh) shF[t.dataset.sh] = t.value;
   if (t.dataset.spin) spinF[t.dataset.spin] = t.value;
+  if (t.dataset.tell) tellF[t.dataset.tell] = t.value;
   if (t.dataset.cl) clF[t.dataset.cl] = t.value;
   if (t.dataset.askReply) askReply[t.dataset.askReply] = t.value;
 });
@@ -4049,7 +4068,7 @@ $("#v-notices").addEventListener("click", async (e) => {
     const a = { kind: askF.kind, text: tx, when: ["dayoff", "swap"].includes(askF.kind) ? askF.when.trim() : "", anon: askF.anon };
     return busy(b("#ask-go"), "Sending…", A.ask(a).then(() => {
       if (a.anon) { sentAnon = [...sentAnon, Date.now()].slice(-50); store.set("sentAnon", sentAnon); }
-      askF = { kind: askF.kind, text: "", when: "", anon: false }; toast(`Sent to ${mgrName()}`); haptic(); renderCard("ask");
+      askF = { kind: askF.kind, text: "", when: "", anon: false }; toast("Sent to the seniors"); haptic(); renderCard("ask");
     }, () => toast("Not sent. Check the signal and try again")));
   }
   if ((x = b("[data-inbox]"))) { inboxAll = x.dataset.inbox === "1"; return renderCard("inbox"); }
@@ -4063,7 +4082,7 @@ $("#v-notices").addEventListener("click", async (e) => {
     if (!incF.what.trim()) return toast("Say what happened first");
     if (rude(incText())) return toast(RUDE);
     const text = `${incText()}\n${tickBox(incF.firstAid)} First aid given\n${tickBox(incF.ambulance)} Ambulance or police called\n${tickBox(incF.book)} Written in the accident book\n${tickBox(incF.told)} Duty manager told`;
-    return busy(b("#inc-mgr"), "Sending…", A.ask({ kind: "incident", text: text.slice(0, 2000), when: "", anon: false }).then(() => toast(`Sent to ${mgrName()}. Write it in the accident book too`), () => toast("Not sent. Check the signal and try again")));
+    return busy(b("#inc-mgr"), "Sending…", A.ask({ kind: "incident", text: text.slice(0, 2000), when: "", anon: false }).then(() => toast("Sent to the seniors. Write it in the accident book too"), () => toast("Not sent. Check the signal and try again")));
   }
   // Rate the shift.
   if ((x = b("[data-rate]"))) { rateF.score = +x.dataset.rate; store.set("rateDraft", rateF); haptic(); return renderCard("rate"); }
@@ -4088,14 +4107,15 @@ $("#v-notices").addEventListener("click", async (e) => {
     const o = LIVE.issues.find((i) => i.id === x.dataset.again); if (!o) return;
     Object.assign(isF, { title: o.title, detail: "", area: o.area, urgent: o.urgent, again: o.id }); tmOpen.add("is-form"); return renderCard("issues");
   }
-  // Shout-outs.
-  if ((x = b("[data-sh-to]"))) { shF.to = x.dataset.shTo; return renderCard("shouts"); }
-  if (b("#sh-go")) {
-    if (!shF.to || !shF.text.trim()) return toast("Pick who and say what they did");
-    if (rude(shF.text)) return toast(RUDE);
-    return busy(b("#sh-go"), "Sending…", A.shout(shF.to, shF.text.trim()).then(() => { Object.assign(shF, { to: "", text: "" }); toast("Shout-out sent 👏"); haptic(); renderCard("shouts"); }, () => toast("Not sent. Try again")));
+  // Tell Derek.
+  if ((x = b("[data-tell-kind]"))) { tellF.kind = x.dataset.tellKind; return renderCard("tell"); }
+  if (b("#tell-go")) {
+    const tx = tellF.text.trim(); if (!tx) return toast("Say what it is first");
+    if (rude(tx)) return toast(RUDE);
+    return busy(b("#tell-go"), "Sending…", A.tell(tellF.kind, tx.slice(0, 1000)).then(() => { tellF = { kind: tellF.kind, text: "" }; toast(`Sent to ${ownerName()}`); haptic(); renderCard("tell"); }, () => toast("Not sent. Check the signal and try again")));
   }
-  if ((x = b("[data-sh-drop]"))) return track(A.dropShout(x.dataset.shDrop), "Removed");
+  if ((x = b("[data-tell-done]"))) return track(A.tellDone(x.dataset.tellDone), "Marked done");
+  if ((x = b("[data-tell-drop]"))) { if (confirm("Remove this for good?")) track(A.dropTell(x.dataset.tellDrop), "Removed"); return; }
   // Spin the wheel.
   if ((x = b("[data-spin-name]"))) { const n = x.dataset.spinName; spinF.names = spinF.names.includes(n) ? spinF.names.filter((y) => y !== n) : [...spinF.names, n]; spinF.got = ""; return renderCard("spin"); }
   if (b("#spin-all")) { spinF.names = [...ALL_STAFF]; spinF.got = ""; return renderCard("spin"); }
@@ -4138,7 +4158,7 @@ document.addEventListener("change", (e) => { if (e.target.id === "w-other" && e.
 
 /* ---------- Live updates ----------
    Called by live.js whenever membership or anything shared changes. New things from other people pop up as a toast
-   (on the manager's phone, everything does), and an urgent message buzzes and beeps. */
+   (on a senior's or the owner's phone, everything does). */
 const told = new Set(), firstSnap = new Set();
 // Issues: being given one beats everything; on your own you hear when someone takes it on or fixes it; anyone else's
 // only pops up when it's urgent.
@@ -4169,11 +4189,12 @@ function eventToast(e) {
   return e.to === "finished" ? `${e.label} finished by ${e.name}${e.done < e.required ? `, with ${e.required - e.done} not done` : ""}` : e.from === "finished" ? `${e.label} reopened by ${e.name}` : "";
 }
 const TOAST = {
-  shouts: (x) => `👏 ${x.name} gave ${x.toName === LIVE.me ? "you" : x.toName} a shout-out`,
   issues: (x) => (LIVE.admin && x.status === "open" && x.uid !== LIVE.uid && !x.urgent ? `New issue: ${x.title}` : issueToast(x)),
   events: eventToast,
   asks: (x) => (LIVE.admin && x.status === "new" ? `📥 ${ASK[x.kind]} from ${x.anon ? "someone (anonymous)" : x.name}` : x.uid === LIVE.uid && x.status === "done" ? `${x.by} dealt with your ${lower(ASK[x.kind])}` : ""),
   reports: (x) => (LIVE.admin ? `${x.name} sent the ${x.side} closing` : ""),
+  tells: (x) => (LIVE.owner && x.status === "new" ? `💡 ${x.name}: ${TELL[x.kind]}` : ""),
+  sent: (x) => (LIVE.admin ? `📤 ${x.anon ? "Someone" : x.name} sent: ${x.what}` : ""),
   outlog: (x) => `${x.action === "out" ? "🚫 86'd" : "✅ Back on"}: ${x.itemName} (${x.name})`,
 };
 function liveChanged(what) {
@@ -4183,7 +4204,6 @@ function liveChanged(what) {
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
   if (what === "me") autoJoin();
   if (what === "lists") applyLists();
-  if (["me", "outlog"].includes(what)) renderBcast();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of LIVE[what]) {
@@ -4191,7 +4211,9 @@ function liveChanged(what) {
       if (x.pending || told.has(k)) continue; told.add(k);
       if (first || (x.uid === LIVE.uid && !["asks", "issues"].includes(what))) continue;
       const msg = TOAST[what](x);
-      if (msg) toast(msg);
+      if (!msg) continue;
+      if (LIVE.admin) notify("Bar Book", msg);
+      toast(msg);
     }
   }
   renderBell(); renderNet();
@@ -4209,7 +4231,6 @@ setInterval(() => {
   if (!LIVE.me || (ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName))) return;
   if (!$("#v-tally").hidden) renderTally();
 }, 60000);
-$("#bell").addEventListener("click", () => show("notices"));
 $("#home").addEventListener("click", (e) => { e.preventDefault(); show("drinks"); });
 
 /* ---------- Cheat sheets ----------
