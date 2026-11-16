@@ -26,8 +26,9 @@ function rapidTile(d) {
 function renderRapid() {
   $("#rp-specs").setAttribute("aria-pressed", RAPID.specs);
   if (RAPID.rushEdit) { $("#rp-out").innerHTML = rushPickHtml(); return; }
-  const words = mkNorm(RAPID.q).split(" ").filter(Boolean);
-  const hit = (d) => words.every((w) => d._h.includes(w));
+  // The same search as the menu: typos, "redbull" or "g&t" find what they mean.
+  const words = RAPID.q.trim() ? plQuery(RAPID.q.trim()).words : [];
+  const hit = (d) => plHits(d, words);
   const top = words.length ? [] : rushNames().map((n) => D.find((d) => d.name === n));
   const seen = new Set(top.map((d) => d.id)), groups = [];
   for (const [t, f] of RAPID_GROUPS) {
