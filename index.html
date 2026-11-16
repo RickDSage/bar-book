@@ -668,6 +668,7 @@ details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: v
 .lfold > summary { list-style: none; cursor: pointer; }
 .lfold > summary::-webkit-details-marker { display: none; }
 .ltools { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+.draftbar { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; margin: 10px 0 4px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 10px; font-size: 14px; color: var(--muted); }
 .run { margin-top: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .run .n { font-size: 14.5px; }
 .run .s { color: var(--muted); font-size: 13px; margin-top: 4px; }
@@ -2110,7 +2111,7 @@ function clearList(k) {
 async function clearAll(master) {
   const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api;
   if (!confirm(master ? "Master clear: both closing lists, the 86 board, restocks, the inbox and issues, for everyone. Sent handovers stay. Go ahead?"
-    : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. Your handover and photos on this phone go too.")) return;
+    : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. Your handover, drafts and photos on this phone go too.")) return;
   const jobs = [];
   for (const k of lists) {
     const t = LISTS[k].title, p = progress(k), ids = shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
@@ -2119,6 +2120,7 @@ async function clearAll(master) {
   }
   for (const n of outNow()) jobs.push(A.set86(n, false));
   for (const ph of LIVE.myPhotos) jobs.push(A.deletePhoto(ph.id));
+  for (const k in DRAFTS) dropDraft(k);
   if (master) {
     for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
     for (const a of LIVE.asks) jobs.push(A.dropAsk(a.id));
@@ -2424,7 +2426,7 @@ function restockHtml() {
     <div class="two"><label class="fld">How many<input id="rs-qty" inputmode="decimal" value="${esc(rsF.qty)}"></label><label class="fld">Unit<select id="rs-unit">${Object.keys(UNIT).map((u) => `<option value="${u}"${u === rsF.unit ? " selected" : ""}>${u === "each" ? "Each" : UNIT[u][1][0].toUpperCase() + UNIT[u][1].slice(1)}</option>`).join("")}</select></label></div>
     <div class="fld">Where it's going<div class="recent" style="margin-top:6px">${Object.entries(DEST).map(([k, t]) => `<button class="chip" data-rs-dest="${k}" aria-pressed="${k === rsDest()}">${t}</button>`).join("")}</div></div>
     <label class="fld">Detail (optional)<input id="rs-detail" maxlength="200" value="${esc(rsF.detail)}" placeholder="Running low, the big bottles, for the weekend…"></label>
-    <div class="actions"><button class="btn pri" id="rs-go">Ask for it</button></div>
+    ${draftBar("restock")}<div class="actions"><button class="btn pri" id="rs-go">Ask for it</button></div>
     ${open.map(rsCard).join("") || `<p class="note">Nothing waiting to come up.</p>`}
     ${done.length ? `<details class="setup"><summary>Done tonight (${done.length})</summary>${done.map(rsCard).join("")}</details>` : ""}`;
 }
@@ -2592,7 +2594,7 @@ function labelAddHtml(side) {
     <label class="fld">What it is<input id="lb-item" maxlength="60" value="${esc(lbF.item)}" placeholder="Apple juice, salted caramel sauce…"></label>
     <label class="fld">Days it keeps once opened<input id="lb-life" inputmode="numeric" maxlength="3" value="${esc(lbF.life)}"></label>
     <label class="check"><input type="checkbox" id="lb-on"${lbF.on ? " checked" : ""}> Needs a date label</label>
-    <div class="actions"><button class="btn pri" id="lb-go">Add it</button></div></details>`;
+    ${draftBar("label")}<div class="actions"><button class="btn pri" id="lb-go">Add it</button></div></details>`;
 }
 function addLabel(side) {
   const item = lbF.item.trim().slice(0, 60), life = Number(lbF.life);
@@ -4531,7 +4533,6 @@ const I18N = {
 "What went well": ["ما الذي سار جيدًا", "Ինչն անցավ լավ", "কী ভালো হয়েছে", "Какво мина добре", "哪里做得好", "Ce qui s'est bien passé", "શું સારું ગયું", "क्या अच्छा रहा", "Cosa è andato bene", "Kas pavyko gerai", "के राम्रो भयो", "Co poszło dobrze", "O que correu bem", "ਕੀ ਵਧੀਆ ਰਿਹਾ", "Ce a mers bine", "Qué fue bien", "எது நன்றாக நடந்தது", "Ne iyi gitti", "Що вдалося", "کیا اچھا رہا", "Điều gì tốt", "Beth aeth yn dda"],
 "What was hard, or should change": ["ما الذي كان صعبًا أو يجب أن يتغير", "Ինչն էր դժվար կամ պետք է փոխվի", "কী কঠিন ছিল, বা কী বদলানো উচিত", "Какво беше трудно или трябва да се промени", "哪里很难，或者该改变什么", "Ce qui a été dur, ou ce qui devrait changer", "શું અઘરું હતું, કે શું બદલાવું જોઈએ", "क्या मुश्किल था, या क्या बदलना चाहिए", "Cosa è stato difficile, o cosa andrebbe cambiato", "Kas buvo sunku arba ką reikėtų keisti", "के गाह्रो भयो, वा के बदलिनुपर्छ", "Co było trudne albo co powinno się zmienić", "O que foi difícil, ou devia mudar", "ਕੀ ਔਖਾ ਸੀ, ਜਾਂ ਕੀ ਬਦਲਣਾ ਚਾਹੀਦਾ ਹੈ", "Ce a fost greu sau ar trebui schimbat", "Qué fue difícil, o debería cambiar", "எது கடினமாக இருந்தது, அல்லது எது மாற வேண்டும்", "Ne zordu ya da ne değişmeli", "Що було важко або що варто змінити", "کیا مشکل تھا، یا کیا بدلنا چاہیے", "Điều gì khó, hoặc nên thay đổi", "Beth oedd yn anodd, neu a ddylai newid"],
 "Anything else for the team (how you feel, management, anything)": ["أي شيء آخر للفريق (شعورك، الإدارة، أي شيء)", "Ուրիշ որևէ բան թիմի համար (ինչպես եք ձեզ զգում, ղեկավարություն, ցանկացած բան)", "টিমের জন্য আর কিছু (আপনার অনুভূতি, ম্যানেজমেন্ট, যেকোনো কিছু)", "Нещо друго за екипа (как се чувстваш, ръководството, каквото и да е)", "给团队的其他话（你的感受、管理层，什么都行）", "Autre chose pour l'équipe (votre ressenti, la direction, n'importe quoi)", "ટીમ માટે બીજું કંઈ (તમને કેવું લાગે છે, મેનેજમેન્ટ, કંઈ પણ)", "टीम के लिए कुछ और (आप कैसा महसूस करते हैं, मैनेजमेंट, कुछ भी)", "Altro per la squadra (come ti senti, la gestione, qualsiasi cosa)", "Dar kas nors komandai (kaip jaučiatės, vadovybė, bet kas)", "टोलीका लागि अरू केही (तपाईंलाई कस्तो लाग्छ, व्यवस्थापन, जे पनि)", "Coś jeszcze dla zespołu (jak się czujesz, kierownictwo, cokolwiek)", "Mais alguma coisa para a equipa (como te sentes, a gerência, o que for)", "ਟੀਮ ਲਈ ਹੋਰ ਕੁਝ (ਤੁਸੀਂ ਕਿਵੇਂ ਮਹਿਸੂਸ ਕਰਦੇ ਹੋ, ਮੈਨੇਜਮੈਂਟ, ਕੁਝ ਵੀ)", "Altceva pentru echipă (cum te simți, conducerea, orice)", "Algo más para el equipo (cómo te sientes, la dirección, lo que sea)", "குழுவுக்கு வேறு ஏதாவது (உங்கள் உணர்வு, நிர்வாகம், எதுவும்)", "Ekip için başka bir şey (nasıl hissettiğin, yönetim, ne olursa)", "Ще щось для команди (як ви почуваєтеся, керівництво, будь-що)", "ٹیم کے لیے کچھ اور (آپ کیسا محسوس کرتے ہیں، مینجمنٹ، کچھ بھی)", "Điều khác cho đội (bạn cảm thấy thế nào, quản lý, bất cứ điều gì)", "Unrhyw beth arall i'r tîm (sut rydych chi'n teimlo, y rheolwyr, unrhyw beth)"],
-"What you type stays on this phone until you tap Clear.": ["ما تكتبه يبقى على هذا الهاتف حتى تضغط مسح.", "Ձեր գրածը մնում է այս հեռախոսում, մինչև սեղմեք «Մաքրել»։", "আপনি যা লেখেন তা «মুছুন» চাপা পর্যন্ত এই ফোনেই থাকে।", "Каквото напишеш, остава на този телефон, докато не натиснеш Изчисти.", "你输入的内容会留在这部手机上，直到你点“清除”。", "Ce que vous tapez reste sur ce téléphone jusqu'à ce que vous touchiez Effacer.", "તમે જે લખો તે «સાફ કરો» દબાવો ત્યાં સુધી આ ફોન પર રહે છે.", "आप जो लिखते हैं वह «साफ़ करें» दबाने तक इसी फ़ोन पर रहता है।", "Quello che scrivi resta su questo telefono finché non tocchi Azzera.", "Tai, ką įvedate, lieka šiame telefone, kol paspausite Išvalyti.", "तपाईंले लेखेको कुरा «खाली गर्नुहोस्» थिच्दासम्म यही फोनमा रहन्छ।", "To, co wpiszesz, zostaje na tym telefonie, dopóki nie stukniesz Wyczyść.", "O que escreves fica neste telemóvel até tocares em Limpar.", "ਤੁਸੀਂ ਜੋ ਲਿਖਦੇ ਹੋ ਉਹ «ਸਾਫ਼ ਕਰੋ» ਦਬਾਉਣ ਤੱਕ ਇਸੇ ਫ਼ੋਨ 'ਤੇ ਰਹਿੰਦਾ ਹੈ।", "Ce scrii rămâne pe acest telefon până apeși Șterge.", "Lo que escribas se queda en este móvil hasta que toques Borrar.", "நீங்கள் தட்டச்சு செய்வது «அழி» அழுத்தும் வரை இந்த ஃபோனிலேயே இருக்கும்.", "Yazdıkların Temizle'ye dokunana kadar bu telefonda kalır.", "Те, що ви вводите, залишається на цьому телефоні, доки не натиснете Очистити.", "آپ جو لکھتے ہیں وہ «صاف کریں» دبانے تک اسی فون پر رہتا ہے۔", "Những gì bạn nhập sẽ ở lại trên điện thoại này cho đến khi bạn nhấn Xóa.", "Mae'r hyn rydych chi'n ei deipio yn aros ar y ffôn hwn nes i chi dapio Clirio."],
 "Day off": ["يوم إجازة", "Հանգստյան օր", "ছুটির দিন", "Почивен ден", "请假一天", "Jour de repos", "રજાનો દિવસ", "छुट्टी का दिन", "Giorno libero", "Laisva diena", "बिदाको दिन", "Dzień wolny", "Dia de folga", "ਛੁੱਟੀ ਦਾ ਦਿਨ", "Zi liberă", "Día libre", "விடுமுறை நாள்", "İzin günü", "Вихідний", "چھٹی کا دن", "Ngày nghỉ", "Diwrnod i ffwrdd"],
 "Swap a shift": ["تبديل مناوبة", "Փոխանակել հերթափոխ", "শিফট বদলান", "Размени смяна", "换班", "Échanger un service", "શિફ્ટ બદલો", "शिफ्ट बदलें", "Scambia un turno", "Apsikeisti pamaina", "सिफ्ट साट्नुहोस्", "Zamień zmianę", "Trocar um turno", "ਸ਼ਿਫਟ ਬਦਲੋ", "Schimbă o tură", "Cambiar un turno", "ஷிஃப்ட் மாற்று", "Vardiya değiş", "Помінятися зміною", "شفٹ بدلیں", "Đổi ca", "Cyfnewid shifft"],
 "Complaint": ["شكوى", "Բողոք", "অভিযোগ", "Оплакване", "投诉", "Plainte", "ફરિયાદ", "शिकायत", "Reclamo", "Skundas", "गुनासो", "Skarga", "Queixa", "ਸ਼ਿਕਾਇਤ", "Plângere", "Queja", "புகார்", "Şikâyet", "Скарга", "شکایت", "Khiếu nại", "Cwyn"],
@@ -4720,7 +4721,18 @@ const I18N = {
 "‹ More": ["‹ المزيد", "‹ Ավելին", "‹ আরও", "‹ Още", "‹ 更多", "‹ Plus", "‹ વધુ", "‹ और", "‹ Altro", "‹ Daugiau", "‹ थप", "‹ Więcej", "‹ Mais", "‹ ਹੋਰ", "‹ Mai mult", "‹ Más", "‹ மேலும்", "‹ Daha fazla", "‹ Більше", "‹ مزید", "‹ Thêm", "‹ Mwy"],
 "Add it to your home screen, iPhone or Android (More shows how)": ["أضفه إلى شاشتك الرئيسية، على iPhone أو Android (الطريقة في المزيد)", "Ավելացրեք այն հիմնական էկրանին՝ iPhone կամ Android (ինչպես՝ տես Ավելին բաժնում)", "এটি হোম স্ক্রিনে যোগ করুন, iPhone বা Android (কীভাবে, তা আরও-তে দেখুন)", "Добави го на началния екран, iPhone или Android (как, виж в Още)", "把它添加到主屏幕，iPhone 或 Android 都行（方法见“更多”）", "Ajoutez-la à votre écran d'accueil, iPhone ou Android (la marche à suivre est dans Plus)", "તેને હોમ સ્ક્રીન પર ઉમેરો, iPhone કે Android (કેવી રીતે, તે વધુમાં જુઓ)", "इसे होम स्क्रीन पर जोड़ें, iPhone या Android (तरीका और में देखें)", "Aggiungila alla schermata Home, iPhone o Android (come fare è in Altro)", "Pridėkite ją prie pradžios ekrano, iPhone ar Android (kaip, rasite skiltyje Daugiau)", "यसलाई होम स्क्रिनमा थप्नुहोस्, iPhone वा Android (कसरी, थपमा हेर्नुहोस्)", "Dodaj ją do ekranu głównego, iPhone lub Android (jak, zobaczysz w Więcej)", "Adicione-a ao ecrã principal, iPhone ou Android (veja como em Mais)", "ਇਸ ਨੂੰ ਹੋਮ ਸਕ੍ਰੀਨ 'ਤੇ ਜੋੜੋ, iPhone ਜਾਂ Android (ਕਿਵੇਂ, ਹੋਰ ਵਿੱਚ ਦੇਖੋ)", "Adaug-o pe ecranul de pornire, iPhone sau Android (cum, vezi în Mai mult)", "Añádela a tu pantalla de inicio, iPhone o Android (en Más verás cómo)", "இதை முகப்புத் திரையில் சேர்க்கவும், iPhone அல்லது Android (எப்படி என்று மேலும் பகுதியில் பார்க்கவும்)", "Ana ekranına ekle, iPhone ya da Android (nasıl yapılacağı Daha fazla bölümünde)", "Додайте її на головний екран, iPhone чи Android (як саме, дивіться в Більше)", "اسے ہوم اسکرین پر شامل کریں، iPhone یا Android (طریقہ مزید میں دیکھیں)", "Thêm vào màn hình chính, iPhone hay Android đều được (cách làm có trong Thêm)", "Ychwanegwch yr ap at eich sgrin gartref, iPhone neu Android (mae Mwy yn dangos sut)"],
 "Work in progress. Spot something wrong or got an idea? Use Send feedback in More.": ["قيد التطوير. لاحظت خطأ أو لديك فكرة؟ استخدم «أرسل ملاحظة» في المزيد.", "Աշխատանքը դեռ ընթացքի մեջ է։ Սխալ եք նկատել կամ գաղափար ունե՞ք։ Օգտվեք «Ուղարկել կարծիք» կոճակից Ավելին բաժնում։", "কাজ এখনও চলছে। কিছু ভুল দেখলেন বা কোনো আইডিয়া আছে? আরও-তে মতামত পাঠান ব্যবহার করুন।", "Все още се работи по него. Виждаш грешка или имаш идея? Използвай „Изпрати отзив“ в Още.", "仍在完善中。发现问题或有想法？请在“更多”里点“发送反馈”。", "En cours de développement. Une erreur ou une idée ? Utilisez Envoyer un avis dans Plus.", "હજુ કામ ચાલુ છે. કંઈ ખોટું દેખાયું કે કોઈ વિચાર છે? વધુમાં પ્રતિસાદ મોકલો વાપરો.", "अभी काम चल रहा है। कुछ गलत दिखा या कोई आइडिया है? और में फ़ीडबैक भेजें का इस्तेमाल करें।", "Lavori in corso. Hai notato un errore o hai un'idea? Usa Invia feedback in Altro.", "Dar tobulinama. Pastebėjote klaidą ar turite idėją? Naudokite Siųsti atsiliepimą skiltyje Daugiau.", "काम अझै चलिरहेको छ। केही गलत देख्नुभयो वा कुनै विचार छ? थपमा प्रतिक्रिया पठाउनुहोस् प्रयोग गर्नुहोस्।", "Wciąż w budowie. Widzisz błąd albo masz pomysł? Użyj Wyślij uwagi w Więcej.", "Em desenvolvimento. Viu algo errado ou tem uma ideia? Use Enviar comentário em Mais.", "ਹਾਲੇ ਕੰਮ ਚੱਲ ਰਿਹਾ ਹੈ। ਕੁਝ ਗਲਤ ਦਿਖਿਆ ਜਾਂ ਕੋਈ ਵਿਚਾਰ ਹੈ? ਹੋਰ ਵਿੱਚ ਫੀਡਬੈਕ ਭੇਜੋ ਵਰਤੋ।", "În lucru. Ai văzut ceva greșit sau ai o idee? Folosește Trimite feedback din Mai mult.", "En desarrollo. ¿Ves algo mal o tienes una idea? Usa Enviar comentario en Más.", "இன்னும் வேலை நடக்கிறது. ஏதாவது தவறு கண்டீர்களா அல்லது யோசனை உள்ளதா? மேலும் பகுதியில் உள்ள கருத்து அனுப்பு பயன்படுத்தவும்.", "Hâlâ geliştiriliyor. Bir hata mı gördün ya da bir fikrin mi var? Daha fazla bölümündeki Geri bildirim gönder'i kullan.", "Ще в роботі. Помітили помилку чи маєте ідею? Скористайтеся «Надіслати відгук» в Більше.", "ابھی کام جاری ہے۔ کچھ غلط نظر آیا یا کوئی خیال ہے؟ مزید میں رائے بھیجیں استعمال کریں۔", "Vẫn đang hoàn thiện. Thấy chỗ sai hoặc có ý tưởng? Dùng Gửi góp ý trong Thêm.", "Gwaith ar y gweill. Wedi gweld rhywbeth o'i le neu oes gennych chi syniad? Defnyddiwch Anfon adborth yn Mwy."],
-"Bar basics": ["أساسيات البار", "Բարի հիմնականներ", "বারের মৌলিক জিনিস", "Основи на бара", "吧台基础用料", "Les bases du bar", "બારની મૂળભૂત વસ્તુઓ", "बार की बुनियादी चीज़ें", "Basi del bar", "Baro pagrindai", "बारका आधारभूत सामान", "Podstawy baru", "Básicos do bar", "ਬਾਰ ਦੀਆਂ ਮੁੱਢਲੀਆਂ ਚੀਜ਼ਾਂ", "Elementele de bază ale barului", "Básicos de la barra", "பாரின் அடிப்படைப் பொருட்கள்", "Bar temelleri", "Основи бару", "بار کی بنیادی چیزیں", "Đồ cơ bản của quầy bar", "Hanfodion y bar"]
+"Bar basics": ["أساسيات البار", "Բարի հիմնականներ", "বারের মৌলিক জিনিস", "Основи на бара", "吧台基础用料", "Les bases du bar", "બારની મૂળભૂત વસ્તુઓ", "बार की बुनियादी चीज़ें", "Basi del bar", "Baro pagrindai", "बारका आधारभूत सामान", "Podstawy baru", "Básicos do bar", "ਬਾਰ ਦੀਆਂ ਮੁੱਢਲੀਆਂ ਚੀਜ਼ਾਂ", "Elementele de bază ale barului", "Básicos de la barra", "பாரின் அடிப்படைப் பொருட்கள்", "Bar temelleri", "Основи бару", "بار کی بنیادی چیزیں", "Đồ cơ bản của quầy bar", "Hanfodion y bar"],
+"Saved on this phone as you type": ["يُحفظ على هذا الهاتف أثناء الكتابة", "Պահվում է այս հեռախոսում, երբ գրում եք", "লেখার সময়ই এই ফোনে সেভ হয়", "Запазва се на този телефон, докато пишеш", "输入时自动保存在这部手机上", "Enregistré sur ce téléphone pendant que tu écris", "લખો તેમ આ ફોન પર સેવ થાય છે", "लिखते समय इस फ़ोन पर सेव होता है", "Salvato su questo telefono mentre scrivi", "Išsaugoma šiame telefone, kol rašai", "लेख्दै गर्दा यही फोनमा सेभ हुन्छ", "Zapisuje się na tym telefonie, gdy piszesz", "Guardado neste telemóvel enquanto escreves", "ਲਿਖਦੇ ਸਮੇਂ ਇਸ ਫ਼ੋਨ 'ਤੇ ਸੇਵ ਹੁੰਦਾ ਹੈ", "Se salvează pe acest telefon în timp ce scrii", "Se guarda en este móvil mientras escribes", "தட்டச்சு செய்யும்போதே இந்த போனில் சேமிக்கப்படும்", "Yazarken bu telefona kaydedilir", "Зберігається на цьому телефоні, поки ти пишеш", "لکھتے وقت اسی فون پر محفوظ ہوتا ہے", "Tự lưu trên điện thoại này khi bạn gõ", "Yn cael ei gadw ar y ffôn hwn wrth i ti deipio"],
+"Save draft": ["احفظ المسودة", "Պահել սևագիրը", "খসড়া সেভ করুন", "Запази черновата", "保存草稿", "Enregistrer le brouillon", "ડ્રાફ્ટ સેવ કરો", "ड्राफ़्ट सेव करें", "Salva bozza", "Išsaugoti juodraštį", "ड्राफ्ट सेभ गर्नुहोस्", "Zapisz szkic", "Guardar rascunho", "ਡਰਾਫਟ ਸੇਵ ਕਰੋ", "Salvează ciorna", "Guardar borrador", "வரைவைச் சேமி", "Taslağı kaydet", "Зберегти чернетку", "مسودہ محفوظ کریں", "Lưu nháp", "Cadw'r drafft"],
+"Discard": ["تجاهل", "Չեղարկել", "বাতিল করুন", "Изхвърли", "丢弃", "Supprimer", "રદ કરો", "हटाएँ", "Elimina", "Atmesti", "हटाउनुहोस्", "Odrzuć", "Descartar", "ਰੱਦ ਕਰੋ", "Renunță", "Descartar", "நிராகரி", "Sil", "Відхилити", "ختم کریں", "Bỏ", "Taflu"],
+"Draft saved. It's here when you come back": ["تم حفظ المسودة. ستجدها هنا عند عودتك", "Սևագիրը պահված է։ Այն այստեղ կլինի, երբ վերադառնաք", "খসড়া সেভ হয়েছে। ফিরে এলে এখানেই পাবেন", "Черновата е запазена. Ще е тук, когато се върнеш", "草稿已保存。回来时还在这里", "Brouillon enregistré. Il sera là à ton retour", "ડ્રાફ્ટ સેવ થયો. પાછા આવો ત્યારે અહીં હશે", "ड्राफ़्ट सेव हो गया। वापस आने पर यहीं मिलेगा", "Bozza salvata. La trovi qui quando torni", "Juodraštis išsaugotas. Jis bus čia, kai grįši", "ड्राफ्ट सेभ भयो। फर्किँदा यहीँ हुनेछ", "Szkic zapisany. Będzie tu, gdy wrócisz", "Rascunho guardado. Está aqui quando voltares", "ਡਰਾਫਟ ਸੇਵ ਹੋ ਗਿਆ। ਵਾਪਸ ਆਉਣ 'ਤੇ ਇੱਥੇ ਹੀ ਮਿਲੇਗਾ", "Ciorna e salvată. O găsești aici când revii", "Borrador guardado. Estará aquí cuando vuelvas", "வரைவு சேமிக்கப்பட்டது. திரும்பி வரும்போது இங்கே இருக்கும்", "Taslak kaydedildi. Döndüğünde burada olacak", "Чернетку збережено. Вона буде тут, коли повернешся", "مسودہ محفوظ ہو گیا۔ واپس آنے پر یہیں ملے گا", "Đã lưu nháp. Quay lại là thấy ở đây", "Drafft wedi'i gadw. Bydd yma pan ddoi di'n ôl"],
+"Draft discarded": ["تم تجاهل المسودة", "Սևագիրը ջնջված է", "খসড়া বাতিল হয়েছে", "Черновата е изхвърлена", "草稿已丢弃", "Brouillon supprimé", "ડ્રાફ્ટ રદ થયો", "ड्राफ़्ट हटा दिया", "Bozza eliminata", "Juodraštis atmestas", "ड्राफ्ट हटाइयो", "Szkic odrzucony", "Rascunho descartado", "ਡਰਾਫਟ ਰੱਦ ਹੋ ਗਿਆ", "Ciorna a fost ștearsă", "Borrador descartado", "வரைவு நிராகரிக்கப்பட்டது", "Taslak silindi", "Чернетку відхилено", "مسودہ ختم کر دیا", "Đã bỏ nháp", "Drafft wedi'i daflu"],
+"Unfinished draft: {a}": ["مسودة غير مكتملة: {a}", "Անավարտ սևագիր՝ {a}", "অসমাপ্ত খসড়া: {a}", "Недовършена чернова: {a}", "未完成的草稿：{a}", "Brouillon pas fini : {a}", "અધૂરો ડ્રાફ્ટ: {a}", "अधूरा ड्राफ़्ट: {a}", "Bozza da finire: {a}", "Nebaigtas juodraštis: {a}", "अधुरो ड्राफ्ट: {a}", "Niedokończony szkic: {a}", "Rascunho por acabar: {a}", "ਅਧੂਰਾ ਡਰਾਫਟ: {a}", "Ciornă neterminată: {a}", "Borrador sin terminar: {a}", "முடிக்காத வரைவு: {a}", "Bitmemiş taslak: {a}", "Незавершена чернетка: {a}", "نامکمل مسودہ: {a}", "Nháp chưa xong: {a}", "Drafft heb ei orffen: {a}"],
+"What you type stays on this phone until you tap Discard.": ["ما تكتبه يبقى على هذا الهاتف حتى تضغط على تجاهل.", "Ձեր գրածը մնում է այս հեռախոսում, մինչև սեղմեք Չեղարկել։", "আপনি যা লেখেন তা বাতিল করুন চাপা পর্যন্ত এই ফোনেই থাকে।", "Каквото напишеш, остава на този телефон, докато не натиснеш Изхвърли.", "你输入的内容会留在这部手机上，直到你点丢弃。", "Ce que tu écris reste sur ce téléphone jusqu'à ce que tu touches Supprimer.", "તમે જે લખો તે રદ કરો દબાવો ત્યાં સુધી આ ફોન પર રહે છે.", "आप जो लिखते हैं वह हटाएँ दबाने तक इसी फ़ोन पर रहता है।", "Quello che scrivi resta su questo telefono finché non tocchi Elimina.", "Tai, ką parašai, lieka šiame telefone, kol paspaudi Atmesti.", "तपाईंले लेखेको कुरा हटाउनुहोस् नथिचेसम्म यही फोनमा रहन्छ।", "To, co wpiszesz, zostaje na tym telefonie, dopóki nie stukniesz Odrzuć.", "O que escreves fica neste telemóvel até tocares em Descartar.", "ਤੁਸੀਂ ਜੋ ਲਿਖਦੇ ਹੋ ਉਹ ਰੱਦ ਕਰੋ ਦਬਾਉਣ ਤੱਕ ਇਸੇ ਫ਼ੋਨ 'ਤੇ ਰਹਿੰਦਾ ਹੈ।", "Ce scrii rămâne pe acest telefon până apeși Renunță.", "Lo que escribes se queda en este móvil hasta que toques Descartar.", "நீங்கள் தட்டச்சு செய்வது நிராகரி அழுத்தும் வரை இந்த போனிலேயே இருக்கும்.", "Yazdığın şey Sil'e dokunana kadar bu telefonda kalır.", "Те, що ти пишеш, лишається на цьому телефоні, доки не натиснеш Відхилити.", "آپ جو لکھتے ہیں وہ ختم کریں دبانے تک اسی فون پر رہتا ہے۔", "Những gì bạn gõ được giữ trên điện thoại này cho đến khi bạn bấm Bỏ.", "Mae beth rwyt ti'n ei deipio'n aros ar y ffôn hwn nes i ti dapio Taflu."],
+"Restock request": ["طلب إعادة تعبئة", "Համալրման հարցում", "রিস্টকের অনুরোধ", "Заявка за зареждане", "补货请求", "Demande de réassort", "રીસ્ટોક વિનંતી", "रीस्टॉक अनुरोध", "Richiesta di rifornimento", "Papildymo užklausa", "रिस्टक अनुरोध", "Prośba o uzupełnienie", "Pedido de reposição", "ਰੀਸਟਾਕ ਬੇਨਤੀ", "Cerere de reaprovizionare", "Petición de reposición", "மறுநிரப்பு கோரிக்கை", "Stok talebi", "Запит на поповнення", "ری اسٹاک درخواست", "Yêu cầu bổ sung hàng", "Cais ailstocio"],
+"Date label": ["ملصق التاريخ", "Ամսաթվի պիտակ", "তারিখের লেবেল", "Етикет с дата", "日期标签", "Étiquette de date", "તારીખનું લેબલ", "तारीख़ का लेबल", "Etichetta con data", "Datos etiketė", "मितिको लेबल", "Etykieta z datą", "Etiqueta de data", "ਤਾਰੀਖ਼ ਦਾ ਲੇਬਲ", "Etichetă cu dată", "Etiqueta de fecha", "தேதி லேபிள்", "Tarih etiketi", "Етикетка з датою", "تاریخ کا لیبل", "Nhãn ngày", "Label dyddiad"],
+"Issue": ["مشكلة", "Խնդիր", "সমস্যা", "Проблем", "问题", "Problème", "સમસ્યા", "समस्या", "Problema", "Problema", "समस्या", "Problem", "Problema", "ਸਮੱਸਿਆ", "Problemă", "Incidencia", "சிக்கல்", "Sorun", "Проблема", "مسئلہ", "Sự cố", "Problem"],
+"Rate the shift": ["قيّم المناوبة", "Գնահատել հերթափոխը", "শিফটের রেটিং দিন", "Оцени смяната", "给这个班次打分", "Noter le service", "શિફ્ટને રેટ કરો", "शिफ़्ट को रेट करें", "Valuta il turno", "Įvertink pamainą", "सिफ्टको मूल्याङ्कन गर्नुहोस्", "Oceń zmianę", "Avaliar o turno", "ਸ਼ਿਫਟ ਨੂੰ ਰੇਟ ਕਰੋ", "Evaluează tura", "Valora el turno", "ஷிஃப்ட்டை மதிப்பிடு", "Vardiyayı puanla", "Оцінити зміну", "شفٹ کی ریٹنگ دیں", "Chấm điểm ca làm", "Sgorio'r shifft"]
 }
 };
 const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
@@ -5642,7 +5654,7 @@ function askHtml() {
     <label class="fld">${askF.kind === "complaint" ? "What happened" : "Message"}<textarea data-ask="text" rows="3" maxlength="2000" placeholder="${{ dayoff: "Family wedding, I can swap with Pema", complaint: "Say what happened, when, and who was there", fault: "Glass washer leaking again", fix: "Bar stool wobbles at table 4" }[askF.kind] || ""}">${esc(askF.text)}</textarea></label>
     <label class="check"><input type="checkbox" data-ask="anon"${askF.anon ? " checked" : ""}> Send it anonymously</label>
     ${askF.anon ? `<p class="note">No name and no phone id go with it, and you won't see a reply here. In a small team the seniors might still guess who sent it from what it says.</p>` : ""}
-    <div class="actions"><button class="btn pri" id="ask-go">Send to the seniors</button></div>
+    ${draftBar("ask")}<div class="actions"><button class="btn pri" id="ask-go">Send to the seniors</button></div>
     ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map(askLine).join("</article>")}</article>` : ""}
     ${sentAnon.length ? `<p class="note">${plural(sentAnon.length, "anonymous message")} sent from this phone.</p>` : ""}`;
 }
@@ -5666,8 +5678,8 @@ function incHtml() {
     <label class="check"><input type="checkbox" data-inc="ambulance"${incF.ambulance ? " checked" : ""}> Ambulance or police called</label>
     <label class="check"><input type="checkbox" data-inc="book"${incF.book ? " checked" : ""}> Written in the accident book</label>
     <label class="check"><input type="checkbox" data-inc="told"${incF.told ? " checked" : ""}> Duty manager told</label>
-    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}${LIVE.me ? `<button class="btn" id="inc-mgr">Send to the seniors</button>` : ""}<button class="btn" id="inc-clear">Clear</button></div>
-    <p class="note">What you type stays on this phone until you tap Clear.</p>`;
+    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}${LIVE.me ? `<button class="btn" id="inc-mgr">Send to the seniors</button>` : ""}</div>${draftBar("incident")}
+    <p class="note">What you type stays on this phone until you tap Discard.</p>`;
 }
 const tickBox = (b) => (b ? "✅" : "⬜");
 const incText = () => [`${INC[incF.kind]} at ${incF.time || "?"}${incF.where ? `, ${incF.where}` : ""}`, incF.who && `Who: ${incF.who}`, `What happened: ${incF.what || "?"}`, incF.done && `What was done: ${incF.done}`,
@@ -5693,7 +5705,7 @@ function rateHtml() {
     <label class="fld">What went well<textarea data-rt="good" rows="2" maxlength="600">${esc(rateF.good)}</textarea></label>
     <label class="fld">What was hard, or should change<textarea data-rt="bad" rows="2" maxlength="600">${esc(rateF.bad)}</textarea></label>
     <label class="fld">Anything else for the team (how you feel, management, anything)<textarea data-rt="feel" rows="2" maxlength="1000">${esc(rateF.feel)}</textarea></label>
-    <div class="actions">${sendBtn("rate", "Send to the team on WhatsApp")}<button class="btn" id="rate-clear">Clear</button></div>`;
+    <div class="actions">${sendBtn("rate", "Send to the team on WhatsApp")}</div>${draftBar("rate")}`;
 }
 // anon: the copy for the seniors and the owner, with no name and no side.
 SHARE.rate = (o, anon = false) => ({ what: "Rate the shift", title: `${rateF.score ? `${rateF.score}/10` : "How was it"} · ${dayName(shiftDay())}${anon ? "" : ` ${sideName(mode).toLowerCase()}`} shift`,
@@ -5723,7 +5735,7 @@ function issuesHtml() {
       <label class="fld">Where<select data-is="area"><option value="">Choose…</option>${AREAS.map(([k, t]) => `<option value="${k}"${k === isF.area ? " selected" : ""}>${t}</option>`).join("")}</select></label>
       <label class="fld">More detail (optional)<textarea data-is="detail" rows="2" maxlength="1000">${esc(isF.detail)}</textarea></label>
       <label class="check"><input type="checkbox" data-is="urgent"${isF.urgent ? " checked" : ""}> Urgent: needs sorting this shift</label>
-      <div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
+      ${draftBar("issue")}<div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again && !drafted("issue") ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
     ${open.map(row).join("") || `<p class="note">No open issues.</p>`}
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
     ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${ut(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${ut(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
@@ -5832,7 +5844,7 @@ function tellHtml() {
   return `<p class="note">Only ${esc(ownerName())} reads these: what's missing from Bar Book, what to add, or what's wrong in it.</p>
     <div class="recent">${Object.entries(TELL).map(([k, v]) => `<button class="chip" data-tell-kind="${k}" aria-pressed="${tellF.kind === k}">${v}</button>`).join("")}</div>
     <label class="fld">What is it?<textarea data-tell="text" rows="3" maxlength="1000" placeholder="${{ missing: "A list for the terrace", add: "The new house spritz", wrong: "The Mojito spec says 50 ml rum, we use 37.5 ml" }[tellF.kind]}">${esc(tellF.text)}</textarea></label>
-    <div class="actions"><button class="btn pri" id="tell-go">Send to ${esc(ownerName())}</button></div>
+    ${draftBar("tell")}<div class="actions"><button class="btn pri" id="tell-go">Send to ${esc(ownerName())}</button></div>
     ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map((x) => tellRow(x, true) + "</article>").join("")}` : ""}`;
 }
 function tellsHtml() {
@@ -5893,17 +5905,61 @@ const CARDS = () => [
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
     ["outlog", "86 log", outlogHtml],
   ] : []),
-  ...(LIVE.me && !LIVE.admin ? [["ask", "To the seniors", askHtml]] : []),
-  ["incident", "Incident or accident", incHtml],
-  ["rate", "Team only: rate the shift", rateHtml],
-  ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : ""]] : []),
-  ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml]] : []),
+  ...(LIVE.me && !LIVE.admin ? [["ask", "To the seniors", askHtml, draftPill("ask")]] : []),
+  ["incident", "Incident or accident", incHtml, draftPill("incident")],
+  ["rate", "Team only: rate the shift", rateHtml, draftPill("rate")],
+  ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : draftPill("issue")]] : []),
+  ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml, draftPill("tell")]] : []),
   ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") : ""}</div>`],
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml], ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
   ...(LIVE.admin ? [["mgr", LIVE.owner ? "Owner settings" : "Senior settings", mgrHtml]] : []),
 ];
 function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (c && box) box.innerHTML = c[2](); }
+/* ---------- Drafts ----------
+   Whatever someone types in a form stays on this phone as they type, so a guest, a locked phone or closing the app
+   loses nothing. Save draft puts it away to finish later (its card says Draft, and the app says so when it opens);
+   Discard wipes it. Clear everything wipes them all. Nothing here leaves the phone until it's sent. */
+const DRAFTS = {
+  restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", other: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "other", "detail"] },
+  label: { n: "Date label", get: () => lbF, blank: () => ({ item: "", life: "", on: true, open: false }), fs: ["item", "life"] },
+  ask: { n: "To the seniors", get: () => askF, blank: () => ({ kind: askF.kind, text: "", when: "", anon: false }), card: "ask", fs: ["text", "when"] },
+  issue: { n: "Issue", get: () => isF, blank: () => ({ title: "", detail: "", area: "", urgent: false, again: null }), card: "issues", fs: ["title", "detail"] },
+  tell: { get n() { return `Tell ${ownerName()}`; }, get: () => tellF, blank: () => ({ kind: tellF.kind, text: "" }), card: "tell", fs: ["text"] },
+  incident: { n: "Incident", get: () => incF, blank: INC_BLANK, key: "incDraft", card: "incident", fs: ["where", "who", "what", "done", "witnesses"] },
+  rate: { n: "Rate the shift", get: () => rateF, blank: () => ({ score: 0, good: "", bad: "", feel: "" }), key: "rateDraft", card: "rate", fs: ["score", "good", "bad", "feel"] },
+};
+const draftKey = (k) => DRAFTS[k].key || `draft.${k}`;
+for (const k in DRAFTS) if (!DRAFTS[k].key) Object.assign(DRAFTS[k].get(), store.get(draftKey(k), {}));
+const drafted = (k) => DRAFTS[k].fs.some((f) => { const v = DRAFTS[k].get()[f]; return typeof v === "string" ? !!v.trim() : !!v; });
+function saveDrafts() { for (const k in DRAFTS) store.set(draftKey(k), DRAFTS[k].get()); }
+function dropDraft(k) { Object.assign(DRAFTS[k].get(), DRAFTS[k].blank()); store.set(draftKey(k), DRAFTS[k].get()); }
+const draftPill = (k) => (drafted(k) ? { t: "Draft" } : "");
+// Always there, so it's clear before anyone types that nothing is lost.
+const draftBar = (k) => `<div class="draftbar"><span>Saved on this phone as you type</span><button class="btn" data-draft-save="${k}">Save draft</button><button class="btn" data-draft-drop="${k}">Discard</button></div>`;
+const redraw = (k) => (DRAFTS[k].card ? renderCard(DRAFTS[k].card) : renderTally());
+for (const ev of ["input", "change"]) document.addEventListener(ev, saveDrafts);
+document.addEventListener("click", (e) => {
+  setTimeout(saveDrafts);
+  const sv = e.target.closest("[data-draft-save]"), dr = e.target.closest("[data-draft-drop]");
+  if (sv) {
+    const k = sv.dataset.draftSave, c = DRAFTS[k].card; saveDrafts(); haptic();
+    // Put away: the form folds up, and its card says Draft until it's sent or discarded.
+    if (k === "label") { lbF.open = false; renderTally(); }
+    if (k === "issue") tmOpen.delete("is-form");
+    if (c) { tmOpen.delete(c); store.set("tmOpen", [...tmOpen]); renderTeam(); }
+    toast("Draft saved. It's here when you come back");
+  }
+  if (dr) {
+    const k = dr.dataset.draftDrop;
+    if (drafted(k) && !confirm("Discard this draft? What's typed in it goes.")) return;
+    dropDraft(k); haptic(); redraw(k); toast("Draft discarded");
+  }
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden) saveDrafts(); });
+addEventListener("pagehide", saveDrafts);
+// On opening, a reminder of anything left half done.
+setTimeout(() => { const ds = Object.keys(DRAFTS).filter(drafted).map((k) => DRAFTS[k].n); if (ds.length) toast(`Unfinished draft: ${ds.join(", ")}`); }, 600);
 function topHtml() {
   if (!LIVE.api) return `<p class="note">The team side needs signal the first time.</p>`;
   if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span>${teamCode ? `<button class="linkbtn" data-send="team">Share the team link</button>` : ""}<button class="linkbtn" id="tm-leave">Log out</button></p>`;
@@ -5991,7 +6047,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   if ((x = b("[data-ask-drop]"))) { if (confirm("Remove this message?")) track(A.dropAsk(x.dataset.askDrop), "Removed"); return; }
   // Incident.
   if ((x = b("[data-inc-kind]"))) { incF.kind = x.dataset.incKind; saveInc(); return renderCard("incident"); }
-  if (b("#inc-clear")) { if (confirm("Clear the incident form?")) { incF = INC_BLANK(); saveInc(); renderCard("incident"); } return; }
   if (b("#inc-mgr")) {
     if (!incF.what.trim()) return toast("Say what happened first");
     if (rude(incText())) return toast(RUDE);
@@ -6000,7 +6055,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   }
   // Rate the shift.
   if ((x = b("[data-rate]"))) { rateF.score = +x.dataset.rate; store.set("rateDraft", rateF); haptic(); return renderCard("rate"); }
-  if (b("#rate-clear")) { rateF = { score: 0, good: "", bad: "", feel: "" }; store.set("rateDraft", rateF); return renderCard("rate"); }
   // Issues.
   if (b("#is-go")) {
     if (!isF.title.trim() || !isF.area) return toast("Say what's wrong and where");
