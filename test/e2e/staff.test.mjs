@@ -261,3 +261,31 @@ test("slurs can't go out in Tell Derek, a name or anything to the seniors; ordin
   assert.equal(await S.evaluate(() => LIVE.tells.length), 0);
   assert.deepEqual(S.errs, []);
 });
+
+test("everything can be sent: numbers, allergens, pay, games, restock, reports, and any message as a picture", async () => {
+  await resetEmulators();
+  const { O, S } = await team(browser, site, [["S", "Kadir"]]);
+  await O.evaluate(() => LIVE.api.saveContacts([{ t: "Duty manager", n: "", p: "07700 900123" }]));
+  await S.waitForFunction(() => LIVE.contacts.length === 1);
+  const contacts = await S.evaluate(() => shareText("contacts", false));
+  assert.match(contacts, /Duty manager: 07700 900123/); assert.match(contacts, /999/);
+  assert.match(await S.evaluate(() => shareText("allergen", false, "Milk")), /drinks with milk/);
+  assert.match(await S.evaluate(() => shareText("pay", false)), /Take-home/);
+  for (const k of ["games", "restock", "labels"]) assert.equal(await S.evaluate((k) => SHARE[k](), k), null, `${k}: nothing to send yet`);
+  // As a picture: a JPEG card through the share sheet, and the copy goes to the owner like any other send.
+  await S.evaluate(() => { navigator.canShare = () => true; navigator.share = (d) => { window.pic = d.files.map((f) => [f.type, f.size > 5000]); return Promise.resolve(); }; });
+  await S.evaluate(() => openSend("contacts"));
+  await S.click("#send [data-send-pic]");
+  await S.waitForFunction(() => window.pic);
+  assert.deepEqual(await S.evaluate(() => window.pic), [["image/jpeg", true]]);
+  await O.waitForFunction(() => LIVE.sent.some((x) => x.k === "contacts" && x.name === "Kadir"));
+  // My pay never is.
+  await S.click("#sh-close");
+  await S.waitForSelector("#sheet", { state: "hidden" });
+  await S.evaluate(() => { window.pic = null; openSend("pay"); });
+  await S.waitForSelector("#send [data-send-pic]");
+  await S.click("#send [data-send-pic]");
+  await S.waitForFunction(() => window.pic);
+  assert.equal(await O.evaluate(() => LIVE.sent.some((x) => x.k === "pay")), false);
+  assert.deepEqual([O.errs, S.errs], [[], []]);
+});
