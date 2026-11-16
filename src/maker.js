@@ -93,11 +93,13 @@ const MK_CATS = [
   ["Mixers and fizz", null, [
     ["Soda water", "Soda", "soda", "club soda", "sparkling water"], ["Fever-Tree Indian Tonic", "Tonic", "indian tonic", "tonic", "tonic water"], ["Fever-Tree Light Tonic", "Tonic", "light tonic", "slimline tonic"],
     ["Fever-Tree Ginger Ale", "Ginger ale", "ginger ale"], ["Fever-Tree Ginger Beer", "Ginger beer", "ginger beer"], ["Lemonade", "Lemonade", "house lemonade", "7up"], ["Sprite", "Lemonade", "sprite zero"], ["Fanta Orange Zero", "Orange soda", "fanta", "fanta zero", "fanta orange", "orange soda"],
-    ["Coca-Cola", "Cola", "cola", "coke", "coca cola"], ["Diet Coke", "Cola", "pepsi"], ["Coke Zero", "Cola", "coca cola zero", "zero sugar coke"], ["Red Bull", "Energy drink", "energy drink"], ["Red Bull Sugarfree", "Energy drink", "red bull sugar free", "sugar free red bull", "red bull zero"], ["Iced tea", "Iced tea", "house iced tea"], ["Water", "Water", "hot water"]]],
+    ["Coca-Cola", "Cola", "cola", "coke", "coca cola"], ["Diet Coke", "Cola", "pepsi"], ["Coke Zero", "Cola", "coca cola zero", "zero sugar coke"], ["Red Bull", "Energy drink", "energy drink"], ["Red Bull Sugarfree", "Energy drink", "red bull sugar free", "sugar free red bull", "red bull zero"], ["Jarritos", "Jarritos", "mexican soda"], ["Jarritos Guava", "Jarritos", "guava soda"], ["Jarritos Mandarin", "Jarritos", "mandarin soda", "jarritos mandarina"], ["Jarritos Pineapple", "Jarritos", "pineapple soda", "jarritos pina"],
+    ["Jarritos Grapefruit", "Jarritos", "grapefruit soda", "jarritos toronja"], ["Jarritos Strawberry", "Jarritos", "strawberry soda", "jarritos fresa"], ["Jarritos Lime", "Jarritos", "lime soda", "jarritos lima"], ["Iced tea", "Iced tea", "house iced tea"], ["Water", "Water", "hot water"]]],
   ["Coffee", null, [["Fresh espresso", "Espresso", "espresso", "coffee"], ["Hot Americano", "Hot coffee", "americano", "filter coffee"]]],
   ["Fresh and garnish", null, [
     ["Mint", "Mint", "mint leaves", "mint sprig"], ["Basil", "Basil", "basil leaves"], ["Limes", "Lime", "lime wedge", "lime wedges", "lime", "1 lime"], ["Lemons", "Lemon", "lemon wedge", "lemon"],
     ["Cucumber", "Cucumber", "cucumber slices"], ["Red jalapeño", "Chilli", "jalapeno", "chilli", "red jalapeno"], ["Passion fruit", "Passion fruit", "passion fruit"],
+    ["Oranges", "Fresh orange", "orange wedge", "orange wedges", "orange slice", "orange twist", "orange peel", "orange zest"], ["Cocktail cherries", "Cocktail cherry", "cocktail cherry", "maraschino cherry", "maraschino cherries", "luxardo cherry", "luxardo cherries"],
     ["Orange marmalade", "Marmalade", "marmalade"], ["Strawberries", "Strawberries", "strawberry"], ["Olive brine", "Olive brine", "olives"], ["Pickle brine", "Pickle brine", "chilled pickle brine", "pickle"]]],
   ["Bitters and seasoning", null, [
     ["Angostura", "Angostura", "angostura bitters", "aromatic bitters", "bitters"], ["Orange bitters", "Orange bitters"], ["Peychaud's bitters", "Peychaud's", "peychaud"],
@@ -157,15 +159,15 @@ const mk = {
   pick: store.get("mk.pick", []).filter((p) => p.k.startsWith("~") || MK.byKey.has(p.k)),
   bar: store.get("mk.bar", []).filter((k) => k.startsWith("~") || MK.byKey.has(k)),
   opt: { basics: true, kind: "all", ...store.get("mk.opt", {}) },
-  rnd: { mode: "any", mine: false, kind: "all", last: [], cur: null, ...store.get("mk.rnd", {}), cur: null },
+  rnd: { mode: "any", mine: false, kind: "all", mood: null, base: null, last: [], cur: null, ...store.get("mk.rnd", {}), cur: null },
   qs: { q: "", kind: "all", mine: false },
-  bt: { view: "classics", kind: "all", house: true, ...store.get("mk.bt", {}) },
+  bt: { view: "classics", kind: "all", ...store.get("mk.bt", {}) },
   edit: null, // the pick whose ml is being set
   cat: "bt", // the ingredient group open on the shelf ("bt": the Black Tap line-up, null: Popular)
   fromBar: false, // showing what My bar can make
   typed: { make: "", bar: "" },
 };
-const mkSave = () => { store.set("mk.pane", mk.pane); store.set("mk.pick", mk.pick); store.set("mk.bar", mk.bar); store.set("mk.opt", mk.opt); store.set("mk.rnd", { mode: mk.rnd.mode, mine: mk.rnd.mine, kind: mk.rnd.kind, last: mk.rnd.last }); store.set("mk.bt", mk.bt); };
+const mkSave = () => { store.set("mk.pane", mk.pane); store.set("mk.pick", mk.pick); store.set("mk.bar", mk.bar); store.set("mk.opt", mk.opt); store.set("mk.rnd", { mode: mk.rnd.mode, mine: mk.rnd.mine, kind: mk.rnd.kind, mood: mk.rnd.mood, base: mk.rnd.base, last: mk.rnd.last }); store.set("mk.bt", mk.bt); };
 const mkName = (k) => (k.startsWith("~") ? k.slice(1) : MK.byKey.get(k).n);
 // What a typed item stands for: a list item if it reads like one, so "absolut raspberri vodka" still works as a vodka.
 const mkLike = (k) => (k.startsWith("~") ? mkFind(k.slice(1)) : MK.byKey.get(k));
@@ -208,8 +210,10 @@ function mkScore(d, held, picked) {
 function mkHeld(picks, withBar, basics) {
   const m = new Map();
   for (const p of picks) m.set(p.k, p);
-  if (withBar) for (const k of mk.bar) if (!m.has(k)) m.set(k, { k });
-  if (basics) for (const k of MK_BASICS) if (!m.has(k)) m.set(k, { k });
+  // Whatever is on the 86 board tonight isn't on the bar, so it doesn't count.
+  const out = plOutKeys();
+  if (withBar) for (const k of mk.bar) if (!m.has(k) && !out.has(k)) m.set(k, { k });
+  if (basics) for (const k of MK_BASICS) if (!m.has(k) && !out.has(k)) m.set(k, { k });
   return [...m.values()];
 }
 const mkKindOk = (d, kind) => kind === "all" || mkKids(d) === kind;
@@ -236,16 +240,51 @@ const BT_SOFT = { glass: "Highball, cubed ice", measure: "The whole bottle or ca
 const BT_LINEUP = [
   ["Spirits", [
     { k: "smirnoff", note: "The house vodka. With Coke, lemonade, cranberry, tonic or Red Bull." },
+    { k: "smirnoff vanilla", note: "Vanilla vodka for the Pornstar and the dessert drinks. Long with Coke or lemonade." },
     { k: "ciroc red berry", note: "Berry vodka for the London Cosmo. Long with lemonade or soda and a lime wedge." },
+    { k: "grey goose", note: "Premium vodka when a guest calls it: Vodka Martini or with soda and lime." },
     { k: "tanqueray", note: "The house gin. G&T: Fever-Tree Indian or Light tonic and a lime wedge." },
     { k: "bacardi carta blanca", note: "White rum. Mojito and Daiquiri, or with Coke and a lime wedge (Cuba Libre)." },
+    { k: "captain morgan white", note: "White rum on the rail. Same job as Bacardi: Mojitos, Daiquiris, Long Islands." },
+    { k: "captain morgan dark", note: "Dark rum for floats, Mai Tais, punches and Dark & Stormy style serves." },
     { k: "captain morgan spiced gold", note: "Spiced rum. With Coke and a lime wedge, or ginger beer." },
+    { k: "kraken black spiced", note: "Black spiced rum. With Coke, or ginger beer and lime (Kraken Storm)." },
     { k: "el jimador blanco", note: "House tequila for Margaritas and shots. A shot comes with salt and a lime wedge if asked." },
     { k: "el jimador reposado", note: "Rested tequila for the signatures. Long with ginger ale and lime." },
     { k: "buffalo trace", note: "The house bourbon. Neat, over ice, or with Coke or ginger ale." },
     { k: "bulleit bourbon", note: "Second bourbon, higher rye: Old Fashioned, Whiskey Sour, or with ginger ale." },
-    { k: "cointreau", glass: "Rocks, cubed ice, if served on its own", measure: "15 to 25 ml in cocktails, 50 ml on the rocks", pour: "Measure with the jigger; on its own, pour over ice", note: "Orange liqueur for Margaritas, Cosmos and sours." },
-    { k: "kahlua", glass: "Rocks, cubed ice, if served on its own", measure: "20 to 25 ml in cocktails, 50 ml on the rocks", pour: "Measure with the jigger; with milk, pour the Kahlúa over ice then the milk", note: "Coffee liqueur for Espresso Martinis and Russians." },
+    { k: "jack daniel s", note: "Tennessee whiskey. Jack & Coke with a lemon wedge, or Lynchburg Lemonade." },
+    { k: "jameson", note: "Irish whiskey. With ginger ale and a lime wedge, Irish Coffee, Pickleback." },
+    { k: "johnnie walker black label", note: "Blended Scotch. With soda or ginger ale, Rob Roy, Godfather, Penicillin." },
+    { k: "martell vs", note: "Cognac (brandy). Sidecar, Horse's Neck, or with ginger ale." },
+  ]],
+  ["Liqueurs", [
+    { k: "cointreau", name: "Cointreau (triple sec)", measure: "15 to 25 ml in cocktails, 50 ml on the rocks", note: "The orange liqueur. Any spec that says triple sec or orange liqueur means Cointreau: Margaritas, Cosmos, Long Islands, Sidecars, Kamikazes." },
+    { k: "grand marnier", measure: "As the spec in cocktails, 50 ml on the rocks", note: "Cognac-based orange liqueur. B-52, Cadillac Margarita, or neat after dinner." },
+    { k: "kahlua", measure: "20 to 25 ml in cocktails, 50 ml on the rocks", pour: "Measure with the jigger; with milk, pour the Kahlúa over ice then the milk", note: "Coffee liqueur for Espresso Martinis and Russians." },
+    { k: "baileys", measure: "50 ml on ice; as the spec in shots and coffees", pour: "Over cubed ice, or layered last over the back of a bar spoon in shots", note: "Cream liqueur: dairy, tell the guest. B-52, Baby Guinness, Mudslide." },
+    { k: "disaronno", note: "Amaretto (almond). Amaretto Sour, Amaretto & Coke, Godfather. Nuts: tell the guest." },
+    { k: "frangelico", note: "Hazelnut liqueur. Nuts: tell the guest." },
+    { k: "archers", note: "Peach schnapps. Sex on the Beach, Woo Woo, Fuzzy Navel, Archers & Lemonade." },
+    { k: "midori", note: "Melon liqueur. Midori Sour, Japanese Slipper, Melon Ball." },
+    { k: "chambord", note: "Black raspberry liqueur. French Martini, Clover Club, Raspberry Kamikaze." },
+    { k: "passoa", note: "Passion fruit liqueur. Pornstar Shot, Hurricane, Passion Bomb." },
+    { k: "apple liqueur", name: "Apple liqueur (sour apple)", note: "Apple Martini, Sour Apple, Washington Apple." },
+    { k: "malibu", note: "Coconut rum. Malibu & Pineapple, Bay Breeze style serves." },
+    { k: "luxardo limoncello", glass: "Chilled shot glass, if served on its own", measure: "25 or 50 ml", pour: "Straight from the freezer", note: "Lemon liqueur. Limoncello Spritz, Lemon Drop." },
+    { k: "heering cherry", note: "Cherry liqueur. Cherry Bomb, Blood & Sand." },
+    { k: "jagermeister", glass: "Shot glass, ice cold", measure: "25 ml", pour: "Straight from the freezer or the tap. Jägerbomb: the shot dropped into half a can of Red Bull", note: "Herbal liqueur. Jägerbomb." },
+    { k: "ancho reyes", note: "Chilli liqueur. The spicy Margaritas and Smoke & Fire." },
+    { k: "yellow chartreuse", note: "Herbal, honeyed liqueur. Naked & Famous, Greenpoint." },
+    { k: "nv absinthe", name: "Absinthe", measure: "A rinse, or as the spec", pour: "Rinse: a few drops in the chilled glass, swirl to coat, tip the rest out", note: "Very strong (high ABV): never as a shot. Monkey Gland, Death in the Afternoon." },
+  ]],
+  ["Aperitifs, vermouth and wine", [
+    { k: "aperol", glass: "Large wine glass, cubed ice", measure: "50 ml in a spritz", pour: "Spritz: ice, Prosecco, Aperol, a splash of soda, orange slice", note: "Aperol Spritz, Aperol Sour." },
+    { k: "campari", glass: "Rocks or highball, cubed ice", measure: "25 ml in a Negroni, 50 ml with soda", note: "Negroni, Americano, Campari Soda, Garibaldi." },
+    { k: "martini rosso", glass: "As the drink", measure: "25 ml in a Negroni or Manhattan", pour: "Measure with the jigger. Keep it in the fridge once open", note: "Sweet vermouth. Negroni, Manhattan, Americano, Boulevardier." },
+    { k: "martini extra dry", glass: "As the drink", measure: "As the spec: from a rinse to 15 ml in a Martini", pour: "Measure with the jigger. Keep it in the fridge once open", note: "Dry vermouth. Dry Martini, Dirty Martini, Gibson, Perfect Manhattan." },
+    { k: "pimm s no 1", glass: "Highball or pitcher, cubed ice", measure: "50 ml, topped with lemonade", pour: "Ice, Pimm's, top with lemonade, then cucumber, mint, orange and strawberry", note: "Pimm's Cup and the jug." },
+    { k: "prosecco", glass: "Flute or wine glass, as the drink", measure: "Top up, or as the spec", pour: "Pour slowly down the side so it keeps its bubbles. Stopper the bottle and keep it in the fridge", note: "Spritzes, Bellini, Mimosa, French 75, Rossini." },
   ]],
   ["Foam", [
     { k: "egg white", glass: "As the drink", measure: "20 ml (about half an egg white) instead of 2 drops foamer", pour: "Dry shake hard without ice, then shake again with ice and double strain", note: "Egg is an allergen: tell the guest. Use pasteurised egg white." },
@@ -277,18 +316,49 @@ const BT_LINEUP = [
     { k: "orange juice", glass: "Highball, cubed ice, if served on its own", measure: "Fill the glass on its own; as the spec in drinks", note: "Screwdriver, Tequila Sunrise, Mimosa and Buck's Fizz." },
     { k: "apple juice", glass: "Highball, cubed ice, if served on its own", measure: "Fill the glass on its own; as the spec in drinks", note: "Long with vodka, or the base of apple mocktails." },
     { k: "cranberry juice", glass: "Highball, cubed ice, if served on its own", measure: "Fill the glass on its own; as the spec in drinks", note: "Cosmos, Sea Breeze, Woo Woo and Vodka Cranberry." },
+    { k: "pineapple juice", glass: "Highball, cubed ice, if served on its own", measure: "Fill the glass on its own; as the spec in drinks", note: "Piña Colada, Malibu & Pineapple, Bay Breeze, Mai Tai." },
+    { k: "grapefruit juice", glass: "Highball, cubed ice, if served on its own", measure: "Fill the glass on its own; as the spec in drinks", note: "Paloma, Sea Breeze, Salty Dog." },
     { k: "tomato juice", glass: "Highball, cubed ice", measure: "As the spec", pour: "Roll it between tins rather than shaking, so it doesn't go frothy", note: "Bloody Mary and Virgin Mary." },
     { k: "strawberry syrup", name: "Monin Strawberry syrup", note: "Strawberry drinks, mojitos and lemonades." },
     { k: "monin vanilla", note: "Pornstars and vanilla sours." },
     { k: "monin salted caramel", note: "Salted caramel drinks and espresso martinis." },
     { k: "monin elderflower", note: "Elderflower spritzes, Hugo and fizzes." },
     { k: "passion fruit syrup", name: "Monin Passion Fruit syrup", note: "Pornstars and passion fruit mojitos." },
-    { k: "giffard orgeat", note: "Almond syrup for Mai Tais and tiki drinks." },
+    { k: "giffard orgeat", note: "Almond syrup for Mai Tais and tiki drinks. Nuts: tell the guest." },
+    { k: "coco real", note: "Cream of coconut for the Piña Colada and Painkiller. Shake the bottle first: it settles." },
     { k: "funkin peach puree", name: "Funkin peach purée", note: "Bellinis and peach drinks." },
     { k: "strawberry puree", name: "Funkin strawberry purée", note: "Strawberry daiquiris and margaritas." },
     { k: "passion fruit puree", name: "Funkin passion fruit purée", note: "Pornstar Martini and passion fruit drinks." },
     { k: "mango puree", name: "Funkin mango purée", note: "Mango martinis and margaritas." },
     { k: "raspberry puree", name: "Funkin raspberry purée", note: "Raspberry mojitos and Clover Club style drinks." },
+  ]],
+  // Bartending 101 (Derek, 15 Nov 2026): the citrus, sugar, bitters and garnish behind most of the book.
+  ["Bar basics", [
+    { k: "lime juice", name: "Fresh lime juice", measure: "As the spec: 25 ml in most sours, 12.5 to 15 ml to balance", pour: "Squeezed fresh, never from a bottle. One lime gives about 25 ml", note: "In nearly a third of the book. Squeeze before service, keep it covered in the fridge, date it and use it the same day." },
+    { k: "lemon juice", name: "Fresh lemon juice", measure: "As the spec: 25 ml in most sours", pour: "Squeezed fresh, never from a bottle. One lemon gives about 35 ml", note: "Whiskey Sour, Amaretto Sour, Tom Collins, French 75. Same day, covered, in the fridge." },
+    { k: "sugar syrup", measure: "As the spec: usually 12.5 to 25 ml", pour: "Measure it with the jigger: a free pour makes the drink too sweet", note: "1:1 sugar and water (gomme). The sweet side of every sour, Mojito and Daiquiri. Label and date it." },
+    { k: "agave syrup", measure: "As the spec: usually 12.5 to 15 ml", pour: "Sweeter than sugar syrup: never swap it in 1 for 1", note: "Tommy's Margarita, Paloma, the spicy Margaritas." },
+    { k: "honey syrup 2 1", name: "Honey syrup", measure: "As the spec", pour: "2 parts honey to 1 part warm water, stirred until it runs", note: "Gold Rush, Bee's Knees, Penicillin." },
+    { k: "grenadine", measure: "As the spec: usually 10 to 15 ml", pour: "Pour it last, down the side or over a bar spoon, so it sinks for the sunrise", note: "Tequila Sunrise, Shirley Temple, Roy Rogers, Jack Rose." },
+    { k: "lime cordial", measure: "A dash to 25 ml, as the spec", pour: "Dash into the glass before the soda or lemonade", note: "Lime & Soda, Lemon, Lime & Bitters, and a lager top up if asked." },
+    { k: "angostura", name: "Angostura bitters", measure: "Dashes: 1 dash is one sharp flick of the bottle upside down", pour: "Straight into the glass or tin. Keep the cap on: it stains", note: "Old Fashioned, Manhattan, Champagne Cocktail, LLB." },
+    { k: "orange bitters", measure: "Dashes, as the spec", pour: "One sharp flick per dash", note: "Martinis and stirred drinks." },
+    { k: "double cream", measure: "As the spec", pour: "For Irish Coffee, shake it in a tin without ice until it just thickens, then float it over a spoon", note: "White Russian, Irish Coffee, Ramos Gin Fizz. Dairy: tell the guest. Fridge, by its date." },
+    { k: "fresh espresso", name: "Espresso (coffee machine)", measure: "One shot, about 25 to 35 ml", pour: "Pull it just before you shake: fresh espresso makes the foam on top", note: "Espresso Martinis and coffee shots." },
+    { k: "tabasco", measure: "Drops or dashes, as the spec", note: "Bloody Mary, Michelada, Flatliner." },
+    { k: "worcestershire sauce", measure: "Dashes, as the spec", note: "Bloody Mary, Virgin Mary, Michelada. Contains fish (anchovy): tell the guest." },
+    { k: "celery salt and black pepper", measure: "A pinch of each", note: "Bloody Mary and Virgin Mary, and the rim." },
+    { k: "salt", name: "Salt (rims)", measure: "Half the rim", pour: "Run a lime wedge round the outside of half the rim, roll it in the salt, tap off the loose bits", note: "Margaritas, Salty Dog, tequila shots. Ask the guest: salt or no salt." },
+  ]],
+  ["Fresh and garnish", [
+    { k: "limes", glass: "Garnish tray, covered, in the fridge", measure: "6 to 8 wedges a lime", pour: "Cut fresh each shift: top and tail, halve lengthways, then wedges", note: "On G&Ts, Coke serves, Mojitos and Margaritas." },
+    { k: "lemons", glass: "Garnish tray, covered, in the fridge", measure: "6 to 8 wedges or wheels a lemon", pour: "Cut fresh each shift", note: "Coke and Jack & Coke, Tom Collins, sours." },
+    { k: "oranges", glass: "Garnish tray, covered, in the fridge", measure: "Slices and twists", pour: "Twist: peel a strip with a peeler, squeeze it over the drink skin side down, then drop it in", note: "Negroni, Old Fashioned, Aperol Spritz, Tequila Sunrise." },
+    { k: "mint", glass: "Stems in a glass of water", measure: "A sprig or 8 to 10 leaves, as the spec", pour: "Clap the sprig between your hands to wake it. Press it gently: hard muddling makes it bitter", note: "Mojitos, Southside, Pimm's, Mint Julep." },
+    { k: "cucumber", glass: "Garnish tray, covered, in the fridge", measure: "Slices or ribbons", note: "Pimm's, Eastside Gimlet, and gin serves that ask for it." },
+    { k: "strawberries", glass: "Garnish tray, covered, in the fridge", measure: "Halves or slices", note: "Pimm's, Strawberry Daiquiri and the strawberry drinks." },
+    { k: "cocktail cherries", glass: "In their syrup, lid on", measure: "One on a pick", pour: "Lift it out with the pick, never fingers", note: "Manhattan, Whiskey Sour, Amaretto Sour, Shirley Temple." },
+    { k: "olive brine", name: "Olives and brine", glass: "In the jar, lid on, in the fridge", measure: "Brine as the spec; one to three olives on a pick", note: "Dirty and Filthy Martini, Gibson style serves." },
   ]],
   // The gun (postmix), 9 Nov 2026. A Fanta Fruit Twist Zero may be on it too: unconfirmed, so left off.
   ["Postmix (gun)", [
@@ -309,6 +379,12 @@ const BT_LINEUP = [
     { k: "coke zero", name: "Coke Zero (bottle)", glass: "Highball, cubed ice, lemon wedge", note: "Zero sugar." },
     { k: "red bull", name: "Red Bull (can)", glass: "Highball, cubed ice", measure: "250 ml can", pour: "Serve the can with the glass of ice", note: "Half a can for each bomb." },
     { k: "red bull sugarfree", name: "Red Bull Sugarfree (can)", glass: "Highball, cubed ice", measure: "250 ml can", pour: "Serve the can with the glass of ice", note: "No sugar. Check the can before it goes out." },
+    { k: "jarritos guava", name: "Jarritos Guava", glass: "Highball, cubed ice, lime wedge", measure: "One 370 ml bottle", pour: "Ice cold from the soft drinks and wine fridge. Open it at the table and pour some over ice, bottle left with the guest", note: "Mexican soda: sweet and tropical." },
+    { k: "jarritos mandarin", name: "Jarritos Mandarin", glass: "Highball, cubed ice, lime wedge", measure: "One 370 ml bottle", pour: "Ice cold from the soft drinks and wine fridge. Open it at the table and pour some over ice, bottle left with the guest", note: "Mexican soda: sweet orange." },
+    { k: "jarritos pineapple", name: "Jarritos Pineapple", glass: "Highball, cubed ice, lime wedge", measure: "One 370 ml bottle", pour: "Ice cold from the soft drinks and wine fridge. Open it at the table and pour some over ice, bottle left with the guest", note: "Mexican soda: sweet pineapple." },
+    { k: "jarritos grapefruit", name: "Jarritos Grapefruit", glass: "Highball, cubed ice, lime wedge", measure: "One 370 ml bottle", pour: "Ice cold from the soft drinks and wine fridge. Open it at the table and pour some over ice, bottle left with the guest", note: "Mexican soda: sharp and bittersweet. The soda Mexico uses in a Paloma." },
+    { k: "jarritos strawberry", name: "Jarritos Strawberry", glass: "Highball, cubed ice, lime wedge", measure: "One 370 ml bottle", pour: "Ice cold from the soft drinks and wine fridge. Open it at the table and pour some over ice, bottle left with the guest", note: "Mexican soda: sweet strawberry." },
+    { k: "jarritos lime", name: "Jarritos Lime", glass: "Highball, cubed ice, lime wedge", measure: "One 370 ml bottle", pour: "Ice cold from the soft drinks and wine fridge. Open it at the table and pour some over ice, bottle left with the guest", note: "Mexican soda: zesty lime." },
     { k: "fever tree indian tonic", glass: "Highball or wine glass, as the serve", measure: "Top up, or the whole bottle on the side", note: "The tonic for the G&T." },
     { k: "fever tree light tonic", glass: "Highball or wine glass, as the serve", measure: "Top up, or the whole bottle on the side", note: "Fewer calories than Indian tonic." },
     { k: "fever tree ginger ale", measure: "Top up, or the whole bottle on the side", note: "Softer and sweeter than ginger beer: whiskey and ginger." },
@@ -317,16 +393,17 @@ const BT_LINEUP = [
 ];
 const BT_GUN = { glass: "Highball, cubed ice", measure: "Top up", pour: "Ice first. Hold the gun just above the glass, not in the ice, and pour down the side" };
 const BT_MIX = { glass: "As the drink", measure: "As the spec, measured with the jigger", pour: "Shake purées before use. Opened cartons and purées go back in the fridge, used by the date on the label" };
-const BT_DEF = { Spirits: BT_SPIRIT, Foam: {}, Draught: BT_DRAUGHT, "Bottles and cans": {}, "Juices, syrups and purées": BT_MIX, "Postmix (gun)": BT_GUN, "Bottled softs and mixers": BT_SOFT };
+const BT_LIQ = { glass: "Rocks, cubed ice, if served on its own", measure: "25 ml single, 50 ml double; as the spec in cocktails", pour: "Measure with the jigger. As a shot: chilled, straight into the shot glass" };
+const BT_BASIC = { glass: "As the drink" };
+const BT_DEF = { Spirits: BT_SPIRIT, Liqueurs: BT_LIQ, "Aperitifs, vermouth and wine": BT_LIQ, "Bar basics": BT_BASIC, "Fresh and garnish": BT_BASIC, Foam: {}, Draught: BT_DRAUGHT, "Bottles and cans": {}, "Juices, syrups and purées": BT_MIX, "Postmix (gun)": BT_GUN, "Bottled softs and mixers": BT_SOFT };
 const BT = BT_LINEUP.flatMap(([grp, list]) => list.map((x) => {
   const it = MK.byKey.get(x.k); if (!it) throw new Error("Line-up item not in the maker list: " + x.k);
   return { ...BT_DEF[grp], ...x, grp, name: x.name || it.n };
 }));
 const BT_KEYS = [...new Set(BT.map((x) => x.k))];
-// What's always on the bar besides the line-up: the bar basics plus the gun's juices and lemonade, sugar and foam.
-const BT_HOUSE = ["orange juice", "pineapple juice", "cranberry juice", "apple juice", "lemonade", "grenadine", "lemons", "mint"];
 function btClassics(kind) {
-  const held = [...new Set([...BT_KEYS, ...(mk.bt.house ? [...MK_BASICS, ...BT_HOUSE] : [])])].map((k) => ({ k }));
+  // The line-up now carries the bar basics too (citrus, sugar, bitters, garnish), so it's the whole bar. Water is a given.
+  const held = [...BT_KEYS, "water"].map((k) => ({ k }));
   const anchor = new Set(BT_KEYS);
   const res = D.filter((d) => mkKindOk(d, kind) && !isOut(d.name)).map((d) => mkScore(d, held, anchor)).filter((r) => r.used > 0);
   // Exact bottles only: a swap (Smirnoff for Grey Goose) counts as one thing to add, so "Ready" means it's on the rail.
@@ -358,7 +435,7 @@ SHARE.lineup = (grp) => {
   const xs = BT.filter((x) => x.grp === grp); if (!xs.length) return null;
   return { what: `Line-up: ${grp}`, title: `Black Tap line-up · ${grp}`, head: [`${xs.length} serves`],
     parts: xs.map((x, i) => ({ id: "s" + i, label: x.name + (x.abv ? ` (${x.abv})` : ""), one: true,
-      lines: [...(x.note ? [x.note] : []), `• Glass: ${x.glass}`, `• Measure: ${x.measure}`, `• Pour: ${x.pour}`] })) };
+      lines: [...(x.note ? [x.note] : []), ...[["Glass", x.glass], ["Measure", x.measure], ["Pour", x.pour]].filter(([, v]) => v && v !== "As the drink").map(([t, v]) => `• ${t}: ${v}`)] })) };
 };
 
 /* ---------- Looks ---------- */
@@ -595,14 +672,23 @@ function mkMakePane() {
     const ready = res.filter((r) => !r.miss.length), one = res.filter((r) => r.miss.length === 1), more = res.filter((r) => r.miss.length > 1).slice(0, 20);
     const block = (t, a) => a.length ? `<div class="sec">${t}<span class="cnt">${a.length}</span></div>${a.slice(0, 40).map(mkResHtml).join("")}` : "";
     out = `<div class="mk-opts"><span class="mini" style="margin:0;align-self:center">From My bar (${mk.bar.length})</span><button class="chip" aria-pressed="${mk.opt.basics}" data-mk-opt="basics">+ bar basics</button><button class="chip" data-mk="unbar">Close</button></div>`
-      + (res.length ? block("Make it now", ready) + block("Missing one thing", one) + block("Missing two or more", more) : `<p class="empty">Nothing in the book fits My bar yet.</p>`);
+      + (res.length ? mkNextHtml(one) + block("Make it now", ready) + block("Missing one thing", one) + block("Missing two or more", more) : `<p class="empty">Nothing in the book fits My bar yet.</p>`);
   } else {
     MK.ids = [];
     out = `<p class="empty" style="padding:18px 0">Tap what the guest wants, like vodka, apple juice or vanilla syrup.<br>The drinks with it list here, and each tap narrows them down.</p>
       <div class="mk-row2"><button class="btn pri" data-mk-pane="bt">Black Tap classics</button><button class="btn" data-mk-pane="rnd">Can't decide? Spin</button></div>
+      <button class="btn wide" style="margin-top:8px" data-mk-pane="mine">My drinks${mineAll().length ? ` (${mineAll().length})` : ""}</button>
       ${mk.bar.length ? `<button class="btn wide" style="margin-top:8px" data-mk="frombar">What can I make from My bar?</button>` : ""}`;
   }
   return `${mkTypeBox("make", "Type anything: vodka, 50ml lime…")}${mkShelf(on)}${picks}${kinds}<div id="mk-out">${out}</div>`;
+}
+// The bottles that would open up the most drinks: each "missing one thing" counts for the thing it's missing.
+function mkNextHtml(one) {
+  const n = new Map();
+  for (const r of one) { const it = MK.items.find((i) => i.n === r.miss[0]); if (it) n.set(it, (n.get(it) || 0) + 1); }
+  const top = [...n].sort((a, b) => b[1] - a[1]).slice(0, 8);
+  if (!top.length) return "";
+  return `<div class="mini">Best next bottles</div><div class="chips hrow mk-next">${top.map(([it, c]) => `<button class="chip" data-mk-add="${esc(it.k)}" data-mk-to="bar">+ ${esc(it.n)} <small>${c} more</small></button>`).join("")}</div>`;
 }
 /* ---------- Line-up pane: Black Tap classics and the house serves ---------- */
 const BT_VIEWS = [["classics", "Black Tap classics"], ...BT_LINEUP.map(([g]) => [g, g])];
@@ -610,7 +696,7 @@ function btServeHtml(x) {
   const n = btUses(x.k);
   return `<div class="bt-card"><div class="n"><span translate="no">${esc(x.name)}</span>${x.abv ? `<span class="abv" translate="no">${esc(x.abv)}</span>` : ""}</div>
     ${x.note ? `<p class="bt-note" translate="no">${esc(x.note)}</p>` : ""}
-    <dl class="bt-dl"><div><dt>Glass</dt><dd translate="no">${esc(x.glass || "")}</dd></div><div><dt>Measure</dt><dd translate="no">${esc(x.measure || "")}</dd></div><div><dt>Pour</dt><dd translate="no">${esc(x.pour || "")}</dd></div></dl>
+    <dl class="bt-dl">${[["Glass", x.glass], ["Measure", x.measure], ["Pour", x.pour]].filter(([, v]) => v && v !== "As the drink").map(([t, v]) => `<div><dt>${t}</dt><dd translate="no">${esc(v)}</dd></div>`).join("")}</dl>
     ${n ? `<button class="chip" data-bt-use="${esc(x.k)}">Drinks with it <small>${n}</small></button>` : ""}</div>`;
 }
 function btPane() {
@@ -621,8 +707,8 @@ function btPane() {
     const { house, ready, swap, one } = btClassics(mk.bt.kind);
     MK.ids = [...house, ...ready, ...swap, ...one].map((r) => r.d.id);
     const block = (t, a, max = 80) => a.length ? `<div class="sec">${t}<span class="cnt">${a.length}</span></div>${a.slice(0, max).map(mkResHtml).join("")}` : "";
-    out = `<div class="chips hrow" role="toolbar" aria-label="Show">${MK_KINDS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.bt.kind === k}" data-bt-kind="${k}">${l}</button>`).join("")}<button class="chip" aria-pressed="${mk.bt.house}" data-bt-house="1">+ juices, syrup and fresh</button></div>
-      <p class="note">Ready: every bottle is in the line-up${mk.bt.house ? ", plus the bar's juices, lemonade, sugar syrup, citrus and mint" : ""}.</p>
+    out = `<div class="chips hrow" role="toolbar" aria-label="Show">${MK_KINDS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.bt.kind === k}" data-bt-kind="${k}">${l}</button>`).join("")}</div>
+      <p class="note">Ready: every bottle is in the line-up.</p>
       ${block("House cocktails", house)}${block("Ready with the line-up", ready)}${block("Ready with a swap", swap, 40)}${block("Add one thing", one, 40)}
       ${ready.length ? `<div class="actions">${sendBtn("specs", "Send these specs", MK.ids.slice(0, SPEC_MAX).join(","))}</div>` : ""}`;
   } else {
@@ -651,7 +737,9 @@ function mkBarPane() {
 function mkPool() {
   return D.filter((d) => (mk.rnd.mode === "any" || (mk.rnd.mode === "zero") === (mkKids(d) === "zero"))
     && (mk.rnd.mode !== "alc" || mk.rnd.kind === "all" || (mk.rnd.kind === "spritz" ? /Spritz/.test(d.section) : mkKids(d) === mk.rnd.kind))
-    && !isOut(d.name) && (!mk.rnd.mine || mkCanMake(d)));
+    && (!mk.rnd.mood || d.tags.some((t) => FLAVOURS[mk.rnd.mood].includes(t)))
+    && (!mk.rnd.base || mk.rnd.mode === "zero" || d._b === mk.rnd.base)
+    && !isOut(d.name) && plOutOf(d).ok && (!mk.rnd.mine || mkCanMake(d)));
 }
 function mkRndCard(d) {
   if (!d) return `<div class="mk-rnd"><p class="sub" style="margin:0">Tap Spin and the book picks one for you.</p></div>`;
@@ -660,14 +748,30 @@ function mkRndCard(d) {
     <div class="mk-how"><b>${esc(d.glass)}</b> · ${esc(d.ice)}<br>${esc(d.method)}<br>Garnish: ${esc(d.garnish)}</div>
     <button class="btn wide" data-mk-open="${d.id}">Open the full spec and step by step</button></div>`;
 }
+const MK_SPIRITS = [["vodka", "Vodka"], ["gin", "Gin"], ["rum", "Rum"], ["tequila", "Tequila"], ["whisky", "Whisky"]];
+/* Shake the phone to spin, as on a dice app. iPhones ask once (the first Spin tap is the permission tap); a firm shake,
+   not a walk across the bar, and only while the Spin page is showing. */
+const MK_SHAKE = { can: typeof DeviceMotionEvent !== "undefined" && matchMedia("(pointer:coarse)").matches, on: false, last: 0 };
+async function mkShakeOn() {
+  if (!MK_SHAKE.can || MK_SHAKE.on) return;
+  try { if (typeof DeviceMotionEvent.requestPermission === "function" && (await DeviceMotionEvent.requestPermission()) !== "granted") return; } catch { return; }
+  MK_SHAKE.on = true;
+  addEventListener("devicemotion", (e) => {
+    const a = e.accelerationIncludingGravity; if (!a || mk.pane !== "rnd" || $("#v-make").hidden || !$("#sheet").hidden) return;
+    const g = Math.hypot(a.x || 0, a.y || 0, a.z || 0), now = Date.now();
+    if (g > 24 && now - MK_SHAKE.last > 1500) { MK_SHAKE.last = now; mkSpin(); }
+  });
+}
 function mkRndPane() {
   const pool = mkPool();
   const seg = (k, l) => `<button aria-pressed="${mk.rnd.mode === k}" data-mk-rmode="${k}">${l}</button>`;
   return `<button class="btn" data-mk-pane="make" style="margin-top:4px">‹ Back to Make</button><p class="lead">Can't decide? Spin for a drink. Hugo Spritz or a Jägerbomb, the book picks.</p>
     <div class="seg" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Alcohol">${seg("alc", "Alcoholic")}${seg("zero", "Alcohol-free")}${seg("any", "Either")}</div>
     ${mk.rnd.mode === "alc" ? `<div class="chips hrow">${[["all", "Any"], ["cocktail", "Cocktail"], ["spritz", "Spritz"], ["shot", "Shot"]].map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.kind === k}" data-mk-rkind="${k}">${l}</button>`).join("")}</div>` : ""}
+    <div class="mini">Mood</div><div class="chips hrow">${Object.keys(FLAVOURS).map((k) => `<button class="chip" aria-pressed="${mk.rnd.mood === k}" data-mk-rmood="${esc(k)}">${esc(k)}</button>`).join("")}</div>
+    ${mk.rnd.mode === "zero" ? "" : `<div class="mini">Spirit</div><div class="chips hrow">${MK_SPIRITS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.base === k}" data-mk-rbase="${k}">${l}</button>`).join("")}</div>`}
     <div class="mk-opts"><button class="chip" aria-pressed="${mk.rnd.mine}" data-mk-rmine="1">Only what My bar can make</button></div>
-    <p class="note">${pool.length} ${pool.length === 1 ? "drink" : "drinks"} in the hat.${mk.rnd.mine && !mk.bar.length ? " My bar is empty, so add your bottles first." : ""}</p>
+    <p class="note">${pool.length} ${pool.length === 1 ? "drink" : "drinks"} in the hat.${mk.rnd.mine && !mk.bar.length ? " My bar is empty, so add your bottles first." : ""}${pool.length ? "" : " Take off a mood or spirit."}${MK_SHAKE.can ? " Or shake the phone." : ""}</p>
     <div id="mk-rcard">${mkRndCard(mk.rnd.cur && D[mk.rnd.cur])}</div>
     <button class="btn pri mk-spin" data-mk="spin"${pool.length ? "" : " disabled"}>${mk.rnd.cur != null ? "Spin again" : "Spin"}</button>`;
 }
@@ -685,7 +789,7 @@ function mkQsPane() {
 }
 function renderMaker() {
   const tabs = [["make", "Make"], ["bt", "Black Tap"], ["bar", "My bar"], ["qs", "Specs"]];
-  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane }[mk.pane] || mkMakePane;
+  const pane = { make: mkMakePane, bt: btPane, bar: mkBarPane, rnd: mkRndPane, qs: mkQsPane, mine: () => minePane() }[mk.pane] || mkMakePane;
   // By the English name, as the open ones may be showing in another language (trWas keeps the English).
   const open = [...$$("#v-make details[open] summary")].map((s) => trWas.get(s.firstChild) ?? s.firstChild.textContent);
   $("#v-make").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cocktail maker</h2>
@@ -763,16 +867,17 @@ $("#v-make").addEventListener("click", (e) => {
   if (ds.mkKind) { mk.opt.kind = ds.mkKind; mkSave(); return mkRedraw(); }
   if (ds.mkRmode) { mk.rnd.mode = ds.mkRmode; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.mkRkind) { mk.rnd.kind = ds.mkRkind; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
+  if ("mkRmood" in ds) { mk.rnd.mood = mk.rnd.mood === ds.mkRmood ? null : ds.mkRmood; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
+  if ("mkRbase" in ds) { mk.rnd.base = mk.rnd.base === ds.mkRbase ? null : ds.mkRbase; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.mkRmine) { mk.rnd.mine = !mk.rnd.mine; mk.rnd.cur = null; mkSave(); return mkRedraw(); }
   if (ds.btUse) { mk.pick = [{ k: ds.btUse }]; mk.fromBar = false; mk.edit = null; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }
   if (ds.btView) { mk.bt.view = ds.btView; mkSave(); return mkRedraw(); }
   if (ds.btKind) { mk.bt.kind = ds.btKind; mkSave(); return mkRedraw(); }
-  if (ds.btHouse) { mk.bt.house = !mk.bt.house; mkSave(); return mkRedraw(); }
   if (ds.mkQkind) { mk.qs.kind = ds.mkQkind; $("#mk-pane").innerHTML = mkQsPane(); return; }
   if (ds.mkQmine) { mk.qs.mine = !mk.qs.mine; $("#mk-pane").innerHTML = mkQsPane(); return; }
   const a = ds.mk;
-  if (a === "spin") return mkSpin();
-  if (a === "btbar") { const ks = new Set(mk.bar); for (const k of [...BT_KEYS, ...BT_HOUSE]) ks.add(k); mk.bar = [...ks]; mkSave(); toast(`Line-up loaded: My bar has ${mk.bar.length} items`); return mkRedraw(); }
+  if (a === "spin") { mkShakeOn(); return mkSpin(); }
+  if (a === "btbar") { const ks = new Set(mk.bar); for (const k of BT_KEYS) ks.add(k); mk.bar = [...ks]; mkSave(); toast(`Line-up loaded: My bar has ${mk.bar.length} items`); return mkRedraw(); }
   if (a === "keep") { for (const p of mk.pick) if (!mk.bar.includes(p.k)) mk.bar.push(p.k); mkSave(); toast(`Kept in My bar (${mk.bar.length})`); return mkRedraw(); }
   if (a === "clear") { mk.pick = []; mk.edit = null; mkSave(); return mkRedraw(); }
   if (a === "clearbar") { if (confirm("Clear everything from My bar on this phone?")) { mk.bar = []; mkSave(); mkRedraw(); } return; }

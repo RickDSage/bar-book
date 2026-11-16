@@ -1,4 +1,4 @@
-// Clear everything at the bottom of Info: everything the app keeps on this phone goes, the phone leaves the team, and
+// Clear everything at the bottom of More: everything the app keeps on this phone goes, the phone leaves the team, and
 // it starts again as new.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -15,7 +15,7 @@ test("anyone clears everything on their own phone: what the app keeps goes, it s
   const { M, S } = await team(browser, site, people);
   await S.evaluate(() => { store.set("favs", ["Mojito"]); store.set("theme", "dark"); show("info"); });
   // CLEAR has to be typed.
-  await S.fill("#cp-words", "cle"); await S.click("#cp-go");
+  await S.click("[data-fold=clear] summary"); await S.fill("#cp-words", "cle"); await S.click("#cp-go");
   await waitToast(S, /^Type CLEAR to show you mean it$/);
   assert.equal(await S.evaluate(() => LIVE.uid !== null), true);
   await S.fill("#cp-words", "clear"); await S.click("#cp-go");
