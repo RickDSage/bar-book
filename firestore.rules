@@ -7,12 +7,13 @@ rules_version = '2';
 //   staff/{uid} = {name, role: 'staff', code, at}, where code must equal config/team.code. Only the Firebase console can
 //   read or change config/team; changing the code there takes every staff phone off the team at once, and they join
 //   again with the new link.
-// - Two sign-in accounts with a username and password: the owner (made at first-time setup, 25 October 2026) and the
-//   manager, whom the owner adds in the app: staff/{uid} = {name, username, role: 'owner' | 'manager'}, with
+// - Sign-in accounts with a username and password: the owner (made at first-time setup, 25 October 2026) and up to
+//   three seniors (role 'manager'), whom the owner adds in the app: staff/{uid} = {name, username, role: 'owner' | 'manager'}, with
 //   usernames/{username} pointing at the account so the login screen can find it.
 //
-// What staff keep to themselves (team-only notes, how they feel about management, shift ratings) is never written
-// here: it stays on the phone and goes out on WhatsApp. Anything written here can be read by the manager and owner.
+// Team only: rate the shift is copied to sent/ with no uid and no name when it's sent, like everything sent from the
+// app. Anything written here can be read by the seniors (role 'manager', up to three) and the owner, except Tell
+// Derek (tells/), which only the owner reads.
 //
 // Anything not matched below is denied, including every collection that isn't listed.
 service cloud.firestore {
@@ -92,30 +93,7 @@ service cloud.firestore {
       allow delete: if isOwner() && get(staffDoc(resource.data.uid)).data.role != 'owner';
     }
 
-    // ---------- Live messages ----------
-    // Anyone on the team posts a message for everyone, the bar or the floor: urgent (CODE RED on every phone until each
-    // person taps Got it), asap, or info. They can't be edited: post a new one. Anyone on the team can take one down
-    // once it's dealt with.
-    match /notices/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && exactly(['text', 'side', 'level', 'uid', 'name', 'at']) && reqText(incoming().text, 1000)
-        && incoming().side in ['all', 'bar', 'floor'] && incoming().level in ['urgent', 'asap', 'info'] && stamped();
-      allow delete: if isMember();
-    }
-    // "Got it" on a message: one record per person per message, so the team can see who has read it.
-    match /seen/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && exactly(['notice', 'uid', 'name', 'at']) && stamped()
-        && incoming().notice is string && id == incoming().notice + '-' + request.auth.uid;
-    }
-
-    // Message templates the team saves for the next time: anyone on the team adds or removes one.
-    match /templates/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && exactly(['text', 'level', 'uid', 'name', 'at']) && reqText(incoming().text, 300)
-        && incoming().level in ['urgent', 'asap', 'info'] && stamped();
-      allow delete: if isMember();
-    }
+    // No messaging inside the app (15 November 2026): the team talks face to face and sends on WhatsApp.
 
     // ---------- To the manager ----------
     // Days off, swaps, complaints, faults, things to fix, ideas, incidents or anything else, sent to the manager only. An anonymous one
@@ -136,6 +114,29 @@ service cloud.firestore {
         && incoming().status in ['seen', 'done'] && optText(incoming().reply, 500)
         && incoming().by == profile().data.name && incoming().byAt == request.time;
       allow delete: if isManager();
+    }
+
+    // ---------- Tell Derek ----------
+    // Anyone on the team tells the owner what's missing, what to add or what's wrong. Only the owner reads them all;
+    // each person reads back their own. The owner marks one done or removes it.
+    match /tells/{id} {
+      allow read: if isOwner() || (isMember() && resource.data.uid == request.auth.uid);
+      allow create: if isMember() && exactly(['kind', 'text', 'status', 'uid', 'name', 'at'])
+        && incoming().kind in ['missing', 'add', 'wrong'] && reqText(incoming().text, 1000) && incoming().status == 'new' && stamped();
+      allow update: if isOwner() && changesOnly(['status']) && incoming().status == 'done';
+      allow delete: if isOwner();
+    }
+
+    // ---------- A copy of everything sent ----------
+    // Each message sent from the Send page (WhatsApp, email, share sheet, print) is copied here for the seniors and
+    // the owner. Team only: rate the shift ('rate') goes with no uid and no name; My pay ('hours') and the team link ('team') are never copied.
+    match /sent/{id} {
+      allow read: if isManager();
+      allow create: if isMember() && incoming().k is string && incoming().k.size() > 0 && incoming().k.size() <= 20
+        && !(incoming().k in ['hours', 'team']) && reqText(incoming().what, 100) && reqText(incoming().text, 8000)
+        && ((incoming().k == 'rate' && exactly(['k', 'what', 'text', 'anon', 'at']) && incoming().anon == true && incoming().at == request.time)
+          || (incoming().k != 'rate' && exactly(['k', 'what', 'text', 'uid', 'name', 'at']) && stamped()));
+      allow delete: if isOwner();
     }
 
     // ---------- Shift reports and closing photos ----------
@@ -476,16 +477,6 @@ service cloud.firestore {
       allow read: if isMember() && id == 'contacts';
       allow write: if isManager() && id == 'contacts' && exactly(['list', 'uid', 'name', 'at']) && incoming().list is list
         && incoming().list.size() <= 30 && stamped();
-    }
-
-    // ---------- Shout-outs ----------
-    // Anyone on the team thanks someone else on it by first name, saying what they did. Everyone reads them. Nobody
-    // changes one; anyone on the team can take one down.
-    match /shouts/{id} {
-      allow read: if isMember();
-      allow create: if isMember() && exactly(['toName', 'text', 'uid', 'name', 'at']) && stamped()
-        && reqText(incoming().toName, 30) && incoming().toName != profile().data.name && reqText(incoming().text, 200);
-      allow delete: if isMember();
     }
 
     // ---------- Issues and handover ----------
