@@ -805,6 +805,13 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .pl-bar .pl-fbtn { color: var(--fg); } .pl-bar .pl-fbtn span { color: var(--brass); font-weight: 700; }
 .pl-on { color: var(--brass); border-color: var(--brass); }
 .pl-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 12px 12px; margin-top: 8px; }
+/* Everything in Filters is on show at once: the chips wrap instead of scrolling sideways. */
+.pl-panel .chips { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
+.pl-bar .pl-off::after { content: " ✕"; }
+.chip .cn { font-weight: 400; opacity: .7; margin-left: 2px; }
+.azbar { display: flex; flex-wrap: wrap; gap: 4px; margin: 6px 0 2px; }
+.azbar button { min-width: 34px; min-height: 34px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--brass); font-weight: 700; }
+.azsec { scroll-margin-top: 190px; }
 .pl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .pl-list { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; padding: 8px 10px; margin-top: 10px; }
 .pl-list > span { flex: 1 1 100%; }
@@ -1270,7 +1277,9 @@ let sec = store.get("sec", "All");
 if (!CHIPS.includes(sec)) sec = "All";
 const inSec = (d) => sec === "All" || (sec === CHIPS[1] ? fav.has(d.name) : CATS[sec].includes(d.section));
 function renderChips() {
-  $("#secs").innerHTML = CHIPS.map((s) => `<button class="chip" aria-pressed="${s === sec}" data-sec="${esc(s)}">${esc(s)}${s === CHIPS[1] && fav.size ? `<span> (${fav.size})</span>` : ""}</button>`).join("");
+  // Each with how many drinks it holds, so it's clear before tapping.
+  const n = (c) => (c === "All" ? D.length : c === CHIPS[1] ? fav.size : D.filter((d) => CATS[c].includes(d.section)).length);
+  $("#secs").innerHTML = CHIPS.map((s) => `<button class="chip" aria-pressed="${s === sec}" data-sec="${esc(s)}">${esc(s)}${s !== CHIPS[1] || fav.size ? ` <span class="cn">${n(s)}</span>` : ""}</button>`).join("");
   secsEdge();
 }
 // The fade at the end of the section chips goes once you've swiped to the last one.
@@ -1306,35 +1315,49 @@ let flav = null;
 const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Proof" || d.tags.includes("No alcohol") : d.tags.some((t) => FLAVOURS[flav].includes(t)));
 function renderQuick(show) {
   if (!show) { const f = PL.sq?.fixed || []; $("#quick").innerHTML = f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : ""; return; }
-  const fl = `<div class="mini">What does the guest fancy?</div><div class="chips hrow">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
-  if (flav || sec !== "All" || PL.list) { $("#quick").innerHTML = fl; return; }
-  const rec = recent.length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = rec + fl;
+  // Kinds of drink (Martinis, Margaritas, Spritzes…) one tap away; your saved lists; what you opened last. What the
+  // guest fancies, the spirit and the method are in Filters, so there's one place to narrow the list.
+  if (PL.list) { $("#quick").innerHTML = ""; return; }
+  const fams = PL_FAMS.filter((f) => D.some((d) => inSec(d) && f[2](d)));
+  const fam = fams.length ? `<div class="chips hrow fams">${fams.map(([k, l]) => `<button class="chip" aria-pressed="${PL.fam === k}" data-fam="${k}">${esc(l)}</button>`).join("")}</div>` : "";
+  const lists = plLists(), mine = lists.length ? `<div class="mini">Your lists</div><div class="chips hrow">${lists.map((x, i) => `<button class="chip" data-mylist="${i}">📋 ${esc(x.name)} <span class="cn">${x.drinks.length}</span></button>`).join("")}</div>` : "";
+  const rec = recent.length && sec === "All" && !plActive().length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
+  $("#quick").innerHTML = fam + mine + rec;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
-  const f = e.target.closest("[data-flav]"); if (f) { flav = flav === f.dataset.flav ? null : f.dataset.flav; renderList(); return; }
+  const fm = e.target.closest("[data-fam]"); if (fm) { PL.fam = PL.fam === fm.dataset.fam ? null : fm.dataset.fam; haptic(); renderList(); return; }
+  const ml = e.target.closest("[data-mylist]"); if (ml) { haptic(); plOpenSaved(+ml.dataset.mylist); return; }
 });
 let listIds = D.map((d) => d.id);
 function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const words = q ? plQuery(q).words : [];
-  renderQuick(!q); renderPlf();
-  let rows = D.filter((d) => inSec(d) && plHits(d, words) && (q ? true : flavHit(d)) && plOk(d));
+  renderQuick(!q);
+  let rows = D.filter((d) => inSec(d) && plHits(d, words) && flavHit(d) && plOk(d));
   rows = q && PL.sort === "menu" ? plRank(rows, words) : plSort(rows);
   const flat = !!q || PL.sort !== "menu";
   $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}`;
   listIds = rows.map((d) => d.id);
+  renderPlf();
   if (!rows.length && sec === CHIPS[1] && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here.</p>`; return; }
   if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
   let html = "", last = "";
   const per = {}; rows.forEach((d) => (per[d.section] = (per[d.section] || 0) + 1));
-  for (const d of rows) { if (!flat && d.section !== last) { html += `<div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; } html += rowHtml(d); }
+  // A to Z: a letter heading over each run, and the letters at the top to jump straight to one.
+  const az = PL.sort === "az" && rows.length > 12, L = (d) => (/[a-z]/i.test(plNorm(d.name)[0]) ? plNorm(d.name)[0].toUpperCase() : "#");
+  if (az) html += `<nav class="azbar" aria-label="Jump to a letter">${[...new Set(rows.map(L))].map((l) => `<button data-az="${l}">${l}</button>`).join("")}</nav>`;
+  for (const d of rows) {
+    if (az && L(d) !== last) { last = L(d); html += `<div class="sec azsec" id="az-${last}">${last}</div>`; }
+    else if (!flat && d.section !== last) { html += `<div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; }
+    html += rowHtml(d);
+  }
   // A filtered list (a section, a flavour or a search) can go out as one WhatsApp message of specs.
-  if (sec !== "All" || q || flav || PL.list || plActive().length) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
+  if (sec !== "All" || q || flav || PL.list || PL.fam || plActive().length) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
   $("#list").innerHTML = html;
 }
 $("#q").addEventListener("input", renderList);
+$("#list").addEventListener("click", (e) => { const b = e.target.closest("[data-az]"); if (!b) return; haptic(); document.getElementById(`az-${b.dataset.az}`)?.scrollIntoView({ block: "start", behavior: "smooth" }); });
 document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
 
 /* ---------- Spec sheet ---------- */
@@ -6633,7 +6656,7 @@ function plStatsHtml(d, n = 1) {
 }
 
 /* ---------- Serves, batching and ml or oz ---------- */
-const PL = { oz: store.get("oz", false), ticks: { id: null, spec: new Set(), steps: new Set() }, base: null, how: null, sort: store.get("sort", "menu"), open: false, list: null, sq: null, can: false };
+const PL = { oz: store.get("oz", false), ticks: { id: null, spec: new Set(), steps: new Set() }, base: null, how: null, fam: null, sort: store.get("sort", "menu"), open: false, list: null, sq: null, can: false };
 const PL_SERVES = [1, 2, 3, 4, 6, 8, 10, 12];
 function plServesHtml() {
   const i = Math.max(0, PL_SERVES.indexOf(mult)), pv = PL_SERVES[Math.max(0, i - 1)], nx = PL_SERVES[Math.min(PL_SERVES.length - 1, i + 1)];
@@ -6739,22 +6762,47 @@ const PL_HOW = [["Shaken", /shake/], ["Stirred", /\bstir(?!.*short)/], ["Built",
 const PL_SORTS = [["menu", "Menu order"], ["az", "A to Z"], ["quick", "Fewest ingredients"], ["light", "Lightest"], ["strong", "Strongest"], ["kcal", "Fewest calories"]];
 const plHowOf = (d) => { const m = d.method.toLowerCase(); for (const [k, re] of PL_HOW) if (re && re.test(m)) return k; return "Built"; };
 const plBaseOk = (d) => !PL.base || (PL.base === "zero" ? d._k === "zero" || d.tags.includes("No alcohol") : d._b === PL.base || (PL.base === "brandy" && /cognac|brandy|calvados|pisco|hennessy|martell|courvoisier/i.test(d.spec.join(" "))));
-const plOk = (d) => (!PL.can || plOutOf(d).ok) && plBaseOk(d) && (!PL.how || plHowOf(d) === PL.how) && (!PL.list || PL.list.names.has(d.name));
+// Families: the kinds of drink the team asks for by name, the same groups as the cheat sheets but taking in every
+// drink of that kind. A drink can be in two (an Espresso Martini is a martini and a coffee drink).
+const plN = (d) => plNorm(d.name), plSecIn = (d, ...xs) => xs.includes(d.section);
+const PL_FAMS = [
+  ["martini", "Martinis", (d) => /martini|cosmo|tini\b|gibson|vesper/.test(plN(d))],
+  ["margarita", "Margaritas", (d) => /margarita|paloma|ranch water/.test(plN(d))],
+  ["spritz", "Spritzes", (d) => plSecIn(d, "Spritz & Sparkling") || /spritz|bellini|mimosa|french 75|sbagliato|royale/.test(plN(d))],
+  ["sour", "Sours", (d) => /sour|daiquiri|clover club|white lady|penicillin|gimlet|sidecar|bee's knees|gold rush|kamikaze|lemon drop/.test(plN(d))],
+  ["mojito", "Mojitos", (d) => /mojito|nojito|smash/.test(plN(d))],
+  ["mule", "Mules", (d) => /mule|storm|dark 'n'/.test(plN(d))],
+  ["stirred", "Old Fashioneds & stirred", (d) => /old fashioned|negroni|manhattan|boulevardier|rob roy|godfather|sazerac|old pal|el presidente|martinez|vieux carre/.test(plN(d))],
+  ["highball", "Highballs & serves", (d) => plSecIn(d, "Perfect Serves") || /highball|collins|rickey|& tonic|& coke|& lemonade|& soda|& ginger|cuba libre|red bull/.test(plN(d))],
+  ["coffee", "Coffee & after dinner", (d) => plSecIn(d, "After Dinner") || /espresso|coffee|russian|mudslide/.test(plN(d))],
+  ["tiki", "Tiki & tropical", (d) => plSecIn(d, "Tiki & Tropical") || /colada|mai tai|zombie|punch|painkiller|hurricane/.test(plN(d))],
+  ["shot", "Shots", (d) => plSecIn(d, "Classic Shots", "House Shots")],
+  ["bomb", "Bombs", (d) => plSecIn(d, "Bombs & Boilermakers") || /bomb\b/.test(plN(d))],
+];
+const plFamOk = (d) => !PL.fam || PL_FAMS.find((f) => f[0] === PL.fam)[2](d);
+const plOk = (d) => plFamOk(d) && (!PL.can || plOutOf(d).ok) && plBaseOk(d) && (!PL.how || plHowOf(d) === PL.how) && (!PL.list || PL.list.names.has(d.name));
 function plSort(rows) {
   const by = { az: (a, b) => a.name.localeCompare(b.name), quick: (a, b) => a.spec.length - b.spec.length, light: (a, b) => plFacts(a).units - plFacts(b).units,
     strong: (a, b) => plFacts(b).abv - plFacts(a).abv, kcal: (a, b) => plFacts(a).kcal - plFacts(b).kcal }[PL.sort];
   return by ? rows.slice().sort((a, b) => by(a, b) || a.id - b.id) : rows;
 }
-const plActive = () => [PL.can && "What we can make", PL.base && PL_SPIRITS.find((x) => x[0] === PL.base)[1], PL.how, PL.sort !== "menu" && PL_SORTS.find((x) => x[0] === PL.sort)[1]].filter(Boolean);
+// The filters that are on, each with how to take it off. Sort isn't a filter: it shows on its own button.
+const plOn = () => [PL.fam && ["fam", PL_FAMS.find((f) => f[0] === PL.fam)[1]], PL.can && ["can", "What we can make"], PL.base && ["base", PL_SPIRITS.find((x) => x[0] === PL.base)[1]], flav && ["flav", flav], PL.how && ["how", PL.how]].filter(Boolean);
+const plActive = () => [...plOn().map((x) => x[1]), PL.sort !== "menu" && PL_SORTS.find((x) => x[0] === PL.sort)[1]].filter(Boolean);
 function renderPlf() {
   const box = $("#plf"); if (!box) return;
-  const on = plActive(), chips = (list, key, cur) => list.map(([k, l]) => `<button class="chip" data-pl-${key}="${esc(k)}" aria-pressed="${cur === k}">${esc(l)}</button>`).join("");
-  box.innerHTML = (PL.list ? `<div class="pl-list"><span>📋 <b translate="no">${esc(PL.list.name)}</b> · ${PL.list.names.size} ${PL.list.names.size === 1 ? "drink" : "drinks"}</span><button class="chip" data-pl="savelist">☆ Save to favourites</button><button class="chip" data-pl="endlist" aria-label="Close the list">✕</button></div>` : "")
-    + `<div class="pl-bar"><button class="chip pl-fbtn" data-pl="filters" aria-expanded="${PL.open}">Filter and sort${on.length ? ` <span>(${on.length})</span>` : ""}</button>${on.length && !PL.open ? on.map((l) => `<span class="chip pl-on">${esc(l)}</span>`).join("") + `<button class="chip" data-pl="clear">Clear</button>` : ""}</div>`
-    + (PL.open ? `<div class="pl-panel">${plOutKeys().size ? `<div class="mini">Tonight</div><div class="chips hrow"><button class="chip" data-pl-can aria-pressed="${PL.can}">Hide what we can't make</button></div>` : ""}<div class="mini">Spirit</div><div class="chips hrow">${chips(PL_SPIRITS, "base", PL.base)}</div>
-      <div class="mini">How it's made</div><div class="chips hrow">${chips(PL_HOW.map(([k]) => [k, k]), "how", PL.how)}</div>
-      <div class="mini">Sort</div><div class="chips hrow">${chips(PL_SORTS, "sort", PL.sort)}</div>
-      <div class="pl-row"><button class="btn" data-pl="clear">Clear all</button><button class="btn pri" data-pl="filters">Done</button></div></div>` : "");
+  const on = plOn(), sortName = PL_SORTS.find((x) => x[0] === PL.sort)[1], chips = (list, key, cur) => list.map(([k, l]) => `<button class="chip" data-pl-${key}="${esc(k)}" aria-pressed="${cur === k}">${esc(l)}</button>`).join("");
+  const tastes = [...Object.keys(FLAVOURS), "No alcohol"].map((f) => [f, f]);
+  box.innerHTML = (PL.list ? `<div class="pl-list"><span>📋 <b translate="no">${esc(PL.list.name)}</b> · ${PL.list.names.size} ${PL.list.names.size === 1 ? "drink" : "drinks"}</span>${PL.list.saved ? `<button class="chip" data-pl="droplist">Delete list</button>` : `<button class="chip" data-pl="savelist">☆ Save to favourites</button>`}<button class="chip" data-pl="endlist" aria-label="Close the list">✕</button></div>` : "")
+    // One row: Filters, Sort, then each filter that's on (tap one to take it off).
+    + `<div class="pl-bar"><button class="chip pl-fbtn" data-pl="filters" aria-expanded="${PL.open}">Filters${on.length ? ` <span>(${on.length})</span>` : ""}</button><button class="chip pl-fbtn" data-pl="filters">Sort: <span>${esc(sortName)}</span></button>${!PL.open ? on.filter(([k]) => k !== "fam").map(([k, l]) => `<button class="chip pl-on pl-off" data-pl-off="${k}" aria-label="Take off ${esc(l)}">${esc(l)}</button>`).join("") + (on.length > 1 ? `<button class="chip" data-pl="clear">Clear all</button>` : "") : ""}</div>`
+    + (PL.open ? `<div class="pl-panel"><div class="mini">Sort</div><div class="chips">${chips(PL_SORTS, "sort", PL.sort)}</div>
+      ${plOutKeys().size ? `<div class="mini">Tonight</div><div class="chips"><button class="chip" data-pl-can aria-pressed="${PL.can}">Only what we can make</button></div>` : ""}
+      <div class="mini">Kind of drink</div><div class="chips">${chips(PL_FAMS.map(([k, l]) => [k, l]), "fam", PL.fam)}</div>
+      <div class="mini">Spirit</div><div class="chips">${chips(PL_SPIRITS, "base", PL.base)}</div>
+      <div class="mini">What does the guest fancy?</div><div class="chips">${chips(tastes, "flav", flav)}</div>
+      <div class="mini">How it's made</div><div class="chips">${chips(PL_HOW.map(([k]) => [k, k]), "how", PL.how)}</div>
+      <div class="pl-row"><button class="btn" data-pl="clear">Clear all</button><button class="btn pri" data-pl="filters">Show ${listIds.length} ${listIds.length === 1 ? "drink" : "drinks"}</button></div></div>` : "");
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("#plf button"); if (!b) return;
@@ -6762,9 +6810,13 @@ document.addEventListener("click", (e) => {
   if ("plCan" in ds) PL.can = !PL.can;
   else if (ds.plBase) PL.base = PL.base === ds.plBase ? null : ds.plBase;
   else if (ds.plHow) PL.how = PL.how === ds.plHow ? null : ds.plHow;
+  else if (ds.plFam) PL.fam = PL.fam === ds.plFam ? null : ds.plFam;
+  else if (ds.pl === "droplist") { if (!confirm(`Delete the list "${PL.list.name}" from this phone?`)) return; plSaveLists(plLists().filter((x) => x.name !== PL.list.name)); PL.list = null; toast("List deleted"); }
+  else if (ds.plFlav) flav = flav === ds.plFlav ? null : ds.plFlav;
+  else if (ds.plOff) { if (ds.plOff === "can") PL.can = false; else if (ds.plOff === "flav") flav = null; else PL[ds.plOff] = null; }
   else if (ds.plSort) { PL.sort = ds.plSort; store.set("sort", PL.sort); }
   else if (ds.pl === "filters") PL.open = !PL.open;
-  else if (ds.pl === "clear") { PL.base = PL.how = null; PL.can = false; PL.sort = "menu"; store.set("sort", "menu"); }
+  else if (ds.pl === "clear") { PL.base = PL.how = PL.fam = flav = null; PL.can = false; PL.sort = "menu"; store.set("sort", "menu"); }
   else if (ds.pl === "endlist") { PL.list = null; if (location.hash.startsWith("#list=")) history.replaceState(null, "", location.pathname + location.search); }
   else if (ds.pl === "savelist") { for (const n of PL.list.names) fav.add(n); store.set("fav", [...fav]); renderChips(); toast(`${PL.list.names.size} drinks in your favourites`); return; }
   haptic(); renderList();
@@ -6917,6 +6969,15 @@ function plOpenList(hash) {
 }
 let plQrLib = null;
 const plQr = () => plQrLib || (plQrLib = new Promise((ok, no) => { const s = document.createElement("script"); s.src = QR_URL; s.onload = () => ok(window.qrcode); s.onerror = () => { plQrLib = null; no(); }; document.head.append(s); }));
+// Your own lists ("Tonight's specials", "Brunch"), kept on this phone, opened in one tap above the menu and sent as a link.
+const plLists = () => store.get("lists", []).filter((x) => x && x.name && Array.isArray(x.drinks));
+const plSaveLists = (xs) => store.set("lists", xs);
+function plOpenSaved(i) {
+  const x = plLists()[i]; if (!x) return;
+  const names = new Set(x.drinks.map((s) => PL_BY_SLUG.get(s)?.name).filter(Boolean));
+  PL.list = { name: x.name, names, saved: true };
+  sec = "All"; flav = null; $("#q").value = ""; renderChips(); show("drinks"); renderList();
+}
 function openListMaker(ids) {
   if ($("#sheet").hidden) lastFocus = document.activeElement;
   const name = PL.list?.name || (sec !== "All" ? sec.replace(/^★ /, "") : "Tonight's drinks");
@@ -6924,7 +6985,7 @@ function openListMaker(ids) {
     <div id="pl-lm"><p class="lead" style="margin-top:12px">A link that opens the Bar Book on just these ${ids.length} drinks. Good for tonight's specials, a practice set or a party.</p>
     <label class="fld">Name of the list<input id="pl-ln" maxlength="60" value="${esc(name)}"></label>
     <ul class="pl-names" translate="no">${ids.map((id) => `<li>${esc(D[id].name)}</li>`).join("")}</ul>
-    <div class="actions"><button class="btn pri" data-pl-l="copy">Copy link</button><a class="btn" data-pl-l="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a>${navigator.share ? `<button class="btn" data-pl-l="share">Share</button>` : ""}</div>
+    <div class="actions"><button class="btn pri" data-pl-l="save">Save on this phone</button><button class="btn" data-pl-l="copy">Copy link</button><a class="btn" data-pl-l="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a>${navigator.share ? `<button class="btn" data-pl-l="share">Share</button>` : ""}</div>
     <div class="sec">QR code</div><div id="pl-qr" class="pl-qr"><p class="note">Making the QR code…</p></div>
     <p class="note">Anyone with the Bar Book link can open it. It shows specs only: nothing from the team.</p></div>`;
   showSheet(false); $("#sheet").scrollTop = 0;
@@ -6938,6 +6999,11 @@ function openListMaker(ids) {
   $("#pl-ln").addEventListener("input", () => { wa(); clearTimeout(qr.t); qr.t = setTimeout(qr, 400); });
   $("#pl-lm").addEventListener("click", async (e) => {
     const b = e.target.closest("[data-pl-l]"); if (!b) return;
+    if (b.dataset.plL === "save") {
+      const n = $("#pl-ln").value.trim() || "Drinks list", xs = plLists().filter((x) => x.name !== n);
+      plSaveLists([...xs, { name: n, drinks: ids.map((id) => plSlug(D[id].name)) }].slice(-20));
+      toast(`Saved. "${n}" is above the menu`); haptic(); return;
+    }
     if (b.dataset.plL === "copy") { try { await navigator.clipboard.writeText(url()); toast("Link copied"); } catch { prompt("Copy the link", url()); } }
     if (b.dataset.plL === "share") { try { await navigator.share({ title: $("#pl-ln").value, url: url() }); } catch {} }
   });
