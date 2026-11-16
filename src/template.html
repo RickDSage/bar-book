@@ -651,7 +651,10 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .lbdate { font-family: var(--display); font-size: 28px; text-transform: uppercase; margin-top: 4px; }
 .lbdate b { color: var(--brass); }
 .lbdue { border: 1px solid var(--brass); border-radius: 12px; padding: 10px 12px; margin: 12px 0 4px; background: var(--surface); }
-.lbdue.late { border-color: var(--warn); }
+.lbdue.late { border: 2px solid var(--warn); }
+.lbdue.late > .todo { border-bottom: 0; padding-top: 0; }
+.lbdue.late b { color: var(--warn); }
+.lbdue .actions { margin-top: 4px; }
 .lbdue .s { display: block; color: var(--muted); font-size: 13.5px; margin-top: 2px; }
 .lbpick { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .lbpick .check { flex: 1; min-height: 44px; margin-top: 0; }
@@ -2109,7 +2112,7 @@ function tallyText() {
     const c = closeClock(k);
     return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
-  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport(mode)}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}`;
 }
 // The shift for the managers' WhatsApp group or email, so nobody needs the app to know where it stands: how each list
 // ended, then everything still open (not done, blocked, 86'd, labels, restocks, issues, guest issues), the handover
@@ -2129,7 +2132,7 @@ SHARE.shift = () => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
     return `${left ? "\u2b1c" : "\u2705"} ${g} (${req - left}/${req})`;
   });
-  const lbs = LIVE.loaded.has("labels") ? labelsDue([mode]) : [];
+  const lbs = (side) => (LIVE.loaded.has("labels") ? labelsDue([side]) : []);
   const head = lists.filter((k) => runOf(k) || k === closeList()).map((k) => { const p = progress(k), b = blockedTasks([k]).length; return `${p.n === p.of ? "\u2705" : "\u26a0\ufe0f"} ${LISTS[k].title}: ${p.n} of ${p.of} done${b ? `, ${b} blocked` : ""}${isLocked(k) ? ", finished" : ""}`; });
   head.push(`86'd: ${out.length ? out.join(", ") : "nothing"}`);
   // Laid out like an SBAR handover (Situation, Background, Assessment, Recommendation, as the NHS hands over a patient),
@@ -2158,7 +2161,7 @@ SHARE.shift = () => {
     point("issues", "A \u00b7 3. Outstanding issues", "None"),
     { id: "blocked", label: "A \u00b7 Blocked", raw: true, lines: items(lists, ["blocked"]) },
     { id: "open-issues", label: "Reported issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
-    { id: "labels", label: "A \u00b7 Date labels due", lines: lbs.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
+    ...LB_SIDES.map((side) => ({ id: `labels-${side}`, label: `A \u00b7 Date labels to change, ${lower(sideName(side))}`, lines: lbs(side).map(lbLine) })),
     point("next", "R \u00b7 4. For tomorrow (what the morning does first)", "Nothing extra"),
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
     ...lists.map((k) => ({ id: `all-${k}`, label: `${LISTS[k].title}: every item`, raw: true, lines: shown(k).map(([i, t]) => line(k, i, t)), off: true, opt: true })),
@@ -2631,7 +2634,7 @@ function stillToDoHtml() {
   // A long list folds away so the note and Send stay near the top. Tapping an item goes to it.
   return `<details class="setup" id="todo"${n <= 6 ? " open" : ""}><summary>Still to do (${n})</summary>
     ${unfinished.map((k) => `<button class="todo" data-jump="${k}"><b>${esc(LISTS[k].title)}</b> is all done: open it and tap Finish</button>`).join("")}
-    ${lbs.map((x) => `<button class="todo" data-pane="${labelPane(mode)}"><span class="pill ${LB_DUE[labelDue(x)][1]}">${LB_DUE[labelDue(x)][0]}</span> Date label: ${esc(x.item)}</button>`).join("")}
+    ${lbs.map((x) => `<button class="todo" data-pane="${labelPane(mode)}"><span class="pill ${LB_DUE[labelDue(x)][1]}">${LB_DUE[labelDue(x)][0]}</span> URGENT: change the label on ${esc(x.item)}</button>`).join("")}
     ${open.map(([k, i, t]) => `<button class="todo" data-jump="${k}" data-jump-i="${i}">${st(k, i)}${esc(t)} <span class="s">· ${esc(LISTS[k].short)}</span></button>`).join("")}</details>`;
 }
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
@@ -2757,7 +2760,7 @@ function labelDue(x) {
   const d = daysFrom(shiftDay(), x.useBy);
   return d < 0 ? "overdue" : d === 0 ? "today" : d === 1 ? "tomorrow" : "open";
 }
-const LB_DUE = { overdue: ["Overdue", "no"], today: ["Due today", "wait"], tomorrow: ["Due tomorrow", "wait"], open: ["Opened", "ok"], none: ["Not opened", ""] };
+const LB_DUE = { overdue: ["Overdue", "no"], today: ["Due today", "no"], tomorrow: ["Due tomorrow", "wait"], open: ["Opened", "ok"], none: ["Not opened", ""] };
 const LB_ORDER = Object.keys(LB_DUE);
 // One side's labels, the most urgent and soonest first. Managers also see the ones that need no label, at the end.
 const sideLabels = (side) => LIVE.labels.filter((x) => x.side === side && (x.on || LIVE.admin))
@@ -2916,19 +2919,24 @@ function labelsHtml(side) {
     ${sideLabels(side).some((x) => x.on) ? `<div class="actions">${sendBtn("labels", "Send the date labels", side)}</div>` : ""}
     ${LIVE.admin ? labelAddHtml(side) : ""}`;
 }
-// The reminder at the top of a side's first and last pages: what's overdue, due today and due tomorrow.
+// The reminder at the top of a side's first and last pages. Overdue and due today are URGENT: those labels get changed
+// now, and the list can be sent or printed. Due tomorrow is a heads-up.
+const URGENT = (n) => `URGENT: ${n} date label${n === 1 ? "" : "s"} to change now`;
 function labelsDueHtml(side) {
   const xs = labelsDue([side]); if (!xs.length) return "";
-  const n = (d) => xs.filter((x) => labelDue(x) === d).length, late = n("overdue");
-  const sum = [late && `${late} overdue`, n("today") && `${n("today")} due today`, n("tomorrow") && `${n("tomorrow")} due tomorrow`].filter(Boolean).join(", ");
-  return `<button class="todo lbdue${late ? " late" : ""}" data-pane="${labelPane(side)}"><b>Date labels: ${sum}</b><span class="s">${xs.slice(0, 4).map((x) => esc(x.item)).join(", ")}${xs.length > 4 ? "…" : ""} ›</span></button>`;
+  const now = toChange([side]), soon = xs.filter((x) => labelDue(x) === "tomorrow"), names = (ys) => ys.slice(0, 4).map((x) => esc(x.item)).join(", ") + (ys.length > 4 ? "…" : "");
+  if (!now.length) return `<button class="todo lbdue" data-pane="${labelPane(side)}"><b>Date labels: ${soon.length} due tomorrow</b><span class="s">${names(soon)} ›</span></button>`;
+  return `<div class="lbdue late" role="alert"><button class="todo" data-pane="${labelPane(side)}"><b>🚨 ${URGENT(now.length)}</b>
+      <span class="s">${now.map((x) => `${esc(x.item)} (${lower(LB_DUE[labelDue(x)][0])})`).join(", ")}${soon.length ? `. Due tomorrow: ${names(soon)}` : ""} ›</span></button>
+    <div class="actions">${sendBtn("labels", "Send or print the list", side)}</div></div>`;
 }
-// For the closing report: what's still due on this side as it's sent, and who opened it. A phone that hasn't read the
-// labels yet says so, rather than "nothing due".
-function labelsReport(side) {
+// For the closing report: bar and floor both, so the morning sees every label to change. Overdue and due today are
+// URGENT (they should have been changed tonight); due tomorrow is for the morning. A phone that hasn't read the labels
+// yet says so, rather than "nothing due".
+const lbLine = (x) => (labelDue(x) === "tomorrow" ? `Change tomorrow: ${x.item} (use by ${dayName(x.useBy)})` : `URGENT, ${lower(LB_DUE[labelDue(x)][0])}: ${x.item} (use by ${dayName(x.useBy)})`);
+function labelsReport() {
   if (!LIVE.loaded.has("labels")) return "Date labels: not checked (this phone hasn't loaded them)";
-  const xs = labelsDue([side]);
-  return xs.length ? `Date labels:\n${xs.map((x) => `- ${LB_DUE[labelDue(x)][0]}: ${x.item} (use by ${dayName(x.useBy)}, ${opener(x)})`).join("\n")}` : "Date labels: nothing due";
+  return LB_SIDES.map((side) => { const xs = labelsDue([side]); return `Date labels, ${lower(sideName(side))}:${xs.length ? xs.map((x) => `\n- ${lbLine(x)}, ${opener(x)}`).join("") : " nothing due"}`; }).join("\n");
 }
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
@@ -3086,7 +3094,7 @@ $("#tally").addEventListener("click", async (e) => {
     const done = (k) => `${progress(k).n}/${progress(k).of}`;
     const n = Math.min(draftPhotos().length, LIVE.api.MAX_PHOTOS);
     const lb = toChange([mode]).length;
-    const summary = `${sideName(mode)} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${lb ? ` · ${lb} date label${lb > 1 ? "s" : ""} to change` : ""}${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closed by ${closer}` : ""}`;
+    const summary = `${sideName(mode)} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${lb ? ` · URGENT: ${lb} date label${lb > 1 ? "s" : ""} to change` : ""}${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closed by ${closer}` : ""}`;
     track(LIVE.api.sendReport(mode, tallyText(), summary, draftPhotos()), "Handover saved for the next shift", "Handover not saved. Try again"); haptic();
     openSend("shift"); return;
   }
@@ -4994,10 +5002,12 @@ SHARE.restock = () => {
 SHARE.labels = (side = mode) => {
   const xs = LIVE.labels.filter((x) => x.on && x.side === side); if (!xs.length) return null;
   const open = xs.filter((x) => x.state === "open" && x.useBy).sort((a, b) => a.useBy.localeCompare(b.useBy)), due = labelsDue([side]);
+  const now = toChange([side]), soon = due.filter((x) => !now.includes(x));
   return { what: "Date labels", title: `Black Tap Soho ${lower(sideName(side))} date labels · ${dayName(shiftDay())}`,
-    head: [due.length ? `🏷️ ${plural(due.length, "label")} to change soon` : "✅ No date labels due"],
+    head: [now.length ? `🚨 ${URGENT(now.length)}` : soon.length ? `🏷️ ${plural(soon.length, "label")} due tomorrow` : "✅ No date labels due"],
     parts: [
-      { id: "due", label: "Due", lines: due.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
+      { id: "now", label: "URGENT: change now", lines: now.map((x) => `${x.item}: ${lower(LB_DUE[labelDue(x)][0])}, use by ${dayName(x.useBy)}`) },
+      { id: "due", label: "Due tomorrow", lines: soon.map((x) => `${x.item}: use by ${dayName(x.useBy)}`) },
       { id: "open", label: "Open now", off: !!due.length, lines: open.filter((x) => !due.includes(x)).map((x) => `${x.item}: use by ${dayName(x.useBy)}`) },
       { id: "keeps", label: "How long each keeps", off: true, lines: xs.filter((x) => x.life).map((x) => `${x.item}: ${plural(x.life, "day")}`) },
     ] };
