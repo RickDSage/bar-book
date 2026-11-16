@@ -1,5 +1,5 @@
 // Closing photos end to end: shrinking a phone photo, notes, deleting, sending with a report, choosing several from the
-// phone's photos, the 8-photo cap, who can change what once it's sent, and the 30-day clear-out.
+// phone's photos, the 8-photo cap, sharing tonight's unsent photos and the handover draft with every phone on that side, who can change what once it's sent, and the 30-day clear-out.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -33,7 +33,7 @@ after(async () => { await browser.close(); site.close(); fs.rmSync(dir, { recurs
 const addPhoto = async (p, file, n) => {
   await p.waitForSelector('label[for="ph-in"]');
   await p.setInputFiles("#ph-in", file);
-  await p.waitForFunction((n) => LIVE.myPhotos.length === n, n, { timeout: 20000 });
+  await p.waitForFunction((n) => draftPhotos().length === n, n, { timeout: 20000 });
 };
 
 test("a phone photo is shrunk, noted, sent with the report and locked once sent", async () => {
@@ -42,19 +42,21 @@ test("a phone photo is shrunk, noted, sent with the report and locked once sent"
   assert.ok(fs.statSync(big).size > 1e6, "the test photo is a few MB");
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=close]");
   await addPhoto(S, big, 1);
-  const data = await S.evaluate(() => LIVE.myPhotos[0].data);
+  const data = await S.evaluate(() => draftPhotos()[0].data);
   assert.ok(data.startsWith("data:image/jpeg;base64,") && data.length <= 600000, `stored as a JPEG of ${data.length} characters`);
   // Photos are found by id: one still sending sorts by its estimated time, so the order on screen can change.
-  const mine = await S.evaluate(() => LIVE.myPhotos[0].id);
+  const mine = await S.evaluate(() => draftPhotos()[0].id);
   await addPhoto(S, big, 2);
   await S.fill(`[data-ph-note="${mine}"]`, "Back bar wiped and restocked"); await S.press(`[data-ph-note="${mine}"]`, "Tab");
-  await S.waitForFunction((id) => LIVE.myPhotos.find((p) => p.id === id).note === "Back bar wiped and restocked", mine);
+  await S.waitForFunction((id) => draftPhotos().find((p) => p.id === id).note === "Back bar wiped and restocked", mine);
   await S.click(`[data-ph-del]:not([data-ph-del="${mine}"])`);
-  await S.waitForFunction(() => LIVE.myPhotos.length === 1);
-  assert.equal(await attempt(O, (id) => LIVE.api.notePhoto(id, "Not yours"), mine), "permission-denied", "nobody else can change a photo before it's sent");
+  await S.waitForFunction(() => draftPhotos().length === 1);
+  // Until it's sent, everyone closing the bar sees the photo and its note, live.
+  await O.waitForFunction((id) => draftPhotos().find((p) => p.id === id)?.note === "Back bar wiped and restocked", mine);
+  await O.waitForFunction(() => draftPhotos().length === 1);
 
   await S.click(".ptabs [data-pane=send]"); await handOver(S);
-  await S.waitForFunction(() => LIVE.myPhotos.length === 0);
+  await S.waitForFunction(() => draftPhotos().length === 0);
   await O.waitForFunction(() => LIVE.reports.length === 1);
   assert.match(await O.evaluate(() => LIVE.reports[0].summary), / · 1 photo$/);
   assert.equal(await O.evaluate(() => LIVE.reports[0].photos), 1);
@@ -98,12 +100,12 @@ test("photos chosen from the phone go in several at once, and eight is the most 
   await addPhoto(S, small, 1);
   // Nine chosen with one already taken: seven go in, and it says why the other two didn't.
   await S.setInputFiles("#ph-pick", Array.from({ length: 9 }, (_, i) => ({ name: `IMG_${i}.jpg`, mimeType: "image/jpeg", buffer: fs.readFileSync(small) })));
-  await S.waitForFunction(() => LIVE.myPhotos.length === 8, null, { timeout: 20000 });
+  await S.waitForFunction(() => draftPhotos().length === 8, null, { timeout: 20000 });
   assert.equal(await S.$eval("#toast", (e) => e.textContent), "8 photos is the most for one report");
   await S.waitForFunction(() => /8 photos is the most for one report/.test(document.querySelector("#tally").innerText));
   assert.equal(await S.locator("#tally .addph").count(), 0, "no buttons for a ninth");
   await S.click(".ptabs [data-pane=send]"); await handOver(S);
-  await S.waitForFunction(() => LIVE.myPhotos.length === 0 && LIVE.reports.length === 1 && !LIVE.reports[0].pending);
+  await S.waitForFunction(() => draftPhotos().length === 0 && LIVE.reports.length === 1 && !LIVE.reports[0].pending);
   assert.equal(await S.evaluate(() => LIVE.reports[0].photos), 8);
   assert.deepEqual(S.errs, []);
 });
@@ -118,7 +120,7 @@ test("a photo isn't lost when a teammate changes a task while the camera is open
   await S.waitForFunction(() => LIVE.tasks["close-2"]?.status === "done");
   assert.equal(await camera.evaluate((e) => e.isConnected), true, "the list was redrawn but the camera input is the same one");
   await camera.setInputFiles(small);
-  await S.waitForFunction(() => LIVE.myPhotos.length === 1, null, { timeout: 20000 });
+  await S.waitForFunction(() => draftPhotos().length === 1, null, { timeout: 20000 });
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
@@ -134,4 +136,30 @@ test("photos older than 30 days are cleared when a manager opens the app", async
   assert.equal((await adminGet("photos/old1")).status, 404, "the 40-day-old photo is gone");
   assert.equal((await adminGet("photos/new1")).status, 200, "the 5-day-old one stays");
   assert.deepEqual(O.errs, []);
+});
+
+test("tonight's handover draft and unsent photos are the same on every phone closing that side", async () => {
+  await resetEmulators();
+  const { S, T } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"], ["T", "Tia Staff", "tia", "staff"]]);
+  for (const p of [S, T]) { await p.click("[data-tab=tally]"); await p.click(".ptabs [data-pane=close]"); }
+  await addPhoto(S, small, 1);
+  await T.waitForFunction(() => draftPhotos().length === 1);
+  // Tia writes the handover; Sam's phone fills in as she types, and Sam's Closed by shows on hers.
+  await T.click(".ptabs [data-pane=send]"); await S.click(".ptabs [data-pane=send]");
+  await T.fill("#ho-low", "Limes, mint"); await T.press("#ho-low", "Tab");
+  await S.waitForFunction(() => ho.low === "Limes, mint" && document.querySelector("#ho-low").value === "Limes, mint");
+  const who = await S.evaluate(() => closers()[0]);
+  await S.click(`[data-closer="${who}"]`);
+  await T.waitForFunction((n) => closedBy().includes(n), who);
+  // The floor has its own.
+  await T.evaluate(() => setMode("floor"));
+  assert.equal(await T.evaluate(() => [ho.low, closedBy().length, draftPhotos().length].join("|")), "|0|0");
+  await T.evaluate(() => setMode("bar"));
+  assert.equal(await T.evaluate(() => ho.low), "Limes, mint");
+  // Sending takes the shared photo and the draft text, whoever took or wrote them.
+  await T.click(".ptabs [data-pane=send]"); await handOver(T);
+  await S.waitForFunction(() => LIVE.reports.length === 1 && !LIVE.reports[0].pending && draftPhotos().length === 0);
+  const r = await S.evaluate(() => LIVE.reports[0]);
+  assert.equal(r.photos, 1); assert.match(r.text, /Limes, mint/);
+  assert.deepEqual([S.errs, T.errs], [[], []]);
 });
