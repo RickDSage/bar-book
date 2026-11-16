@@ -6,7 +6,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&display=swap">
 <style>
 /* Layout: one-column phone app. Sticky search header, scrolling list, full-screen spec sheet, fixed bottom tab bar.
-   Dark by default, as it is read behind a dim bar at night. Light is for daytime set-up. Each phone picks one in Bar info,
+   Dark by default, as it is read behind a dim bar at night. Light is for daytime set-up. Each phone picks one in More,
    or follows the phone's own setting; the script after this style sheet sets data-theme before anything draws. */
 :root {
   color-scheme: dark;
@@ -93,7 +93,7 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid 
 h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: .01em; text-wrap: balance; margin: 0; line-height: 1.05; text-transform: uppercase; }
 
 /* Header */
-.brandbar { padding-block: 12px 0; }
+.brandbar { padding-block: 6px 0; }
 header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 2px 8px; border-bottom: 1px solid var(--line); }
 .brand { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .brand h1 { font-size: clamp(20px, 6vw, 26px); white-space: nowrap; }
@@ -144,6 +144,12 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .badge { font-size: 12px; letter-spacing: .05em; text-transform: uppercase; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--line); color: var(--muted); }
 .allergy { margin-top: 14px; padding: 10px 12px; border-radius: 10px; border: 1.5px solid var(--warn); color: var(--fg); }
 .allergy b { color: var(--warn); }
+.subs { margin-top: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.subs summary { cursor: pointer; padding: 12px; font-weight: 700; display: flex; justify-content: space-between; align-items: center; gap: 8px; list-style: none; }
+.subs summary::-webkit-details-marker { display: none; }
+.subs summary .cnt { color: var(--muted); font-weight: 400; font-size: 14px; }
+.subs ul { margin: 0; padding: 0 12px 10px 30px; font-size: 15px; }
+.subs li { padding: 3px 0; }
 .facts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: var(--line); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; margin-top: 16px; }
 .facts div { background: var(--surface); padding: 10px; min-width: 0; }
 .facts dt { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
@@ -167,13 +173,37 @@ nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 8; display: g
 nav.tabs button { height: var(--tabh); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; font-size: 12px; color: var(--muted); }
 nav.tabs button svg { width: 24px; height: 24px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 nav.tabs button[aria-current="page"] { color: var(--brass); font-weight: 700; }
-nav.tabs button[hidden], .subnav [hidden] { display: none; }
+nav.tabs button[hidden] { display: none; }
 nav.tabs button { position: relative; }
 nav.tabs button .dot { top: 4px; right: auto; left: calc(50% + 4px); min-width: 18px; height: 18px; font-size: 11px; }
-.subnav { display: flex; gap: 6px; overflow-x: auto; padding: 10px 0 2px; scrollbar-width: none; }
-.subnav[hidden] { display: none; }
 .bell .dot[hidden], nav.tabs .dot[hidden] { display: none; }
-.subnav .chip[aria-current="page"] { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
+/* The tab you're on gets a pill behind its icon, so it's obvious at a glance. */
+nav.tabs button svg { padding: 2px 0; box-sizing: content-box; width: 24px; border-radius: 999px; transition: background .15s; padding-inline: 16px; }
+nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--brass) 18%, transparent); }
+/* Drinks: three modes that always fit on one line, above the Menu's search. */
+.seg.dseg { grid-template-columns: repeat(3, 1fr); margin-top: 6px; }
+.seg.dseg button { line-height: 1.15; }
+#hdr #hdr-drinks[hidden] { display: none; }
+#hdr .search { margin-top: 10px; }
+/* The section chips fade at the edge while there are more to swipe to. */
+#secs { -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); }
+#secs.end { -webkit-mask-image: none; mask-image: none; }
+/* More: rows that open a page, like a phone's own settings. */
+.pgt { font-size: 28px; margin-top: 12px; }
+.hub { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.hrow2 { display: flex; align-items: center; gap: 14px; width: 100%; min-height: 64px; padding: 10px 14px; text-align: start; color: var(--fg); text-decoration: none; }
+.hrow2 + .hrow2 { border-top: 1px solid var(--line); }
+.hrow2 > span:nth-child(2) { flex: 1; min-width: 0; }
+.hrow2 b { display: block; font-size: 17px; }
+.hrow2 small { display: block; margin-top: 2px; font-size: 13px; line-height: 1.3; color: var(--muted); }
+.hrow2 .hic { flex: none; width: 36px; height: 36px; border-radius: 10px; display: grid; place-items: center; background: var(--brass); color: var(--brass-ink); }
+.hrow2 .hic svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.hrow2 .chev { flex: none; font-size: 22px; color: var(--muted); }
+.hrow2:active { opacity: .7; }
+.fold > summary { min-height: 52px; padding: 8px 0; }
+.fold > summary h2 { font-size: 20px; margin: 0; }
+.fold .fb { padding-bottom: 6px; }
+.view > .back:first-child { margin-top: 4px; }
 /* Seven tabs on a small phone: a size smaller, so every name stays on one line. */
 @media (max-width: 359px) { nav.tabs button { font-size: 11px; white-space: nowrap; } }
 
@@ -331,9 +361,6 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .prep.done .box { background: var(--ok); border-color: var(--ok); }
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
 .brandr { display: flex; align-items: center; gap: 6px; }
-.brandr small { text-align: right; font-size: 11px; line-height: 1.3; }
-.brandr .clock { color: var(--fg); font-size: 16px; letter-spacing: .04em; }
-#offl { display: block; white-space: nowrap; }
 b.dt { color: var(--fg); font-weight: 700; }
 .bell { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg); }
 .bell svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -723,7 +750,7 @@ details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: v
 }
 </style>
 <script>
-// Light, dark or auto (the phone's own setting, the default), picked in Bar info.
+// Light, dark or auto (the phone's own setting, the default), picked in More.
 const LIGHT = matchMedia("(prefers-color-scheme: light)");
 function applyTheme() {
   let t = "auto"; try { t = JSON.parse(localStorage.getItem("btbar.theme")) || "auto"; } catch {}
@@ -739,16 +766,17 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
   <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
   <p>Every drink we make, in your pocket.</p>
-  <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (Bar info shows how)</li></ul>
-  <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in Bar info.</p>
+  <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
+  <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
   <div id="w-name"></div>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
   <button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire: house cocktails</button>
   <p class="sig">Thank me later ~ Derek</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><small><b class="clock" id="clock"></b><br><span id="today"></span><span id="offl"></span></small><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <header class="gut" id="hdr">
+  <nav class="seg dseg" id="subnav" aria-label="Drinks"><button data-tab="rapid">⚡ Rapid fire</button><button data-tab="drinks">Menu</button><button data-tab="make">Make</button></nav>
   <div id="hdr-drinks">
     <div class="search"><input id="q" type="search" placeholder="Search drink, spirit or glass" autocomplete="off" enterkeyhint="search" aria-label="Search drinks"></div>
     <div class="chips" id="secs" role="toolbar" aria-label="Sections"></div>
@@ -756,18 +784,19 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 </header>
 
 <main class="gut">
-  <nav class="subnav" id="subnav" aria-label="Drinks"><button class="chip" data-tab="rapid">⚡ Rapid fire</button><button class="chip" data-tab="drinks">Menu</button><button class="chip" data-tab="make">Make</button><button class="chip" data-tab="practice">Practise</button><button class="chip" data-tab="allergens">Allergens</button><button class="chip" data-tab="sheets">Cheat sheets</button></nav>
   <section class="view" id="v-drinks"><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p></section>
 
   <section class="view" id="v-allergens" hidden>
-    <h2 style="font-size:28px;margin-top:12px">Allergens</h2>
+    <button class="back" data-back>‹ More</button>
+    <h2 style="font-size:28px">Allergens</h2>
     <p class="lead">Tap an allergen to see which drinks carry it. This only covers what is in our specs. The venue's allergen matrix and the bottle labels are the final word.</p>
     <div class="grid2" id="algrid"></div>
     <div id="allist"></div>
   </section>
 
   <section class="view" id="v-practice" hidden>
-    <h2 style="font-size:28px;margin-top:12px">Practise specs</h2>
+    <button class="back" data-back>‹ More</button>
+    <h2 style="font-size:28px">Practise specs</h2>
     <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button></div>
     <p class="lead" id="plead"></p>
     <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
@@ -805,7 +834,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <button data-tab="tally"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l2 2 4-4M8.5 16h7"/></svg>Shift</button>
   <button data-tab="notices"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><span class="dot" id="team-n" hidden></span>Team</button>
   <button data-tab="pay"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>My pay</button>
-  <button data-tab="info"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>Info</button>
+  <button data-tab="info"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>More</button>
 </nav>
 <div id="tour" class="tour" hidden role="dialog" aria-label="Tour of the app"></div>
 
@@ -1048,7 +1077,12 @@ if (!CHIPS.includes(sec)) sec = "All";
 const inSec = (d) => sec === "All" || (sec === CHIPS[1] ? fav.has(d.name) : CATS[sec].includes(d.section));
 function renderChips() {
   $("#secs").innerHTML = CHIPS.map((s) => `<button class="chip" aria-pressed="${s === sec}" data-sec="${esc(s)}">${esc(s)}${s === CHIPS[1] && fav.size ? `<span> (${fav.size})</span>` : ""}</button>`).join("");
+  secsEdge();
 }
+// The fade at the end of the section chips goes once you've swiped to the last one.
+const secsEdge = () => { const c = $("#secs"); c.classList.toggle("end", c.scrollLeft + c.clientWidth >= c.scrollWidth - 4); };
+$("#secs").addEventListener("scroll", secsEdge, { passive: true });
+addEventListener("resize", secsEdge);
 $("#secs").addEventListener("click", (e) => {
   const b = e.target.closest("[data-sec]"); if (!b) return;
   sec = b.dataset.sec; store.set("sec", sec); renderChips(); renderList();
@@ -1131,7 +1165,7 @@ SHARE.drink = (id) => {
   return { what: d.name, title: `${d.name} · Black Tap Soho`,
     head: [`Glass: ${d.glass}`, `Ice: ${d.ice}`, `Garnish: ${d.garnish}`, ...(al ? [`Allergens: ${al}`] : [])],
     parts: [{ id: "spec", label: "Spec", lines: d.spec }, { id: "method", label: "Method", lines: methodLines(d.method) },
-      { id: "subs", label: "Out of something?", one: true, lines: d.subs ? [d.subs.join(" ")] : [], off: true, opt: true }],
+      { id: "subs", label: "Out of something?", one: true, lines: d.subs ? d.subs.map((x) => `• ${x}`) : [], off: true, opt: true }],
     photos: m?.photo ? async () => [{ data: m.photo, note: d.name, file: d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") }] : null,
     tip: "Jigger everything. 12.5 ml is half a 25 ml jigger." };
 };
@@ -1228,7 +1262,7 @@ function openSheet(id, keepScroll) {
     <div class="h3" style="display:flex;justify-content:space-between;align-items:center;gap:8px">Spec<span class="mult" role="group" aria-label="How many">${[1, 2, 3, 4].map((n) => `<button data-mult="${n}" aria-pressed="${n === mult}">\u00d7${n}</button>`).join("")}</span></div>
     ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.${mult > 2 ? " A tin holds 2 shaken drinks, so split it across tins." : ""}</p>` : ""}
     <ul class="spec" translate="no">${d.spec.map(specRow).join("")}</ul>
-    ${d.subs ? `<p class="note"><b>Out of something?</b> ${d.subs.map(esc).join(" ")}</p>` : ""}
+    ${d.subs ? `<details class="subs"><summary>Out of something?<span class="cnt">${d.subs.length}</span></summary><ul translate="no">${d.subs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
     <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger.</p>
     <div class="h3">Method</div>${steps(d.method)}
     `}
@@ -2820,7 +2854,7 @@ $("#football").addEventListener("click", (e) => {
 const FORM = "https://docs.google.com/forms/d/e/1FAIpQLScVcIMOdULYuawQSoi_AFHowwa86m3PZAyTOxmlcxhu678qTw/viewform";
 const formUrl = (drink) => FORM + (drink ? "?usp=pp_url&entry.1226892998=" + encodeURIComponent(drink) : "");
 
-/* Android Chrome offers a one-tap install; keep the prompt for the Bar info button. */
+/* Android Chrome offers a one-tap install; keep the prompt for the button in More. */
 let installEvt = null;
 addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); installEvt = e; const b = $("#install"); if (b) b.hidden = false; });
 addEventListener("appinstalled", () => { installEvt = null; $("#install")?.setAttribute("hidden", ""); toast("Installed. Open it from your home screen."); });
@@ -3411,39 +3445,62 @@ $("#v-pay").addEventListener("click", (e) => {
   if (md) { const [k, id] = md.dataset.moneyDel.split(":"); pay[k] = pay[k].filter((x) => x.id !== id); savePay(); haptic(); renderPay(); }
 });
 
-/* ---------- Bar info ---------- */
+/* ---------- More ---------- */
+// More: the pages used less often first, as rows that open them, then the bar's reference folded away so the page
+// stays short, then this phone's settings. Each fold remembers whether it's open.
+let offlineReady = false;
+const infoOpen = new Set(store.get("infoOpen", []));
+const IC = {
+  allergens: '<path d="M12 3c3 3.5 5 6.4 5 9.5a5 5 0 0 1-10 0C7 9.4 9 6.5 12 3z"/><path d="M10 14.5l4-4"/>',
+  practice: '<rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v13M8 11l2 2 4-4"/>',
+  sheets: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',
+  features: '<path d="M12 3l2.6 5.6L20 9.3l-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.4-.7z"/>',
+  feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
+};
+const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
+const hubRow = (k, attr, t, sub) => `<${attr.startsWith("href") ? "a" : "button"} class="hrow2" ${attr}><span class="hic">${icon(k)}</span><span><b>${t}</b><small>${sub}</small></span><span class="chev" aria-hidden="true">${attr.startsWith("href") ? "↗" : "›"}</span></${attr.startsWith("href") ? "a" : "button"}>`;
+const fold = (k, t, body, id = "") => `<details class="cat fold" data-fold="${k}"${infoOpen.has(k) ? " open" : ""}><summary><span><h2${id ? ` id="${id}"` : ""}>${t}</h2></span></summary><div class="fb">${body}</div></details>`;
 function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
-    <div class="fbbox" style="margin-top:12px"><h2 style="margin-top:0">What's in the app</h2><p>Every feature, what it's for and what you can do with it, and a tour that shows you round.</p><button class="btn pri" data-feat-open>See the features</button></div>
-    <h2>Measures and the law</h2>
-    <ul>
+    <h2 class="pgt">More</h2>
+    <div class="sec">Drinks</div>
+    <div class="hub">
+      ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
+      ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards and tonight's quiz")}
+      ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A4 pages to print and laminate")}
+    </div>
+    <div class="sec">Help</div>
+    <div class="hub">
+      ${hubRow("features", "data-feat-open", "What's in the app", "Every feature, and a tour that shows you round")}
+      ${hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Derek reads every one")}
+    </div>
+    <div class="sec">Bar reference</div>
+    ${fold("law", "Measures and the law", `<ul>
       <li>Gin, rum, vodka and whisky on their own or with one mixer go in 25 ml or 35 ml measures (or multiples). We use 25 ml and 50 ml.</li>
       <li>Cocktails with three or more liquids are exempt, which is why the house cards use 10, 15, 20 and 35 ml.</li>
       <li>Jigger everything. No free pouring.</li>
       <li>No drinking games, no “drink as much as you can” deals, free tap water on request. Shot trays and pitchers are fine as fixed amounts.</li>
       <li>ID check on bombs and shots under the venue's Challenge policy.</li>
-    </ul>
-    <h2>Technique key</h2>
-    <dl class="kv">
+    </ul>`)}
+    ${fold("tech", "Technique key", `<dl class="kv">
       <dt>Dry shake</dt><dd>Shake without ice to whip the foam, then add ice and shake again.</dd>
       <dt>Double strain</dt><dd>Hawthorne strainer plus a fine strainer, so no ice chips or pulp.</dd>
       <dt>Foamer</dt><dd>2 drops, as on the house cards. Used for foam instead of egg white.</dd>
       <dt>Build</dt><dd>Pour straight into the glass over ice. No shaker.</dd>
       <dt>Float</dt><dd>Pour slowly over the back of a bar spoon so it sits on top.</dd>
-    </dl>
-    <h2>Prep and batches</h2>${prep}
-    <h2>Shot tray, step by step</h2>${guideHtml(DATA.guides["Shot tray"])}
-    <div class="fbbox"><h2 style="margin-top:0">Feedback and ideas</h2><p>App glitch, a guest comment, a drink we should add or an idea for the bar? Send it here. Derek reads every one, and the good ones go into the app.</p><a class="btn pri fbbtn" href="${formUrl()}" target="_blank" rel="noopener">Send feedback</a></div>
-    <h2>Language</h2>
-    <label class="fld" translate="no">This phone's language<select data-lang>${langOptions()}</select></label>
+    </dl>`)}
+    ${fold("prep", "Prep and batches", prep)}
+    ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
+    <div class="sec">This phone</div>
+    <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
     <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Use Send feedback above.</p>
-    <h2>Light or dark</h2>
-    <div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:10px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
+    <div class="mini" style="margin-top:14px">Light or dark</div>
+    <div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. This phone only.</p>
-    <h2>Put this app on your home screen</h2>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
-    <h3 style="font-size:18px;margin-top:14px">iPhone</h3>
+    ${fold("home", "Put this app on your home screen", `
+    <h3 style="font-size:18px;margin-top:4px">iPhone</h3>
     <ol>
       <li>Open the link in <b>Safari</b>.</li>
       <li>Tap the Share button, then <b>Add to Home Screen</b>.</li>
@@ -3455,15 +3512,21 @@ function renderInfo() {
       <li>Tap <b>Install the app</b> above, or tap ⋮ then <b>Add to Home screen</b> (or <b>Install app</b>).</li>
       <li>Tap <b>Install</b>. It now opens like an app.</li>
     </ol>
-    <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>
-    <p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
-    <h2 id="clear">Clear everything</h2>
+    <p class="note">On the website version, open it once with signal and it keeps working with no signal after that. It updates itself the next time you have signal.</p>`)}
+    ${fold("clear", "Clear everything", `
     <p class="note">Clears everything the app keeps on this phone: favourites, My bar, My pay shifts, the tally, drafts, the language and look, and anything else saved on it. Then the app starts again as new. Nobody else's phone changes, and it can't be undone.</p>
     <label class="fld">Type ${CLEAR_WORD} to show you mean it<input id="cp-words" autocapitalize="characters" autocomplete="off" autocorrect="off" spellcheck="false"></label>
-    <button class="btn danger wide" id="cp-go">Clear everything on this phone</button>
+    <button class="btn danger wide" id="cp-go">Clear everything on this phone</button>`, "clear")}
+    ${offlineReady ? `<p class="note">Offline ready ✓</p>` : ""}<p class="note">Data from the Soho build cards and blacktap.com, checked against the IBA recipes and Difford's Guide, last updated 4 November 2026. ${D.length} drinks, each with a step-by-step picture guide.</p>
     <p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p>`;
 }
-/* Clear everything, at the bottom of Info: everything the app keeps on this phone goes, and it starts again as new. */
+keepOpen($("#v-info"), (e) => {
+  const d = e.target.closest?.("[data-fold]"); if (!d) return;
+  d.open ? infoOpen.add(d.dataset.fold) : infoOpen.delete(d.dataset.fold);
+  store.set("infoOpen", [...infoOpen]);
+});
+$("#v-info").addEventListener("click", (e) => { const b = e.target.closest("[data-go]"); if (b) { haptic(); show(b.dataset.go); } });
+/* Clear everything, at the bottom of More: everything the app keeps on this phone goes, and it starts again as new. */
 const CLEAR_WORD = "CLEAR";
 function clearPhone() {
   Object.keys(localStorage).filter((k) => k.startsWith("btbar.")).forEach((k) => localStorage.removeItem(k));
@@ -3486,6 +3549,9 @@ const FEATURES = [
   { g: "Drinks", k: "make", n: "Cocktail maker", go: "tab:make", tour: 1,
     what: "Pick or type what you've got and see every drink you can make, closest first, with swaps. Also a random drink picker and every spec on one line.",
     staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, spin for an alcoholic or alcohol-free drink, and open any match for the full spec." },
+  { g: "Drinks", k: "rapid", n: "Rapid fire", go: "tab:rapid", tour: 1,
+    what: "The house cocktails as big tiles, for the busiest moments: tap one for its spec, or show every spec on the page.",
+    staff: "Type a drink or a spirit to narrow them down, and send several specs at once on WhatsApp." },
   { g: "Drinks", k: "allergens", n: "Allergens", go: "tab:allergens", tour: 1,
     what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
     staff: "Tap an allergen to see every drink with it." },
@@ -3494,8 +3560,8 @@ const FEATURES = [
     staff: "Practise one section or everything, and take tonight's quiz. Your score stays on your phone." },
   { g: "Drinks", k: "sheets", n: "Cheat sheets", go: "tab:sheets",
     what: "A4 pages to print double-sided and laminate for behind the bar, a section of drinks on each." },
-  { g: "Drinks", k: "info", n: "Bar info", go: "tab:info",
-    what: "Measures and the law, the technique key, prep and batches, the shot tray guide, and putting the app on your home screen." },
+  { g: "Drinks", k: "info", n: "More", go: "tab:info",
+    what: "Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's language, look and home screen icon." },
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", tour: 1,
     what: "Everything about your pay in one tab: your hours, an estimated take-home after tax, National Insurance, student loan and pension, tronc at £5 an hour that you can switch off, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
     staff: "Add shifts, read them from a Nory screenshot, type in Nory's hours or gross wage, or just pick about how many hours a week. Then set your tax code, loan and pension once." },
@@ -3559,7 +3625,7 @@ function featHtml() {
   };
   return `<h2 id="sh-name" style="margin-top:12px">What's in Bar Book</h2>
     <p class="lead">The drinks, the shift and the team in one app, for the bar and floor. Here's every feature and what it's for.</p>
-    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without the team link you get the drinks, the cocktail maker, Allergens, Practise, Bar info, My pay and the WhatsApp tools. Open the team link from the staff group for the rest: no login or password."}</p>
+    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without the team link you get the drinks, the cocktail maker, Allergens, Practise, More, My pay and the WhatsApp tools. Open the team link from the staff group for the rest: no login or password."}</p>
     <div class="actions"><button class="btn pri" id="tour-go">Take the tour (${tourSteps().length} steps)</button></div>
     ${[...new Set(FEATURES.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${FEATURES.filter((f) => f.g === g).map(card).join("")}`).join("")}`;
 }
@@ -4244,7 +4310,7 @@ const csPage = (i) => CHEAT.page(CHEAT.SHEETS[i], i, csByName, csArt, new Date()
 function csFit() { const v = $("#cs-view"); if (v) v.style.setProperty("--z", v.clientWidth / 794); }
 function renderSheets() {
   if (!$("#cs-css")) { const st = document.createElement("style"); st.id = "cs-css"; st.textContent = CHEAT.css(CHEAT_FONT); document.head.append(st); }
-  $("#v-sheets").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Cheat sheets</h2>
+  $("#v-sheets").innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Cheat sheets</h2>
     <p class="lead">Print them on A4 and laminate them for behind the bar. They use the same specs as the app.</p>
     <div class="actions"><button class="btn pri" data-cs-all>Print all</button><button class="btn" data-cs-one>Print this one</button></div>
     <div class="recent" translate="no">${CHEAT.SHEETS.map((x, i) => `<button class="chip" data-cs="${i}" aria-pressed="${i === csPick}">${esc(x.t)}</button>`).join("")}</div>
@@ -4267,15 +4333,22 @@ $("#v-sheets").addEventListener("click", (e) => {
 });
 addEventListener("resize", csFit);
 
-const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets"];
+/* ---------- Getting around ----------
+   Five tabs at the bottom, always on screen: Drinks, Shift, Team, My pay and More. Drinks has three modes in a bar at
+   the top that never scrolls sideways (Rapid fire, Menu, Make). More holds everything used less often: Allergens,
+   Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
+   Tapping the tab you're on takes you back to its top. */
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets"];
+const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
+let cur = "drinks";
 function show(tab) {
   if (!TABS.includes(tab)) tab = "drinks";
+  cur = tab;
   TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
-  const drinky = DRINK_TABS.includes(tab);
-  $$("nav.tabs [data-tab]").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab || (drinky && b.dataset.tab === "drinks") ? "page" : "false"));
-  $$("#subnav [data-tab]").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tab ? "page" : "false"));
-  $("#subnav").hidden = !drinky;
-  $("#hdr").hidden = tab !== "drinks";
+  $$("nav.tabs [data-tab]").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tabOf(tab) ? "page" : "false"));
+  $$("#subnav [data-tab]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === tab));
+  $("#hdr").hidden = !DRINK_TABS.includes(tab);
+  $("#hdr-drinks").hidden = tab !== "drinks";
   if (tab === "make") renderMaker();
   if (tab === "rapid") showRapid();
   if (tab === "allergens") renderAllergens();
@@ -4285,18 +4358,25 @@ function show(tab) {
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();
   if (tab === "notices") renderNotices();
+  if (DRINK_TABS.includes(tab)) store.set("dmode", tab);
   store.set("tab", tab); window.scrollTo(0, 0);
 }
-for (const n of $$("nav.tabs, #subnav")) n.addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b) show(b.dataset.tab); });
+$("#subnav").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b && b.dataset.tab !== cur) { haptic(); show(b.dataset.tab); } });
+$("nav.tabs").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-tab]"); if (!b) return;
+  const t = b.dataset.tab;
+  // The tab you're on: back to its top. Drinks remembers its last mode; More opens on its own page.
+  if (t === tabOf(cur) && !MORE_TABS.includes(cur)) return window.scrollTo({ top: 0, behavior: "smooth" });
+  haptic(); show(t === "drinks" ? store.get("dmode", "drinks") : t);
+});
+document.addEventListener("click", (e) => { if (e.target.closest("[data-back]")) { haptic(); show("info"); } });
 
 /*MAKER*/
 /*RAPID*/
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
-  navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { if (hit) $("#offl").textContent = "Offline ready ✓"; }).catch(() => {});
+  navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { offlineReady = !!hit; if (hit && cur === "info") renderInfo(); }).catch(() => {});
 }
-const tick = () => { const d = new Date(); $("#clock").textContent = hhmm(d); $("#today").textContent = d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" }); };
-tick(); setInterval(tick, 10000);
 renderChips(); renderList();
 {
   const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
