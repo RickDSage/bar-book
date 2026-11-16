@@ -668,6 +668,7 @@ details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: v
 .lfold > summary { list-style: none; cursor: pointer; }
 .lfold > summary::-webkit-details-marker { display: none; }
 .ltools { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+.draftbar { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; margin: 10px 0 4px; padding: 8px 10px; border: 1px dashed var(--line); border-radius: 10px; font-size: 14px; color: var(--muted); }
 .run { margin-top: 12px; padding: 10px 12px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; }
 .run .n { font-size: 14.5px; }
 .run .s { color: var(--muted); font-size: 13px; margin-top: 4px; }
@@ -2109,7 +2110,7 @@ function clearList(k) {
 async function clearAll(master) {
   const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api;
   if (!confirm(master ? "Master clear: both closing lists, the 86 board, restocks, the inbox and issues, for everyone. Sent handovers stay. Go ahead?"
-    : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. The handover, Closed by and unsent photos go too.")) return;
+    : "Clear everything for a fresh start? Both closing lists go back to not started and everything goes back in stock, on every phone. The handover, Closed by and unsent photos go too, and the drafts on this phone.")) return;
   const jobs = [];
   for (const k of lists) {
     const t = LISTS[k].title, p = progress(k), ids = shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
@@ -2119,6 +2120,7 @@ async function clearAll(master) {
   for (const n of outNow()) jobs.push(A.set86(n, false));
   for (const ph of LIVE.draftPhotos) jobs.push(A.deletePhoto(ph.id));
   for (const side of Object.keys(MODE_LISTS)) if (draftOf(side)) jobs.push(A.dropDraft(side));
+  for (const k in DRAFTS) dropDraft(k);
   if (master) {
     for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
     for (const a of LIVE.asks) jobs.push(A.dropAsk(a.id));
@@ -2424,7 +2426,7 @@ function restockHtml() {
     <div class="two"><label class="fld">How many<input id="rs-qty" inputmode="decimal" value="${esc(rsF.qty)}"></label><label class="fld">Unit<select id="rs-unit">${Object.keys(UNIT).map((u) => `<option value="${u}"${u === rsF.unit ? " selected" : ""}>${u === "each" ? "Each" : UNIT[u][1][0].toUpperCase() + UNIT[u][1].slice(1)}</option>`).join("")}</select></label></div>
     <div class="fld">Where it's going<div class="recent" style="margin-top:6px">${Object.entries(DEST).map(([k, t]) => `<button class="chip" data-rs-dest="${k}" aria-pressed="${k === rsDest()}">${t}</button>`).join("")}</div></div>
     <label class="fld">Detail (optional)<input id="rs-detail" maxlength="200" value="${esc(rsF.detail)}" placeholder="Running low, the big bottles, for the weekend…"></label>
-    <div class="actions"><button class="btn pri" id="rs-go">Ask for it</button></div>
+    ${draftBar("restock")}<div class="actions"><button class="btn pri" id="rs-go">Ask for it</button></div>
     ${open.map(rsCard).join("") || `<p class="note">Nothing waiting to come up.</p>`}
     ${done.length ? `<details class="setup"><summary>Done tonight (${done.length})</summary>${done.map(rsCard).join("")}</details>` : ""}`;
 }
@@ -2592,7 +2594,7 @@ function labelAddHtml(side) {
     <label class="fld">What it is<input id="lb-item" maxlength="60" value="${esc(lbF.item)}" placeholder="Apple juice, salted caramel sauce…"></label>
     <label class="fld">Days it keeps once opened<input id="lb-life" inputmode="numeric" maxlength="3" value="${esc(lbF.life)}"></label>
     <label class="check"><input type="checkbox" id="lb-on"${lbF.on ? " checked" : ""}> Needs a date label</label>
-    <div class="actions"><button class="btn pri" id="lb-go">Add it</button></div></details>`;
+    ${draftBar("label")}<div class="actions"><button class="btn pri" id="lb-go">Add it</button></div></details>`;
 }
 function addLabel(side) {
   const item = lbF.item.trim().slice(0, 60), life = Number(lbF.life);
@@ -2695,7 +2697,7 @@ function renderTally() {
       ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
       <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
-      ${HO.some((f) => ho[f.id].trim()) ? `<div class="recent"><button class="chip" data-ho-clear>Clear handover</button></div>` : ""}
+      <div class="draftbar"><span>${LIVE.me ? "Shared live with everyone closing this side" : "Saved on this phone as you type"}</span><button class="btn" data-ho-save>Save draft</button><button class="btn" data-ho-clear>Discard</button></div>
       <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done` : "Hand over and send on WhatsApp"}</button>
       <p class="note">Saves the handover for the next shift to see here, then opens WhatsApp with the closing in tick boxes. The photos go on their own (iPhones drop photos sent with words).</p>
       <div class="actions">${sendBtn("shift", "Just send on WhatsApp")}</div>
@@ -2877,8 +2879,15 @@ $("#tally").addEventListener("click", async (e) => {
     ho[id] = `${v}${v ? f.join : ""}${hc.dataset.ho}`; keepDraft();
     ta.value = ho[id]; ta.focus(); ta.setSelectionRange(ho[id].length, ho[id].length); return;
   }
+  if (e.target.closest("[data-ho-save]")) {
+    if (draftT) { clearTimeout(draftT); draftT = null; }
+    keepDraft(); clearTimeout(draftT); draftT = null;
+    if (LIVE.me && LIVE.api) track(LIVE.api.saveDraft(mode, { low: ho.low, issues: ho.issues, next: ho.next, closer, noPhotos }), "Draft saved for everyone closing this side", "Handover not saved. Check the signal and try again");
+    else toast("Draft saved on this phone");
+    return;
+  }
   if (e.target.closest("[data-ho-clear]")) {
-    if (!confirm(LIVE.me ? "Clear the handover for everyone closing this side?" : "Clear the handover on this phone?")) return;
+    if (!confirm(LIVE.me ? "Discard the handover for everyone closing this side?" : "Discard the handover on this phone?")) return;
     ho = { low: "", issues: "", next: "" }; keepDraft(); renderTally(); return;
   }
 });
@@ -3869,7 +3878,7 @@ function askHtml() {
     <label class="fld">${askF.kind === "complaint" ? "What happened" : "Message"}<textarea data-ask="text" rows="3" maxlength="2000" placeholder="${{ dayoff: "Family wedding, I can swap with Pema", complaint: "Say what happened, when, and who was there", fault: "Glass washer leaking again", fix: "Bar stool wobbles at table 4" }[askF.kind] || ""}">${esc(askF.text)}</textarea></label>
     <label class="check"><input type="checkbox" data-ask="anon"${askF.anon ? " checked" : ""}> Send it anonymously</label>
     ${askF.anon ? `<p class="note">No name and no phone id go with it, and you won't see a reply here. In a small team the seniors might still guess who sent it from what it says.</p>` : ""}
-    <div class="actions"><button class="btn pri" id="ask-go">Send to the seniors</button></div>
+    ${draftBar("ask")}<div class="actions"><button class="btn pri" id="ask-go">Send to the seniors</button></div>
     ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map(askLine).join("</article>")}</article>` : ""}
     ${sentAnon.length ? `<p class="note">${plural(sentAnon.length, "anonymous message")} sent from this phone.</p>` : ""}`;
 }
@@ -3893,8 +3902,8 @@ function incHtml() {
     <label class="check"><input type="checkbox" data-inc="ambulance"${incF.ambulance ? " checked" : ""}> Ambulance or police called</label>
     <label class="check"><input type="checkbox" data-inc="book"${incF.book ? " checked" : ""}> Written in the accident book</label>
     <label class="check"><input type="checkbox" data-inc="told"${incF.told ? " checked" : ""}> Duty manager told</label>
-    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}${LIVE.me ? `<button class="btn" id="inc-mgr">Send to the seniors</button>` : ""}<button class="btn" id="inc-clear">Clear</button></div>
-    <p class="note">What you type stays on this phone until you tap Clear.</p>`;
+    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}${LIVE.me ? `<button class="btn" id="inc-mgr">Send to the seniors</button>` : ""}</div>${draftBar("incident")}
+    <p class="note">What you type stays on this phone until you tap Discard.</p>`;
 }
 const tickBox = (b) => (b ? "✅" : "⬜");
 const incText = () => [`${INC[incF.kind]} at ${incF.time || "?"}${incF.where ? `, ${incF.where}` : ""}`, incF.who && `Who: ${incF.who}`, `What happened: ${incF.what || "?"}`, incF.done && `What was done: ${incF.done}`,
@@ -3920,7 +3929,7 @@ function rateHtml() {
     <label class="fld">What went well<textarea data-rt="good" rows="2" maxlength="600">${esc(rateF.good)}</textarea></label>
     <label class="fld">What was hard, or should change<textarea data-rt="bad" rows="2" maxlength="600">${esc(rateF.bad)}</textarea></label>
     <label class="fld">Anything else for the team (how you feel, management, anything)<textarea data-rt="feel" rows="2" maxlength="1000">${esc(rateF.feel)}</textarea></label>
-    <div class="actions">${sendBtn("rate", "Send to the team on WhatsApp")}<button class="btn" id="rate-clear">Clear</button></div>`;
+    <div class="actions">${sendBtn("rate", "Send to the team on WhatsApp")}</div>${draftBar("rate")}`;
 }
 // anon: the copy for the seniors and the owner, with no name and no side.
 SHARE.rate = (o, anon = false) => ({ what: "Rate the shift", title: `${rateF.score ? `${rateF.score}/10` : "How was it"} · ${dayName(shiftDay())}${anon ? "" : ` ${sideName(mode).toLowerCase()}`} shift`,
@@ -3950,7 +3959,7 @@ function issuesHtml() {
       <label class="fld">Where<select data-is="area"><option value="">Choose…</option>${AREAS.map(([k, t]) => `<option value="${k}"${k === isF.area ? " selected" : ""}>${t}</option>`).join("")}</select></label>
       <label class="fld">More detail (optional)<textarea data-is="detail" rows="2" maxlength="1000">${esc(isF.detail)}</textarea></label>
       <label class="check"><input type="checkbox" data-is="urgent"${isF.urgent ? " checked" : ""}> Urgent: needs sorting this shift</label>
-      <div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
+      ${draftBar("issue")}<div class="actions"><button class="btn pri" id="is-go">Raise it</button>${isF.again && !drafted("issue") ? `<button class="btn" id="is-clear">Start over</button>` : ""}</div></details>
     ${open.map(row).join("") || `<p class="note">No open issues.</p>`}
     ${open.length ? `<div class="actions">${sendBtn("issues", "Send open issues")}</div>` : ""}
     ${fixed.length ? `<details class="setup"><summary>Recently fixed (${fixed.length})</summary>${fixed.map((x) => `<div class="staffrow"><div class="n">${ut(x.title)} <span class="pill ok">Fixed</span></div><div class="s">${ut(x.fix)} · ${esc(x.fixedBy)}, ${when(x.fixedAt)}</div><div class="actions"><button class="btn" data-again="${x.id}">Still broken</button></div></div>`).join("")}</details>` : ""}`;
@@ -4059,7 +4068,7 @@ function tellHtml() {
   return `<p class="note">Only ${esc(ownerName())} reads these: what's missing from Bar Book, what to add, or what's wrong in it.</p>
     <div class="recent">${Object.entries(TELL).map(([k, v]) => `<button class="chip" data-tell-kind="${k}" aria-pressed="${tellF.kind === k}">${v}</button>`).join("")}</div>
     <label class="fld">What is it?<textarea data-tell="text" rows="3" maxlength="1000" placeholder="${{ missing: "A list for the terrace", add: "The new house spritz", wrong: "The Mojito spec says 50 ml rum, we use 37.5 ml" }[tellF.kind]}">${esc(tellF.text)}</textarea></label>
-    <div class="actions"><button class="btn pri" id="tell-go">Send to ${esc(ownerName())}</button></div>
+    ${draftBar("tell")}<div class="actions"><button class="btn pri" id="tell-go">Send to ${esc(ownerName())}</button></div>
     ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map((x) => tellRow(x, true) + "</article>").join("")}` : ""}`;
 }
 function tellsHtml() {
@@ -4120,17 +4129,61 @@ const CARDS = () => [
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
     ["outlog", "86 log", outlogHtml],
   ] : []),
-  ...(LIVE.me && !LIVE.admin ? [["ask", "To the seniors", askHtml]] : []),
-  ["incident", "Incident or accident", incHtml],
-  ["rate", "Team only: rate the shift", rateHtml],
-  ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : ""]] : []),
-  ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml]] : []),
+  ...(LIVE.me && !LIVE.admin ? [["ask", "To the seniors", askHtml, draftPill("ask")]] : []),
+  ["incident", "Incident or accident", incHtml, draftPill("incident")],
+  ["rate", "Team only: rate the shift", rateHtml, draftPill("rate")],
+  ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : draftPill("issue")]] : []),
+  ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml, draftPill("tell")]] : []),
   ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") : ""}</div>`],
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml], ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
   ...(LIVE.admin ? [["mgr", LIVE.owner ? "Owner settings" : "Senior settings", mgrHtml]] : []),
 ];
 function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (c && box) box.innerHTML = c[2](); }
+/* ---------- Drafts ----------
+   Whatever someone types in a form stays on this phone as they type, so a guest, a locked phone or closing the app
+   loses nothing. Save draft puts it away to finish later (its card says Draft, and the app says so when it opens);
+   Discard wipes it. Clear everything wipes them all. Nothing here leaves the phone until it's sent. */
+const DRAFTS = {
+  restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", other: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "other", "detail"] },
+  label: { n: "Date label", get: () => lbF, blank: () => ({ item: "", life: "", on: true, open: false }), fs: ["item", "life"] },
+  ask: { n: "To the seniors", get: () => askF, blank: () => ({ kind: askF.kind, text: "", when: "", anon: false }), card: "ask", fs: ["text", "when"] },
+  issue: { n: "Issue", get: () => isF, blank: () => ({ title: "", detail: "", area: "", urgent: false, again: null }), card: "issues", fs: ["title", "detail"] },
+  tell: { get n() { return `Tell ${ownerName()}`; }, get: () => tellF, blank: () => ({ kind: tellF.kind, text: "" }), card: "tell", fs: ["text"] },
+  incident: { n: "Incident", get: () => incF, blank: INC_BLANK, key: "incDraft", card: "incident", fs: ["where", "who", "what", "done", "witnesses"] },
+  rate: { n: "Rate the shift", get: () => rateF, blank: () => ({ score: 0, good: "", bad: "", feel: "" }), key: "rateDraft", card: "rate", fs: ["score", "good", "bad", "feel"] },
+};
+const draftKey = (k) => DRAFTS[k].key || `draft.${k}`;
+for (const k in DRAFTS) if (!DRAFTS[k].key) Object.assign(DRAFTS[k].get(), store.get(draftKey(k), {}));
+const drafted = (k) => DRAFTS[k].fs.some((f) => { const v = DRAFTS[k].get()[f]; return typeof v === "string" ? !!v.trim() : !!v; });
+function saveDrafts() { for (const k in DRAFTS) store.set(draftKey(k), DRAFTS[k].get()); }
+function dropDraft(k) { Object.assign(DRAFTS[k].get(), DRAFTS[k].blank()); store.set(draftKey(k), DRAFTS[k].get()); }
+const draftPill = (k) => (drafted(k) ? { t: "Draft" } : "");
+// Always there, so it's clear before anyone types that nothing is lost.
+const draftBar = (k) => `<div class="draftbar"><span>Saved on this phone as you type</span><button class="btn" data-draft-save="${k}">Save draft</button><button class="btn" data-draft-drop="${k}">Discard</button></div>`;
+const redraw = (k) => (DRAFTS[k].card ? renderCard(DRAFTS[k].card) : renderTally());
+for (const ev of ["input", "change"]) document.addEventListener(ev, saveDrafts);
+document.addEventListener("click", (e) => {
+  setTimeout(saveDrafts);
+  const sv = e.target.closest("[data-draft-save]"), dr = e.target.closest("[data-draft-drop]");
+  if (sv) {
+    const k = sv.dataset.draftSave, c = DRAFTS[k].card; saveDrafts(); haptic();
+    // Put away: the form folds up, and its card says Draft until it's sent or discarded.
+    if (k === "label") { lbF.open = false; renderTally(); }
+    if (k === "issue") tmOpen.delete("is-form");
+    if (c) { tmOpen.delete(c); store.set("tmOpen", [...tmOpen]); renderTeam(); }
+    toast("Draft saved. It's here when you come back");
+  }
+  if (dr) {
+    const k = dr.dataset.draftDrop;
+    if (drafted(k) && !confirm("Discard this draft? What's typed in it goes.")) return;
+    dropDraft(k); haptic(); redraw(k); toast("Draft discarded");
+  }
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden) saveDrafts(); });
+addEventListener("pagehide", saveDrafts);
+// On opening, a reminder of anything left half done.
+setTimeout(() => { const ds = Object.keys(DRAFTS).filter(drafted).map((k) => DRAFTS[k].n); if (ds.length) toast(`Unfinished draft: ${ds.join(", ")}`); }, 600);
 function topHtml() {
   if (!LIVE.api) return `<p class="note">The team side needs signal the first time.</p>`;
   if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span>${teamCode ? `<button class="linkbtn" data-send="team">Share the team link</button>` : ""}<button class="linkbtn" id="tm-leave">Log out</button></p>`;
@@ -4218,7 +4271,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   if ((x = b("[data-ask-drop]"))) { if (confirm("Remove this message?")) track(A.dropAsk(x.dataset.askDrop), "Removed"); return; }
   // Incident.
   if ((x = b("[data-inc-kind]"))) { incF.kind = x.dataset.incKind; saveInc(); return renderCard("incident"); }
-  if (b("#inc-clear")) { if (confirm("Clear the incident form?")) { incF = INC_BLANK(); saveInc(); renderCard("incident"); } return; }
   if (b("#inc-mgr")) {
     if (!incF.what.trim()) return toast("Say what happened first");
     if (rude(incText())) return toast(RUDE);
@@ -4227,7 +4279,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   }
   // Rate the shift.
   if ((x = b("[data-rate]"))) { rateF.score = +x.dataset.rate; store.set("rateDraft", rateF); haptic(); return renderCard("rate"); }
-  if (b("#rate-clear")) { rateF = { score: 0, good: "", bad: "", feel: "" }; store.set("rateDraft", rateF); return renderCard("rate"); }
   // Issues.
   if (b("#is-go")) {
     if (!isF.title.trim() || !isF.area) return toast("Say what's wrong and where");
