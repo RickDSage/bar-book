@@ -757,6 +757,45 @@ details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: v
   /* What just changed on someone else's phone. */
   .flash { animation: flash 1.6s ease-out; } @keyframes flash { from { background: color-mix(in srgb, var(--brass) 24%, transparent); } }
 }
+/* Bar Book plus: strength, serves, ticks, filters, spec of the day, lists, My drinks */
+.pl-spech { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pl-serve { display: inline-flex; align-items: center; gap: 4px; }
+.pl-serve b { min-width: 40px; text-align: center; font-family: var(--body); font-size: 17px; color: var(--fg); }
+.pl-units { display: inline-flex; gap: 0; margin-left: 6px; }
+.pl-units button { min-width: 40px; border-radius: 0; }
+.pl-units button:first-child { border-radius: 8px 0 0 8px; } .pl-units button:last-child { border-radius: 0 8px 8px 0; margin-left: -1px; }
+.mult button:disabled { opacity: .35; }
+.pl-batch { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; color: var(--fg); }
+.pl-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 16px; }
+.pl-stats > div { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 6px; text-align: center; }
+.pl-stats b { display: block; font-size: 20px; color: var(--brass); line-height: 1.1; }
+.pl-stats b small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; }
+.pl-stats span { display: block; font-size: 11px; color: var(--muted); margin-top: 3px; text-transform: uppercase; letter-spacing: .04em; }
+.pl-est { font-size: 12px; }
+[data-pl-tick] { cursor: pointer; }
+.pl-done { opacity: .45; text-decoration: line-through; text-decoration-color: var(--brass); }
+.pl-done .q::before { content: "\2713 "; color: var(--ok); }
+.pl-tickhint { font-size: 12px; }
+.pl-daily { display: flex; align-items: center; gap: 12px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--brass); border-radius: 14px; padding: 10px 12px; margin: 10px 0 4px; }
+.pl-daily .g { width: 52px; flex: none; }
+.pl-daily .t { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pl-daily .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--brass); font-weight: 700; }
+.pl-daily b { font-size: 18px; } .pl-daily small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-daily .go { font-size: 28px; color: var(--brass); }
+.pl-bar { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
+.pl-bar .pl-fbtn { color: var(--fg); } .pl-bar .pl-fbtn span { color: var(--brass); font-weight: 700; }
+.pl-on { color: var(--brass); border-color: var(--brass); }
+.pl-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 12px 12px; margin-top: 8px; }
+.pl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
+.pl-list { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; padding: 8px 10px; margin-top: 10px; }
+.pl-list > span { flex: 1 1 100%; }
+.pl-fix { margin: 6px 0 0; }
+.pl-qr { display: grid; justify-items: center; gap: 10px; }
+.pl-qr img { width: 220px; height: 220px; image-rendering: pixelated; background: #fff; padding: 8px; border-radius: 10px; }
+.pl-names { columns: 2; padding-left: 18px; color: var(--muted); font-size: 14px; }
+.pl-form { margin-top: 16px; }
+.pl-mine ul.spec { margin: 8px 0; }
+@media (max-width: 360px) { .pl-stats { grid-template-columns: repeat(2, 1fr); } }
 </style>
 <script>
 // Light, dark or auto (the phone's own setting, the default), picked in More.
@@ -794,7 +833,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 
 <main class="gut">
   <div id="bcast"></div>
-  <section class="view" id="v-drinks"><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p></section>
+  <section class="view" id="v-drinks"><div id="plf"></div><div id="quick"></div><div class="count" id="count"></div><div id="list"></div><p class="credit">Developed by <b>Charles Agyei II</b><br>© 2026. All rights reserved.</p></section>
 
   <section class="view" id="v-allergens" hidden>
     <button class="back" data-back>‹ More</button>
@@ -807,11 +846,12 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-practice" hidden>
     <button class="back" data-back>‹ More</button>
     <h2 style="font-size:28px">Practise specs</h2>
-    <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button></div>
+    <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button><button data-pmode="starter">New starter</button></div>
     <p class="lead" id="plead"></p>
     <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
     <div id="pcard"></div>
     <div id="pquiz" hidden></div>
+    <div id="pstart" hidden></div>
   </section>
 
   <section class="view" id="v-make" hidden></section>
@@ -1109,11 +1149,11 @@ const FLAVOURS = {
 let flav = null;
 const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Proof" || d.tags.includes("No alcohol") : d.tags.some((t) => FLAVOURS[flav].includes(t)));
 function renderQuick(show) {
-  if (!show) { $("#quick").innerHTML = ""; return; }
+  if (!show) { const f = PL.sq?.fixed || []; $("#quick").innerHTML = f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : ""; return; }
   const fl = `<div class="mini">What does the guest fancy?</div><div class="chips hrow">${[...Object.keys(FLAVOURS), "No alcohol"].map((f) => `<button class="chip" aria-pressed="${f === flav}" data-flav="${f}">${f}</button>`).join("")}</div>`;
-  if (flav || sec !== "All") { $("#quick").innerHTML = fl; return; }
+  if (flav || sec !== "All" || PL.list) { $("#quick").innerHTML = fl; return; }
   const rec = recent.length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = rec + fl;
+  $("#quick").innerHTML = plDailyHtml() + rec + fl;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
@@ -1122,22 +1162,25 @@ $("#quick").addEventListener("click", (e) => {
 let listIds = D.map((d) => d.id);
 function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
-  const words = q.split(/\s+/).filter(Boolean);
-  renderQuick(!q);
-  let rows = D.filter((d) => inSec(d) && words.every((w) => d._h.includes(w)) && (q ? true : flavHit(d)));
+  const words = q ? plQuery(q).words : [];
+  renderQuick(!q); renderPlf();
+  let rows = D.filter((d) => inSec(d) && words.every((w) => d._h.includes(w)) && (q ? true : flavHit(d)) && plOk(d));
+  rows = q && PL.sort === "menu" ? plRank(rows, words) : plSort(rows);
+  const flat = !!q || PL.sort !== "menu";
   $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}`;
   listIds = rows.map((d) => d.id);
   if (!rows.length && sec === CHIPS[1] && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here.</p>`; return; }
-  if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search.</p>`; return; }
+  if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
   let html = "", last = "";
   const per = {}; rows.forEach((d) => (per[d.section] = (per[d.section] || 0) + 1));
-  for (const d of rows) { if (d.section !== last) { html += `<div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; } html += rowHtml(d); }
+  for (const d of rows) { if (!flat && d.section !== last) { html += `<div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; } html += rowHtml(d); }
   // A filtered list (a section, a flavour or a search) can go out as one WhatsApp message of specs.
-  if (sec !== "All" || q || flav) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}</div>`;
+  if (sec !== "All" || q || flav || PL.list || plActive().length) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
   $("#list").innerHTML = html;
 }
 $("#q").addEventListener("input", renderList);
-document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); });
+document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
+$("#quick").addEventListener("click", (e) => { const o = e.target.closest(".pl-daily"); if (o) openSheet(+o.dataset.plDaily); });
 
 /* ---------- Spec sheet ---------- */
 const QTY = /^((?:\d+(?:\.\d+)?|half|one|two|three)\s?(?:ml|cl|l|g)\b|(?:\d+|a|half a|one|two|three)\s(?:dash(?:es)?|drops?|slices?|heaped spoons?|spoons?|wedges?|leaves|sprigs?|scoops?|can|cans|shots?|pinch(?:es)?)(?: of)?|dash of|pinch of|half pinch of|top with|top up with)\s+(.*)$/i;
@@ -1152,7 +1195,7 @@ function scaleQ(q) {
 function specRow(line) {
   const m = line.replace(/^batch:\s*/i, "").match(QTY) || line.match(/^(top(?: about)?(?: \d+ ml)?|half pint|half a|splash of|1 handful|side: \d+ ml|rim:|add to a|\d+(?: to \d+)? (?:mint |cucumber )?(?:leaves|slices)|1 bar spoon)\s+(.*)$/i);
   const [q, rest] = m ? [m[1], m[2]] : ["", line];
-  return `<li><span class="q">${esc(scaleQ(q))}</span><span>${esc(rest)}</span></li>`;
+  return `<li><span class="q">${esc(plOz(scaleQ(q)))}</span><span>${esc(rest)}</span></li>`;
 }
 // The method a step a line, as on the drink.
 const methodLines = (method) => method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i)
@@ -1257,12 +1300,15 @@ function openSheet(id, keepScroll) {
     ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
     <dl class="facts"><div><dt>Glass</dt><dd translate="no">${esc(d.glass)}</dd></div><div><dt>Ice</dt><dd translate="no">${esc(d.ice)}</dd></div><div><dt>Garnish</dt><dd translate="no">${esc(d.garnish)}</dd></div></dl>
-    <div class="h3" style="display:flex;justify-content:space-between;align-items:center;gap:8px">Spec<span class="mult" role="group" aria-label="How many">${[1, 2, 3, 4].map((n) => `<button data-mult="${n}" aria-pressed="${n === mult}">\u00d7${n}</button>`).join("")}</span></div>
-    ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.${mult > 2 ? " A tin holds 2 shaken drinks, so split it across tins." : ""}</p>` : ""}
+    <div class="h3 pl-spech">Spec<span class="mult">${plServesHtml()}</span></div>
+    ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.</p>${plBatchNote(d)}` : ""}
     <ul class="spec" translate="no">${d.spec.map(specRow).join("")}</ul>
     ${d.subs ? `<details class="subs"><summary>Out of something?<span class="cnt">${d.subs.length}</span></summary><ul translate="no">${d.subs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
     <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger.</p>
     <div class="h3">Method</div>${steps(d.method)}
+    ${plMistakesHtml(d)}
+    <p class="note pl-tickhint">Tap a line or a step to tick it off as you go.</p>
+    ${plStatsHtml(d, mult)}
     `}
     <div id="dmedia">${mediaHtml(d)}</div>
     ${tryInstead(d)}
@@ -1271,9 +1317,10 @@ function openSheet(id, keepScroll) {
     <div id="dmedit">${mediaEditHtml(d)}</div>
     ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
-    <div class="actions">${sendBtn("drink", "Send this drink", String(id))}</div>
+    <div class="actions">${sendBtn("drink", "Send this drink", String(id))}<button class="btn" data-pl-card>Picture card</button><button class="btn" data-pl-print>Print card</button></div>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
+  plTickMark();
   if (LIVE.me) LIVE.api?.watchMedia(d.name);
   $("#car")?.addEventListener("scroll", carSync, { passive: true });
   if (!keepScroll) { $("#sheet").scrollTop = 0; $("#sh-close").focus(); if (view === "steps") stepsIntoView(); }
@@ -1368,6 +1415,10 @@ $("#sheet").addEventListener("click", (e) => {
   const op = e.target.closest("[data-open]"); if (op) { mult = 1; openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
   const gb = e.target.closest("[data-go]"); if (gb) { slideTo(+gb.dataset.go); return; }
   const cs = e.target.closest("[data-cs]"); if (cs) { const car = $("#car"); haptic(); carGo(cs.dataset.cs === "0" ? 0 : carIndex(car) + +cs.dataset.cs); return; }
+  const tk = e.target.closest("[data-pl-tick]"); if (tk) { const [k, i] = tk.dataset.plTick.split(":"), set = plTicksFor(curId)[k]; set.has(+i) ? set.delete(+i) : set.add(+i); tk.classList.toggle("pl-done"); haptic(); return; }
+  const oz = e.target.closest("[data-pl-oz]"); if (oz) { const y = $("#sheet").scrollTop; PL.oz = oz.dataset.plOz === "1"; store.set("oz", PL.oz); openSheet(curId, true); $("#sheet").scrollTop = y; return; }
+  if (e.target.closest("[data-pl-card]")) { toast("Making the picture…"); plShareCard(D[curId]).catch(() => toast("Picture not made. Try again")); return; }
+  if (e.target.closest("[data-pl-print]")) { plPrintCard(D[curId]); return; }
   const mb = e.target.closest("[data-mult]"); if (mb) { const y = $("#sheet").scrollTop; mult = +mb.dataset.mult; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
   const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderChips(); renderList(); return; }
   const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name, on = !outNow().has(n); setOut(n, on); toast(on ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
@@ -1432,17 +1483,18 @@ let pool = store.get("pool", "Signatures"); if (!POOLS[pool]) pool = "Signatures
 let pDrink = null, pShown = false, pScore = { got: 0, miss: 0 };
 // Cards or the quiz, and the quiz being taken ({ night, day, qs, i, picks }; see Quiz below).
 const QZ_N = 10;
-let pmode = store.get("pmode", "cards"); if (pmode !== "quiz") pmode = "cards";
+let pmode = store.get("pmode", "cards"); if (!["quiz", "starter"].includes(pmode)) pmode = "cards";
 let qz = null;
 function nextCard() {
   const list = D.filter(POOLS[pool]).filter((d) => d !== pDrink);
   pDrink = list[Math.floor(Math.random() * list.length)]; pShown = false; renderPractice();
 }
 function renderPractice() {
-  const quiz = pmode === "quiz";
+  const st = pmode === "starter" && !qz?.starter, quiz = pmode === "quiz" || (pmode === "starter" && !!qz?.starter);
   $$("#pmode [data-pmode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.pmode === pmode));
-  $("#plead").textContent = quiz ? "Ten questions from our own specs." : "Say the spec out loud, then check it.";
-  $("#ppool").hidden = quiz; $("#pcard").hidden = quiz; $("#pquiz").hidden = !quiz;
+  $("#plead").textContent = pmode === "starter" ? "Your first week: the house cocktails, then a short test." : quiz ? "Ten questions from our own specs." : "Say the spec out loud, then check it.";
+  $("#ppool").hidden = quiz || st; $("#pcard").hidden = quiz || st; $("#pquiz").hidden = !quiz; $("#pstart").hidden = !st;
+  if (st) return renderStarter();
   if (quiz) renderQuiz();
   $("#ppool").innerHTML = Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}</button>`).join("");
   const d = pDrink;
@@ -1454,11 +1506,12 @@ function renderPractice() {
 }
 $("#v-practice").addEventListener("click", (e) => {
   const pb = e.target.closest("[data-pool]"); if (pb) { pool = pb.dataset.pool; store.set("pool", pool); pDrink = null; nextCard(); return; }
-  const pm = e.target.closest("[data-pmode]"); if (pm) { pmode = pm.dataset.pmode; store.set("pmode", pmode); renderPractice(); return; }
+  const pm = e.target.closest("[data-pmode]"); if (pm) { if (qz?.starter) qz = null; pmode = pm.dataset.pmode; store.set("pmode", pmode); renderPractice(); return; }
   const qa = e.target.closest("[data-qz]");
   if (qa) {
     const a = qa.dataset.qz;
-    if (a === "night" || a === "practice") quizStart(a === "night");
+    if (a === "starter") stStartQuiz();
+    else if (a === "night" || a === "practice") quizStart(a === "night");
     else if (a === "next") { qz.i++; qzKeep(); if (qz.i === qz.qs.length) quizDone(); renderPractice(); }
     else { qz = null; renderPractice(); }
     $("#v-practice").scrollIntoView({ block: "start" });
@@ -1617,7 +1670,8 @@ function renderQuiz() {
   const right = qzScore(qzMarks(qz)), missed = qz.qs.filter((x, j) => qz.picks[j] !== x.answer);
   box.innerHTML = `<div class="card"><h2>${right} out of ${qz.qs.length}</h2><p class="lead" style="margin:6px auto 0">${right === qz.qs.length ? "Perfect." : right >= 8 ? "Strong." : right >= 5 ? "Getting there." : "Practise these, then try again."}</p></div>
     ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n" translate="no">${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div><div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div></div>`).join("")}` : ""}
-    <div class="actions"><button class="btn pri" data-qz="practice">Another practice quiz</button><button class="btn" data-qz="home">Done</button></div>`;
+    ${qz.starter ? stResult(right) : ""}
+    <div class="actions">${qz.starter ? "" : `<button class="btn pri" data-qz="practice">Another practice quiz</button>`}<button class="btn" data-qz="home">Done</button></div>`;
 }
 
 /* ---------- Shift ---------- */
@@ -4331,6 +4385,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-back]"))
 
 /*MAKER*/
 /*RAPID*/
+/*PLUS*/
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { offlineReady = !!hit; if (hit && cur === "info") renderInfo(); }).catch(() => {});
@@ -4349,5 +4404,6 @@ renderChips(); renderList();
 }
 navCols();
 setLang(lang);
-show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
+if (!plOpenList(location.hash)) show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
+addEventListener("hashchange", () => plOpenList(location.hash));
 </script>
