@@ -96,3 +96,32 @@ test("Only what's left: a ticked item gets out of the way and one tap undoes it"
   assert.equal(await S.locator(`[data-list=close][data-i="${first}"]`).count(), 1);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
+
+test("drafts: what's typed survives closing the app, Save draft puts it away, Discard and Clear everything wipe it", async () => {
+  await resetEmulators();
+  const { O, S } = await team(browser, site, [["S", "Sam Staff"]]);
+  await part(S, "tell");
+  await S.fill('[data-tell="text"]', "Add the house spritz");
+  await S.click('[data-draft-save="tell"]');
+  await waitToast(S, /^Draft saved\. It's here when you come back$/);
+  assert.equal(await S.$eval('[data-card="tell"]', (d) => d.open), false);
+  assert.match(await S.$eval('[data-card="tell"] summary', (e) => e.textContent), /Draft$/);
+  // Closing and opening the app: the draft is still there, and the app says so.
+  await S.reload();
+  if (await S.locator("#w-ok").isVisible()) await S.click("#w-ok");
+  await S.waitForFunction(() => LIVE.ready && LIVE.me);
+  await waitToast(S, /^Unfinished draft: Tell Olly$/);
+  await part(S, "tell");
+  assert.equal(await S.$eval('[data-tell="text"]', (e) => e.value), "Add the house spritz");
+  await S.click('[data-draft-drop="tell"]');
+  await waitToast(S, /^Draft discarded$/);
+  assert.equal(await S.$eval('[data-tell="text"]', (e) => e.value), "");
+  assert.equal(await S.evaluate(() => JSON.parse(localStorage.getItem("btbar.draft.tell")).text), "");
+  // Clear everything takes this phone's drafts too.
+  await part(S, "ask");
+  await S.fill('[data-ask="text"]', "Can I swap Saturday");
+  S.answer = "yes"; await S.evaluate(() => { show("tally"); }); await S.click("#clear-all");
+  await waitToast(S, /^All clear for a fresh start$/);
+  assert.equal(await S.evaluate(() => askF.text), "");
+  assert.deepEqual([O.errs, S.errs], [[], []]);
+});
