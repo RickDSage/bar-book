@@ -15,6 +15,7 @@ const flat = (s) => s.replace(/\s+/g, " ").trim();
 test("joining: the team link and a name, no login; a wrong code is refused", async () => {
   await resetEmulators();
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+  await c.addInitScript(() => localStorage.setItem("btbar.introSeen", "true"));
   const p = await c.newPage();
   p.errs = []; p.on("pageerror", (e) => p.errs.push(e.message));
   await p.goto(`${site.url}#join=${TEAM_CODE}`);

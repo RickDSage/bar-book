@@ -820,6 +820,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
+  <p class="wip"><button class="linkbtn" data-intro-open>How Bar Book works: what it does, tips and tricks ›</button></p>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
   <div id="w-name"></div>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
@@ -3946,7 +3947,7 @@ function renderInfo() {
     </div>
     <div class="sec">Help</div>
     <div class="hub">
-      ${hubRow("features", "data-feat-open", "What's in the app", "Every feature, and a tour that shows you round")}
+      ${hubRow("features", "data-intro-open", "How Bar Book works", "What it does, tips and tricks, and every feature")}
       ${hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Derek reads every one")}
     </div>
     <div class="sec">Bar reference</div>
@@ -3970,6 +3971,8 @@ function renderInfo() {
     <div class="mini" style="margin-top:14px">Light or dark</div>
     <div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. This phone only.</p>
+    <div class="mini" style="margin-top:14px">Help buttons (?)</div>
+    <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
     ${fold("home", "Put this app on your home screen", `
     <h3 style="font-size:18px;margin-top:4px">iPhone</h3>
@@ -4958,6 +4961,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-back]"))
 /*MAKER*/
 /*RAPID*/
 /*PLUS*/
+/*HELP*/
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { offlineReady = !!hit; if (hit && cur === "info") renderInfo(); }).catch(() => {});

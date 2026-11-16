@@ -63,6 +63,8 @@ export async function phone(browser, site, { start = "#w-ok", width = 390, leftO
   // Ticked items hide by default (Only what's left). Most tests look at the whole list, so they start with it off;
   // morning.test.mjs tests it on.
   if (!leftOnly) await c.addInitScript(() => { try { if (localStorage.getItem("btbar.leftOnly") == null) localStorage.setItem("btbar.leftOnly", "false"); } catch {} });
+  // The first-open tour would sit over the app: tests start past it (help.test.mjs checks it).
+  await c.addInitScript(() => { try { if (localStorage.getItem("btbar.introSeen") == null) localStorage.setItem("btbar.introSeen", "true"); } catch {} });
   const p = await c.newPage();
   p.errs = [];
   p.on("pageerror", (e) => p.errs.push(e.message));

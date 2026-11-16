@@ -10,6 +10,7 @@ after(async () => { await browser.close(); site.close(); });
 
 async function open({ start = "#w-ok", at, width = 390, recent } = {}) {
   const c = await browser.newContext({ viewport: { width, height: 844 }, deviceScaleFactor: 2, isMobile: true, timezoneId: "Europe/London", colorScheme: "dark" });
+  await c.addInitScript(() => localStorage.setItem("btbar.introSeen", "true"));
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = [];
@@ -37,7 +38,7 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   // More: rows that open Allergens, Practise and Cheat sheets, then help, the bar's reference folded away, then this
   // phone's settings. The More tab stays lit on its pages, and the back button returns to it.
   await p.click("[data-tab=info]");
-  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["Allergens", "Practise specs", "Cheat sheets", "Just for fun", "What's in the app", "Send feedback"]);
+  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["Allergens", "Practise specs", "Cheat sheets", "Just for fun", "How Bar Book works", "Send feedback"]);
   assert.deepEqual(await p.$$eval("#v-info .fold h2", (x) => x.map((h) => h.textContent)), ["Measures and the law", "Technique key", "Prep and batches",
     "Shot tray, step by step", "Put this app on your home screen", "Reset this phone"]);
   assert.equal(await p.locator("#v-info [data-fold=law][open]").count(), 0, "the reference starts folded");
