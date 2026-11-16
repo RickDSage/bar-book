@@ -21,11 +21,11 @@ async function open() {
   // WhatsApp and Email are links filled in as they're tapped. Opening them is stopped.
   await p.evaluate(() => addEventListener("click", (e) => { if (e.target.closest("a[data-share]")) e.preventDefault(); }, true));
   await p.click("[data-tab=pay]");
-  await p.click("[data-hf-open]");
+  await p.click("[data-hf-open]"); await p.click('[data-hf-mode="times"]');
   for (const d of ["2026-11-03", "2026-11-10"]) await p.click(`[data-hf-day="${d}"]`);
   await p.fill('[data-hf="start"]', "17:00"); await p.fill('[data-hf="end"]', "23:00");
   await p.click('[data-hf-brk="30"]'); await p.click("[data-hf-save]");
-  await p.click("[data-hf-cancel]"); await p.click("[data-sec=shifts] summary");
+  await p.click("[data-hf-cancel]"); await p.click('[data-pay-tab="more"]'); await p.click("[data-sec=shifts] summary");
   return p;
 }
 const link = async (p, via) => { const a = `#send [data-share][data-via=${via}]`; await p.click(a); return new URL(await p.getAttribute(a, "href")); };
