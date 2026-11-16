@@ -55,6 +55,18 @@ for (const d of drinks) if (!guides[d.name]) throw new Error("No guide for " + d
 for (const d of drinks) d.method = tidyMethod(d, guides[d.name]);
 const names = drinks.map((d) => d.name);
 if (new Set(names).size !== names.length) throw new Error("Duplicate drink name");
+// UK law: gin, rum, vodka and whisky sold on the premises go in 25 ml or 35 ml steps (this bar: 25 ml), unless mixed
+// with two or more other liquids (Weights and Measures (Intoxicating Liquor) Order 1988, article 3).
+const LAW_SPIRIT = /\b(gin|vodka|rum|whiske?y|bourbon|scotch|rye|tanqueray|smirnoff|grey goose|ciroc|captain morgan|kraken|bacardi|wray|jameson|jack daniel|bulleit|jw black|aviation)\b/i;
+const NOT_SPIRIT = /liqueur|syrup|juice|cordial|vermouth|cream|beer|ginger|tonic|sloe|schnapps|bitters|falernum|pur[ée]e|cola|soda|lemonade|brine/i;
+for (const d of drinks) {
+  const liquids = d.spec.filter((l) => /\bml\b|^top\b/i.test(l));
+  if (liquids.length >= 3) continue;
+  for (const l of liquids) {
+    const m = l.match(/^([\d.]+) ml (.*)/);
+    if (m && LAW_SPIRIT.test(m[2]) && !NOT_SPIRIT.test(m[2]) && +m[1] % 25) throw new Error(`${d.name}: "${l}" breaks the 25 ml rule for gin, rum, vodka and whisky`);
+  }
+}
 const data = { guides, scenes, drinks, prep: src.prep.map((p) => ({ ...p, spec: p.spec.map(clean) })), };
 const tpl = fs.readFileSync("template.html", "utf8");
 // The cocktail maker (Make tab) goes in near the end of the script, once the drinks and helpers it reads exist.
