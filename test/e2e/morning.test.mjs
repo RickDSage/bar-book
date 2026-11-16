@@ -35,6 +35,12 @@ test("the morning reads last night's handover back, with today's order and the p
   assert.match(msg, /^\*Black Tap Soho · Bar morning · .*\*\n✅ Last night's handover checked by Olly Owner\n\n\*Still outstanding\*\nTap 3 dripping\nBar storage tidied\n\n\*For today\*\nPrep: lime juice/);
   assert.match(await O.evaluate(() => shareText("order")), /To order or bring up today:\n\n\*Order \(3\)\*\n• Gas \(CO2\)\n• Limes\n• Prosecco bottle\n\nOpen in Bar Book: \S+#at=morning$/);
   assert.match(await O.evaluate(() => shareText("pars")), /\*Prep to par \(\d+\)\*\n⬜ Lime juice: /);
+  // Mark as read: nothing goes on WhatsApp, and the managers see who read it and when.
+  await O.click("[data-ho-read]");
+  await O.waitForSelector("#tally .pill.ok");
+  await O.waitForFunction(() => LIVE.sent.some((x) => x.k === "read" && !x.pending));
+  await O.evaluate(() => show("notices"));
+  assert.match(await O.$eval(".glance", (e) => e.textContent), /Bar[\s\S]*Last night's handover read · Olly Owner \d\d:\d\d[\s\S]*Floor/);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
