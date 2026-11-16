@@ -43,7 +43,7 @@ test("the close shows when it started, how long it's taking and who has ticked w
   await S.waitForFunction(() => ["close-0", "close-1"].every((k) => LIVE.tasks[k]?.status === "done" && !LIVE.tasks[k].pending));
   await S.evaluate(() => renderTally());
   const top = await S.$eval("#tally .pane", (e) => e.innerText);
-  assert.match(top, /Started\s*\d\d:\d\d\s*So far\s*\d+ min\s*Left\s*36/i);
+  assert.match(top, /Started\s*\d\d:\d\d\s*So far\s*\d+ min\s*Left\s*37/i);
   assert.match(top, /Still to do: Service 1 · /);
   assert.match(top, /Ticked: Sam Staff 2/);
   assert.match(await S.evaluate(() => shareText("shift")), /⏱ Closing started \d\d:\d\d, so far \d+ min/);
