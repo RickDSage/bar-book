@@ -3,34 +3,41 @@
 // Bundled by site.js into live.js. The app script owns the UI; this module fills in LIVE and calls liveChanged().
 // Every write here has a matching rule in firestore.rules and a test in test/rules.test.mjs.
 //
-// Bar and floor staff have no login: the phone signs in anonymously and joins with the team code from the team link,
-// under the first name picked on the phone. Only the owner and the manager have a username and password (underneath, a
-// Firebase email/password account with a made-up address; usernames/{username} points the login screen at it).
+// Nobody but the owner has a login: every phone signs in anonymously and joins with the team code from the team link,
+// under the first name picked on the phone. A senior unlocks any joined phone with their own 4 digit code, which the
+// server checks and counts (see seniors and pins in firestore.rules). The owner has a username and password (underneath,
+// a Firebase email/password account with a made-up address; usernames/{username} points the login screen at it).
 import { initializeApp } from "firebase/app";
 import {
-  getAuth, initializeAuth, inMemoryPersistence, connectAuthEmulator, onAuthStateChanged, signInAnonymously,
-  signInWithEmailAndPassword, createUserWithEmailAndPassword, signOut, updatePassword, deleteUser,
+  getAuth, connectAuthEmulator, onAuthStateChanged, signInAnonymously,
+  signInWithEmailAndPassword, signOut, updatePassword,
 } from "firebase/auth";
 import {
   initializeFirestore, persistentLocalCache, connectFirestoreEmulator, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc,
   collection, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
-  terminate, clearIndexedDbPersistence,
+  terminate, clearIndexedDbPersistence, deleteField,
 } from "firebase/firestore";
 
 const app = initializeApp(__CONFIG__);
 const auth = getAuth(app);
-// A second auth instance makes the manager's account without logging the owner out.
-const maker = initializeAuth(initializeApp(__CONFIG__, "maker"), { persistence: inMemoryPersistence });
 // Kept on the phone so the app works with no signal. Leaving clears it.
 const db = initializeFirestore(app, { localCache: persistentLocalCache() });
 if (__EMU__) {
-  for (const a of [auth, maker]) connectAuthEmulator(a, "http://127.0.0.1:9099", { disableWarnings: true });
+  connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
 }
 
-// Passwords for the two accounts: 6 characters or more (Firebase's minimum). Team codes are 8 or more.
-const USER = /^[a-z0-9.]{2,20}$/, PASSWORD_MIN = 6, CODE_MIN = 8, MAX_PHOTOS = 8;
-const emailFor = (u) => `${u}-${crypto.randomUUID().slice(0, 8)}@users.example.com`;
+// The owner's password: 6 characters or more (Firebase's minimum). Team codes are 8 or more. Seniors' codes are 4 digits.
+// The rules count guesses at a senior's code: FREE_TRIES, then one every WAIT_MIN minutes, then none from MAX_TRIES.
+const PASSWORD_MIN = 6, CODE_MIN = 8, MAX_PHOTOS = 8, FREE_TRIES = 5, MAX_TRIES = 10, WAIT_MIN = 15, MAX_SENIORS = 3;
+const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+const hashPin = async (pin, salt) => hex(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`${pin}:${salt}`)));
+// Minutes before this senior's code can be tried again: 0 now, Infinity until the owner resets it.
+function waitFor(s) {
+  if (s.tries < FREE_TRIES) return 0;
+  if (s.tries >= MAX_TRIES) return Infinity;
+  return Math.max(0, Math.ceil((ms(s.lastTry) + WAIT_MIN * 6e4 - Date.now()) / 6e4));
+}
 // The 86 board keys each item by this, and the rules check it the same way.
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const ms = (t) => (t ? t.toMillis() : Date.now());
@@ -64,6 +71,9 @@ function listen(uid) {
     }
     if (!d.metadata.hasPendingWrites) seen = true;
     const s = d.data();
+    // A senior's code being checked: wait for the server's answer rather than flashing the senior's pages.
+    if (d.metadata.hasPendingWrites && s.role === "manager" && LIVE.role !== "manager") return;
+    LIVE.pin = s.pin || null;
     if (LIVE.me !== s.name || LIVE.role !== s.role) {
       if (LIVE.role && LIVE.role !== s.role) { Object.keys(subs).forEach(unsub); LIVE.loaded.clear(); }
       LIVE.me = s.name; LIVE.username = s.username || null; LIVE.role = s.role;
@@ -73,12 +83,18 @@ function listen(uid) {
     if (d.metadata.hasPendingWrites) return;
     // Who is on the team: everyone's phones and the owner and seniors. Used for giving someone a job.
     sub("staff", collection(db, "staff"), (snap) => {
-      LIVE.staff = snap.docs.filter(plain).map((x) => ({ name: x.data().name, role: x.data().role, at: x.data().at || null, uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
+      LIVE.staff = snap.docs.filter(plain).map((x) => ({ name: x.data().name, role: x.data().role, username: x.data().username || null, pin: x.data().pin || null, at: x.data().at || null, uid: x.id })).sort((a, b) => a.name.localeCompare(b.name));
       liveChanged("staff");
     // Only a refusal means this phone is off the team. Anything else (the free plan's daily limit used up, a server
     // hiccup) must not sign the phone out and wipe it: it keeps showing what it last saw and listens again later.
     }, (e) => { if (e?.code === "permission-denied" && !d.metadata.fromCache) { liveChanged("removed"); leave(); } });
-    // Live messages, newest first, and who has tapped Got it on them.
+    // The seniors, to pick from when unlocking, with how many wrong guesses there have been at each code. A phone
+    // unlocked by a senior the owner has since taken off goes back to staff powers (the rules already treat it so).
+    sub("seniors", collection(db, "seniors"), (snap) => {
+      LIVE.seniors = snap.docs.filter(plain).map((x) => ({ ...x.data({ serverTimestamps: "estimate" }), id: x.id })).sort((a, b) => a.name.localeCompare(b.name));
+      if (LIVE.role === "manager" && !snap.metadata.fromCache && !LIVE.seniors.some((x) => x.id === LIVE.pin)) LIVE.api.lock().catch(() => {});
+      liveChanged("seniors");
+    });
     // The manager's versions of the closing lists. A list with none here is the app's standard one.
     sub("lists", collection(db, "lists"), (snap) => {
       LIVE.lists = Object.fromEntries(snap.docs.filter(plain).map((x) => [x.id, { ...x.data({ serverTimestamps: "estimate" }), id: x.id, pending: x.metadata.hasPendingWrites }]));
@@ -197,7 +213,7 @@ LIVE.api = {
     if (!auth.currentUser) await signInAnonymously(auth).catch(joinErr);
     await setDoc(doc(db, "staff", auth.currentUser.uid), { name, role: "staff", code, at: serverTimestamp() }).catch(joinErr);
   },
-  // The owner and the manager.
+  // The owner.
   async login(username, password) {
     const u = await getDoc(doc(db, "usernames", username)).catch(() => err("Could not log in. Check your signal"));
     if (!u.exists()) err("Wrong username or password");
@@ -213,21 +229,52 @@ LIVE.api = {
     return leave();
   },
   changePassword: (pw) => updatePassword(auth.currentUser, pw),
-  // The owner adds the manager's account: a username and a password the owner picks and gives them.
-  async addManager(name, username, password) {
-    if ((await getDoc(doc(db, "usernames", username))).exists()) err("That username is taken");
-    const { user } = await createUserWithEmailAndPassword(maker, emailFor(username), password);
-    try {
-      const b = writeBatch(db);
-      b.set(doc(db, "staff", user.uid), { name, username, role: "manager" });
-      b.set(doc(db, "usernames", username), { email: user.email, uid: user.uid });
-      await b.commit();
-    } catch (e) { await deleteUser(user).catch(() => {}); throw e; } finally { await signOut(maker).catch(() => {}); }
+  // A senior unlocks this phone with their code. Two writes, because a refused write leaves no trace: the first saves
+  // the guess and counts it, the second is only allowed if that counted guess matches.
+  async unlock(id, guess) {
+    const s = LIVE.seniors.find((x) => x.id === id), uid = auth.currentUser.uid;
+    if (!s) err("Pick your name");
+    const wait = waitFor(s);
+    if (wait === Infinity) err(`Locked after ${MAX_TRIES} wrong codes. Ask Derek to unlock it`);
+    if (wait) err(`Too many wrong codes. Try again in ${wait} min`);
+    const n = s.tries + 1, a = writeBatch(db);
+    a.set(doc(db, "unlocks", uid), { id, guess, n, at: serverTimestamp() });
+    a.update(doc(db, "seniors", id), { tries: n, lastTry: serverTimestamp() });
+    await a.commit().catch(() => err("Couldn't check the code. Check your signal and try again"));
+    const b = writeBatch(db);
+    b.update(doc(db, "staff", uid), { name: s.name, role: "manager", pin: id, at: serverTimestamp() });
+    b.update(doc(db, "seniors", id), { tries: 0, lastTry: serverTimestamp() });
+    await b.commit().catch(() => err(n >= MAX_TRIES ? `Wrong code. Now locked: ask Derek to unlock it`
+      : n >= FREE_TRIES ? `Wrong code. Next try in ${WAIT_MIN} min` : `Wrong code. ${FREE_TRIES - n} more before it slows down`));
+    await deleteDoc(doc(db, "unlocks", uid)).catch(() => {});
   },
-  // Takes a phone or the manager off the team. What they wrote keeps their name.
+  // Back to staff powers on this phone, under the name given (the phone's own first name).
+  lock: (name) => updateDoc(doc(db, "staff", auth.currentUser.uid), { name: name || LIVE.me, role: "staff", pin: deleteField(), at: serverTimestamp() }),
+  waitFor,
+  // The owner adds a senior or gives one a new code. Each senior's code must differ from the others', so a code says
+  // whose it is; the owner's phone checks that against the other hashes (only the owner can read them).
+  async setSenior(name, pin, id) {
+    id = id || slug(name);
+    if (!id || id.length > 30) err("Put in a first name");
+    if (!LIVE.seniors.some((x) => x.id === id) && LIVE.seniors.length >= MAX_SENIORS) err(`Up to ${MAX_SENIORS} seniors. Take one off first`);
+    const others = (await getDocs(collection(db, "pins"))).docs.filter((x) => x.id !== id);
+    for (const o of others) if ((await hashPin(pin, o.data().salt)) === o.data().hash) err("Another senior has that code. Pick a different one");
+    const salt = hex(crypto.getRandomValues(new Uint8Array(16)).buffer), b = writeBatch(db);
+    b.set(doc(db, "seniors", id), { name, tries: 0, lastTry: serverTimestamp() });
+    b.set(doc(db, "pins", id), { salt, hash: await hashPin(pin, salt) });
+    return b.commit();
+  },
+  resetTries: (id) => updateDoc(doc(db, "seniors", id), { tries: 0, lastTry: serverTimestamp() }),
+  // Takes a senior off: their code stops working and every phone they unlocked goes back to staff powers.
+  dropSenior(id) {
+    const b = writeBatch(db);
+    b.delete(doc(db, "seniors", id)); b.delete(doc(db, "pins", id));
+    return b.commit();
+  },
+  // Takes a phone off the team. What they wrote keeps their name. An old password login goes with its username.
   remove(person) {
     const b = writeBatch(db);
-    if (person.role === "manager" && person.username) b.delete(doc(db, "usernames", person.username));
+    if (person.username) b.delete(doc(db, "usernames", person.username));
     b.delete(doc(db, "staff", person.uid));
     return b.commit();
   },
@@ -347,10 +394,10 @@ LIVE.api = {
   watchMedia,
   // A drink's photo and video link, saved together. With neither, the record goes.
   setMedia: (drink, photo, video) => (photo || video ? setDoc(doc(db, "drinkMedia", slug(drink)), { drink, photo, video, ...me() }) : deleteDoc(doc(db, "drinkMedia", slug(drink)))),
-  USER, PASSWORD_MIN, CODE_MIN, MAX_PHOTOS,
+  PASSWORD_MIN, CODE_MIN, MAX_PHOTOS, MAX_TRIES, MAX_SENIORS,
 };
 
-const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, admin: false, owner: false, anon: false, staff: [], out: new Set(), outInfo: new Map(),
+const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(),
   outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;

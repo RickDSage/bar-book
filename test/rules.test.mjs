@@ -24,12 +24,13 @@ after(() => env?.cleanup());
 // ---------- People (made-up names; no real staff) ----------
 const TEAM = {
   owner1: { name: "Olly Owner", username: "olly", role: "owner" },
-  mgr1: { name: "Mia Manager", username: "mia", role: "manager" },
-  mgr2: { name: "Max Manager", username: "max", role: "manager" },
+  mgr1: { name: "Mia Manager", role: "manager", pin: "mia-manager" },
+  mgr2: { name: "Max Manager", role: "manager", pin: "max-manager" },
   staff1: { name: "Sam Staff", role: "staff" },
   staff2: { name: "Tia Staff", role: "staff" },
 };
-// Staff phones join with the team code (config/team), signed in anonymously; the owner and the manager have logins.
+// Every phone joins with the team code (config/team), signed in anonymously; a senior unlocks one with their 4 digit
+// code; the owner has a login.
 const TEAM_CODE = "correct-horse-battery";
 const emailOf = (u) => `${u}-1a2b3c4d@users.example.com`;
 const db = (uid) => (uid ? env.authenticatedContext(uid) : env.unauthenticatedContext()).firestore();
@@ -50,11 +51,23 @@ const nightFromTonight = (n) => ukDay(Date.now() - 6 * 36e5 + n * 864e5);
 const slug = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-");
 const autoId = () => doc(collection(db("owner1"), "x")).id;
 
+// Seniors' codes, salted and hashed the way the app does it.
+const PINS = { "mia-manager": "4821", "max-manager": "1937" };
+const SALT = "0123456789abcdef0123456789abcdef";
+const sha = async (t) => Buffer.from(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(t))).toString("hex");
+const pinOf = async (pin, salt = SALT) => ({ salt, hash: await sha(pin + ":" + salt) });
+
 async function seedTeam() {
   await seed(async (s) => {
     await setDoc(doc(s, "config", "team"), { code: TEAM_CODE });
     for (const [uid, p] of Object.entries(TEAM)) {
       if (p.role === "staff") { await setDoc(doc(s, "staff", uid), { ...p, code: TEAM_CODE, at: Timestamp.now() }); continue; }
+      if (p.role === "manager") {
+        await setDoc(doc(s, "staff", uid), { ...p, code: TEAM_CODE, at: Timestamp.now() });
+        await setDoc(doc(s, "seniors", p.pin), { name: p.name, tries: 0, lastTry: Timestamp.now() });
+        await setDoc(doc(s, "pins", p.pin), await pinOf(PINS[p.pin]));
+        continue;
+      }
       await setDoc(doc(s, "staff", uid), p);
       await setDoc(doc(s, "usernames", p.username), { email: emailOf(p.username), uid });
     }
@@ -159,13 +172,13 @@ describe("visitors who aren't logged in", () => {
     test(`can't list ${c}`, () => assertFails(getDocs(collection(db(), c))));
   }
   test("can look up one username, and it holds only the sign-in address and uid", async () => {
-    const snap = await assertSucceeds(getDoc(doc(db(), "usernames/mia")));
+    const snap = await assertSucceeds(getDoc(doc(db(), "usernames/olly")));
     assert.deepEqual(Object.keys(snap.data()).sort(), ["email", "uid"]);
   });
   test("can't write anything", async () => {
     await assertFails(setDoc(doc(db(), "tells/x"), { kind: "add", text: "hi", status: "new", uid: "x", name: "x", at: now() }));
     await assertFails(setDoc(doc(db(), "usernames/evil"), { email: emailOf("evil"), uid: "x" }));
-    await assertFails(deleteDoc(doc(db(), "usernames/mia")));
+    await assertFails(deleteDoc(doc(db(), "usernames/olly")));
   });
 });
 
@@ -189,13 +202,15 @@ describe("joining the team with the team code", () => {
     await join("phone1");
     await assertFails(updateDoc(doc(db("phone1"), "staff", "phone1"), { role: "manager" }));
     await assertFails(setDoc(doc(db("phone1"), "staff", "phone1"), { name: "Kadir", username: "kadir", role: "manager" }));
+    await assertFails(setDoc(doc(db("phone1"), "staff", "phone1"), { name: "Kadir", role: "manager", code: TEAM_CODE, at: now(), pin: "mia-manager" }));
     await assertFails(updateDoc(doc(db("mgr1"), "staff", "mgr1"), { role: "owner" }));
   });
-  test("a new code takes every staff phone off; the owner and manager keep going", async () => {
+  test("a new code takes every phone off, seniors' too; the owner keeps going", async () => {
     await seed((s) => setDoc(doc(s, "config", "team"), { code: "a-brand-new-code" }));
     await assertFails(getDocs(collection(db("staff1"), "issues")));
     await assertFails(addDoc(collection(db("staff1"), "issues"), issue("staff1")));
-    for (const uid of ["owner1", "mgr1"]) await assertSucceeds(getDocs(collection(db(uid), "issues")));
+    await assertFails(getDocs(collection(db("mgr1"), "issues")));
+    await assertSucceeds(getDocs(collection(db("owner1"), "issues")));
     // The new link brings them back.
     await assertSucceeds(setDoc(doc(db("staff1"), "staff", "staff1"), { name: "Sam Staff", role: "staff", code: "a-brand-new-code", at: now() }));
     await assertSucceeds(getDocs(collection(db("staff1"), "issues")));
@@ -210,21 +225,105 @@ describe("joining the team with the team code", () => {
   });
 });
 
-describe("the owner adds the manager's login", () => {
+describe("seniors: the owner sets a 4 digit code, the server counts every guess", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
-  const add = (actor, uid, username, extra = {}) => {
+  const add = async (actor, id, name, pin, extra = {}) => {
     const d = db(actor), b = writeBatch(d);
-    b.set(doc(d, "staff", uid), { name: "Illias", username, role: "manager", ...extra });
-    b.set(doc(d, "usernames", username), { email: emailOf(username), uid });
+    b.set(doc(d, "seniors", id), { name, tries: 0, lastTry: now(), ...extra });
+    b.set(doc(d, "pins", id), await pinOf(pin));
     return b.commit();
   };
-  test("only the owner, only as manager, with a matching username", async () => {
-    await assertSucceeds(add("owner1", "mgr3", "illias"));
-    await assertFails(add("mgr1", "mgr4", "other"));
-    await assertFails(add("staff1", "mgr4", "other"));
-    await assertFails(add("owner1", "mgr4", "boss", { role: "owner" }));
-    await assertFails(add("owner1", "mgr4", "Bad Name"));
-    await assertSucceeds(deleteDoc(doc(db("owner1"), "usernames", "illias")));
+  // Saving a guess: the phone's latest guess and a +1 on that senior's count, in one write.
+  const guess = async (uid, id, g, n) => {
+    const d = db(uid), b = writeBatch(d);
+    b.set(doc(d, "unlocks", uid), { id, guess: g, n, at: now() });
+    b.update(doc(d, "seniors", id), { tries: n, lastTry: now() });
+    return b.commit();
+  };
+  // Checking it: the phone becomes the senior's and the count goes back to 0.
+  const unlock = (uid, id, name, extra = {}) => {
+    const d = db(uid), b = writeBatch(d);
+    b.update(doc(d, "staff", uid), { name, role: "manager", pin: id, at: now(), ...extra });
+    b.update(doc(d, "seniors", id), { tries: 0, lastTry: now() });
+    return b.commit();
+  };
+  const readTries = async (id) => { let t; await seed(async (s) => { t = (await getDoc(doc(s, "seniors", id))).data().tries; }); return t; };
+
+  test("only the owner adds a senior, with a properly hashed code; only the owner reads codes; the team reads names", async () => {
+    await assertSucceeds(add("owner1", "illias", "Illias", "5555"));
+    await assertFails(add("mgr1", "hassan", "Hassan", "6666"));
+    await assertFails(add("staff1", "hassan", "Hassan", "6666"));
+    await assertFails(add("owner1", "hassan", "Hassan", "6666", { tries: 3 }));
+    await assertFails(add("owner1", "Bad Id", "Hassan", "6666"));
+    await assertFails(setDoc(doc(db("owner1"), "pins", "illias"), { salt: SALT, hash: "6666" }));
+    await assertFails(setDoc(doc(db("owner1"), "seniors", "hassan"), { name: "Hassan", tries: 0, lastTry: now() }));
+    await assertSucceeds(getDoc(doc(db("owner1"), "pins", "illias")));
+    for (const uid of ["mgr1", "staff1"]) await assertFails(getDoc(doc(db(uid), "pins", "illias")));
+    await assertSucceeds(getDocs(collection(db("staff1"), "seniors")));
+    await assertFails(updateDoc(doc(db("mgr1"), "seniors", "illias"), { name: "Someone" }));
+    await assertFails(getDocs(collection(db("phone9"), "seniors")));
+  });
+  test("a staff phone can't become a senior by writing its record, without a counted guess, or with a wrong code", async () => {
+    await assertFails(updateDoc(doc(db("staff1"), "staff", "staff1"), { role: "manager", pin: "mia-manager" }));
+    await assertFails(unlock("staff1", "mia-manager", "Mia Manager"));
+    await assertSucceeds(guess("staff1", "mia-manager", "0000", 1));
+    await assertFails(unlock("staff1", "mia-manager", "Mia Manager"));
+    assert.equal(await readTries("mia-manager"), 1);
+  });
+  test("a guess can't skip the count, reuse a number or be read back", async () => {
+    const d = db("staff1");
+    await assertFails(setDoc(doc(d, "unlocks", "staff1"), { id: "mia-manager", guess: "4821", n: 1, at: now() }));
+    await assertFails(guess("staff1", "mia-manager", "4821", 2));
+    await assertFails(guess("staff1", "mia-manager", "48210", 1));
+    await assertFails(guess("phone9", "mia-manager", "4821", 1));
+    await assertSucceeds(guess("staff1", "mia-manager", "4821", 1));
+    await assertFails(getDoc(doc(d, "unlocks", "staff1")));
+  });
+  test("the right code unlocks: the phone takes the senior's name and powers, and the count goes back to 0", async () => {
+    await assertSucceeds(guess("staff1", "mia-manager", "1111", 1));
+    await assertSucceeds(guess("staff1", "mia-manager", "4821", 2));
+    await assertFails(unlock("staff1", "mia-manager", "Someone Else"));
+    await assertFails(unlock("staff1", "max-manager", "Max Manager"));
+    await assertSucceeds(unlock("staff1", "mia-manager", "Mia Manager"));
+    assert.equal(await readTries("mia-manager"), 0);
+    await assertSucceeds(getDocs(query(collection(db("staff1"), "sent"), orderBy("at", "desc"), limit(200))));
+    // Lock: back to staff powers.
+    await assertSucceeds(updateDoc(doc(db("staff1"), "staff", "staff1"), { role: "staff", pin: deleteField(), at: now() }));
+    await assertFails(getDocs(query(collection(db("staff1"), "sent"), orderBy("at", "desc"), limit(200))));
+  });
+  test("an old right guess can't be used once someone has guessed since", async () => {
+    await assertSucceeds(guess("staff1", "mia-manager", "4821", 1));
+    await assertSucceeds(guess("staff2", "mia-manager", "0000", 2));
+    await assertFails(unlock("staff1", "mia-manager", "Mia Manager"));
+  });
+  test("5 free guesses, then one every 15 minutes, then none after 10 until the owner resets it", async () => {
+    for (let n = 1; n <= 5; n++) await assertSucceeds(guess("staff1", "mia-manager", "0000", n));
+    await assertFails(guess("staff1", "mia-manager", "4821", 6));
+    await seed((s) => updateDoc(doc(s, "seniors", "mia-manager"), { lastTry: Timestamp.fromMillis(Date.now() - 16 * 6e4) }));
+    await assertSucceeds(guess("staff1", "mia-manager", "0000", 6));
+    await assertFails(guess("staff1", "mia-manager", "4821", 7));
+    await seed((s) => updateDoc(doc(s, "seniors", "mia-manager"), { tries: 10, lastTry: Timestamp.fromMillis(Date.now() - 864e5) }));
+    await assertFails(guess("staff1", "mia-manager", "4821", 11));
+    await assertFails(updateDoc(doc(db("mgr2"), "seniors", "mia-manager"), { tries: 0, lastTry: now() }));
+    await assertFails(updateDoc(doc(db("staff1"), "seniors", "mia-manager"), { tries: 0, lastTry: now() }));
+    await assertSucceeds(updateDoc(doc(db("owner1"), "seniors", "mia-manager"), { tries: 0, lastTry: now() }));
+    await assertSucceeds(guess("staff1", "mia-manager", "4821", 1));
+    await assertSucceeds(unlock("staff1", "mia-manager", "Mia Manager"));
+  });
+  test("taking a senior off takes away their powers on every phone; old password seniors no longer count", async () => {
+    await assertSucceeds(getDocs(query(collection(db("mgr1"), "sent"), orderBy("at", "desc"), limit(200))));
+    const d = db("owner1"), b = writeBatch(d);
+    b.delete(doc(d, "seniors", "mia-manager")); b.delete(doc(d, "pins", "mia-manager"));
+    await assertSucceeds(b.commit());
+    await assertFails(getDocs(query(collection(db("mgr1"), "sent"), orderBy("at", "desc"), limit(200))));
+    await seed((s) => setDoc(doc(s, "staff", "old1"), { name: "Old Senior", username: "old", role: "manager" }));
+    await assertFails(getDocs(collection(db("old1"), "issues")));
+    await assertSucceeds(deleteDoc(doc(db("owner1"), "staff", "old1")));
+  });
+  test("nobody can make a login or an owner record from the app", async () => {
+    await assertFails(setDoc(doc(db("owner1"), "usernames", "illias"), { email: emailOf("illias"), uid: "mgr1" }));
+    await seed(async (s) => { await setDoc(doc(s, "staff", "old1"), { name: "Old Senior", username: "old", role: "manager" }); await setDoc(doc(s, "usernames", "old"), { email: emailOf("old"), uid: "old1" }); });
+    await assertSucceeds(deleteDoc(doc(db("owner1"), "usernames", "old")));
     await assertFails(deleteDoc(doc(db("owner1"), "usernames", "olly")));
   });
 });
