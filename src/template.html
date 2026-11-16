@@ -102,6 +102,13 @@ button:focus-visible, input:focus-visible, a:focus-visible { outline: 2px solid 
 .gut { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
 h1, h2, h3 { font-family: var(--display); font-weight: 800; letter-spacing: .01em; text-wrap: balance; margin: 0; line-height: 1.05; text-transform: uppercase; }
 
+/* iPad and other tablets: one centred column the width of a big phone, so lists, buttons and photos stay in reach. */
+@media (min-width: 700px) {
+  .gut:not(.sheet) { max-width: 760px; margin-inline: auto; }
+  .sheet > * { max-width: 728px; margin-inline: auto; }
+  .sheet > .sheet-top { margin-inline: auto; }
+  nav.tabs { padding-inline: max(env(safe-area-inset-left, 0px), calc((100% - 760px) / 2)); }
+}
 /* Header */
 .brandbar { padding-block: 6px 0; }
 header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg); padding-block: 2px 8px; border-bottom: 1px solid var(--line); }
@@ -2498,7 +2505,7 @@ function morningHtml() {
       ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
       ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}
       <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>
-      <div class="actions">${sendBtn("morning", "Checked: send on WhatsApp")}</div>
+      <div class="actions">${sendBtn("morning", "Checked: send on WhatsApp")}${sendBtn("report", r.photos ? `Send the full handover with ${plural(r.photos, "photo")}` : "Send the full handover", r.id)}</div>
       <p class="note">Read it, sort what you can, and send the check so the duty manager knows what's still outstanding.</p>`;
   return `<div class="sec">${r && reportDay(r) !== lastNight() ? "Handover" : "Last night's handover"}</div>${ho}
     <div class="sec">Today's order</div>
@@ -2861,7 +2868,7 @@ function renderTally() {
       </div>
       ${(() => { const t = tonightsReport(); return !t ? "" : t.pending
         ? `<p class="note warnline" id="ho-wait"><b>Handover not sent yet: no signal.</b> It's saved on this phone and goes as soon as there's signal. Open Bar Book somewhere with signal before you go home, or the morning won't see it.</p>`
-        : `<p class="note" id="ho-sent">\u2705 Handover sent ${hhmm(new Date(ms(t.at)))} by ${esc(t.name)}. The morning team will see it.</p>`; })()}
+        : `<p class="note" id="ho-sent">\u2705 Handover sent ${hhmm(new Date(ms(t.at)))} by ${esc(t.name)}. The morning team will see it.</p><div class="actions">${sendBtn("report", t.photos ? `Send it with ${plural(t.photos, "photo")}` : "Send it", t.id)}</div>`; })()}
       ${stillToDoHtml()}
       <div class="fld">Closed by<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${closedBy().includes(m)}">${esc(m)}</button>`).join("")}</div></div>
       <div class="sec">Handover</div>
@@ -4301,6 +4308,9 @@ function renderInfo() {
     <p class="note">Auto follows your phone. This phone only.</p>
     <div class="mini" style="margin-top:14px">Help buttons (?)</div>
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
+    <div class="mini" style="margin-top:14px">Shared iPad or tablet</div>
+    <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div>
+    <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a senior's code or the owner's login locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
     ${fold("home", "Put this app on your home screen", `
     <h3 style="font-size:18px;margin-top:4px">iPhone</h3>
@@ -4549,9 +4559,44 @@ const nameChips = (pick, attr) => Object.entries({ Bar: STAFF.bar, Floor: STAFF.
   `<div class="mini">${g}</div><div class="recent" translate="no">${ns.map((n) => `<button class="chip" ${attr}="${esc(n)}" aria-pressed="${n === pick}">${esc(n)}</button>`).join("")}</div>`).join("");
 function renderWelcomeName() {
   const box = $("#w-name"); if (!box) return;
-  box.innerHTML = myName && !box.dataset.edit ? `<p class="wme">Hi <b translate="no">${esc(myName)}</b> · <button class="linkbtn" id="w-notme">Not you?</button></p>`
-    : `<p class="wme">Who are you?</p>${nameChips(myName, "data-w-name")}<label class="fld">Someone else<input id="w-other" maxlength="30" autocomplete="given-name" placeholder="Your first name" translate="no"></label>`;
+  box.innerHTML = myName && !box.dataset.edit && !sharedDev ? `<p class="wme">Hi <b translate="no">${esc(myName)}</b> · <button class="linkbtn" id="w-notme">Not you?</button></p>`
+    : `<p class="wme">${sharedDev ? "Shared iPad: who's using it?" : "Who are you?"}</p>${nameChips(myName, "data-w-name")}<label class="fld">Someone else<input id="w-other" maxlength="30" autocomplete="given-name" placeholder="Your first name" translate="no"></label>`;
 }
+
+/* ---------- Shared iPad ----------
+   A tablet the whole team uses (the restaurant iPad) asks who's using it each time Bar Book opens and hides My pay,
+   which is personal. A senior's code or the owner's login never stays on it: after 5 minutes without a tap, including
+   when the iPad is picked up again after a break, it goes back to the team's view. What's done on it saves to the
+   team like any phone, so the handover and its photos can be sent from anyone's phone. */
+let sharedDev = store.get("shared", false), lockDue = false, idleOut = false, lastTap = store.get("lastTap", Date.now());
+const IDLE_MIN = 5;
+function applyShared() {
+  document.body.classList.toggle("shared", sharedDev);
+  $('nav.tabs [data-tab="pay"]').hidden = sharedDev; navCols();
+  if (sharedDev && cur === "pay") show("drinks");
+}
+function sharedLock() {
+  if (!sharedDev) return;
+  if (Date.now() - lastTap >= IDLE_MIN * 6e4) lockDue = true;
+  if (!lockDue || !LIVE.api || !LIVE.ready) return;
+  lockDue = false;
+  if (LIVE.owner) { idleOut = true; LIVE.api.leave(); return; }
+  if (LIVE.role === "manager") track(LIVE.api.lock(myName), "Locked: this iPad is shared", "Not locked. Check the signal");
+}
+const tapped = () => {
+  sharedLock();
+  if (Date.now() - lastTap > 1e4) store.set("lastTap", Date.now());
+  lastTap = Date.now();
+};
+addEventListener("pointerdown", tapped, true);
+addEventListener("keydown", tapped, true);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) sharedLock(); else store.set("lastTap", lastTap); });
+setInterval(sharedLock, 15e3);
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-shared-pick]"); if (!t) return;
+  sharedDev = t.dataset.sharedPick === "on"; store.set("shared", sharedDev); haptic(); applyShared(); renderInfo();
+  toast(sharedDev ? "Shared iPad: My pay hidden, codes lock after 5 minutes" : "This is someone's own phone again");
+});
 
 /* ---------- Keeping it clean ----------
    Racist, homophobic, transphobic and ableist slurs can't go out in a message, a template, a shout-out, an issue,
@@ -5265,8 +5310,9 @@ function liveChanged(what) {
   if (what === "media") renderMedia();
   // Leaving, or being taken off the team by the manager or the owner: the phone forgets the team code (it reloads
   // next), so it doesn't join straight back. The link from the staff group brings it back.
+  if (what === "left" && idleOut) return;
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
-  if (what === "me") autoJoin();
+  if (what === "me") { autoJoin(); sharedLock(); }
   if (what === "lists") applyLists();
   if (what === "drafts" || what === "me") pullDraft();
   if (TOAST[what]) {
@@ -5343,7 +5389,7 @@ const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
 let cur = "drinks";
 function show(tab) {
-  if (!TABS.includes(tab)) tab = "drinks";
+  if (!TABS.includes(tab) || (tab === "pay" && sharedDev)) tab = "drinks";
   // Leaving the Team page counts as having seen what was on it; the next visit shows what's changed since.
   if (tab !== "notices" && cur === "notices") { seenBefore = seenAt = Date.now(); store.set("seenAt", seenAt); }
   if (tab === "notices" && !seenAt) { seenAt = Date.now(); store.set("seenAt", seenAt); }
@@ -5404,7 +5450,7 @@ renderChips(); renderList();
     else if (mode !== "bar") show("tally");
   });
 }
-navCols();
+applyShared();
 setLang(lang);
 // A link from a message opens there once Bar or Floor is picked on the start screen.
 let linkAt = /^#(d|at|list)=/.test(location.hash) ? location.hash : "";
