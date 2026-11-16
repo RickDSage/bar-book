@@ -38,7 +38,7 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   // More: rows that open Allergens, Practise and Cheat sheets, then help, the bar's reference folded away, then this
   // phone's settings. The More tab stays lit on its pages, and the back button returns to it.
   await p.click("[data-tab=info]");
-  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["Allergens", "Practise specs", "Cheat sheets", "Just for fun", "How Bar Book works", "Send feedback"]);
+  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["Allergens", "Practise specs", "Cheat sheets", "Just for fun", "Bar station", "How Bar Book works", "Send feedback"]);
   assert.deepEqual(await p.$$eval("#v-info .fold h2", (x) => x.map((h) => h.textContent)), ["Measures and the law", "Technique key", "Prep and batches",
     "Shot tray, step by step", "Put this app on your home screen", "Reset this phone"]);
   assert.equal(await p.locator("#v-info [data-fold=law][open]").count(), 0, "the reference starts folded");
