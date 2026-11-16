@@ -69,7 +69,7 @@ const HELP = {
   rapid: { t: "Rapid fire", what: "The house drinks as big buttons, for answering a guest fast.",
     how: ["Tap a drink for its full spec, or Show specs on the page to see them all without tapping.", "Change on Top 10 picks your own ten. Type to search the whole book."],
     behind: ["Your top 10 and the specs setting are kept on this phone only."] },
-  make: { t: "Cocktail maker", what: "Pick what you've got and see what you can make, closest first.",
+  make: { t: "What can I make?", what: "Pick what you've got and see what you can make, closest first.",
     how: ["Make: tap ingredients and the matches update.", "My bar: the bottles you have. Specs: every spec on one line.", "Black Tap: our line-up and house serves."],
     behind: ["My bar and My drinks stay on this phone.", "Anything on the 86 board stops counting, so it won't suggest a drink you can't make tonight."] },
   pay: { t: "My pay", what: "An estimate of your take-home, not a payslip.",

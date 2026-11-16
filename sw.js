@@ -1,5 +1,5 @@
-// Bar Book offline support. Version 2026-11-16T17:04
-const CACHE = "bar-book-2026-11-16T17:04";
+// Bar Book offline support. Version 2026-11-16T17:01
+const CACHE = "bar-book-2026-11-16T17:01";
 const CORE = ["./", "live.js", "manifest.webmanifest", "fonts/atkinson-400-italic.woff2", "fonts/atkinson-400.woff2", "fonts/atkinson-700.woff2", "fonts/big-shoulders-display.woff2", "icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 // Safari refuses to show a page from a response that was redirected, so store a clean copy.
 const clean = (res) => (res.redirected ? res.blob().then((b) => new Response(b, { status: 200, headers: res.headers })) : Promise.resolve(res));
