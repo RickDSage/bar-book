@@ -108,6 +108,8 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   assert.equal(await text(S, ".lbdue"), "Date labels: 1 due tomorrow Cranberry juice ›");
   await S.click(".lbdue");
   assert.equal(await S.evaluate(() => pane), "labels");
+  // The handover tells the morning what to change, bar and floor each.
+  assert.match(await S.evaluate(() => tallyText()), /\n\nDate labels, bar:\n- Change tomorrow: Cranberry juice \(use by [^)]+\), opened today by Tia Staff\nDate labels, floor: nothing due\n\n/);
   assert.deepEqual([O.errs, M.errs, S.errs, T.errs], [[], [], [], []]);
 });
 
@@ -128,8 +130,13 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
 
   // The Shift pages.
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=morning]");
-  assert.equal(await text(S, ".lbdue"), "Date labels: 1 overdue, 1 due today Orange juice, Cranberry juice ›");
+  assert.equal(await text(S, ".lbdue"), "🚨 URGENT: 2 date labels to change now Orange juice (overdue), Cranberry juice (due today) › Send or print the list");
   assert.equal(await S.$eval(".lbdue", (e) => e.classList.contains("late")), true);
+  // Send or print: the urgent ones first, in their own part.
+  await S.click(".lbdue [data-send=labels]");
+  assert.match(await S.evaluate(() => { const m = SHARE.labels("bar"); return msgText(m, new Set(m.parts.map((p) => p.id))); }), /🚨 URGENT: 2 date labels to change now[\s\S]*URGENT: change now[\s\S]*Orange juice: overdue[\s\S]*Cranberry juice: due today/);
+  assert.match(await S.$eval("#sh-name", (e) => e.textContent), /date labels/i);
+  await S.evaluate(() => closeSheet()); await S.waitForSelector("#sheet", { state: "hidden" });
   await S.click(".ptabs [data-pane=labels]");
   assert.equal(await rowText(S, "Orange juice"), `Orange juice Overdue Use by ${wasName}, 1 day ago · opened ${openedName} by Tia Staff Changed it Binned…`);
   assert.deepEqual(await S.$$eval("[data-lb-more]", (x) => x.map((b) => b.closest(".lb").querySelector("b").textContent)), ["Orange juice", "Cranberry juice", "Apple juice"], "most urgent first");
@@ -137,11 +144,11 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   // The closing report: what's still to change as it's sent, and who opened it.
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=send]");
   assert.match(await text(S, ".sumcard"), /Labels due 2/i);
-  assert.deepEqual(await S.$$eval("#todo .todo", (x) => x.slice(0, 2).map((b) => b.textContent)), ["Overdue Date label: Orange juice", "Due today Date label: Cranberry juice"]);
-  assert.match(await S.evaluate(() => tallyText()), new RegExp(`\\n\\nDate labels:\\n- Overdue: Orange juice \\(use by ${wasName}, opened ${openedName} by Tia Staff\\)\\n- Due today: Cranberry juice \\(use by ${today}, opened today by Sam Staff\\)\\n\\n86'd: nothing`));
+  assert.deepEqual(await S.$$eval("#todo .todo", (x) => x.slice(0, 2).map((b) => b.textContent)), ["Overdue URGENT: change the label on Orange juice", "Due today URGENT: change the label on Cranberry juice"]);
+  assert.match(await S.evaluate(() => tallyText()), new RegExp(`\\n\\nDate labels, bar:\\n- URGENT, overdue: Orange juice \\(use by ${wasName}\\), opened ${openedName} by Tia Staff\\n- URGENT, due today: Cranberry juice \\(use by ${today}\\), opened today by Sam Staff\\nDate labels, floor: nothing due\\n\\n86'd: nothing`));
   await handOver(S);
   await O.waitForFunction(() => LIVE.reports[0] && !LIVE.reports[0].pending);
-  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Closing 0\/39 · 0 86'd · 2 date labels to change$/);
+  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Closing 0\/39 · 0 86'd · URGENT: 2 date labels to change$/);
 
   // Sam changes it a day late. Tia's phone (on the bar) is told, and Live keeps it as an exception.
   await labels(T); await labels(S);
