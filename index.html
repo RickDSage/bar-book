@@ -1044,14 +1044,35 @@ function msgText(m, pick, note = "", wa = true) {
     out.push("", b(p.one ? p.label : `${p.label} (${partItems(p)})`), ...p.lines.map((l) => (p.one || p.raw || /^\s/.test(l) ? l : `• ${l}`)));
   }
   if (note.trim()) out.push("", ...(m.noteHead === null ? [] : [b("Note")]), note.trim());
+  if (m.link) out.push("", `Open in Bar Book: ${m.link}`);
   return out.join("\n");
+}
+/* A link back to the same thing in the app, at the bottom of every message: the drink's spec, the 86 board, tonight's
+   close, the morning. It holds only where to go (the site is public, so never the team code or anything private).
+   Someone not on the team lands on the same page, and the team parts ask them to join. */
+const appUrl = (h) => `${location.origin}${location.pathname}${h}`;
+const LINKS = {
+  drink: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`, swap: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`,
+  specs: (o) => { const ids = String(o || "").split(",").filter((i) => D[+i]).slice(0, 15); return ids.length ? `#list=~${ids.map((i) => plSlug(D[+i].name)).join(".")}` : ""; },
+  out: () => "#at=stock", restock: () => "#at=stock", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
+  morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
+  contacts: () => "#at=call", games: () => "#at=football", lineup: () => "#at=tab:make", sheet: () => "#at=tab:sheets", allergen: () => "#at=tab:allergens",
+};
+const withLink = (k, o, m) => { const h = m && !m.link && LINKS[k]?.(o); if (h) m.link = appUrl(h); return m; };
+// Opens what a shared link points at. Returns false for anything else.
+function openLink(h) {
+  let m = h.match(/^#d=([a-z0-9-]+)$/);
+  if (m) { const d = PL_BY_SLUG.get(m[1]); if (!d) return false; show("drinks"); openSheet(d.id); return true; }
+  m = h.match(/^#at=([a-z0-9:-]+)$/);
+  if (m) { openAt(m[1]); return true; }
+  return plOpenList(h);
 }
 const pickOf = (m) => new Set(m.parts.filter((p) => p.lines.length && !p.off).map((p) => p.id));
 // The message as it goes if nothing is changed.
-const shareText = (k, wa = true, o) => { const m = SHARE[k](o); return m ? msgText(m, pickOf(m), "", wa) : ""; };
+const shareText = (k, wa = true, o) => { const m = withLink(k, o, SHARE[k](o)); return m ? msgText(m, pickOf(m), "", wa) : ""; };
 let snd = null;
 // A builder can offer one choice (how late, which shift, who): SHARE[k](value) builds the message for it.
-const sndMsg = () => snd && SHARE[snd.k](snd.opt);
+const sndMsg = () => snd && withLink(snd.k, snd.opt, SHARE[snd.k](snd.opt));
 function openSend(k, o, note = "") {
   const m = SHARE[k](o); if (!m) return toast("Nothing to send yet");
   if ($("#sheet").hidden) lastFocus = document.activeElement;
@@ -1116,8 +1137,8 @@ function renderSend(m = sndMsg()) {
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
     ${files ? `<div class="actions"><button class="btn" data-send-copy>Copy the words</button><button class="btn pri" data-send-sheet>Send with photos</button></div>
       <ol class="sendhow"><li>Tap Copy the words, then Send with photos.</li><li>Pick WhatsApp, then the chat.</li><li>Press and hold the caption box, tap Paste, then send.</li></ol>` : ""}
-    <div class="actions"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-pic>As a picture</button><button class="btn" data-send-print>Print</button></div>
-    ${ph && !files ? `<p class="note">WhatsApp and Email take the words. For the photos too, tap Print and save it as a PDF.</p>` : ""}
+    <div class="actions"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="sms" href="sms:">Text</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-pic>As a picture</button><button class="btn" data-send-print>Print</button></div>
+    ${ph && !files ? `<p class="note">WhatsApp, Text and Email take the words. For the photos too, tap Print and save it as a PDF.</p>` : ""}
     ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
     <p class="note">It goes in English, so everyone can read it.</p>
     <div class="sec">How it will look</div>
@@ -1173,7 +1194,10 @@ document.addEventListener("click", (e) => {
   const a = e.target.closest("a[data-share]");
   if (a) {
     const wa = a.dataset.via === "wa", t = msgText(m, snd.pick, snd.note, wa);
-    a.href = wa ? `https://wa.me/?text=${encodeURIComponent(t)}` : `mailto:?subject=${encodeURIComponent(m.title)}&body=${encodeURIComponent(t)}`;
+    // A text message: iPhones read sms:&body=, Android sms:?body=.
+    a.href = wa ? `https://wa.me/?text=${encodeURIComponent(t)}`
+      : a.dataset.via === "sms" ? `sms:${/iPhone|iPad|iPod|Macintosh/.test(navigator.userAgent) ? "&" : "?"}body=${encodeURIComponent(t)}`
+      : `mailto:?subject=${encodeURIComponent(m.title)}&body=${encodeURIComponent(t)}`;
     logSent(m);
     return;
   }
@@ -1284,7 +1308,7 @@ function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const words = q ? plQuery(q).words : [];
   renderQuick(!q); renderPlf();
-  let rows = D.filter((d) => inSec(d) && words.every((w) => d._h.includes(w)) && (q ? true : flavHit(d)) && plOk(d));
+  let rows = D.filter((d) => inSec(d) && plHits(d, words) && (q ? true : flavHit(d)) && plOk(d));
   rows = q && PL.sort === "menu" ? plRank(rows, words) : plSort(rows);
   const flat = !!q || PL.sort !== "menu";
   $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}`;
@@ -1932,9 +1956,9 @@ function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); pull
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
-  "Bottled beer": ["Stella bottles", "Corona Cero"],
+  "Bottled beer": ["Stella bottles", "Corona bottles", "Corona Cero", "San Miguel 0,0"],
   "Cider": ["Kopparberg Apple (draught)", "Kopparberg Strawberry & Lime (bottle)", "Kopparberg Mixed Fruit (bottle)"],
-  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Red Bull", "Red Bull Zero", "Crodino", "Tonic", "Slimline tonic", "Jarritos Guava", "Jarritos Mandarin", "Jarritos Pineapple", "Jarritos Grapefruit", "Jarritos Strawberry", "Jarritos Lime"],
+  "Soft drinks and mixers": ["Coke", "Coke Zero", "Diet Coke", "Coke bottles", "Coke Zero bottles", "Diet Coke bottles", "Red Bull", "Red Bull Sugarfree", "Crodino", "Tonic", "Light tonic", "Ginger beer", "Ginger ale", "Jarritos Guava", "Jarritos Mandarin", "Jarritos Pineapple", "Jarritos Grapefruit", "Jarritos Strawberry", "Jarritos Lime"],
   "Water": ["Still water, large", "Still water, small", "Sparkling water, large", "Sparkling water, small"],
   "Wine": ["Prosecco bottle"],
   "Bar supplies": ["CO2 gas", "Blue roll", "Bar napkins", "Straws", "Cocktail picks", "Coasters", "Bin bags", "Cling film", "Labels and day dots", "Glass cloths", "Till roll", "Hand soap", "Sanitiser", "Glass washer detergent", "Rinse aid", "Ice"],
@@ -5494,6 +5518,7 @@ const MK_CATS = [
     ["Lager", "Lager"], ["Stella Artois", "Lager", "stella"], ["Budweiser", "Lager", "bud"], ["Corona", "Lager"], ["San Miguel", "Lager", "san miguel"], ["Camden Hells", "Lager", "camden", "camden hells lager"],
     ["IPA", "IPA", "india pale ale", "pale ale"], ["Camden Off Menu IPA", "IPA", "off menu", "camden off menu"], ["Camden Eazy IPA", "IPA", "eazy ipa", "easy ipa", "camden eazy"], ["Goose Island Midway", "IPA", "goose island", "midway", "midway ipa"],
     ["Guinness", "Stout", "stout"], ["Athletic Run Wild IPA 0%", "Alcohol-free beer", "athletic", "run wild", "alcohol free beer", "0 beer"],
+    ["Corona Cero", "Alcohol-free beer", "corona 0", "corona 0 0", "corona zero", "corona 0 0 0"], ["San Miguel 0,0", "Alcohol-free beer", "san miguel 0", "san miguel zero", "san miguel cero", "san miguel 0 0"],
     ["Cider", "Cider", "apple cider"], ["Kopparberg Crisp Apple", "Cider", "crisp apple", "kopparberg apple"], ["Fruit cider", "Fruit cider"], ["Kopparberg Strawberry & Lime", "Fruit cider", "kopparberg strawberry", "strawberry and lime"],
     ["Kopparberg Mixed Fruit", "Fruit cider", "kopparberg", "mixed fruit cider"], ["Kopparberg Mixed Fruit 0%", "Alcohol-free cider", "alcohol free cider", "kopparberg 0", "kopparberg alcohol free"]]],
   ["Creams, milk and foam", null, [
@@ -5739,6 +5764,8 @@ const BT_LINEUP = [
     { k: "corona", name: "Corona (bottle)", glass: "In the bottle", measure: "One bottle", pour: "Ice cold, lime wedge pushed into the neck. A glass on the side if asked" },
     { k: "san miguel", name: "San Miguel (bottle)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "" },
     { k: "stella artois", name: "Stella Artois (bottle)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "" },
+    { k: "corona cero", name: "Corona Cero (alcohol-free)", glass: "In the bottle", measure: "One bottle", pour: "Ice cold, lime wedge pushed into the neck. A glass on the side if asked", note: "Alcohol-free Corona. Say it's the 0.0 when it goes down." },
+    { k: "san miguel 0 0", name: "San Miguel 0,0 (alcohol-free)", glass: "In the bottle, glass on the side", measure: "One bottle", pour: "Ice cold, opened in front of the guest", note: "Alcohol-free San Miguel. Say it's the 0,0 when it goes down." },
     { k: "athletic run wild ipa 0", name: "Athletic Run Wild IPA (alcohol-free)", glass: "Pint glass", measure: "One can", pour: "Pour at 45°, straighten as it fills", note: "Alcohol-free IPA. Say it's the alcohol-free one when it goes down." },
     { k: "kopparberg strawberry lime", name: "Kopparberg Strawberry & Lime", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "Fruit cider." },
     { k: "kopparberg mixed fruit", name: "Kopparberg Mixed Fruit", glass: "Pint glass full of ice", measure: "One bottle", pour: "Pour the bottle over plenty of ice", note: "Fruit cider: blackcurrant and raspberry." },
@@ -5953,11 +5980,13 @@ function mkLev(a, b) {
 const mkWordHit = (w, words) => words.some((x) => x.startsWith(w) || (w.length >= 4 && mkLev(w, x.slice(0, w.length + 1)) <= (w.length >= 7 ? 2 : 1)) || (w.length >= 4 && mkLev(w, x) <= (w.length >= 7 ? 2 : 1)));
 function mkSuggest(q) {
   const t = mkNorm(q); if (!t) return [];
-  const qw = t.split(" ");
+  const qw = t.split(" "), ts = t.replace(/ /g, "");
   return MK.items.map((it) => {
     let s = 0;
     for (const a of it.al) {
       if (a === t) s = Math.max(s, 5);
+      // With the spaces typed differently: "redbull", "gingerbeer", "corona0".
+      else if (ts.length >= 4 && a.replace(/ /g, "").startsWith(ts)) s = Math.max(s, ts.length === a.replace(/ /g, "").length ? 5 : 3.5);
       else if (a.startsWith(t)) s = Math.max(s, 4);
       else if (a.includes(t)) s = Math.max(s, 3);
       else if (qw.every((w) => mkWordHit(w, a.split(" ")))) s = Math.max(s, 2);
@@ -6223,8 +6252,8 @@ $("#v-fun").addEventListener("click", (e) => {
   if (ds.mk === "spin") { mkShakeOn(); mkSpin(); }
 });
 function mkQsList() {
-  const words = mkNorm(mk.qs.q).split(" ").filter(Boolean);
-  const rows = D.filter((d) => mkKindOk(d, mk.qs.kind) && words.every((w) => d._h.includes(w)) && (!mk.qs.mine || mkCanMake(d)));
+  const words = mk.qs.q.trim() ? plQuery(mk.qs.q.trim()).words : [];
+  const rows = D.filter((d) => mkKindOk(d, mk.qs.kind) && plHits(d, words) && (!mk.qs.mine || mkCanMake(d)));
   MK.ids = rows.map((d) => d.id);
   return `<p class="count">${rows.length} ${rows.length === 1 ? "drink" : "drinks"}</p>${rows.map((d) => `<button class="mk-q" data-mk-open="${d.id}"><div class="n">${esc(d.name)}<span>${esc(d.glass)}</span></div><div class="s">${esc(mkShort(d))}</div><div class="m">${esc(d.method)} · ${esc(d.garnish)}</div></button>`).join("") || `<p class="empty">Nothing matches.</p>`}`;
 }
@@ -6356,8 +6385,9 @@ function rapidTile(d) {
 function renderRapid() {
   $("#rp-specs").setAttribute("aria-pressed", RAPID.specs);
   if (RAPID.rushEdit) { $("#rp-out").innerHTML = rushPickHtml(); return; }
-  const words = mkNorm(RAPID.q).split(" ").filter(Boolean);
-  const hit = (d) => words.every((w) => d._h.includes(w));
+  // The same search as the menu: typos, "redbull" or "g&t" find what they mean.
+  const words = RAPID.q.trim() ? plQuery(RAPID.q.trim()).words : [];
+  const hit = (d) => plHits(d, words);
   const top = words.length ? [] : rushNames().map((n) => D.find((d) => d.name === n));
   const seen = new Set(top.map((d) => d.id)), groups = [];
   for (const [t, f] of RAPID_GROUPS) {
@@ -6559,7 +6589,7 @@ function plTickMark() {
 /* ---------- Smarter search ---------- */
 // Words that mean the same behind the bar, and words that don't narrow anything down.
 const PL_SYN = { whiskey: "whisk", whisky: "whisk", whiskies: "whisk", scotch: "whisk", mocktail: "zero", mocktails: "zero", virgin: "zero", alcoholfree: "zero", "non-alcoholic": "zero",
-  nonalcoholic: "zero", "alcohol-free": "zero", coke: "cola", bubbles: "prosecco", fizz: "prosecco", espresso: "espresso", coffee: "espresso", tequilla: "tequila", margarita: "margarita",
+  nonalcoholic: "zero", "alcohol-free": "zero", coke: "cola", jd: "jack", bubbles: "prosecco", fizz: "prosecco", espresso: "espresso", coffee: "espresso", tequilla: "tequila", margarita: "margarita",
   mojitos: "mojito", martinis: "martini", shots: "shot", bombs: "bomb", jager: "jager", bourbon: "bourbon", lime: "lime", passionfruit: "passion", pornstar: "pornstar" };
 const PL_STOP = new Set(["a", "an", "the", "and", "with", "something", "some", "drink", "drinks", "please", "of", "in", "for", "me", "i", "want", "like", "any", "cocktail", "cocktails"]);
 let PL_VOCAB = null;
@@ -6580,17 +6610,39 @@ function plLev(a, b, max) {
   }
   return prev[b.length];
 }
+// Does a drink have this search word? A short word has to start a word ("red" isn't the end of "stirred", "gin" isn't in
+// "virgin"); five letters or more can be anywhere ("berry" finds strawberry); six or more also match with the spaces
+// taken out, so "redbull", "red bul" and "gingerbeer" find Red Bull and ginger beer.
+// A word of four letters or fewer that is a whole word somewhere ("gin", "cola") has to be the whole word (or its
+// plural), so "gin" doesn't bring up every ginger beer and "cola" isn't the Piña Colada; one that isn't ("bul", still
+// being typed) can start a word.
+const PL_WHOLE = new Map();
+const plWordAt = (h, i, w) => (i === 0 || !/[a-z0-9]/.test(h[i - 1])) && !/[a-z0-9]/.test(h[i + w.length] || "") || (h[i + w.length] === "s" && !/[a-z0-9]/.test(h[i + w.length + 1] || "") && (i === 0 || !/[a-z0-9]/.test(h[i - 1])));
+function plWhole(w) {
+  if (w.length > 4) return false;
+  if (!PL_WHOLE.has(w)) PL_WHOLE.set(w, D.some((d) => { for (let i = d._h.indexOf(w); i >= 0; i = d._h.indexOf(w, i + 1)) if (plWordAt(d._h, i, w)) return true; return false; }));
+  return PL_WHOLE.get(w);
+}
+function plHit(d, w) {
+  const h = d._h, whole = plWhole(w);
+  // A spirit finds every drink made with it, even when the spec names only the bottle ("gin" finds the Tanqueray ones).
+  if (w.length >= 3 && d._b && d._b.startsWith(w)) return true;
+  if (w.length >= 5 && h.includes(w)) return true;
+  for (let i = h.indexOf(w); i >= 0; i = h.indexOf(w, i + 1)) if (whole ? plWordAt(h, i, w) : i === 0 || !/[a-z0-9]/.test(h[i - 1])) return true;
+  return w.length >= 6 && (d._s ??= h.replace(/[^a-z0-9]/g, "")).includes(w);
+}
+const plHits = (d, words) => words.every((w) => plHit(d, w));
 // The words to look for, with typos fixed ("espreso martni" finds the Espresso Martini) and what was fixed, to show.
 function plQuery(q) {
   if (PL.sq?.q === q) return PL.sq;
-  let words = plNorm(q).replace(/alcohol[- ]free|non[- ]alcoholic|no alcohol/g, "zero").split(/[\s,]+/).filter(Boolean);
+  let words = plNorm(q).replace(/alcohol[- ]free|non[- ]alcoholic|no alcohol/g, "zero").replace(/\bg ?(&|and|n|\+) ?t\b|\bg&ts?\b/g, "tonic").split(/[\s,]+/).filter(Boolean);
   const kept = words.filter((w) => !PL_STOP.has(w)); if (kept.length) words = kept;
   const out = [], fixed = [];
   words.forEach((w, i) => {
     w = PL_SYN[w] || w;
     const last = i === words.length - 1;
-    if (D.some((d) => d._h.includes(w))) return out.push(w);
-    if (w.length > 3 && w.endsWith("s") && D.some((d) => d._h.includes(w.slice(0, -1)))) return out.push(w.slice(0, -1));
+    if (D.some((d) => plHit(d, w))) return out.push(w);
+    if (w.length > 3 && w.endsWith("s") && D.some((d) => plHit(d, w.slice(0, -1)))) return out.push(w.slice(0, -1));
     const max = w.length >= 8 ? 2 : w.length >= 4 ? 1 : 0;
     let best = null, bd = max + 1, bf = 0;
     if (max) for (const [v, f] of plVocab()) { const t = last && v.length > w.length ? v.slice(0, w.length + 1) : v; const dd = Math.min(plLev(w, v, max), last ? plLev(w, t, max) : 9); if (dd < bd || (dd === bd && f > bf)) { best = v; bd = dd; bf = f; } }
@@ -7306,13 +7358,16 @@ renderChips(); renderList();
     const b = e.target.closest("[data-start]"); if (!b) return;
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);
+    if (linkAt && openLink(linkAt)) { linkAt = ""; history.replaceState(null, "", location.pathname); return; }
     if (b.dataset.rapid) show("rapid");
     else if (mode !== "bar") show("tally");
   });
 }
 navCols();
 setLang(lang);
+// A link from a message opens there once Bar or Floor is picked on the start screen.
+let linkAt = /^#(d|at|list)=/.test(location.hash) ? location.hash : "";
 if (!plOpenList(location.hash)) show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
-addEventListener("hashchange", () => plOpenList(location.hash));
+addEventListener("hashchange", () => openLink(location.hash));
 </script>
 <script type="module" src="live.js"></script></body></html>
