@@ -2019,7 +2019,7 @@ function quizStart(night) {
 // A go as "1" or "0" for each question, and how many of those are right.
 const qzMarks = (x) => x.qs.map((q, j) => (x.picks[j] === q.answer ? "1" : "0")).join("");
 const qzScore = (right) => [...right].filter((c) => c === "1").length;
-// Tonight's first go on this phone. Scores stay on the phone: nobody else sees them.
+// Tonight's first go on this phone. Logged in, it also goes to the managers' Training page (quizDone).
 const qzHere = () => { const x = store.get("qzNight", null); return x?.day === shiftDay() ? x : null; };
 const qzFirst = () => !qzHere();
 // The first go is kept as it goes, so a guest at the bar or a closed app doesn't lose it: Stop, and it carries on
@@ -4981,8 +4981,8 @@ const FEATURES = [
     what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
     staff: "Tap an allergen to see every drink with it." },
   { g: "Drinks", k: "practice", n: "Practise", go: "tab:practice", tour: 1,
-    what: "Flashcards on the specs, and tonight's quiz: 10 questions from our own specs, the same for everyone.",
-    staff: "Practise one section or everything, and take tonight's quiz. Your score stays on your phone." },
+    what: "Flashcards on the specs, tonight's quiz (the same 10 for everyone), speed drills against the clock, Bar 101 for what to say when a guest asks, and the new starter path.",
+    staff: "Practise one section or everything. Bar 101 remembers the cards you know and asks the rest first. Your first go at tonight's quiz, your drills and Bar 101 show on the managers' Training page; your best times stay on your phone." },
   { g: "Drinks", k: "sheets", n: "Cheat sheets", go: "tab:sheets",
     what: "A4 pages to print double-sided and laminate for behind the bar, a section of drinks on each." },
   { g: "Drinks", k: "info", n: "More", go: "tab:info",
@@ -4991,7 +4991,7 @@ const FEATURES = [
     what: "Everything about your pay in one tab: add your payslips and every month is broken down by itself (hours, your rate plus tronc an hour, tax, National Insurance and take-home), with your next pay predicted from your average hours and tronc, holiday built up, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
     staff: "Tap Add payslips and pick your payslips, a year's at once if you like, or Type it in to put the figures in by hand. Change the hours or tronc an hour under any month still to come to see what it would pay." },
   { g: "Shift", k: "morning", n: "Morning", go: "morning", team: 1, tour: 1,
-    what: "Last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
+    what: "Before you open: a short brief of what matters today (tap the ring to play it full screen, one card at a time). Then last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
     staff: "Read the handover, send that it's checked with anything outstanding, send the order and the prep list on WhatsApp." },
   { g: "Shift", k: "lists", n: "Closing checklists", go: "shift", team: 1, tour: 1,
     what: "The bar and floor closes, ticked off live on every phone, with how long it's taking and who has ticked what.",
@@ -5059,10 +5059,11 @@ const FEATURES = [
     staff: "Share the Bar Book link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. Maintenance adds or removes the managers and their codes." },
 ];
 const navCols = () => ($("nav.tabs").style.gridTemplateColumns = `repeat(${[...$$("nav.tabs [data-tab]")].filter((b) => !b.hidden).length}, 1fr)`);
-const fUsable = (f) => !f.team || !!LIVE.me;
+// adm: managers only; own: Maintenance only.
+const fUsable = (f) => (!f.team || !!LIVE.me) && (!f.adm || LIVE.admin) && (!f.own || LIVE.owner);
 function featHtml() {
   const card = (f) => {
-    const can = fUsable(f), why = can ? "" : "Join the team first";
+    const can = fUsable(f), why = can ? "" : !LIVE.me ? "Join the team first" : f.own ? "Maintenance only" : "Managers only";
     return `<article class="notice feat" data-feat="${f.k}"><div class="fh"><b>${f.n}</b>${why ? ` <span class="pill">${why}</span>` : ""}</div>
       <p class="txt">${f.what}</p>${f.staff ? `<p class="s"><b>Staff:</b> ${f.staff}</p>` : ""}${f.mgr ? `<p class="s"><b>Managers:</b> ${f.mgr}</p>` : ""}
       ${can ? `<div class="actions"><button class="btn" data-feat-go="${f.k}">Open it</button></div>` : ""}</article>`;
