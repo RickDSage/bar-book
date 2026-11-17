@@ -205,15 +205,14 @@ const mgLbRows = () => (MG.lb.xs || []).filter((e) => MG.lb.side === "all" || e.
 function lbLogHtml() {
   const L = MG.lb;
   if (!L.xs && !L.busy && !L.err) { mgLoad("lb", mgLbData, "lblog"); return mgBusy(null, "the label record"); }
-  const seg = (k, opts) => `<div class="seg">${opts.map(([v, t]) => `<button data-mg-lb="${k}:${v}" aria-pressed="${String(L[k]) === String(v)}">${t}</button>`).join("")}</div>`;
+  const seg = (k, opts) => `<div class="seg" style="grid-template-columns:repeat(${opts.length},1fr)">${opts.map(([v, t]) => `<button data-mg-lb="${k}:${v}" aria-pressed="${String(L[k]) === String(v)}">${t}</button>`).join("")}</div>`;
   const busy = mgBusy(L, "the label record"), xs = mgLbRows();
   const byDay = [...new Set(xs.map((e) => e.day))];
   return `<p class="note">Every date label tap, with who and when. Saved by the server as it happens: nobody can change or delete it.</p>
     ${seg("days", [[7, "7 days"], [14, "14 days"], [30, "30 days"]])}${seg("side", [["all", "Both"], ["bar", "Bar"], ["floor", "Floor"]])}
-    ${busy || `${xs.length ? `<div class="actions">${sendBtn("lblog", "Send on WhatsApp")}<button class="btn" data-mg-csv="lblog">Save as a spreadsheet</button></div>` : ""}
+    ${busy || `${xs.length ? `<div class="actions">${sendBtn("lblog", "Send on WhatsApp")}<button class="btn" data-ex-only="labels|${MG.lb.days}|${MG.lb.side}">Excel or CSV</button></div>` : ""}
       ${byDay.map((d) => `<div class="mini">${esc(dayName(d, { weekday: "long", day: "numeric", month: "short" }))}</div><div class="hist">${xs.filter((e) => e.day === d).map((e) => `<div class="s">${at(e)} · <b>${esc(e.name)}</b> ${esc(labelText(e, null, false))}${e.area ? ` <span class="pill">${esc(lower(sideName(e.area)))}</span>` : ""}</div>`).join("")}</div>`).join("") || `<p class="note">No date label taps in the last ${MG.lb.days} days.</p>`}`}`;
 }
-const mgCsvRows = () => mgLbRows().map((e) => { const d = new Date(ms(e.at)); return [d.toLocaleDateString("en-GB", { timeZone: UK }), hhmm(d), e.name, sideName(e.area), e.label, LB_ACT[e.act] || e.act, e.useBy || "", e.was || "", lateBy(e) || "", e.note || ""]; });
 const csvCell = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) || /^[=+\-@]/.test(s) ? `"${(/^[=+\-@]/.test(s) ? "'" : "") + s.replace(/"/g, '""')}"` : s; };
 const toCsv = (head, rows) => "﻿" + [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
 SHARE.lblog = () => {
@@ -699,13 +698,13 @@ Object.assign(TC_SUB, { week: "Most 86'd, closes not fully done, late labels", p
   history: "Undo changes to date labels and added items", setup: "Your code, the managers' codes, the team code, then check they work", ready: "Rules, codes, backups and this phone, ticked off by themselves", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
 function mgCards() {
   if (!MG_READY) return [];
-  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml], ["ready", "Ready for Friday", readyHtml, (() => { const [n, of] = readyCount(); return n === of ? { t: "✓ ready" } : { t: `${n} of ${of}`, hot: 1 }; })()]] : [];
+  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["export", "Export to Excel or CSV", exportHtml], ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml], ["ready", "Ready for Friday", readyHtml, (() => { const [n, of] = readyCount(); return n === of ? { t: "✓ ready" } : { t: `${n} of ${of}`, hot: 1 }; })()]] : [];
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
   { g: "Team", k: "week", adm: 1, n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
   { g: "Team", k: "pilot", adm: 1, n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
-  { g: "Team", k: "lblog", adm: 1, n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp or save it as a spreadsheet." },
+  { g: "Team", k: "lblog", adm: 1, n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp, or Excel or CSV for a spreadsheet." },
   { g: "Team", k: "training", adm: 1, n: "Training", go: "training", team: 1, what: "Quiz and speed drill scores for everyone, leaderboards, and sign-off on the house cocktails by a manager.", mgr: "Sign off each house cocktail once you've watched it made to spec." },
   { g: "Team", k: "history", adm: 1, n: "Change history", go: "history", team: 1, what: "The latest changes to date labels and added items, with who and when.", mgr: "Undo a label change, or put back a label or item removed by mistake." },
   { g: "Team", k: "setup", own: 1, n: "Set up codes", go: "setup", team: 1, what: "For Maintenance: your code, each manager's code and the team code on one screen, then a check that each one works.", mgr: "Do it once at the start, and again whenever someone leaves." },
@@ -718,7 +717,6 @@ document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
   if ((x = t("[data-mg-reload]"))) { const k = x.dataset.mgReload, card = { week: "week", pilot: "pilot", tr: "training", hist: "history", health: "health", ready: "ready" }[k]; MG[k] = k === "tr" ? { xs: null } : null; renderCard(card); return; }
   if ((x = t("[data-mg-lb]"))) { const [k, v] = x.dataset.mgLb.split(":"); MG.lb[k] = k === "days" ? +v : v; if (k === "days") MG.lb.xs = null; haptic(); renderCard("lblog"); return; }
-  if (t("[data-mg-csv]")) { mgSaveFile(`date-label-record-${shiftDay()}.csv`, "text/csv", toCsv(["Date", "Time", "Who", "Side", "Item", "What", "Use by", "Use by before", "Days late", "Note"], mgCsvRows())); return; }
   if (t("[data-mg-pilot-img]")) { haptic(); mgPilotImage().then((b) => mgSaveFile(`bar-book-pilot-${shiftDay()}.jpg`, "image/jpeg", b)); return; }
   if (t("[data-mg-pilot-csv]")) { mgSaveFile(`bar-book-pilot-${shiftDay()}.csv`, "text/csv", piCsv(MG.pilot)); return; }
   if ((x = t("[data-tr-open]"))) { MG.tr.open = MG.tr.open === x.dataset.trOpen ? "" : x.dataset.trOpen; haptic(); renderCard("training"); return; }
