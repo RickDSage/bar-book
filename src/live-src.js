@@ -507,6 +507,9 @@ LIVE.api = {
   runsOn: (day) => getDocs(collection(db, "shift", day, "runs")).then(byId),
   tasksOn: (day) => getDocs(collection(db, "shift", day, "tasks")).then(byId),
   outlogSince: (since) => getDocs(query(collection(db, "outlog"), where("at", ">=", Timestamp.fromMillis(since)), limit(1000))).then(rows),
+  // Pilot results: everything the team did on these business days (a day at a time), and the reports sent since a time.
+  eventsOn: (days) => Promise.all(days.map((d) => getDocs(query(collection(db, "events"), where("day", "==", d), limit(2000))).then(rows))).then((xs) => xs.flat()),
+  reportsSince: (since) => getDocs(query(collection(db, "reports"), where("at", ">=", Timestamp.fromMillis(since)), limit(500))).then(rows),
   // Backup: everything Bar Book keeps for the team, read once. Photos stay out (they are big, and kept 30 days).
   async backup() {
     const all = (c, q) => getDocs(q || collection(db, c)).then((s) => s.docs.filter(plain).map((x) => ({ id: x.id, ...x.data() }))).catch(() => []);

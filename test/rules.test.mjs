@@ -554,6 +554,7 @@ describe("every query the app makes works for the people that make it", () => {
     query(collection(d, "events"), where("day", "==", today()), where("kind", "==", "label")),
     query(collection(d, "scores"), where("uid", "==", uid)),
     query(collection(d, "outlog"), where("at", ">=", daysAgo(7)), limit(1000)),
+    query(collection(d, "reports"), where("at", ">=", daysAgo(56)), limit(500)),
   ];
   const managers = (d) => [
     query(collection(d, "asks"), orderBy("at", "desc"), limit(200)),

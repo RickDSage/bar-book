@@ -234,3 +234,37 @@ test("tonight's brief plays as stories: bars, tap through, Go there, close", asy
   assert.match(await text(S, ".story-ring"), /Watched/);
   assert.deepEqual(S.errs, []);
 });
+
+test("pilot results: counted week by week from what the team did, no names; picture, message and spreadsheet", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  await S.evaluate(() => LIVE.api.set86("Limes", true)); await S.waitForFunction(() => LIVE.out.has("Limes"));
+  await S.evaluate(() => LIVE.api.setRun("close", "Bar close", "finished", 5, 5));
+  await S.evaluate(() => LIVE.api.sendReport("bar", "Bar close done", "All done", []));
+  await S.evaluate(() => LIVE.api.score("night", 8, 10));
+  await M.evaluate(() => LIVE.api.label(null, "added", { item: "Apple juice", side: "bar", life: 3, on: true }));
+  await M.waitForFunction(() => LIVE.labels.some((x) => x.item === "Apple juice" && !x.pending));
+  // Staff don't get it, and can't read everyone's scores.
+  await S.evaluate(() => show("notices"));
+  assert.equal(await S.locator('[data-card="pilot"]').count(), 0);
+
+  const box = await card(M, "pilot");
+  await waitText(M, box, /People using it/);
+  const t = await text(M, box);
+  assert.match(t, /Closes in the app 1\/1/i);
+  assert.match(t, /86s logged 1/i);
+  assert.match(t, /People 2/i);
+  assert.match(t, /Closes finished in the app 1 of 1/);
+  assert.match(t, /Closes done in full 100%/);
+  assert.match(t, /Tonight's quiz, average 8\.0\/10/);
+  assert.match(t, /Handover sent, usual time \d\d:\d\d/);
+  assert.doesNotMatch(t, /Sam|Mia/);
+  const m = await M.evaluate(() => SHARE.pilot());
+  assert.match(m.title, /Bar Book pilot/);
+  assert.doesNotMatch(JSON.stringify(m), /Sam|Mia/);
+  assert.match(await M.evaluate(() => piCsv(MG.pilot)), /Week to,Closes finished in the app/);
+  const img = await M.evaluate(async () => { const b = await mgPilotImage(); return [b.type, b.size]; });
+  assert.equal(img[0], "image/jpeg");
+  assert.ok(img[1] > 20000);
+  assert.deepEqual([...M.errs, ...S.errs], []);
+});
