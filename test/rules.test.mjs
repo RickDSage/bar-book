@@ -1355,3 +1355,73 @@ describe("house photos and how-to videos on the drinks", () => {
     await fails(setDoc(ref("mgr1"), media("mgr1", { extra: true })), "extra fields");
   });
 });
+
+describe("quiz night", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const QS = [0, 1, 2].map((j) => ({ name: "Negroni", ask: "What's the garnish?", of: "", opts: ["Orange", "Lime", "Lemon", "Cherry"], answer: "Orange", id: j }));
+  const game = (uid, extra = {}) => ({ game: "abc123def", qs: QS, i: 0, state: "lobby", hide: false, host: uid, hostName: TEAM[uid]?.name ?? "Stray", at: now(), ...extra });
+  const live = (uid) => doc(db(uid), "quiz", "live");
+  const player = (uid, who = uid) => doc(db(uid), "quiz", "live", "players", who);
+  const pick = (uid, picks, g = "abc123def") => ({ game: g, picks, ...by(uid) });
+  const seedGame = (extra = {}) => seed((s) => setDoc(doc(s, "quiz", "live"), { ...game("staff1"), at: Timestamp.now(), ...extra }));
+  test("anyone on the team hosts, moves it on and ends it; only the team can see it", async () => {
+    await assertSucceeds(setDoc(live("staff1"), game("staff1")));
+    await assertSucceeds(updateDoc(live("staff1"), { state: "q", i: 1, host: "staff1", hostName: "Sam Staff", at: now() }));
+    await assertSucceeds(updateDoc(live("staff1"), { state: "show", host: "staff1", hostName: "Sam Staff", at: now() }));
+    await assertSucceeds(updateDoc(live("staff1"), { hide: true, host: "staff1", hostName: "Sam Staff", at: now() }));
+    for (const uid of ["staff2", "mgr1"]) await assertSucceeds(getDoc(live(uid)));
+    await fails(getDoc(live("stranger")), "someone not on the team reading it");
+    await fails(getDoc(live(null)), "reading it logged out");
+    await fails(setDoc(live("stranger"), game("stranger")), "someone not on the team hosting");
+    await assertSucceeds(updateDoc(live("staff1"), { state: "end", host: "staff1", hostName: "Sam Staff", at: now() }));
+    await fails(deleteDoc(live("staff1")), "deleting the game");
+  });
+  test("nobody takes over a game that's on, unless it's finished, left for an hour, or they're a manager", async () => {
+    await seedGame({ state: "q" });
+    await fails(setDoc(live("staff2"), game("staff2", { game: "zzz999yyy" })), "taking over a game that's on");
+    await fails(updateDoc(live("staff2"), { state: "end", host: "staff2", hostName: "Tia Staff", at: now() }), "ending someone else's game");
+    await assertSucceeds(setDoc(live("mgr1"), game("mgr1", { game: "mgr111aaa" })));
+    await seedGame({ state: "end" });
+    await assertSucceeds(setDoc(live("staff2"), game("staff2", { game: "zzz999yyy" })));
+    await seedGame({ state: "q", at: Timestamp.fromMillis(Date.now() - 61 * 6e4) });
+    await assertSucceeds(setDoc(live("staff2"), game("staff2", { game: "zzz999yyy" })));
+  });
+  test("the game holds only what the app writes", async () => {
+    await fails(setDoc(live("staff1"), game("staff1", { host: "staff2" })), "someone else as host");
+    await fails(setDoc(live("staff1"), game("staff1", { hostName: "Tia Staff" })), "someone else's name");
+    await fails(setDoc(live("staff1"), game("staff1", { at: daysAgo(1) })), "a time that isn't now");
+    await fails(setDoc(live("staff1"), game("staff1", { state: "paused" })), "a state the app doesn't use");
+    await fails(setDoc(live("staff1"), game("staff1", { i: 3 })), "a question that isn't there");
+    await fails(setDoc(live("staff1"), game("staff1", { qs: [] })), "no questions");
+    await fails(setDoc(live("staff1"), game("staff1", { game: "A!" })), "a bad game id");
+    await fails(setDoc(live("staff1"), game("staff1", { extra: 1 })), "extra fields");
+  });
+  test("players join, answer the question that's on once it's open, and can't change an answer after", async () => {
+    await seedGame();
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", {})));
+    await fails(setDoc(player("staff2"), pick("staff2", { 0: "Orange" })), "answering before it's open");
+    await seedGame({ state: "q", i: 0 });
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", { 0: "Lime" })));
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", { 0: "Orange" })));
+    await fails(setDoc(player("staff2"), pick("staff2", { 0: "Orange", 1: "Lime" })), "answering a question that isn't on");
+    await seedGame({ state: "show", i: 0 });
+    await fails(setDoc(player("staff2"), pick("staff2", { 0: "Lemon" })), "changing an answer once it's shown");
+    await seedGame({ state: "q", i: 1 });
+    await fails(setDoc(player("staff2"), pick("staff2", { 0: "Lemon", 1: "Lime" })), "changing an earlier answer");
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", { 0: "Orange", 1: "Lime" })));
+    await assertSucceeds(getDoc(player("staff1", "staff2")));
+    // A new game starts each player afresh.
+    await seedGame({ game: "new222ggg", state: "lobby", i: 0 });
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", {}, "new222ggg")));
+  });
+  test("players write only their own answers, for this game, on the team", async () => {
+    await seedGame({ state: "q" });
+    await fails(setDoc(player("staff1", "staff2"), pick("staff2", {})), "someone else's answers");
+    await fails(setDoc(player("staff2"), pick("staff2", {}, "old000ooo")), "another game");
+    await fails(setDoc(player("staff2"), { ...pick("staff2", {}), name: "Sam Staff" }), "someone else's name");
+    await fails(setDoc(player("stranger"), pick("stranger", {})), "someone not on the team");
+    await fails(getDoc(player(null, "staff2")), "reading answers logged out");
+    await seedGame({ state: "end" });
+    await fails(setDoc(player("staff2"), pick("staff2", {})), "joining a finished game");
+  });
+});

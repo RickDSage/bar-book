@@ -99,7 +99,7 @@ function sxSpecHtml(d) {
     ${sxZero(d) ? `<div class="sx-zero"><span>Alcohol-free?</span><button class="chip" data-sx-id="${sxZero(d).id}" translate="no">${esc(sxZero(d).name)} \u203a</button></div>` : ""}
     <div class="sx-k">Method</div>${steps(d.method)}
     ${!out && d.subs ? `<details class="subs"><summary>Out of something?<span class="cnt">${d.subs.length}</span></summary><ul translate="no">${d.subs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
-    <div class="sx-acts"><button class="btn pri" data-sx-add="${d.id}">+ Add to round${SX.round.get(d.id) ? ` (${SX.round.get(d.id)})` : ""}</button><button class="btn" data-sx-sheet="steps:${d.id}">Step by step</button><button class="btn" data-sx-sheet="spec:${d.id}">Full card and send</button>${LIVE.admin ? `<label class="btn" for="dm-in" data-sx-dm="${d.id}">${mediaOf(d)?.photo ? "Change house photo" : "Add house photo"}</label>` : ""}${!out && LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">86 it</button>` : ""}</div>
+    <div class="sx-acts"><button class="btn pri" data-sx-add="${d.id}">+ Add to round${SX.round.get(d.id) ? ` (${SX.round.get(d.id)})` : ""}</button><button class="btn" data-sx-sheet="steps:${d.id}">Step by step</button>${sayBtn(d)}<button class="btn" data-sx-sheet="spec:${d.id}">Full card and send</button>${LIVE.admin ? `<label class="btn" for="dm-in" data-sx-dm="${d.id}">${mediaOf(d)?.photo ? "Change house photo" : "Add house photo"}</label>` : ""}${!out && LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">86 it</button>` : ""}</div>
     ${nx ? `<div class="sx-pn"><button class="btn" data-sx-step="-1">‹ <span translate="no">${esc(pv.name)}</span></button><span>${i + 1} of ${SX.ids.length}</span><button class="btn" data-sx-step="1"><span translate="no">${esc(nx.name)}</span> ›</button></div>` : ""}`;
 }
 // The round: every drink scaled to how many, in the bar's making order: the ones that hold longest first (stirred, then
@@ -210,6 +210,7 @@ function sxQuizHtml() {
   const z = SX.qz, q = z.qs[z.i], ok = z.pick === q.answer, picked = z.pick != null;
   const opt = (o) => `<button class="btn wide${picked && o === q.answer ? " right" : picked && o === z.pick ? " wrong" : ""}" data-sx-qz="${esc(o)}"${picked ? " disabled" : ""}>${picked && o === q.answer ? "✓ " : picked && o === z.pick ? "✗ " : ""}${esc(o)}</button>`;
   return `${SX_BACK}<div class="sx-k">Quick quiz<span class="sx-qs">${z.done ? `${z.right} of ${z.done} right` : "From our own specs"}</span></div>
+    ${LIVE.me ? `<button class="sx-lbt" data-goto="quiz"><b>Quiz night: host it on this iPad</b><span>Everyone answers on their phone, the scores show here</span><i>\u203a</i></button>` : ""}
     <h3 class="sx-qn" translate="no">${esc(q.name)}</h3><p class="sx-qa">${esc(q.ask)}</p>${q.of ? `<p class="qz-of" translate="no">${esc(q.of)}</p>` : ""}
     <div class="qz-opts"${q.app ? "" : ' translate="no"'}>${q.opts.map(opt).join("")}</div>
     ${picked ? `<p class="qz-said" role="status"><b>${ok ? "Right." : "Not quite."}</b></p><div class="sx-acts"><button class="btn pri" data-sx-qznext>Next question</button><button class="btn" data-sx-id="${q.id}">Open the drink</button></div>` : ""}`;
@@ -444,7 +445,7 @@ function stationLive(what) {
   sxTonight();
 }
 // Left alone for 2 minutes: clear the search and the open drink and go back to the top, ready for the next person.
-const sxBusy = () => !$("#sheet").hidden || $("#help")?.hidden === false || $("#welcome")?.hidden === false || document.activeElement?.matches?.("input, textarea, select");
+const sxBusy = () => funBusy() || !$("#sheet").hidden || $("#help")?.hidden === false || $("#welcome")?.hidden === false || document.activeElement?.matches?.("input, textarea, select");
 setInterval(() => {
   if (document.hidden) return;
   // Left on another page (Shift, Team, More) for 2 minutes: back to the station, unless something's open or being typed.

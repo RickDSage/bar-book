@@ -789,9 +789,11 @@ function mkRndPane() {
     <div id="mk-rcard">${mkRndCard(mk.rnd.cur && D[mk.rnd.cur])}</div>
     <button class="btn pri mk-spin" data-mk="spin"${pool.length ? "" : " disabled"}>${mk.rnd.cur != null ? "Spin again" : "Spin"}</button>`;
 }
-/* Just for fun (under More): the spec of the day and Spin. Nobody needs them mid-shift, so they're off the Drinks tab. */
+/* Games and drills (under More): the daily drill, quiz night and your month (fun.js), then the spec of the day and Spin.
+   Nobody needs them mid-shift, so they're off the Drinks tab. A drill or quiz night takes over the page while it's on. */
 function renderFun() {
-  $("#v-fun").innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Just for fun</h2>${plDailyHtml()}<div id="fun-spin">${mkRndPane()}</div>`;
+  if (funScreen()) return;
+  $("#v-fun").innerHTML = `<button class="back" data-back>‹ More</button><h2 style="font-size:28px">Games and drills</h2>${funTopHtml()}<div class="sec">Just for fun</div>${plDailyHtml()}<div id="fun-spin">${mkRndPane()}</div>`;
 }
 $("#v-fun").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b) return;
