@@ -728,6 +728,8 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .lgroup h3 { margin: 0; font-family: var(--display); font-size: 17px; letter-spacing: .02em; color: var(--brass); text-transform: uppercase; }
 .lgroup .n { font-size: 13px; color: var(--muted); margin-left: 6px; font-family: inherit; text-transform: none; letter-spacing: 0; }
 .lgroup .btn { min-height: 36px; padding: 6px 12px; font-size: 14px; }
+.lgroup .lgb { display: flex; gap: 6px; flex: none; }
+.lon { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 .lgroup.full h3 { color: var(--ok, var(--brass)); }
 .lfold > summary { list-style: none; cursor: pointer; }
 .lfold > summary::-webkit-details-marker { display: none; }
@@ -2035,6 +2037,7 @@ Object.assign(LISTS, {
       "Cutlery replenished",
       "Side plates and milkshake plates laid with black napkins",
       { id: 28, t: "Tables, chairs and service stations organised for opening" },
+      { id: 33, t: "Card machines on charge" },
     ]),
     ...sect("Sauces and napkins", [
       "Mustard and ketchup packed into the fridge",
@@ -2067,6 +2070,7 @@ Object.assign(LISTS, {
       { id: 30, t: "Fridges wiped and cleaned inside: sauces, desserts and milkshake bar" },
       "Toilets checked: paper, soap, nothing left behind",
       { t: "Toilets bleached, swept and mopped", days: [0, 1] },
+      { id: 34, t: "Lost property bagged, dated and given to the duty manager" },
     ]),
     ...sect("Bins and stock", [
       "Bins emptied, fresh bin liners in, rubbish taken to the bin room",
@@ -2112,14 +2116,14 @@ const STOCK = {
   "Tequila and mezcal": ["El Jimador Blanco", "El Jimador Reposado", "Don Julio Blanco", "Don Julio Añejo", "Don Julio 1942", "Clase Azul Reposado", "Amarás Mezcal"],
   "Whiskey": ["Jack Daniel's", "Jameson", "Buffalo Trace", "Bulleit", "Bulleit Rye", "Elijah Craig", "Michter's", "Johnnie Walker Black", "Johnnie Walker Blue", "Talisker 10", "Port Charlotte 10", "Glenmorangie Signet", "Hakushu 12", "Hibiki Harmony", "Sheep Dog Peanut Butter"],
   "Brandy": ["Martell VS", "Courvoisier VSOP", "Hennessy XO", "Rémy Martin XO", "Avallen Calvados"],
-  "Desserts and shakes": ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Raspberries", "Maraschino cherries", "Shake cups", "Cup holders"],
+  "Desserts and shakes": ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Whipped cream", "Raspberries", "Maraschino cherries", "Shake cups", "Cup holders"],
   "Floor supplies": ["Napkins", "Side plates", "Toilet roll", "Bleach", "Mop heads"],
   "Liqueurs and vermouth": ["Aperol", "Campari", "Sarti Rosa", "Martini Rosso", "Martini Extra Dry", "Pimm's", "Cointreau", "Grand Marnier", "Kahlúa", "Baileys", "Disaronno", "Frangelico", "Chambord", "Heering Cherry", "Luxardo Limoncello", "Midori", "Passoa", "Archers", "Apple liqueur", "Ancho Reyes", "Yellow Chartreuse", "Jägermeister", "Absinthe", "Crème de violette", "Maraschino"],
 };
 // The things each side runs out of most, one tap to 86. Anything else is in the full list or can be typed in.
 const QUICK86 = {
   bar: ["Limes", "Lemons", "Mint", "Ice", "Prosecco bottle", "Red Bull", "Espresso beans", "Salted caramel sauce", "Guinness", "Corona"],
-  floor: ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Raspberries", "Maraschino cherries", "Side plates"],
+  floor: ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Whipped cream", "Strawberries", "Raspberries", "Maraschino cherries", "Side plates"],
 };
 // Business day in UK time: anything before 6am belongs to the night before, so a close that runs past midnight
 // stays one shift. (Taking the UTC date instead would roll the day over at 7am all summer.)
@@ -2142,7 +2146,7 @@ const HO = [
   { id: "next", label: "For tomorrow: prep and follow-up", short: "For tomorrow", hint: "What the opening team needs to prepare or chase", join: "\n" },
 ];
 const HO_CHIPS = {
-  low: { bar: ["Gas (CO2)", "Garnishes", "Limes", "Lemons", "Mint", "Ice", "Prosecco", "Red Bull", "Jarritos"], floor: ["Desserts", "Ice cream", "Sauces", "Napkins", "Black napkins", "Side plates", "Shake cups"] },
+  low: { bar: ["Gas (CO2)", "Garnishes", "Limes", "Lemons", "Mint", "Ice", "Prosecco", "Red Bull", "Jarritos"], floor: ["Desserts", "Ice cream", "Whipped cream", "Sauces", "Napkins", "Black napkins", "Side plates", "Cutlery", "Shake cups", "Toilet roll", "Hand soap"] },
   issues: ["Broken or needs fixing: ", "Not finished: ", "Guest to know about: ", "Tabs and cash: "],
   next: ["Prep: ", "Follow up: ", "Delivery due: ", "Ordered: "],
 };
@@ -2363,7 +2367,8 @@ function checklistHtml(k) {
     ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
-    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button>` : left ? "" : `<span class="pill ok">Done</span>`}</div>` : "";
+    const on = g && left ? onIt(k, xs) : [];
+    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${on.length || !LIVE.me ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">I'll do this</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${on.length ? `<p class="lon"><b translate="no">${esc(on.join(", "))}</b> on it</p>` : ""}` : "";
     // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
     const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
@@ -2372,6 +2377,19 @@ function checklistHtml(k) {
   return `${runHtml(k)}<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}${p.skipped ? ` · ${p.skipped} not needed tonight` : ""}</span><b>${p.pct}%</b></div>
     <div class="prog${p.n === p.of ? " full" : ""}" role="progressbar" aria-label="${esc(LISTS[k].title)}" aria-valuenow="${p.pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${p.pct}%"></i></div>
     ${tools}${groupsOf(k).map(group).join("")}`;
+}
+// Splitting the close: "I'll do this" on a heading starts everything not yet started under it in your name, so the
+// others see who has that part and pick another. It is the same Start as on each item (no new data), so Stop on an
+// item, Done or Tick all carry on as usual. The heading names whoever has started something under it.
+const onIt = (k, xs) => [...new Set(xs.filter(([i]) => statusOf(k, i) === "doing").map(([i]) => { const x = taskOf(k, i); return x && lastMove(k, i, x).name; }).filter(Boolean))];
+function claimGroup(k, g) {
+  if (isLocked(k)) return toast(`${LISTS[k].title} is finished. Reopen it to change anything`);
+  const ids = shown(k).filter(([i]) => groupOf(k, i) === g && statusOf(k, i) === "todo").map(([i]) => i);
+  if (!ids.length) return toast("Nothing left to start there");
+  haptic();
+  const p = Promise.all(ids.map((i) => LIVE.api.setTask(k, i, itemText(k, i), "doing")))
+    .then(() => { if (!runOf(k)) { const q = progress(k); return LIVE.api.setRun(k, LISTS[k].title, "started", q.n, q.of); } });
+  track(p, `${g}: it's yours. Everyone can see you're on it`, "Not all saved. Check your signal and try again");
 }
 // Tick all: every item still open in the list, or under one heading, done in one tap. Ticking the whole list also
 // finishes it, since everything is then done. Each item is still its own change, with its own name and time.
@@ -3222,6 +3240,7 @@ $("#tally").addEventListener("click", async (e) => {
     changeTask(k, i, st === "done" ? "todo" : "done"); return;
   }
   const ta = e.target.closest("[data-tick-all]"); if (ta) { tickAll(ta.dataset.tickAll, ta.dataset.g); return; }
+  const cg = e.target.closest("[data-claim]"); if (cg) { claimGroup(cg.dataset.claim, cg.dataset.g); return; }
   const cr = e.target.closest("[data-clear-list]"); if (cr) { clearList(cr.dataset.clearList); return; }
   if (e.target.closest("#clear-all")) { clearAll(false); return; }
   if (e.target.closest("#undo-clear")) { undoClearAll(); return; }
@@ -4607,7 +4626,7 @@ function renderInfo() {
       ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards and tonight's quiz")}
       ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A page per kind of drink, to send to WhatsApp or print")}
       ${hubRow("fun", 'data-go="fun"', "Just for fun", "Spin for a drink, and the spec of the day")}
-      ${hubRow("station", 'data-go="station"', "Bar station", stationOn ? "On: this iPad opens on it. Exit bar station turns it off" : "Turn this iPad into the bar station: big drink search and specs, rounds, tonight's 86s and the close")}
+      ${mode !== "bar" && !stationOn ? "" : hubRow("station", 'data-go="station"', "Bar station", stationOn ? "On: this iPad opens on it. Exit bar station turns it off" : "Turn this iPad into the bar station: big drink search and specs, rounds, tonight's 86s and the close")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
@@ -8170,7 +8189,7 @@ const HELP = {
     how: ["Tap a Quick 86 chip, pick from the list, or type anything else.", "Back in stock takes it off for everyone.", "Restock: say what, how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it."],
     behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere, and an 86'd ingredient shows the swap on every drink that uses it.", "Restocks waiting over 15 minutes show as late. Nothing here changes stock levels: stock is counted in Nory.", "Clear everything puts every 86 back in stock."] },
   closing: { t: "Closing checklist", what: "The close, ticked off live on every phone.",
-    how: ["Tap an item when it's done, or Tick all under a heading.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started."],
+    how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started."],
     behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Seniors can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks wait on the phone and send when it's back. A banner says how many are waiting."] },
   handover: { t: "Handover", what: "The end of the night: what's done, what's low, what's outstanding and what tomorrow needs.",
     how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos.", "Tap Hand over. It saves for the morning team, then opens WhatsApp with it ready to send."],
@@ -8236,7 +8255,7 @@ const INTRO = [
   { t: "Out of something? It adjusts", how: ["Put it on the 86 board once and every phone knows.", "Every drink that uses it shows the closest swap, on the spec, the menu, Rapid fire and the cheat sheets.", "Make stops counting on it, so it never suggests a drink you can't make tonight."], tip: "Back in stock takes it off everywhere at once.", more: ["stock"] },
   { t: "The cocktail maker", how: ["Make: tap what you've got and see what you can make, closest first, with swaps.", "My bar keeps your own bottles. Specs puts every spec on one line for busy moments.", "Black Tap shows our line-up: draught, bottles, softs and the house serves."], tip: "A guest names two bottles? Tap them and offer the top match.", more: ["make"] },
   { t: "Run the shift together", how: ["Shift is shared live with everyone on your side: the 86 board, restocks from the cellar and date labels.", "Restock: ask for it, someone brings it up, whoever's there confirms it arrived. Late ones flag after 15 minutes.", "Date labels tell you what to write on the label and what's due today or tomorrow."], tip: "No signal? It keeps working and sends everything when you're back. A banner says what's waiting.", more: ["shift", "labels"] },
-  { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Two people can split it: ticks show on both phones straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. Starting time, time taken and who ticked what are kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
+  { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. Starting time, time taken and who ticked what are kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
   { t: "Hand over in one tap", how: ["On Send: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the seniors: days off, swaps, complaints, anonymous if you want.", "Incident or accident, Team only: rate the shift, Quick WhatsApp messages for running late or off sick, Who to call, and Spin the wheel."], tip: "Tell Derek goes straight to Derek: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "On an iPhone with photos: Copy the words, then Send with photos, then paste the words as the caption.", more: ["send"] },
