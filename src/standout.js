@@ -34,16 +34,17 @@ function sdSwapItem(sw) {
   const low = (sw || "").toLowerCase();
   return MK.items.filter((x) => low.includes(x.n.toLowerCase())).sort((a, b) => b.n.length - a.n.length)[0] || null;
 }
-// What changes in the spec when this drink is made with tonight's swaps: [{ from, to, why }].
-function sdRebalance(d) {
-  const o = plOutOf(d); if (!o.miss.length) return [];
+// What changes in the spec when this drink is made with tonight's swaps: [{ i, from, to, why, main }]. main is the swap
+// itself (its line is the missing one); the others nudge the drink's own syrup or citrus line.
+function sdRebalance(d, o) {
+  if (!o.miss.length) return [];
   const ch = [], used = new Set();
   for (const m of o.miss) {
     const line = d.spec[m.i] || "", q = line.match(/^([\d.]+) ml (.*)/), A = q && sdBalOf(q[2]);
     const it = sdSwapItem(m.swap), B = it && sdBalOf(it.n);
     if (!q || !A || !B || A === B) continue;
     const qa = +q[1], k = A.use, qb = Math.min(qa * 2, Math.round((qa * A[k]) / B[k] / 2.5) * 2.5);
-    ch.push({ from: line, to: `${sdMl(qb)} ml ${it.n.toLowerCase()}`, why: k === "a" ? "same sourness" : "same sweetness" });
+    ch.push({ i: m.i, main: 1, from: line, to: `${sdMl(qb)} ml ${it.n.toLowerCase()}`, why: k === "a" ? "same sourness" : "same sweetness" });
     used.add(m.i);
     // What the swap adds or takes away on the other side, put right on the drink's own line for it.
     const other = k === "a" ? "s" : "a", diff = qa * A[other] - qb * B[other];
@@ -54,17 +55,68 @@ function sdRebalance(d) {
       const nq = Math.max(0, +lq[1] + diff / C[other]);
       if (Math.abs(nq - lq[1]) < 2.5) return;
       used.add(i);
-      ch.push({ from: l, to: nq < 1.25 ? `Leave out the ${lq[2]}` : `${sdMl(nq)} ml ${lq[2]}`, why: other === "s" ? (diff > 0 ? "the swap is less sweet" : "the swap is sweeter") : diff > 0 ? "the swap is less sour" : "the swap is more sour" });
+      ch.push({ i, from: l, to: nq < 1.25 ? `Leave out the ${lq[2]}` : `${sdMl(nq)} ml ${lq[2]}`, why: other === "s" ? (diff > 0 ? "the swap is less sweet" : "the swap is sweeter") : diff > 0 ? "the swap is less sour" : "the swap is more sour" });
     });
   }
   return ch;
 }
-function sdBalanceHtml(d) {
-  const ch = sdRebalance(d); if (!ch.length) return "";
-  return `<div class="sd-bal" role="note"><b>⚖️ Balanced swap for tonight</b>
-    <ul>${ch.map((c) => `<li><s translate="no">${esc(c.from)}</s> <span aria-hidden="true">→</span> <b translate="no">${esc(c.to)}</b> <small>${esc(c.why)}</small></li>`).join("")}</ul>
-    <p class="note">Worked out from the sugar and acid in each, so the drink tastes as close to the spec as it can. Taste it before it goes out.</p></div>`;
+// Every place that shows a swap (the spec line, the banner, Rapid fire, the iPad, WhatsApp specs) reads plOutOf, so the
+// balanced amount goes in there once: the swap says "Use 10 ml agave syrup (same sweetness)", and adj holds the other
+// lines that change with it.
+const sdOut0 = plOutOf, SD_OD = new Map();
+let sdOdSig = "";
+plOutOf = function (d) {
+  const o = sdOut0(d); if (!o.miss.length) return o;
+  if (sdOdSig !== OUT_SIG) { SD_OD.clear(); sdOdSig = OUT_SIG; }
+  if (SD_OD.has(d.id)) return SD_OD.get(d.id);
+  const ch = sdRebalance(d, o);
+  const r = { ...o, miss: o.miss.map((m) => { const c = ch.find((x) => x.main && x.i === m.i); return c ? { ...m, swap: `Use ${c.to} (${c.why}).`, bal: c } : m; }), adj: ch.filter((c) => !c.main) };
+  SD_OD.set(d.id, r);
+  return r;
+};
+// Mark the other lines the swap changes, under the line itself.
+const sdMark0 = plOutMark;
+plOutMark = function (d) {
+  sdMark0(d);
+  for (const c of plOutOf(d).adj || []) { const li = $$("#sheet ul.spec > li")[c.i]; if (li && !li.querySelector(".pl-swap")) li.insertAdjacentHTML("beforeend", `<em class="pl-swap" translate="no">→ ${esc(c.to)} (${esc(c.why)})</em>`); }
+};
+// The drink's state tonight, on the spec, the iPad and wherever the banner shows: can make, with a swap, or not tonight.
+// A house cocktail made any other way says so, so nobody takes it for the house spec.
+const sdHouse = (d) => /black tap|signature/i.test(d.section);
+const sdAdj = (d) => (sdHouse(d) ? `<span class="sd-adj">Adjusted: not the house spec</span>` : "");
+plOutBanner = function (d) {
+  if (isOut(d.name)) return "";
+  const o = plOutOf(d);
+  if (!o.miss.length) return `<div class="sd-state ok" role="status"><b>✓ Can make tonight</b>${plOutKeys().size ? `<span>Nothing it needs is 86'd.</span>` : ""}</div>`;
+  const alts = o.ok ? [] : plAlts(d);
+  if (o.ok) return `<div class="sd-state swap" role="status"><b>⚠ Can make with a swap</b>${sdAdj(d)}${o.miss.map((m) => `<div>No <span translate="no">${esc(m.it.n)}</span>: ${m.swap ? esc(m.swap) : "leave it out, it's only a touch."}</div>`).join("")}
+    ${(o.adj || []).map((c) => `<div>And <span translate="no">${esc(c.to)}</span> instead of <span translate="no">${esc(c.from)}</span> (${esc(c.why)}).</div>`).join("")}
+    ${o.miss.some((m) => m.bal) ? `<small>Amounts worked out from the sugar and acid in each, so it tastes like the spec. Taste before it goes out.</small>` : ""}</div>`;
+  const fl = SD.flow && SD.flow.id === d.id && SD.flow.sig === OUT_SIG ? SD.flow : null;
+  if (fl) return `<div class="sd-state swap" role="status"><b>\u21bb Going with the flow</b>${sdAdj(d)}${fl.lines.map((t) => `<div translate="no">${esc(t)}</div>`).join("")}<small>The guest is fine with it being a little different. Tell them what changed.</small>
+    <div class="pl-alts"><button class="chip" data-sd-flow-off="${d.id}">Undo</button></div></div>`;
+  return `<div class="sd-state no" role="status"><b>✕ Can't make tonight</b><div>No <span translate="no">${esc(o.miss.filter((m) => !m.swap && !m.minor).map((m) => m.it.n).join(", "))}</span>, and nothing close in the bar to swap in.</div>
+    <div class="pl-alts"><button class="btn pri" data-sd-flow="${d.id}">\u21bb Go with the flow</button></div>
+    ${alts.length ? `<div class="pl-alts">Or pick: ${alts.map((x) => `<button class="chip" ${cur === "station" ? "data-sx-id" : "data-pl-alt"}="${x.id}" translate="no">${esc(x.name)}</button>`).join("")}</div>` : ""}</div>`;
+};
+// Go with the flow: the guest doesn't mind, or it can't be found. Each missing thing takes the closest bottle the bar
+// has (same kind first, then the same family, booze or not), or is left out when it's only a small part of the drink.
+// If something big still has nothing, it opens the closest drink that can be made instead.
+function sdFlow(d) {
+  const o = plOutOf(d), out = plOutKeys(), inDrink = new Set((MK.reqs.get(d.id) || []).map((r) => r.it.k)), lines = [];
+  const vol = d.spec.reduce((n, l) => n + (+(l.match(/^([\d.]+) ml/) || [])[1] || 0), 0) || 1;
+  for (const m of o.miss) {
+    if (m.swap) { lines.push(`No ${m.it.n}: ${m.swap}`); continue; }
+    const pick = (f) => MK.items.find((x) => x !== m.it && !out.has(x.k) && !inDrink.has(x.k) && plStocked.has(x.k) && f(x));
+    const x = pick((y) => y.kind === m.it.kind) || (m.it.fam && pick((y) => y.fam === m.it.fam));
+    const ml = +((d.spec[m.i] || "").match(/^([\d.]+) ml/) || [])[1] || 0;
+    if (x) lines.push(`No ${m.it.n}: use ${x.n} instead${ml ? `, ${sdMl(ml)} ml` : ""}`);
+    else if (m.minor || ml / vol < 0.15) lines.push(`No ${m.it.n}: leave it out`);
+    else return null;
+  }
+  return lines;
 }
+
 
 /* ---------- 2. Batch it: into a bottle, jug or tub ----------
    Pick the container and it works out how many drinks fit, every amount, and the water. Stirred drinks get 20% water
@@ -469,6 +521,14 @@ document.addEventListener("click", (e) => {
   if (t("[data-sd-mic]")) { haptic(); return sdVoiceOpen(); }
   if ((x = t("[data-sd-1h]"))) return sdOneHand(x.dataset.sd1h);
   if ((x = t("[data-sd-set]"))) { const [k, v] = x.dataset.sdSet.split(":"); SD.set[k] = v === "1"; sdSave(); sdApplyModes(); haptic(); if (k === "sound" && SD.set.sound) sdCue("ok"); x.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === x)); return; }
+  if ((x = t("[data-sd-flow]"))) {
+    const d = D[+x.dataset.sdFlow], lines = sdFlow(d); haptic();
+    if (lines) { SD.flow = { id: d.id, sig: OUT_SIG, lines }; sdCue("ok"); }
+    else { const alt = plAlts(d, 1)[0]; toast(alt ? `No sensible swap. Closest you can make: ${alt.name}` : "No sensible swap and nothing close. Offer the guest something else"); if (alt) return cur === "station" ? (SX.id = alt.id, sxSpec()) : openSheet(alt.id); return; }
+    if (cur === "station") { sxSpec(); return; }
+    const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; return;
+  }
+  if ((x = t("[data-sd-flow-off]"))) { SD.flow = null; haptic(); if (cur === "station") { sxSpec(); return; } const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
   if ((x = t("[data-sd-jar]"))) { SD.jar = +x.dataset.sdJar; SD.batchOpen = true; haptic(); const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
   if (t("#sd-voice")) {
     if (e.target.id === "sd-voice" || t("[data-sd-vx]")) return sdVoiceClose();
@@ -535,8 +595,8 @@ liveChanged = function (what) {
 
 document.head.insertAdjacentHTML("beforeend", `<style>
 #sd-off[hidden],#sd-last[hidden],#sd-timer[hidden],#sd-1h[hidden],#sd-mic[hidden]{display:none}
-.sd-bal{margin-top:12px;border:1.5px solid var(--brass);border-radius:12px;padding:10px 12px;background:var(--surface)}.sd-bal>b{display:block;color:var(--brass)}
-.sd-bal ul{margin:6px 0 0;padding-left:18px}.sd-bal li{padding:3px 0;line-height:1.35}.sd-bal s{color:var(--muted)}.sd-bal small{display:block;color:var(--muted);font-size:13px}
+.sd-state{margin:10px 0;padding:10px 12px;border:1.5px solid var(--ok);border-radius:12px;background:var(--surface);line-height:1.4}.sd-state>b{display:block;color:var(--ok);font-size:17px}
+.sd-state>span,.sd-state small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.sd-state.swap{border-color:var(--brass)}.sd-state.swap>b{color:var(--brass)}.sd-state.no{border-color:var(--warn)}.sd-state.no>b{color:var(--warn)}.sd-adj{display:inline-block;margin:2px 0 4px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);border:1px solid var(--warn);border-radius:999px;padding:1px 8px}
 .sd-in{padding:0 12px 12px}.sd-in .chips{flex-wrap:wrap;overflow:visible;margin:4px 0 0;padding:0}.sd-big{font-size:17px;margin:10px 0 4px}.sd-big b{font-size:28px;color:var(--brass);margin-right:4px}
 .sd-warn{border-left:3px solid var(--warn);padding-left:10px}
 .sd-tl{list-style:none;margin:8px 0;padding:0;border-left:2px solid var(--line);margin-left:46px}.sd-tl li{position:relative;display:flex;gap:8px;padding:7px 0 7px 12px}.sd-tl time{position:absolute;left:-50px;top:9px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
@@ -571,3 +631,4 @@ body.sd-a11y .btn,body.sd-a11y .chip,body.sd-a11y .seg button,body.sd-a11y nav.t
 SD_READY = true;
 sdApplyModes(); sdTick();
 LINKS.replay = () => "#at=replay"; LINKS.orderdraft = () => "#at=order";
+{ const sd0 = SHARE.drink; SHARE.drink = (id) => { const m = sd0(id), d = D[+id]; if (m && d && sdHouse(d) && plOutOf(d).miss.length) m.head = ["Adjusted tonight: not the house spec", ...m.head]; return m; }; }

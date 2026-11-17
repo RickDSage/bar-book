@@ -95,6 +95,7 @@ function sxSpecHtml(d) {
       <div>${ART.garnish(d.garnish) ? `<i class="pic gar" aria-hidden="true">${ART.garnish(d.garnish)}</i>` : ""}<p><span>Garnish</span><b>${esc(d.garnish)}</b></p></div></div>
     <div class="sx-k">Spec${SX.x > 1 ? ` for ${SX.x}` : ""}<span class="sx-x" role="group" aria-label="How many">${SX_XS.map((n) => `<button data-sx-x="${n}" aria-pressed="${n === SX.x}">×${n}</button>`).join("")}</span></div>
     <ul class="spec sx-specl" data-d="${d.id}" translate="no">${spec}</ul>
+    ${out ? "" : plOutHtml(d)}
     ${SX.x > 1 && sxMl(d) ? `<p class="sx-tot">About ${sxMl(d) * SX.x} ml of liquid before ice${SX.x >= 6 ? ": batch it in a jug, then shake or pour a glass at a time" : ""}.</p>` : ""}
     ${sxZero(d) ? `<div class="sx-zero"><span>Alcohol-free?</span><button class="chip" data-sx-id="${sxZero(d).id}" translate="no">${esc(sxZero(d).name)} \u203a</button></div>` : ""}
     <div class="sx-k">Method</div>${steps(d.method)}
