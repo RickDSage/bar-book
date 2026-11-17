@@ -577,7 +577,8 @@ ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; 
 .staffrow .actions { margin-top: 8px; }
 .staffrow .actions .btn { padding: 8px 12px; font-size: 15px; min-height: 40px; }
 /* Saving state: shown while a change is waiting to reach the server, or when there's no signal */
-.upd.rulesold { white-space: normal; text-align: center; width: max-content; max-width: calc(100vw - 32px); }
+/* Maintenance only: a small chip, so it never hides the list. A tap hides it for 12 hours. */
+.upd.rulesold { padding: 6px 12px; font-size: 13px; font-weight: 700; white-space: nowrap; opacity: .95; }
 .upd { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 26; padding: 12px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 4px 18px #0005; white-space: nowrap; }
 /* At the bottom, above the tabs, and never in the way: at the top it covered every page's Back button and the drinks
    tabs, so with no signal nobody could close the Send page. Pages get room under it so nothing ends up beneath it. */
@@ -1051,7 +1052,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Guide: find anything in Bar Book">?</button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
-<button class="upd rulesold" id="rules-old" hidden>Maintenance: publish the new Firebase rules. Tap to hide</button>
+<button class="upd rulesold" id="rules-old" hidden aria-label="Firebase rules need publishing. Tap to hide">Rules need publishing ✕</button>
 <header class="gut" id="hdr">
   <nav class="seg dseg" id="subnav" aria-label="Drinks"><button data-tab="rapid">⚡ Rapid fire</button><button data-tab="drinks">Menu</button><button data-tab="make">Make</button></nav>
   <div id="hdr-drinks">
@@ -6109,7 +6110,7 @@ function liveChanged(what) {
   if (what === "seniors") { store.set("codeNames", LIVE.seniors.map((x) => x.name)); tryPendingPin(); }
   if (what === "me" || what === "seniors") renderWelcomeName();
   if (what === "lists") applyLists();
-  if (what === "rules") $("#rules-old").hidden = !LIVE.rulesOld;
+  if (what === "rules") showRulesChip();
   if (cur === "station") stationLive(what);
   funLive(what);
   if (what === "drafts" || what === "me") pullDraft();
@@ -6253,9 +6254,23 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { offlineReady = !!hit; if (hit && cur === "info") renderInfo(); }).catch(() => {});
   // The app opens from the phone, so a new release arrives in the background. Once it's stored, say so: a tap reloads
   // into it, or it's there next time the app opens. Anything half-typed is kept as a draft either way.
-  if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener("controllerchange", () => { $("#upd").hidden = false; }, { once: true });
+  // A phone app coming back from the background doesn't look for a new version by itself (iPhone home-screen apps
+  // especially), so look each time it's opened and every 15 minutes while it stays open (the bar station).
+  // A new version that arrives while the app is in the background is loaded quietly the next time it's opened.
+  let reloadOnShow = false;
+  const lookForUpdate = () => navigator.serviceWorker.getRegistration().then((r) => r?.update()).catch(() => {});
+  setInterval(lookForUpdate, 15 * 6e4);
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    if (reloadOnShow) { location.reload(); return; }
+    lookForUpdate();
+  });
+  if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener("controllerchange", () => { if (document.hidden) reloadOnShow = true; else $("#upd").hidden = false; }, { once: true });
   $("#upd").addEventListener("click", () => location.reload());
 }
+// Maintenance's "Rules need publishing" chip: hidden for 12 hours after a tap, gone by itself once the rules are live.
+function showRulesChip() { $("#rules-old").hidden = !LIVE.rulesOld || Date.now() < store.get("rulesHide", 0); }
+$("#rules-old").addEventListener("click", () => { store.set("rulesHide", Date.now() + 12 * 36e5); showRulesChip(); });
 renderList();
 // The bar station refreshing itself (a new release, or the morning's fresh start) goes straight back to the station.
 const autoBack = stationOn && (() => { try { const v = sessionStorage.getItem("sx.auto"); sessionStorage.removeItem("sx.auto"); return !!v; } catch { return false; } })();
