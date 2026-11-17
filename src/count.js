@@ -60,7 +60,7 @@ function ctMeasure(item, u, o, d) {
   const m = CT_BOTTLE[item], p = CT_PACK[item], set = +o.e > 0 && +o.f > +o.e;
   if (u === "bottle") {
     const ml = +o.ml || (m ? m[0] : d.ml), dn = m ? m[2] : 0.95;
-    return { u, ml, dn, e: set ? +o.e : m ? m[1] : 0, f: set ? +o.f : m ? ctFullG(ml, m[1], dn) : 0, pw: +o.pw || 0, est: !set && !!m, size: ml ? ctCl(ml) : "", guess: !!m && !m[3] && !+o.ml };
+    return { u, ml, dn, e: set ? +o.e : m ? m[1] : 0, f: set ? +o.f : m ? ctFullG(ml, m[1], dn) : 0, pw: +o.pw || 0, est: !set && !!m, size: m || +o.ml ? ctCl(ml) : "", guess: !!m && !m[3] && !+o.ml };
   }
   const pw = +o.pw || (p ? p[1] : 0);
   return { u, ml: 0, dn: 1, e: +o.pw ? +o.e || 0 : p ? p[2] : 0, f: 0, pw, est: !+o.pw && !!p?.[1], size: p ? p[0] : "", guess: !!p && !p[3] };
@@ -183,9 +183,9 @@ function ctCardHtml() {
 // version (one row of places that scrolls sideways, the totals folded away, the bottle level behind one tap when the
 // scale can do it); the iPad gets everything open side by side.
 const ctWide = () => matchMedia("(min-width: 700px)").matches;
-var ctQ = "", ctShow = store.get("ctShow", "todo"), ctLvl = false, ctTotOpen = null;
+var ctQ = "", ctShow = store.get("ctShow", "todo"), ctLvl = store.get("ctLvl", false), ctTotOpen = null;
 function ctPage() {
-  ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null; ctQ = ""; ctLvl = false;
+  ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null; ctQ = "";
   lastFocus = document.activeElement;
   const speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Stock count</span><span></span></div>
@@ -238,7 +238,7 @@ function ctHtml() {
     <details class="setup ct-how" id="ct-how"${store.get("ctHow", false) ? "" : " open"}><summary>How to count</summary><ol>
       <li>Walk the bar in order and tap each item. Find at the top looks in every place, if it's somewhere else.</li>
       <li><b>Full, sealed bottles:</b> tap + for each one.</li>
-      <li><b>The open bottle:</b> stand it on the scale and type the grams. No scale, or no weights for it yet? Tap how full it is.</li>
+      <li><b>The open bottle:</b> take the pourer off, stand it on the scale and type the grams. Every bottle's size and weights are filled in already. No scale? Tap how full it is.</li>
       <li><b>Anything else</b> (cans, cakes, packs): + and −, or type it. Half is .5.</li>
       <li><b>Next ›</b> saves it and opens the next one. Nothing there? Next saves it as none.</li>
       <li><b>Hands full?</b> 🎤 Say it, or type, the name then how many: “Smirnoff two and a half”, “Kraken 845 grams”. Check it, then Save it.</li>
@@ -290,7 +290,8 @@ function ctEditHtml(r, x) {
   const foot = `${total}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}<button class="btn pri" data-ct-next="${esc(r.key)}">Next ›</button></div>`;
   const one = r.size && r.u !== "bottle" ? `<p class="s ct-size">One is a ${esc(r.size)}${r.guess ? " (the usual size: a manager can change it)" : ""}.</p>` : "";
   if (r.u !== "bottle") return `<div class="ct-edit">${one}${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
-  const how = can ? `${ctWeighHtml(r)}${wide || ctLvl ? lvl : `<button class="btn ct-lvl" data-ct-lvl>No scale? Tap how full it is</button>`}`
+  // Phones show one way at a time, the scale first; picking the level sticks until the scale is picked again.
+  const how = can ? (wide ? `${ctWeighHtml(r)}${lvl}` : ctLvl ? `${lvl}<button class="btn ct-lvl" data-ct-lvl="0">Use the scale instead</button>` : `${ctWeighHtml(r)}<button class="btn ct-lvl" data-ct-lvl="1">No scale? Tap how full it is</button>`)
     : `<p class="s">No weights for ${esc(r.item)} yet, so tap how full it is.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${lvl}${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}`;
   return `<div class="ct-edit ct-b"><div class="ct-c1"><p class="ct-n">1. Full, sealed bottles${r.size ? ` <small>${esc(r.size)}</small>` : ""}</p>${step("full", full, "Full")}</div>
     <div class="ct-c2"><p class="ct-n">2. The open one</p>${how}</div>${foot}</div>`;
@@ -327,7 +328,7 @@ function ctPut(r, full, open) {
 }
 const ctRow = (key) => ctRows().find((r) => r.key === key);
 function ctGo(key) {
-  ctOpen = key; ctHeard = null; ctLvl = false; ctRender();
+  ctOpen = key; ctHeard = null; ctRender();
   requestAnimationFrame(() => document.getElementById(`ct-r-${ctSlug(key)}`)?.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }));
 }
 function ctHear(text) {
@@ -490,7 +491,7 @@ $("#sheet").addEventListener("click", (e) => {
   if (!$("#ct")) return;
   const t = (s) => e.target.closest(s);
   const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
-  if (t("[data-ct-lvl]")) { ctLvl = true; return ctRender(); }
+  const lb = t("[data-ct-lvl]"); if (lb) { ctLvl = lb.dataset.ctLvl === "1"; store.set("ctLvl", ctLvl); return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
   const jp = t("[data-ct-jump]"); if (jp) {
     // A place already counted is hidden under Not counted yet: going to it shows everything.
