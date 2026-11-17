@@ -693,6 +693,37 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 #it-scan video { width: 100%; max-width: 520px; border-radius: 12px; }
 .lbst { margin-top: 14px; }
 .it-keep { margin: 8px 0 0; padding: 8px 10px; border-left: 3px solid var(--brass); background: var(--bg); border-radius: 6px; }
+/* Stock count: big targets for wet hands. */
+.ct-say input { font-size: 17px; }
+.ct-jump small { opacity: .7; margin-left: 4px; }
+.ct-row { border-bottom: 1px solid var(--line); }
+.ct-row.on { background: var(--surface); border-radius: 12px; border: 1px solid var(--brass); margin: 6px 0; }
+.ct-line { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; width: 100%; min-height: 54px; padding: 8px 10px; text-align: left; font: inherit; color: inherit; background: none; border: 0; }
+.ct-line b { font-variant-numeric: tabular-nums; }
+.ct-row:not(.done) .ct-line b { color: var(--muted); font-weight: 600; }
+.ct-line small { grid-column: 1 / -1; color: var(--muted); font-size: 12px; }
+.ct-edit { padding: 4px 10px 12px; }
+.ct-step { display: grid; grid-template-columns: 1fr 64px 64px 64px; gap: 8px; align-items: center; margin: 8px 0; }
+.ct-step b { text-align: center; font-size: 28px; font-variant-numeric: tabular-nums; }
+.ct-big { height: 64px; border-radius: 14px; font-size: 32px; font-weight: 700; background: var(--bg); border: 1px solid var(--line); color: inherit; }
+.ct-big:active { background: var(--brass); color: var(--brass-ink); }
+.ct-open { display: grid; grid-template-columns: 1fr 130px; gap: 10px; align-items: center; }
+.ct-open > div { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
+.ct-open > div b { font-size: 22px; }
+.ct-btl { width: 130px; height: 300px; color: var(--muted); touch-action: manipulation; }
+.ct-btl rect { fill: transparent; stroke: var(--line); stroke-width: 1; cursor: pointer; }
+.ct-btl rect.fill { fill: var(--brass); opacity: .85; }
+.ct-btl .lvt { font-size: 11px; fill: var(--muted); pointer-events: none; }
+.ct-heard { margin: 8px 0; padding: 10px; border-left: 3px solid var(--brass); background: var(--surface); border-radius: 8px; }
+.ct-heard p { margin: 0 0 6px; }
+.ct-tot > div { display: flex; justify-content: space-between; gap: 10px; padding: 6px 0; border-bottom: 1px solid var(--line); }
+.ct-tot > div span small { display: block; color: var(--muted); font-size: 12px; }
+.ct-tot > div.flag span { color: var(--danger, #c0392b); }
+.ct-tot b { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ct-set { border-bottom: 1px solid var(--line); }
+.ct-set summary { display: flex; justify-content: space-between; gap: 8px; padding: 10px 2px; cursor: pointer; }
+.ct-set summary small { color: var(--muted); text-align: right; }
+.ct-sbody, .ct-w { padding: 0 2px 10px; }
 .lbpick { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .lbpick .check { flex: 1; min-height: 44px; margin-top: 0; }
 .lbpick input[data-lbs-life] { width: 76px; flex: none; font: inherit; font-size: 17px; text-align: center; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; }
@@ -1684,7 +1715,8 @@ function hideSheet() {
   document.querySelector(".swhint")?.remove(); snd = null;
   const sh = $("#sheet");
   const done = () => { sh.hidden = true; sh.classList.remove("closing"); };
-  if (calm()) done(); else { sh.classList.add("closing"); setTimeout(done, 170); }
+  // Opened again while closing (showSheet takes the class off): it stays open.
+  if (calm()) done(); else { sh.classList.add("closing"); setTimeout(() => sh.classList.contains("closing") && done(), 170); }
   document.body.style.overflow = ""; lock?.release?.().catch(() => {}); lock = null; renderQuick(!$("#q").value.trim()); lastFocus?.focus?.();
   LIVE.api?.watchMedia(null);
 }
@@ -2139,7 +2171,8 @@ const STOCK = {
   "Water": ["Still water, large", "Still water, small", "Sparkling water, large", "Sparkling water, small"],
   "Wine": ["Prosecco bottle"],
   "Bar supplies": ["CO2 gas", "Blue roll", "Bar napkins", "Straws", "Cocktail picks", "Coasters", "Bin bags", "Cling film", "Labels and day dots", "Glass cloths", "Till roll", "Hand soap", "Sanitiser", "Glass washer detergent", "Rinse aid", "Ice"],
-  "Fruit and garnish": ["Limes", "Lemons", "Oranges", "Grapefruit", "Mint", "Basil", "Cherries", "Strawberries", "Passion fruit", "Pineapple", "Cucumber", "Olives", "Jalapeños"],
+  "Fruit and garnish": ["Limes", "Lemons", "Oranges", "Apples", "Grapefruit", "Mint", "Basil", "Cherries", "Strawberries", "Passion fruit", "Pineapple", "Cucumber", "Chillies", "Olives", "Jalapeños", "Cocktail pickles"],
+  "Dairy and purées": ["Whole milk", "Oat milk", "Double cream", "Egg whites", "Aquafaba", "Funkin purées"],
   "Juices": ["Lime juice", "Lemon juice", "Orange juice", "Pineapple juice", "Cranberry juice", "Apple juice", "Grapefruit juice", "Tomato juice"],
   "Syrups, bitters and prep": ["Sugar syrup", "Coco Real", "Orgeat", "Vanilla syrup", "Marshmallow syrup", "Grenadine", "Elderflower cordial", "Honey syrup", "Salted caramel sauce", "Espresso beans", "Foamer", "Angostura bitters", "Peychaud's bitters", "Cocoa bitters", "Strawberry powder", "Pickle brine"],
   "Vodka": ["Smirnoff", "Smirnoff Vanilla", "Smirnoff Miami Peach", "Grey Goose", "Belvedere Blackberry & Lemongrass", "Cîroc Red Berry", "Cîroc Apple", "Cîroc Pineapple", "Cîroc Mango", "Chase Marmalade", "Chase Rhubarb"],
@@ -2148,8 +2181,9 @@ const STOCK = {
   "Tequila and mezcal": ["El Jimador Blanco", "El Jimador Reposado", "Don Julio Blanco", "Don Julio Añejo", "Don Julio 1942", "Clase Azul Reposado", "Amarás Mezcal"],
   "Whiskey": ["Jack Daniel's", "Jameson", "Buffalo Trace", "Bulleit", "Bulleit Rye", "Elijah Craig", "Michter's", "Johnnie Walker Black", "Johnnie Walker Blue", "Talisker 10", "Port Charlotte 10", "Glenmorangie Signet", "Hakushu 12", "Hibiki Harmony", "Sheep Dog Peanut Butter"],
   "Brandy": ["Martell VS", "Courvoisier VSOP", "Hennessy XO", "Rémy Martin XO", "Avallen Calvados"],
-  "Desserts and shakes": ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Whipped cream", "Raspberries", "Maraschino cherries", "Shake cups", "Cup holders"],
-  "Floor supplies": ["Napkins", "Side plates", "Toilet roll", "Bleach", "Mop heads"],
+  "Desserts and shakes": ["Guinness cake", "Sprinkle cake", "Black velvet cake", "Victoria sponge", "Brownies", "Cheesecake", "Ice cream", "Vegan ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Whipped cream", "Vegan whipped cream", "Raspberries", "Maraschino cherries",
+    "Strawberry sauce", "Raspberry sauce", "Chocolate sauce", "Vanilla frosting", "Chocolate frosting", "Philadelphia cheese", "Graham crackers", "Oreo crumb", "Cookies", "Jammie Dodgers, big", "Jammie Dodgers, regular", "Lotus biscuits", "Ice cream cones", "Sprinkles", "White chocolate pieces", "Chocolate pieces", "Cotton candy", "Cotton candy beads", "Shake cups", "Cup holders"],
+  "Floor supplies": ["Mayonnaise", "Ketchup", "Mustard", "Napkins", "Side plates", "Toilet roll", "Bleach", "Mop heads"],
   "Liqueurs and vermouth": ["Aperol", "Campari", "Sarti Rosa", "Martini Rosso", "Martini Extra Dry", "Pimm's", "Cointreau", "Grand Marnier", "Kahlúa", "Baileys", "Disaronno", "Frangelico", "Chambord", "Heering Cherry", "Luxardo Limoncello", "Midori", "Passoa", "Archers", "Apple liqueur", "Ancho Reyes", "Yellow Chartreuse", "Jägermeister", "Absinthe", "Crème de violette", "Maraschino"],
 };
 // The things each side runs out of most, one tap to 86. Anything else is in the full list or can be typed in.
@@ -3184,7 +3218,7 @@ function renderTally() {
       <div class="mini">Quick 86</div><div class="recent" translate="no">${QUICK86[mode].filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
       <label class="fld">Something else ran out?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       <div class="ltools"><input id="s-86-own" maxlength="80" placeholder="Not on the list? Type it, like a burger" aria-label="86 something not on the list"><button class="btn" id="s-86-go">86 it</button></div>
-      ${restockHtml()}${itemsHtml(mode)}${nextBtn(closeList(), "Next: closing checklist")}`,
+      ${restockHtml()}${itemsHtml(mode)}${ctCardHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
     close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
@@ -4884,6 +4918,10 @@ const FEATURES = [
   { g: "Shift", k: "stock", n: "Restock and 86", go: "stock", team: 1, tour: 1,
     what: "Asking for stock from the cellar and following it until it arrives, and what's 86'd tonight, on every phone.",
     staff: "Ask for something, take a request on, bring it up, confirm it arrived, and 86 a drink or bring it back." },
+  { g: "Shift", k: "count", n: "Stock count", go: "count", team: 1, tour: 1,
+    what: "The count book on your phone: everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, and usage between counts.",
+    staff: "Tap a line and set it: full bottles with + and −, the open one by tapping how full it is, or weigh it on the scale. Or say it: “Smirnoff two and a half”. Next goes to the one after. Send the totals on WhatsApp or as a spreadsheet.",
+    mgr: "Set up the count: the places in walking order, what's counted where and in what, and each bottle's empty and full weight for weighing." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos, handed over to the next shift and sent on WhatsApp.",
     staff: "Hand over and send it on WhatsApp.", mgr: "Read every closing report with its photos on the Team page." },
@@ -4943,8 +4981,11 @@ function openFeatures() {
 }
 // Where a feature lives: a bottom tab, a part of the Shift tab, or a card on the Team page.
 function openAt(where) {
+  // Going somewhere from a page over the app (the stock count, the tour going on to its next step) closes that page.
+  if (!$("#sheet").hidden) hideSheet();
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where === "shift") return show("tally");
+  if (where === "count") { pane = "stock"; show("tally"); if (LIVE.me) ctPage(); return; }
   if (["morning", "stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
   show("notices");
   document.activeElement?.blur?.();
@@ -4956,7 +4997,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge",
+const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift" };
@@ -5986,7 +6027,8 @@ function liveChanged(what) {
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports", "count"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["count", "countSetup", "received", "items", "out"].includes(what) && typeof ctRender === "function") ctRender();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // Overdue times move on with no change to the data, and date labels fall due when the day rolls over at 6am, so the

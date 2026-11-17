@@ -1477,3 +1477,40 @@ describe("house photos and how-to videos on the drinks", () => {
     await fails(setDoc(ref("mgr1"), media("mgr1", { extra: true })), "extra fields");
   });
 });
+
+describe("stock count: lines, deliveries and the setup", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const line = (uid, o = {}) => ({ day: today(), area: "Back bar", item: "Kraken", unit: "bottle", full: 3, open: 40, ...by(uid), ...o });
+  const id = (d = today()) => `${d}--back-bar--kraken`;
+  test("anyone on the team counts a line under their own name, filed under its own day", async () => {
+    await assertSucceeds(setDoc(doc(db("staff1"), "counts", id()), line("staff1")));
+    await assertSucceeds(setDoc(doc(db("staff2"), "counts", id()), line("staff2", { full: 4, open: 0 })));
+    await assertSucceeds(getDocs(query(collection(db("staff1"), "counts"), where("day", "==", today()))));
+    await fails(setDoc(doc(db("staff1"), "counts", id("2020-01-01")), line("staff1")), "filed under another day");
+    await fails(setDoc(doc(db("staff1"), "counts", id()), line("staff1", { open: 100 })), "open is under one");
+    await fails(setDoc(doc(db("staff1"), "counts", id()), line("staff1", { full: 1.5 })), "whole ones are whole");
+    await fails(setDoc(doc(db("staff1"), "counts", id()), line("staff1", { full: -1 })), "negative");
+    await fails(setDoc(doc(db("staff1"), "counts", id()), { ...line("staff1"), name: "Tia Staff" }), "someone else's name");
+    await fails(setDoc(doc(db("staff1"), "counts", id()), line("staff1", { price: 20 })), "anything else");
+    await fails(setDoc(doc(db(null), "counts", id()), line("staff1")), "not on the team");
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "counts", id())));
+  });
+  test("deliveries: whoever logged one or a manager takes it off", async () => {
+    const r = (uid, o = {}) => ({ day: today(), item: "Kraken", unit: "bottle", qty: 600, ...by(uid), ...o });
+    const ref = doc(collection(db("staff1"), "received"));
+    await assertSucceeds(setDoc(ref, r("staff1")));
+    await fails(addDoc(collection(db("staff1"), "received"), r("staff1", { qty: 0 })), "nothing came in");
+    await fails(addDoc(collection(db("staff1"), "received"), r("staff1", { qty: 1.5 })), "hundredths are whole");
+    await fails(deleteDoc(doc(db("staff2"), "received", ref.id)), "someone else's");
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "received", ref.id)));
+  });
+  test("only managers set the count up", async () => {
+    const s = (uid, o = {}) => ({ areas: ["Speed rail", "Back bar"], items: { Kraken: { a: ["Back bar"], u: "bottle", e: 600, f: 1265, ml: 700, pw: 0, off: false } }, order: { "Back bar": ["Kraken"] }, ...by(uid), ...o });
+    await fails(setDoc(doc(db("staff1"), "countSetup", "main"), s("staff1")), "staff");
+    await assertSucceeds(setDoc(doc(db("mgr1"), "countSetup", "main"), s("mgr1")));
+    await assertSucceeds(setDoc(doc(db("owner1"), "countSetup", "main"), s("owner1")));
+    await fails(setDoc(doc(db("mgr1"), "countSetup", "other"), s("mgr1")), "only main");
+    await fails(setDoc(doc(db("mgr1"), "countSetup", "main"), s("mgr1", { areas: "Bar" })), "places are a list");
+    await assertSucceeds(getDoc(doc(db("staff1"), "countSetup", "main")));
+  });
+});

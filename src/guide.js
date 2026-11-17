@@ -5,7 +5,7 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 1;
+const WALK_V = 2;
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -43,6 +43,11 @@ const WALK = {
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
       "Take the closing photos (they're required) and change any date label marked URGENT.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
+    { t: "Stock count", how: [
+      "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
+      "Tap a line, + and − for full ones, tap how full the open bottle is, then Next. Or say it: “Smirnoff two and a half”.",
+      "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
+    ], tip: "No signal in the cellar? It saves anyway and sends when you're back." },
     WALK_SEND,
   ],
   floor: [
@@ -64,6 +69,11 @@ const WALK = {
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
       "Take the closing photos (they're required) and change any date label marked URGENT.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
+    { t: "Stock count", how: [
+      "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
+      "Tap a line, + and − for full ones, tap how full the open bottle is, then Next. Or say it: “Smirnoff two and a half”.",
+      "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
+    ], tip: "No signal in the cellar? It saves anyway and sends when you're back." },
     WALK_SEND,
   ],
 };
