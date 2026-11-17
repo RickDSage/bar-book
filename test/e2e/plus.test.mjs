@@ -61,7 +61,7 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
   const zero = await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent));
   assert.ok(zero.length > 5 && zero.includes("Virgin Mojito"));
   await p.fill("#q", "");
-  await p.click("[data-pl=filters] >> nth=0");
+  await p.click("#dbar [data-dp=filters]");
   await p.click('[data-pl-base="gin"]');
   await p.click('[data-pl-how="Stirred"]');
   const gin = await p.evaluate(() => listIds.map((id) => D[id]._b === "gin" && plHowOf(D[id]) === "Stirred"));
@@ -73,54 +73,66 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
   await p.click('[data-pl-flav="Sweet"]');
   assert.ok(await p.evaluate(() => listIds.every((id) => flavHit(D[id]))));
   assert.match(await text(p, '.pl-row .btn.pri'), /^Show \d+ drinks?$/);
-  await p.click('.pl-row .btn.pri');
+  await p.click('[data-pl=done]');
   // Each filter that's on shows as a chip, and a tap takes just that one off.
-  assert.deepEqual(await p.$$eval("#plf .pl-off", (x) => x.map((e) => e.textContent)), ["Gin", "Sweet", "Stirred"]);
+  assert.deepEqual(await p.$$eval("#plf .pl-off", (x) => x.map((e) => e.textContent)), ["Gin", "Sweet", "Stirred", "Sort: Strongest"]);
   await p.click('#plf [data-pl-off="flav"]');
-  assert.deepEqual(await p.$$eval("#plf .pl-off", (x) => x.map((e) => e.textContent)), ["Gin", "Stirred"]);
+  assert.deepEqual(await p.$$eval("#plf .pl-off", (x) => x.map((e) => e.textContent)), ["Gin", "Stirred", "Sort: Strongest"]);
   await p.click('#plf [data-pl="clear"]');
   assert.equal(await p.evaluate(() => listIds.length), await p.evaluate(() => D.length));
   // The menu shows every drink, each section once with all its drinks, and the bar jumps to any section.
   assert.equal(await p.$$eval("#list .row", (x) => x.length), await p.evaluate(() => D.length));
   const heads = await p.$$eval("#list .sec", (x) => x.map((e) => e.firstChild.textContent));
   assert.deepEqual(heads, [...new Set(heads)]);
-  assert.deepEqual(await p.$$eval("#list .secbar button", (x) => x.map((e) => e.textContent)), heads);
-  await p.click('#list .secbar button:has-text("Zero Proof")');
+  // One row under the search: Jump to lists every section with its count, and names the one you're in.
+  assert.equal(await text(p, "#dbar .dj"), "Signatures");
+  await p.click("#dbar .dj");
+  assert.deepEqual(await p.$$eval("#dpanel [data-jump]", (x) => x.map((e) => e.firstChild.textContent.trim())), await p.evaluate((h) => h.map(secName), heads));
+  await p.click('#dpanel [data-jump]:has-text("No alcohol")');
+  assert.equal(await p.locator("#dpanel").isHidden(), true);
   await p.waitForFunction(() => { const z = [...document.querySelectorAll("#list .sec")].find((e) => e.firstChild.textContent === "Zero Proof"); return Math.abs(z.getBoundingClientRect().top - $("#hdr").getBoundingClientRect().bottom) < 80; });
   // The search bar stays on screen however far down the menu you are.
   assert.ok(await p.evaluate(() => scrollY > 2000 && $("#hdr").getBoundingClientRect().top >= 0));
   // A to Z: letters to jump to, and a heading over each letter.
-  await p.click("[data-pl=filters] >> nth=0");
+  await p.click("#dbar [data-dp=filters]");
   await p.click('[data-pl-sort="az"]');
-  await p.click('.pl-row .btn.pri');
-  const letters = await p.$$eval("#list .azbar button", (x) => x.map((e) => e.textContent));
+  await p.click('[data-pl=done]');
+  await p.click("#dbar .dj");
+  const letters = await p.$$eval("#dpanel [data-jump]", (x) => x.map((e) => e.textContent));
   assert.ok(letters.includes("A") && letters.includes("M"));
-  await p.click('#list .azbar [data-jump="az-M"]');
+  await p.click('#dpanel [data-jump="az-M"]');
   await p.waitForFunction(() => Math.abs(document.querySelector("#az-M").getBoundingClientRect().top) < 400);
-  assert.match(await text(p, "#secs"), /All \d+/);
-  await p.click("[data-pl=filters] >> nth=0"); await p.click('[data-pl-sort="menu"]');
-  await p.click('.pl-row .btn.pri');
-  // Kinds of drink, one tap above the menu.
-  await p.click('#plf [data-pl-fam="margarita"]');
+  await p.waitForFunction(() => $("#dbar .dj").textContent === "M");
+  // Sort shows as a chip above the list while it isn't the menu order.
+  assert.match(await text(p, "#plf"), /Sort: A to Z/);
+  await p.click("#dbar [data-dp=filters]"); await p.click('[data-pl-sort="menu"]');
+  await p.click('[data-pl=done]');
+  // Kinds of drink are in Filters, and each one on shows above the list.
+  await p.click("#dbar [data-dp=filters]");
+  await p.click('#dpanel [data-pl-fam="margarita"]');
   const ritas = await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent));
   assert.ok(ritas.includes("Margarita") && ritas.includes("Paloma") && !ritas.includes("Mojito"));
-  await p.click('#plf [data-pl-fam="spritz"]');
+  await p.click('#dpanel [data-pl-fam="spritz"]');
   assert.ok((await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent))).includes("Aperol Spritz"));
-  await p.click('#plf [data-pl-fam="spritz"]');
+  await p.click('[data-pl=done]');
+  assert.equal(await text(p, "#plf .pl-off"), "Spritzes");
+  await p.click('#plf [data-pl-off="fam"]');
   assert.equal(await p.evaluate(() => listIds.length), await p.evaluate(() => D.length));
   // Your own list: saved on the phone, opened in one tap, and deleted.
-  await p.click('#plf [data-pl-fam="martini"]');
+  await p.click("#dbar [data-dp=filters]"); await p.click('#dpanel [data-pl-fam="martini"]'); await p.click('[data-pl=done]');
   await p.click("[data-pl-share]");
   await p.fill("#pl-ln", "Tonight's specials");
   await p.click('[data-pl-l="save"]');
   await p.click("#sh-close");
-  await p.click('#plf [data-pl-fam="martini"]');
-  await p.click('#quick [data-mylist="0"]');
+  await p.click('#plf [data-pl-off="fam"]');
+  await p.click("#dbar [data-dp=filters]");
+  await p.click('#dpanel [data-mylist="0"]');
   assert.match(await text(p, "#plf .pl-list"), /Tonight's specials · \d+ drinks/);
   assert.ok((await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent))).includes("Espresso Martini"));
   p.once("dialog", (d) => d.accept());
   await p.click('#plf [data-pl="droplist"]');
-  assert.equal(await p.locator('#quick [data-mylist]').count(), 0);
+  await p.click("#dbar [data-dp=filters]");
+  assert.equal(await p.locator('#dpanel [data-mylist]').count(), 0);
   assert.deepEqual(p.errs, []);
 });
 

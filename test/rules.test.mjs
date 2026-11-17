@@ -31,7 +31,7 @@ const TEAM = {
 };
 // Every phone joins with the team code (config/team), signed in anonymously; a senior unlocks one with their 4 digit
 // code; the owner has a login.
-const TEAM_CODE = "correct-horse-battery";
+const TEAM_CODE = "582913";
 const emailOf = (u) => `${u}-1a2b3c4d@users.example.com`;
 const db = (uid) => (uid ? env.authenticatedContext(uid) : env.unauthenticatedContext()).firestore();
 const seed = (fn) => env.withSecurityRulesDisabled((ctx) => fn(ctx.firestore()));
@@ -184,38 +184,99 @@ describe("visitors who aren't logged in", () => {
 
 describe("joining the team with the team code", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
-  const join = (uid, extra = {}) => setDoc(doc(db(uid), "staff", uid), { name: "Kadir", role: "staff", code: TEAM_CODE, at: now(), ...extra });
-  test("a signed-in phone with the right code joins as staff, and nothing else", async () => {
+  const gateTries = async () => (await current("gate/team"))?.tries ?? 0;
+  // A guess at the team code: this phone's guess and a +1 on the team's count, in one write.
+  const guess = async (uid, g, given) => {
+    const n = given ?? (await gateTries()) + 1, d = db(uid), b = writeBatch(d);
+    b.set(doc(d, "joins", uid), { guess: g, n, at: now() });
+    b.set(doc(d, "gate", "team"), { tries: n, lastTry: now() });
+    return b.commit();
+  };
+  // The join it allows, which sets the count back to 0.
+  const joinOnly = (uid, extra = {}, reset = true) => {
+    const d = db(uid), b = writeBatch(d);
+    b.set(doc(d, "staff", uid), { name: "Kadir", role: "staff", code: TEAM_CODE, at: now(), ...extra });
+    if (reset) b.set(doc(d, "gate", "team"), { tries: 0, lastTry: now() });
+    return b.commit();
+  };
+  const join = async (uid, extra = {}) => { await guess(uid, extra.code ?? TEAM_CODE); return joinOnly(uid, extra); };
+  test("a signed-in phone with the right code joins as staff after a counted guess, and the count goes back to 0", async () => {
+    await assertSucceeds(guess("phone1", "111111"));
     await assertSucceeds(join("phone1"));
+    assert.equal(await gateTries(), 0);
     await assertSucceeds(getDocs(collection(db("phone1"), "issues")));
-    await assertSucceeds(join("phone1", { name: "Kadir B" }));
+    // A new name keeps the same code, with no guess.
+    await assertSucceeds(setDoc(doc(db("phone1"), "staff", "phone1"), { name: "Kadir B", role: "staff", code: TEAM_CODE, at: now() }));
   });
-  test("a wrong or missing code, another role, another phone's record or extra fields are refused", async () => {
-    for (const [why, extra] of [["wrong code", { code: "wrong-code-123" }], ["short code", { code: "short" }], ["manager", { role: "manager" }], ["owner", { role: "owner" }],
+  test("a join with no counted guess, a wrong guess, or an old guess someone has guessed since is refused", async () => {
+    await fails(joinOnly("phone1"), "no guess");
+    await assertSucceeds(guess("phone1", "111111"));
+    await fails(joinOnly("phone1"), "wrong guess");
+    await assertSucceeds(guess("phone1", TEAM_CODE));
+    await assertSucceeds(guess("phone2", "222222"));
+    await fails(joinOnly("phone1"), "not the latest guess");
+    await fails(guess("phone3", "333333", 2), "a guess that skips the count");
+    await fails(guess("phone3", "12", 4), "a guess that isn't 4 to 8 numbers");
+    await assertFails(getDoc(doc(db("phone1"), "joins", "phone1")));
+    await assertFails(setDoc(doc(db("phone1"), "joins", "phone1"), { guess: TEAM_CODE, n: 9, at: now() }));
+  });
+  test("a wrong code, another role, another phone's record or extra fields are refused", async () => {
+    for (const [why, extra] of [["wrong code", { code: "999999" }], ["manager", { role: "manager" }], ["owner", { role: "owner" }],
       ["no name", { name: " " }], ["long name", { name: "x".repeat(31) }], ["phone's clock", { at: daysAgo(1) }], ["extra field", { username: "kadir" }]]) {
-      await fails(join("phone1", extra), why);
+      await assertSucceeds(guess("phone1", extra.code ?? TEAM_CODE));
+      await fails(joinOnly("phone1", extra), why);
     }
+    await assertSucceeds(guess("phone1", TEAM_CODE));
     await assertFails(setDoc(doc(db("phone1"), "staff", "phone2"), { name: "Kadir", role: "staff", code: TEAM_CODE, at: now() }));
     await assertFails(getDoc(doc(db("phone1"), "config", "team")));
+  });
+  test("10 wrong codes free for the whole team, then one every 5 minutes, then none from 30 until the owner unlocks joining", async () => {
+    for (let n = 1; n <= 10; n++) await assertSucceeds(guess(`phone${n}`, "000000", n));
+    await fails(guess("phone11", TEAM_CODE, 11), "11th guess straight away");
+    await seed((s) => updateDoc(doc(s, "gate", "team"), { lastTry: Timestamp.fromMillis(Date.now() - 6 * 6e4) }));
+    await assertSucceeds(guess("phone11", "000000", 11));
+    await fails(guess("phone12", TEAM_CODE, 12), "within 5 minutes");
+    await seed((s) => setDoc(doc(s, "gate", "team"), { tries: 30, lastTry: Timestamp.fromMillis(Date.now() - 864e5) }));
+    await fails(guess("phone12", TEAM_CODE, 31), "locked at 30");
+    // Nobody but the owner resets it; a member rewriting their own record doesn't.
+    await fails(setDoc(doc(db("staff1"), "gate", "team"), { tries: 0, lastTry: now() }), "staff reset");
+    await fails(setDoc(doc(db("mgr1"), "gate", "team"), { tries: 0, lastTry: now() }), "senior reset");
+    const d = db("staff1"), b = writeBatch(d);
+    b.set(doc(d, "staff", "staff1"), { name: "Sam S", role: "staff", code: TEAM_CODE, at: now() }); b.set(doc(d, "gate", "team"), { tries: 0, lastTry: now() });
+    await fails(b.commit(), "a member's rename resetting the count");
+    await assertSucceeds(setDoc(doc(db("owner1"), "gate", "team"), { tries: 0, lastTry: now() }));
+    await assertSucceeds(join("phone12"));
+    await assertSucceeds(getDoc(doc(db("phone99"), "gate", "team")));
+    await assertFails(getDoc(doc(db(), "gate", "team")));
   });
   test("can't make themselves the owner or a manager by changing their record", async () => {
     await join("phone1");
     await assertFails(updateDoc(doc(db("phone1"), "staff", "phone1"), { role: "manager" }));
     await assertFails(setDoc(doc(db("phone1"), "staff", "phone1"), { name: "Kadir", username: "kadir", role: "manager" }));
     await assertFails(setDoc(doc(db("phone1"), "staff", "phone1"), { name: "Kadir", role: "manager", code: TEAM_CODE, at: now(), pin: "mia-manager" }));
+    await assertFails(setDoc(doc(db("phone1"), "staff", "phone1"), { name: "Kadir", role: "owner", code: TEAM_CODE, at: now(), pin: "owner" }));
     await assertFails(updateDoc(doc(db("mgr1"), "staff", "mgr1"), { role: "owner" }));
   });
-  test("a new code takes every phone off, seniors' too; the owner keeps going", async () => {
-    await seed((s) => setDoc(doc(s, "config", "team"), { code: "a-brand-new-code" }));
+  test("only the owner sets the team code, 4 to 8 numbers, and nobody reads it", async () => {
+    for (const uid of ["staff1", "mgr1"]) await assertFails(setDoc(doc(db(uid), "config", "team"), { code: "640275" }));
+    for (const code of ["12", "123456789", "abcd"]) await assertFails(setDoc(doc(db("owner1"), "config", "team"), { code }));
+    await assertFails(setDoc(doc(db("owner1"), "config", "other"), { code: "640275" }));
+    await assertSucceeds(setDoc(doc(db("owner1"), "config", "team"), { code: "640275" }));
+    await assertFails(getDoc(doc(db("owner1"), "config", "team")));
+  });
+  test("a new code takes every phone off, seniors' too; the password owner keeps going; phones come back with a counted guess", async () => {
+    await seed((s) => setDoc(doc(s, "config", "team"), { code: "640275" }));
     await assertFails(getDocs(collection(db("staff1"), "issues")));
     await assertFails(addDoc(collection(db("staff1"), "issues"), issue("staff1")));
     await assertFails(getDocs(collection(db("mgr1"), "issues")));
     await assertSucceeds(getDocs(collection(db("owner1"), "issues")));
-    // The new link brings them back.
-    await assertSucceeds(setDoc(doc(db("staff1"), "staff", "staff1"), { name: "Sam Staff", role: "staff", code: "a-brand-new-code", at: now() }));
+    const back = { name: "Sam Staff", role: "staff", code: "640275", at: now() };
+    await fails(setDoc(doc(db("staff1"), "staff", "staff1"), back), "back with no guess");
+    await assertSucceeds(guess("staff1", "640275"));
+    await assertSucceeds(setDoc(doc(db("staff1"), "staff", "staff1"), back));
     await assertSucceeds(getDocs(collection(db("staff1"), "issues")));
   });
-  test("leaving: a phone takes itself off; the manager takes staff off; only the owner takes the manager off; nobody removes the owner", async () => {
+  test("leaving: a phone takes itself off; the manager takes staff off; only the owner takes the manager off; nobody removes the password owner", async () => {
     await assertSucceeds(deleteDoc(doc(db("staff1"), "staff", "staff1")));
     await assertFails(deleteDoc(doc(db("staff2"), "staff", "mgr1")));
     await assertSucceeds(deleteDoc(doc(db("mgr1"), "staff", "staff2")));
@@ -319,6 +380,48 @@ describe("seniors: the owner sets a 4 digit code, the server counts every guess"
     await seed((s) => setDoc(doc(s, "staff", "old1"), { name: "Old Senior", username: "old", role: "manager" }));
     await assertFails(getDocs(collection(db("old1"), "issues")));
     await assertSucceeds(deleteDoc(doc(db("owner1"), "staff", "old1")));
+  });
+  test("the owner sets their own code under 'owner'; picking it and typing it makes a phone the owner's, counted and locked the same", async () => {
+    await assertFails(add("mgr1", "owner", "Derek", "7777"));
+    await assertSucceeds(add("owner1", "owner", "Derek", "7777"));
+    await assertSucceeds(guess("staff1", "owner", "1234", 1));
+    await assertFails(unlock("staff1", "owner", "Derek"));
+    await assertSucceeds(guess("staff1", "owner", "7777", 2));
+    // Not as a manager, and not under another name.
+    await assertFails(unlock("staff1", "owner", "Derek"));
+    const asOwner = (uid, name = "Derek") => {
+      const d = db(uid), b = writeBatch(d);
+      b.update(doc(d, "staff", uid), { name, role: "owner", pin: "owner", at: now() });
+      b.update(doc(d, "seniors", "owner"), { tries: 0, lastTry: now() });
+      return b.commit();
+    };
+    await assertFails(asOwner("staff1", "Someone"));
+    await assertSucceeds(asOwner("staff1"));
+    assert.equal(await readTries("owner"), 0);
+    // Owner powers: reads codes, reads Tell Derek, sets codes and the team code.
+    await assertSucceeds(getDoc(doc(db("staff1"), "pins", "mia-manager")));
+    await assertSucceeds(getDocs(query(collection(db("staff1"), "tells"), orderBy("at", "desc"), limit(200))));
+    await assertSucceeds(add("staff1", "hassan", "Hassan", "6666"));
+    // A senior's code can't make a phone the owner's.
+    await assertSucceeds(guess("staff2", "mia-manager", "4821", 1));
+    await assertFails(updateDoc(doc(db("staff2"), "staff", "staff2"), { name: "Mia Manager", role: "owner", pin: "mia-manager", at: now() }));
+    // The password owner can take an owner-coded phone off; it can lock itself back to staff.
+    await assertSucceeds(updateDoc(doc(db("staff1"), "staff", "staff1"), { name: "Sam Staff", role: "staff", pin: deleteField(), at: now() }));
+    await assertFails(getDoc(doc(db("staff1"), "pins", "mia-manager")));
+    await assertSucceeds(guess("staff1", "owner", "7777", 1));
+    await assertSucceeds(asOwner("staff1"));
+    await assertSucceeds(deleteDoc(doc(db("owner1"), "staff", "staff1")));
+  });
+  test("an owner-coded phone needs the current team code and the owner's code to still be set", async () => {
+    await seed(async (s) => {
+      await setDoc(doc(s, "staff", "ownph"), { name: "Derek", role: "owner", code: TEAM_CODE, pin: "owner", at: Timestamp.now() });
+    });
+    await assertFails(getDoc(doc(db("ownph"), "pins", "mia-manager")));
+    await seed(async (s) => { await setDoc(doc(s, "seniors", "owner"), { name: "Derek", tries: 0, lastTry: Timestamp.now() }); await setDoc(doc(s, "pins", "owner"), await pinOf("7777")); });
+    await assertSucceeds(getDoc(doc(db("ownph"), "pins", "mia-manager")));
+    await seed((s) => setDoc(doc(s, "config", "team"), { code: "640275" }));
+    await assertFails(getDocs(collection(db("ownph"), "issues")));
+    await assertSucceeds(getDocs(collection(db("owner1"), "issues")));
   });
   test("nobody can make a login or an owner record from the app", async () => {
     await assertFails(setDoc(doc(db("owner1"), "usernames", "illias"), { email: emailOf("illias"), uid: "mgr1" }));
@@ -433,6 +536,7 @@ describe("every query the app makes works for the people that make it", () => {
     query(collection(d, "outlog"), orderBy("at", "desc"), limit(100)),
     query(collection(d, "reports"), orderBy("at", "desc"), limit(30)),
     collection(d, "labels"),
+    collection(d, "items"),
     collection(d, "shift", today(), "tasks"),
     collection(d, "shift", today(), "runs"),
     query(collection(d, "events"), where("day", "==", today()), limit(2000)),
@@ -803,6 +907,48 @@ describe("date labels: managers keep the list, anyone opens, changes or bins one
   });
 });
 
+describe("items the team adds: anyone suggests one, the owner approves it", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const item = (uid, extra = {}) => ({ item: "Rubicon Mango", kind: "soft", group: "Soft drinks and mixers", side: "bar", store: "bottle", label: false, life: 0,
+    close: "keep", note: "", found: "Rubicon Drinks: UK soft drink manufacturer", status: "waiting", addedBy: TEAM[uid]?.name ?? "Stray", addedUid: uid, ...by(uid), ...extra });
+  const add = (uid, extra) => addDoc(collection(db(uid), "items"), item(uid, extra));
+  test("anyone on the team adds one, waiting; only the owner adds one live; everyone on the team reads them", async () => {
+    const a = await assertSucceeds(add("staff1"));
+    await assertSucceeds(add("mgr1", { item: "Fresh strawberries", kind: "fresh", group: "Fruit and garnish", store: "fridge", label: true, close: "cover" }));
+    await fails(add("staff1", { status: "live" }), "staff adding live");
+    await fails(add("mgr1", { status: "live" }), "a manager adding live");
+    await assertSucceeds(add("owner1", { status: "live" }));
+    await assertSucceeds(getDoc(doc(db("staff2"), "items", a.id)));
+    await fails(add("stranger"), "not on the team");
+    await fails(getDocs(collection(db("stranger"), "items")), "not on the team reading");
+  });
+  test("bad ones are refused", async () => {
+    for (const bad of [{ item: " " }, { item: "x".repeat(61) }, { kind: "cocktail" }, { side: "kitchen" }, { store: "car" }, { close: "maybe" }, { label: "yes" },
+      { life: -1 }, { life: 366 }, { life: 2.5 }, { note: "x".repeat(201) }, { addedBy: "Mia Manager" }, { addedUid: "mgr1" }, { name: "Mia Manager" }, { extra: 1 }]) {
+      await fails(add("staff1", bad), JSON.stringify(bad).slice(0, 40));
+    }
+  });
+  test("only the owner approves or changes one, and who added it never changes", async () => {
+    const a = await add("staff1"), ref = (uid) => doc(db(uid), "items", a.id);
+    await fails(updateDoc(ref("staff1"), { status: "live", ...by("staff1") }), "staff approving their own");
+    await fails(updateDoc(ref("mgr1"), { status: "live", ...by("mgr1") }), "a manager approving");
+    await fails(updateDoc(ref("owner1"), { status: "live", addedBy: "Olly Owner", ...by("owner1") }), "owner taking the credit");
+    await assertSucceeds(updateDoc(ref("owner1"), { status: "live", life: 3, store: "fridge", ...by("owner1") }));
+    const now = await current(`items/${a.id}`);
+    assert.equal(now.addedBy, "Sam Staff"); assert.equal(now.status, "live");
+  });
+  test("whoever added one takes it back while it's waiting; the owner removes any; nobody else", async () => {
+    const a = await add("staff1"), b = await add("staff2"), c = await add("staff1");
+    await fails(deleteDoc(doc(db("staff2"), "items", a.id)), "someone else's");
+    await fails(deleteDoc(doc(db("mgr1"), "items", a.id)), "a manager");
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "items", a.id)));
+    await seed((s) => updateDoc(doc(s, "items", c.id), { status: "live" }));
+    await fails(deleteDoc(doc(db("staff1"), "items", c.id)), "own one once it's live");
+    await assertSucceeds(deleteDoc(doc(db("owner1"), "items", b.id)));
+    await assertSucceeds(deleteDoc(doc(db("owner1"), "items", c.id)));
+  });
+});
+
 describe("restocking from the cellar", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const move = async (d, uid, id, to, o) => (await moveBatch(d, uid, id, to, o)).commit();
@@ -1044,6 +1190,21 @@ describe("no messaging inside the app", () => {
       await assertFails(getDocs(collection(db(uid), c)));
       await assertFails(addDoc(collection(db(uid), c), { text: "hi", ...by(uid) }));
     }
+  });
+});
+
+describe("the names to pick from: the managers keep them", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const names = (uid, extra = {}) => setDoc(doc(db(uid), "settings", "names"), { mgr: ["Mia"], bar: ["Sam"], floor: ["Tia"], ...by(uid), ...extra });
+  test("managers and the owner save them, everyone on the team reads them, nobody else", async () => {
+    await assertSucceeds(names("mgr1"));
+    await assertSucceeds(names("owner1"));
+    await assertFails(names("staff1"));
+    await assertFails(names("mgr1", { bar: Array(41).fill("x") }));
+    await assertFails(names("mgr1", { kitchen: ["Chef"] }));
+    await assertSucceeds(getDoc(doc(db("staff1"), "settings", "names")));
+    await assertFails(getDoc(doc(db("phone9"), "settings", "names")));
+    await assertFails(getDoc(doc(db(), "settings", "names")));
   });
 });
 

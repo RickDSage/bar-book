@@ -16,7 +16,7 @@
    - Away from it for 2 minutes on any other page, it goes back to the station. On a shared iPad, leaving the station,
      turning Shared off and resetting the iPad need a manager's code first.
    Everything is the same live data every phone sees; nothing extra is saved to the team. The screen stays on. */
-const SX = { big: store.get("sx.big", false), q: "", grp: "all", id: store.get("sx.id", null), view: "drink", x: 1, bx: 1, qz: null, lbDone: null, ids: [], round: new Map(store.get("sx.round", [])) };
+const SX = { big: store.get("sx.big", false), q: "", grp: "all", id: store.get("sx.id", null), view: "drink", x: 1, bx: 1, qz: null, lbDone: null, made: new Set(), timers: [], ids: [], round: new Map(store.get("sx.round", [])) };
 if (SX.id != null && !D[SX.id]) SX.id = null;
 const SX_GROUPS = [["all", "Everything"], ["sig", "Signatures"], ["top", "Top 10"], ["ask", "Guests ask for"], ["shots", "Shots"], ["zero", "No alcohol"], ["serves", "Serves"]];
 // The Menu's kinds of drink too (Martinis, Margaritas, Sours…), signatures first, then A to Z.
@@ -61,11 +61,13 @@ function sxList() {
 }
 function sxBars() {
   $$("#sx-grp [data-sx-grp]").forEach((b) => b.setAttribute("aria-pressed", !SX.q.trim() && b.dataset.sxGrp === SX.grp));
-  $$(".sx-tb [data-sx-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.sxView === SX.view));
+  $("#sx-gbtn").innerHTML = `<span>${SX.q.trim() ? "Searching every drink" : esc(sxTitle(SX.grp))}</span><span class="chev" aria-hidden="true">${$("#sx-grp").hidden ? "\u25be" : "\u25b4"}</span>`;
+  $("#sx-gbtn").setAttribute("aria-expanded", !$("#sx-grp").hidden);
   const rec = recent.slice(0, 6).map((id) => D[id]).filter(Boolean), n = sxRoundN();
+  $$("#sx-views [data-sx-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.sxView === SX.view));
+  $("#sx-rn").textContent = n || "";
   $("#sx-recent").innerHTML = rec.length ? `<span class="sx-lab">Recent</span>${rec.map((d) => `<button class="chip" data-sx-id="${d.id}" translate="no">${esc(d.name)}</button>`).join("")}` : "";
-  $("#sx-roundbar").hidden = !n;
-  $("#sx-roundbar").innerHTML = n ? `<button class="btn pri" data-sx-round="show">Round: ${n} drink${n > 1 ? "s" : ""} ›</button><button class="btn" data-sx-round="clear">Clear</button>` : "";
+  sxRecentShow();
 }
 // ×1 to ×4 for a table, ×6 and ×8 for a jug or a pitcher.
 const SX_XS = [1, 2, 3, 4, 6, 8];
@@ -112,18 +114,22 @@ function sxRoundHtml() {
   const shaken = ds.filter(([d]) => sxOrder(d) === 2).reduce((a, [, n]) => a + n, 0);
   const was = mult;
   const card = ([d, n]) => { mult = n; const s = d.spec.map(specRow).join(""); mult = was;
-    return `<div class="sx-rc${isOut(d.name) ? " out" : ""}"><div class="sx-rh"><b translate="no">${n} × ${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</b>
-      <span class="sx-x"><button data-sx-rn="${d.id}:-1" aria-label="One fewer">−</button><button data-sx-rn="${d.id}:1" aria-label="One more">+</button></span></div>
+    const made = SX.made.has(d.id);
+    return `<div class="sx-rc${isOut(d.name) ? " out" : ""}${made ? " made" : ""}"><div class="sx-rh"><b translate="no">${n} × ${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</b>
+      <span class="sx-x"><button data-sx-rn="${d.id}:-1" aria-label="One fewer">−</button><button data-sx-rn="${d.id}:1" aria-label="One more">+</button><button class="sx-made" data-sx-made="${d.id}" aria-pressed="${made}">${made ? "Made \u2713" : "Made"}</button></span></div>
       <div class="sx-rm" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.garnish)}</div>${plOutTag(d)}
       <ul class="spec sx-specl" data-d="${d.id}" translate="no">${s}</ul><p class="sx-rmeth" translate="no">${esc(d.method)}</p></div>`; };
   // Drinks made the same way sit together, so the shaken ones go in the tins in one go.
   const cards = SX_BUILDS.map((t, k) => { const g = ds.filter(([d]) => sxOrder(d) === k); return g.length ? `<div class="sx-bh">${t} \u00b7 ${g.reduce((a, [, n]) => a + n, 0)}</div>${g.map(card).join("")}` : ""; }).join("");
-  return `${back}<div class="sx-k">Round of ${sxRoundN()}<button class="linkbtn" data-sx-round="clear">Clear the round</button></div>
+  const left = ds.filter(([d]) => !SX.made.has(d.id)).length;
+  return `${back}<div class="sx-k">Round of ${sxRoundN()}${left ? ` \u00b7 ${left} to make` : ""}<button class="linkbtn" data-sx-round="clear">Clear the round</button></div>
+    ${left ? "" : `<div class="sx-done"><b>Round made.</b><button class="btn pri" data-sx-round="clear">Clear it for the next one</button></div>`}
     <dl class="sx-prep" translate="no"><dt>Glasses</dt><dd>${tally((d) => d.glass)}</dd><dt>Ice</dt><dd>${tally((d) => d.ice) || "None"}</dd><dt>Garnish</dt><dd>${tally((d) => d.garnish) || "None"}</dd>
       ${shaken ? `<dt>Tins</dt><dd>${shaken} to shake: ${Math.ceil(shaken / 2)} tin${shaken > 2 ? "s" : ""}, up to 2 drinks a tin</dd>` : ""}</dl>
     <p class="note" style="margin-top:0">In making order: stirred, then built, then shaken so the foam is fresh, fizz last so it stays lively.</p>${cards}`;
 }
-const SX_BACK = `<button class="back" data-sx-view="drink">‹ Drinks</button>`;
+// The view bar at the top is the way back to the drinks, so a panel has no Back of its own.
+const SX_BACK = "";
 /* Batches: what the bar makes ahead, from its own cards (Bar Book's Prep and batches), plus sugar syrup, which every
    sour needs. Each one scales and has one tap to date its label, when the bar's date labels list has it. Then every
    other bar date label, so the iPad can do the lot. The use-by is today plus the days the label's set up with. */
@@ -152,13 +158,42 @@ function sxBatchHtml() {
       ${b.how.map((h) => `<p class="sx-rmeth" translate="no">${esc(h)}</p>`).join("")}${b.note ? `<p class="st-s">${esc(b.note)}</p>` : ""}${sxLabelHtml(x, true)}</div>`;
   }).join("");
   const rest = LIVE.me ? sideLabels("bar").filter((x) => x.on && !used.has(x.id)) : [];
-  return `${SX_BACK}<div class="sx-k">House batches<span class="sx-x" role="group" aria-label="How much">${xs.map((n) => `<button data-sx-bx="${n}" aria-pressed="${n === SX.bx}">${n === 0.5 ? "½" : `×${n}`}</button>`).join("")}</span></div>
+  return `${SX_BACK}<div class="sx-k">Prep timer</div>
+    <div class="sx-tmb" role="group" aria-label="Start a timer">${SX_TIMES.map((m) => `<button class="btn" data-sx-tm="${m}">${m} min</button>`).join("")}</div>
+    <p class="st-s">For anything left to steep, soak or chill. The station flashes and buzzes when it's up, whatever page it's on.</p>
+    <div class="sx-k">House batches<span class="sx-x" role="group" aria-label="How much">${xs.map((n) => `<button data-sx-bx="${n}" aria-pressed="${n === SX.bx}">${n === 0.5 ? "½" : `×${n}`}</button>`).join("")}</span></div>
     ${cards}
     ${LIVE.me ? `<div class="sx-k">Every bar date label${rest.length ? ` · ${rest.length}` : ""}</div>
       ${rest.map((x) => `<div class="sx-rc sx-lbrow"><b translate="no">${esc(x.item)}</b>${sxLabelHtml(x, false)}</div>`).join("") || `<p class="note">Nothing else on the bar's date labels. A manager sets them up in Shift, Labels.</p>`}
       <p class="note">The pack's own use-by is sooner? Write that instead, and change the date in Shift, Labels.</p>`
     : `<p class="note">Join the team on this iPad to date labels from here.</p>`}`;
 }
+/* Prep timers: up to 3 at once, shown at the top of the station with a countdown. When one is up, the whole screen
+   flashes until someone taps it, on any page, even dimmed. They're only on this iPad and stop if the page reloads. */
+const SX_TIMES = [1, 3, 5, 10, 20];
+const sxMMSS = (ms) => { const t = Math.max(0, Math.ceil(ms / 1e3)); return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, "0")}`; };
+function sxTimers() {
+  const el = $("#sx-tms"); if (!el) return;
+  el.hidden = !SX.timers.length;
+  el.innerHTML = SX.timers.map((t) => `<span class="sx-tm"><b>${sxMMSS(t.end - Date.now())}</b> ${t.min} min timer<button data-sx-tmx="${t.id}" aria-label="Stop the ${t.min} minute timer">×</button></span>`).join("");
+}
+function sxTimerStart(min) {
+  if (SX.timers.length >= 3) return toast("3 timers is the most. Stop one first");
+  SX.timers.push({ id: String(Date.now()), min, end: Date.now() + min * 6e4 }); haptic(); toast(`${min} minute timer started`); sxTimers();
+}
+function sxTimerUp(t) {
+  SX.timers = SX.timers.filter((x) => x !== t); sxTimers();
+  let el = $("#sx-up");
+  if (!el) { el = document.createElement("button"); el.id = "sx-up"; el.className = "sx-up"; document.body.append(el); }
+  el.innerHTML = `<b>Time's up</b><span>${t.min} minute timer</span><small>Tap to stop</small>`;
+  try { navigator.vibrate?.([400, 200, 400, 200, 400]); } catch {}
+}
+setInterval(() => { for (const t of SX.timers.filter((x) => x.end <= Date.now())) sxTimerUp(t); sxTimers(); }, 1e3);
+addEventListener("click", (e) => { if (e.target.closest?.("#sx-up")) { e.stopPropagation(); $("#sx-up").remove(); } }, true);
+document.addEventListener("click", (e) => {
+  const st = e.target.closest("[data-sx-tm]"); if (st) return sxTimerStart(+st.dataset.sxTm);
+  const sx = e.target.closest("[data-sx-tmx]"); if (sx) { haptic(); SX.timers = SX.timers.filter((t) => t.id !== sx.dataset.sxTmx); sxTimers(); }
+});
 function sxLabelGo(id) {
   const x = LIVE.labels.find((l) => l.id === id); if (!x) return;
   if (x.pending) return toast("Still saving the last change");
@@ -200,6 +235,8 @@ function sxSetupHtml() {
     </ol>
     <p class="note">After 10 quiet minutes the station goes dark but for the time and the 86 count, and a tap wakes it. It loads new versions of Bar Book by itself when nobody's using it.</p>`;
 }
+// The station's views, in one bar along the top. Drinks is the list and the spec; the rest show where the spec goes.
+const SX_VIEWS = [["drink", "Drinks"], ["round", "Round"], ["batch", "Batches"], ["quiz", "Quiz"], ["setup", "Set up"]];
 const SX_PANELS = { round: () => sxRoundHtml(), batch: sxBatchHtml, quiz: sxQuizHtml, setup: sxSetupHtml };
 // What's 86'd tonight, on the spec line itself: struck through, with the swap beside it.
 function sxMark(root) {
@@ -222,8 +259,13 @@ function sxSpec() {
 function sxTonight() {
   const el = $("#sx-live"); if (!el) return;
   $("#sx-tools").hidden = !LIVE.me;
-  if (!LIVE.me) { $("#sx-86s").hidden = true; el.innerHTML = `<div class="st-tile st-join"><span class="st-k">Tonight</span><span class="st-s">Join the team on this iPad to see tonight's 86s, the close and the handover here, live.</span><button class="btn pri" data-st-go="notices">Join the team</button></div>`; return; }
+  if (!LIVE.me) { $("#sx-86s").hidden = true; $("#sx-lbs").hidden = true; $("#sx-tsum").hidden = true; $("#sx-tgrid").classList.remove("shut"); el.innerHTML = `<div class="st-tile st-join"><span class="st-k">Tonight</span><span class="st-s">Join the team on this iPad to see tonight's 86s, the close and the handover here, live.</span><button class="btn pri" data-st-go="notices">Join the team</button></div>`; return; }
   const out = [...outNow()].sort(), today = shiftDay(), strip = $("#sx-86s");
+  // The one line Tonight folds into, upright and on a phone.
+  const pb = progress(MODE_LISTS.bar.at(-1)), pf = progress(MODE_LISTS.floor.at(-1)), open = !!store.get("sx.tOpen", false);
+  const sum = $("#sx-tsum"); sum.hidden = false;
+  sum.innerHTML = `<span class="st-k">Tonight</span><span>${out.length ? `${out.length} 86'd` : "Nothing 86'd"} \u00b7 Bar ${pb.n}/${pb.of} \u00b7 Floor ${pf.n}/${pf.of}</span><span class="chev">${open ? "Hide \u25b4" : "Show \u25be"}</span>`;
+  sum.setAttribute("aria-expanded", open); $("#sx-tgrid").classList.toggle("shut", !open);
   // Across the top, so it's seen from anywhere behind the bar.
   strip.hidden = !out.length;
   strip.innerHTML = out.length ? `<b>86'd</b>${out.map((n) => `<span translate="no">${esc(n)}</span>`).join("")}` : "";
@@ -234,8 +276,14 @@ function sxTonight() {
       <b class="st-big">${p.n}/${p.of}</b><span class="st-bar"><i style="width:${p.pct}%"></i></span>
       <span class="st-s">${r ? (r.pending ? "Handover saved, waiting for signal" : `✅ Handover sent ${hhmm(new Date(ms(r.at)))} by ${esc(r.name)}`) : last ? `Last handover: ${esc(dayName(reportDay(last)))} by ${esc(last.name)}` : "No handover yet"}</span></button>`;
   };
-  const ph = draftPhotos(), lbNow = LIVE.loaded.has("labels") ? toChange([mode]) : [], lbSoon = LIVE.loaded.has("labels") ? labelsDue([mode]).filter((x) => labelDue(x) === "tomorrow") : [];
-  el.innerHTML = `${lbNow.length ? `<button class="st-tile sx-lb" data-sx-labels><span class="st-k">\ud83d\udea8 Date labels to change now \u00b7 ${lbNow.length}</span><span class="st-list" translate="no">${lbNow.slice(0, 6).map((x) => esc(x.item)).join("<br>")}${lbNow.length > 6 ? "<br>\u2026" : ""}</span><span class="st-s">Tap to change them${lbSoon.length ? `. ${lbSoon.length} more due tomorrow` : ""}</span></button>` : ""}
+  // Date labels, bar and floor: anything overdue or due today is URGENT, and tomorrow's show the day before as a
+  // reminder. Always on show under the 86 strip, never folded away. A tap opens that side's labels.
+  const ph = draftPhotos(), lbAll = LIVE.loaded.has("labels") ? labelsDue(LB_SIDES) : [], lbNow = lbAll.filter((x) => labelDue(x) !== "tomorrow"), lbSoon = lbAll.filter((x) => labelDue(x) === "tomorrow");
+  const lbName = (x) => esc(x.side === mode ? x.item : `${sideName(x.side)}: ${x.item}`), lbs = $("#sx-lbs");
+  lbs.hidden = !lbAll.length;
+  lbs.innerHTML = `${lbNow.length ? `<button class="sx-lbn" data-sx-labels="${lbNow[0].side}"><b>\ud83d\udea8 Urgent: change now</b><span translate="no">${lbNow.map(lbName).join(" \u00b7 ")}</span><i>\u203a</i></button>` : ""}
+    ${lbSoon.length ? `<button class="sx-lbt" data-sx-labels="${lbSoon[0].side}"><b>Reminder: change tomorrow</b><span translate="no">${lbSoon.map(lbName).join(" \u00b7 ")}</span><i>\u203a</i></button>` : ""}`;
+  el.innerHTML = `
     <div class="st-tile st-86"><span class="st-k">86'd tonight${out.length ? ` \u00b7 ${out.length}` : ""}</span>
       ${out.length ? `<ul class="sx-outl" translate="no">${out.map((n) => `<li><span>${esc(n)}</span><button class="chip" data-sx-back="${esc(n)}">Back in</button></li>`).join("")}</ul>` : `<b class="st-big">Nothing</b>`}
       <button class="linkbtn" data-st-go="stock">Open the 86 board \u203a</button></div>
@@ -252,25 +300,28 @@ function sxTonight() {
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn" data-sx-view="batch">Batches</button><button class="btn" data-sx-view="quiz">Quiz</button><button class="btn" data-sx-view="setup">Set up</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+    <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}">${t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
+    <div class="sx-tms" id="sx-tms" hidden></div>
     <div class="sx-86s" id="sx-86s" role="status" hidden></div>
+    <div class="sx-lbs" id="sx-lbs" hidden></div>
     <div class="sx" id="sx">
-      <aside class="sx-tonight" id="sx-tonight" aria-label="Tonight"><div class="sx-live" id="sx-live"></div>
+      <aside class="sx-tonight" id="sx-tonight" aria-label="Tonight"><button class="sx-tsum" id="sx-tsum" aria-controls="sx-tgrid"></button><div class="sx-tgrid" id="sx-tgrid"><div class="sx-live" id="sx-live"></div>
         <div class="st-tile sx-tools" id="sx-tools" hidden><label class="st-k" for="sx-86q">Ran out of something?</label>
           <div class="sx-86in"><input id="sx-86q" list="sx-86l" maxlength="80" autocomplete="off" autocorrect="off" placeholder="Any ingredient, bottle or drink" enterkeyhint="done"><button class="btn pri" data-sx-86go>86 it</button></div>
-          <datalist id="sx-86l"></datalist><span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></aside>
+          <datalist id="sx-86l"></datalist><span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></div></aside>
       <section class="sx-drinks" aria-label="Drinks">
         <div class="search sx-search"><input id="sx-q" type="search" placeholder="Search any drink, spirit or glass" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Search drinks"></div>
-        <div class="chips sx-chips" id="sx-grp" role="toolbar" aria-label="Groups">${[...SX_GROUPS, ...SX_FAMS()].map(([k, t]) => `<button class="chip" data-sx-grp="${k}">${t}</button>`).join("")}</div>
-        <div class="chips sx-chips" id="sx-recent"></div>
-        <div class="sx-roundbar" id="sx-roundbar" hidden></div>
+        <div class="sx-gbar"><button class="sx-gbtn" id="sx-gbtn" aria-expanded="false" aria-controls="sx-grp"></button></div>
+        <div class="sx-gpanel" id="sx-grp" role="group" aria-label="Which drinks" hidden>${[...SX_GROUPS, ...SX_FAMS()].map(([k, t]) => `<button data-sx-grp="${k}"><span>${t}</span><span class="cn">${k === "all" ? D.length : sxGroup(k).length}</span></button>`).join("")}</div>
+        <div class="sx-chips" id="sx-recent" hidden></div>
         <div id="sx-list"></div>
       </section>
       <section class="sx-spec" id="sx-spec" aria-label="Spec"></section>
     </div>`;
   if (!$("#sx-86l").children.length) $("#sx-86l").innerHTML = sx86Names().map((n) => `<option value="${esc(n)}">`).join("");
   document.body.classList.toggle("sxbig", SX.big);
-  sxBars(); sxList(); sxSpec(); sxTonight(); sxFit();
+  sxBars(); sxList(); sxSpec(); sxTonight(); sxTimers(); sxFit();
 }
 // Everything that can go on the 86 board: the stock list, every ingredient in a spec, every drink. Anything else typed
 // still goes on, as typed (a burger, a glass).
@@ -294,6 +345,12 @@ function sxFit() {
 }
 addEventListener("online", () => setTimeout(sxFit)); addEventListener("offline", () => setTimeout(sxFit));
 addEventListener("resize", () => { if (cur === "station") { sxFit(); sxList(); sxSpec(); } });
+// Recent drinks show while the search box is in use and empty, as a quick way back to the last few.
+function sxRecentShow() { const r = $("#sx-recent"); if (r) r.hidden = !(document.activeElement?.id === "sx-q" && !SX.q.trim() && r.children.length); }
+document.addEventListener("focusin", (e) => { if (e.target.id === "sx-q") sxRecentShow(); });
+document.addEventListener("focusout", (e) => { if (e.target.id === "sx-q") setTimeout(sxRecentShow, 0); });
+// A tap on a recent drink keeps the keyboard's focus long enough for the tap to land.
+document.addEventListener("pointerdown", (e) => { if (e.target.closest?.("#sx-recent")) e.preventDefault(); });
 function sxOpen(id) {
   SX.id = id; SX.view = "drink"; store.set("sx.id", id);
   recent = [id, ...recent.filter((r) => r !== id)].slice(0, 6); store.set("recent", recent);
@@ -304,7 +361,7 @@ function sxOpen(id) {
 function sxStep(n) { const i = SX.ids.indexOf(SX.id); if (i < 0 || SX.ids.length < 2) return; haptic(); sxOpen(SX.ids[(i + n + SX.ids.length) % SX.ids.length]); $(`#sx-list [data-sx-id="${SX.id}"]`)?.scrollIntoView({ block: "nearest" }); }
 function sxRound(id, n) {
   const v = Math.max(0, Math.min(20, (SX.round.get(id) || 0) + n));
-  v ? SX.round.set(id, v) : SX.round.delete(id); sxSaveRound(); haptic();
+  v ? SX.round.set(id, v) : SX.round.delete(id); if (!v) SX.made.delete(id); sxSaveRound(); haptic();
   if (n > 0 && SX.view !== "round") toast(`${D[id].name} added: round of ${sxRoundN()}`);
   sxBars(); sxList(); sxSpec();
 }
@@ -324,6 +381,10 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-shared-pick]")) { sxTonight(); sxList(); sxSpec(); return; }
   const vw = e.target.closest("[data-sx-view]");
   if (vw) { haptic(); SX.view = vw.dataset.sxView; sxBars(); sxList(); sxSpec(); if (!sxWide()) window.scrollTo(0, $("#sx-list").offsetTop - 80); return; }
+  const md = e.target.closest("[data-sx-made]");
+  if (md) { const id = +md.dataset.sxMade; haptic(); SX.made.has(id) ? SX.made.delete(id) : SX.made.add(id); sxList(); sxSpec(); return; }
+  // Tap a spec line as it goes in: it's ticked off, so a busy hand can see where it was.
+  const li = e.target.closest("#v-station ul.sx-specl > li"); if (li) { haptic(); li.classList.toggle("got"); return; }
   const lb = e.target.closest("[data-sx-lb]"); if (lb) return sxLabelGo(lb.dataset.sxLb);
   const bx = e.target.closest("[data-sx-bx]"); if (bx) { haptic(); SX.bx = +bx.dataset.sxBx; sxList(); sxSpec(); return; }
   const qp = e.target.closest("[data-sx-qz]");
@@ -333,7 +394,7 @@ document.addEventListener("click", (e) => {
   const dm = e.target.closest("[data-sx-dm]"); if (dm) { curId = +dm.dataset.sxDm; return; }
   if (e.target.closest("[data-sx-86go]")) return sx86Go();
   const bk = e.target.closest("[data-sx-back]"); if (bk) { const n = bk.dataset.sxBack; haptic(); setOut(n, false); toast(`${n} back in stock`); return; }
-  if (e.target.closest("[data-sx-labels]")) { haptic(); pane = labelPane(mode); show("tally"); return; }
+  const lbg = e.target.closest("[data-sx-labels]"); if (lbg) { haptic(); if (lbg.dataset.sxLabels !== mode) setMode(lbg.dataset.sxLabels); pane = labelPane(mode); show("tally"); return; }
   if (e.target.closest("[data-sx-exit]")) { haptic(); stationSet(false); show("info"); toast("Bar station off. Turn it on again in More"); return; }
   const o = e.target.closest("[data-sx-id]"); if (o) { haptic(); SX.x = 1; return sxOpen(+o.dataset.sxId); }
   const a = e.target.closest("[data-sx-add]"); if (a) return sxRound(+a.dataset.sxAdd, 1);
@@ -341,11 +402,13 @@ document.addEventListener("click", (e) => {
   const rb = e.target.closest("[data-sx-round]");
   if (rb) {
     haptic(); const k = rb.dataset.sxRound;
-    if (k === "clear") { SX.round.clear(); sxSaveRound(); SX.view = "drink"; }
+    if (k === "clear") { SX.round.clear(); SX.made.clear(); sxSaveRound(); SX.view = "drink"; }
     else SX.view = k === "show" ? "round" : "drink";
     sxBars(); sxList(); sxSpec(); if (!sxWide()) window.scrollTo(0, $("#sx-list").offsetTop - 80); return;
   }
-  const g = e.target.closest("[data-sx-grp]"); if (g) { haptic(); SX.grp = g.dataset.sxGrp; SX.q = ""; $("#sx-q").value = ""; SX.view = "drink"; $("#sx-list").scrollTop = 0; sxBars(); sxList(); sxSpec(); return; }
+  if (e.target.closest("#sx-gbtn")) { haptic(); $("#sx-grp").hidden = !$("#sx-grp").hidden; sxBars(); return; }
+  if (e.target.closest("#sx-tsum")) { haptic(); store.set("sx.tOpen", !store.get("sx.tOpen", false)); sxTonight(); return; }
+  const g = e.target.closest("[data-sx-grp]"); if (g) { haptic(); SX.grp = g.dataset.sxGrp; SX.q = ""; $("#sx-q").value = ""; SX.view = "drink"; $("#sx-grp").hidden = true; $("#sx-list").scrollTop = 0; sxBars(); sxList(); sxSpec(); return; }
   const x = e.target.closest("[data-sx-x]"); if (x) { haptic(); SX.x = +x.dataset.sxX; return sxSpec(); }
   const s = e.target.closest("[data-sx-step]"); if (s) return sxStep(+s.dataset.sxStep);
   const sh = e.target.closest("[data-sx-sheet]"); if (sh) { const [v, id] = sh.dataset.sxSheet.split(":"); view = v; store.set("view", view); return openSheet(+id); }
@@ -407,7 +470,7 @@ function sxCare() {
   if (!lock) keepAwake();
   // After 10 quiet minutes the screen goes dark but for the time and tonight's 86 count; a tap wakes it.
   if (cur === "station" && sxIdle(10) && $("#sheet").hidden) sxDim(true);
-  if (!sxIdle(5) || !$("#sheet").hidden || document.activeElement?.matches?.("input, textarea, select") || !navigator.onLine || !["station", "drinks"].includes(cur)) return;
+  if (!sxIdle(5) || SX.timers.length || !$("#sheet").hidden || document.activeElement?.matches?.("input, textarea, select") || !navigator.onLine || !["station", "drinks"].includes(cur)) return;
   if (!$("#upd").hidden || shiftDay() !== sxBootDay) { try { sessionStorage.setItem("sx.auto", "1"); } catch {} location.reload(); }
 }
 setInterval(sxCare, 6e4);
@@ -426,11 +489,17 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && cu
 document.head.insertAdjacentHTML("beforeend", `<style>
 body.stmode .brandbar, body.stmode nav.tabs { display: none; }
 body.stmode main { padding-top: 0; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
-.sx-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 10px 0 8px; }
-.sx-tb { flex-wrap: wrap; justify-content: flex-end; }
-.sx-tb [data-sx-view][aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
+.sx-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0 8px; }
+/* One bar for every view: what's on is filled in, and it's the way back from any of them. */
+.sx-views { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0 0 10px; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.sx-views button { min-height: 48px; padding: 6px 4px; border-radius: 10px; font-size: 16px; font-weight: 700; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.sx-views button[aria-pressed="true"] { background: var(--brass); color: var(--brass-ink); }
+.sx-badge { display: inline-block; min-width: 1.4em; padding: 0 5px; border-radius: 999px; background: var(--warn); color: #fff; font-size: 13px; line-height: 1.5; vertical-align: 1px; }
+.sx-badge:empty { display: none; }
+@media (max-width: 420px) { .sx-views button { font-size: 14.5px; } }
+@media (min-width: 700px) { .sx-views button { font-size: 18px; min-height: 52px; } }
 /* The 86 strip: tonight's 86s across the top, big enough to read from the well. */
-.sx-86s { display: flex; align-items: center; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 0 10px; padding: 8px 12px; border: 2px solid var(--warn); border-radius: 12px; background: var(--surface); font-size: 19px; font-weight: 700; white-space: nowrap; }
+.sx-86s { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 10px; padding: 8px 12px; border: 2px solid var(--warn); border-radius: 12px; background: var(--surface); font-size: 19px; font-weight: 700; }
 .sx-86s::-webkit-scrollbar { display: none; }
 .sx-86s[hidden] { display: none; }
 .sx-86s b { color: var(--warn); text-transform: uppercase; letter-spacing: .06em; font-size: 15px; }
@@ -472,15 +541,17 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 @media (max-width: 699px) { .sx-wide { display: none; } }
 .sx-exit { min-height: 44px; padding: 8px 14px; }
 .sx { display: grid; gap: 14px; grid-template-areas: "tonight" "drinks"; }
-.sx-tonight { grid-area: tonight; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-/* Phones and the iPad upright: Tonight is one strip of cards that scrolls sideways, so the drinks keep the screen. */
-.sx-tonight { grid-template-columns: none; grid-auto-flow: column; grid-auto-columns: minmax(230px, 1fr); overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; padding-bottom: 2px; margin-inline: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); padding-inline: max(16px, env(safe-area-inset-left, 0px)); }
-.sx-tonight::-webkit-scrollbar { display: none; }
-.sx-tonight > .sx-live > *, .sx-tonight > .sx-tools { height: 178px; overflow: hidden; }
-.sx-tonight .sx-outl { max-height: 92px; }
-.sx-tonight .sx-lb .st-list { font-size: 16px; }
-.sx-tonight .st-s { font-size: 13.5px; }
-.sx-tonight .st-join { grid-column: 1 / -1; height: auto; }
+/* Phones and the iPad upright: Tonight is one line (86s, both closes, labels) that opens into its boxes, so the drinks
+   keep the screen. The boxes wrap in a grid, whole, never cut off at the edge. */
+.sx-tonight { grid-area: tonight; min-width: 0; }
+.sx-tsum { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 52px; padding: 10px 14px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--fg); text-align: left; font-size: 16px; }
+.sx-tsum .st-k { flex: none; }
+.sx-tsum > span:nth-child(2) { flex: 1; min-width: 0; font-weight: 700; }
+.sx-tsum .chev { flex: none; color: var(--brass); font-weight: 700; }
+.sx-tsum.hot { border-color: var(--warn); }
+.sx-tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 10px; }
+@media (max-width: 1099px) { .sx-tgrid.shut { display: none; } }
+.sx-tonight .st-join { grid-column: 1 / -1; }
 .sx-drinks { grid-area: drinks; min-width: 0; }
 .sx-spec { grid-area: spec; display: none; }
 .st-tile { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--fg); text-align: left; min-width: 0; }
@@ -502,8 +573,15 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .sx-outl { list-style: none; margin: 0; padding: 0; width: 100%; max-height: 14em; overflow-y: auto; }
 .sx-outl li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--line); }
 .sx-outl .chip { min-height: 34px; padding: 4px 12px; font-size: 14px; }
-.sx-lb { border-color: var(--warn); }
-.sx-lb .st-k { color: var(--warn); }
+/* Date labels strip: urgent in red, tomorrow's reminder in amber. Names wrap, so none is cut off. */
+.sx-lbs { display: grid; gap: 8px; margin: 0 0 10px; }
+.sx-lbs[hidden] { display: none; }
+.sx-lbs button { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 12px; width: 100%; padding: 10px 14px; border: 2px solid var(--warn); border-radius: 12px; background: var(--surface); color: var(--fg); text-align: left; font-size: 17px; font-weight: 700; }
+.sx-lbs b { color: var(--warn); text-transform: uppercase; letter-spacing: .05em; font-size: 14px; }
+.sx-lbs i { margin-left: auto; font-style: normal; color: var(--muted); }
+.sx-lbs .sx-lbt { border-color: var(--brass); }
+.sx-lbs .sx-lbt b { color: var(--brass); }
+body.sxbig .sx-lbs button { font-size: 22px; }
 .sx-thumbs { display: flex; gap: 6px; flex-wrap: wrap; }
 .sx-thumbs img { width: 56px; height: 56px; object-fit: cover; border-radius: 8px; }
 .sx-phb { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -528,7 +606,18 @@ body.sxbig .sx-rmeth { font-size: 20px; }
 .st-hint { padding: 10px 12px; border: 1px dashed var(--line); border-radius: 12px; color: var(--muted); font-size: 14px; text-align: left; }
 .sx-search { margin-top: 0; }
 .sx-search input { font-size: 20px; padding: 14px 16px; border-radius: 12px; }
-.sx-chips { margin: 0 !important; padding: 10px 0 2px !important; align-items: center; }
+/* Chip rows wrap, like every chip row in the app: nothing scrolls off the edge. */
+.sx-chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 10px 0 2px; align-items: center; }
+.sx-chips[hidden] { display: none; }
+/* Which drinks: one button with the current choice, opening every group as a grid with counts, as on the Menu. */
+.sx-gbar { display: flex; gap: 8px; padding-top: 10px; }
+.sx-gbtn { flex: 1; display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 48px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg); font-size: 17px; font-weight: 700; text-align: left; }
+.sx-gbtn .chev { color: var(--brass); }
+.sx-gpanel { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin-top: 8px; padding: 8px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.sx-gpanel[hidden] { display: none; }
+.sx-gpanel button { display: flex; justify-content: space-between; align-items: center; gap: 8px; min-height: 46px; padding: 8px 12px; border-radius: 10px; color: var(--fg); font-size: 16px; font-weight: 600; text-align: left; }
+.sx-gpanel button[aria-pressed="true"] { background: var(--brass); color: var(--brass-ink); }
+.sx-gpanel .cn { font-size: 13px; opacity: .7; font-weight: 400; }
 .sx-chips:empty { display: none; }
 .sx-lab { flex: none; margin-right: 2px; }
 .sx-roundbar { display: flex; gap: 8px; margin-top: 10px; }
@@ -541,7 +630,8 @@ body.sxbig .sx-rmeth { font-size: 20px; }
 .sx-open { flex: 1; min-width: 0; display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: center; min-height: 66px; padding: 10px 8px; text-align: left; color: var(--fg); border-radius: 10px; }
 .sx-open .g { width: 40px; height: 46px; } .sx-open .g svg { width: 100%; height: 100%; }
 .sx-open .n { display: block; font-weight: 700; font-size: 19px; line-height: 1.2; }
-.sx-open .s { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font-size: 14.5px; color: var(--muted); margin-top: 2px; }
+/* The whole spec on the row, never cut short with "…". */
+.sx-open .s { display: block; font-size: 14.5px; color: var(--muted); margin-top: 2px; }
 .sx-open i, .sx-rc i { font-style: normal; font-size: 13px; color: var(--warn); font-weight: 700; }
 .sx-open[aria-current="true"] { background: var(--surface); box-shadow: inset 4px 0 0 var(--brass); }
 .sx-add { flex: none; width: 56px; font-size: 22px; font-weight: 700; color: var(--brass); }
@@ -562,6 +652,30 @@ body.sxbig .sx-rmeth { font-size: 20px; }
 .sx-spec .steps { font-size: 20px; } .sx-spec .steps li { padding: 6px 0; }
 .sx-acts { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px; }
 .sx-pn { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: center; margin-top: 16px; }
+/* On the iPad, next and back stay at the bottom of the spec, big enough for a wet thumb. */
+@media (min-width: 700px) {
+  .sx-pn { position: sticky; bottom: -28px; margin: 16px -24px -28px; padding: 10px 24px calc(14px + env(safe-area-inset-bottom, 0px)); background: var(--surface); border-top: 1px solid var(--line); }
+  .sx-pn .btn { min-height: 60px; font-size: 18px; }
+}
+.sx-specl > li { cursor: pointer; }
+.sx-specl > li.got { opacity: .45; }
+.sx-specl > li.got > span:last-child::after { content: " \\2713"; color: var(--ok); font-weight: 800; }
+.sx-made { min-width: 76px !important; }
+.sx-made[aria-pressed="true"] { background: var(--ok) !important; border-color: var(--ok) !important; color: var(--bg) !important; }
+.sx-rc.made { opacity: .5; }
+.sx-done { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0; padding: 12px 14px; border: 2px solid var(--ok); border-radius: 14px; font-size: 19px; }
+.sx-tmb { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
+.sx-tmb .btn { min-height: 52px; min-width: 76px; font-size: 17px; }
+.sx-tms { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 10px; }
+.sx-tms[hidden] { display: none; }
+.sx-tm { display: inline-flex; align-items: center; gap: 8px; padding: 6px 6px 6px 14px; border: 2px solid var(--brass); border-radius: 999px; font-size: 16px; }
+.sx-tm b { font-family: var(--display); font-size: 24px; font-variant-numeric: tabular-nums; }
+.sx-tm button { width: 36px; height: 36px; border-radius: 50%; font-size: 20px; color: var(--muted); }
+.sx-up { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: var(--brass); color: var(--brass-ink); animation: sxflash 1s steps(2) infinite; }
+.sx-up b { font-family: var(--display); font-size: 96px; line-height: 1; }
+.sx-up span { font-size: 28px; font-weight: 700; } .sx-up small { font-size: 18px; }
+@keyframes sxflash { 50% { background: var(--warn); } }
+@media (prefers-reduced-motion: reduce) { .sx-up { animation: none; } }
 .sx-pn > span { color: var(--muted); font-size: 14px; }
 .sx-pn .btn { min-width: 0; } .sx-pn .btn span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sx-prep { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; margin: 8px 0; font-size: 18px; }
@@ -582,9 +696,6 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
 @media (min-width: 700px) {
   body.stmode main.gut { max-width: none; }
   .sx { grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); grid-template-areas: "tonight tonight" "drinks spec"; grid-template-rows: auto minmax(0, 1fr); height: var(--sxh, 80vh); }
-  /* Three across, the rest a swipe away. Fixed columns here squashed the first three on top of each other. */
-  .sx-tonight { grid-template-columns: none; grid-auto-columns: minmax(230px, calc((100% - 20px) / 3)); }
-  .sx-tonight .st-86 { grid-column: auto; }
   .sx-tonight .st-join { flex-direction: row; align-items: center; flex-wrap: wrap; }
   .sx-tonight .st-join .st-s { margin: 0; flex: 1; }
   .sx-drinks { display: flex; flex-direction: column; min-height: 0; }
@@ -596,11 +707,12 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
 /* iPad sideways (and big iPads): the list, the spec, and Tonight down the right. */
 @media (min-width: 1100px) {
   .sx { grid-template-columns: 340px minmax(0, 1fr) 290px; grid-template-areas: "drinks spec tonight"; grid-template-rows: minmax(0, 1fr); }
-  .sx-tonight { grid-template-columns: 1fr; align-content: start; min-height: 0; overflow-y: auto; }
+  /* Sideways there's room: Tonight is always open down the right, and scrolls on its own. */
+  .sx-tonight { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+  .sx-tsum { display: none; }
+  .sx-tgrid { display: grid; grid-template-columns: 1fr; align-content: start; margin-top: 0; }
   .sx-tonight .st-tile { padding: 16px; }
   .sx-tonight .st-big { font-size: 44px; }
-  .sx-tonight { grid-auto-flow: row; grid-auto-columns: auto; overflow-x: hidden; margin-inline: 0; padding-inline: 0; }
-  .sx-tonight > .sx-live > *, .sx-tonight > .sx-tools { height: auto; overflow: visible; }
   .sx-tonight .sx-outl { max-height: 14em; }
 }
 </style>`);

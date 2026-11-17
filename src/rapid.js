@@ -41,14 +41,14 @@ function renderRapid() {
   // Searching reaches the whole book, after the house list.
   if (words.length) { const more = D.filter((d) => !seen.has(d.id) && hit(d)).slice(0, 40); if (more.length) groups.push(["Everything else", more]); }
   RAPID.ids = [...sigs, ...top, ...groups.flatMap(([, ds]) => ds)].map((d) => d.id);
-  // Each part gets a heading that sticks while you scroll it, and the bar at the top jumps to any part.
+  // Each part gets a heading that sticks while you scroll it; the grid at the top jumps to any part, every one on show.
   const parts = [...(sigs.length ? [["Black Tap signatures", `<div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${sigs.map(rapidTile).join("")}</div>`, sigs.length]] : []),
     ...(top.length ? [["Top 10", rushHtml(top), `<button class="linkbtn" data-rush="edit">Change</button>`]] : []),
     ...groups.map(([t, ds]) => [t, `<div class="${RAPID.specs ? "rp-list" : "rp-grid"}">${ds.map(rapidTile).join("")}</div>`, ds.length])];
-  $("#rp-out").innerHTML = parts.length ? (parts.length > 1 ? `<nav class="azbar secbar" aria-label="Jump to a part">${parts.map(([t], i) => `<button data-jump="rp-${i}">${esc(t)}</button>`).join("")}</nav>` : "")
+  $("#rp-out").innerHTML = parts.length ? (parts.length > 1 ? `<nav class="djump rpjump" aria-label="Jump to a part">${parts.map(([t, , cnt], i) => `<button data-jump="rp-${i}">${esc(t)}${typeof cnt === "number" ? ` <span class="cn">${cnt}</span>` : ""}</button>`).join("")}</nav>` : "")
     + parts.map(([t, html, cnt], i) => `<i class="anc" id="rp-${i}"></i><div class="sec">${esc(t)}<span class="cnt">${cnt}</span></div>${html}`).join("")
     : `<p class="empty">Nothing matches. Try a spirit, like “rum”.</p>`;
-  $("#rp-out").classList.toggle("jb", parts.length > 1); jumpSync();
+  jumpSync();
 }
 function showRapid() {
   if (!$("#rp-out")) {

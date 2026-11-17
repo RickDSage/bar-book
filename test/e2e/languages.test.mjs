@@ -31,8 +31,10 @@ test("Polish on the welcome screen changes the app's words, numbers included, an
   await p.click("#w-ok");
   assert.deepEqual(await tabs(p), ["Napoje", "Zmiana", "Zespół", "Wypłata", "Więcej"]);
   // A phrase with numbers in it is matched with the numbers taken out, and they go back where Polish puts them.
-  const n = await p.evaluate(() => D.length);
+  await p.fill("#q", "gin");
+  const n = await p.evaluate(() => listIds.length);
   await p.waitForFunction((n) => document.querySelector("#count").textContent === `Napoje: ${n}`, n);
+  await p.fill("#q", "");
   await p.evaluate(() => show("practice"));
   await p.waitForFunction(() => document.querySelector("#pcard .score")?.textContent === "Dobrze: 0, do powtórki: 0");
   await p.reload();

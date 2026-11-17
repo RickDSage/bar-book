@@ -120,8 +120,9 @@ header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; backg
 .search { margin-top: 8px; display: flex; gap: 8px; }
 .search input { flex: 1; min-width: 0; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; -webkit-appearance: none; appearance: none; }
 .search input::placeholder { color: var(--muted); }
-.chips { display: flex; gap: 8px; overflow-x: auto; padding-block: 10px 2px; scrollbar-width: none; margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.chips::-webkit-scrollbar { display: none; }
+/* Chip rows wrap onto a second line instead of scrolling sideways, so no chip is ever cut off at the screen edge. */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 10px 2px; }
+.chips .chip { max-width: 100%; white-space: normal; text-align: start; }
 .chip { flex: none; min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 15px; white-space: nowrap; }
 .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); font-weight: 700; }
 
@@ -139,7 +140,7 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .row .g { width: 40px; height: 46px; color: var(--fg); }
 .row .g svg { width: 100%; height: 100%; }
 .row .n { font-weight: 700; font-size: 17px; }
-.row .s { color: var(--muted); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.row .s { color: var(--muted); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .row > div { min-width: 0; }
 .price { font-weight: 700; text-align: right; white-space: nowrap; }
 .price i { display: block; font-style: normal; font-weight: 400; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
@@ -207,9 +208,28 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .seg.dseg button { line-height: 1.15; white-space: nowrap; padding-inline: 4px; }
 #hdr #hdr-drinks[hidden] { display: none; }
 #hdr .search { margin-top: 10px; }
-/* The section chips fade at the edge while there are more to swipe to. */
-#secs { -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); }
-#secs.end { -webkit-mask-image: none; mask-image: none; }
+/* Menu: one row under the search, always all on screen. Jump to a section (it names the one you're in), Filters,
+   Favourites. Each opens a panel under the row, so the menu itself is just drinks. */
+.dbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; padding-top: 10px; }
+.dbar .chip { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--fg); font-weight: 600; min-width: 48px; }
+.dbar .chip b { color: var(--brass); }
+.dbar .dj { justify-content: space-between; text-align: start; }
+.dbar .dj span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dbar .dj::after { content: "▾"; color: var(--brass); flex: none; }
+.dbar .dj:disabled { opacity: 1; color: var(--muted); }
+.dbar .dj:disabled::after { content: none; }
+.dbar .chip[aria-expanded="true"], .dbar .chip[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
+.dpanel { max-height: 60vh; max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 8px; }
+.dpanel .pl-panel { margin-top: 8px; }
+.djump { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: 8px; }
+.djump.az { grid-template-columns: repeat(6, 1fr); }
+.djump button { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 44px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-weight: 600; font-size: 15px; text-align: start; line-height: 1.2; }
+.djump.az button { justify-content: center; color: var(--brass); }
+.djump button .cn { color: var(--muted); font-weight: 400; font-size: 13px; }
+.djump button[aria-current="true"] { border-color: var(--brass); color: var(--brass); }
+.dpanel .recent { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: 8px; }
+.dpanel .recent .mini { flex: 1 1 100%; margin: 0; }
+#list .sec .ssend { float: right; font-family: var(--body); font-size: 13px; text-transform: none; color: var(--brass); font-weight: 600; padding: 6px 0 6px 12px; margin-top: -4px; }
 /* More: rows that open a page, like a phone's own settings. */
 .pgt { font-size: 28px; margin-top: 12px; }
 .hub { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
@@ -281,8 +301,6 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .calday[aria-pressed="true"].has::after { background: var(--brass-ink); }
 .calday:disabled { opacity: .3; }
 .payrt { float: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-.recent.paytabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 10px; overflow: visible; }
-.recent.paytabs .chip { padding: 8px 2px; font-size: 14px; text-align: center; white-space: normal; line-height: 1.15; }
 .paysteps { margin: 8px 0 4px; padding-left: 22px; line-height: 1.5; }
 .paysteps li { margin: 4px 0; }
 .paysteps li:last-child { font-size: 18px; }
@@ -608,7 +626,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .cat > summary::-webkit-details-marker { display: none; }
 .cat > summary > span:first-child { flex: 1; min-width: 0; }
 .cat > summary b { display: block; font-size: 18px; }
-.cat > summary small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat > summary small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
 .cat > summary::after { content: "›"; flex: none; font-size: 22px; color: var(--muted); transition: transform .15s; }
 .cat[open] > summary::after { transform: rotate(90deg); }
 .cat[open] > summary small { display: none; }
@@ -662,6 +680,14 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .lbdue.late b { color: var(--warn); }
 .lbdue .actions { margin-top: 4px; }
 .lbdue .s { display: block; color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+/* Added items (items.js): one per row, the form in a soft box. */
+.it-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.it-row .actions { margin-top: 6px; }
+.itf { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.it-guess { margin: 4px 0 0; }
+.it-found { margin: 0; overflow-wrap: anywhere; }
+.it-pa { padding: 4px 0; }
+#it-add summary .pill { margin-left: 6px; }
 .lbpick { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .lbpick .check { flex: 1; min-height: 44px; margin-top: 0; }
 .lbpick input[data-lbs-life] { width: 76px; flex: none; font: inherit; font-size: 17px; text-align: center; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; }
@@ -818,8 +844,10 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .welcome li { padding: 9px 0 9px 30px; position: relative; border-bottom: 1px solid var(--line); }
 .welcome li::before { content: "\2713"; position: absolute; left: 4px; color: var(--brass); font-weight: 700; }
 .welcome .wip { color: var(--muted); font-size: 15px; margin: 0 0 22px; }
-.welcome .wbtns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.welcome .wbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
 .welcome .wbtns .btn { min-height: 56px; font-size: 20px; padding-inline: 6px; }
+.welcome .wquick { grid-template-columns: 1fr 1fr; margin-top: 8px; } .welcome .wquick .btn { min-height: 48px; font-size: 17px; margin: 0; }
+.welcome .wcodes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; text-align: left; }
 .welcome .sig { font-style: italic; color: var(--brass); font-size: 18px; margin: 18px 0 0; text-align: center; }
 .credit { text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .04em; margin: 28px 0 8px; }
 .credit b { color: var(--brass); font-weight: 700; }
@@ -857,7 +885,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .pl-daily .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--brass); font-weight: 700; }
 .pl-daily b { font-size: 18px; } .pl-daily small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-daily .go { font-size: 28px; color: var(--brass); }
-.pl-bar { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
+.pl-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 2px; }
 .pl-bar .pl-fbtn { color: var(--fg); } .pl-bar .pl-fbtn span { color: var(--brass); font-weight: 700; }
 .pl-on { color: var(--brass); border-color: var(--brass); }
 .pl-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 12px 12px; margin-top: 8px; }
@@ -872,7 +900,8 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 #list, #rp-out { --jb: 0px; }
 #list.jb, #rp-out.jb { --jb: 46px; }
 .azbar button[aria-current="true"] { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
-#rp-out .sec, #list .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
+#list .sec { margin: 0; padding: 18px 0 4px; }
+#rp-out .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
 #list .anc, #rp-out .anc { display: block; scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); }
 .azsec { scroll-margin-top: 190px; }
 .pl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
@@ -901,14 +930,14 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
   <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
+  <div id="w-name"></div>
+  <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
+  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button></div>
   <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
   <p class="wip"><button class="linkbtn" data-intro-open>How Bar Book works: what it does, tips and tricks ›</button></p>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
-  <div id="w-name"></div>
-  <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
-  <button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire: house cocktails</button>
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
@@ -917,7 +946,8 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <nav class="seg dseg" id="subnav" aria-label="Drinks"><button data-tab="rapid">⚡ Rapid fire</button><button data-tab="drinks">Menu</button><button data-tab="make">Make</button></nav>
   <div id="hdr-drinks">
     <div class="search"><input id="q" type="search" placeholder="Search drink, spirit or glass" autocomplete="off" enterkeyhint="search" aria-label="Search drinks"></div>
-    <div class="chips" id="secs" role="toolbar" aria-label="Sections"></div>
+    <div class="dbar" id="dbar" role="toolbar" aria-label="Find a drink"></div>
+    <div class="dpanel" id="dpanel" hidden></div>
   </div>
 </header>
 
@@ -1183,7 +1213,7 @@ function printMsg(text, photos) {
   window.print();
 }
 /* A copy of everything sent from the Send page (WhatsApp, email, the share sheet or print) goes to the seniors and the
-   owner, once per message. Team only: rate the shift goes with no name; My pay and the team link stay on the phone. */
+   owner, once per message. Team only: rate the shift goes with no name; My pay and the Bar Book link stay on the phone. */
 // Health stays off the team's database: an off sick message and an incident write-up go on WhatsApp only.
 const PRIVATE_SEND = new Set(["hours", "pay", "slip", "team", "sick", "incident"]);
 function logSent(m) {
@@ -1253,39 +1283,54 @@ const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.de
 const issueLines = (x) => [`${x.title} · ${AREA[x.area] || "Other"}${x.status === "taken" && x.who ? `, ${x.who} is on it` : ", nobody on it yet"}`, ...(x.detail ? [subLine(x.detail)] : [])];
 
 /* ---------- Drinks list ---------- */
-const CATS = {
-  "Signatures": ["Black Tap Signatures"],
-  "Cocktails": ["Fresh & Fruity", "Tiki & Tropical", "Sour & Zesty", "Martinis", "Bold & Stirred", "Long & Refreshing", "After Dinner", "Born in NYC"],
-  "Spritz & serves": ["Spritz & Sparkling", "Perfect Serves"],
-  "Shots & bombs": ["Classic Shots", "House Shots", "Bombs & Boilermakers"],
-  "No alcohol": ["Zero Proof"],
-  "Pitchers": ["Pitchers"],
-};
-const CHIPS = ["All", "\u2605 Favourites", ...Object.keys(CATS)];
+// One row under the search: Jump to (the section you're in), Filters and Favourites. Each opens a panel under it.
+let favOnly = store.get("favOnly", false);
 let fav = new Set(store.get("fav", []));
-let sec = store.get("sec", "All");
-if (!CHIPS.includes(sec)) sec = "All";
-const inSec = (d) => sec === "All" || (sec === CHIPS[1] ? fav.has(d.name) : CATS[sec].includes(d.section));
-// The drinks the search and filters leave, so each section chip counts what tapping it would show.
-let chipPool = D;
-function renderChips() {
-  // Each with how many drinks it holds, so it's clear before tapping.
-  const P = chipPool, n = (c) => (c === "All" ? P.length : c === CHIPS[1] ? P.filter((d) => fav.has(d.name)).length : P.filter((d) => CATS[c].includes(d.section)).length);
-  $("#secs").innerHTML = CHIPS.map((s) => `<button class="chip" aria-pressed="${s === sec}" data-sec="${esc(s)}">${esc(s)}${s !== CHIPS[1] || fav.size ? ` <span class="cn">${n(s)}</span>` : ""}</button>`).join("");
-  secsEdge();
+const favOk = (d) => !favOnly || fav.has(d.name);
+// The menu's sections by their short names, so they fit the button and the jump list.
+const SEC_SHORT = { "Black Tap Signatures": "Signatures", "Bombs & Boilermakers": "Bombs", "Zero Proof": "No alcohol" };
+const secName = (x) => SEC_SHORT[x] || x;
+// The panel that's open under the row: "jump", "filters", "recent" (search box tapped with nothing in it) or null.
+let dp = null, jumpParts = [], jumpLabel = "";
+function renderBar() {
+  const on = plOn().length + (PL.sort !== "menu" ? 1 : 0), n = fav.size;
+  const jump = jumpParts.length ? `<button class="chip dj" data-dp="jump" aria-expanded="${dp === "jump"}" aria-label="Jump to a section"><span>${esc(jumpLabel || secName(jumpParts[0][1]))}</span></button>`
+    : `<button class="chip dj" disabled><span>${listIds.length} ${listIds.length === 1 ? "drink" : "drinks"}</span></button>`;
+  $("#dbar").innerHTML = jump
+    + `<button class="chip" data-dp="filters" aria-expanded="${dp === "filters"}">Filters${on ? ` <b>${on}</b>` : ""}</button>`
+    + `<button class="chip" data-fav aria-pressed="${favOnly}" aria-label="Favourites only">\u2605${n ? ` ${n}` : ""}</button>`;
+  const box = $("#dpanel");
+  box.hidden = !dp;
+  if (dp === "jump") {
+    const az = jumpParts.length && jumpParts[0][0].startsWith("az-");
+    box.innerHTML = `<div class="djump${az ? " az" : ""}">${jumpParts.map(([id, t, c]) => `<button data-jump="${id}" aria-current="${secName(t) === jumpLabel}">${esc(secName(t))}${c ? ` <span class="cn">${c}</span>` : ""}</button>`).join("")}</div>`;
+  } else if (dp === "filters") box.innerHTML = plPanel();
+  else if (dp === "recent") box.innerHTML = `<div class="recent"><div class="mini">Opened recently</div>${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>`;
+  else box.innerHTML = "";
 }
-// The fade at the end of the section chips goes once you've swiped to the last one.
-const secsEdge = () => { const c = $("#secs"); c.classList.toggle("end", c.scrollLeft + c.clientWidth >= c.scrollWidth - 4); };
-$("#secs").addEventListener("scroll", secsEdge, { passive: true });
-addEventListener("resize", secsEdge);
-$("#secs").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-sec]"); if (!b) return;
-  sec = b.dataset.sec; store.set("sec", sec); renderChips(); renderList();
+const dpSet = (k) => { dp = k; renderBar(); };
+$("#dbar").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b || b.disabled) return;
+  haptic();
+  if ("fav" in b.dataset) { favOnly = !favOnly; store.set("favOnly", favOnly); dp = null; renderList(); return scrollTo(0, 0); }
+  dpSet(dp === b.dataset.dp ? null : b.dataset.dp);
 });
+$("#dpanel").addEventListener("click", (e) => {
+  const j = e.target.closest("[data-jump]"); if (j) { dpSet(null); jumpGo(document.getElementById(j.dataset.jump)); return; }
+  const o = e.target.closest("[data-open]"); if (o) { dpSet(null); $("#q").blur(); return openSheet(+o.dataset.open); }
+  const ml = e.target.closest("[data-mylist]"); if (ml) { haptic(); dp = null; plOpenSaved(+ml.dataset.mylist); scrollTo(0, 0); }
+});
+// A tap anywhere else, or Escape, closes the panel.
+// (The path, not the target: the tapped button may have just been redrawn.)
+document.addEventListener("click", (e) => { if (dp && dp !== "recent" && !e.composedPath().some((x) => x.id === "dbar" || x.id === "dpanel")) dpSet(null); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && dp) dpSet(null); });
+// Tapping the empty search box shows what you opened last, like a phone's own search.
+$("#q").addEventListener("focus", () => { if (!$("#q").value.trim() && recent.length) dpSet("recent"); });
+$("#q").addEventListener("blur", () => setTimeout(() => { if (dp === "recent") dpSet(null); }, 250));
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, pin: null, admin: false, owner: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, pin: null, admin: false, owner: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], items: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
 // The 86 board is shared by everyone on the team. Off the team, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -1297,7 +1342,7 @@ function rowHtml(d) {
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)} · ${esc(blurb(d))}${plOutTag(d)}</div></div></button>`;
 }
-let recent = store.get("recent", []).filter((id) => D[id]);
+var recent = store.get("recent", []).filter((id) => D[id]);
 const FLAVOURS = {
   "Fruity": ["Fruity"], "Sweet": ["Sweet"], "Sour": ["Sour", "Zesty", "Citrus"], "Fresh & light": ["Fresh", "Light", "Easy"],
   "Fizzy": ["Fizzy"], "Tropical": ["Tropical"], "Creamy": ["Creamy", "Silky", "Rich"], "Coffee": ["Coffee"],
@@ -1305,66 +1350,69 @@ const FLAVOURS = {
 };
 let flav = null;
 const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Proof" || d.tags.includes("No alcohol") : d.tags.some((t) => FLAVOURS[flav].includes(t)));
+// While you search: pages it matches ("handover", "86") and what a typo was read as. Nothing otherwise.
 function renderQuick(show, q = "") {
-  if (!show) { const f = PL.sq?.fixed || [], go = placeHits(q); $("#quick").innerHTML = (go.length ? `<div class="goto"><span class="mini">Go to</span>${go.map((x) => `<button class="chip" data-goto="${x.go}">${esc(x.n)} ›</button>`).join("")}</div>` : "") + (f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : ""); return; }
-  // Kinds of drink (Martinis, Margaritas, Spritzes…) one tap away; your saved lists; what you opened last. What the
-  // guest fancies, the spirit and the method are in Filters, so there's one place to narrow the list.
-  if (PL.list) { $("#quick").innerHTML = ""; return; }
-  const lists = plLists(), mine = lists.length ? `<div class="mini">Your lists</div><div class="chips hrow">${lists.map((x, i) => `<button class="chip" data-mylist="${i}">📋 ${esc(x.name)} <span class="cn">${x.drinks.length}</span></button>`).join("")}</div>` : "";
-  const rec = recent.length && sec === "All" && !plActive().length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = mine + rec;
+  if (show) { $("#quick").innerHTML = ""; return; }
+  const f = PL.sq?.fixed || [], go = placeHits(q);
+  $("#quick").innerHTML = (go.length ? `<div class="goto"><span class="mini">Go to</span>${go.map((x) => `<button class="chip" data-goto="${x.go}">${esc(x.n)} ›</button>`).join("")}</div>` : "") + (f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : "");
 }
-$("#quick").addEventListener("click", (e) => {
-  const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
-  const ml = e.target.closest("[data-mylist]"); if (ml) { haptic(); plOpenSaved(+ml.dataset.mylist); return; }
-});
 let listIds = D.map((d) => d.id);
 const SEC_ORDER = [...new Set(D.map((d) => d.section))];
 function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const words = q ? plQuery(q).words : [];
   renderQuick(!q, q);
-  chipPool = D.filter((d) => plHits(d, words) && flavHit(d) && plOk(d)); renderChips();
-  let rows = chipPool.filter(inSec);
+  if (q && dp === "recent") dp = null;
+  let rows = D.filter((d) => plHits(d, words) && flavHit(d) && plOk(d) && favOk(d));
   const flat = !!q || PL.sort !== "menu";
   // The menu keeps each section together, in menu order, so nothing hides under a repeated heading further down.
   rows = q && PL.sort === "menu" ? plRank(rows, words) : flat ? plSort(rows) : rows.slice().sort((a, b) => SEC_ORDER.indexOf(a.section) - SEC_ORDER.indexOf(b.section) || a.id - b.id);
-  $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}`;
+  const narrowed = !!(favOnly || q || flav || PL.list || plOn().length);
+  $("#count").textContent = narrowed ? `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}` : "";
   listIds = rows.map((d) => d.id);
-  renderPlf();
-  if (!rows.length && sec === CHIPS[1] && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here.</p>`; return; }
-  if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
-  let html = "", last = "";
-  const per = {}; rows.forEach((d) => (per[d.section] = (per[d.section] || 0) + 1));
-  // Every drink shows. A to Z puts a letter heading over each run, the menu a heading over each section; the
-  // heading sticks while you scroll its drinks, and the bar at the top jumps straight to any letter or section.
+  // Every drink shows. The menu puts a heading over each section, A to Z over each letter; Jump to lists them all.
   const az = PL.sort === "az" && rows.length > 12, L = (d) => (/[a-z]/i.test(plNorm(d.name)[0]) ? plNorm(d.name)[0].toUpperCase() : "#");
-  const secs = !flat ? [...new Set(rows.map((d) => d.section))] : [], sid = (x) => `sec-${SEC_ORDER.indexOf(x)}`;
-  if (az) html += `<nav class="azbar" aria-label="Jump to a letter">${[...new Set(rows.map(L))].map((l) => `<button data-jump="az-${l}">${l}</button>`).join("")}</nav>`;
-  else if (secs.length > 1) html += `<nav class="azbar secbar" aria-label="Jump to a section">${secs.map((x) => `<button data-jump="${sid(x)}">${esc(x)}</button>`).join("")}</nav>`;
-  for (const d of rows) {
-    if (az && L(d) !== last) { last = L(d); html += `<i class="anc" id="az-${last}"></i><div class="sec azsec">${last}</div>`; }
-    else if (!flat && d.section !== last) { html += `<i class="anc" id="${sid(d.section)}"></i><div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; }
-    html += rowHtml(d);
-  }
-  // A filtered list (a section, a flavour or a search) can go out as one WhatsApp message of specs.
-  if (sec !== "All" || q || flav || PL.list || PL.fam || plActive().length) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
+  const sid = (x) => `sec-${SEC_ORDER.indexOf(x)}`;
+  const groups = new Map();
+  if (az || !flat) for (const d of rows) { const k = az ? L(d) : d.section; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(d); }
+  jumpParts = groups.size > 1 ? [...groups].map(([k, ds]) => [az ? `az-${k}` : sid(k), k, az ? 0 : ds.length]) : [];
+  jumpLabel = jumpParts.length ? secName(jumpParts[0][1]) : "";
+  renderPlf(); renderBar();
+  if (!rows.length && favOnly && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here. Tap \u2605 again to see every drink.</p>`; return; }
+  if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
+  let html = "";
+  if (groups.size) for (const [k, ds] of groups) {
+    // Each section can go out as one WhatsApp message of its specs, straight from its heading.
+    html += az ? `<i class="anc" id="az-${k}"></i><div class="sec azsec">${k}</div>`
+      : `<i class="anc" id="${sid(k)}"></i><div class="sec">${esc(k)}<span class="cnt">${ds.length}</span><button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button></div>`;
+    html += ds.map(rowHtml).join("");
+  } else html += rows.map(rowHtml).join("");
+  // A narrowed list (favourites, a filter or a search) can go out as one WhatsApp message of specs.
+  if (narrowed) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
   $("#list").innerHTML = html;
-  $("#list").classList.toggle("jb", az || secs.length > 1); jumpSync();
+  jumpSync();
 }
 $("#q").addEventListener("input", renderList);
 /* Jump bars (Menu and Rapid fire): a tap goes to that part, the part you're in lights up in the bar, and a sideways
    swipe on the page goes to the next or the previous part. */
 const jumpBox = () => (cur === "drinks" ? $("#list") : cur === "rapid" ? $("#rp-out") : null);
-const jumpGo = (a) => { haptic(); a.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }); };
-document.addEventListener("click", (e) => { const b = e.target.closest(".azbar [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
+const jumpGo = (a) => { haptic(); hdhSet(); a.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }); };
+document.addEventListener("click", (e) => { const b = e.target.closest(".azbar [data-jump], .rpjump [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
 function jumpAt(box) {
   const line = $("#hdr").getBoundingClientRect().bottom + 60, ancs = [...box.querySelectorAll(".anc")];
   let i = 0; ancs.forEach((a, j) => { if (a.getBoundingClientRect().top <= line) i = j; });
   return [ancs, i];
 }
 function jumpSync() {
-  const box = jumpBox(), bar = box?.querySelector(".azbar"); if (!bar) return;
+  const box = jumpBox();
+  // Menu: the Jump to button names the section (or letter) you're scrolled to.
+  if (cur === "drinks") {
+    if (!jumpParts.length) return;
+    const [ancs, i] = jumpAt(box), p = ancs[i] && jumpParts.find((x) => x[0] === ancs[i].id), t = p ? secName(p[1]) : jumpLabel;
+    if (t !== jumpLabel) { jumpLabel = t; const l = $("#dbar .dj span"); if (l) l.textContent = t; }
+    return;
+  }
+  const bar = box?.querySelector(".azbar"); if (!bar) return;
   const [ancs, i] = jumpAt(box), on = ancs[i] && bar.querySelector(`[data-jump="${ancs[i].id}"]`);
   if (!on || on.getAttribute("aria-current") === "true") return;
   bar.querySelectorAll("[aria-current]").forEach((x) => x.removeAttribute("aria-current"));
@@ -1376,7 +1424,7 @@ addEventListener("scroll", () => { if (!jumpRaf) jumpRaf = requestAnimationFrame
 let swStart = null;
 document.addEventListener("touchstart", (e) => {
   const t = e.touches[0];
-  swStart = e.touches.length > 1 || !jumpBox() || !$("#sheet").hidden || e.target.closest(".hrow,.azbar,.chips,input,textarea,.rush") ? null : [t.clientX, t.clientY];
+  swStart = e.touches.length > 1 || !jumpBox() || !$("#sheet").hidden || e.target.closest(".hrow,.azbar,.chips,.dbar,.dpanel,input,textarea,.rush") ? null : [t.clientX, t.clientY];
 }, { passive: true });
 document.addEventListener("touchend", (e) => {
   if (!swStart) return;
@@ -1387,7 +1435,8 @@ document.addEventListener("touchend", (e) => {
   if (a) jumpGo(a);
 }, { passive: true });
 // The sticky jump bar and headings sit under the sticky search bar, whatever its height.
-new ResizeObserver(() => document.documentElement.style.setProperty("--hdh", `${$("#hdr").offsetHeight}px`)).observe($("#hdr"));
+function hdhSet() { document.documentElement.style.setProperty("--hdh", `${$("#hdr").offsetHeight}px`); }
+new ResizeObserver(hdhSet).observe($("#hdr"));
 document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
 
 /* ---------- Spec sheet ---------- */
@@ -1637,7 +1686,7 @@ $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("[data-pl-card]")) { toast("Making the picture…"); plShareCard(D[curId]).catch(() => toast("Picture not made. Try again")); return; }
   if (e.target.closest("[data-pl-print]")) { plPrintCard(D[curId]); return; }
   const mb = e.target.closest("[data-mult]"); if (mb) { const y = $("#sheet").scrollTop; mult = +mb.dataset.mult; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
-  const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderChips(); renderList(); return; }
+  const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderList(); return; }
   const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name, on = !outNow().has(n); setOut(n, on); toast(on ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
   const st = e.target.closest(".step"); if (st) {
     st.classList.toggle("done"); st.querySelector(".tick").textContent = st.classList.contains("done") ? "Done \u2713" : "Tap when done"; haptic();
@@ -1894,8 +1943,11 @@ function renderQuiz() {
 /* ---------- Shift ---------- */
 // The standard opening and closing checklists for each side. A manager can change any of them in the app (see Changing
 // a list), and that version then shows on every phone instead. sect() puts items under a heading (g) on the page.
-// Who works where. Closing is signed by first name: tap whoever closed tonight.
-const STAFF = { bar: ["Angel", "Emily", "Kadir"], floor: ["Mounika", "Anub", "PK", "Derek", "Pema", "Vi"], both: ["Tomas"] };
+// Who works where, first names only (never surnames: this is public). Closing is signed by first name: tap whoever
+// closed tonight. The managers keep the list in the app (settings/names); this phone keeps the last one it saw, so
+// the start screen has it before joining. This is the app's own list until they first save one.
+const STAFF_DEFAULT = { mgr: ["Hassan", "Ilias", "Artur", "Sarul"], bar: ["Emily", "Angel", "Simroy", "Kadir"], floor: ["Derek", "Pema", "Anup", "Mounika", "PK", "Vio", "Tom"] };
+const STAFF = { ...STAFF_DEFAULT, ...store.get("names", {}) };
 const sect = (g, xs) => xs.map((x) => (typeof x === "string" ? { t: x, g } : { ...x, g }));
 const LISTS = {
   // The bar's close, in the order it's done, grouped so two people can split it. Each group has its own Tick all.
@@ -2555,7 +2607,7 @@ function listFoot(k) {
 const listPane = (k) => (le?.k === k ? editHtml(k) : checklistHtml(k) + listFoot(k));
 // Who can be picked as closing manager: the managers and the owner, from the team's logins.
 // Who can be ticked as having closed: this side's team first, then everyone else. Several can be ticked.
-const closers = () => [...new Set([...(STAFF[mode] || []), ...STAFF.both, ...Object.values(STAFF).flat(), ...closer.split(", ").filter(Boolean)])];
+const closers = () => [...new Set([...(STAFF[mode] || []), ...STAFF.mgr, ...Object.values(STAFF).flat(), ...closer.split(", ").filter(Boolean)])];
 const closedBy = () => closer.split(", ").filter(Boolean);
 // The last report this side sent before tonight, for whoever opens: its handover note and what it left undone.
 const reportDay = (r) => ukDay(ms(r.at) - 6 * 36e5);
@@ -2664,7 +2716,8 @@ function stillToDoHtml() {
 }
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
 const OTHER = "Other (write it in)";
-const stockOptions = (skip, pick = "") => Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
+// The stock list plus what the team has added (items.js), each in its group.
+const stockOptions = (skip, pick = "") => Object.entries(stockGroups()).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
 /* ---------- Restocking from the cellar (logged in) ----------
    Ask for something, how much and where it's going. Anyone can take it on (or a manager gives it to someone), bring it
    up saying how much they moved, and whoever is there confirms how much arrived, so a request is never taken as proof
@@ -2896,7 +2949,7 @@ function labelHist(x) {
 // manager fills in the rest from each pack (or unticks what this side doesn't keep) and adds them all in one go.
 const lbS = { open: null, off: {}, life: {} };
 const lbKey = (side, n) => `${side}|${n}`;
-const ideasLeft = (side) => (LABEL_IDEAS[side] || []).map(([g, xs]) => [g, xs.filter(([n]) => !dupLabel(n, side))]).filter(([, xs]) => xs.length);
+const ideasLeft = (side) => [...(LABEL_IDEAS[side] || []), ...itLabelIdeas(side)].map(([g, xs]) => [g, xs.filter(([n]) => !dupLabel(n, side))]).filter(([, xs]) => xs.length);
 const ideaLife = (side, n, d) => lbS.life[lbKey(side, n)] ?? (d ? String(d) : "");
 function labelListHtml(side) {
   const left = ideasLeft(side); if (!left.length) return "";
@@ -2999,7 +3052,7 @@ function renderTally() {
   if (!LIVE.me) {
     renderFootball();
     $("#shift-title").textContent = `${sideName(mode)} shift`; $("#shift-day").textContent = "";
-    $("#tally").innerHTML = `<p class="note">${!LIVE.api ? "The shift checklists need the team side, which needs signal the first time." : LIVE.uid && !LIVE.anon ? "Checking your account…" : "Join the team to use the checklists, the 86 board, restocking and handover. No login: open the team link from the staff group. Everyone on shift sees the same lists."}</p>${LIVE.api && (!LIVE.uid || LIVE.anon) ? `<div class="actions"><button class="btn pri" data-login>Join the team</button></div>` : ""}`;
+    $("#tally").innerHTML = `<p class="note">${!LIVE.api ? "The shift checklists need the team side, which needs signal the first time." : LIVE.uid && !LIVE.anon ? "Checking your account…" : "Join the team to use the checklists, the 86 board, restocking and handover. No login: pick your name and type the team code. Everyone on shift sees the same lists."}</p>${LIVE.api && (!LIVE.uid || LIVE.anon) ? `<div class="actions"><button class="btn pri" data-login>Join the team</button></div>` : ""}`;
     return;
   }
   freshNight();
@@ -3013,7 +3066,7 @@ function renderTally() {
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
-    fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+    fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${putAwayHtml("floor")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
       ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
@@ -3021,8 +3074,8 @@ function renderTally() {
       <div class="mini">Quick 86</div><div class="recent" translate="no">${QUICK86[mode].filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
       <label class="fld">Something else ran out?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       <div class="ltools"><input id="s-86-own" maxlength="80" placeholder="Not on the list? Type it, like a burger" aria-label="86 something not on the list"><button class="btn" id="s-86-go">86 it</button></div>
-      ${restockHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
-    close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+      ${restockHtml()}${itemsHtml(mode)}${nextBtn(closeList(), "Next: closing checklist")}`,
+    close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
@@ -4352,7 +4405,8 @@ function payInner() {
   const f = (k, label, hint = "", mode = "decimal") => `<label class="fld">${label}<input data-pay="${k}" inputmode="${mode}" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
   const M = monthPay(pm), H = M.H, open = (k) => (paySec.has(k) ? " open" : ""), ns = Object.keys(pay.slips).length, xs = inM(pm);
   const panel = hf.open ? hfHtml() : slip.open ? slipPanelHtml() : slipTy.open ? slipTyHtml() : "";
-  const tabs = `<div class="recent paytabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button class="chip" role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}" aria-pressed="${payTab === k}">${t}</button>`).join("")}</div>`;
+  // The same tabs as Shift, under the same kind of page title.
+  const tabs = `<h2 class="pgt">My pay</h2><div class="ptabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}">${t}</button>`).join("")}</div>`;
   if (payTab === "months") return `${tabs}
     <div id="pay-months">${monthsHtml()}</div>
     <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-ty-open>Type it in</button><button class="btn" data-hf-open>Add hours</button></div>`;
@@ -4632,7 +4686,7 @@ function renderInfo() {
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
     <div class="mini" style="margin-top:14px">Shared iPad or tablet</div>
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div>
-    <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a manager's code or the maintenance login locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
+    <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a manager's or maintenance's code locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
     ${fold("home", "Put this app on your home screen", `
     <h3 style="font-size:18px;margin-top:4px">iPhone</h3>
@@ -4679,7 +4733,7 @@ $("#v-info").addEventListener("click", (e) => {
 
 /* ---------- Features ----------
    Every feature: what it's for, what staff and the manager can do with it, and where it is. The tour goes through the
-   ones marked tour that this phone can use. Team features need the phone to be on the team (the team link). */
+   ones marked tour that this phone can use. Team features need the phone to be on the team (joined with the team code). */
 const FEATURES = [
   { g: "Drinks", k: "drinks", n: "Drinks", go: "tab:drinks", tour: 1,
     what: "Every drink with its spec, glass, ice, garnish and method, and a picture guide for each step.",
@@ -4750,7 +4804,7 @@ const FEATURES = [
     mgr: "Add and remove the venue's numbers." },
   { g: "Team", k: "people", n: "Who's on the team", go: "people", team: 1,
     what: "Every phone on the team. Managers unlock theirs with their own 4 digit code.",
-    staff: "Share the team link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. Maintenance adds or removes the managers and their codes." },
+    staff: "Share the Bar Book link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. Maintenance adds or removes the managers and their codes." },
 ];
 const navCols = () => ($("nav.tabs").style.gridTemplateColumns = `repeat(${[...$$("nav.tabs [data-tab]")].filter((b) => !b.hidden).length}, 1fr)`);
 const fUsable = (f) => !f.team || !!LIVE.me;
@@ -4763,7 +4817,7 @@ function featHtml() {
   };
   return `<h2 id="sh-name" style="margin-top:12px">What's in Bar Book</h2>
     <p class="lead">The drinks, the shift and the team in one app, for the bar and floor. Here's every feature and what it's for.</p>
-    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without the team link you get the drinks, the cocktail maker, Allergens, Practise, More, My pay and the WhatsApp tools. Open the team link from the staff group for the rest: no login or password."}</p>
+    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without joining you get the drinks, the cocktail maker, Allergens, Practise, More, My pay and the WhatsApp tools. Join with the team code for the rest: no login or password."}</p>
     <div class="actions"><button class="btn pri" id="tour-go">Take the tour (${tourSteps().length} steps)</button></div>
     ${[...new Set(FEATURES.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${FEATURES.filter((f) => f.g === g).map(card).join("")}`).join("")}`;
 }
@@ -4787,9 +4841,9 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) closeSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran",
+const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
-  tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team link join leave",
+  tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift" };
 function placeHits(q) {
   const ws = q.toLowerCase().split(/\s+/).filter((w) => w.length >= 3 || /^\d+$/.test(w)); if (!ws.length) return [];
@@ -4862,26 +4916,25 @@ const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 const val = (id) => $(id).value.trim();
 
 /* ---------- Who you are and joining the team ----------
-   Bar and floor staff have no login or password. The phone remembers a first name (picked on the welcome screen or
-   here) and the team code, which comes in the team link from the staff WhatsApp group (...#join=CODE). With both, the
-   phone joins the team by itself. Only the owner and the manager log in, with a username and password. */
-const ALL_STAFF = [...STAFF.bar, ...STAFF.floor, ...STAFF.both];
+   Nobody has a login or password. The phone remembers a first name (picked on the welcome screen or here) and the
+   team code, typed once on the Join screen. The code is never put in a link or a message: it's said in person. Then a
+   manager or maintenance picks their name and types their own 4 digit code to unlock everything on that phone. */
+const allStaff = () => [...STAFF.mgr, ...STAFF.bar, ...STAFF.floor];
 let myName = store.get("me", ""), teamCode = store.get("team", "");
-{
-  const m = location.hash.match(/^#join=([A-Za-z0-9-]{8,64})$/);
-  if (m) { teamCode = m[1]; store.set("team", teamCode); store.set("kicked", false); history.replaceState(null, "", location.pathname + location.search); }
-}
-const teamLink = () => `${location.origin}${location.pathname}#join=${teamCode}`;
-// Up to three seniors (Illias, Hassan, Artur) unlock with their own code (role "manager" in the data). Everything sent
-// "to the seniors" reaches all of them and the owner.
-let joining = false, joinErr = store.get("kicked", false) ? "You were taken off the team on this phone. Open the team link from the staff group to join again." : "";
+// Old team links (...#join=CODE) carry the code in the address, which ends up in chats and browser history. They no
+// longer join: the address is tidied and the Join screen asks for the code.
+if (/^#join=/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+const appLink = () => `${location.origin}${location.pathname}`;
+// Up to four seniors (Hassan, Ilias, Artur, Sarul) unlock with their own code (role "manager" in the data), and so does
+// maintenance (the owner). Everything sent "to the seniors" reaches all of them and the owner.
+let joining = false, joinErr = store.get("kicked", false) ? "You were taken off the team on this phone. Type the team code to join again." : "";
 function autoJoin() {
   // After a refused join it waits for the Join button or a new link: retrying by itself looped for ever on a wrong code.
   if (!LIVE.api || !LIVE.ready || joining || joinErr || LIVE.admin || !teamCode || !myName) return;
   if (LIVE.me === myName && !LIVE.admin) return;
   if (LIVE.uid && !LIVE.anon) return;
   joining = true; joinErr = "";
-  LIVE.api.join(teamCode, myName).catch((e) => { joinErr = e.message; }).finally(() => { joining = false; renderTeam(); });
+  LIVE.api.join(teamCode, myName).catch((e) => { joinErr = e.message; toast(e.message); pendingPin = null; }).finally(() => { joining = false; renderTeam(); renderWelcomeName(); });
 }
 function setName(n) {
   if (rude(n)) return toast(RUDE);
@@ -4889,12 +4942,30 @@ function setName(n) {
   if (LIVE.me && LIVE.anon && myName && LIVE.me !== myName) { joining = false; LIVE.me = null; }
   autoJoin(); renderWelcomeName(); renderTeam();
 }
-const nameChips = (pick, attr) => Object.entries({ Bar: STAFF.bar, Floor: STAFF.floor, "Bar and floor": STAFF.both }).map(([g, ns]) =>
+const nameChips = (pick, attr) => Object.entries({ Managers: STAFF.mgr, Bar: STAFF.bar, Floor: STAFF.floor }).map(([g, ns]) =>
   `<div class="mini">${g}</div><div class="recent" translate="no">${ns.map((n) => `<button class="chip" ${attr}="${esc(n)}" aria-pressed="${n === pick}">${esc(n)}</button>`).join("")}</div>`).join("");
+// Names that have their own code (the managers, and maintenance once this phone has seen the team's list), so the
+// start screen asks for it.
+const codeNames = () => new Set([...STAFF.mgr, ...store.get("codeNames", [])].map((n) => n.toLowerCase()));
+const hasCode = (n) => !!n && codeNames().has(n.toLowerCase());
+// The start screen: pick your name, type the team code once, and a manager's own code; or go straight to the drinks.
 function renderWelcomeName() {
-  const box = $("#w-name"); if (!box) return;
-  box.innerHTML = myName && !box.dataset.edit && !sharedDev ? `<p class="wme">Hi <b translate="no">${esc(myName)}</b> · <button class="linkbtn" id="w-notme">Not you?</button></p>`
+  const box = $("#w-name"); if (!box || (box.contains(document.activeElement) && document.activeElement.tagName === "INPUT")) return;
+  const pick = myName && !box.dataset.edit && !sharedDev ? `<p class="wme">Hi <b translate="no">${esc(myName)}</b> · <button class="linkbtn" id="w-notme">Not you?</button></p>`
     : `<p class="wme">${sharedDev ? "Shared iPad: who's using it?" : "Who are you?"}</p>${nameChips(myName, "data-w-name")}<label class="fld">Someone else<input id="w-other" maxlength="30" autocomplete="given-name" placeholder="Your first name" translate="no"></label>`;
+  const joined = LIVE.me || (LIVE.uid && !LIVE.anon), code = !joined && !teamCode && LIVE.api;
+  const mine = myName && hasCode(myName) && !LIVE.admin && LIVE.api;
+  box.innerHTML = pick + (code || mine ? `<div class="wcodes">${code ? `<label class="fld">Team code<input id="w-code" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="Ask a manager"></label>` : ""}
+    ${mine ? `<label class="fld">Your own code<input id="w-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4 numbers"></label>` : ""}</div>` : "");
+}
+// A manager's code typed on the start screen is checked once the phone is on the team and has the managers' names.
+let pendingPin = null;
+function tryPendingPin() {
+  if (!pendingPin || !LIVE.me || LIVE.admin || !LIVE.loaded.has("seniors")) return;
+  const { name, pin } = pendingPin, s = LIVE.seniors.find((x) => x.name.toLowerCase() === name.toLowerCase());
+  pendingPin = null;
+  if (!s) return toast(`${name} has no code yet. Maintenance sets it`);
+  LIVE.api.unlock(s.id, pin).then(() => { haptic(); toast("Unlocked. Tap Lock before you hand the phone back"); }, (er) => toast(er.message));
 }
 
 /* ---------- Shared iPad ----------
@@ -4914,8 +4985,8 @@ function sharedLock() {
   if (Date.now() - lastTap >= IDLE_MIN * 6e4) lockDue = true;
   if (!lockDue || !LIVE.api || !LIVE.ready) return;
   lockDue = false;
-  if (LIVE.owner) { idleOut = true; LIVE.api.leave(); return; }
-  if (LIVE.role === "manager") track(LIVE.api.lock(myName), "Locked: this iPad is shared", "Not locked. Check the signal");
+  if (LIVE.owner && !LIVE.pin) { idleOut = true; LIVE.api.leave(); return; }
+  if (LIVE.pin) track(LIVE.api.lock(myName), "Locked: this iPad is shared", "Not locked. Check the signal");
 }
 const tapped = () => {
   sharedLock();
@@ -5169,9 +5240,9 @@ SHARE.swap = (o) => {
     head: [`${longDay(d)}, ${sideName(mode).toLowerCase()}. Message me if you can take it.`, "The managers still have to agree it."],
     parts: [], noteHead: null, notePh: "Times, and anything else" };
 };
-SHARE.team = () => (teamCode ? { what: "Team link", title: "Join Bar Book",
-  head: ["Tap this on your phone to join the team in Bar Book (no login or password). Keep it in this group only.", teamLink()],
-  parts: [], noteHead: null, tip: "Anyone with this link can join the team, so only share it in the staff group." } : null);
+SHARE.team = () => ({ what: "Bar Book link", title: "Bar Book",
+  head: ["Open this on your phone, pick your name and type the team code. Ask a manager for the code in person.", appLink()],
+  parts: [], noteHead: null, tip: "Never write the team code in a message: say it in person." });
 
 /* ---------- Spin the wheel ----------
    Who does the bins, who goes on break first, who picks the music: tap the names, say what for, spin. */
@@ -5265,32 +5336,43 @@ function reportsHtml() {
 }
 const outlogHtml = () => LIVE.outlog.slice(0, 60).map((x) => `<div class="staffrow"><div class="n">${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "86'd" : "back on"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">No 86s yet.</p>`;
 const ROLE = { owner: "maintenance", manager: "manager", staff: "" };
+const OWNER_ID = "owner";
+const managersOnly = () => LIVE.seniors.filter((x) => x.id !== OWNER_ID);
+const ownerEntry = () => LIVE.seniors.find((x) => x.id === OWNER_ID);
 // A senior's record from before codes (a password login) holds no pin and no longer counts as a senior.
 const oldLogin = (p) => p.role === "manager" && !p.pin;
 function peopleHtml() {
-  const canGo = (p) => p.uid !== LIVE.uid && p.role !== "owner" && (LIVE.owner || (LIVE.admin && p.role === "staff"));
+  const canGo = (p) => p.uid !== LIVE.uid && (p.role !== "owner" || p.pin) && (LIVE.owner || (LIVE.admin && p.role === "staff"));
   return `<p class="note">${plural(LIVE.staff.length, "phone", "phones")} on the team.</p>
     ${LIVE.staff.map((p) => `<div class="staffrow"><div class="n"><b translate="no">${esc(p.name)}</b>${oldLogin(p) ? ` <span class="pill no">old login</span>` : ROLE[p.role] ? ` <span class="pill">${ROLE[p.role]}</span>` : ""}${p.uid === LIVE.uid ? ` <span class="pill ok">this phone</span>` : ""}</div>
       ${p.at ? `<div class="s">Joined ${when(p.at)}</div>` : ""}${canGo(p) ? `<div class="actions"><button class="btn" data-tm-drop="${p.uid}">Take off the team</button></div>` : ""}</div>`).join("")}
-    ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, change the team code in Firebase and share the new link.</p>` : ""}`;
+    ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, give the team a new code in Maintenance settings.</p>` : ""}`;
 }
 /* ---------- Seniors' codes ----------
-   Up to three seniors. Each unlocks any phone on the team with their own 4 digit code; the server checks it and
-   counts wrong ones (firestore.rules: seniors and pins). Only the owner adds, re-codes or takes off a senior. */
+   Up to four seniors, plus maintenance (the owner) under the id "owner". Each unlocks any phone on the team by picking
+   their name and typing their own 4 digit code; the server checks it and counts wrong ones (firestore.rules: seniors and
+   pins). Only the owner adds, re-codes or takes off a senior, and sets their own code. */
 let unF = { id: "" };
 function unlockHtml() {
-  const S = LIVE.seniors, s = S.find((x) => x.id === unF.id), w = s ? LIVE.api.waitFor(s) : 0;
+  const S = [...LIVE.seniors].sort((a, b) => (b.id === OWNER_ID) - (a.id === OWNER_ID)), s = S.find((x) => x.id === unF.id), w = s ? LIVE.api.waitFor(s) : 0;
   if (!S.length) return `<p class="note">No managers added yet.</p>`;
-  return `<p class="note">Managers: unlock everything you need on this phone with your own code. Tap Lock before you hand the phone back.</p>
-    <div class="mini">Who are you?</div><div class="recent" translate="no">${S.map((x) => `<button class="chip" data-un-id="${esc(x.id)}" aria-pressed="${x.id === unF.id}">${esc(x.name)}</button>`).join("")}</div>
+  return `<p class="note">Managers and maintenance: tap your name and type your own code to unlock everything on this phone. Tap Lock before you hand the phone back.</p>
+    <div class="mini">Who are you?</div><div class="recent" translate="no">${S.map((x) => `<button class="chip" data-un-id="${esc(x.id)}" aria-pressed="${x.id === unF.id}">${esc(x.name)}${x.id === OWNER_ID ? " (maintenance)" : ""}</button>`).join("")}</div>
     ${w === Infinity ? `<p class="note warn" role="alert">Locked after ${LIVE.api.MAX_TRIES} wrong codes. Ask maintenance to unlock it.</p>` : w ? `<p class="note warn" role="alert">Too many wrong codes. Try again in ${w} min.</p>` : ""}
     <label class="fld">Your 4 digit code<input id="un-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></label>
     <button class="btn pri wide" id="un-go">Unlock</button>`;
 }
 function seniorsHtml() {
-  const S = LIVE.seniors, A = LIVE.api, old = LIVE.staff.filter(oldLogin);
+  const S = managersOnly(), A = LIVE.api, old = LIVE.staff.filter(oldLogin), me = ownerEntry();
   const state = (x) => (x.tries >= A.MAX_TRIES ? `<span class="pill no">locked</span>` : x.tries ? `<span class="pill no">${plural(x.tries, "wrong code")}</span>` : "");
-  return `<p class="note">Each manager unlocks any phone on the team with their own 4 digit code and sees and changes everything you do, except App feedback and this card. 5 wrong codes slow it to one try every 15 minutes; 10 lock it until you unlock it here. Give codes in person.</p>
+  const mine = me ? `<div class="staffrow"><div class="n"><b translate="no">${esc(me.name)}</b> <span class="pill">maintenance</span> ${state(me)}</div>
+      <div class="s">Your own code. On any phone on the team: Team, then Unlock with your code.</div>
+      <div class="actions">${me.tries ? `<button class="btn pri" data-sn-reset="${OWNER_ID}">Unlock my code</button>` : ""}<button class="btn" data-sn-code="${OWNER_ID}">New code</button></div></div>`
+    : `<label class="fld">Your name on the list<input id="ow-name" maxlength="30" value="${esc(firstName(LIVE.me))}" translate="no"></label>
+      <label class="fld">Your 4 digit code<input id="ow-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></label>
+      <div class="actions"><button class="btn pri" id="ow-go">Set my code</button></div>`;
+  return `<div class="h3">You (maintenance)</div>${me ? "" : `<p class="note warn">Set your own code first: then you log in like the managers, by picking your name and typing it.</p>`}${mine}
+    <div class="h3">Managers</div><p class="note">Each manager unlocks any phone on the team with their own 4 digit code and sees and changes everything you do, except App feedback and this card. 5 wrong codes slow it to one try every 15 minutes; 10 lock it until you unlock it here. Give codes in person.</p>
     ${S.map((x) => { const on = LIVE.staff.filter((p) => p.pin === x.id).length; return `<div class="staffrow"><div class="n"><b translate="no">${esc(x.name)}</b> ${state(x)}</div>
       <div class="s">${on ? `Unlocked on ${plural(on, "phone")}` : "Not unlocked on any phone"}</div>
       <div class="actions">${x.tries ? `<button class="btn pri" data-sn-reset="${esc(x.id)}">Unlock the code</button>` : ""}<button class="btn" data-sn-code="${esc(x.id)}">New code</button><button class="btn" data-sn-drop="${esc(x.id)}">Take off</button></div></div>`; }).join("") || `<p class="note">No managers yet.</p>`}
@@ -5301,10 +5383,28 @@ function seniorsHtml() {
     ${old.length ? `<div class="h3">Old manager logins</div><p class="note">These logins from before codes no longer work. Take them off.</p>
       ${old.map((p) => `<div class="staffrow"><div class="n"><b translate="no">${esc(p.name)}</b></div><div class="actions"><button class="btn" data-tm-drop="${p.uid}">Take off the team</button></div></div>`).join("")}` : ""}`;
 }
+// The names everyone picks from, kept by the managers: first names only.
+const NAME_SECS = [["mgr", "Managers"], ["bar", "Bar"], ["floor", "Floor"]];
+function namesHtml() {
+  return `<p class="note">The names on the start screen and on closing. First names only. Changes show on every phone.</p>
+    ${NAME_SECS.map(([k, t]) => `<div class="mini">${t}</div><div class="recent" translate="no">${STAFF[k].map((n, i) => `<button class="chip" data-nm-drop="${k}:${i}" aria-label="Take ${esc(n)} off">${esc(n)} ✕</button>`).join("") || "None"}</div>
+      <label class="fld">Add to ${t}<input data-nm-new="${k}" maxlength="20" placeholder="First name" translate="no"></label><div class="actions"><button class="btn" data-nm-add="${k}">Add</button></div>`).join("")}`;
+}
+function saveNames(next, ok) {
+  return track(LIVE.api.saveNames(next).then(() => { Object.assign(STAFF, next); store.set("names", next); renderCard("names"); }), ok, "Not saved. Check the signal");
+}
 function mgrHtml() {
-  return `${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board and restock requests for everyone, and marks the inbox done. Open issues, the inbox's messages and sent handovers stay. Undo clear on Shift puts it back for 15 minutes.</p>
-      <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
-    <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>`;
+  const g = LIVE.gate || { tries: 0 }, gw = LIVE.api.gateWait(g);
+  return `<div class="h3">Team code</div>
+    <p class="note">Everyone types it once to join. Say it in person, never in a message. A new code takes every phone off the team, this one too, and everyone joins again with the new code. Pick 4 to 8 numbers nobody would guess: not 0000, 1234 or a birthday.</p>
+    <label class="fld">New team code<input id="tc-new" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></label>
+    <div class="actions"><button class="btn" id="tc-go">Change the team code</button></div>
+    <div class="h3">Joining</div>
+    <p class="note">${g.tries ? `${plural(g.tries, "wrong team code")} since the last phone joined. ${gw === Infinity ? "<b>Joining is locked</b>: no phone can join until you unlock it." : gw ? `Next try allowed in ${gw} min.` : ""}` : "No wrong team codes since the last phone joined."} 10 wrong codes slow joining to one try every 5 minutes for everyone; ${LIVE.api.GATE_MAX} lock it until you unlock it here.</p>
+    ${g.tries ? `<div class="actions"><button class="btn pri" id="gate-reset">Unlock joining</button></div>` : ""}
+    ${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board and restock requests for everyone, and marks the inbox done. Open issues, the inbox's messages and sent handovers stay. Undo clear on Shift puts it back for 15 minutes.</p>
+      <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}${LIVE.username ? `<div class="h3">Maintenance password</div><p class="note">Only for getting back in if your code gets locked.</p><label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
+    <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>` : ""}`;
 }
 // The top of the Manager section: tonight at a glance, for someone who isn't on the bar or the floor. Everything comes
 // from what the team is already doing in the app (nobody has to send it), each with who and when.
@@ -5363,7 +5463,7 @@ function glanceHtml() {
   const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `<li>${esc(n)} ${byAt(x.name || "", x.at)}</li>`);
   const iss = openIssues().sort((a, b) => b.urgent - a.urgent).map((x) => `<li>${x.urgent ? "<b>Urgent:</b> " : ""}${esc(x.title)} ${byAt(x.name, x.at)}${x.who ? ` <span class="s">· with ${esc(x.who)}</span>` : ""}</li>`);
   const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status)).map((x) => `<li>${esc(amtOf(x.qty, x.unit, x.item))} for the ${esc(lower(DEST[x.dest] || ""))}: ${RS_SAY[x.status]} ${byAt(x.askedBy, x.askedAt)}</li>`);
-  const seniors = LIVE.staff.filter((x) => x.role === "manager" && x.pin).map((x) => x.name);
+  const seniors = LIVE.staff.filter((x) => x.pin).map((x) => x.name);
   return `<div class="glance">${waiting.length ? `<p class="note"><b>${waiting.join(" · ")}</b></p>` : ""}
     ${glanceSide("bar")}${glanceSide("floor")}
     <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
@@ -5378,9 +5478,9 @@ function glanceHtml() {
 const tmOpen = new Set(store.get("tmOpen", []));
 const TC_SUB = { quick: "Tonight's report, the handover, the 86 list, running late, off sick", ask: "Days off, swaps, complaints, ideas. Named or anonymous",
   issues: "Anything broken, listed until someone fixes it", incident: "Write it up, send it on WhatsApp, then the accident book", rate: "Tonight out of 10. The managers' copy has no name",
-  tell: "What's missing, to add or wrong in Bar Book", call: "Emergency, utility and venue numbers", people: "Every phone on the team and the team link", spin: "Who does the bins, who breaks first",
-  unlock: "For managers on this phone", tells: "What the team says is missing or wrong in the app", inbox: "Days off, swaps, complaints and ideas sent to the managers",
-  reports: "Every closing with its photos", sent: "A copy of everything sent from Bar Book", outlog: "Who 86'd what, and when it came back", seniors: "Add, change or unlock the managers' codes", mgr: "Team code, master clear and the rest" };
+  tell: "What's missing, to add or wrong in Bar Book", call: "Emergency, utility and venue numbers", people: "Every phone on the team and the Bar Book link", spin: "Who does the bins, who breaks first",
+  unlock: "Pick your name and type your own code", names: "Managers, bar and floor, first names only", tells: "What the team says is missing or wrong in the app", inbox: "Days off, swaps, complaints and ideas sent to the managers",
+  reports: "Every closing with its photos", sent: "A copy of everything sent from Bar Book", outlog: "Who 86'd what, and when it came back", seniors: "Add, change or unlock the managers' codes", mgr: "Team code, joining, master clear" };
 const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${TC_SUB[k] ? `<small class="tsub">${TC_SUB[k]}</small>` : ""}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
 // For the owner and seniors, everything they look after comes first under Manager, then the same Team cards as
 // everyone. A ["§", title, html] entry is a heading.
@@ -5393,10 +5493,12 @@ const CARDS = () => [
     ["sent", "Everything sent", sentHtml, LIVE.sent.length || ""],
     ["outlog", "86 log", outlogHtml],
     ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""],
-    ...(LIVE.owner ? [["seniors", "Managers and their codes", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : LIVE.seniors.length || ""],
-      ["mgr", "Maintenance settings", mgrHtml]] : []),
+    ["names", "Names to pick from", namesHtml],
+    ...(LIVE.owner ? [["seniors", "Codes: you and the managers", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : !ownerEntry() ? { t: "set yours", hot: 1 } : managersOnly().length || ""],
+      ["mgr", "Maintenance settings", mgrHtml, LIVE.gate?.tries >= LIVE.api.GATE_MAX ? { t: "joining locked", hot: 1 } : ""]] : []),
     ["§", "Team"],
   ] : []),
+  ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager or maintenance? Unlock with your code", unlockHtml]] : []),
   ["quick", "Send on WhatsApp", quickHtml],
   ...(LIVE.me && !LIVE.admin ? [["ask", "To the managers", askHtml, draftPill("ask")]] : []),
   ["incident", "Incident or accident", incHtml, draftPill("incident")],
@@ -5406,7 +5508,6 @@ const CARDS = () => [
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
-  ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager? Unlock with your code", unlockHtml]] : []),
 ];
 // Everything that goes out on WhatsApp in one place: tonight's, then your own.
 function quickHtml() {
@@ -5462,18 +5563,18 @@ addEventListener("pagehide", saveDrafts);
 setTimeout(() => { const ds = Object.keys(DRAFTS).filter(drafted).map((k) => DRAFTS[k].n); if (ds.length) toast(`Unfinished draft: ${ds.join(", ")}`); }, 600);
 function topHtml() {
   if (!LIVE.api) return `<p class="note">The team side needs signal the first time.</p>`;
-  if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span>${teamCode ? `<button class="linkbtn" data-send="team">Share the team link</button>` : ""}${LIVE.owner ? `<button class="linkbtn" id="tm-leave">Log out</button>` : `<button class="linkbtn" id="tm-lock">Lock</button>`}</p>`;
-  if (LIVE.me) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${sideName(mode)}</span><button class="linkbtn" id="tm-rename">Change name</button><button class="linkbtn" data-send="team">Share the team link</button><button class="linkbtn" id="tm-leave">Leave</button></p>`;
+  if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span><button class="linkbtn" data-send="team">Share the Bar Book link</button>${LIVE.pin ? `<button class="linkbtn" id="tm-lock">Lock</button>` : `<button class="linkbtn" id="tm-leave">Log out</button>`}</p>`;
+  if (LIVE.me) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${sideName(mode)}</span><button class="linkbtn" id="tm-rename">Change name</button><button class="linkbtn" data-send="team">Share the Bar Book link</button><button class="linkbtn" id="tm-leave">Leave</button></p>`;
   const busyNow = joining || (LIVE.uid && LIVE.anon && myName && teamCode && !joinErr);
   return `<div class="fbbox"><h2 style="margin-top:0">Join the team</h2>
     ${busyNow ? `<p class="note" role="status">Joining as <b translate="no">${esc(myName)}</b>…</p>` : `
-    <p>No login or password. Open the team link from the staff WhatsApp group on this phone, or paste the team code here.</p>
+    <p>No login or password. Pick your name and type the team code (ask a manager). Managers and maintenance: join here first, then unlock with your own code.</p>
     ${joinErr ? `<p class="note warn" role="alert">${esc(joinErr)}</p>` : ""}
     <div class="mini">Who are you?</div>${nameChips(myName, "data-j-name")}
-    <label class="fld">Or type your first name (first name only)<input id="j-name" maxlength="30" value="${esc(ALL_STAFF.includes(myName) ? "" : myName)}" translate="no"></label>
-    <label class="fld">Team code<input id="j-code" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(teamCode)}"></label>
+    <label class="fld">Or type your first name (first name only)<input id="j-name" maxlength="30" value="${esc(allStaff().includes(myName) ? "" : myName)}" translate="no"></label>
+    <label class="fld">Team code<input id="j-code" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" value="${esc(teamCode)}"></label>
     <button class="btn pri wide" id="j-go">Join</button>`}</div>
-    <details class="setup"><summary>Maintenance login</summary>
+    <details class="setup"><summary>Maintenance code locked? Password</summary>
       <label class="fld">Username<input id="l-user" autocapitalize="none" autocomplete="username" spellcheck="false"></label>
       <label class="fld">Password<input id="l-pw" type="password" autocomplete="current-password"></label>
       <button class="btn pri wide" id="l-go">Log in</button></details>`;
@@ -5518,9 +5619,9 @@ $("#v-notices").addEventListener("click", async (e) => {
   // Joining and logging in.
   if ((x = b("[data-j-name]"))) { myName = x.dataset.jName; store.set("me", myName); return renderTeam(); }
   if (b("#j-go")) {
-    const n = val("#j-name") || myName, c = val("#j-code").replace(/^.*#join=/, "");
+    const n = val("#j-name") || myName, c = val("#j-code");
     if (!n) return toast("Pick your name first");
-    if (c.length < 8) return toast("Paste the team code, or open the team link from the staff group");
+    if (!/^[0-9]{4,8}$/.test(c)) return toast("The team code is 4 to 8 numbers. Ask a manager");
     teamCode = c; store.set("team", c); store.set("kicked", false); joinErr = ""; setName(n); haptic(); return;
   }
   if (b("#l-go")) {
@@ -5538,6 +5639,31 @@ $("#v-notices").addEventListener("click", async (e) => {
       (er) => { toast(er.message); renderCard("unlock"); }));
   }
   if (b("#tm-lock")) return track(A.lock(myName), "Locked. Back to the team's view", "Not locked. Check your signal");
+  if (b("#ow-go")) {
+    const n = val("#ow-name"), pin = val("#ow-pin");
+    if (!n || !/^[0-9]{4}$/.test(pin)) return toast("Your name and a 4 digit code");
+    if (rude(n)) return toast(RUDE);
+    return busy(b("#ow-go"), "Saving…", A.setSenior(n, pin, OWNER_ID).then(() => { toast("Your code is set. Pick your name and type it on any phone on the team"); renderCard("seniors"); }, (er) => toast(er.message || "Not saved")));
+  }
+  if (b("#tc-go")) {
+    const c = val("#tc-new");
+    if (!/^[0-9]{4,8}$/.test(c)) return toast("4 to 8 numbers");
+    if (!confirm("Change the team code? Every phone comes off the team, this one too, and everyone joins again with the new code.")) return;
+    return busy(b("#tc-go"), "Changing…", A.setTeamCode(c).then(() => toast("Team code changed. Tell the team in person"), (er) => toast(er.message || "Not changed")));
+  }
+  if ((x = b("[data-nm-add]"))) {
+    const k = x.dataset.nmAdd, n = ($(`[data-nm-new="${k}"]`).value || "").trim().split(/\s+/)[0];
+    if (!n) return toast("Type a first name");
+    if (rude(n)) return toast(RUDE);
+    if (STAFF[k].some((y) => y.toLowerCase() === n.toLowerCase())) return toast(`${n} is already there`);
+    return saveNames({ ...STAFF, [k]: [...STAFF[k], n] }, `${n} added`);
+  }
+  if ((x = b("[data-nm-drop]"))) {
+    const [k, i] = x.dataset.nmDrop.split(":"), n = STAFF[k][+i];
+    if (!confirm(`Take ${n} off the list?`)) return;
+    return saveNames({ ...STAFF, [k]: STAFF[k].filter((_, j) => j !== +i) }, `${n} taken off`);
+  }
+  if (b("#gate-reset")) return track(A.unlockJoining(), "Joining unlocked", "Not changed");
   if (b("#sn-go")) {
     const n = val("#sn-name"), pin = val("#sn-pin");
     if (!n || !/^[0-9]{4}$/.test(pin)) return toast("A first name and a 4 digit code");
@@ -5546,9 +5672,9 @@ $("#v-notices").addEventListener("click", async (e) => {
   }
   if ((x = b("[data-sn-code]"))) {
     const s = LIVE.seniors.find((y) => y.id === x.dataset.snCode); if (!s) return;
-    const pin = (prompt(`New 4 digit code for ${s.name}`) || "").trim(); if (!pin) return;
+    const own = s.id === OWNER_ID, pin = (prompt(own ? "Your new 4 digit code" : `New 4 digit code for ${s.name}`) || "").trim(); if (!pin) return;
     if (!/^[0-9]{4}$/.test(pin)) return toast("A code is 4 digits");
-    return A.setSenior(s.name, pin, s.id).then(() => toast(`${s.name}'s code changed. Their phones stay unlocked`), (er) => toast(er.message || "Not changed"));
+    return A.setSenior(s.name, pin, s.id).then(() => toast(own ? "Your code changed" : `${s.name}'s code changed. Their phones stay unlocked`), (er) => toast(er.message || "Not changed"));
   }
   if ((x = b("[data-sn-reset]"))) return track(A.resetTries(x.dataset.snReset), "Unlocked. They can try their code again", "Not changed");
   if ((x = b("[data-sn-drop]"))) {
@@ -5556,7 +5682,7 @@ $("#v-notices").addEventListener("click", async (e) => {
     if (!confirm(`Take ${s.name} off as a manager? Their code stops working and any phone they unlocked goes back to the team's view.`)) return;
     return track(A.dropSenior(s.id), `${s.name} taken off`, "Not taken off");
   }
-  if (b("#tm-leave")) { if (confirm(LIVE.admin ? "Log out on this phone?" : "Leave the team on this phone? Open the team link to join again.")) A.leave(); return; }
+  if (b("#tm-leave")) { if (confirm(LIVE.admin ? "Log out on this phone?" : "Leave the team on this phone? Type the team code to join again.")) A.leave(); return; }
   if (b("#tm-rename")) { const n = prompt("Your first name", LIVE.me); if (n && n.trim()) setName(n); return; }
   // To the manager.
   if ((x = b("[data-ask-kind]"))) { askF.kind = x.dataset.askKind; return renderCard("ask"); }
@@ -5608,7 +5734,7 @@ $("#v-notices").addEventListener("click", async (e) => {
   if ((x = b("[data-tell-drop]"))) { if (confirm("Remove this for good?")) track(A.dropTell(x.dataset.tellDrop), "Removed"); return; }
   // Spin the wheel.
   if ((x = b("[data-spin-name]"))) { const n = x.dataset.spinName; spinF.names = spinF.names.includes(n) ? spinF.names.filter((y) => y !== n) : [...spinF.names, n]; spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-all")) { spinF.names = [...ALL_STAFF]; spinF.got = ""; return renderCard("spin"); }
+  if (b("#spin-all")) { spinF.names = allStaff(); spinF.got = ""; return renderCard("spin"); }
   if (b("#spin-none")) { spinF.names = []; spinF.got = ""; return renderCard("spin"); }
   if (b("#spin-go")) return spin();
   // Who to call (the manager keeps the venue's numbers).
@@ -5687,6 +5813,8 @@ const TOAST = {
   tells: (x) => (LIVE.owner && x.status === "new" ? `💡 ${x.name}: ${TELL[x.kind]}` : ""),
   sent: (x) => (LIVE.admin ? `📤 ${x.anon ? "Someone" : x.name} sent: ${x.what}` : ""),
   outlog: (x) => `${x.action === "out" ? "🚫 86'd" : "✅ Back on"}: ${x.itemName} (${x.name})`,
+  // Something added for Maintenance to check, and the person who added it told when it's on.
+  items: (x) => (LIVE.owner && x.status === "waiting" ? `🆕 ${x.addedBy} added ${x.item}: check it in Shift, Stock` : x.status === "live" && x.addedUid === LIVE.uid && x.uid !== LIVE.uid ? `✅ ${x.item} is on every phone now` : ""),
 };
 // What changed since this phone last opened the Team page: the same messages as the pop-ups, from what the app already
 // holds, so nothing is missed while the app was shut or a pop-up went by. The newest 15, other people's only.
@@ -5713,6 +5841,9 @@ function liveChanged(what) {
   if (what === "left" && idleOut) return;
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
   if (what === "me") { autoJoin(); sharedLock(); }
+  if (what === "names" && LIVE.names) { Object.assign(STAFF, LIVE.names); store.set("names", LIVE.names); }
+  if (what === "seniors") { store.set("codeNames", LIVE.seniors.map((x) => x.name)); tryPendingPin(); }
+  if (what === "me" || what === "seniors") renderWelcomeName();
   if (what === "lists") applyLists();
   if (cur === "station") stationLive(what);
   if (what === "drafts" || what === "me") pullDraft();
@@ -5733,7 +5864,7 @@ function liveChanged(what) {
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // Overdue times move on with no change to the data, and date labels fall due when the day rolls over at 6am, so the
@@ -5805,6 +5936,7 @@ function show(tab) {
   $$("#subnav [data-tab]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === tab));
   $("#hdr").hidden = !DRINK_TABS.includes(tab);
   $("#hdr-drinks").hidden = tab !== "drinks";
+  if (tab !== "drinks" && dp) dpSet(null);
   if (tab === "make") renderMaker();
   if (tab === "rapid") showRapid();
   if (tab === "allergens") renderAllergens();
@@ -5844,7 +5976,7 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener("controllerchange", () => { $("#upd").hidden = false; }, { once: true });
   $("#upd").addEventListener("click", () => location.reload());
 }
-renderChips(); renderList();
+renderList();
 // The bar station refreshing itself (a new release, or the morning's fresh start) goes straight back to the station.
 const autoBack = stationOn && (() => { try { const v = sessionStorage.getItem("sx.auto"); sessionStorage.removeItem("sx.auto"); return !!v; } catch { return false; } })();
 if (autoBack) $("#welcome").remove();
@@ -5853,11 +5985,22 @@ else {
   $("#w-lang").innerHTML = langOptions(); renderWelcomeName();
   w.addEventListener("click", (e) => {
     const b = e.target.closest("[data-start]"); if (!b) return;
+    // Bar or Floor with codes typed: join and unlock in the background. Rapid fire and Drinks go straight in.
+    if (!b.dataset.rapid && !b.dataset.drinks) {
+      const c = $("#w-code")?.value.trim() || "", pin = $("#w-pin")?.value.trim() || "";
+      if (c && !/^[0-9]{4,8}$/.test(c)) return toast("The team code is 4 to 8 numbers");
+      if (pin && !/^[0-9]{4}$/.test(pin)) return toast("Your own code is 4 numbers");
+      if ((c || pin) && !myName) return toast("Tap your name first");
+      if (pin) pendingPin = { name: myName, pin };
+      if (c) { teamCode = c; store.set("team", c); store.set("kicked", false); joinErr = ""; autoJoin(); }
+      tryPendingPin();
+    }
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);
     if (linkAt && openLink(linkAt)) { linkAt = ""; history.replaceState(null, "", location.pathname); return; }
     if (stationOn && !b.dataset.rapid) show("station");
     else if (b.dataset.rapid) show("rapid");
+    else if (b.dataset.drinks) show("drinks");
     else if (mode !== "bar") show("tally");
   });
 }

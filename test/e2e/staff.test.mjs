@@ -1,4 +1,4 @@
-// The staff-only team: joining with the team link (no login), no messaging inside the app, a copy of everything sent
+// The staff-only team: joining with a typed team code (no login), no messaging inside the app, a copy of everything sent
 // for the owner and seniors (rate the shift with no name), Tell Derek, up to three seniors with their own codes, messages to the seniors
 // (named or anonymous), the incident form and the Team only shift rating, and taking every phone off by changing the
 // team code.
@@ -12,17 +12,22 @@ after(async () => { await browser.close(); site.close(); });
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
 const flat = (s) => s.replace(/\s+/g, " ").trim();
 
-test("joining: the team link and a name, no login; a wrong code is refused", async () => {
+test("joining: a name and the typed team code, no login; a wrong code is refused and counted", async () => {
   await resetEmulators();
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
   await c.addInitScript(() => localStorage.setItem("btbar.introSeen", "true"));
   const p = await c.newPage();
   p.errs = []; p.on("pageerror", (e) => p.errs.push(e.message));
+  // An old team link no longer joins, and its code is taken out of the address bar.
   await p.goto(`${site.url}#join=${TEAM_CODE}`);
-  // The link's code is kept and taken out of the address bar, so a screenshot of the page doesn't show it.
   assert.equal(await p.evaluate(() => location.hash), "");
   await p.click('[data-w-name="Kadir"]');
   await p.click("#w-ok");
+  await p.waitForFunction(() => LIVE.ready);
+  assert.equal(await p.evaluate(() => LIVE.me), null);
+  await p.evaluate(() => show("notices"));
+  await p.fill("#j-code", TEAM_CODE);
+  await p.click("#j-go");
   await p.waitForFunction(() => LIVE.me === "Kadir" && LIVE.anon && LIVE.role === "staff");
   assert.equal(await p.evaluate(() => LIVE.admin), false);
   // Changing name keeps the same phone on the team.
@@ -33,16 +38,16 @@ test("joining: the team link and a name, no login; a wrong code is refused", asy
 
   // Without the right code, nothing.
   const q = await phone(browser, site);
-  const err = await q.evaluate(() => LIVE.api.join("wrong-code-123", "Vi").then(() => "allowed", (e) => e.message));
-  assert.notEqual(err, "allowed");
+  const err = await q.evaluate(() => LIVE.api.join("11112222", "Vi").then(() => "allowed", (e) => e.message));
+  assert.match(err, /Wrong team code. 9 more tries/);
   await q.evaluate(() => show("notices"));
-  assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Maintenance login/i);
+  assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Maintenance code locked\? Password/i);
   // Through the form: a refused code says why and gives the form back.
   await q.fill("#j-name", "Vi");
-  await q.fill("#j-code", "wrong-code-456");
+  await q.fill("#j-code", "33334444");
   await q.click("#j-go");
   await q.waitForSelector("#tm-top [role=alert]");
-  assert.match(await q.$eval("#tm-top [role=alert]", (e) => e.textContent), /team link didn't work/);
+  assert.match(await q.$eval("#tm-top [role=alert]", (e) => e.textContent), /Wrong team code. 8 more tries/);
   assert.equal(await q.$$eval("#j-go", (x) => x.length), 1);
   // And it doesn't keep retrying by itself (it used to, every fraction of a second, for ever).
   await q.evaluate(() => { window.joins = 0; const j = LIVE.api.join; LIVE.api.join = (...a) => { joins++; return j(...a); }; });
@@ -138,13 +143,13 @@ test("Tell Derek: anyone says what's missing, to add or wrong; only the owner re
   assert.deepEqual([O.errs, M.errs, S.errs], [[], [], []]);
 });
 
-test("the owner adds up to three seniors with their own codes; a senior unlocks a team phone, and locks it again", async () => {
+test("the owner adds up to four seniors with their own codes; a senior unlocks a team phone, and locks it again", async () => {
   await resetEmulators();
   const { O, A, B, S } = await team(browser, site, [["A", "Illias", "illias", "manager"], ["B", "Hassan", "hassan", "manager"], ["S", "Artur"]]);
   for (const p of [A, B]) assert.equal(await p.evaluate(() => LIVE.admin && !LIVE.owner), true);
   // The owner's Manager section, with the seniors' card.
   await O.evaluate(() => show("notices"));
-  assert.match(await O.$eval("#tm-cards", (e) => e.textContent), /Manager.*Bar.*Closing: Not started.*Managers and their codes.*Maintenance settings.*Team/s);
+  assert.match(await O.$eval("#tm-cards", (e) => e.textContent), /Manager.*Bar.*Closing: Not started.*Codes: you and the managers.*Maintenance settings.*Team/s);
   await part(O, "seniors");
   // Codes are unique: Illias's is taken.
   await O.fill("#sn-name", "Artur"); await O.fill("#sn-pin", "4821");
@@ -153,7 +158,7 @@ test("the owner adds up to three seniors with their own codes; a senior unlocks 
   await O.fill("#sn-pin", "7305");
   await O.click("#sn-go");
   await waitToast(O, /^Artur can unlock with their code now/);
-  await O.waitForFunction(() => LIVE.seniors.length === 3 && !document.querySelector("#sn-go"));
+  await O.waitForFunction(() => LIVE.seniors.length === 3);
 
   // Artur's own phone: a wrong code is counted by the server and says how many are left; the right one unlocks.
   await S.waitForFunction(() => LIVE.seniors.length === 3);
@@ -206,6 +211,90 @@ test("guessing a senior's code: slowed after 5, locked after 10 until the owner 
   assert.equal(await attempt(S, () => LIVE.api.unlock("illias", "4821")), "allowed");
   await S.waitForFunction(() => LIVE.admin);
   assert.deepEqual([O.errs, S.errs], [[], []]);
+});
+
+test("maintenance sets their own code, then logs in like the managers: pick the name, type the code; the team code changes in the app", async () => {
+  await resetEmulators();
+  const { O, S } = await team(browser, site, [["S", "Pema"]]);
+  await O.evaluate(() => show("notices"));
+  await O.waitForFunction(() => /set yours/.test(document.querySelector('[data-card="seniors"] summary').textContent));
+  await part(O, "seniors");
+  await O.fill("#ow-name", "Derek"); await O.fill("#ow-pin", "5150");
+  await O.click("#ow-go");
+  await waitToast(O, /^Your code is set/);
+  // A new phone joins with the team code, picks Derek (maintenance) and types the code.
+  const N = await phone(browser, site);
+  await N.evaluate((c) => LIVE.api.join(c, "Derek"), TEAM_CODE);
+  await N.waitForFunction(() => LIVE.seniors.some((x) => x.id === "owner"));
+  await part(N, "unlock");
+  assert.match(await N.$eval("#tc-unlock", (e) => e.textContent), /Derek \(maintenance\)/);
+  await N.click('[data-un-id="owner"]');
+  await N.fill("#un-pin", "5150");
+  await N.click("#un-go");
+  await N.waitForFunction(() => LIVE.owner && LIVE.pin === "owner" && document.querySelector("#tm-lock"));
+  // Owner powers on that phone: the codes card and Maintenance settings.
+  await part(N, "mgr");
+  assert.match(await N.$eval("#tc-mgr", (e) => e.textContent), /No wrong team codes since the last phone joined/);
+  // Wrong team codes are counted for everyone, and maintenance sees them and can unlock joining.
+  const X = await phone(browser, site);
+  assert.match(await attempt(X, () => LIVE.api.join("99998888", "Vi")), /^Wrong team code. 9 more/);
+  await N.waitForFunction(() => LIVE.gate.tries === 1);
+  await adminWrite("gate/team", { tries: { integerValue: "30" }, lastTry: { timestampValue: new Date().toISOString() } });
+  assert.match(await attempt(X, (c) => LIVE.api.join(c, "Vi"), TEAM_CODE), /^Joining is locked after 30 wrong team codes/);
+  await part(N, "mgr");
+  await N.waitForSelector("#gate-reset");
+  await N.click("#gate-reset");
+  await N.waitForFunction(() => LIVE.gate.tries === 0);
+  assert.equal(await attempt(X, (c) => LIVE.api.join(c, "Vi"), TEAM_CODE), "allowed");
+  // A new team code from the app takes the staff phones off; the code-unlocked phone too.
+  await part(N, "mgr");
+  await N.fill("#tc-new", "640275");
+  await N.click("#tc-go");
+  await waitToast(N, /^Team code changed/);
+  for (const p of [S, N]) assert.equal(await attempt(p, () => LIVE.api.tell("add", "Hello")), "permission-denied");
+  assert.equal(await attempt(O, () => LIVE.api.tell("add", "Still here")), "allowed");
+  assert.equal(await attempt(S, () => LIVE.api.join("640275", "Pema")), "allowed");
+  assert.deepEqual([O.errs, S.errs, N.errs, X.errs], [[], [], [], []]);
+});
+
+test("the start screen: pick your name, type the team code and a manager's own code, or go straight to the drinks", async () => {
+  await resetEmulators();
+  const { O } = await team(browser, site, []);
+  await O.evaluate(() => LIVE.api.setSenior("Sarul", "6161"));
+  const fresh = async () => {
+    const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
+    await c.addInitScript(() => localStorage.setItem("btbar.introSeen", "true"));
+    const p = await c.newPage(); p.errs = []; p.on("pageerror", (e) => p.errs.push(e.message));
+    await p.goto(site.url); await p.waitForFunction(() => LIVE.ready && LIVE.api);
+    return p;
+  };
+  // Managers, bar and floor, no kitchen; Rapid fire and Drinks go straight in with no code.
+  const D = await fresh();
+  assert.match(flat(await D.$eval("#w-name", (e) => e.innerText)), /Managers .*Sarul.* Bar .*Simroy.* Floor .*Mounika/i);
+  await D.click("#w-drinks");
+  await D.waitForFunction(() => !document.querySelector("#welcome") && !document.querySelector("#v-drinks").hidden);
+  assert.equal(await D.evaluate(() => LIVE.me), null);
+  // A bartender: name, team code, Bar.
+  const B = await fresh();
+  await B.click('[data-w-name="Simroy"]');
+  assert.equal(await B.$$eval("#w-pin", (x) => x.length), 0);
+  await B.fill("#w-code", TEAM_CODE);
+  await B.click("#w-ok");
+  await B.waitForFunction(() => LIVE.me === "Simroy" && LIVE.role === "staff");
+  // A manager: name, team code and their own code, Floor: on the team and unlocked in one go.
+  const M = await fresh();
+  await M.click('[data-w-name="Sarul"]');
+  await M.fill("#w-code", TEAM_CODE);
+  await M.fill("#w-pin", "6161");
+  await M.click("#w-floor");
+  await M.waitForFunction(() => LIVE.role === "manager" && LIVE.me === "Sarul", null, { timeout: 15000 });
+  // The managers keep the names: taking one off and adding one shows on the next start screen.
+  await part(M, "names");
+  await M.fill('[data-nm-new="bar"]', "Zed");
+  await M.click('[data-nm-add="bar"]');
+  await waitToast(M, /^Zed added$/);
+  await B.waitForFunction(() => STAFF.bar.includes("Zed") && JSON.parse(localStorage.getItem("btbar.names") || "{}").bar?.includes("Zed"));
+  assert.deepEqual([D.errs, B.errs, M.errs], [[], [], []]);
 });
 
 test("to the seniors: named or anonymous, only the seniors see them, and the reply comes back", async () => {
@@ -267,16 +356,16 @@ test("incident report says accident book and duty manager; Team only rating neve
 test("changing the team code takes every staff phone off; the owner and seniors stay", async () => {
   await resetEmulators();
   const { O, S } = await team(browser, site, [["S", "Derek"]]);
-  await adminWrite("config/team", { code: { stringValue: "a-brand-new-code-456" } });
+  await adminWrite("config/team", { code: { stringValue: "640275" } });
   const r = await S.evaluate(() => LIVE.api.tell("add", "Hello").then(() => "allowed", (e) => e.code));
   assert.equal(r, "permission-denied");
   assert.equal(await O.evaluate(() => LIVE.api.tell("add", "Owner here").then(() => "allowed", (e) => e.code)), "allowed");
-  // The new link lets them back in.
-  await S.evaluate(() => LIVE.api.join("a-brand-new-code-456", "Derek"));
+  // The new code lets them back in.
+  await S.evaluate(() => LIVE.api.join("640275", "Derek"));
   assert.equal(await S.evaluate(() => LIVE.api.tell("add", "Back").then(() => "allowed", (e) => e.code)), "allowed");
 });
 
-test("a phone taken off the team stays off until it opens the link again", async () => {
+test("a phone taken off the team stays off until the code is typed again", async () => {
   await resetEmulators();
   const { O, S } = await team(browser, site, [["S", "Mounika"]]);
   const uid = await S.evaluate(() => LIVE.uid);

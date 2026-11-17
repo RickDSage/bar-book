@@ -11,7 +11,7 @@ export const PROJECT = "demo-bar-book";
 const FS = `http://127.0.0.1:8080`;
 const DOCS = `${FS}/v1/projects/${PROJECT}/databases/(default)/documents`;
 // Test-only team code. The real one lives only in the owner's Firebase console (config/team).
-export const TEAM_CODE = "test-team-code-0123";
+export const TEAM_CODE = "73019264";
 export const OWNER_PW = "owner-pass-111", SENIOR_PIN = 4821;
 
 // Serves a built site folder on a free port.
