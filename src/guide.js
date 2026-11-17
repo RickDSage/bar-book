@@ -138,12 +138,27 @@ const GLOSSARY = [
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
 const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", sent: "sent", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
+// The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
+// keeps its own group, after these.
+const FEAT_SECS = [
+  ["Drinks", ["drinks", "rapid", "make", "allergens", "sheets", "station", "voice"]],
+  ["Shift and 86", ["morning", "stock", "labels", "logit", "football"]],
+  ["Closing and handover", ["lists", "send"]],
+  ["Stock", ["count", "order"]],
+  ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
+  ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "spin", "sent", "tell"]],
+  ["Managers", ["week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
+  ["More", ["pay", "info", "siri", "health"]],
+];
+const SEC_OF = Object.fromEntries(FEAT_SECS.flatMap(([g, ks]) => ks.map((k) => [k, g])));
+const SEC_AT = (k) => { const g = SEC_OF[k], i = FEAT_SECS.findIndex((x) => x[0] === g); return i < 0 ? 99 : i * 100 + FEAT_SECS[i][1].indexOf(k); };
+const featSorted = (xs) => xs.map((f) => ({ ...f, g: SEC_OF[f.k] || f.g })).sort((a, b) => SEC_AT(a.k) - SEC_AT(b.k));
 // Everything the Guide lists: the app's features plus Log it and the bar station.
-const gdItems = () => [
+const gdItems = () => featSorted([
   ...FEATURES.filter((f) => !(f.k === "tell" && LIVE.owner)),
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
   { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: any drink in big type, rounds, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
-];
+]);
 const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch jug bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone siri hands free talk", stock: "86 out of missing run out back in swap" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);

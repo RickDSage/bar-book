@@ -186,6 +186,7 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .facts dt { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .facts dd { margin: 2px 0 0; font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
 .h3 { font-family: var(--display); font-size: 22px; color: var(--brass); text-transform: uppercase; margin: 22px 0 6px; }
+.h3.tm-sub { font-family: inherit; font-size: 13px; font-weight: 700; letter-spacing: .06em; color: var(--muted, inherit); margin: 18px 0 2px; }
 .spec { list-style: none; margin: 0; padding: 0; }
 .spec li { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 18px; }
 .spec .q { font-weight: 700; color: var(--brass); text-align: right; }
@@ -5017,10 +5018,13 @@ function renderInfo() {
     <div class="sec">Drinks</div>
     <div class="hub">
       ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
-      ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards and tonight's quiz")}
       ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A page per kind of drink, to send to WhatsApp or print")}
-      ${hubRow("fun", 'data-go="fun"', "Games and drills", "Daily drill with a streak, quiz night, your month, Spin and the spec of the day")}
       ${mode !== "bar" && !stationOn ? "" : hubRow("station", 'data-go="station"', "Bar station", stationOn ? "On: this iPad opens on it. Exit bar station turns it off" : "Turn this iPad into the bar station: big drink search and specs, rounds, tonight's 86s and the close")}
+    </div>
+    <div class="sec">Training</div>
+    <div class="hub">
+      ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards, tonight's quiz, speed drills, Bar 101 and the new starter path")}
+      ${hubRow("fun", 'data-go="fun"', "Games and drills", "Daily drill with a streak, quiz night, Bar phrases, your month and Spin for a drink")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
@@ -5205,7 +5209,7 @@ function featHtml() {
     <p class="lead">The drinks, the shift and the team in one app, for the bar and floor. Here's every feature and what it's for.</p>
     <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without joining you get the drinks, the cocktail maker, Allergens, Practise, More, My pay and the WhatsApp tools. Join with the team code for the rest: no login or password."}</p>
     <div class="actions"><button class="btn pri" id="tour-go">Take the tour (${tourSteps().length} steps)</button></div>
-    ${[...new Set(FEATURES.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${FEATURES.filter((f) => f.g === g).map(card).join("")}`).join("")}`;
+    ${(() => { const xs = featSorted(FEATURES); return [...new Set(xs.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${xs.filter((f) => f.g === g).map(card).join("")}`).join(""); })()}`;
 }
 function openFeatures() {
   lastFocus = document.activeElement;
@@ -5251,7 +5255,7 @@ $("#sheet").addEventListener("click", (e) => {
 });
 // The tour: a card over the app for each step, opening each feature in turn.
 let tourAt = -1;
-const tourSteps = () => FEATURES.filter((f) => f.tour && fUsable(f));
+const tourSteps = () => featSorted(FEATURES.filter((f) => f.tour && fUsable(f)));
 function tour(i) {
   const xs = tourSteps();
   if (i < 0 || i >= xs.length) { tourAt = -1; $("#tour").hidden = true; return; }
@@ -5880,9 +5884,29 @@ const TC_SUB = { quick: "Tonight's report, the handover, the 86 list, running la
 const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${TC_SUB[k] ? `<small class="tsub">${TC_SUB[k]}</small>` : ""}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
 // For the owner and seniors, everything they look after comes first under Manager, then the same Team cards as
 // everyone. A ["§", title, html] entry is a heading.
+// The managers' cards, sorted into headings so the page reads in the order a manager needs it. A card not listed here
+// goes under the last heading, so nothing new is ever lost.
+const MGR_GROUPS = [
+  ["Needs you", ["tells", "inbox", "setup"]],
+  ["Tonight and the week", ["reports", "replay", "sent", "outlog", "week", "lblog", "pilot"]],
+  ["Stock and the menu", ["order", "season", "venue"]],
+  ["Training", ["training"]],
+  ["People and codes", ["people", "names", "seniors", "mgr"]],
+  ["Safety net", ["history", "backup", "health"]],
+];
+function mgrGrouped(cards) {
+  const left = new Map(cards.map((c) => [c[0], c])), out = [];
+  for (const [t, ks] of MGR_GROUPS) {
+    const xs = ks.filter((k) => left.has(k)).map((k) => left.get(k)); ks.forEach((k) => left.delete(k));
+    if (t === MGR_GROUPS.at(-1)[0]) xs.push(...left.values());
+    if (xs.length) out.push(["§", t, null, "sub"], ...xs);
+  }
+  return out;
+}
 const CARDS = () => [
   ...(LIVE.admin ? [
     ["§", "Manager", glanceHtml],
+    ...mgrGrouped([
     ...(LIVE.owner ? [["tells", "App feedback from the team", tellsHtml, newTells().length ? { t: `${newTells().length} new`, hot: 1 } : ""]] : []),
     ["inbox", "Inbox from the team", inboxHtml, newAsks().length ? { t: `${newAsks().length} new`, hot: 1 } : ""],
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
@@ -5894,6 +5918,8 @@ const CARDS = () => [
       ["mgr", "Maintenance settings", mgrHtml, LIVE.gate?.tries >= LIVE.api.GATE_MAX ? { t: "joining locked", hot: 1 } : ""]] : []),
     ...mgCards(),
     ...sdCards(),
+    ...mgHealthCard(),
+    ]),
     ["§", "Team"],
   ] : []),
   ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager or maintenance? Unlock with your code", unlockHtml]] : []),
@@ -5906,7 +5932,7 @@ const CARDS = () => [
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
-  ...mgHealthCard(),
+  ...(LIVE.admin ? [] : mgHealthCard()),
 ];
 // Everything that goes out on WhatsApp in one place: tonight's, then your own.
 function quickHtml() {
@@ -5982,7 +6008,7 @@ function renderTeam() {
   if ($("#v-notices").hidden) return;
   const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if (!typing($("#tm-top"))) $("#tm-top").innerHTML = topHtml();
-  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = sinceHtml() + CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
+  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = sinceHtml() + CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3${sub ? " tm-sub" : ""}">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
   renderBell();
 }
 function renderNotices() { renderTeam(); }
@@ -10446,7 +10472,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T18:27";
+const BUILD = "2026-11-17T18:32";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -12186,12 +12212,27 @@ const GLOSSARY = [
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
 const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", sent: "sent", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
+// The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
+// keeps its own group, after these.
+const FEAT_SECS = [
+  ["Drinks", ["drinks", "rapid", "make", "allergens", "sheets", "station", "voice"]],
+  ["Shift and 86", ["morning", "stock", "labels", "logit", "football"]],
+  ["Closing and handover", ["lists", "send"]],
+  ["Stock", ["count", "order"]],
+  ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
+  ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "spin", "sent", "tell"]],
+  ["Managers", ["week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
+  ["More", ["pay", "info", "siri", "health"]],
+];
+const SEC_OF = Object.fromEntries(FEAT_SECS.flatMap(([g, ks]) => ks.map((k) => [k, g])));
+const SEC_AT = (k) => { const g = SEC_OF[k], i = FEAT_SECS.findIndex((x) => x[0] === g); return i < 0 ? 99 : i * 100 + FEAT_SECS[i][1].indexOf(k); };
+const featSorted = (xs) => xs.map((f) => ({ ...f, g: SEC_OF[f.k] || f.g })).sort((a, b) => SEC_AT(a.k) - SEC_AT(b.k));
 // Everything the Guide lists: the app's features plus Log it and the bar station.
-const gdItems = () => [
+const gdItems = () => featSorted([
   ...FEATURES.filter((f) => !(f.k === "tell" && LIVE.owner)),
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
   { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: any drink in big type, rounds, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
-];
+]);
 const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch jug bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone siri hands free talk", stock: "86 out of missing run out back in swap" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
