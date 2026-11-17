@@ -39,7 +39,7 @@ const PL_ITEM = {
   "Grey Goose": 40, "Belvedere": 40, "Ketel One": 40, "Absolut": 40, "Absolut Vanilia": 38, "Belvedere Blackberry & Lemongrass": 40,
   "Tanqueray": 43.1, "Aviation gin": 42, "Roku": 43, "Drumshanbo Gunpowder": 43, "Monkey 47": 47, "The Botanist": 46, "Gordon's": 37.5, "Hendrick's": 41.4,
   "Havana Club 3": 40, "Kraken Black Spiced": 40, "Casamigos Blanco": 40, "Patrón Silver": 40, "Casamigos Reposado": 40, "Clase Azul Reposado": 40,
-  "Bulleit Bourbon": 45, "Elijah Craig": 47, "Michter's": 45.7, "Maker's Mark": 45, "Woodford Reserve": 43.2, "Rittenhouse Rye": 50,
+  "Bulleit Bourbon": 45, "Buffalo Trace": 40, "Elijah Craig": 47, "Michter's": 45.7, "Maker's Mark": 45, "Woodford Reserve": 43.2, "Rittenhouse Rye": 50,
   "Glenmorangie Signet": 46, "Talisker 10": 45.8, "Port Charlotte 10": 50, "Laphroaig 10": 40, "Kahlúa": 16, "Mr Black": 23, "Amer Picon": 18, "Single cream": 0,
   "Camden Off Menu IPA": 5.8, "Goose Island Midway": 4.1, "San Miguel": 5, "Budweiser": 4.5, "Corona": 4.5,
 };
