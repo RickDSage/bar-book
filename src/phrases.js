@@ -85,16 +85,33 @@ const phCol = () => 3 + PH_LANGS.indexOf(phLang()) * 2;
 const phCards = () => PH.filter((r) => r[1].split(" ").includes(PHS.side));
 const phEn = (r) => r[2].replace("{lang}", phLang()[2]);
 // Hear it in the language's own voice. A phone without that voice still reads it with the language set.
-function phSpeak(text) {
+function phSpeak(text, slow) {
   if (!SAY_OK) return toast("This phone can't read out loud");
   const tag = phLang()[3], vs = speechSynthesis.getVoices();
   speechSynthesis.cancel();
-  const u = new SpeechSynthesisUtterance(text); u.lang = tag; u.rate = 0.85;
+  const u = new SpeechSynthesisUtterance(text); u.lang = tag; u.rate = slow ? 0.55 : 0.85;
   const v = vs.find((x) => x.lang === tag) || vs.find((x) => x.lang?.slice(0, 2) === tag.slice(0, 2)); if (v) u.voice = v;
   speechSynthesis.speak(u);
 }
 function phStart() { haptic(); sayStop(); PRUN = { i: 0 }; FN.view = "phr"; renderFun(); }
-// Going through the whole set counts as today's practice, the same streak as the drill.
+// After the cards, a quick check: hear one, pick what it means. Four of them, nothing to type.
+function phCheck() {
+  const r = Math.random, xs = phCards(), c = phCol();
+  PRUN.qs = shuffle(r, xs).slice(0, 4).map((x) => ({ hear: x[c], answer: phEn(x), opts: shuffle(r, [phEn(x), ...shuffle(r, xs.filter((y) => y !== x)).slice(0, 2).map(phEn)]) }));
+  PRUN.q = 0; PRUN.pick = null; PRUN.right = 0;
+  FN.view = "phrCheck"; renderFun(); phSpeak(PRUN.qs[0].hear);
+}
+function phCheckHtml() {
+  const z = PRUN, q = z.qs[z.q], picked = z.pick != null;
+  const opt = (o) => `<button class="btn wide${picked && o === q.answer ? " right" : picked && o === z.pick ? " wrong" : ""}" data-ph-ans="${esc(o)}"${picked ? " disabled" : ""}>${picked && o === q.answer ? "\u2713 " : picked && o === z.pick ? "\u2717 " : ""}${esc(o)}</button>`;
+  return `<div class="dr-head"><b>Quick check</b><span>${z.q + 1} of ${z.qs.length}</span><button class="linkbtn" data-ph="skip">Skip</button></div>
+    <div class="card ph-card"><p class="mini">Listen. What does it mean?</p>
+      <div class="ph-hb"><button class="btn pri ph-hear" data-ph-hear="${esc(q.hear)}">\ud83d\udd0a Play it</button><button class="btn ph-hear" data-ph-hear="${esc(q.hear)}" data-ph-slow aria-label="Play it slowly">\ud83d\udc22 Slow</button></div>
+      ${picked ? `<p class="ph-say" lang="${PHS.lang}" translate="no" style="font-size:24px;margin-top:16px">${esc(q.hear)}</p>` : ""}
+      <div class="qz-opts">${q.opts.map(opt).join("")}</div>
+      ${picked ? `<p class="qz-said" role="status"><b>${z.pick === q.answer ? "Right!" : "Nearly. Listen again."}</b></p><button class="btn pri wide" data-ph="cnext">${z.q + 1 < z.qs.length ? "Next" : "Finish"}</button>` : ""}</div>`;
+}
+// Going through the set counts as today's practice, the same streak as the drill.
 function phDone() {
   const t = fnDay();
   if (!DR.days.includes(t)) { DR.days = [...DR.days, t].slice(-400); drillSave(); }
@@ -108,7 +125,7 @@ function phHtml() {
       <p class="ph-say" lang="${PHS.lang}" translate="no">${esc(r[c])}</p>
       ${PHS.say ? `<p class="ph-pron" translate="no">${esc(r[c + 1])}</p>` : ""}
       ${PHS.en ? `<p class="ph-en">${esc(phEn(r))}</p>` : ""}
-      <button class="btn pri ph-hear" data-ph-hear="${esc(r[c])}">🔊 Hear it</button>
+      <div class="ph-hb"><button class="btn pri ph-hear" data-ph-hear="${esc(r[c])}">🔊 Hear it</button><button class="btn ph-hear" data-ph-hear="${esc(r[c])}" data-ph-slow aria-label="Hear it slowly">🐢 Slow</button></div>
     </div>
     <div class="ph-nav"><button class="btn" data-ph="back"${PRUN.i ? "" : " disabled"}>‹ Back</button><button class="btn pri" data-ph="next">${last ? "Finish" : "Next ›"}</button></div>
     <div class="ph-tg"><label class="check"><input type="checkbox" data-ph-tg="en"${PHS.en ? " checked" : ""}> Show the English</label><label class="check"><input type="checkbox" data-ph-tg="say"${PHS.say ? " checked" : ""}> Show how to say it</label></div>`;
@@ -117,7 +134,7 @@ function phEndHtml() {
   const s = drillStreak(), [, nat] = phLang(), c = phCol();
   return `<button class="back" data-fn="home">‹ Games and drills</button>
     <div class="card dr-end"><p class="dr-fire" aria-hidden="true">${s >= 2 ? "🔥" : "✅"}</p><h2>Nice one!</h2>
-      <p class="lead" style="margin:6px auto 0">${s ? `${plural(s, "day")} in a row.` : ""} Try one on a guest tonight.</p></div>
+      <p class="lead" style="margin:6px auto 0">${s ? `${plural(s, "day")} in a row.` : ""} Try one on a guest tonight.</p>${PRUN?.qs ? `<p class="note">${PRUN.right} of ${PRUN.qs.length} heard right.</p>` : ""}</div>
     <div class="sec">Your ${esc(nat)} phrases</div>
     ${phCards().map((r) => `<button class="ph-row" data-ph-hear="${esc(r[c])}"><b lang="${PHS.lang}" translate="no">🔊 ${esc(r[c])}</b>${PHS.en ? `<span>${esc(phEn(r))}</span>` : ""}</button>`).join("")}
     <div class="actions"><button class="btn pri" data-fn="phr">Go again</button><button class="btn" data-fn="home">Done</button></div>
@@ -134,11 +151,15 @@ function phCardHtml() {
 $("#v-fun").addEventListener("click", (e) => {
   const l = e.target.closest("[data-ph-lang], [data-ph-side]");
   if (l) { haptic(); if (l.dataset.phLang) PHS.lang = l.dataset.phLang; if (l.dataset.phSide) PHS.side = l.dataset.phSide; phSave(); renderFun(); return; }
-  const h = e.target.closest("[data-ph-hear]"); if (h) { haptic(); return phSpeak(h.dataset.phHear); }
+  const h = e.target.closest("[data-ph-hear]"); if (h) { haptic(); return phSpeak(h.dataset.phHear, "phSlow" in h.dataset); }
+  const a = e.target.closest("[data-ph-ans]");
+  if (a && PRUN?.qs && PRUN.pick == null) { haptic(); PRUN.pick = a.dataset.phAns; if (PRUN.pick === PRUN.qs[PRUN.q].answer) PRUN.right++; return renderFun(); }
   const b = e.target.closest("[data-ph]"); if (!b || !PRUN) return;
   haptic();
   if (b.dataset.ph === "back" && PRUN.i > 0) PRUN.i--;
-  else if (b.dataset.ph === "next") { if (PRUN.i >= phCards().length - 1) return phDone(); PRUN.i++; }
+  else if (b.dataset.ph === "next") { if (PRUN.i >= phCards().length - 1) return phCheck(); PRUN.i++; }
+  else if (b.dataset.ph === "skip") return phDone();
+  else if (b.dataset.ph === "cnext") { PRUN.q++; PRUN.pick = null; if (PRUN.q >= PRUN.qs.length) return phDone(); renderFun(); return phSpeak(PRUN.qs[PRUN.q].hear); }
   renderFun();
 });
 document.addEventListener("change", (e) => {

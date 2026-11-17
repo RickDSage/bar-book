@@ -8,7 +8,7 @@ const fnAdd = (day, n) => new Date(Date.parse(day + "T12:00:00Z") + n * 864e5).t
 const fnMonth = (day = fnDay()) => day.slice(0, 7);
 const fnMonthName = (ym) => new Date(ym + "-15T12:00:00Z").toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
 // Something running on this page that the bar station mustn't bounce away from after 2 idle minutes.
-function funBusy() { return cur === "fun" && (!!DRUN || FN.view === "quiz" || FN.view === "phr"); }
+function funBusy() { return cur === "fun" && (!!DRUN || FN.view === "quiz" || !!PRUN); }
 
 /* ---------- Read it out (bar station) ----------
    The iPad reads a drink's steps out loud in a British voice, one step at a time, with Back, Again and Next, so the
@@ -428,6 +428,7 @@ function funScreen() {
   if (FN.view === "drill") { drillStart(); return true; }
   if (FN.view === "phr" && PRUN) { el.innerHTML = phHtml(); return true; }
   if (FN.view === "phrEnd" && PRUN) { el.innerHTML = phEndHtml(); return true; }
+  if (FN.view === "phrCheck" && PRUN?.qs) { el.innerHTML = phCheckHtml(); return true; }
   if (FN.view === "phr") { phStart(); return true; }
   return false;
 }

@@ -216,7 +216,7 @@ test("bar phrases: French, Spanish or Italian, bar or floor, one big card at a t
   assert.match(await p.textContent(".ph-say"), /J'apprends encore le français/);
   assert.match(await p.textContent(".ph-en"), /still learning French/);
   assert.ok(await p.$(".ph-pron"));
-  await p.click(".ph-hear");
+  await p.click(".ph-hear:not([data-ph-slow])");
   assert.deepEqual(await p.evaluate(() => SAID.map((u) => u.lang)), ["fr-FR"]);
   // Floor has the burgers; bar doesn't.
   const floor = await p.evaluate(() => phCards().map((r) => r[0]));
@@ -228,7 +228,17 @@ test("bar phrases: French, Spanish or Italian, bar or floor, one big card at a t
   assert.equal(await p.$(".ph-pron"), null);
   for (let i = 1; i < floor.length; i++) await p.click('[data-ph="next"]');
   await p.click('[data-ph="next"]');
+  // Then a quick check: hear it, pick the meaning. Slow plays it slower.
+  assert.match(await p.textContent(".dr-head"), /Quick check/);
+  await p.click('.ph-hear[data-ph-slow]');
+  assert.ok(await p.evaluate(() => SAID.at(-1).rate < 0.7));
+  for (let j = 0; j < 4; j++) {
+    const i = await p.evaluate(() => { const q = PRUN.qs[PRUN.q]; return q.opts.indexOf(q.answer); });
+    await p.locator("[data-ph-ans]").nth(i).click();
+    await p.click('[data-ph="cnext"]');
+  }
   assert.match(await p.textContent(".dr-end"), /Nice one/);
+  assert.match(await p.textContent(".dr-end"), /4 of 4 heard right/);
   assert.deepEqual(await p.evaluate(() => DR.days), [await p.evaluate(() => shiftDay())]);
   // Spanish, at the bar.
   await p.click('[data-fn="home"]');
@@ -238,7 +248,7 @@ test("bar phrases: French, Spanish or Italian, bar or floor, one big card at a t
   await p.click('[data-ph="next"]');
   await p.click('[data-ph="next"]');
   assert.match(await p.textContent(".ph-say"), /¿Sencillo o doble\?/);
-  await p.click(".ph-hear");
+  await p.click(".ph-hear:not([data-ph-slow])");
   assert.equal(await p.evaluate(() => SAID.at(-1).lang), "es-ES");
   assert.deepEqual(p.errs, []);
 });
