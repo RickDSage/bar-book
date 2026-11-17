@@ -1236,15 +1236,29 @@ const hhmm = (d) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-
 const stamp = (d) => `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: UK })}, ${hhmm(d)}`;
 /* Saving state. Firestore keeps a change on the phone until the server takes it, so nothing is called sent until then.
    After a moment, or with no signal, a banner says what's still waiting. */
-let unsent = 0, slow = 0;
+let unsent = 0, slow = 0, earlier = false;
 function renderNet() {
   const n = $("#net"), off = !navigator.onLine, many = (k) => `${k} change${k > 1 ? "s" : ""}`;
-  n.hidden = !LIVE.me || (!off && !slow);
+  n.hidden = !LIVE.me || (!off && !slow && !earlier);
   document.body.classList.toggle("neton", !n.hidden);
   n.classList.toggle("off", off);
-  n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : "No signal. Showing what this phone last saw")
-    : `Sending ${many(unsent)}…`;
+  n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : earlier ? "No signal. Changes saved on this phone, sending when you're back online" : "No signal. Showing what this phone last saw")
+    : slow ? `Sending ${many(unsent)}…` : "Sending changes saved on this phone earlier…";
 }
+// Changes made with no signal are kept on the phone (even if the app is closed) and sent in order once it's back.
+// When the app opens or the signal comes back, show that some are still going, and say when they've all arrived.
+let wasOff = !navigator.onLine, queueCheck = null;
+function checkQueued() {
+  if (!LIVE.api?.queued || !LIVE.me || queueCheck) return;
+  const t = setTimeout(() => { earlier = true; renderNet(); }, 1500), after = wasOff;
+  queueCheck = LIVE.api.queued().then(() => {
+    clearTimeout(t); queueCheck = null;
+    if (earlier || after) toast("Back online. Everything's sent");
+    earlier = false; wasOff = false; renderNet();
+  }, () => { clearTimeout(t); queueCheck = null; earlier = false; renderNet(); });
+}
+addEventListener("offline", () => { wasOff = true; });
+addEventListener("online", () => setTimeout(checkQueued, 300));
 function track(p, ok, fail = "Not saved. Try again") {
   unsent++; let late = false;
   const t = setTimeout(() => { late = true; slow++; renderNet(); }, 1200);
@@ -2419,7 +2433,8 @@ function tallyText() {
       return xs.length ? `\n${title}:\n${xs.join("\n")}` : "";
     };
     const c = closeClock(k);
-    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
+    const who = groupsOf(k).filter(([g]) => g).map(([g, xs]) => { const w = secWho(k, xs.map(([i]) => i)); return !w.first ? "" : `- ${g}: ${!w.last || w.last === w.first ? `${openOf(k, xs.map(([i]) => i)).length ? "started" : "done"} by ${w.first}` : `started by ${w.first}, finished by ${w.last}`}`; }).filter(Boolean);
+    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}${who.length ? `\nWho did each part:\n${who.join("\n")}` : ""}`;
   };
   return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}${loggedLines().length ? `\n\nLogged tonight:\n${loggedLines().map((l) => `- ${l}`).join("\n")}` : ""}`;
 }
@@ -2598,7 +2613,7 @@ function checklistHtml(k) {
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
     const on = g && left ? onIt(k, xs) : [];
-    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${on.length || !LIVE.me ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">I'll do this</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${on.length ? `<p class="lon"><b translate="no">${esc(on.join(", "))}</b> on it</p>` : ""}` : "";
+    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${!LIVE.me || on.includes(LIVE.me) ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">${on.length ? "Take over" : "I'll do this"}</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${secWhoHtml(k, xs, left, on)}` : "";
     // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
     const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
@@ -2611,11 +2626,26 @@ function checklistHtml(k) {
 // Splitting the close: "I'll do this" on a heading starts everything not yet started under it in your name, so the
 // others see who has that part and pick another. It is the same Start as on each item (no new data), so Stop on an
 // item, Done or Tick all carry on as usual. The heading names whoever has started something under it.
+// Who started a heading's part and who finished it, from tonight's record of every tick: someone who leaves early is
+// still named for what they did, and whoever takes over is named for finishing it.
+function secWho(k, ids) {
+  const ev = LIVE.events.filter((e) => e.kind === "task" && e.list === k && ids.includes(e.item) && (e.to === "doing" || e.to === "done")).sort((a, b) => ms(a.at) - ms(b.at));
+  const done = ev.filter((e) => e.to === "done");
+  return { first: ev[0]?.name || "", last: done.at(-1)?.name || "" };
+}
+function secWhoHtml(k, xs, left, on) {
+  const w = secWho(k, xs.map(([i]) => i)), now = on.filter((n) => n !== w.first);
+  const t = !w.first ? (on.length ? `<b translate="no">${esc(on.join(", "))}</b> on it` : "")
+    : !left ? (w.first === w.last ? `Done by <b translate="no">${esc(w.first)}</b>` : `Started by <b translate="no">${esc(w.first)}</b> · finished by <b translate="no">${esc(w.last)}</b>`)
+    : `Started by <b translate="no">${esc(w.first)}</b>${now.length ? ` · now <b translate="no">${esc(now.join(", "))}</b>` : on.includes(w.first) ? "" : " · nobody on it now"}`;
+  return t ? `<p class="lon">${t}</p>` : "";
+}
 const onIt = (k, xs) => [...new Set(xs.filter(([i]) => statusOf(k, i) === "doing").map(([i]) => { const x = taskOf(k, i); return x && lastMove(k, i, x).name; }).filter(Boolean))];
 function claimGroup(k, g) {
   if (isLocked(k)) return toast(`${LISTS[k].title} is finished. Reopen it to change anything`);
   const ids = shown(k).filter(([i]) => groupOf(k, i) === g && statusOf(k, i) === "todo").map(([i]) => i);
-  if (!ids.length) return toast("Nothing left to start there");
+  // Taking over from someone who left: what they started stays in their name, and each tick from here is in yours.
+  if (!ids.length) return toast(openOf(k, shown(k).filter(([i]) => groupOf(k, i) === g).map(([i]) => i)).length ? `${g}: it's yours. Tick each one as you finish it` : "Nothing left to start there");
   haptic();
   const p = Promise.all(ids.map((i) => LIVE.api.setTask(k, i, itemText(k, i), "doing")))
     .then(() => { if (!runOf(k)) { const q = progress(k); return LIVE.api.setRun(k, LISTS[k].title, "started", q.n, q.of); } });
@@ -3324,13 +3354,28 @@ function labelsReport() {
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
-    <p class="note">The close, or anything you worked on. Take them here or choose from your photos: they go with your report.</p>
-    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
+    <p class="note">Any time of the shift, from a phone or the iPad. Each one is saved for tonight straight away (with no signal it waits on the phone, even if the app is closed) and goes with the handover. Send now shares one on WhatsApp as well.</p>
+    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div></div>`).join("")}
     ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
       : photoBusy ? `<p class="note" role="status">Adding…</p>`
       : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
 }
 let photoBusy = false;
+// A saved photo as a file, made straight away (no waiting), because the share sheet only opens from the tap itself.
+function dataFile(url, name) {
+  const bin = atob(url.slice(url.indexOf(",") + 1)), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new File([u], name, { type: "image/jpeg" });
+}
+// Send now: the photo on its own to the share sheet (WhatsApp and the rest). It stays saved for tonight either way.
+function sendPhotoNow(id) {
+  const p = LIVE.draftPhotos.find((x) => x.id === id); if (!p) return;
+  const f = dataFile(p.data, `${(p.note || "closing-photo").replace(/[^\w ]+/g, "").trim().slice(0, 40).replace(/ +/g, "-") || "closing-photo"}.jpg`);
+  if (navigator.canShare?.({ files: [f] })) return navigator.share({ files: [f] }).catch(() => {});
+  const u = URL.createObjectURL(f), a = document.createElement("a"); a.href = u; a.download = f.name; a.target = "_blank"; a.rel = "noopener";
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000);
+  toast("This phone can't share photos straight to apps: it's opened to save instead");
+}
 // Phone photos are several MB; shrink to a JPEG under about 450 KB (600,000 characters of text) so each fits in one
 // database record and a month of them stays well inside the free storage. The rules refuse anything over 700,000.
 async function shrink(file) {
@@ -3577,6 +3622,7 @@ $("#tally").addEventListener("click", async (e) => {
     track(LIVE.api.askRestock({ item, qty, unit: rsF.unit, dest: rsDest(), detail: rsF.detail.trim() }), "Asked. The team can see it now", "Not sent. Try again");
     haptic(); Object.assign(rsF, { item: "", other: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
   }
+  const ps = e.target.closest("[data-ph-send]"); if (ps) { sendPhotoNow(ps.dataset.phSend); return; }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
   const oq = e.target.closest("[data-out-quick]"); if (oq) { const n = oq.dataset.outQuick; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return; }
@@ -6187,7 +6233,7 @@ function liveChanged(what) {
   // next), so it doesn't join straight back. The link from the staff group brings it back.
   if (what === "left" && idleOut) return;
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
-  if (what === "me") { autoJoin(); sharedLock(); }
+  if (what === "me") { autoJoin(); sharedLock(); checkQueued(); }
   if (what === "names" && LIVE.names) { Object.assign(STAFF, LIVE.names); store.set("names", LIVE.names); }
   if (what === "seniors") { store.set("codeNames", LIVE.seniors.map((x) => x.name)); tryPendingPin(); }
   if (what === "me" || what === "seniors") renderWelcomeName();
@@ -10137,7 +10183,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T17:54";
+const BUILD = "2026-11-17T18:02";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -11371,11 +11417,11 @@ document.addEventListener("change", (e) => {
 let helpFrom = null;
 const HELP = {
   station: { t: "Bar station", what: "The iPad on the bar for express service: any drink in big type, rounds made in one go, tonight's 86s, photos, date labels, the close on both sides and the handover.",
-    how: ["Search or tap a drink: on an iPad its spec shows next to the list. Swipe the spec, or use the arrows, for the next one. \u00d72 to \u00d78 scales it; for a jug it gives the total liquid.", "Anything 86'd is struck through on the spec with the swap beside it, and Alcohol-free? jumps to the no-alcohol version.",
+    how: ["Search or tap a drink: on an iPad its spec shows next to the list. Swipe the spec, or use the arrows, for the next one. \u00d72 to \u00d78 scales it; for a jug it gives the total liquid.", "Every drink says if it can be made tonight: ✓ Can make, ⚠ Can make with a swap (with the amounts that change), or ✕ Can't make tonight. Missing something? Tap it under the spec. Can't make it? Go with the flow picks the next best thing. Alcohol-free? jumps to the no-alcohol version.",
       "+ adds a drink to the round (tap again for two). The round puts drinks made the same way together (stir, build, shake, fizz last) and lists the glasses, ice, garnish and tins to get ready.",
       "Aa makes everything bigger, to read from a step back.", "Ran out of something? Type any ingredient, bottle or drink and tap 86 it. Take a photo or Upload adds it to tonight's handover.",
       "The bar along the top switches between Drinks, Round, Batches, Quiz and Set up. Everything \u25be picks which drinks the list shows.",
-      "Across the top: tonight's 86s, then date labels for bar and floor, URGENT when one needs changing now and a reminder the day before. Tap one to change it.",
+      "Last orders shows big across the top from 15 minutes before the time a manager sets. Across the top: tonight's 86s, then date labels for bar and floor, URGENT when one needs changing now and a reminder the day before. Tap one to change it.",
       "Upright and on a phone, Tonight is one line: tap Show for the boxes. Tap a box to open that page; the \u2039 Bar station button at the bottom brings you back. Exit (top right) turns the mode off. While it's on, Bar Book opens on it.",
       "Batches: the house batch recipes, scaled, and one tap to date the label. Every bar date label is under them. Prep timer: 1 to 20 minutes, up to 3 at once; the screen flashes when one is up.",
       "Tap a spec line as it goes in to tick it off. In a round, Made greys out each drink as it's done.",
@@ -11402,12 +11448,12 @@ const HELP = {
     behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Weighing uses each bottle's own empty and unopened weights, set once by a manager: a liqueur weighs more than a spirit, so grams are never taken as ml.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory."] },
   stock: { t: "86 board and restock", what: "What's run out tonight, and getting stock up from the cellar.",
     how: ["Tap a Quick 86 chip, pick from the list, or type anything else.", "Back in stock takes it off for everyone.", "Restock: say what, how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it."],
-    behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere, and an 86'd ingredient shows the swap on every drink that uses it.", "Restocks waiting over 15 minutes show as late. The weekly count is Stock count, at the foot of this page: its totals go into Nory.", "Clear everything puts every 86 back in stock."] },
+    behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere. An 86'd ingredient turns every drink that uses it to Can make with a swap, or Can't make tonight if nothing close is in.", "Missing on a drink's own ingredient goes on this same board, so one tap does both.", "Restocks waiting over 15 minutes show as late. The weekly count is Stock count, at the foot of this page: its totals go into Nory.", "Clear everything puts every 86 back in stock."] },
   closing: { t: "Closing checklist", what: "The close, ticked off live on every phone.",
-    how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started."],
-    behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks wait on the phone and send when it's back. A banner says how many are waiting."] },
+    how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part. Someone left before finishing theirs? Tap Take over and carry on: the heading and the report say who started it and who finished it.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started.", "The timer at the top shows how long the close has taken against the team's best. A new best gets a cheer."],
+    behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks and photos wait on the phone, even if the app is closed, and go in order when it's back. A banner says they're waiting, and Back online. Everything's sent says they've arrived.", "The clock starts at the first tick and stops when the handover goes. Each side's time is kept for the managers."] },
   handover: { t: "Handover", what: "The end of the night: what's done, what's low, what's outstanding and what tomorrow needs.",
-    how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos.", "Tap Hand over. It saves for the morning team, then opens WhatsApp with it ready to send."],
+    how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos. Photos can go in any time of the shift: each is saved for tonight straight away, and Send now shares one on WhatsApp too.", "Tap Hand over. It saves for the morning team, then opens WhatsApp with it ready to send."],
     behind: ["The boxes are shared live with everyone closing your side, so two people can fill them in.", "Photos are required. With none, you're asked why, and the reason goes in the handover.", "Sent handovers are kept. Photos are cleared after 30 days to stay on the free plan. The boxes start empty again at 6am."] },
   clearall: { t: "Clear everything", what: "A fresh start for the shift, on every phone.",
     how: ["Tap it, then confirm."],
@@ -11446,14 +11492,32 @@ const HELP = {
     how: ["Untick anything you don't want in, add a note, and check How it will look.", "Tap WhatsApp or Email: your own app opens with the words in, and you pick the chat.", "With photos on an iPhone: Copy the words, then Send with photos, then paste the words as the caption."],
     behind: ["Bar Book never sends anything by itself.", "When you're on the team, the managers get a copy in Everything sent. My pay, payslips, off sick, incidents and the Bar Book link are never copied.", "iPhones drop photos sent together with words, which is why the words go separately."] },
   drink: { t: "The drink page", what: "The spec, the method and a step-by-step guide.",
-    how: ["Spec or Step by step at the top. Tap a line or a step to tick it off as you go.", "− and + scale the spec for up to 12 drinks. ml or oz switches units.", "Swipe sideways for the next drink in your list. ☆ keeps it in Favourites."],
-    behind: ["Anything on the 86 board shows here with the closest swap. The swap is the drink's own Out of something? line first, else a bottle of the same kind.", "The screen stays on while a drink is open.", "Units and calories are estimates worked out on the phone."] },
+    how: ["Spec or Step by step at the top. Tap a line or a step to tick it off as you go.", "Every drink says if it can be made tonight: ✓ Can make, ⚠ Can make with a swap (with the amounts that change), or ✕ Can't make tonight.", "Missing something? Tap it, then Missing next to it: the drink works out the swap straight away, and it goes on the 86 board for everyone.", "Can't make tonight? Go with the flow when the guest doesn't mind: it uses the closest bottle you have, or leaves out a small part, and says what changed. Or pick a close drink instead. Undo puts it back.", "Batch it: pick a bottle or jug and it gives every amount, the water and how many drinks it makes.", "− and + scale the spec for up to 12 drinks. ml or oz switches units. Swipe sideways for the next drink. ☆ keeps it in Favourites."],
+    behind: ["A swap uses the drink's own Out of something? line first, else a bottle of the same kind. Syrups and citrus are swapped by sugar and acid, so lime for lemon or agave for sugar syrup comes out at the right amount, and the drink's other syrup or citrus line moves with it. Taste before it goes out.", "A house cocktail made any other way says Adjusted: not the house spec, on the page and when it's sent.", "Batches add 20% water to stirred drinks, as if stirred on ice. Fizz goes in to order, and egg, foamer or cream drinks are never batched. Fresh citrus batches are for tonight only.", "The screen stays on while a drink is open.", "Units and calories are estimates worked out on the phone."] },
   rapid: { t: "Rapid fire", what: "The house drinks as big buttons, for answering a guest fast.",
     how: ["Tap a drink for its full spec, or Show specs on the page to see them all without tapping.", "Change on Top 10 picks your own ten. Type to search the whole book."],
     behind: ["Your top 10 and the specs setting are kept on this phone only."] },
   make: { t: "What can I make?", what: "Pick what you've got and see what you can make, closest first.",
     how: ["Make: tap ingredients and the matches update.", "My bar: the bottles you have. Specs: every spec on one line.", "Black Tap: our line-up and house serves."],
     behind: ["My bar and My drinks stay on this phone.", "Anything on the 86 board stops counting, so it won't suggest a drink you can't make tonight."] },
+  voice: { t: "Say it \ud83c\udfa4", what: "Hands full? Tap \ud83c\udfa4 and say what you want.",
+    how: ["\u201c86 limes\u201d, \u201cback in limes\u201d, \u201clog it ice machine leaking\u201d, \u201chow do I make a Negroni\u201d, \u201cwhat can I make\u201d, \u201clast orders\u201d or \u201copen closing\u201d.", "It shows what it heard and asks first. Nothing changes until you tap Yes.", "No microphone, or too loud? Type the same words in the box."],
+    behind: ["Your phone turns speech into words; Bar Book only sees the words. iPhones need Safari or the home screen app.", "Turn the button off in More, This phone."] },
+  phone: { t: "This phone", what: "Settings for this phone only: nobody else's changes.",
+    how: ["Light or dark: Auto follows the phone, Clock switches at the venue's times.", "Accessible mode: bigger, plainer and colour-blind-safe.", "One-hand mode: Back, Search, 86, Log it, Send and \ud83c\udfa4 in a row above the tabs, in reach of your thumb.", "Sounds: a short sound for urgent things, last orders and a new best close."],
+    behind: ["Saved on this phone only.", "Android phones buzz with the sounds. iPhones don't let a web app buzz."] },
+  replay: { t: "Shift replay", what: "One night, start to finish, in time order.",
+    how: ["Pick a night and a side. Every 86, Log it, date label, closing tick, restock, fault and send is there with who and when.", "Send on WhatsApp sends the night as a list."],
+    behind: ["Built from what the team already saved. Nothing extra is recorded.", "Managers only."] },
+  order: { t: "Order draft", what: "What to order, worked out for you.",
+    how: ["Set a par on anything you always want on the shelf.", "The list takes the last count, adds the deliveries since and orders up to the par.", "Change any amount, then send it."],
+    behind: ["Pars save for the whole team. No prices: those stay in Nory."] },
+  season: { t: "Seasonal menu", what: "A Christmas or summer menu for the whole team in one tap.",
+    how: ["Make the menu once: a name and the drinks on it.", "Switch it on and every phone shows those drinks first, with a banner. Switch it off and everything goes back."],
+    behind: ["Up to 8 menus are kept. Only a manager can switch them."] },
+  venue: { t: "Last orders and day or night", what: "Times that run the whole team.",
+    how: ["Last orders: 15 minutes before, every phone and the iPad flag it, and it goes in the pre-shift brief.", "Day and night: phones set to Clock go light and dark at these times."],
+    behind: ["Leave last orders empty to turn the reminder off."] },
   pay: { t: "My pay", what: "An estimate of your take-home, not a payslip.",
     how: ["Tap Add payslips and pick your payslips (photos, screenshots or PDFs, a year's at once). Every month fills in by itself: hours, rate, tronc an hour, tax, NI and take-home.", "This month shows how the month adds up, step by step. Every month puts them side by side; Holiday and More hold the rest.", "Months without a payslip are predicted from your average hours and tronc an hour. Type the hours you expect under the summary to see what it would pay."],
     behind: ["It stays on this phone: nobody else sees it and it never goes online. Payslips are read on the phone.", "Tronc is paid on the hours worked the month before, so its rate an hour is each payslip's tronc over the month before's hours. With no payslips yet it's a suggested £6.", "Tax uses the 2026 to 2027 GOV.UK rates, month by month. Your payslip is always the final word."] },
@@ -11469,19 +11533,19 @@ const HELP = {
 const INTRO = [
   { t: "Welcome to Bar Book", how: ["Every drink we make, the shift, the close and the handover, in one app built for Black Tap Soho.", "Specs and guides work with no signal. The team side syncs live between every phone on shift.", "Tap Next to see what it does. Skip any time: it's always in More."], tip: "Two minutes now saves you that every shift." },
   { t: "Find any drink in seconds", how: ["Rapid fire: the house drinks as big buttons, one tap from the start page. Show specs on the page and most questions need no tap at all.", "Menu: search by drink, spirit, glass or flavour. It forgives typos, so “espreso martni” still finds it.", "Under the search: Jump to lists every section, Filters narrows by kind of drink, spirit or what the guest fancies, and ★ shows your favourites."], tip: "Tap the empty search box to see the drinks you opened last. Tap the Drinks tab again at the top of the Menu to jump straight into search.", more: ["rapid"] },
-  { t: "Every spec, done right", how: ["Each drink has the spec, glass, ice, garnish and method, plus a picture guide for every step.", "Tap a line or step to tick it off as you build. − and + scale the spec for up to 12 drinks, with how to batch them. ml or oz switches units.", "Swipe sideways for the next drink. ☆ keeps your favourites one tap away."], tip: "Send this drink, Picture card or Print card turns any spec into a WhatsApp message or a card for the well.", more: ["drink"] },
-  { t: "Out of something? It adjusts", how: ["Put it on the 86 board once and every phone knows.", "Every drink that uses it shows the closest swap, on the spec, the menu, Rapid fire and the cheat sheets.", "Make stops counting on it, so it never suggests a drink you can't make tonight."], tip: "Back in stock takes it off everywhere at once.", more: ["stock"] },
+  { t: "Every spec, done right", how: ["Each drink has the spec, glass, ice, garnish and method, plus a picture guide for every step.", "Tap a line or step to tick it off as you build. − and + scale it for up to 12 drinks. ml or oz switches units.", "Batch it turns any drink into a bottle or jug: every amount, the water and how many it makes."], tip: "Send this drink, Picture card or Print card turns any spec into a WhatsApp message or a card for the well.", more: ["drink"] },
+  { t: "Can we make it tonight?", how: ["Every drink, on the menu, the spec and the iPad, says ✓ Can make, ⚠ Can make with a swap, or ✕ Can't make tonight.", "Missing something? Tap it on the drink. The swap is worked out by sugar and acid, so it tastes like the spec, and every phone knows.", "Can't make it and the guest doesn't mind? Go with the flow uses the closest thing you have, or offers the nearest drink."], tip: "A house cocktail made another way says Adjusted, so nobody takes it for the house spec. Back in takes it off everywhere at once.", more: ["drink", "stock"] },
   { t: "The cocktail maker", how: ["Make: tap what you've got and see what you can make, closest first, with swaps.", "My bar keeps your own bottles. Specs puts every spec on one line for busy moments.", "Black Tap shows our line-up: draught, bottles, softs and the house serves."], tip: "A guest names two bottles? Tap them and offer the top match.", more: ["make"] },
-  { t: "Run the shift together", how: ["Shift is shared live with everyone on your side: the 86 board, restocks from the cellar and date labels.", "Restock: ask for it, someone brings it up, whoever's there confirms it arrived. Late ones flag after 15 minutes.", "Date labels tell you what to write on the label and what's due today or tomorrow."], tip: "No signal? It keeps working and sends everything when you're back. A banner says what's waiting.", more: ["shift", "labels"] },
+  { t: "Run the shift together", how: ["Shift is shared live with everyone on your side: the 86 board, restocks from the cellar and date labels.", "Restock: ask for it, someone brings it up, whoever's there confirms it arrived. Late ones flag after 15 minutes.", "Date labels tell you what to write on the label and what's due today or tomorrow. Last orders flags on every phone 15 minutes before."], tip: "No signal? A badge says Working offline, all saved, and everything sends when you're back.", more: ["shift", "labels"] },
   { t: "Count stock without the notebook", how: ["Shift, Stock, Count stock: every place in shelf order, every product on it.", "Tap a line: + and − for full bottles, tap how full the open one is. Or say it: “Smirnoff two and a half”. Or weigh it on the scale.", "Send the totals on WhatsApp as a table, or as a spreadsheet for Nory."], tip: "It saves as you go, so two of you can count different places at once.", more: ["count"] },
-  { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. Starting time, time taken and who ticked what are kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
+  { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and Take over picks up a part someone left. Ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. The timer shows how long it took against the team's best, and who ticked what is kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
   { t: "Log anything, in one line", how: ["Saw it, found it, did it, told a manager or someone told you: tap \uff0b Log it on Shift or the bar station.", "86 goes on the 86 board, Broken on Issues, and the rest straight into tonight's handover with your name and the time.", "Log it and send on WhatsApp puts it in the team chat from your phone."], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away.", more: ["logit"] },
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift, Who to call and Spin the wheel."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "On an iPhone with photos: Copy the words, then Send with photos, then paste the words as the caption.", more: ["send"] },
-  { t: "For the managers", how: ["Inbox, Everything sent, Closing reports with their photos, and the 86 log, all on Team.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink.", "Not needed tonight, give a job to someone, or finish a list with a reason on record."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["inbox", "sent"] },
+  { t: "For the managers", how: ["Inbox, Everything sent, Closing reports with their photos, and the 86 log, all on Team.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["replay", "order", "season"] },
   { t: "Learn it, and look after yourself", how: ["More, Practise: flashcards, tonight's quiz (the same 10 for everyone) and the new starter path.", "More, Cheat sheets: a page per kind of drink, to print or send.", "My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
-  { t: "Tips and tricks", how: ["The ? at the top right opens the Guide: every section, and a search for anything (\u201chow do I make a mojito\u201d). \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Tap any small ? for how that part works and what happens behind the scenes.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "This tour is in More whenever you want it again. Hide the ? buttons there too.", more: ["drafts"] },
+  { t: "Tips and tricks", how: ["The ? at the top right opens the Guide: every section, and a search for anything (\u201chow do I make a mojito\u201d). \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Hands full? Tap 🎤 and say it: “86 limes” or “how do I make a Negroni”. It asks before it changes anything.", "More, This phone: one-hand mode, accessible mode, sounds and light or dark.", "Tap any small ? for how that part works and what happens behind the scenes.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "This tour is in More whenever you want it again. Hide the ? buttons there too.", more: ["voice", "phone"] },
 ];
 // The tour card the last help panel was opened from, so Back returns to it.
 let introAt = -1;
@@ -11504,13 +11568,14 @@ const HELP_AT = [
   ["#shift-title", () => (!LIVE.me ? "join" : { morning: "morning", labels: "labels", stock: "stock", close: "closing", fclose: "closing", send: "handover" }[pane] || "shift")],
   ["#clear-all", "clearall", "after"],
   ["#v-notices .fbbox > h2", "join"],
-  ...["ask", "rate", "issues", "tell", "sent", "inbox", "people", "incident"].map((k) => [`#v-notices [data-card="${k}"] > summary`, k]),
+  ...["ask", "rate", "issues", "tell", "sent", "inbox", "people", "incident", "replay", "order", "season", "venue"].map((k) => [`#v-notices [data-card="${k}"] > summary`, k]),
   [".draftbar > span", "drafts"],
   ["#send > h2", "send"],
   ["#sheet .pl-spech", "drink"],
   ["#v-rapid > h2", "rapid"],
   ["#v-station .sx-top > h2", "station"],
   ["#v-make > h2", "make"],
+  ["#sd-vt", "voice"],
   ["#pay-h", "pay"],
   ['#v-info [data-fold="clear"] summary', "reset"],
 ];
@@ -11715,11 +11780,12 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 2;
+const WALK_V = 3;
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
+  "Hands full? Tap 🎤 and say it, like “86 limes”. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
   "? at the top right opens the Guide: every part of Bar Book by section, and a search for anything, like “how do I make a mojito” or “what's a dry shake”.",
 ], tip: "× closes this at any time. It's always in the Guide under Start here." };
 const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
@@ -11738,7 +11804,7 @@ const WALK = {
     { t: "Your bar shift", how: [
       "Shift, Bar has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "Drinks has every spec, with Rapid fire for the rush. The bar iPad has both on the bar station, with tonight's 86s across the top.",
+      "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top.",
     ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
     WALK_NAV,
     { t: "Opening", how: [
@@ -11749,9 +11815,10 @@ const WALK = {
     WALK_LOG("bar"),
     { t: "Closing the bar", how: [
       "Shift, Closing: tick each job as you do it, or Tick all under a heading.",
-      "Two of you? Tap I'll do this on a heading, so the other person takes a different part.",
+      "Two of you? Tap I'll do this on a heading, so the other person takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required) and change any date label marked URGENT.",
+      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
+      "The timer at the top shows how long the close is taking against the team's best.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
     { t: "Stock count", how: [
       "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
@@ -11775,9 +11842,10 @@ const WALK = {
     WALK_LOG("floor"),
     { t: "Closing the floor", how: [
       "Shift, Closing: the floor close heading by heading, shake station included. Tick as you go, or Tick all under a heading.",
-      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part.",
+      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required) and change any date label marked URGENT.",
+      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
+      "The timer at the top shows how long the close is taking against the team's best.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
     { t: "Stock count", how: [
       "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
@@ -11819,6 +11887,9 @@ const GLOSSARY = [
   ["Twist", "A strip of citrus peel squeezed over the drink to spray its oils, then dropped in or on the rim."],
   ["Jigger", "The measure. Every pour is jiggered: no free pouring."],
   ["86", "Ran out, or not available tonight. Put it on the 86 board once and every phone knows."],
+  ["Go with the flow", "The guest doesn't mind it being a little different: use the closest thing you have, and tell them what changed."],
+  ["Adjusted", "A house cocktail made with a swap tonight. Not the house spec, so say so."],
+  ["Batch", "A drink made in bulk ahead, in a bottle or jug. Stirred drinks get 20% water in, as if stirred on ice."],
   ["Par", "How much of something to have ready at the start of the shift. Prep to par is on Morning."],
   ["Handover", "The end of the night for the next shift: what's done, what's low, what's outstanding and what tomorrow needs, with photos."],
   ["Tronc", "The team's share of service charge and tips, paid through payroll on last month's hours."],
@@ -11826,14 +11897,14 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", sent: "sent", logit: "logit", station: "station" };
+const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", sent: "sent", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
 // Everything the Guide lists: the app's features plus Log it and the bar station.
 const gdItems = () => [
   ...FEATURES.filter((f) => !(f.k === "tell" && LIVE.owner)),
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
   { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: any drink in big type, rounds, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
 ];
-const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", drinks: "spec recipe cocktail drink menu glass", make: "cocktail maker ingredients what can i make" };
+const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", drinks: "spec recipe cocktail drink menu glass", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch jug bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone siri hands free talk", stock: "86 out of missing run out back in swap" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
 // What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.

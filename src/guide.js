@@ -40,9 +40,9 @@ const WALK = {
     WALK_LOG("bar"),
     { t: "Closing the bar", how: [
       "Shift, Closing: tick each job as you do it, or Tick all under a heading.",
-      "Two of you? Tap I'll do this on a heading, so the other person takes a different part.",
+      "Two of you? Tap I'll do this on a heading, so the other person takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required) and change any date label marked URGENT.",
+      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
       "The timer at the top shows how long the close is taking against the team's best.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
     { t: "Stock count", how: [
@@ -67,9 +67,9 @@ const WALK = {
     WALK_LOG("floor"),
     { t: "Closing the floor", how: [
       "Shift, Closing: the floor close heading by heading, shake station included. Tick as you go, or Tick all under a heading.",
-      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part.",
+      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required) and change any date label marked URGENT.",
+      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
       "The timer at the top shows how long the close is taking against the team's best.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
     { t: "Stock count", how: [
