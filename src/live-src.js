@@ -187,9 +187,13 @@ function watchMedia(drink) {
 
 // Quiz night: one game at a time (quiz/live) and its players, listened to only while the Games and drills page is open.
 let quizGame = null;
-function watchQuiz(on) {
-  if (!on) { unsub("quiz"); unsub("quizPlayers"); quizGame = null; LIVE.loaded.delete("quiz"); return; }
+// A refusal or error is kept in LIVE.quizErr and not retried by itself (each try is a read): the page offers Try again.
+function watchQuiz(on, retry = false) {
+  if (!on) { unsub("quiz"); unsub("quizPlayers"); quizGame = null; LIVE.loaded.delete("quiz"); LIVE.quizErr = null; return; }
+  if (retry) LIVE.quizErr = null;
+  if (LIVE.quizErr) return;
   sub("quiz", doc(db, "quiz", "live"), (d) => {
+    LIVE.quizErr = null;
     LIVE.quiz = d.exists() ? { ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites } : null;
     const g = LIVE.quiz?.game || null;
     if (g !== quizGame) {
@@ -199,7 +203,7 @@ function watchQuiz(on) {
       });
     }
     liveChanged("quiz");
-  });
+  }, (e) => { LIVE.quizErr = e?.code || "error"; liveChanged("quiz"); });
 }
 const quizStamp = () => ({ host: auth.currentUser.uid, hostName: LIVE.me, at: serverTimestamp() });
 
@@ -229,10 +233,14 @@ async function clearOldPhotos() {
 const logDef = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, status: x.status });
 // Are the rules published in the Firebase console the ones this version of the app was built with? Only a refusal
 // says no; no signal says nothing.
+// Asked again each time the app is opened and every 10 minutes, so the warning goes by itself once they're published.
 async function checkRules() {
   const old = await getDoc(doc(db, "rulesv", __RULES__)).then(() => false, (e) => (e.code === "permission-denied" ? true : null));
   if (old !== null && old !== LIVE.rulesOld) { LIVE.rulesOld = old; liveChanged("rules"); }
 }
+const recheckRules = () => { if (LIVE.owner && !document.hidden) checkRules(); };
+setInterval(recheckRules, 10 * 6e4);
+document.addEventListener("visibilitychange", recheckRules);
 
 const STALE_DAYS = 2, binning = new Set();
 function binStalePhotos(snap) {
