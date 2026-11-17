@@ -554,6 +554,7 @@ describe("every query the app makes works for the people that make it", () => {
     query(collection(d, "events"), where("day", "==", today()), where("kind", "==", "label")),
     query(collection(d, "scores"), where("uid", "==", uid)),
     query(collection(d, "outlog"), where("at", ">=", daysAgo(7)), limit(1000)),
+    query(collection(d, "reports"), where("at", ">=", daysAgo(56)), limit(500)),
   ];
   const managers = (d) => [
     query(collection(d, "asks"), orderBy("at", "desc"), limit(200)),
@@ -1058,6 +1059,10 @@ describe("training: quiz scores and new starter sign-off", () => {
     await assertSucceeds(score("staff1", "speed"));
     await assertSucceeds(score("staff1", "speed", { score: 10, secs: 31 }));
     await assertSucceeds(score("staff1", "starter", { score: 9 }));
+    // Bar 101: a quiz (no time) or its speed drill (timed).
+    await assertSucceeds(score("staff1", "b101", { score: 9 }));
+    await assertSucceeds(score("staff1", "b101", { score: 10, secs: 48 }));
+    await fails(score("staff1", "b101", { secs: 3 }), "a Bar 101 drill too fast");
     for (const [why, k, x] of [["no time", "speed", { secs: null }], ["too fast", "speed", { secs: 2 }], ["time on a test", "starter", { secs: 30 }], ["more than all", "speed", { score: 11 }],
       ["unknown kind", "drill", {}], ["someone else's name", "speed", { name: "Tia Staff" }], ["fractions", "speed", { score: 7.5 }], ["extra", "speed", { extra: 1 }]]) {
       await fails(score("staff1", k, x), why);
@@ -1478,6 +1483,76 @@ describe("house photos and how-to videos on the drinks", () => {
   });
 });
 
+describe("quiz night", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const QS = [0, 1, 2].map((j) => ({ name: "Negroni", ask: "What's the garnish?", of: "", opts: ["Orange", "Lime", "Lemon", "Cherry"], answer: "Orange", id: j }));
+  const game = (uid, extra = {}) => ({ game: "abc123def", qs: QS, i: 0, state: "lobby", hide: false, host: uid, hostName: TEAM[uid]?.name ?? "Stray", at: now(), ...extra });
+  const live = (uid) => doc(db(uid), "quiz", "live");
+  const player = (uid, who = uid) => doc(db(uid), "quiz", "live", "players", who);
+  const pick = (uid, picks, g = "abc123def") => ({ game: g, picks, ...by(uid) });
+  const seedGame = (extra = {}) => seed((s) => setDoc(doc(s, "quiz", "live"), { ...game("staff1"), at: Timestamp.now(), ...extra }));
+  test("anyone on the team hosts, moves it on and ends it; only the team can see it", async () => {
+    await assertSucceeds(setDoc(live("staff1"), game("staff1")));
+    await assertSucceeds(updateDoc(live("staff1"), { state: "q", i: 1, host: "staff1", hostName: "Sam Staff", at: now() }));
+    await assertSucceeds(updateDoc(live("staff1"), { state: "show", host: "staff1", hostName: "Sam Staff", at: now() }));
+    await assertSucceeds(updateDoc(live("staff1"), { hide: true, host: "staff1", hostName: "Sam Staff", at: now() }));
+    for (const uid of ["staff2", "mgr1"]) await assertSucceeds(getDoc(live(uid)));
+    await fails(getDoc(live("stranger")), "someone not on the team reading it");
+    await fails(getDoc(live(null)), "reading it logged out");
+    await fails(setDoc(live("stranger"), game("stranger")), "someone not on the team hosting");
+    await assertSucceeds(updateDoc(live("staff1"), { state: "end", host: "staff1", hostName: "Sam Staff", at: now() }));
+    await fails(deleteDoc(live("staff1")), "deleting the game");
+  });
+  test("nobody takes over a game that's on, unless it's finished, left for an hour, or they're a manager", async () => {
+    await seedGame({ state: "q" });
+    await fails(setDoc(live("staff2"), game("staff2", { game: "zzz999yyy" })), "taking over a game that's on");
+    await fails(updateDoc(live("staff2"), { state: "end", host: "staff2", hostName: "Tia Staff", at: now() }), "ending someone else's game");
+    await assertSucceeds(setDoc(live("mgr1"), game("mgr1", { game: "mgr111aaa" })));
+    await seedGame({ state: "end" });
+    await assertSucceeds(setDoc(live("staff2"), game("staff2", { game: "zzz999yyy" })));
+    await seedGame({ state: "q", at: Timestamp.fromMillis(Date.now() - 61 * 6e4) });
+    await assertSucceeds(setDoc(live("staff2"), game("staff2", { game: "zzz999yyy" })));
+  });
+  test("the game holds only what the app writes", async () => {
+    await fails(setDoc(live("staff1"), game("staff1", { host: "staff2" })), "someone else as host");
+    await fails(setDoc(live("staff1"), game("staff1", { hostName: "Tia Staff" })), "someone else's name");
+    await fails(setDoc(live("staff1"), game("staff1", { at: daysAgo(1) })), "a time that isn't now");
+    await fails(setDoc(live("staff1"), game("staff1", { state: "paused" })), "a state the app doesn't use");
+    await fails(setDoc(live("staff1"), game("staff1", { i: 3 })), "a question that isn't there");
+    await fails(setDoc(live("staff1"), game("staff1", { qs: [] })), "no questions");
+    await fails(setDoc(live("staff1"), game("staff1", { game: "A!" })), "a bad game id");
+    await fails(setDoc(live("staff1"), game("staff1", { extra: 1 })), "extra fields");
+  });
+  test("players join, answer the question that's on once it's open, and can't change an answer after", async () => {
+    await seedGame();
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", {})));
+    await fails(setDoc(player("staff2"), pick("staff2", { 0: "Orange" })), "answering before it's open");
+    await seedGame({ state: "q", i: 0 });
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", { 0: "Lime" })));
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", { 0: "Orange" })));
+    await fails(setDoc(player("staff2"), pick("staff2", { 0: "Orange", 1: "Lime" })), "answering a question that isn't on");
+    await seedGame({ state: "show", i: 0 });
+    await fails(setDoc(player("staff2"), pick("staff2", { 0: "Lemon" })), "changing an answer once it's shown");
+    await seedGame({ state: "q", i: 1 });
+    await fails(setDoc(player("staff2"), pick("staff2", { 0: "Lemon", 1: "Lime" })), "changing an earlier answer");
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", { 0: "Orange", 1: "Lime" })));
+    await assertSucceeds(getDoc(player("staff1", "staff2")));
+    // A new game starts each player afresh.
+    await seedGame({ game: "new222ggg", state: "lobby", i: 0 });
+    await assertSucceeds(setDoc(player("staff2"), pick("staff2", {}, "new222ggg")));
+  });
+  test("players write only their own answers, for this game, on the team", async () => {
+    await seedGame({ state: "q" });
+    await fails(setDoc(player("staff1", "staff2"), pick("staff2", {})), "someone else's answers");
+    await fails(setDoc(player("staff2"), pick("staff2", {}, "old000ooo")), "another game");
+    await fails(setDoc(player("staff2"), { ...pick("staff2", {}), name: "Sam Staff" }), "someone else's name");
+    await fails(setDoc(player("stranger"), pick("stranger", {})), "someone not on the team");
+    await fails(getDoc(player(null, "staff2")), "reading answers logged out");
+    await seedGame({ state: "end" });
+    await fails(setDoc(player("staff2"), pick("staff2", {})), "joining a finished game");
+  });
+});
+
 describe("stock count: lines, deliveries and the setup", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const line = (uid, o = {}) => ({ day: today(), area: "Back bar", item: "Kraken", unit: "bottle", full: 3, open: 40, ...by(uid), ...o });
@@ -1512,6 +1587,16 @@ describe("stock count: lines, deliveries and the setup", () => {
     await fails(setDoc(doc(db("mgr1"), "countSetup", "other"), s("mgr1")), "only main");
     await fails(setDoc(doc(db("mgr1"), "countSetup", "main"), s("mgr1", { areas: "Bar" })), "places are a list");
     await assertSucceeds(getDoc(doc(db("staff1"), "countSetup", "main")));
+  });
+});
+
+describe("which rules these are", () => {
+  test("the build's fingerprint can be asked for; any other is refused, and nothing can be written", async () => {
+    const id = fs.readFileSync(new URL("../firestore.rules", import.meta.url), "utf8").match(/v == '([0-9a-f]{12})'; \/\/ RULES-FINGERPRINT/)[1];
+    await assertSucceeds(getDoc(doc(db("staff1"), "rulesv", id)));
+    await fails(getDoc(doc(db("staff1"), "rulesv", "0123456789ab")), "a different build's fingerprint");
+    await fails(getDoc(doc(db(null), "rulesv", id)), "not signed in");
+    await fails(setDoc(doc(db("owner1"), "rulesv", id), { x: 1 }), "writing one");
   });
 });
 

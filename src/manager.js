@@ -4,7 +4,7 @@
    undo, and backup and restore. For everyone: the health check, and the pre-shift brief at the top of Morning. All of it
    is read from what the team already does in the app; nothing here is typed in by hand. */
 var MG_READY = false;
-const MG = { week: null, lb: { days: 7, side: "all", xs: null, busy: false }, tr: { xs: null, busy: false, open: "" }, hist: null, bk: null, health: null };
+const MG = { week: null, pilot: null, lb: { days: 7, side: "all", xs: null, busy: false }, tr: { xs: null, busy: false, open: "" }, hist: null, bk: null, health: null };
 const A_ = () => LIVE.api;
 // The last n business days, tonight first.
 const mgDays = (n) => Array.from({ length: n }, (_, i) => addDays(shiftDay(), -i));
@@ -74,6 +74,125 @@ SHARE.week = () => {
     ] };
 };
 
+/* ---------- Pilot results ----------
+   How the pilot is going, week by week since the team started using Bar Book, for a manager to show upstairs. Built only
+   from what the app already holds (closes, handovers, date labels, 86s, training), counted, never named: no first names,
+   no pay. Up to the last 8 weeks, each week the 7 nights to that night; weeks before anyone used it are left off. */
+const PI_WEEKS = 8;
+const piDay = (t) => ukDay(ms(t) - 6 * 36e5);
+// Minutes after 6am (a business day starts then), so 1:30am counts as later than 11pm.
+const piMins = (t) => { const [h, m] = hhmm(new Date(ms(t))).split(":").map(Number); return ((h - 6 + 24) % 24) * 60 + m; };
+const piTime = (n) => { const m = Math.round(n) + 360; return `${String(Math.floor(m / 60) % 24).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+const piMid = (xs) => { const s = [...xs].sort((a, b) => a - b), i = s.length >> 1; return s.length ? (s.length % 2 ? s[i] : (s[i - 1] + s[i]) / 2) : null; };
+const piPct = (a, b) => (b ? Math.round((100 * a) / b) : null);
+async function mgPilotData() {
+  const A = A_(), today = shiftDay(), days = mgDays(PI_WEEKS * 7), since = Date.parse(addDays(today, -PI_WEEKS * 7) + "T06:00:00Z") - 36e5;
+  const [ev, runs, outlog, scores, reports] = await Promise.all([A.eventsOn(days), Promise.all(days.map((d) => A.runsOn(d).then((r) => [d, r]))), A.outlogSince(since), A.scores(since).catch(() => []), A.reportsSince(since)]);
+  const wk = (d) => Math.floor(daysFrom(d, today) / 7), W = Array.from({ length: PI_WEEKS }, (_, i) => ({ end: addDays(today, -7 * i), nights: 0, closes: 0, full: 0, sent: [], lbOk: 0, lbLate: 0, dated: 0, outs: 0, drills: 0, quiz: [], signed: 0, who: new Set() }));
+  const at = (d) => { const i = wk(d); return i >= 0 && i < PI_WEEKS ? W[i] : null; };
+  // Launch: the first night anyone did anything in the app. Closes before it aren't counted as missed.
+  const launch = [...ev.map((e) => e.day), ...runs.filter(([, rs]) => Object.keys(rs).length).map(([d]) => d), ...[...outlog, ...scores, ...reports].map((x) => piDay(x.at))].filter(Boolean).sort()[0] || today;
+  for (const [d, rs] of runs) for (const side of LB_SIDES) {
+    const w = at(d), r = rs[MODE_LISTS[side].at(-1)]; if (!w || d < launch) continue;
+    if (d === today && r?.status !== "finished") continue;
+    w.nights++;
+    if (r?.status === "finished") { w.closes++; if (r.done >= r.required) w.full++; }
+  }
+  for (const e of ev) {
+    const w = at(e.day); if (!w) continue;
+    if (e.name) w.who.add(e.name);
+    if (e.kind !== "label") continue;
+    if (["opened", "changed", "found"].includes(e.act)) w.dated++;
+    if (["changed", "binned"].includes(e.act)) lateBy(e) ? w.lbLate++ : w.lbOk++;
+  }
+  for (const x of outlog) { const w = at(piDay(x.at)); if (!w) continue; if (x.name) w.who.add(x.name); if (x.action === "out") w.outs++; }
+  for (const x of scores) { const w = at(x.day || piDay(x.at)); if (!w) continue; if (x.name) w.who.add(x.name); w.drills++; if (x.kind === "night") w.quiz.push((10 * x.score) / x.of); }
+  // The first report each side sends each night is its handover; later ones are corrections.
+  const firsts = new Map();
+  for (const r of reports) { const k = `${piDay(r.at)}|${r.side}`; if (!firsts.has(k) || ms(r.at) < ms(firsts.get(k).at)) firsts.set(k, r); if (r.name) at(piDay(r.at))?.who.add(r.name); }
+  for (const [k, r] of firsts) at(k.split("|")[0])?.sent.push(piMins(r.at));
+  for (const x of LIVE.signoffs) { const w = x.at && at(piDay(x.at)); if (w) w.signed++; }
+  const weeks = W.reverse();
+  while (weeks.length > 1 && weeks[0].end < launch) weeks.shift();
+  return { launch, weeks: weeks.map((w) => ({ ...w, who: w.who.size })), total: new Set([...ev, ...outlog, ...scores, ...reports].map((x) => x.name).filter(Boolean)).size };
+}
+// Each line: its name, the week's value as a number (for the bars), and as text. up: whether more is better.
+const PI_ROWS = [
+  ["closes", "Closes finished in the app", (w) => piPct(w.closes, w.nights), (w) => (w.nights ? `${w.closes} of ${w.nights}` : "–"), 1],
+  ["full", "Closes done in full", (w) => piPct(w.full, w.closes), (w) => (w.closes ? `${piPct(w.full, w.closes)}%` : "–"), 1],
+  ["sent", "Handover sent, usual time", () => null, (w) => (w.sent.length ? piTime(piMid(w.sent)) : "–"), 0],
+  ["labels", "Date labels changed on time", (w) => piPct(w.lbOk, w.lbOk + w.lbLate), (w) => (w.lbOk + w.lbLate ? `${piPct(w.lbOk, w.lbOk + w.lbLate)}%` : "–"), 1],
+  ["dated", "Labels dated", (w) => w.dated, (w) => String(w.dated), 1],
+  ["outs", "86s logged", (w) => w.outs, (w) => String(w.outs), 0],
+  ["drills", "Quizzes and drills done", (w) => w.drills, (w) => String(w.drills), 1],
+  ["quiz", "Tonight's quiz, average", (w) => (w.quiz.length ? (10 * w.quiz.reduce((a, b) => a + b, 0)) / w.quiz.length : null), (w) => (w.quiz.length ? `${(w.quiz.reduce((a, b) => a + b, 0) / w.quiz.length).toFixed(1)}/10` : "–"), 1],
+  ["signed", "House cocktails signed off", (w) => w.signed, (w) => String(w.signed), 1],
+  ["who", "People using it", (w) => w.who, (w) => String(w.who), 1],
+];
+const piWeek = (w) => dayName(w.end, { day: "numeric", month: "short" });
+// Up or down against the week before, for the lines where that means something.
+function piTrend(row, weeks) {
+  const [, , num, , up] = row; if (weeks.length < 2) return "";
+  const a = num(weeks.at(-2)), b = num(weeks.at(-1)); if (a == null || b == null || a === b) return "";
+  return `<span class="pi-t ${up ? (b > a ? "good" : "bad") : ""}">${b > a ? "▲" : "▼"}</span>`;
+}
+function piHead(p) {
+  const all = (k) => p.weeks.reduce((t, w) => t + (typeof w[k] === "number" ? w[k] : w[k].length), 0);
+  const ok = all("lbOk"), late = all("lbLate");
+  return [["Closes in the app", `${all("closes")}/${all("nights")}`], ["Labels on time", ok + late ? `${piPct(ok, ok + late)}%` : "–"], ["86s logged", String(all("outs"))], ["People", String(p.total)]];
+}
+const piFrom = (p) => [addDays(p.weeks[0].end, -6), p.launch].sort().at(-1);
+const piRange = (p) => { const a = piFrom(p), b = p.weeks.at(-1).end; return a === b ? `Tonight, ${dayName(a)}` : `${dayName(a)} to ${dayName(b)}`; };
+// How long it has run: nights for the first fortnight, then weeks.
+const piLong = (p) => { const n = daysFrom(piFrom(p), p.weeks.at(-1).end) + 1; return n < 14 ? plural(n, "night") : plural(p.weeks.length, "week"); };
+function pilotHtml() {
+  const p = MG.pilot; if (!p) { mgLoad("pilot", mgPilotData, "pilot"); return mgBusy(null, "the pilot"); }
+  const busy = mgBusy(p, "the pilot"); if (busy) return busy;
+  const bars = (row) => { const [, , num] = row, vs = p.weeks.map(num), top = Math.max(1, ...vs.filter((v) => v != null)); return vs.every((v) => v == null) ? "" : `<div class="pi-bars" aria-hidden="true">${vs.map((v) => `<i style="height:${v == null ? 0 : Math.max(6, (100 * v) / top)}%"></i>`).join("")}</div>`; };
+  return `<p class="note">${esc(piRange(p))}, ${piLong(p)}. Counted from what the team did in Bar Book: no names. ${mgRefresh("pilot")}</p>
+    <div class="sumcard">${piHead(p).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
+    ${PI_ROWS.map((r) => `<div class="pi-row"><div class="pi-h"><b>${r[1]}</b><span>${esc(r[3](p.weeks.at(-1)))}${piTrend(r, p.weeks)}</span></div>${bars(r)}</div>`).join("")}
+    <p class="s">Bars: one a week, oldest on the left. The number is the latest week (${esc(piWeek(p.weeks.at(-1)))}).</p>
+    <div class="actions"><button class="btn" data-mg-pilot-img>Save as a picture</button>${sendBtn("pilot", "Send on WhatsApp")}<button class="btn" data-mg-pilot-csv>Save as a spreadsheet</button></div>`;
+}
+SHARE.pilot = () => {
+  const p = MG.pilot; if (!p || p.busy || p.err) return null;
+  return { what: "Pilot results", title: `Black Tap Soho · Bar Book pilot · ${piRange(p)}`, head: [piHead(p).map(([k, v]) => `${k}: ${v}`).join(" · ")],
+    parts: PI_ROWS.map((r) => ({ id: r[0], label: r[1], one: true, lines: [p.weeks.map((w) => `${piWeek(w)} ${r[3](w)}`).join(" · ")] })) };
+};
+const piCsv = (p) => toCsv(["Week to", ...PI_ROWS.map((r) => r[1])], p.weeks.map((w) => [piWeek(w), ...PI_ROWS.map((r) => r[3](w))]));
+// The same page as one picture (a JPEG goes in WhatsApp and Photos on any phone), in the app's colours.
+async function mgPilotImage() {
+  await document.fonts?.ready;
+  const p = MG.pilot, css = getComputedStyle(document.documentElement), v = (k) => css.getPropertyValue(k).trim();
+  const W = 1080, pad = 64, rowH = 118, H = 420 + PI_ROWS.length * rowH + 90, c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const g = c.getContext("2d"), F = (w, s) => `${w} ${s}px "Atkinson Hyperlegible", system-ui, sans-serif`;
+  g.fillStyle = v("--bg"); g.fillRect(0, 0, W, H);
+  g.fillStyle = v("--brass"); g.font = F(700, 30); g.fillText("BLACK TAP SOHO · BAR BOOK PILOT", pad, 92);
+  g.fillStyle = v("--fg"); g.font = F(700, 52); g.fillText("How the pilot is going", pad, 156);
+  g.fillStyle = v("--muted"); g.font = F(400, 30); g.fillText(`${piRange(p)} · ${piLong(p)} · no names`, pad, 202);
+  const hd = piHead(p), tw = (W - 2 * pad - 3 * 20) / 4;
+  hd.forEach(([k, val], i) => {
+    const x = pad + i * (tw + 20); g.fillStyle = v("--surface"); g.strokeStyle = v("--line"); g.lineWidth = 2;
+    g.fillRect(x, 240, tw, 130); g.strokeRect(x, 240, tw, 130);
+    g.fillStyle = v("--muted"); g.font = F(700, 20); g.fillText(k.toUpperCase(), x + 18, 280, tw - 36);
+    g.fillStyle = v("--fg"); g.font = F(700, 48); g.fillText(val, x + 18, 344, tw - 36);
+  });
+  PI_ROWS.forEach((r, i) => {
+    const y = 420 + i * rowH, [, name, num, txt] = r, vs = p.weeks.map(num), top = Math.max(1, ...vs.filter((n) => n != null));
+    g.strokeStyle = v("--line"); g.beginPath(); g.moveTo(pad, y); g.lineTo(W - pad, y); g.stroke();
+    g.fillStyle = v("--fg"); g.font = F(700, 32); g.fillText(name, pad, y + 48, 560);
+    g.fillStyle = v("--brass"); g.font = F(700, 36); g.textAlign = "right"; g.fillText(txt(p.weeks.at(-1)), W - pad, y + 50); g.textAlign = "left";
+    if (vs.some((n) => n != null)) {
+      const bw = 26, gap = 10, x0 = pad;
+      vs.forEach((n, j) => { const h = n == null ? 0 : Math.max(4, (40 * n) / top); g.fillStyle = j === vs.length - 1 ? v("--brass") : v("--muted"); g.fillRect(x0 + j * (bw + gap), y + 102 - h, bw, h); });
+    }
+  });
+  g.fillStyle = v("--muted"); g.font = F(400, 24); g.fillText(`Bars: one a week, oldest on the left. Numbers are the latest week. Made ${dayName(shiftDay())}.`, pad, H - 44, W - 2 * pad);
+  return new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.92));
+}
+
 /* ---------- Date label record ----------
    Every tap on a date label (opened, changed, discarded, found open, and a manager's changes), by first name and time,
    written by the server with the tap and never editable. For an environmental health visit: send it, or save it as a
@@ -126,7 +245,9 @@ function trOf(name) {
   const best = speed.filter((x) => x.score === x.of).sort((a, b) => a.secs - b.secs)[0] || speed.sort((a, b) => b.score - a.score || a.secs - b.secs)[0];
   const starter = xs.filter((x) => x.kind === "starter").sort((a, b) => b.score - a.score)[0];
   const signed = LIVE.signoffs.filter((x) => x.person === name);
-  return { night, avg: night.length ? night.reduce((t, x) => t + x.score / x.of, 0) / night.length : null, best, starter, signed };
+  // Bar 101: their best quiz or drill (the most right, then the quickest drill), and how many goes.
+  const b1 = xs.filter((x) => x.kind === "b101"), b101 = [...b1].sort((a, b) => b.score / b.of - a.score / a.of || (a.secs ?? 1e9) - (b.secs ?? 1e9))[0];
+  return { night, avg: night.length ? night.reduce((t, x) => t + x.score / x.of, 0) / night.length : null, best, starter, signed, b101, b101n: b1.length };
 }
 const trSig = () => stDrinks();
 function trainingHtml() {
@@ -137,13 +258,15 @@ function trainingHtml() {
   const quizTop = ppl.filter(([, t]) => t.night.length >= 3).sort((a, b) => b[1].avg - a[1].avg).slice(0, 3);
   const fast = ppl.filter(([, t]) => t.best && t.best.score === t.best.of).sort((a, b) => a[1].best.secs - b[1].best.secs).slice(0, 3);
   const medal = ["🥇", "🥈", "🥉"];
-  return `<p class="note">Last ${TR_DAYS} days. Tonight's quiz counts the first go each night; speed drills count every go. ${mgRefresh("tr")}</p>
+  const b1Top = ppl.filter(([, t]) => t.b101n).sort((a, b) => b[1].b101n - a[1].b101n || b[1].b101.score - a[1].b101.score).slice(0, 3);
+  return `<p class="note">Last ${TR_DAYS} days. Tonight's quiz counts the first go each night; speed drills and Bar 101 count every go. ${mgRefresh("tr")}</p>
     <div class="mini">Quiz leaders (3 nights or more)</div><ul class="live">${quizTop.map(([n, t], i) => `<li>${medal[i]} <b translate="no">${esc(n)}</b> ${Math.round(t.avg * 100)}% over ${plural(t.night.length, "night")}</li>`).join("") || "<li>Nobody's done 3 nights yet</li>"}</ul>
     <div class="mini">Fastest perfect speed drill</div><ul class="live">${fast.map(([n, t], i) => `<li>${medal[i]} <b translate="no">${esc(n)}</b> ${t.best.secs} s</li>`).join("") || "<li>No perfect drill yet</li>"}</ul>
+    <div class="mini">Most Bar 101 practice</div><ul class="live">${b1Top.map(([n, t], i) => `<li>${medal[i]} <b translate="no">${esc(n)}</b> ${plural(t.b101n, "go", "goes")}, best ${t.b101.score}/${t.b101.of}</li>`).join("") || "<li>No Bar 101 yet</li>"}</ul>
     <div class="mini">Everyone</div>
     ${ppl.map(([n, t]) => { const on = T.open === n, ok = t.signed.length >= sig.length;
       return `<article class="notice trrow${on ? " on" : ""}"><button class="trh" data-tr-open="${esc(n)}" aria-expanded="${on}"><b translate="no">${esc(n)}</b>
-          <span class="s">${t.avg == null ? "No quiz yet" : `Quiz ${Math.round(t.avg * 100)}% (${t.night.length})`} · ${t.best ? `Speed ${t.best.score}/${t.best.of} in ${t.best.secs} s` : "No speed drill"} · ${t.starter ? `Test ${t.starter.score}/${t.starter.of}` : "No test yet"}</span>
+          <span class="s">${t.avg == null ? "No quiz yet" : `Quiz ${Math.round(t.avg * 100)}% (${t.night.length})`} · ${t.best ? `Speed ${t.best.score}/${t.best.of} in ${t.best.secs} s` : "No speed drill"} · ${t.b101 ? `Bar 101 ${t.b101.score}/${t.b101.of} (${t.b101n})` : "No Bar 101 yet"} · ${t.starter ? `Test ${t.starter.score}/${t.starter.of}` : "No test yet"}</span>
           <span class="pill${ok ? " ok" : ""}">${ok ? "Signed off" : `${t.signed.length} of ${sig.length} signed off`}</span></button>
         ${on ? `<p class="note">Watch them make each one to spec, then sign it off. It shows on their phone too.</p>${sig.map((d) => { const s = t.signed.find((x) => x.drink === d.name);
           return `<div class="st-row"><span translate="no">${esc(d.name)}</span>${s ? `<span class="s">✅ ${esc(s.name)}, ${esc(dayName(bday(s.at)))} <button class="linkbtn" data-tr-undo="${esc(n)}|${esc(d.name)}">Undo</button></span>` : `<button class="btn" data-tr-sign="${esc(n)}|${esc(d.name)}">Sign off</button>`}</div>`; }).join("")}` : ""}</article>`; }).join("") || `<p class="note">Nobody on the names list yet.</p>`}
@@ -158,6 +281,7 @@ SHARE.training = () => {
     parts: [
       { id: "quiz", label: "Tonight's quiz", lines: quizTop.map(([n, t], i) => `${i + 1}. ${n}: ${Math.round(t.avg * 100)}% over ${t.night.length} nights`) },
       { id: "speed", label: "Fastest perfect speed drill", lines: fast.map(([n, t], i) => `${i + 1}. ${n}: ${t.best.secs} s`) },
+      { id: "b101", label: "Most Bar 101 practice", lines: ppl.filter(([, t]) => t.b101n).sort((a, b) => b[1].b101n - a[1].b101n).slice(0, 5).map(([n, t], i) => `${i + 1}. ${n}: ${plural(t.b101n, "go", "goes")}, best ${t.b101.score}/${t.b101.of}`) },
       { id: "signed", label: "Signed off on all house cocktails", lines: ppl.filter(([, t]) => t.signed.length >= sig).map(([n]) => `✅ ${n}`) },
     ] };
 };
@@ -535,25 +659,28 @@ body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background
 </style>`);
 
 /* ---------- Where it goes on the Team page ---------- */
-Object.assign(TC_SUB, { week: "Most 86'd, closes not fully done, late labels", lblog: "Every date label tap, for an EHO visit", training: "Quiz scores, speed drills, sign-off on the house cocktails",
+Object.assign(TC_SUB, { week: "Most 86'd, closes not fully done, late labels", pilot: "Week by week since launch, to show your manager", lblog: "Every date label tap, for an EHO visit", training: "Quiz scores, speed drills, sign-off on the house cocktails",
   history: "Undo changes to date labels and added items", setup: "Your code, the managers' codes, the team code, then check they work", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
 function mgCards() {
   if (!MG_READY) return [];
-  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["week", "Weekly summary", weekHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml]] : [];
+  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml]] : [];
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
   { g: "Team", k: "week", n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
+  { g: "Team", k: "pilot", n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
   { g: "Team", k: "lblog", n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp or save it as a spreadsheet." },
   { g: "Team", k: "training", n: "Training", go: "training", team: 1, what: "Quiz and speed drill scores for everyone, leaderboards, and sign-off on the house cocktails by a manager.", mgr: "Sign off each house cocktail once you've watched it made to spec." },
   { g: "Team", k: "health", n: "Health check", go: "health", what: "Whether this phone is online, saving, up to date and ready with no signal.", staff: "Something not syncing? Check here, then send it to maintenance." });
-Object.assign(PLACE_KW, { week: "weekly summary report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off", health: "health sync version not working broken offline" });
+Object.assign(PLACE_KW, { week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off", health: "health sync version not working broken offline" });
 
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
-  if ((x = t("[data-mg-reload]"))) { const k = x.dataset.mgReload, card = { week: "week", tr: "training", hist: "history", health: "health" }[k]; MG[k] = k === "tr" ? { xs: null } : null; renderCard(card); return; }
+  if ((x = t("[data-mg-reload]"))) { const k = x.dataset.mgReload, card = { week: "week", pilot: "pilot", tr: "training", hist: "history", health: "health" }[k]; MG[k] = k === "tr" ? { xs: null } : null; renderCard(card); return; }
   if ((x = t("[data-mg-lb]"))) { const [k, v] = x.dataset.mgLb.split(":"); MG.lb[k] = k === "days" ? +v : v; if (k === "days") MG.lb.xs = null; haptic(); renderCard("lblog"); return; }
   if (t("[data-mg-csv]")) { mgSaveFile(`date-label-record-${shiftDay()}.csv`, "text/csv", toCsv(["Date", "Time", "Who", "Side", "Item", "What", "Use by", "Use by before", "Days late", "Note"], mgCsvRows())); return; }
+  if (t("[data-mg-pilot-img]")) { haptic(); mgPilotImage().then((b) => mgSaveFile(`bar-book-pilot-${shiftDay()}.jpg`, "image/jpeg", b)); return; }
+  if (t("[data-mg-pilot-csv]")) { mgSaveFile(`bar-book-pilot-${shiftDay()}.csv`, "text/csv", piCsv(MG.pilot)); return; }
   if ((x = t("[data-tr-open]"))) { MG.tr.open = MG.tr.open === x.dataset.trOpen ? "" : x.dataset.trOpen; haptic(); renderCard("training"); return; }
   if ((x = t("[data-tr-sign]"))) { const [p, d] = x.dataset.trSign.split("|"); haptic(); track(A_().signOff(p, d), `${d}: signed off for ${p}`, "Not saved. Try again"); return; }
   if ((x = t("[data-tr-undo]"))) { const [p, d] = x.dataset.trUndo.split("|"); track(A_().unSign(p, d), "Sign-off taken back", "Not saved. Try again"); return; }
@@ -578,6 +705,9 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .bline.hot{border-left-color:var(--warn)}.bline.hot b{color:var(--warn)}
 .su{border-top:1px solid var(--line);margin-top:12px;padding-top:6px}.suh{display:flex;justify-content:space-between;align-items:center;gap:8px}.suh b{font-size:17px}
 .surow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}.surow>span:first-child{min-width:90px;font-weight:700}.surow input{width:120px;flex:0 1 160px}
+.pi-row{padding:10px 0;border-bottom:1px solid var(--line)}.pi-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.pi-h b{font-size:16px}
+.pi-h span{font-weight:700;color:var(--brass);white-space:nowrap}.pi-t{margin-left:6px;font-size:12px;color:var(--muted)}.pi-t.good{color:var(--ok)}.pi-t.bad{color:var(--warn)}
+.pi-bars{display:flex;align-items:flex-end;gap:4px;height:34px;margin-top:6px}.pi-bars i{flex:0 1 22px;background:var(--muted);border-radius:3px 3px 0 0;opacity:.6}.pi-bars i:last-child{background:var(--brass);opacity:1}
 .alerts{margin-top:8px}.al-in{position:relative;background:var(--surface);border:1px solid var(--brass);border-radius:14px;padding:10px 12px}.al-in>b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brass);padding-right:36px}
 .al{display:block;width:100%;text-align:left;color:var(--fg);padding:8px 0;border-top:1px solid var(--line);margin-top:6px;font-size:15.5px;line-height:1.35}.al.hot{color:var(--warn);font-weight:700}
 .al-x{position:absolute;top:4px;right:6px;width:36px;height:36px;font-size:22px;color:var(--muted)}

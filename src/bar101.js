@@ -162,28 +162,46 @@ const B101 = [
     src: "",
     q: "A guest on their second lager. What do you do?", a: "Suggest one signature in a line", w: ["Read out the whole menu", "Say nothing", "Offer a shot for everyone"] },
 ];
-// A question per card, the options shuffled.
+// The cards this phone has got right in a Bar 101 quiz (a miss takes it off again), so the quiz asks the rest first.
+const b101Known = () => store.get("b101k", {});
+// A question per card, the ones not known yet first, the options shuffled.
 function b101Quiz(n = 10) {
-  const r = Math.random, pick = shuffle(r, B101).slice(0, n);
-  return pick.map((c) => ({ ask: c.q, answer: c.a, wrong: c.w, kind: "b101", name: c.n, id: null, app: true, opts: shuffle(r, [c.a, ...c.w]) }));
+  const r = Math.random, k = b101Known(), pick = [...shuffle(r, B101.filter((c) => !k[c.n])), ...shuffle(r, B101.filter((c) => k[c.n]))].slice(0, n);
+  return pick.map((c) => ({ ask: c.q, answer: c.a, wrong: c.w, kind: "b101", name: c.n, id: null, app: true, opts: shuffle(r, [c.a, ...c.w]), say: c.say }));
+}
+function b101Mark(x) {
+  const k = b101Known();
+  x.qs.forEach((q, j) => { if (x.picks[j] === q.answer) k[q.name] = 1; else delete k[q.name]; });
+  store.set("b101k", k);
+}
+// A Bar 101 quiz goes to the managers' Training page when logged in (the speed drill logs itself, with its time).
+function b101Done(x) {
+  b101Mark(x);
+  if (!x.speed && LIVE.me && LIVE.api) LIVE.api.score("b101", x.qs.filter((q, j) => x.picks[j] === q.answer).length, x.qs.length).catch(() => {});
 }
 let b101G = store.get("b101g", ""), b101Open = "";
 function renderB101() {
   const groups = [...new Set(B101.map((c) => c.g))], xs = B101.filter((c) => !b101G || c.g === b101G);
+  const kn = b101Known(), got = B101.filter((c) => kn[c.n]).length, best = store.get("speedBest", {})["Bar 101"];
   $("#pb101").innerHTML = `<div class="card" style="text-align:left"><h2 style="font-size:26px">Bar 101</h2>
     <p class="note">What to say when a guest asks: why a bottle costs more, which whisky to pick, the difference between styles. Our own back bar only.</p>
-    <button class="btn pri wide" data-qz="b101">Quiz me: 10 questions</button></div>
+    <div class="b101got"><b>You know ${got} of ${B101.length}</b><span class="bar" aria-hidden="true"><i style="width:${Math.round((100 * got) / B101.length)}%"></i></span></div>
+    <button class="btn pri wide" data-qz="b101">${got === B101.length ? "Quiz me: 10 questions" : got ? "Quiz me on the ones I don't know yet" : "Quiz me: 10 questions"}</button>
+    <button class="btn wide" data-qz="speed101" style="margin-top:8px">Speed drill${best ? `: beat ${best.secs} s` : ""}</button></div>
     <div class="recent">${["", ...groups].map((g) => `<button class="chip" data-b101-g="${esc(g)}" aria-pressed="${g === b101G}">${g || "Everything"}</button>`).join("")}</div>
     ${xs.map((c) => { const k = B101.indexOf(c), on = b101Open === String(k);
-      return `<article class="notice b101${on ? " on" : ""}"><button class="b101h" data-b101="${k}" aria-expanded="${on}"><small>${esc(c.g)}</small><b>${esc(c.n)}</b></button>
+      return `<article class="notice b101${on ? " on" : ""}"><button class="b101h" data-b101="${k}" aria-expanded="${on}"><small>${esc(c.g)}${kn[c.n] ? ` <span class="b101k">✓ known</span>` : ""}</small><b>${esc(c.n)}</b></button>
         ${on ? `<p class="txt">${esc(c.gist)}</p>${c.say ? `<p class="b101say"><b>Say it:</b> “${esc(c.say)}”</p>` : ""}${c.src ? `<p class="s">Source: ${esc(c.src)}</p>` : ""}` : ""}</article>`; }).join("")}`;
 }
 document.addEventListener("click", (e) => {
   const g = e.target.closest("[data-b101-g]"); if (g) { b101G = g.dataset.b101G; store.set("b101g", b101G); renderB101(); return; }
+  const rd = e.target.closest("[data-b101-read]"); if (rd) { qz = null; b101G = ""; b101Open = String(B101.findIndex((x) => x.n === rd.dataset.b101Read)); renderPractice(); $(`#pb101 [data-b101="${b101Open}"]`)?.scrollIntoView({ block: "center" }); return; }
   const c = e.target.closest("[data-b101]"); if (c) { b101Open = b101Open === c.dataset.b101 ? "" : c.dataset.b101; haptic(); renderB101(); }
 });
 document.head.insertAdjacentHTML("beforeend", `<style>
 .b101{padding:0;overflow:hidden}.b101h{display:block;width:100%;text-align:left;padding:12px 14px;color:var(--fg)}
 .b101h small{display:block;font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--brass)}.b101h b{display:block;font-size:18px;margin-top:2px}
+.b101got{margin:12px 0}.b101got b{display:block;font-size:15px}.b101got .bar{display:block;height:8px;background:var(--line);border-radius:4px;margin-top:6px;overflow:hidden}.b101got .bar i{display:block;height:100%;background:var(--brass)}
+.b101k{color:var(--ok);text-transform:none;letter-spacing:0}
 .b101 .txt,.b101 .s,.b101say{margin:0;padding:0 14px 10px}.b101say{font-size:15px}.b101.on{border-color:var(--brass)}
 </style>`);

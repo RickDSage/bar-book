@@ -137,8 +137,11 @@ function listen(uid) {
     sub("restock", query(collection(db, "restock"), where("status", "in", RS_OPEN)), (snap) => { rs.open = rows(snap); mergeRestock(); });
     sub("restock-recent", query(collection(db, "restock"), orderBy("at", "desc"), limit(30)), (snap) => { rs.recent = rows(snap); mergeRestock(); });
     // Tonight's closing photos that aren't on a sent report yet, whoever took them: the phone shows its side's.
+    // Unsent ones from a close that was never sent are binned after two days (any phone on the team may), because every
+    // phone downloads every unsent photo each time it opens, and that would use up the free plan's monthly download.
     sub("photos", query(collection(db, "photos"), where("report", "==", null)), (snap) => {
       LIVE.draftPhotos = rows(snap).sort((a, b) => ms(a.at) - ms(b.at)); liveChanged("photos");
+      if (!snap.metadata.fromCache) binStalePhotos(snap);
     });
     // Tonight's handover drafts, one per side, shared by everyone closing it.
     sub("drafts", query(collection(db, "drafts"), orderBy("at", "desc"), limit(6)), (snap) => {
@@ -173,6 +176,7 @@ function listen(uid) {
     // The count of wrong team codes, so the owner can see it and unlock joining.
     if (LIVE.owner) sub("gate", doc(db, "gate", "team"), (x) => { LIVE.gate = x.exists() ? x.data({ serverTimestamps: "estimate" }) : { tries: 0 }; liveChanged("gate"); });
     if (LIVE.admin) clearOldPhotos();
+    if (LIVE.owner) checkRules();
   }, () => {});
 }
 
@@ -185,6 +189,24 @@ function watchMedia(drink) {
   const show = (m) => { LIVE.media = { photo: "", video: "", pending: false, ...m, drink }; liveChanged("media"); };
   if (drink) sub("media", doc(db, "drinkMedia", slug(drink)), (d) => show({ ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites }), () => show());
 }
+
+// Quiz night: one game at a time (quiz/live) and its players, listened to only while the Games and drills page is open.
+let quizGame = null;
+function watchQuiz(on) {
+  if (!on) { unsub("quiz"); unsub("quizPlayers"); quizGame = null; LIVE.loaded.delete("quiz"); return; }
+  sub("quiz", doc(db, "quiz", "live"), (d) => {
+    LIVE.quiz = d.exists() ? { ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites } : null;
+    const g = LIVE.quiz?.game || null;
+    if (g !== quizGame) {
+      unsub("quizPlayers"); quizGame = g; LIVE.quizPlayers = [];
+      if (g) sub("quizPlayers", query(collection(db, "quiz", "live", "players"), where("game", "==", g)), (snap) => {
+        LIVE.quizPlayers = snap.docs.map((x) => ({ ...x.data(), uid: x.id })); liveChanged("quizPlayers");
+      });
+    }
+    liveChanged("quiz");
+  });
+}
+const quizStamp = () => ({ host: auth.currentUser.uid, hostName: LIVE.me, at: serverTimestamp() });
 
 // Leaving, or being taken off the team, wipes this phone's copy of the team's data, then starts the app afresh.
 let leaving = false;
@@ -210,6 +232,23 @@ async function clearOldPhotos() {
 }
 
 const logDef = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, status: x.status });
+// Are the rules published in the Firebase console the ones this version of the app was built with? Only a refusal
+// says no; no signal says nothing.
+async function checkRules() {
+  const old = await getDoc(doc(db, "rulesv", __RULES__)).then(() => false, (e) => (e.code === "permission-denied" ? true : null));
+  if (old !== null && old !== LIVE.rulesOld) { LIVE.rulesOld = old; liveChanged("rules"); }
+}
+
+const STALE_DAYS = 2, binning = new Set();
+function binStalePhotos(snap) {
+  const cutoff = Date.now() - STALE_DAYS * 864e5;
+  for (const d of snap.docs) {
+    const at = d.data().at;
+    if (!at || at.toMillis() >= cutoff || binning.has(d.id)) continue;
+    binning.add(d.id); deleteDoc(d.ref).catch(() => binning.delete(d.id));
+  }
+}
+
 const itemDef = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, found: x.found });
 // Listeners tied to the business day start again with the new query when it rolls over at 6am.
 const dayKeys = {};
@@ -517,6 +556,9 @@ LIVE.api = {
   runsOn: (day) => getDocs(collection(db, "shift", day, "runs")).then(byId),
   tasksOn: (day) => getDocs(collection(db, "shift", day, "tasks")).then(byId),
   outlogSince: (since) => getDocs(query(collection(db, "outlog"), where("at", ">=", Timestamp.fromMillis(since)), limit(1000))).then(rows),
+  // Pilot results: everything the team did on these business days (a day at a time), and the reports sent since a time.
+  eventsOn: (days) => Promise.all(days.map((d) => getDocs(query(collection(db, "events"), where("day", "==", d), limit(2000))).then(rows))).then((xs) => xs.flat()),
+  reportsSince: (since) => getDocs(query(collection(db, "reports"), where("at", ">=", Timestamp.fromMillis(since)), limit(500))).then(rows),
   // Backup: everything Bar Book keeps for the team, read once. Photos stay out (they are big, and kept 30 days).
   async backup() {
     const all = (c, q) => getDocs(q || collection(db, c)).then((s) => s.docs.filter(plain).map((x) => ({ id: x.id, ...x.data() }))).catch(() => []);
@@ -581,13 +623,19 @@ LIVE.api = {
   },
   saveContacts: (list) => setDoc(doc(db, "settings", "contacts"), { list, ...me() }),
   watchMedia,
+  watchQuiz,
+  // The host starts a game (taking over one that's finished or left alone for an hour) and moves it on.
+  quizHost: (x) => setDoc(doc(db, "quiz", "live"), { game: x.game, qs: x.qs, i: x.i, state: x.state, hide: x.hide, ...quizStamp() }),
+  quizMove: (patch) => updateDoc(doc(db, "quiz", "live"), { ...patch, ...quizStamp() }),
+  // A player's answers so far for this game, as { question number: the answer picked }.
+  quizPick: (game, picks) => setDoc(doc(db, "quiz", "live", "players", auth.currentUser.uid), { game, picks, ...me() }),
   // A drink's photo and video link, saved together. With neither, the record goes.
   setMedia: (drink, photo, video) => (photo || video ? setDoc(doc(db, "drinkMedia", slug(drink)), { drink, photo, video, ...me() }) : deleteDoc(doc(db, "drinkMedia", slug(drink)))),
   PASSWORD_MIN, MAX_PHOTOS, MAX_TRIES, MAX_SENIORS, GATE_MAX, OWNER_ID,
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
+  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

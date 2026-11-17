@@ -577,6 +577,7 @@ ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; 
 .staffrow .actions { margin-top: 8px; }
 .staffrow .actions .btn { padding: 8px 12px; font-size: 15px; min-height: 40px; }
 /* Saving state: shown while a change is waiting to reach the server, or when there's no signal */
+.upd.rulesold { white-space: normal; text-align: center; width: max-content; max-width: calc(100vw - 32px); }
 .upd { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 26; padding: 12px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 4px 18px #0005; white-space: nowrap; }
 /* At the bottom, above the tabs, and never in the way: at the top it covered every page's Back button and the drinks
    tabs, so with no signal nobody could close the Send page. Pages get room under it so nothing ends up beneath it. */
@@ -951,6 +952,77 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .pl-form { margin-top: 16px; }
 .pl-mine ul.spec { margin: 8px 0; }
 @media (max-width: 360px) { .pl-stats { grid-template-columns: repeat(2, 1fr); } }
+/* Games and drills, read-aloud, Siri and shortcuts, since you were last in (fun.js) */
+.dr-card, .wrap-card { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; width: 100%; text-align: left; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin: 12px 0 0; color: var(--fg); font: inherit; }
+.dr-card { border-color: var(--brass); }
+.dr-card.done { border-color: var(--line); }
+.dr-card .k, .wrap-card .k { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--brass); font-weight: 700; }
+.dr-card .t, .wrap-card .t { font-size: 22px; }
+.dr-card .s, .wrap-card .s { color: var(--muted); font-size: 15px; }
+.dr-card .go, .wrap-card .go { color: var(--brass); font-weight: 700; margin-top: 4px; }
+.wrap-card { background: linear-gradient(135deg, #2a2117, #0f0d0a); color: #f4eee4; border-color: var(--brass); }
+.wrap-card .s { color: #b3a998; }
+.dr-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; width: 100%; margin-top: 10px; }
+.dr-stats > div, .dr-stats > span { display: flex; flex-direction: column; align-items: center; background: rgb(255 255 255 / .05); border-radius: 12px; padding: 8px 4px; }
+.dr-stats b { font-size: 28px; line-height: 1.1; }
+.dr-stats div span, .dr-stats small { font-size: 12px; color: var(--muted); text-align: center; }
+.wrap-card .dr-stats small { color: #b3a998; }
+.dr-head { display: flex; align-items: center; gap: 12px; margin-top: 14px; font-size: 18px; }
+.dr-head b { flex: 1; } #dr-secs { font-variant-numeric: tabular-nums; font-weight: 700; color: var(--brass); min-width: 3ch; text-align: right; }
+.dr-bar { height: 10px; border-radius: 999px; background: var(--line); margin-top: 8px; overflow: hidden; }
+.dr-bar i { display: block; height: 100%; background: var(--brass); transition: width .25s linear; }
+.dr-bar.hurry i { background: var(--warn); }
+.dr-q .qz-opts .btn { min-height: 54px; font-size: 18px; }
+.dr-fire { font-size: 54px; margin: 0; line-height: 1; }
+.dr-end h2 { font-size: 30px; }
+.qn-big h2 { font-size: 30px; }
+.qn-prog { display: flex; justify-content: space-between; margin-top: 14px; color: var(--muted); }
+.qn-prog b { color: var(--fg); }
+.qn-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 16px; }
+.qn-o { position: relative; display: flex; align-items: center; gap: 10px; min-height: 72px; padding: 12px 14px; border-radius: 14px; border: 2px solid transparent; color: #fff; font: inherit; font-size: 18px; font-weight: 700; text-align: left; }
+.qn-o b { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: rgb(0 0 0 / .25); }
+.qn-o i { margin-left: auto; font-style: normal; font-size: 22px; }
+.qn-o.q0 { background: #b5523b; } .qn-o.q1 { background: #3f6fa8; } .qn-o.q2 { background: #b08a2e; } .qn-o.q3 { background: #3f8a5a; }
+.qn-o.mine { border-color: var(--fg); box-shadow: 0 0 0 3px var(--brass); }
+.qn-o.right { border-color: #fff; box-shadow: 0 0 0 4px var(--ok); }
+.qn-o.dim { opacity: .35; }
+.qn-o:disabled { cursor: default; }
+@media (min-width: 900px) { .qn-big .qn-o { min-height: 110px; font-size: 26px; } .qn-big h2 { font-size: 44px; } .qn-big .lead { font-size: 24px; } }
+.qn-team { font-size: 18px; margin: 10px 0; }
+.qn-pod { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin: 12px 0; }
+.qn-pod > div { display: flex; flex-direction: column; align-items: center; min-width: 96px; padding: 10px; border-radius: 14px; background: rgb(255 255 255 / .05); }
+.qn-pod .m { font-size: 40px; } .qn-pod span { color: var(--muted); font-size: 14px; }
+#say { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 12px + env(safe-area-inset-bottom, 0px)); z-index: 28; width: min(640px, calc(100% - 20px)); background: var(--surface); border: 2px solid var(--brass); border-radius: 18px; padding: 12px 14px; box-shadow: 0 10px 30px rgb(0 0 0 / .35); }
+body.stmode #say { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+.say-top { display: flex; align-items: center; gap: 10px; } .say-top b { flex: 1; } .say-top span { color: var(--muted); }
+.say-x { background: none; border: 0; color: var(--fg); font-size: 28px; line-height: 1; padding: 0 6px; }
+.say-t { margin: 8px 0 2px; color: var(--brass); font-weight: 700; }
+.say-s { margin: 0; font-size: 18px; max-height: 5.5em; overflow-y: auto; }
+.say-b { display: grid; grid-template-columns: 1fr 1fr 1.4fr; gap: 8px; margin-top: 10px; }
+.say-b .btn { min-height: 52px; font-size: 18px; }
+.say-auto { margin-top: 8px; }
+.sc-steps { padding-left: 22px; } .sc-steps li { margin: 6px 0; }
+.sc-url { font-size: 12px; word-break: break-all; }
+#since { position: fixed; inset: 0; z-index: 40; background: rgb(0 0 0 / .55); display: flex; align-items: flex-end; justify-content: center; padding: 16px 12px calc(env(safe-area-inset-bottom, 0px) + 16px); }
+.since-card { width: min(560px, 100%); max-height: 80vh; overflow-y: auto; background: var(--bg); border: 2px solid var(--brass); border-radius: 20px; padding: 16px; }
+.since-card h2 { margin: 0; font-size: 24px; }
+.since-p { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
+.since-p.hot { border-color: var(--warn); }
+.since-p span { color: var(--muted); font-size: 15px; }
+.since-card .btn.wide { margin-top: 8px; }
+.dr-card.ph .btn { margin-top: 8px; }
+.ph-langs { margin: 6px 0 0; padding: 0; }
+.ph-card { padding: 28px 18px; }
+.ph-say { font-size: 34px; line-height: 1.2; font-weight: 700; margin: 0; }
+.ph-pron { font-size: 20px; color: var(--brass); margin: 12px 0 0; letter-spacing: .02em; }
+.ph-en { font-size: 18px; color: var(--muted); margin: 12px 0 0; }
+.ph-hb { display: grid; grid-template-columns: 2fr 1fr; gap: 8px; margin-top: 20px; }
+.ph-hear { min-height: 60px; font-size: 20px; width: 100%; }
+.ph-nav { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 12px; }
+.ph-nav .btn { min-height: 56px; font-size: 18px; }
+.ph-tg { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; }
+.ph-row { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 6px 0; }
+.ph-row span { color: var(--muted); font-size: 14px; }
 </style>
 <script>
 // Light, dark or auto (the phone's own setting, the default), picked in More.
@@ -979,6 +1051,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Guide: find anything in Bar Book">?</button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
+<button class="upd rulesold" id="rules-old" hidden>Maintenance: publish the new Firebase rules. Tap to hide</button>
 <header class="gut" id="hdr">
   <nav class="seg dseg" id="subnav" aria-label="Drinks"><button data-tab="rapid">⚡ Rapid fire</button><button data-tab="drinks">Menu</button><button data-tab="make">Make</button></nav>
   <div id="hdr-drinks">
@@ -1369,7 +1442,7 @@ $("#q").addEventListener("blur", () => setTimeout(() => { if (dp === "recent") d
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, pin: null, admin: false, owner: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], items: [], signoffs: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, pin: null, admin: false, owner: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], items: [], signoffs: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] };
 // The 86 board is shared by everyone on the team. Off the team, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -1591,7 +1664,7 @@ function openSheet(id, keepScroll) {
       <div class="badges" translate="no">${d.tags.map((t) => `<span class="badge">${esc(t)}</span>`).join("")}</div></div></div>
     ${outNow().has(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span><button class="btn" id="sh-86" data-name="${esc(d.name)}">Back in stock</button></div>` : plOutBanner(d)}
     ${al ? `<div class="allergy"><b>Allergens:</b> <span translate="no">${esc(al)}</span></div>` : ""}
-    ${view === "steps" ? howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
+    ${view === "steps" ? (SAY_OK ? `<div class="actions">${sayBtn(d)}</div>` : "") + howHtml(d) + guideHtml(DATA.guides[d.name], nextName(id)) : `
     ${howHtml(d)}
     <div class="h3 pl-spech">Spec<span class="mult">${plServesHtml()}</span></div>
     ${mult > 1 ? `<p class="note" style="margin-top:0">Spec for ${mult} drinks.</p>${plBatchNote(d)}` : ""}
@@ -1826,10 +1899,10 @@ $("#v-practice").addEventListener("click", (e) => {
   if (qa) {
     const a = qa.dataset.qz;
     if (a === "starter") stStartQuiz();
-    else if (a === "speed") speedStart();
+    else if (a === "speed" || a === "speed101") speedStart(a === "speed101");
     else if (a === "b101") { qz = { b101: true, qs: b101Quiz(), i: 0, picks: [] }; renderPractice(); }
     else if (a === "night" || a === "practice") quizStart(a === "night");
-    else if (a === "next") { qz.i++; qzKeep(); if (qz.i === qz.qs.length) { if (qz.speed) speedDone(); quizDone(); } renderPractice(); }
+    else if (a === "next") { qz.i++; qzKeep(); if (qz.i === qz.qs.length) { if (qz.speed) speedDone(); if (qz.b101) b101Done(qz); quizDone(); } renderPractice(); }
     else { qz = null; renderPractice(); }
     $("#v-practice").scrollIntoView({ block: "start" });
     return;
@@ -1965,16 +2038,21 @@ function quizDone() {
    Ten questions from the part of the menu picked, against the clock. Each wrong answer adds 5 seconds. The best time
    is kept on the phone, and every go goes to the managers' Training page when logged in. */
 const SPEED_PEN = 5;
-function speedStart() { qz = { speed: true, t0: Date.now(), qs: quizMake(D.filter(POOLS[pool]), Math.random), i: 0, picks: [] }; renderPractice(); speedTick(); }
+// b101: the drill on the Bar 101 cards instead of the drinks, with its own best.
+function speedStart(b101) { qz = { speed: true, b101: !!b101, t0: Date.now(), qs: b101 ? b101Quiz() : quizMake(D.filter(POOLS[pool]), Math.random), i: 0, picks: [] }; renderPractice(); speedTick(); }
+const speedKey = () => (qz.b101 ? "Bar 101" : pool);
 function speedTick() { clearInterval(speedTick.h); speedTick.h = setInterval(() => { const c = $("#qz-clock"); if (!qz?.speed || qz.secs != null || !c) return clearInterval(speedTick.h); c.textContent = `${Math.floor((Date.now() - qz.t0) / 1000)} s`; }, 250); }
 function speedDone() {
   const right = qzScore(qzMarks(qz)), wrong = qz.qs.length - right;
   qz.raw = Math.max(1, Math.round((Date.now() - qz.t0) / 1000)); qz.secs = qz.raw + wrong * SPEED_PEN;
-  const best = store.get("speedBest", {}), was = best[pool];
-  qz.pb = !was || qz.secs < was.secs; if (qz.pb) { best[pool] = { secs: qz.secs, at: Date.now() }; store.set("speedBest", best); }
+  const best = store.get("speedBest", {}), was = best[speedKey()];
+  qz.pb = !was || qz.secs < was.secs; if (qz.pb) { best[speedKey()] = { secs: qz.secs, at: Date.now() }; store.set("speedBest", best); }
   qz.was = was;
-  if (LIVE.me && LIVE.api) LIVE.api.score("speed", right, qz.qs.length, Math.min(3600, Math.max(5, qz.secs))).catch(() => {});
+  if (LIVE.me && LIVE.api) LIVE.api.score(qz.b101 ? "b101" : "speed", right, qz.qs.length, Math.min(3600, Math.max(5, qz.secs))).catch(() => {});
 }
+// Under a missed question: open the drink, or for Bar 101 what to say and the card itself.
+const b101Act = (x) => (x.id != null ? `<div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div>`
+  : `${x.say ? `<p class="b101say"><b>Say it:</b> “${esc(x.say)}”</p>` : ""}<div class="actions"><button class="btn" data-b101-read="${esc(x.name)}">Read the card</button></div>`);
 function renderQuiz() {
   const box = $("#pquiz");
   if (!qz && pmode === "speed") {
@@ -2012,12 +2090,12 @@ function renderQuiz() {
   if (qz.speed) {
     box.innerHTML = `<div class="card"><h2>${qz.secs} seconds</h2><p class="lead" style="margin:6px auto 0">${right} out of ${qz.qs.length} right${right < qz.qs.length ? `, +${(qz.qs.length - right) * SPEED_PEN} s for the misses (${qz.raw} s on the clock)` : ""}.</p>
       ${qz.pb ? `<p class="qz-got">🏆 ${qz.was ? `New personal best! ${qz.was.secs - qz.secs} s faster.` : "Your first time on the board."}</p>` : `<p class="qz-got">Your best: ${qz.was.secs} s.</p>`}</div>
-      ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n" translate="no">${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b translate="no">${esc(x.answer)}</b></div><div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div></div>`).join("")}` : ""}
-      <div class="actions"><button class="btn pri" data-qz="speed">Go again</button><button class="btn" data-qz="home">Done</button></div>`;
+      ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n" translate="no">${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div>${b101Act(x)}</div>`).join("")}` : ""}
+      <div class="actions"><button class="btn pri" data-qz="${qz.b101 ? "speed101" : "speed"}">Go again</button><button class="btn" data-qz="home">Done</button></div>`;
     return;
   }
   box.innerHTML = `<div class="card"><h2>${right} out of ${qz.qs.length}</h2><p class="lead" style="margin:6px auto 0">${right === qz.qs.length ? "Perfect." : right >= 8 ? "Strong." : right >= 5 ? "Getting there." : "Practise these, then try again."}</p></div>
-    ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n"${x.id == null ? "" : ' translate="no"'}>${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div>${x.id == null ? "" : `<div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div>`}</div>`).join("")}` : ""}
+    ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n"${x.id == null ? "" : ' translate="no"'}>${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div>${b101Act(x)}</div>`).join("")}` : ""}
     ${qz.starter ? stResult(right) : ""}
     <div class="actions">${qz.starter ? "" : qz.b101 ? `<button class="btn pri" data-qz="b101">Another 10</button>` : `<button class="btn pri" data-qz="practice">Another practice quiz</button>`}<button class="btn" data-qz="home">Done</button></div>`;
 }
@@ -2226,8 +2304,11 @@ const hoLines = (id) => ho[id].split("\n").map((x) => x.trim()).filter(Boolean);
 const hoAll = (id) => [...hoLines(id), ...logLines(id)];
 const hoNote = () => HO.filter((f) => hoAll(f.id).length).map((f) => `${f.short}: ${hoAll(f.id).join("\n")}`).join("\n");
 // The handover note and closing manager are for one night: at 6am they start empty again.
-// Tonight's unsent closing photos for this side, whoever took them. Old drafts with no side count for the taker's side.
-const draftPhotos = () => LIVE.draftPhotos.filter((p) => (p.side || (p.uid === LIVE.uid ? mode : "")) === mode);
+// Tonight's unsent closing photos (this business day only, so a close that was never sent can't put last night's
+// photos on tonight's report), for this side, whoever took them. Old drafts with no side count for the taker's side.
+// A photo still saving has no server time yet, so it counts as now.
+const tonightPhotos = () => LIVE.draftPhotos.filter((p) => ukDay((p.at ? p.at.toMillis() : Date.now()) - 6 * 36e5) === shiftDay());
+const draftPhotos = () => tonightPhotos().filter((p) => (p.side || (p.uid === LIVE.uid ? mode : "")) === mode);
 const draftOf = (side) => LIVE.drafts.find((x) => x.day === shiftDay() && x.side === side);
 let draftT = null;
 // The shared draft into this phone: not the box being typed in, and not while this phone's own change is waiting to go.
@@ -2513,7 +2594,7 @@ async function clearAll(master) {
     tasks: lists.flatMap((k) => touched(k).map((i) => ({ k, i, status: statusOf(k, i), note: taskOf(k, i).note || "" }))),
     runs: lists.filter(isLocked).map((k) => ({ k, ...progress(k), note: runOf(k).note || "" })),
     out: [...outNow()],
-    photos: LIVE.draftPhotos.map((x) => ({ data: x.data, side: x.side || mode, note: x.note || "" })),
+    photos: tonightPhotos().map((x) => ({ data: x.data, side: x.side || mode, note: x.note || "" })),
     drafts: Object.keys(MODE_LISTS).map(draftOf).filter(Boolean).map((d) => ({ side: d.side, x: { low: d.low, issues: d.issues, next: d.next, closer: d.closer, noPhotos: d.noPhotos } })),
     local: { ho: { ...ho }, closer, noPhotos },
     restock: master ? rsOpen().filter((x) => x.status !== "delivered").map((r) => r.id) : [],
@@ -2730,7 +2811,7 @@ function handoverOf(r) {
     const m = l.match(/^(Running low|Outstanding|For tomorrow): (.*)$/);
     if (m) { cur = by[m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
   }
-  const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
+  const left = [...r.text.matchAll(/^(Not done|Blocked):\n((?:- .*(?:\n|$))+)/gm)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
   const logged = (r.text.match(/\n\nLogged tonight:\n((?:- .*(?:\n|$))+)/)?.[1] || "").trim().split("\n").filter(Boolean).map((x) => x.slice(2));
   return { ...pts, left, logged, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
 }
@@ -4793,6 +4874,7 @@ const IC = {
   practice: '<rect x="4" y="5" width="13" height="15" rx="2"/><path d="M8 3h11a1 1 0 0 1 1 1v13M8 11l2 2 4-4"/>',
   sheets: '<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>',
   features: '<path d="M12 3l2.6 5.6L20 9.3l-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.4-.7z"/>',
+  siri: '<path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   fun: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
 };
@@ -4808,12 +4890,13 @@ function renderInfo() {
       ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
       ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards and tonight's quiz")}
       ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A page per kind of drink, to send to WhatsApp or print")}
-      ${hubRow("fun", 'data-go="fun"', "Just for fun", "Spin for a drink, and the spec of the day")}
+      ${hubRow("fun", 'data-go="fun"', "Games and drills", "Daily drill with a streak, quiz night, your month, Spin and the spec of the day")}
       ${mode !== "bar" && !stationOn ? "" : hubRow("station", 'data-go="station"', "Bar station", stationOn ? "On: this iPad opens on it. Exit bar station turns it off" : "Turn this iPad into the bar station: big drink search and specs, rounds, tonight's 86s and the close")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
       ${hubRow("features", "data-guide", "Guide: how Bar Book works", "Your shift step by step, every section, and a search for anything")}
+      ${hubRow("siri", "data-sc-open", "Siri and shortcuts", "\u201cHey Siri, Bar Book 86\u201d: open any page by voice or a tap on the back of the phone")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
     </div>
     <div class="sec">Bar reference</div>
@@ -4892,7 +4975,7 @@ const FEATURES = [
     staff: "Search and filter, star favourites, scale a spec for up to 4 drinks, swipe to the next drink, see the house photo and how-to video, and 86 a drink that's run out." },
   { g: "Drinks", k: "make", n: "Cocktail maker", go: "tab:make", tour: 1,
     what: "Pick or type what you've got and see every drink you can make, closest first, with swaps. Also every spec on one line, and your own recipes in My drinks.",
-    staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, and open any match for the full spec. Spin for a drink is under More, Just for fun." },
+    staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, and open any match for the full spec. Spin for a drink is under More, Games and drills." },
   { g: "Drinks", k: "rapid", n: "Rapid fire", go: "tab:rapid", tour: 1,
     what: "For the busiest moments: the top 10 as big cards with the spec on them, then the house cocktails, shots, alcohol-free and serves as tiles.",
     staff: "Change the top 10 to your bar's best sellers, type a drink or a spirit to narrow them down, and send several specs at once on WhatsApp." },
@@ -4952,6 +5035,21 @@ const FEATURES = [
   { g: "Team", k: "sent", n: "Everything sent", go: "sent", team: 1,
     what: "Everything the team sends from Bar Book on WhatsApp, email or print is copied here for the managers. Team only ratings come with no name; My pay never leaves the phone.",
     mgr: "Read any of them again." },
+  { g: "Drinks", k: "drill", n: "Daily drill", go: "drill",
+    what: "Two minutes of quick-fire spec questions a day, with a streak. The drinks you get wrong come back tomorrow, the ones you know come back less and less.",
+    staff: "Do it once a day to keep your streak. Your scores stay on your phone." },
+  { g: "Drinks", k: "quiz", n: "Quiz night", go: "quiz", team: 1,
+    what: "A team quiz on our own specs: the iPad shows the questions big and everyone answers on their phone. A kind scoreboard: top three get a cheer, the host can hide names.",
+    staff: "Join from Games and drills and answer on your phone. Anyone can host." },
+  { g: "Drinks", k: "phrases", n: "Bar phrases", go: "phrases",
+    what: "A few things you say to guests at the bar or on the floor, in French, Spanish or Italian: one big card at a time, with how to say it and a button to hear it. Counts towards the drill streak.",
+    staff: "Pick a language and Bar or Floor under More, Games and drills, then Start. Switch the English or the sound-it-out line off once you know them." },
+  { g: "Drinks", k: "wrap", n: "Your month", go: "wrap",
+    what: "Your month in Bar Book on one picture: closing nights, jobs ticked, specs learnt, drill days and quiz nights. Counted on your phone, first name and numbers only.",
+    staff: "Share it on WhatsApp or Instagram from Games and drills." },
+  { g: "Drinks", k: "siri", n: "Siri and shortcuts", go: "siri",
+    what: "A link for each page (86, Rapid fire, Closing, Handover, Labels, Bar station, Drill, Quiz night) to save as a Shortcut, so Siri or a double tap on the back of the phone opens it.",
+    staff: "Copy a link, paste it into the Shortcuts app, name it, and say it." },
   { g: "Team", k: "spin", n: "Spin the wheel", go: "spin",
     what: "Who does the bins, who goes on break first, who picks the music: tap the names and spin.",
     staff: "Spin, then tell the team on WhatsApp." },
@@ -4984,18 +5082,22 @@ function openFeatures() {
 }
 // Where a feature lives: a bottom tab, a part of the Shift tab, or a card on the Team page.
 function openAt(where) {
-  // Going somewhere from a page over the app (the stock count, the tour going on to its next step) closes that page.
-  if (!$("#sheet").hidden) hideSheet();
+  // Going somewhere else closes a page left open on top (the stock count, the tour's last step; the Siri links open
+  // their own).
+  if (where !== "siri" && !$("#sheet").hidden) hideSheet();
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where === "shift") return show("tally");
   if (where === "count") { pane = "stock"; show("tally"); if (LIVE.me) ctPage(); return; }
+  if (where === "close") { pane = closeList(); return show("tally"); }
+  if (where === "siri") return setTimeout(openShortcuts, 60);
+  if (["drill", "quiz", "wrap", "phrases"].includes(where)) return funGo(where === "wrap" ? "home" : where === "phrases" ? "phr" : where);
   if (["morning", "stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
   show("notices");
   document.activeElement?.blur?.();
   tmOpen.add(where); store.set("tmOpen", [...tmOpen]); renderTeam();
   document.querySelector(`[data-card="${where}"]`)?.scrollIntoView({ block: "start" });
 }
-document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-open]")) openFeatures(); });
+document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-open]")) openFeatures(); if (e.target.closest("[data-sc-open]")) { haptic(); openShortcuts(); } });
 // One tap to any page: from the drinks search, the Send card and More.
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
@@ -5003,7 +5105,8 @@ document.addEventListener("click", (e) => { const g = e.target.closest("[data-go
 const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
-  pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift" };
+  pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
+  drill: "daily drill streak train learn", quiz: "quiz night game team play", siri: "siri shortcut voice back tap", wrap: "wrapped month stats share card", phrases: "french spanish italian language phrases speak guests" };
 function placeHits(q) {
   const ws = q.toLowerCase().split(/\s+/).filter((w) => w.length >= 3 || /^\d+$/.test(w)); if (!ws.length) return [];
   return FEATURES.filter((f) => PLACE_KW[f.k] && fUsable(f) && !(f.k === "tell" && LIVE.owner) && ws.every((w) => `${f.n} ${PLACE_KW[f.k]}`.toLowerCase().split(/[\s:]+/).some((x) => x.startsWith(w)))).slice(0, 3);
@@ -5554,7 +5657,7 @@ function saveNames(next, ok) {
 }
 function mgrHtml() {
   const g = LIVE.gate || { tries: 0 }, gw = LIVE.api.gateWait(g);
-  return `<div class="h3">Team code</div>
+  return `${LIVE.rulesOld ? `<p class="note"><b>The Firebase rules are older than this version of the app</b>, so some things will be refused. Open firestore.rules.txt on the Bar Book site, copy all of it, and paste it into the Firebase console: Firestore Database, Rules, Publish.</p>` : ""}<div class="h3">Team code</div>
     <p class="note">Everyone types it once to join. Say it in person, never in a message. A new code takes every phone off the team, this one too, and everyone joins again with the new code. Pick 4 to 8 numbers nobody would guess: not 0000, 1234 or a birthday.</p>
     <label class="fld">New team code<input id="tc-new" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></label>
     <div class="actions"><button class="btn" id="tc-go">Change the team code</button></div>
@@ -6010,7 +6113,9 @@ function liveChanged(what) {
   if (what === "seniors") { store.set("codeNames", LIVE.seniors.map((x) => x.name)); tryPendingPin(); }
   if (what === "me" || what === "seniors") renderWelcomeName();
   if (what === "lists") applyLists();
+  if (what === "rules") $("#rules-old").hidden = !LIVE.rulesOld;
   if (cur === "station") stationLive(what);
+  funLive(what);
   if (what === "drafts" || what === "me") pullDraft();
   if (what === "events") logLive();
   if (TOAST[what]) {
@@ -6103,6 +6208,7 @@ function show(tab, fromBack = false) {
   // Leaving the Team page counts as having seen what was on it; the next visit shows what's changed since.
   if (tab !== "notices" && cur === "notices") { seenBefore = seenAt = Date.now(); store.set("seenAt", seenAt); }
   if (tab === "notices" && !seenAt) { seenAt = Date.now(); store.set("seenAt", seenAt); }
+  if (cur === "fun" && tab !== "fun") funLeave();
   cur = tab;
   if (tab === "station" && !stationOn) { stationOn = true; store.set("station", true); }
   document.body.classList.toggle("stmode", tab === "station");
@@ -6146,6 +6252,8 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-back]"))
 /*HELP*/
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
+  // Ask the browser not to clear this phone's saved data (the team login, drafts, offline copy) when space is short.
+  navigator.storage?.persist?.().catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { offlineReady = !!hit; if (hit && cur === "info") renderInfo(); }).catch(() => {});
   // The app opens from the phone, so a new release arrives in the background. Once it's stored, say so: a tap reloads
   // into it, or it's there next time the app opens. Anything half-typed is kept as a draft either way.

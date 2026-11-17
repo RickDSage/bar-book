@@ -234,3 +234,79 @@ test("tonight's brief plays as stories: bars, tap through, Go there, close", asy
   assert.match(await text(S, ".story-ring"), /Watched/);
   assert.deepEqual(S.errs, []);
 });
+
+test("pilot results: counted week by week from what the team did, no names; picture, message and spreadsheet", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  await S.evaluate(() => LIVE.api.set86("Limes", true)); await S.waitForFunction(() => LIVE.out.has("Limes"));
+  await S.evaluate(() => LIVE.api.setRun("close", "Bar close", "finished", 5, 5));
+  await S.evaluate(() => LIVE.api.sendReport("bar", "Bar close done", "All done", []));
+  await S.evaluate(() => LIVE.api.score("night", 8, 10));
+  await M.evaluate(() => LIVE.api.label(null, "added", { item: "Apple juice", side: "bar", life: 3, on: true }));
+  await M.waitForFunction(() => LIVE.labels.some((x) => x.item === "Apple juice" && !x.pending));
+  // Staff don't get it, and can't read everyone's scores.
+  await S.evaluate(() => show("notices"));
+  assert.equal(await S.locator('[data-card="pilot"]').count(), 0);
+
+  const box = await card(M, "pilot");
+  await waitText(M, box, /People using it/);
+  const t = await text(M, box);
+  assert.match(t, /Closes in the app 1\/1/i);
+  assert.match(t, /86s logged 1/i);
+  assert.match(t, /People 2/i);
+  assert.match(t, /Closes finished in the app 1 of 1/);
+  assert.match(t, /Closes done in full 100%/);
+  assert.match(t, /Tonight's quiz, average 8\.0\/10/);
+  assert.match(t, /Handover sent, usual time \d\d:\d\d/);
+  assert.doesNotMatch(t, /Sam|Mia/);
+  const m = await M.evaluate(() => SHARE.pilot());
+  assert.match(m.title, /Bar Book pilot/);
+  assert.doesNotMatch(JSON.stringify(m), /Sam|Mia/);
+  assert.match(await M.evaluate(() => piCsv(MG.pilot)), /Week to,Closes finished in the app/);
+  const img = await M.evaluate(async () => { const b = await mgPilotImage(); return [b.type, b.size]; });
+  assert.equal(img[0], "image/jpeg");
+  assert.ok(img[1] > 20000);
+  assert.deepEqual([...M.errs, ...S.errs], []);
+});
+
+test("Bar 101 remembers what you know, asks the rest first, has its own speed drill, and reaches Training", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  await practise(S, "b101");
+  const n = await S.evaluate(() => B101.length);
+  await waitText(S, "#pb101", new RegExp(`You know 0 of ${n}`));
+  await S.click('#pb101 [data-qz="b101"]');
+  const first = await S.evaluate(() => qz.qs.map((q) => q.name));
+  for (let i = 0; i < 10; i++) await answer(S, true);
+  await waitText(S, "#pquiz", /10 out of 10/);
+  await S.click('#pquiz [data-qz="home"]');
+  await waitText(S, "#pb101", new RegExp(`You know 10 of ${n}`));
+  assert.match(await text(S, "#pb101"), /✓ known/i);
+  // Next go: the ones not known yet come first.
+  await S.click('#pb101 [data-qz="b101"]');
+  const next = await S.evaluate(() => qz.qs.map((q) => q.name));
+  assert.equal(next.filter((x) => first.includes(x)).length, Math.max(0, 10 - (n - 10)));
+  await answer(S, false);
+  for (let i = 1; i < 10; i++) await answer(S, true);
+  await waitText(S, "#pquiz", /9 out of 10/);
+  assert.match(await text(S, "#pquiz"), /Say it:/);
+  await S.click("#pquiz [data-b101-read]");
+  await S.waitForSelector('#pb101 .b101.on');
+  // A missed card comes off the known list.
+  const missed = next[0], known = await S.evaluate(() => Object.keys(b101Known()));
+  assert.ok(!known.includes(missed));
+  assert.equal(known.length, 10 + 9 - (first.includes(missed) ? 1 : 0));
+  await waitText(S, "#pb101", new RegExp(`You know ${known.length} of ${n}`));
+  // Its own speed drill, with its own best.
+  await S.click('#pb101 [data-qz="speed101"]');
+  for (let i = 0; i < 10; i++) await answer(S, true);
+  await waitText(S, "#pquiz", /seconds/);
+  assert.equal(await S.locator('#pquiz [data-qz="speed101"]').count(), 1);
+  assert.ok(await S.evaluate(() => store.get("speedBest", {})["Bar 101"].secs > 0));
+
+  const box = await card(M, "training");
+  await waitText(M, box, /Most Bar 101 practice/);
+  assert.match(await text(M, box), /Sam Staff 3 goes, best 10\/10/);
+  assert.match((await M.evaluate(() => SHARE.training())).parts.find((p) => p.id === "b101").lines[0], /Sam Staff: 3 goes/);
+  assert.deepEqual([...M.errs, ...S.errs], []);
+});
