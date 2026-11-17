@@ -688,6 +688,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .it-found { margin: 0; overflow-wrap: anywhere; }
 .it-pa { padding: 4px 0; }
 #it-add summary .pill { margin-left: 6px; }
+.it-keep { margin: 8px 0 0; padding: 8px 10px; border-left: 3px solid var(--brass); background: var(--bg); border-radius: 6px; }
 .lbpick { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .lbpick .check { flex: 1; min-height: 44px; margin-top: 0; }
 .lbpick input[data-lbs-life] { width: 76px; flex: none; font: inherit; font-size: 17px; text-align: center; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; }
@@ -2875,7 +2876,7 @@ const lbF = { item: "", life: "", on: true, open: false };
 function labelRow(x) {
   const due = labelDue(x), [tag, cls] = x.on ? LB_DUE[due] : ["No label needed", ""];
   const b = (act, t, c = "") => `<button class="btn${c}" data-lb="${x.id}" data-lb-act="${act}">${t}</button>`;
-  const btns = !x.on ? "" : x.state === "open" ? b("changed", "Changed it", ["overdue", "today"].includes(due) ? " pri" : "") + b("binned", "Binned…") : b("opened", "Opened one", " pri");
+  const btns = !x.on ? "" : x.state === "open" ? b("changed", "Changed it", ["overdue", "today"].includes(due) ? " pri" : "") + b("binned", "Discarded…") : b("opened", "Opened one", " pri");
   return `<div class="lb${flashed("lb-" + x.id, x) ? " flash" : ""}"><div class="le-row"><div><b>${esc(x.item)}</b> <span class="pill ${cls}">${tag}</span>
       <div class="s">${x.pending ? "Saving… · " : ""}${esc(labelLine(x))}</div></div>
     <button class="more" data-lb-more="${x.id}" aria-expanded="${lbm === x.id}" aria-label="History${LIVE.admin ? " and changes" : ""}: ${esc(x.item)}">⋯</button></div>
@@ -2898,8 +2899,8 @@ function saveOpen(x) {
   haptic(); renderTally();
 }
 function binLabel(x) {
-  if (!confirm(`Bin ${x.item}? Only if it's used up or thrown away, with no new one opened. Opened a new one? Tap Changed it instead.`)) return;
-  track(LIVE.api.label(x, "binned"), `${x.item} binned`, "Not saved. Someone may have just changed it");
+  if (!confirm(`Discard ${x.item}? Only if it's used up or thrown away, with no new one opened. Its days stay set for the next one. Opened a new one? Tap Changed it instead.`)) return;
+  track(LIVE.api.label(x, "binned"), `${x.item} discarded. Its days stay set for the next one`, "Not saved. Someone may have just changed it");
   haptic();
 }
 // ⋯: the label's history for everyone, and for managers, a form to change it or take it off the list.
@@ -2955,10 +2956,10 @@ function labelListHtml(side) {
   const left = ideasLeft(side); if (!left.length) return "";
   const n = left.reduce((k, [, xs]) => k + xs.length, 0), open = lbS.open ?? !sideLabels(side).length;
   return `<details class="setup" id="lb-list"${open ? " open" : ""}><summary>Black Tap's list: ${n} not added yet</summary>
-    <p class="note">Everything the ${lower(sideName(side))} dates once it's opened. Days are filled in only where our closing procedure gives them. Fill in the rest from each pack ("once opened, use within…") or the kitchen's food safety sheet, untick anything this side doesn't keep, then add them.</p>
+    <p class="note">Everything the ${lower(sideName(side))} dates once it's opened. Days are filled in only where our closing procedure gives them. Fill in the rest from each pack ("once opened, use within…") or the kitchen's food safety sheet, untick anything this side doesn't keep, then add them. "typ." is what it typically keeps: the pack always wins.</p>
     ${left.map(([g, xs]) => `<div class="mini">${esc(g)}</div>${xs.map(([it, d]) => {
       const k = lbKey(side, it);
-      return `<div class="lbpick"><label class="check"><input type="checkbox" data-lbs-on="${esc(it)}"${lbS.off[k] ? "" : " checked"}> ${esc(it)}</label><input data-lbs-life="${esc(it)}" inputmode="numeric" maxlength="3" placeholder="Days" aria-label="Days ${esc(it)} keeps once opened" value="${esc(ideaLife(side, it, d))}"></div>`;
+      return `<div class="lbpick"><label class="check"><input type="checkbox" data-lbs-on="${esc(it)}"${lbS.off[k] ? "" : " checked"}> ${esc(it)}</label><input data-lbs-life="${esc(it)}" inputmode="numeric" maxlength="3" placeholder="${itKeep(it)?.days ? `typ. ${itKeep(it).days}` : "Days"}" aria-label="Days ${esc(it)} keeps once opened" value="${esc(ideaLife(side, it, d))}"></div>`;
     }).join("")}`).join("")}
     <div class="actions"><button class="btn pri" id="lbs-go">Add the ticked ones</button></div></details>`;
 }
@@ -3264,10 +3265,10 @@ $("#tally").addEventListener("click", async (e) => {
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
   const oq = e.target.closest("[data-out-quick]"); if (oq) { const n = oq.dataset.outQuick; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return; }
   if (e.target.closest("#s-86-go")) {
-    const n = $("#s-86-own").value.trim().replace(/\s+/g, " ").slice(0, 80);
+    const typed = $("#s-86-own").value.trim().replace(/\s+/g, " ").slice(0, 80), n = typed && itFix86(typed);
     if (!n) return toast("Type what ran out");
     if (outNow().has(n)) return toast(`${n} is already 86'd`);
-    setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return;
+    setOut(n, true); haptic(); toast(n === typed ? `${n} 86'd` : `${n} 86'd (you typed “${typed}”)`); renderList(); renderTally(); return;
   }
   if (e.target.closest("[data-out-clear]")) {
     const xs = [...outNow()];

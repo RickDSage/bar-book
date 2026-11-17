@@ -84,7 +84,7 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   await settled(M, "Apple juice", 2);
   const a = await lb(M, "Apple juice");
   assert.deepEqual([a.state, a.openedOn, a.useBy, a.openedBy], ["open", await day(M, 0), d3, "Sam Staff"]);
-  assert.equal(await rowText(M, "Apple juice"), `Apple juice Opened Use by ${await dn(M, d3)} · opened today by Sam Staff Changed it Binned…`);
+  assert.equal(await rowText(M, "Apple juice"), `Apple juice Opened Use by ${await dn(M, d3)} · opened today by Sam Staff Changed it Discarded…`);
 
   // The pack's own date is sooner: it can be brought forward, never past its days.
   await labels(T);
@@ -98,7 +98,7 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   await T.click("[data-lb-save]");
   await settled(S, "Cranberry juice", 2);
   assert.deepEqual(await lb(S, "Cranberry juice").then((x) => [x.useBy, x.openedBy]), [d1, "Tia Staff"]);
-  assert.match(await rowText(S, "Cranberry juice"), /^Cranberry juice Due tomorrow Use by .* · opened today by Tia Staff Changed it Binned…$/);
+  assert.match(await rowText(S, "Cranberry juice"), /^Cranberry juice Due tomorrow Use by .* · opened today by Tia Staff Changed it Discarded…$/);
 
   // The day before, the bar's Morning and Closing pages say so, and so does the Labels tab.
   await S.click(".ptabs [data-pane=morning]");
@@ -138,7 +138,7 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   assert.match(await S.$eval("#sh-name", (e) => e.textContent), /date labels/i);
   await S.evaluate(() => closeSheet()); await S.waitForSelector("#sheet", { state: "hidden" });
   await S.click(".ptabs [data-pane=labels]");
-  assert.equal(await rowText(S, "Orange juice"), `Orange juice Overdue Use by ${wasName}, 1 day ago · opened ${openedName} by Tia Staff Changed it Binned…`);
+  assert.equal(await rowText(S, "Orange juice"), `Orange juice Overdue Use by ${wasName}, 1 day ago · opened ${openedName} by Tia Staff Changed it Discarded…`);
   assert.deepEqual(await S.$$eval("[data-lb-more]", (x) => x.map((b) => b.closest(".lb").querySelector("b").textContent)), ["Orange juice", "Cranberry juice", "Apple juice"], "most urgent first");
 
   // The closing report: what's still to change as it's sent, and who opened it.
