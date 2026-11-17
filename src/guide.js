@@ -146,7 +146,7 @@ const FEAT_SECS = [
   ["Closing and handover", ["lists", "send"]],
   ["Stock", ["count", "order"]],
   ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
-  ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "spin", "sent", "tell"]],
+  ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "sent", "tell"]],
   ["Managers", ["week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
   ["More", ["pay", "info", "siri", "health"]],
 ];

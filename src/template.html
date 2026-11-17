@@ -5107,9 +5107,6 @@ const FEATURES = [
   { g: "Drinks", k: "siri", n: "Siri and shortcuts", go: "siri",
     what: "A link for each page (86, Rapid fire, Closing, Handover, Labels, Bar station, Drill, Quiz night) to save as a Shortcut, so Siri or a double tap on the back of the phone opens it.",
     staff: "Copy a link, paste it into the Shortcuts app, name it, and say it." },
-  { g: "Team", k: "spin", n: "Spin the wheel", go: "spin",
-    what: "Who does the bins, who goes on break first, who picks the music: tap the names and spin.",
-    staff: "Spin, then tell the team on WhatsApp." },
   { g: "Team", k: "call", n: "Who to call", go: "call", team: 1,
     what: "Emergency and utility numbers, and the venue's own. A tap calls.",
     mgr: "Add and remove the venue's numbers." },
@@ -5564,29 +5561,6 @@ SHARE.team = () => ({ what: "Bar Book link", title: "Bar Book",
   head: ["Open this on your phone, pick your name and type the team code. Ask a manager for the code in person.", appLink()],
   parts: [], noteHead: null, tip: "Never write the team code in a message: say it in person." });
 
-/* ---------- Spin the wheel ----------
-   Who does the bins, who goes on break first, who picks the music: tap the names, say what for, spin. */
-let spinF = { names: [], what: "", got: "", rolling: false };
-function spinHtml() {
-  return `<label class="fld">What for<input data-spin="what" maxlength="60" value="${esc(spinF.what)}" placeholder="Bins, first break, music, last glass run…"></label>
-    ${nameChips("", "data-spin-name").replace(/aria-pressed="false"/g, "").replace(/data-spin-name="([^"]+)"/g, (m, n) => `${m} aria-pressed="${spinF.names.includes(n.replace(/&amp;/g, "&"))}"`)}
-    <div class="actions"><button class="btn pri" id="spin-go"${spinF.names.length < 2 || spinF.rolling ? " disabled" : ""}>Spin (${spinF.names.length})</button><button class="btn" id="spin-all">Everyone</button><button class="btn" id="spin-none">Nobody</button></div>
-    <div class="spin" id="spin-out" aria-live="polite" translate="no">${esc(spinF.got) || "?"}</div>
-    ${spinF.got && !spinF.rolling ? `<div class="actions">${sendBtn("spin", "Tell the team on WhatsApp")}</div>` : ""}`;
-}
-function spin() {
-  const xs = spinF.names; if (xs.length < 2) return;
-  spinF.rolling = true; renderCard("spin");
-  let n = 0; const steps = 18 + Math.floor(Math.random() * xs.length);
-  const go = () => {
-    const out = $("#spin-out"); spinF.got = xs[Math.floor(Math.random() * xs.length)];
-    if (out) out.textContent = spinF.got; haptic();
-    if (++n < steps) setTimeout(go, 40 + n * 9); else { spinF.rolling = false; renderCard("spin"); }
-  };
-  go();
-}
-SHARE.spin = () => (spinF.got ? { what: "Spin the wheel", title: `🎡 ${spinF.what || "The wheel has spoken"}`, head: [`${spinF.got} it is!`, `Out of ${spinF.names.join(", ")}`], parts: [], noteHead: null } : null);
-
 /* ---------- Who to call ----------
    Britain's emergency and utility lines, then the venue's own numbers, which the manager keeps. A tap calls. */
 const CALL_UK = [
@@ -5851,7 +5825,6 @@ const CARDS = () => [
   ["rate", "Team only: rate the shift", rateHtml, draftPill("rate")],
   ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : draftPill("issue")]] : []),
   ...(LIVE.me && !LIVE.owner ? [["tell", "App feedback", tellHtml, draftPill("tell")]] : []),
-  ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
   ...(LIVE.admin ? [] : mgHealthCard()),
@@ -5947,7 +5920,6 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.rt) { rateF[t.dataset.rt] = t.value; store.set("rateDraft", rateF); }
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.fixt) fixText[t.dataset.fixt] = t.value;
-  if (t.dataset.spin) spinF[t.dataset.spin] = t.value;
   if (t.dataset.tell) tellF[t.dataset.tell] = t.value;
   if (t.dataset.cl) clF[t.dataset.cl] = t.value;
   if (t.dataset.askReply) askReply[t.dataset.askReply] = t.value;
@@ -6079,11 +6051,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   }
   if ((x = b("[data-tell-done]"))) return track(A.tellDone(x.dataset.tellDone), "Marked done");
   if ((x = b("[data-tell-drop]"))) { if (confirm("Remove this for good?")) track(A.dropTell(x.dataset.tellDrop), "Removed"); return; }
-  // Spin the wheel.
-  if ((x = b("[data-spin-name]"))) { const n = x.dataset.spinName; spinF.names = spinF.names.includes(n) ? spinF.names.filter((y) => y !== n) : [...spinF.names, n]; spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-all")) { spinF.names = allStaff(); spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-none")) { spinF.names = []; spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-go")) return spin();
   // Who to call (the manager keeps the venue's numbers).
   if (b("#cl-add")) {
     const c = { t: clF.t.trim(), n: clF.n.trim(), p: clF.p.trim() };

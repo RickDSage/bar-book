@@ -5185,9 +5185,6 @@ const FEATURES = [
   { g: "Drinks", k: "siri", n: "Siri and shortcuts", go: "siri",
     what: "A link for each page (86, Rapid fire, Closing, Handover, Labels, Bar station, Drill, Quiz night) to save as a Shortcut, so Siri or a double tap on the back of the phone opens it.",
     staff: "Copy a link, paste it into the Shortcuts app, name it, and say it." },
-  { g: "Team", k: "spin", n: "Spin the wheel", go: "spin",
-    what: "Who does the bins, who goes on break first, who picks the music: tap the names and spin.",
-    staff: "Spin, then tell the team on WhatsApp." },
   { g: "Team", k: "call", n: "Who to call", go: "call", team: 1,
     what: "Emergency and utility numbers, and the venue's own. A tap calls.",
     mgr: "Add and remove the venue's numbers." },
@@ -5642,29 +5639,6 @@ SHARE.team = () => ({ what: "Bar Book link", title: "Bar Book",
   head: ["Open this on your phone, pick your name and type the team code. Ask a manager for the code in person.", appLink()],
   parts: [], noteHead: null, tip: "Never write the team code in a message: say it in person." });
 
-/* ---------- Spin the wheel ----------
-   Who does the bins, who goes on break first, who picks the music: tap the names, say what for, spin. */
-let spinF = { names: [], what: "", got: "", rolling: false };
-function spinHtml() {
-  return `<label class="fld">What for<input data-spin="what" maxlength="60" value="${esc(spinF.what)}" placeholder="Bins, first break, music, last glass run…"></label>
-    ${nameChips("", "data-spin-name").replace(/aria-pressed="false"/g, "").replace(/data-spin-name="([^"]+)"/g, (m, n) => `${m} aria-pressed="${spinF.names.includes(n.replace(/&amp;/g, "&"))}"`)}
-    <div class="actions"><button class="btn pri" id="spin-go"${spinF.names.length < 2 || spinF.rolling ? " disabled" : ""}>Spin (${spinF.names.length})</button><button class="btn" id="spin-all">Everyone</button><button class="btn" id="spin-none">Nobody</button></div>
-    <div class="spin" id="spin-out" aria-live="polite" translate="no">${esc(spinF.got) || "?"}</div>
-    ${spinF.got && !spinF.rolling ? `<div class="actions">${sendBtn("spin", "Tell the team on WhatsApp")}</div>` : ""}`;
-}
-function spin() {
-  const xs = spinF.names; if (xs.length < 2) return;
-  spinF.rolling = true; renderCard("spin");
-  let n = 0; const steps = 18 + Math.floor(Math.random() * xs.length);
-  const go = () => {
-    const out = $("#spin-out"); spinF.got = xs[Math.floor(Math.random() * xs.length)];
-    if (out) out.textContent = spinF.got; haptic();
-    if (++n < steps) setTimeout(go, 40 + n * 9); else { spinF.rolling = false; renderCard("spin"); }
-  };
-  go();
-}
-SHARE.spin = () => (spinF.got ? { what: "Spin the wheel", title: `🎡 ${spinF.what || "The wheel has spoken"}`, head: [`${spinF.got} it is!`, `Out of ${spinF.names.join(", ")}`], parts: [], noteHead: null } : null);
-
 /* ---------- Who to call ----------
    Britain's emergency and utility lines, then the venue's own numbers, which the manager keeps. A tap calls. */
 const CALL_UK = [
@@ -5929,7 +5903,6 @@ const CARDS = () => [
   ["rate", "Team only: rate the shift", rateHtml, draftPill("rate")],
   ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : draftPill("issue")]] : []),
   ...(LIVE.me && !LIVE.owner ? [["tell", "App feedback", tellHtml, draftPill("tell")]] : []),
-  ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
   ...(LIVE.admin ? [] : mgHealthCard()),
@@ -6025,7 +5998,6 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.rt) { rateF[t.dataset.rt] = t.value; store.set("rateDraft", rateF); }
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.fixt) fixText[t.dataset.fixt] = t.value;
-  if (t.dataset.spin) spinF[t.dataset.spin] = t.value;
   if (t.dataset.tell) tellF[t.dataset.tell] = t.value;
   if (t.dataset.cl) clF[t.dataset.cl] = t.value;
   if (t.dataset.askReply) askReply[t.dataset.askReply] = t.value;
@@ -6157,11 +6129,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   }
   if ((x = b("[data-tell-done]"))) return track(A.tellDone(x.dataset.tellDone), "Marked done");
   if ((x = b("[data-tell-drop]"))) { if (confirm("Remove this for good?")) track(A.dropTell(x.dataset.tellDrop), "Removed"); return; }
-  // Spin the wheel.
-  if ((x = b("[data-spin-name]"))) { const n = x.dataset.spinName; spinF.names = spinF.names.includes(n) ? spinF.names.filter((y) => y !== n) : [...spinF.names, n]; spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-all")) { spinF.names = allStaff(); spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-none")) { spinF.names = []; spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-go")) return spin();
   // Who to call (the manager keeps the venue's numbers).
   if (b("#cl-add")) {
     const c = { t: clF.t.trim(), n: clF.n.trim(), p: clF.p.trim() };
@@ -10472,7 +10439,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T18:33";
+const BUILD = "2026-11-17T18:43";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -11834,7 +11801,7 @@ const INTRO = [
   { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and Take over picks up a part someone left. Ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. The timer shows how long it took against the team's best, and who ticked what is kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
   { t: "Log anything, in one line", how: ["Saw it, found it, did it, told a manager or someone told you: tap \uff0b Log it on Shift or the bar station.", "86 goes on the 86 board, Broken on Issues, and the rest straight into tonight's handover with your name and the time.", "Log it and send on WhatsApp puts it in the team chat from your phone."], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away.", more: ["logit"] },
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
-  { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift, Who to call and Spin the wheel."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
+  { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift and Who to call."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "On an iPhone with photos: Copy the words, then Send with photos, then paste the words as the caption.", more: ["send"] },
   { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, and Backup and restore."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["inbox", "replay", "order", "season"] },
   { t: "Learn it, and look after yourself", how: ["More, Training, Practise specs: flashcards, tonight's quiz (the same 10 for everyone), speed drills against the clock, and the new starter path.", "Bar 101: what to say when a guest asks, from our own back bar. It remembers what you know and quizzes you on the rest.", "More, Training, Games and drills: the daily drill, quiz night and Bar phrases. More, Cheat sheets: a page per kind of drink, to print or send.", "My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
@@ -12220,7 +12187,7 @@ const FEAT_SECS = [
   ["Closing and handover", ["lists", "send"]],
   ["Stock", ["count", "order"]],
   ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
-  ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "spin", "sent", "tell"]],
+  ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "sent", "tell"]],
   ["Managers", ["week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
   ["More", ["pay", "info", "siri", "health"]],
 ];
