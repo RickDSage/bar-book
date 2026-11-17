@@ -1236,15 +1236,29 @@ const hhmm = (d) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-
 const stamp = (d) => `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: UK })}, ${hhmm(d)}`;
 /* Saving state. Firestore keeps a change on the phone until the server takes it, so nothing is called sent until then.
    After a moment, or with no signal, a banner says what's still waiting. */
-let unsent = 0, slow = 0;
+let unsent = 0, slow = 0, earlier = false;
 function renderNet() {
   const n = $("#net"), off = !navigator.onLine, many = (k) => `${k} change${k > 1 ? "s" : ""}`;
-  n.hidden = !LIVE.me || (!off && !slow);
+  n.hidden = !LIVE.me || (!off && !slow && !earlier);
   document.body.classList.toggle("neton", !n.hidden);
   n.classList.toggle("off", off);
-  n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : "No signal. Showing what this phone last saw")
-    : `Sending ${many(unsent)}…`;
+  n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : earlier ? "No signal. Changes saved on this phone, sending when you're back online" : "No signal. Showing what this phone last saw")
+    : slow ? `Sending ${many(unsent)}…` : "Sending changes saved on this phone earlier…";
 }
+// Changes made with no signal are kept on the phone (even if the app is closed) and sent in order once it's back.
+// When the app opens or the signal comes back, show that some are still going, and say when they've all arrived.
+let wasOff = !navigator.onLine, queueCheck = null;
+function checkQueued() {
+  if (!LIVE.api?.queued || !LIVE.me || queueCheck) return;
+  const t = setTimeout(() => { earlier = true; renderNet(); }, 1500), after = wasOff;
+  queueCheck = LIVE.api.queued().then(() => {
+    clearTimeout(t); queueCheck = null;
+    if (earlier || after) toast("Back online. Everything's sent");
+    earlier = false; wasOff = false; renderNet();
+  }, () => { clearTimeout(t); queueCheck = null; earlier = false; renderNet(); });
+}
+addEventListener("offline", () => { wasOff = true; });
+addEventListener("online", () => setTimeout(checkQueued, 300));
 function track(p, ok, fail = "Not saved. Try again") {
   unsent++; let late = false;
   const t = setTimeout(() => { late = true; slow++; renderNet(); }, 1200);
@@ -2418,7 +2432,8 @@ function tallyText() {
       return xs.length ? `\n${title}:\n${xs.join("\n")}` : "";
     };
     const c = closeClock(k);
-    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
+    const who = groupsOf(k).filter(([g]) => g).map(([g, xs]) => { const w = secWho(k, xs.map(([i]) => i)); return !w.first ? "" : `- ${g}: ${!w.last || w.last === w.first ? `${openOf(k, xs.map(([i]) => i)).length ? "started" : "done"} by ${w.first}` : `started by ${w.first}, finished by ${w.last}`}`; }).filter(Boolean);
+    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}${who.length ? `\nWho did each part:\n${who.join("\n")}` : ""}`;
   };
   return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}${loggedLines().length ? `\n\nLogged tonight:\n${loggedLines().map((l) => `- ${l}`).join("\n")}` : ""}`;
 }
@@ -2597,7 +2612,7 @@ function checklistHtml(k) {
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
     const on = g && left ? onIt(k, xs) : [];
-    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${on.length || !LIVE.me ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">I'll do this</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${on.length ? `<p class="lon"><b translate="no">${esc(on.join(", "))}</b> on it</p>` : ""}` : "";
+    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${!LIVE.me || on.includes(LIVE.me) ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">${on.length ? "Take over" : "I'll do this"}</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${secWhoHtml(k, xs, left, on)}` : "";
     // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
     const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
@@ -2610,11 +2625,26 @@ function checklistHtml(k) {
 // Splitting the close: "I'll do this" on a heading starts everything not yet started under it in your name, so the
 // others see who has that part and pick another. It is the same Start as on each item (no new data), so Stop on an
 // item, Done or Tick all carry on as usual. The heading names whoever has started something under it.
+// Who started a heading's part and who finished it, from tonight's record of every tick: someone who leaves early is
+// still named for what they did, and whoever takes over is named for finishing it.
+function secWho(k, ids) {
+  const ev = LIVE.events.filter((e) => e.kind === "task" && e.list === k && ids.includes(e.item) && (e.to === "doing" || e.to === "done")).sort((a, b) => ms(a.at) - ms(b.at));
+  const done = ev.filter((e) => e.to === "done");
+  return { first: ev[0]?.name || "", last: done.at(-1)?.name || "" };
+}
+function secWhoHtml(k, xs, left, on) {
+  const w = secWho(k, xs.map(([i]) => i)), now = on.filter((n) => n !== w.first);
+  const t = !w.first ? (on.length ? `<b translate="no">${esc(on.join(", "))}</b> on it` : "")
+    : !left ? (w.first === w.last ? `Done by <b translate="no">${esc(w.first)}</b>` : `Started by <b translate="no">${esc(w.first)}</b> · finished by <b translate="no">${esc(w.last)}</b>`)
+    : `Started by <b translate="no">${esc(w.first)}</b>${now.length ? ` · now <b translate="no">${esc(now.join(", "))}</b>` : on.includes(w.first) ? "" : " · nobody on it now"}`;
+  return t ? `<p class="lon">${t}</p>` : "";
+}
 const onIt = (k, xs) => [...new Set(xs.filter(([i]) => statusOf(k, i) === "doing").map(([i]) => { const x = taskOf(k, i); return x && lastMove(k, i, x).name; }).filter(Boolean))];
 function claimGroup(k, g) {
   if (isLocked(k)) return toast(`${LISTS[k].title} is finished. Reopen it to change anything`);
   const ids = shown(k).filter(([i]) => groupOf(k, i) === g && statusOf(k, i) === "todo").map(([i]) => i);
-  if (!ids.length) return toast("Nothing left to start there");
+  // Taking over from someone who left: what they started stays in their name, and each tick from here is in yours.
+  if (!ids.length) return toast(openOf(k, shown(k).filter(([i]) => groupOf(k, i) === g).map(([i]) => i)).length ? `${g}: it's yours. Tick each one as you finish it` : "Nothing left to start there");
   haptic();
   const p = Promise.all(ids.map((i) => LIVE.api.setTask(k, i, itemText(k, i), "doing")))
     .then(() => { if (!runOf(k)) { const q = progress(k); return LIVE.api.setRun(k, LISTS[k].title, "started", q.n, q.of); } });
@@ -3323,13 +3353,28 @@ function labelsReport() {
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
-    <p class="note">The close, or anything you worked on. Take them here or choose from your photos: they go with your report.</p>
-    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
+    <p class="note">Any time of the shift, from a phone or the iPad. Each one is saved for tonight straight away (with no signal it waits on the phone, even if the app is closed) and goes with the handover. Send now shares one on WhatsApp as well.</p>
+    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div></div>`).join("")}
     ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
       : photoBusy ? `<p class="note" role="status">Adding…</p>`
       : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
 }
 let photoBusy = false;
+// A saved photo as a file, made straight away (no waiting), because the share sheet only opens from the tap itself.
+function dataFile(url, name) {
+  const bin = atob(url.slice(url.indexOf(",") + 1)), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new File([u], name, { type: "image/jpeg" });
+}
+// Send now: the photo on its own to the share sheet (WhatsApp and the rest). It stays saved for tonight either way.
+function sendPhotoNow(id) {
+  const p = LIVE.draftPhotos.find((x) => x.id === id); if (!p) return;
+  const f = dataFile(p.data, `${(p.note || "closing-photo").replace(/[^\w ]+/g, "").trim().slice(0, 40).replace(/ +/g, "-") || "closing-photo"}.jpg`);
+  if (navigator.canShare?.({ files: [f] })) return navigator.share({ files: [f] }).catch(() => {});
+  const u = URL.createObjectURL(f), a = document.createElement("a"); a.href = u; a.download = f.name; a.target = "_blank"; a.rel = "noopener";
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000);
+  toast("This phone can't share photos straight to apps: it's opened to save instead");
+}
 // Phone photos are several MB; shrink to a JPEG under about 450 KB (600,000 characters of text) so each fits in one
 // database record and a month of them stays well inside the free storage. The rules refuse anything over 700,000.
 async function shrink(file) {
@@ -3575,6 +3620,7 @@ $("#tally").addEventListener("click", async (e) => {
     track(LIVE.api.askRestock({ item, qty, unit: rsF.unit, dest: rsDest(), detail: rsF.detail.trim() }), "Asked. The team can see it now", "Not sent. Try again");
     haptic(); Object.assign(rsF, { item: "", other: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
   }
+  const ps = e.target.closest("[data-ph-send]"); if (ps) { sendPhotoNow(ps.dataset.phSend); return; }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
   const oq = e.target.closest("[data-out-quick]"); if (oq) { const n = oq.dataset.outQuick; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return; }
@@ -6183,7 +6229,7 @@ function liveChanged(what) {
   // next), so it doesn't join straight back. The link from the staff group brings it back.
   if (what === "left" && idleOut) return;
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
-  if (what === "me") { autoJoin(); sharedLock(); }
+  if (what === "me") { autoJoin(); sharedLock(); checkQueued(); }
   if (what === "names" && LIVE.names) { Object.assign(STAFF, LIVE.names); store.set("names", LIVE.names); }
   if (what === "seniors") { store.set("codeNames", LIVE.seniors.map((x) => x.name)); tryPendingPin(); }
   if (what === "me" || what === "seniors") renderWelcomeName();
@@ -10125,7 +10171,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T17:52";
+const BUILD = "2026-11-17T18:01";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -11392,10 +11438,10 @@ const HELP = {
     how: ["Tap a Quick 86 chip, pick from the list, or type anything else.", "Back in stock takes it off for everyone.", "Restock: say what, how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it."],
     behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere, and an 86'd ingredient shows the swap on every drink that uses it.", "Restocks waiting over 15 minutes show as late. The weekly count is Stock count, at the foot of this page: its totals go into Nory.", "Clear everything puts every 86 back in stock."] },
   closing: { t: "Closing checklist", what: "The close, ticked off live on every phone.",
-    how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started."],
-    behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks wait on the phone and send when it's back. A banner says how many are waiting."] },
+    how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part. Someone left before finishing theirs? Tap Take over and carry on: the heading and the report say who started it and who finished it.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started."],
+    behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks and photos wait on the phone, even if the app is closed, and go in order when it's back. A banner says they're waiting, and Back online. Everything's sent says they've arrived."] },
   handover: { t: "Handover", what: "The end of the night: what's done, what's low, what's outstanding and what tomorrow needs.",
-    how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos.", "Tap Hand over. It saves for the morning team, then opens WhatsApp with it ready to send."],
+    how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos. Photos can go in any time of the shift: each is saved for tonight straight away, and Send now shares one on WhatsApp too.", "Tap Hand over. It saves for the morning team, then opens WhatsApp with it ready to send."],
     behind: ["The boxes are shared live with everyone closing your side, so two people can fill them in.", "Photos are required. With none, you're asked why, and the reason goes in the handover.", "Sent handovers are kept. Photos are cleared after 30 days to stay on the free plan. The boxes start empty again at 6am."] },
   clearall: { t: "Clear everything", what: "A fresh start for the shift, on every phone.",
     how: ["Tap it, then confirm."],
@@ -11462,7 +11508,7 @@ const INTRO = [
   { t: "The cocktail maker", how: ["Make: tap what you've got and see what you can make, closest first, with swaps.", "My bar keeps your own bottles. Specs puts every spec on one line for busy moments.", "Black Tap shows our line-up: draught, bottles, softs and the house serves."], tip: "A guest names two bottles? Tap them and offer the top match.", more: ["make"] },
   { t: "Run the shift together", how: ["Shift is shared live with everyone on your side: the 86 board, restocks from the cellar and date labels.", "Restock: ask for it, someone brings it up, whoever's there confirms it arrived. Late ones flag after 15 minutes.", "Date labels tell you what to write on the label and what's due today or tomorrow."], tip: "No signal? It keeps working and sends everything when you're back. A banner says what's waiting.", more: ["shift", "labels"] },
   { t: "Count stock without the notebook", how: ["Shift, Stock, Count stock: every place in shelf order, every product on it.", "Tap a line: + and − for full bottles, tap how full the open one is. Or say it: “Smirnoff two and a half”. Or weigh it on the scale.", "Send the totals on WhatsApp as a table, or as a spreadsheet for Nory."], tip: "It saves as you go, so two of you can count different places at once.", more: ["count"] },
-  { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. Starting time, time taken and who ticked what are kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
+  { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and Take over picks up a part someone left. Ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. Starting time, time taken and who ticked what are kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
   { t: "Log anything, in one line", how: ["Saw it, found it, did it, told a manager or someone told you: tap \uff0b Log it on Shift or the bar station.", "86 goes on the 86 board, Broken on Issues, and the rest straight into tonight's handover with your name and the time.", "Log it and send on WhatsApp puts it in the team chat from your phone."], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away.", more: ["logit"] },
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift, Who to call and Spin the wheel."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
@@ -11737,9 +11783,9 @@ const WALK = {
     WALK_LOG("bar"),
     { t: "Closing the bar", how: [
       "Shift, Closing: tick each job as you do it, or Tick all under a heading.",
-      "Two of you? Tap I'll do this on a heading, so the other person takes a different part.",
+      "Two of you? Tap I'll do this on a heading, so the other person takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required) and change any date label marked URGENT.",
+      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
     { t: "Stock count", how: [
       "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
@@ -11763,9 +11809,9 @@ const WALK = {
     WALK_LOG("floor"),
     { t: "Closing the floor", how: [
       "Shift, Closing: the floor close heading by heading, shake station included. Tick as you go, or Tick all under a heading.",
-      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part.",
+      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required) and change any date label marked URGENT.",
+      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
     { t: "Stock count", how: [
       "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
