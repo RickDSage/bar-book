@@ -135,6 +135,14 @@ test("photos older than 30 days are cleared when a manager opens the app", async
   for (let i = 0; i < 40 && (await adminGet("photos/old1")).status !== 404; i++) await O.waitForTimeout(250);
   assert.equal((await adminGet("photos/old1")).status, 404, "the 40-day-old photo is gone");
   assert.equal((await adminGet("photos/new1")).status, 200, "the 5-day-old one stays");
+  // Maintenance's phone checks the rules match this build: they do here, so no chip. Older rules show a small chip
+  // that a tap hides.
+  await O.waitForFunction(() => LIVE.rulesOld === false);
+  assert.equal(await O.locator("#rules-old").isVisible(), false);
+  await O.evaluate(() => { LIVE.rulesOld = true; liveChanged("rules"); });
+  assert.equal(await O.locator("#rules-old").isVisible(), true);
+  await O.click("#rules-old");
+  assert.equal(await O.locator("#rules-old").isVisible(), false);
   assert.deepEqual(O.errs, []);
 });
 
