@@ -35,7 +35,7 @@ const head = `<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><met
 // Older iPhones (Safari before 16.4, e.g. any phone stuck on iOS 15) can't load a script with a regex lookbehind at all:
 // the whole app would open blank. Stop the build instead.
 if (/\(\?<[=!]/.test(fs.readFileSync("black-tap-bar-app.html", "utf8"))) throw new Error("A regex lookbehind (?<= or (?<! is in the page: older iPhones can't run it. Rewrite it without one.");
-fs.writeFileSync(OUT + "/index.html", head + fs.readFileSync("black-tap-bar-app.html", "utf8") + (CONFIG ? `<script type="module" src="live.js"></script>` : "") + "</body></html>");
+fs.writeFileSync(OUT + "/index.html", head + fs.readFileSync("black-tap-bar-app.html", "utf8").replace("__BUILD_VERSION__", VERSION) + (CONFIG ? `<script type="module" src="live.js"></script>` : "") + "</body></html>");
 
 fs.writeFileSync(OUT + "/manifest.webmanifest", JSON.stringify({
   id: "./", name: "Black Tap Bar Book", short_name: "Bar Book", description: "Every Black Tap Soho drink: specs, step-by-step guides and allergens.", orientation: "portrait", start_url: "./", scope: "./", display: "standalone",

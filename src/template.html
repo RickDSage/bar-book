@@ -831,6 +831,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .sw.compact .hero .sub { display: none; }
 .sw.compact .badges { display: none; }
 .cprog { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 16px; }
+.qz-clock { font-family: var(--display); font-size: 24px; color: var(--brass); font-variant-numeric: tabular-nums; }
 .cprog b { font-family: var(--display); font-size: 22px; text-transform: uppercase; color: var(--brass); }
 .dots { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
 .dots i { width: 8px; height: 8px; border-radius: 50%; background: var(--line); transition: background .2s, transform .2s; }
@@ -1075,12 +1076,13 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <button class="back" data-back>‹ More</button>
     <h2 style="font-size:28px">Practise specs</h2>
     <div class="gd-ask"><div class="mini">Ask Bar Book</div><div class="search gd-search"><input id="gd-q-p" class="gd-in" type="search" placeholder="How do I make…? What's a…?" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div></div>
-    <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button><button data-pmode="starter">New starter</button></div>
+    <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button><button data-pmode="speed">Speed</button><button data-pmode="b101">Bar 101</button><button data-pmode="starter">Starter</button></div>
     <p class="lead" id="plead"></p>
     <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
     <div id="pcard"></div>
     <div id="pquiz" hidden></div>
     <div id="pstart" hidden></div>
+    <div id="pb101" hidden></div>
   </section>
 
   <section class="view" id="v-make" hidden></section>
@@ -1440,7 +1442,7 @@ $("#q").addEventListener("blur", () => setTimeout(() => { if (dp === "recent") d
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, pin: null, admin: false, owner: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], items: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, pin: null, admin: false, owner: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], items: [], signoffs: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] };
 // The 86 board is shared by everyone on the team. Off the team, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -1865,18 +1867,21 @@ let pool = store.get("pool", "Signatures"); if (!POOLS[pool]) pool = "Signatures
 let pDrink = null, pShown = false, pScore = { got: 0, miss: 0 };
 // Cards or the quiz, and the quiz being taken ({ night, day, qs, i, picks }; see Quiz below).
 const QZ_N = 10;
-let pmode = store.get("pmode", "cards"); if (!["quiz", "starter"].includes(pmode)) pmode = "cards";
+let pmode = store.get("pmode", "cards"); if (!["quiz", "starter", "speed", "b101"].includes(pmode)) pmode = "cards";
+const PM_LEAD = { cards: "Say the spec out loud, then check it.", quiz: "Ten questions from our own specs.", speed: "Ten questions against the clock. A wrong answer adds 5 seconds.",
+  b101: "What to say when a guest asks.", starter: "Your first week: the house cocktails, then a short test." };
 let qz = null;
 function nextCard() {
   const list = D.filter(POOLS[pool]).filter((d) => d !== pDrink);
   pDrink = list[Math.floor(Math.random() * list.length)]; pShown = false; renderPractice();
 }
 function renderPractice() {
-  const st = pmode === "starter" && !qz?.starter, quiz = pmode === "quiz" || (pmode === "starter" && !!qz?.starter);
+  const st = pmode === "starter" && !qz?.starter, b1 = pmode === "b101" && !qz?.b101, quiz = ["quiz", "speed"].includes(pmode) || !!qz?.starter || !!qz?.b101;
   $$("#pmode [data-pmode]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.pmode === pmode));
-  $("#plead").textContent = pmode === "starter" ? "Your first week: the house cocktails, then a short test." : quiz ? "Ten questions from our own specs." : "Say the spec out loud, then check it.";
-  $("#ppool").hidden = quiz || st; $("#pcard").hidden = quiz || st; $("#pquiz").hidden = !quiz; $("#pstart").hidden = !st;
+  $("#plead").textContent = PM_LEAD[pmode];
+  $("#ppool").hidden = quiz || st || b1; $("#pcard").hidden = quiz || st || b1; $("#pquiz").hidden = !quiz; $("#pstart").hidden = !st; $("#pb101").hidden = !b1;
   if (st) return renderStarter();
+  if (b1) return renderB101();
   if (quiz) renderQuiz();
   $("#ppool").innerHTML = Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}</button>`).join("");
   const d = pDrink;
@@ -1888,13 +1893,15 @@ function renderPractice() {
 }
 $("#v-practice").addEventListener("click", (e) => {
   const pb = e.target.closest("[data-pool]"); if (pb) { pool = pb.dataset.pool; store.set("pool", pool); pDrink = null; nextCard(); return; }
-  const pm = e.target.closest("[data-pmode]"); if (pm) { if (qz?.starter) qz = null; pmode = pm.dataset.pmode; store.set("pmode", pmode); renderPractice(); return; }
+  const pm = e.target.closest("[data-pmode]"); if (pm) { if (qz?.starter || qz?.speed || qz?.b101 || pm.dataset.pmode !== pmode) qz = null; pmode = pm.dataset.pmode; store.set("pmode", pmode); renderPractice(); return; }
   const qa = e.target.closest("[data-qz]");
   if (qa) {
     const a = qa.dataset.qz;
     if (a === "starter") stStartQuiz();
+    else if (a === "speed" || a === "speed101") speedStart(a === "speed101");
+    else if (a === "b101") { qz = { b101: true, qs: b101Quiz(), i: 0, picks: [] }; renderPractice(); }
     else if (a === "night" || a === "practice") quizStart(a === "night");
-    else if (a === "next") { qz.i++; qzKeep(); if (qz.i === qz.qs.length) quizDone(); renderPractice(); }
+    else if (a === "next") { qz.i++; qzKeep(); if (qz.i === qz.qs.length) { if (qz.speed) speedDone(); if (qz.b101) b101Done(qz); quizDone(); } renderPractice(); }
     else { qz = null; renderPractice(); }
     $("#v-practice").scrollIntoView({ block: "start" });
     return;
@@ -2023,9 +2030,38 @@ function quizDone() {
   if (!qz.first) return;
   const right = qzMarks(qz);
   store.set("qzNight", { day: qz.day, right }); store.set("qzRun", null);
+  // Logged in, the first go goes to the managers' Training page (only once a night: the server refuses a second).
+  if (LIVE.me && LIVE.api) LIVE.api.score("night", qzScore(right), qz.qs.length).catch(() => {});
 }
+/* ---------- Speed drill ----------
+   Ten questions from the part of the menu picked, against the clock. Each wrong answer adds 5 seconds. The best time
+   is kept on the phone, and every go goes to the managers' Training page when logged in. */
+const SPEED_PEN = 5;
+// b101: the drill on the Bar 101 cards instead of the drinks, with its own best.
+function speedStart(b101) { qz = { speed: true, b101: !!b101, t0: Date.now(), qs: b101 ? b101Quiz() : quizMake(D.filter(POOLS[pool]), Math.random), i: 0, picks: [] }; renderPractice(); speedTick(); }
+const speedKey = () => (qz.b101 ? "Bar 101" : pool);
+function speedTick() { clearInterval(speedTick.h); speedTick.h = setInterval(() => { const c = $("#qz-clock"); if (!qz?.speed || qz.secs != null || !c) return clearInterval(speedTick.h); c.textContent = `${Math.floor((Date.now() - qz.t0) / 1000)} s`; }, 250); }
+function speedDone() {
+  const right = qzScore(qzMarks(qz)), wrong = qz.qs.length - right;
+  qz.raw = Math.max(1, Math.round((Date.now() - qz.t0) / 1000)); qz.secs = qz.raw + wrong * SPEED_PEN;
+  const best = store.get("speedBest", {}), was = best[speedKey()];
+  qz.pb = !was || qz.secs < was.secs; if (qz.pb) { best[speedKey()] = { secs: qz.secs, at: Date.now() }; store.set("speedBest", best); }
+  qz.was = was;
+  if (LIVE.me && LIVE.api) LIVE.api.score(qz.b101 ? "b101" : "speed", right, qz.qs.length, Math.min(3600, Math.max(5, qz.secs))).catch(() => {});
+}
+// Under a missed question: open the drink, or for Bar 101 what to say and the card itself.
+const b101Act = (x) => (x.id != null ? `<div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div>`
+  : `${x.say ? `<p class="b101say"><b>Say it:</b> “${esc(x.say)}”</p>` : ""}<div class="actions"><button class="btn" data-b101-read="${esc(x.name)}">Read the card</button></div>`);
 function renderQuiz() {
   const box = $("#pquiz");
+  if (!qz && pmode === "speed") {
+    const best = store.get("speedBest", {});
+    box.innerHTML = `<div class="card"><h2 style="font-size:28px">Speed drill</h2><p class="note">Ten questions as fast as you can. Every wrong answer adds ${SPEED_PEN} seconds. Beat your best.</p>
+      <div class="recent" style="justify-content:center">${Object.keys(POOLS).map((p) => `<button class="chip" aria-pressed="${p === pool}" data-pool="${p}">${p}${best[p] ? ` · ${best[p].secs} s` : ""}</button>`).join("")}</div>
+      ${best[pool] ? `<p class="qz-got">Your best on ${esc(pool)}: ${best[pool].secs} s</p>` : ""}
+      <button class="btn pri wide" data-qz="speed" style="margin-top:12px">Go</button></div>`;
+    return;
+  }
   if (!qz) {
     const got = qzHere(), run = !got && qzRun();
     box.innerHTML = `<div class="card"><h2 style="font-size:28px">Tonight's quiz</h2>
@@ -2042,7 +2078,7 @@ function renderQuiz() {
   if (q) {
     const picked = qz.picks[qz.i], done = picked != null;
     const opt = (o) => `<button class="btn wide${done && o === q.answer ? " right" : done && o === picked ? " wrong" : ""}" data-qz-pick="${esc(o)}"${done ? " disabled" : ""}>${done && o === q.answer ? `<span aria-hidden="true">\u2713 </span>` : done && o === picked ? `<span aria-hidden="true">\u2717 </span>` : ""}<span>${esc(o)}</span></button>`;
-    box.innerHTML = `<div class="cprog"><b>Question ${qz.i + 1} of ${qz.qs.length}</b><span class="dots" aria-hidden="true">${qz.qs.map((x, j) => `<i class="${j < qz.i ? (qz.picks[j] === x.answer ? "ok" : "no") : j === qz.i ? "on" : ""}"></i>`).join("")}</span></div>
+    box.innerHTML = `<div class="cprog"><b>Question ${qz.i + 1} of ${qz.qs.length}</b>${qz.speed ? `<b class="qz-clock" id="qz-clock" aria-live="off">${Math.floor((Date.now() - qz.t0) / 1000)} s</b>` : ""}<span class="dots" aria-hidden="true">${qz.qs.map((x, j) => `<i class="${j < qz.i ? (qz.picks[j] === x.answer ? "ok" : "no") : j === qz.i ? "on" : ""}"></i>`).join("")}</span></div>
       <div class="card"><h2 translate="no">${esc(q.name)}</h2><p class="lead" style="margin:6px auto 0">${esc(q.ask)}</p>${q.of ? `<p class="qz-of" translate="no">${esc(q.of)}</p>` : ""}
         <div class="qz-opts"${q.app ? "" : ' translate="no"'}>${q.opts.map(opt).join("")}</div>
         ${done ? `<p class="qz-said" role="status"><b>${picked === q.answer ? "Right." : "Not quite."}</b></p><button class="btn pri wide" data-qz="next">${qz.i + 1 < qz.qs.length ? "Next question" : "See your score"}</button>` : ""}</div>
@@ -2050,10 +2086,17 @@ function renderQuiz() {
     return;
   }
   const right = qzScore(qzMarks(qz)), missed = qz.qs.filter((x, j) => qz.picks[j] !== x.answer);
+  if (qz.speed) {
+    box.innerHTML = `<div class="card"><h2>${qz.secs} seconds</h2><p class="lead" style="margin:6px auto 0">${right} out of ${qz.qs.length} right${right < qz.qs.length ? `, +${(qz.qs.length - right) * SPEED_PEN} s for the misses (${qz.raw} s on the clock)` : ""}.</p>
+      ${qz.pb ? `<p class="qz-got">🏆 ${qz.was ? `New personal best! ${qz.was.secs - qz.secs} s faster.` : "Your first time on the board."}</p>` : `<p class="qz-got">Your best: ${qz.was.secs} s.</p>`}</div>
+      ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n" translate="no">${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div>${b101Act(x)}</div>`).join("")}` : ""}
+      <div class="actions"><button class="btn pri" data-qz="${qz.b101 ? "speed101" : "speed"}">Go again</button><button class="btn" data-qz="home">Done</button></div>`;
+    return;
+  }
   box.innerHTML = `<div class="card"><h2>${right} out of ${qz.qs.length}</h2><p class="lead" style="margin:6px auto 0">${right === qz.qs.length ? "Perfect." : right >= 8 ? "Strong." : right >= 5 ? "Getting there." : "Practise these, then try again."}</p></div>
-    ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n" translate="no">${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div><div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div></div>`).join("")}` : ""}
+    ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n"${x.id == null ? "" : ' translate="no"'}>${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div>${b101Act(x)}</div>`).join("")}` : ""}
     ${qz.starter ? stResult(right) : ""}
-    <div class="actions">${qz.starter ? "" : `<button class="btn pri" data-qz="practice">Another practice quiz</button>`}<button class="btn" data-qz="home">Done</button></div>`;
+    <div class="actions">${qz.starter ? "" : qz.b101 ? `<button class="btn pri" data-qz="b101">Another 10</button>` : `<button class="btn pri" data-qz="practice">Another practice quiz</button>`}<button class="btn" data-qz="home">Done</button></div>`;
 }
 
 /* ---------- Shift ---------- */
@@ -2800,7 +2843,7 @@ function morningHtml() {
       <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>
       <div class="actions">${store.get("hoRead", "") === r.id ? `<span class="pill ok">Read</span>` : `<button class="btn pri" data-ho-read="${r.id}">Mark as read</button>`}${sendBtn("morning", "Checked: send on WhatsApp")}${sendBtn("report", r.photos ? `Send the full handover with ${plural(r.photos, "photo")}` : "Send the full handover", r.id)}</div>
       <p class="note">Read it and tap Mark as read: the managers see who read it and when. Sort what you can, and send the check so the duty manager knows what's still outstanding.</p>`;
-  return `<div class="sec">${r && reportDay(r) !== lastNight() ? "Handover" : "Last night's handover"}</div>${ho}
+  return `${briefHtml()}<div class="sec">${r && reportDay(r) !== lastNight() ? "Handover" : "Last night's handover"}</div>${ho}
     <div class="sec">Today's order</div>
     ${order.length ? `<p class="note" translate="no">${order.map(esc).join(", ")}</p><div class="actions">${sendBtn("order", "Send the order on WhatsApp")}</div>` : `<p class="note">Nothing running low or 86'd.</p>`}
     <div class="sec">Prep to par${busyDay() ? " (busy day)" : ""}</div>
@@ -5243,7 +5286,7 @@ const newTells = () => (LIVE.owner ? LIVE.tells.filter((a) => a.status === "new"
 let seenAt = store.get("seenAt", 0), seenBefore = seenAt;
 function renderBell() {
   // What's waiting for this person, plus what's changed since they last looked at the Team page.
-  const n = newAsks().length + newTells().length + (LIVE.me && cur !== "notices" && seenAt ? changesSince(seenAt).length : 0);
+  const n = newAsks().length + newTells().length + (LIVE.me && cur !== "notices" && seenAt ? changesSince(seenAt).length : 0) + (typeof alBadge === "function" && MG_READY ? alBadge() : 0);
   $("#team-n").hidden = !n; $("#team-n").textContent = n > 9 ? "9+" : n;
 }
 
@@ -5714,6 +5757,7 @@ const CARDS = () => [
     ["names", "Names to pick from", namesHtml],
     ...(LIVE.owner ? [["seniors", "Codes: you and the managers", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : !ownerEntry() ? { t: "set yours", hot: 1 } : managersOnly().length || ""],
       ["mgr", "Maintenance settings", mgrHtml, LIVE.gate?.tries >= LIVE.api.GATE_MAX ? { t: "joining locked", hot: 1 } : ""]] : []),
+    ...mgCards(),
     ["§", "Team"],
   ] : []),
   ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager or maintenance? Unlock with your code", unlockHtml]] : []),
@@ -5726,6 +5770,7 @@ const CARDS = () => [
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
+  ...mgHealthCard(),
 ];
 // Everything that goes out on WhatsApp in one place: tonight's, then your own.
 function quickHtml() {
@@ -6082,6 +6127,7 @@ function liveChanged(what) {
     }
   }
   renderBell(); renderNet();
+  if (MG_READY && ["me", "labels", "items", "asks", "tells", "reports", "events"].includes(what)) renderAlerts();
   if (what === "me" || what === "out") plOutRefresh();
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();

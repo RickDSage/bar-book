@@ -550,11 +550,18 @@ describe("every query the app makes works for the people that make it", () => {
     query(collection(d, "fixtures"), where("day", ">=", dayFromNow(-1)), orderBy("day"), limit(60)),
     query(collection(d, "issues"), where("status", "in", ["open", "taken"])),
     query(collection(d, "issues"), orderBy("at", "desc"), limit(30)),
+    collection(d, "signoffs"),
+    query(collection(d, "events"), where("day", "==", today()), where("kind", "==", "label")),
+    query(collection(d, "scores"), where("uid", "==", uid)),
+    query(collection(d, "outlog"), where("at", ">=", daysAgo(7)), limit(1000)),
+    query(collection(d, "reports"), where("at", ">=", daysAgo(56)), limit(500)),
   ];
   const managers = (d) => [
     query(collection(d, "asks"), orderBy("at", "desc"), limit(200)),
     query(collection(d, "sent"), orderBy("at", "desc"), limit(150)),
     query(collection(d, "listlog"), where("list", "==", "close")),
+    query(collection(d, "itemlog"), orderBy("at", "desc"), limit(100)),
+    query(collection(d, "scores"), where("at", ">=", daysAgo(30)), limit(2000)),
   ];
   test("staff", async () => {
     const d = db("staff1");
@@ -958,7 +965,24 @@ describe("items the team adds: anyone suggests one, the owner approves it", () =
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const item = (uid, extra = {}) => ({ item: "Rubicon Mango", kind: "soft", group: "Soft drinks and mixers", side: "bar", store: "bottle", label: false, life: 0,
     close: "keep", note: "", found: "Rubicon Drinks: UK soft drink manufacturer", status: "waiting", addedBy: TEAM[uid]?.name ?? "Stray", addedUid: uid, ...by(uid), ...extra });
-  const add = (uid, extra) => addDoc(collection(db(uid), "items"), item(uid, extra));
+  const defOf = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, status: x.status });
+  // As the app does it: the item and its entry in itemlog in one write.
+  async function addB(uid, extra = {}, { act = "added", log = {} } = {}) {
+    const d = db(uid), ref = doc(collection(d, "items")), lg = doc(collection(d, "itemlog")), x = item(uid, { log: lg.id, ...extra }), b = writeBatch(d);
+    b.set(ref, x); b.set(lg, { ref: ref.id, act, def: defOf(x), ...by(uid), ...log });
+    await b.commit(); return ref;
+  }
+  const add = (uid, extra, o) => addB(uid, extra, o);
+  async function save(uid, id, changes, { act = "changed", log = {}, noLog = false } = {}) {
+    const d = db(uid), cur = await current(`items/${id}`), lg = doc(collection(d, "itemlog")), x = { ...cur, ...changes, ...by(uid), log: lg.id }, b = writeBatch(d);
+    b.set(doc(d, "items", id), x); if (!noLog) b.set(lg, { ref: id, act, def: defOf(x), ...by(uid), ...log });
+    return b.commit();
+  }
+  async function drop(uid, id, { log = true } = {}) {
+    const d = db(uid), cur = await current(`items/${id}`), b = writeBatch(d);
+    b.delete(doc(d, "items", id)); if (log) b.set(doc(d, "itemlog", `${id}-gone`), { ref: id, act: "removed", def: defOf(cur), ...by(uid) });
+    return b.commit();
+  }
   test("anyone on the team adds one, waiting; only the owner adds one live; everyone on the team reads them", async () => {
     const a = await assertSucceeds(add("staff1"));
     await assertSucceeds(add("mgr1", { item: "Fresh strawberries", kind: "fresh", group: "Fruit and garnish", store: "fridge", label: true, close: "cover" }));
@@ -976,23 +1000,96 @@ describe("items the team adds: anyone suggests one, the owner approves it", () =
     }
   });
   test("only the owner approves or changes one, and who added it never changes", async () => {
-    const a = await add("staff1"), ref = (uid) => doc(db(uid), "items", a.id);
-    await fails(updateDoc(ref("staff1"), { status: "live", ...by("staff1") }), "staff approving their own");
-    await fails(updateDoc(ref("mgr1"), { status: "live", ...by("mgr1") }), "a manager approving");
-    await fails(updateDoc(ref("owner1"), { status: "live", addedBy: "Olly Owner", ...by("owner1") }), "owner taking the credit");
-    await assertSucceeds(updateDoc(ref("owner1"), { status: "live", life: 3, store: "fridge", ...by("owner1") }));
+    const a = await add("staff1");
+    await fails(save("staff1", a.id, { status: "live" }, { act: "approved" }), "staff approving their own");
+    await fails(save("mgr1", a.id, { status: "live" }, { act: "approved" }), "a manager approving");
+    await fails(save("owner1", a.id, { status: "live", addedBy: "Olly Owner" }, { act: "approved" }), "owner taking the credit");
+    await assertSucceeds(save("owner1", a.id, { status: "live", life: 3, store: "fridge" }, { act: "approved" }));
     const now = await current(`items/${a.id}`);
     assert.equal(now.addedBy, "Sam Staff"); assert.equal(now.status, "live");
   });
   test("whoever added one takes it back while it's waiting; the owner removes any; nobody else", async () => {
     const a = await add("staff1"), b = await add("staff2"), c = await add("staff1");
-    await fails(deleteDoc(doc(db("staff2"), "items", a.id)), "someone else's");
-    await fails(deleteDoc(doc(db("mgr1"), "items", a.id)), "a manager");
-    await assertSucceeds(deleteDoc(doc(db("staff1"), "items", a.id)));
+    await fails(drop("staff2", a.id), "someone else's");
+    await fails(drop("mgr1", a.id), "a manager");
+    await assertSucceeds(drop("staff1", a.id));
     await seed((s) => updateDoc(doc(s, "items", c.id), { status: "live" }));
-    await fails(deleteDoc(doc(db("staff1"), "items", c.id)), "own one once it's live");
-    await assertSucceeds(deleteDoc(doc(db("owner1"), "items", b.id)));
-    await assertSucceeds(deleteDoc(doc(db("owner1"), "items", c.id)));
+    await fails(drop("staff1", c.id), "own one once it's live");
+    await assertSucceeds(drop("owner1", b.id));
+    await assertSucceeds(drop("owner1", c.id));
+  });
+  test("every add, change and removal keeps its history; it can't be skipped or made up", async () => {
+    const a = await add("staff1");
+    await fails(save("owner1", a.id, { life: 5 }, { noLog: true }), "a change with no history");
+    await fails(drop("staff1", a.id, { log: false }), "a removal with no history");
+    await fails(save("owner1", a.id, { life: 5 }, { log: { def: { item: "Something else" } } }), "history that doesn't match");
+    await fails(save("owner1", a.id, { life: 5 }, { act: "added" }), "an add of one that's there");
+    await fails(add("staff2", {}, { act: "changed" }), "a change of one that isn't there");
+    await fails(save("owner1", a.id, { life: 5 }, { log: { name: "Mia Manager" } }), "history under someone else's name");
+    await assertSucceeds(save("owner1", a.id, { life: 5, status: "live" }, { act: "approved" }));
+    await assertSucceeds(save("owner1", a.id, { life: 3 }, { act: "restored" }));
+    // Put back after it's gone: a new item, recorded as restored.
+    const b = await add("owner1", { status: "live", item: "Oat milk" });
+    await assertSucceeds(drop("owner1", b.id));
+    await assertSucceeds(add("owner1", { status: "live", item: "Oat milk" }, { act: "restored" }));
+    const hist = await getDocs(collection(db("mgr1"), "itemlog"));
+    assert.equal(hist.docs.filter((x) => x.data().ref === a.id).length, 3);
+    await fails(getDocs(collection(db("staff1"), "itemlog")), "staff reading the history");
+    const one = hist.docs[0].id;
+    await fails(updateDoc(doc(db("owner1"), "itemlog", one), { act: "removed" }), "changing history");
+    await fails(deleteDoc(doc(db("owner1"), "itemlog", one)), "deleting history");
+  });
+});
+
+describe("training: quiz scores and new starter sign-off", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const score = (uid, kind, extra = {}, id) => {
+    const x = { kind, day: today(), score: 8, of: 10, secs: kind === "speed" ? 42 : null, ...by(uid), ...extra };
+    return id ? setDoc(doc(db(uid), "scores", id), x) : addDoc(collection(db(uid), "scores"), x);
+  };
+  const nightId = (uid, day = today()) => `night-${day}-${uid}`;
+  test("tonight's quiz counts once a night per phone", async () => {
+    await assertSucceeds(score("staff1", "night", {}, nightId("staff1")));
+    await fails(score("staff1", "night", { score: 10 }, nightId("staff1")), "a second go overwriting the first");
+    await fails(score("staff2", "night", {}, nightId("staff1")), "under someone else's id");
+    await fails(score("staff2", "night"), "a random id");
+    await fails(score("staff2", "night", { day: nightFromTonight(-5) }, nightId("staff2", nightFromTonight(-5))), "an old night");
+  });
+  test("speed drills and the starter test any number of times; bad ones refused", async () => {
+    await assertSucceeds(score("staff1", "speed"));
+    await assertSucceeds(score("staff1", "speed", { score: 10, secs: 31 }));
+    await assertSucceeds(score("staff1", "starter", { score: 9 }));
+    // Bar 101: a quiz (no time) or its speed drill (timed).
+    await assertSucceeds(score("staff1", "b101", { score: 9 }));
+    await assertSucceeds(score("staff1", "b101", { score: 10, secs: 48 }));
+    await fails(score("staff1", "b101", { secs: 3 }), "a Bar 101 drill too fast");
+    for (const [why, k, x] of [["no time", "speed", { secs: null }], ["too fast", "speed", { secs: 2 }], ["time on a test", "starter", { secs: 30 }], ["more than all", "speed", { score: 11 }],
+      ["unknown kind", "drill", {}], ["someone else's name", "speed", { name: "Tia Staff" }], ["fractions", "speed", { score: 7.5 }], ["extra", "speed", { extra: 1 }]]) {
+      await fails(score("staff1", k, x), why);
+    }
+    await fails(score("stranger", "speed"), "not on the team");
+  });
+  test("each person reads their own; the managers read everyone's; only the owner removes one", async () => {
+    const a = await score("staff1", "speed");
+    await assertSucceeds(getDocs(query(collection(db("staff1"), "scores"), where("uid", "==", "staff1"))));
+    await fails(getDocs(collection(db("staff1"), "scores")), "staff reading everyone's");
+    await fails(getDoc(doc(db("staff2"), "scores", a.id)), "someone else's");
+    await assertSucceeds(getDocs(query(collection(db("mgr1"), "scores"), where("at", ">=", daysAgo(30)), limit(2000))));
+    await fails(updateDoc(doc(db("staff1"), "scores", a.id), { score: 10 }), "changing a score");
+    await fails(deleteDoc(doc(db("mgr1"), "scores", a.id)), "a manager removing");
+    await assertSucceeds(deleteDoc(doc(db("owner1"), "scores", a.id)));
+  });
+  test("managers sign off a house cocktail for someone; everyone sees it", async () => {
+    const sign = (uid, person, drink, extra = {}, id = `${slug(person)}--${slug(drink)}`) => setDoc(doc(db(uid), "signoffs", id), { person, drink, ...by(uid), ...extra });
+    await assertSucceeds(sign("mgr1", "Sam", "London Cosmo"));
+    await assertSucceeds(sign("owner1", "Sam", "The Paddington"));
+    await fails(sign("staff1", "Sam", "Uptown Hustle"), "staff signing themselves off");
+    await fails(sign("mgr1", "Sam", "Uptown Hustle", {}, "sam--something-else"), "id that doesn't match");
+    await fails(sign("mgr1", "Sam", "Uptown Hustle", { name: "Max Manager" }), "under another manager's name");
+    await assertSucceeds(getDocs(collection(db("staff1"), "signoffs")));
+    await fails(getDocs(collection(db("stranger"), "signoffs")), "not on the team");
+    await fails(deleteDoc(doc(db("staff1"), "signoffs", "sam--london-cosmo")), "staff taking it back");
+    await assertSucceeds(deleteDoc(doc(db("mgr2"), "signoffs", "sam--london-cosmo")));
   });
 });
 

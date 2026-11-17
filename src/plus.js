@@ -572,12 +572,12 @@ function renderStarter() {
     <div class="sec">2. Take the test</div>
     ${s.best != null ? `<p class="qz-got">Best so far: ${s.best} out of 10${s.passed ? `, passed ${new Date(s.passed).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}.</p>` : ""}
     <button class="btn${ready ? " pri" : ""} wide" data-qz="starter"${ready ? "" : " disabled"}>${ready ? (s.best != null ? "Take the test again" : "Start the test") : `Tick all ${ds.length} first`}</button>
-    ${s.passed ? stPassHtml(s) : ""}</div>`;
+    ${s.passed ? stPassHtml(s) : ""}${stSignHtml(s.passed ? 4 : 3)}</div>`;
 }
 function stPassHtml(s) {
-  return `<div class="sec">3. Tell the manager</div>
-    <div class="actions">${LIVE.me && !s.told ? `<button class="btn pri" data-st-tell>Tell the managers</button>` : ""}${sendBtn("starter", "Post it on WhatsApp")}</div>
-    ${s.told ? `<p class="note">The managers have been told.</p>` : ""}`;
+  return `<div class="sec">3. Passed</div>
+    <p class="note">${LIVE.me ? "Your pass is on the managers' Training page." : "Join the team so your pass shows on the managers' Training page."}</p>
+    <div class="actions">${sendBtn("starter", "Post it on WhatsApp")}</div>`;
 }
 SHARE.starter = () => {
   const s = stState(); if (!s.passed) return null;
@@ -593,17 +593,12 @@ function stResult(right) {
   if (first) s.best = right;
   if (right >= ST_PASS && !s.passed) s.passed = Date.now();
   stSet(s);
+  // Every go at the test goes to the managers' Training page when logged in (once per result shown).
+  if (LIVE.me && LIVE.api && !qz.logged) { qz.logged = true; LIVE.api.score("starter", right, qz.qs.length).catch(() => {}); }
   return right >= ST_PASS ? `<p class="qz-got">Passed. ${right} out of 10.</p>${stPassHtml(stState())}` : `<p class="qz-got">${ST_PASS} out of 10 to pass. Go over the ones you missed, then try again.</p>`;
 }
-document.addEventListener("click", async (e) => {
+document.addEventListener("click", (e) => {
   const o = e.target.closest("[data-st-open]"); if (o) { view = "steps"; store.set("view", view); openSheet(+o.dataset.stOpen); return; }
-  const t = e.target.closest("[data-st-tell]");
-  if (t) {
-    const s = stState(); t.disabled = true;
-    try { await LIVE.api.ask({ kind: "other", text: `New starter path passed: ${s.best} out of 10 on the ${stDrinks().length} house cocktails.`, when: "", anon: false }); s.told = true; stSet(s); toast("The managers have been told"); }
-    catch { t.disabled = false; toast("Not sent. Try again"); }
-    if (qz?.starter) renderPractice(); else renderStarter();
-  }
 });
 document.addEventListener("change", (e) => {
   const c = e.target.closest("[data-st-learnt]"); if (!c) return;
