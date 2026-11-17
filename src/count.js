@@ -38,7 +38,7 @@ var CT_KIND = {
   vermouth: ["Back bar", "bottle", 750], spirit: ["Back bar", "bottle", 700], liqueur: ["Back bar", "bottle", 700], coffee: ["Store room", "bag"], dessert: ["Cake fridge", "each"],
   sauce: ["Shake station", "bottle"], topping: ["Shake station", "tub"], icecream: ["Freezer", "tub"], supplies: ["Store room", "pack"], other: ["Store room", "each"],
 };
-var ctDay = "", ctOpen = "", ctMode = store.get("ctMode", "tap"), ctHeard = null, ctSetupOn = false, ctSetOpen = "", ctUse = null, ctUseBusy = false, ctRx = null;
+var ctDay = "", ctOpen = "", ctHeard = null, ctSetupOn = false, ctSetOpen = "", ctUse = null, ctUseBusy = false, ctRx = null;
 const ctSlug = (s) => s.normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "x";
 const ctId = (day, area, item) => `${day}--${ctSlug(area)}--${ctSlug(item)}`;
 const ctNum = (n) => String(Math.round(n * 100) / 100);
@@ -167,48 +167,96 @@ function ctCardHtml() {
   return `<div class="sec">Stock count</div><p class="note">The count book: every bottle, cake and box, place by place. Saves as you go, even with no signal.${on ? ` Today: ${on.filter((t) => t.done === t.of).length} of ${on.length} counted.` : ""}</p>
     <div class="actions"><button class="btn pri" data-ct-open>${on?.some((t) => t.done) ? "Carry on counting" : "Count stock"}</button></div>`;
 }
+// The page: a find-or-count box that stays at the top while the list scrolls, then the list. Phones get the lean
+// version (one row of places that scrolls sideways, the totals folded away, the bottle level behind one tap when the
+// scale can do it); the iPad gets everything open side by side.
+const ctWide = () => matchMedia("(min-width: 700px)").matches;
+var ctQ = "", ctShow = store.get("ctShow", "todo"), ctLvl = false, ctTotOpen = null;
 function ctPage() {
-  ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null;
+  ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null; ctQ = ""; ctLvl = false;
   lastFocus = document.activeElement;
-  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Stock count</span><span></span></div></div><div id="ct"></div>`;
+  const speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Stock count</span><span></span></div>
+    <div class="ct-find" id="ct-find"><div class="ltools"><span class="ct-q"><span aria-hidden="true">⌕</span><input id="ct-say" type="search" enterkeyhint="go" maxlength="80" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Find, or say “Smirnoff 2.5”" aria-label="Find an item, or say or type a count"></span>${speech ? `<button class="btn" id="ct-mic" aria-label="Say a count">🎤 Say it</button>` : ""}<button class="btn pri" id="ct-say-go" hidden>Count it</button></div>
+    <div id="ct-heard-slot"></div></div></div><div id="ct"></div>`;
   showSheet(false); $("#sheet").scrollTop = 0; ctRender(); $("#sh-close").focus();
 }
 const ctShown = () => !$("#sheet").hidden && !!$("#ct");
-// A change from another phone waits while something is being typed here. force redraws anyway (this phone's own
-// action), keeping the box being typed in.
+// A change from another phone waits while a number is being typed on a line here. force redraws anyway (this phone's
+// own action), keeping the box being typed in. Typing in the find box never waits: it sits above the list.
 function ctRender(force) {
   if (!ctShown()) return;
   LIVE.api.watchCount(ctDay);
   const el = $("#ct"), ae = document.activeElement, typing = el.contains(ae) && ae.matches("input, select");
+  const top = $("#ct-find"); if (top) top.hidden = ctSetupOn;
+  if ($("#ct-mic")) $("#ct-mic").textContent = ctRx ? "Listening…" : "🎤 Say it";
+  if ($("#ct-heard-slot")) $("#ct-heard-slot").innerHTML = ctSetupOn ? "" : ctHeardHtml();
   if (typing && !force) { ctRender.later = true; return; }
   ctRender.later = false;
   el.innerHTML = ctSetupOn ? ctSetupHtml() : ctHtml();
   if (typing && ae.id) document.getElementById(ae.id)?.focus();
 }
+// The list on its own, while the find box is being typed in.
+function ctPaint() { const l = $("#ct-list"); if (l) l.innerHTML = ctListHtml(); }
+// Finding a product in any place, whatever order the shelf is in: a few letters, typos too ("tanquerey"). A count
+// typed in ("Smirnoff 2.5", "kraken 845 grams") finds by the name in front of the number.
+function ctFind(q, rows) {
+  const ws = ctWords(q); if (!ws.length) return null;
+  const names = [...new Set(rows.map((r) => r.item))];
+  const fit = (xs) => {
+    const sc = new Map(), whole = xs.join(" ");
+    for (const n of names) {
+      let s = ctScore(xs, n); const nw = ctWords(n);
+      if (s == null && (nw.some((w) => w.startsWith(whole)) || (whole.length >= 3 && nw.join(" ").includes(whole)))) s = 1;
+      if (s != null) sc.set(n, s);
+    }
+    return sc;
+  };
+  let sc = fit(ws);
+  for (let k = ws.length - 1; !sc.size && k >= 1; k--) if (ctNumber(ws.slice(k))) sc = fit(ws.slice(0, k));
+  return rows.filter((r) => sc.has(r.item)).sort((a, b) => sc.get(a.item) - sc.get(b.item));
+}
 function ctHtml() {
   if (LIVE.countErr) return `<p class="note warnline">The count couldn't load. If it's new, Maintenance needs to publish the new rules.</p>`;
   if (!LIVE.loaded.has("countSetup") || LIVE.countDay !== ctDay) return `<p class="note">Loading the count…</p>`;
-  const rows = ctRows(), tot = ctTotals(), done = rows.filter(ctLine).length, by = [...new Set(ctLines().map((x) => x.name))];
-  const areas = [...new Set(rows.map((r) => r.area))];
-  const speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  return `<div class="ct-head"><label class="fld">Count for<input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label>
-      <p class="s">${done} of ${rows.length} lines counted${by.length ? ` by ${esc(by.join(", "))}` : ""}. Saves as you go.</p></div>
-    <div class="recent ct-mode"><button class="chip" data-ct-mode="tap" aria-pressed="${ctMode === "tap"}">Tap the level</button><button class="chip" data-ct-mode="weigh" aria-pressed="${ctMode === "weigh"}">Weigh on the scale</button></div>
-    <div class="ltools ct-say"><input id="ct-say" maxlength="80" autocomplete="off" placeholder="Say or type: Smirnoff 2 and a half" aria-label="Say or type a count">${speech ? `<button class="btn" id="ct-mic" aria-label="Say it">${ctRx ? "Listening…" : "🎤"}</button>` : ""}<button class="btn" id="ct-say-go">Add</button></div>
-    ${ctHeardHtml()}
-    ${pkBtn("Find an item: type a few letters or pick a kind", "data-ct-find")}
-    <div class="recent ct-jump">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip" data-ct-jump="${esc(a)}">${esc(a)} <small>${n}/${rs.length}</small></button>`; }).join("")}</div>
-    ${areas.map((a) => `<i class="anc" id="ct-a-${ctSlug(a)}"></i><div class="sec">${esc(a)}</div>${rows.filter((r) => r.area === a).map(ctRowHtml).join("")}`).join("")}
-    <div class="sec">Totals</div>
-    <p class="note">Each product added up across its places, for typing into Nory.</p>
-    <div class="ct-tot">${tot.filter((t) => t.done).map((t) => `<div><span>${esc(t.item)}</span><b>${ctSay(t.u, t.n)}${t.done < t.of ? " <small>(not all places)</small>" : ""}</b></div>`).join("") || `<p class="note">Nothing counted yet.</p>`}</div>
+  const rows = ctRows(), tot = ctTotals(), done = rows.filter(ctLine).length, by = [...new Set(ctLines().map((x) => x.name))], wide = ctWide();
+  return `<div class="ct-head"><p class="s"><b>${done} of ${rows.length} lines counted</b>${by.length ? ` by ${esc(by.join(", "))}` : ""}. Saves as you go, with no signal too.</p>
+      <div class="ct-bar" aria-hidden="true"><i style="width:${rows.length ? Math.round((done / rows.length) * 100) : 0}%"></i></div>
+      <label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label></div>
+    <details class="setup ct-how" id="ct-how"${store.get("ctHow", false) ? "" : " open"}><summary>How to count</summary><ol>
+      <li>Walk the bar in order and tap each item. Find at the top looks in every place, if it's somewhere else.</li>
+      <li><b>Full, sealed bottles:</b> tap + for each one.</li>
+      <li><b>The open bottle:</b> stand it on the scale and type the grams. No scale, or no weights for it yet? Tap how full it is.</li>
+      <li><b>Anything else</b> (cans, cakes, packs): + and −, or type it. Half is .5.</li>
+      <li><b>Next ›</b> saves it and opens the next one. Nothing there? Next saves it as none.</li>
+      <li><b>Hands full?</b> 🎤 Say it, or type, the name then how many: “Smirnoff two and a half”, “Kraken 845 grams”. Check it, then Save it.</li>
+      <li>Done: Send on WhatsApp or Spreadsheet, at the bottom.</li></ol></details>
+    <div id="ct-list">${ctListHtml()}</div>
+    <details class="setup" id="ct-tot-box"${ctTotOpen ?? wide ? " open" : ""}><summary>Totals so far${tot.some((t) => t.done) ? ` (${tot.filter((t) => t.done).length})` : ""}</summary>
+      <p class="note">Each product added up across its places, for typing into Nory.</p>
+      <div class="ct-tot">${tot.filter((t) => t.done).map((t) => `<div><span>${esc(t.item)}</span><b>${ctSay(t.u, t.n)}${t.done < t.of ? " <small>(not all places)</small>" : ""}</b></div>`).join("") || `<p class="note">Nothing counted yet.</p>`}</div></details>
     <div class="actions">${sendBtn("count", "Send on WhatsApp", ctDay)}<button class="btn" id="ct-csv">Spreadsheet (Numbers, Excel)</button></div>
     ${ctInHtml()}${ctUseHtml()}
     ${LIVE.admin ? `<div class="actions"><button class="btn" id="ct-setup">Set up the count</button></div>` : ""}`;
 }
+// Not counted yet, everything, or what's been counted; the places to jump to; and the lines. A search looks in every
+// place whatever is picked.
+function ctListHtml() {
+  const rows = ctRows(), areas = [...new Set(rows.map((r) => r.area))], found = ctQ.trim() ? ctFind(ctQ, rows) : null;
+  const todo = rows.filter((r) => !ctLine(r)).length;
+  const show = (r) => r.key === ctOpen || ctShow === "all" || (ctShow === "todo" ? !ctLine(r) : !!ctLine(r));
+  const chip = (k, label, n) => `<button class="chip" data-ct-show="${k}" aria-pressed="${!found && ctShow === k}">${label}${n != null ? ` <small>${n}</small>` : ""}</button>`;
+  const head = `<div class="recent ct-show">${chip("todo", "Not counted yet", todo)}${chip("all", "All", rows.length)}${chip("done", "Counted", rows.length - todo)}</div>
+    <div class="recent ct-jump" role="group" aria-label="Go to a place">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`;
+  if (found) return `${head}<div class="sec">${found.length ? `Found in ${[...new Set(found.map((r) => r.area))].length === 1 ? esc(found[0].area) : "every place"}` : "Nothing found"}</div>
+    ${found.map((r) => ctRowHtml(r, true)).join("") || `<p class="note">Nothing called “${esc(ctQ.trim())}”. Try fewer letters.${LIVE.admin ? " Not on the count at all? Add it with Add something new." : ""}</p>`}`;
+  const body = areas.map((a) => { const rs = rows.filter((r) => r.area === a && show(r)); return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec">${esc(a)}</div>${rs.map((r) => ctRowHtml(r)).join("")}` : ""}`; }).join("");
+  const none = !rows.some(show);
+  return `${head}${none ? `<p class="note ct-all">${ctShow === "todo" ? "✓ Everything's counted. Check the totals, then send them." : "Nothing counted yet."}</p>` : ""}${body}`;
+}
 function ctHeardHtml() {
   const h = ctHeard; if (!h) return "";
-  if (h.none) return `<p class="note warnline">Heard “${esc(h.text)}” but couldn't tell what or how many. Try the name then the number, like “Tanqueray 3 point 4”.</p>`;
+  if (h.none) return `<p class="note warnline">Heard “${esc(h.text)}” but couldn't tell what or how many. Say the name then the number, like “Tanqueray 3 point 4”.</p>`;
   const r = ctRows().find((x) => x.key === h.key), v = r && ctValue(r, h);
   if (!r) return "";
   const mine = ctRows().filter((x) => x.item === r.item);
@@ -216,20 +264,23 @@ function ctHeardHtml() {
     ${mine.length > 1 ? `<div class="recent">${mine.map((x) => `<button class="chip" data-ct-heard-area="${esc(x.key)}" aria-pressed="${x.key === r.key}">${esc(x.area)}</button>`).join("")}</div>` : ""}
     <div class="actions">${v ? `<button class="btn pri" id="ct-heard-ok">Save it</button>` : ""}<button class="btn" data-ct-row="${esc(r.key)}">Open it to change</button><button class="btn" id="ct-heard-no">Not that</button></div></div>`;
 }
-function ctRowHtml(r) {
+function ctRowHtml(r, where) {
   const x = ctLine(r), on = ctOpen === r.key;
-  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}"><span>${esc(r.item)}</span><b>${x ? ctSay(r.u, ctQty(x)) : "Not counted"}</b>${x ? `<small>${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
+  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
 }
-// The line being counted: big buttons for wet hands.
+// The line being counted, one way through: the full ones, then the open one (weighed if the scale can, else its
+// level), then Next. Big buttons for wet hands.
 function ctEditHtml(r, x) {
-  const full = x?.full || 0, open = x?.open || 0, weigh = ctMode === "weigh";
+  const full = x?.full || 0, open = x?.open || 0, can = ctWeighable(r), wide = ctWide();
   const step = (k, n, label) => `<div class="ct-step"><span>${label}</span><button class="ct-big" data-ct-add="${k}:-1" aria-label="One less">−</button><b>${n}</b><button class="ct-big" data-ct-add="${k}:1" aria-label="One more">+</button></div>`;
-  return `<div class="ct-edit">
-    ${r.u === "bottle" ? `${step("full", full, "Full bottles")}
-      <div class="ct-open"><div><span>Open bottle</span><b>${open ? `${ctNum(open / 100)}${r.ml ? ` · ${Math.round((open / 100) * r.ml)} ml` : ""}` : "None"}</b><button class="btn" data-ct-set="${full}:0">No open one</button></div>${ctBottle(open)}</div>`
-      : `${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (½ is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>`}
-    ${weigh ? ctWeighHtml(r) : ""}
-    <div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}<button class="btn pri" data-ct-next="${esc(r.key)}">Next ›</button></div></div>`;
+  const lvl = `<div class="ct-open"><div><span>Open bottle</span><b>${open ? `${ctNum(open / 100)}${r.ml ? ` · ${Math.round((open / 100) * r.ml)} ml` : ""}` : "None"}</b><button class="btn" data-ct-set="${full}:0">No open one</button></div>${ctBottle(open)}</div>`;
+  const total = x ? `<p class="ct-sum">Total here: <b>${ctSay(r.u, ctQty(x))}</b></p>` : "";
+  const foot = `${total}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}<button class="btn pri" data-ct-next="${esc(r.key)}">Next ›</button></div>`;
+  if (r.u !== "bottle") return `<div class="ct-edit">${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
+  const how = can ? `${ctWeighHtml(r)}${wide || ctLvl ? lvl : `<button class="btn ct-lvl" data-ct-lvl>No scale? Tap how full it is</button>`}`
+    : `<p class="s">No bottle weights for ${esc(r.item)} yet, so tap how full it is.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${lvl}${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}`;
+  return `<div class="ct-edit ct-b"><div class="ct-c1"><p class="ct-n">1. Full, sealed bottles</p>${step("full", full, "Full")}</div>
+    <div class="ct-c2"><p class="ct-n">2. The open one</p>${how}</div>${foot}</div>`;
 }
 // The open bottle: tap how full it is, in tenths. Top band is full.
 function ctBottle(open) {
@@ -239,12 +290,10 @@ function ctBottle(open) {
     ${Array.from({ length: 10 }, (_, i) => { const k = i + 1, y = 290 - k * 18.6; return `<rect data-ct-lv="${k}" x="20" y="${y}" width="80" height="18.6" class="${k <= lv ? "fill" : ""}"><title>${k / 10}</title></rect><text x="114" y="${y + 13}" text-anchor="end" class="lvt">${k === 10 ? "1" : `.${k}`}</text>`; }).join("")}
   </svg>`;
 }
+// The scale: for a bottle, the open one's grams; for anything else with a portion weight, all of them on it at once.
 function ctWeighHtml(r) {
-  if (!ctWeighable(r)) {
-    if (r.u === "bottle") return `<p class="note">${esc(r.item)} has no bottle weights yet, so tap the level.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${LIVE.admin ? ctWeightsHtml(r) : ""}`;
-    return `<p class="note">Count these. ${LIVE.admin ? "To weigh them instead, set a portion weight in Set up the count." : "Weighing is for bottles, or where a manager has set a portion weight."}</p>`;
-  }
-  return `<label class="fld">${r.u === "bottle" ? "Open bottle on the scale, in grams" : `On the scale, in grams (one is ${r.pw} g${r.e ? `, the container ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" data-ct-g="${esc(r.key)}" placeholder="Grams"></label><p class="s" id="ct-g-out">${r.u === "bottle" ? `Empty ${r.e} g, full ${r.f} g${r.ml ? `, ${r.ml} ml` : ""}.` : ""}</p>`;
+  const b = r.u === "bottle";
+  return `<label class="fld ct-g">${b ? "On the scale, grams" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the container ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="Grams"></label><p class="s" id="ct-g-out">${b ? `Empty ${r.e} g, full ${r.f} g${r.ml ? `, ${r.ml} ml` : ""}. A sealed one goes on Full.` : ""}</p>`;
 }
 // A manager setting a bottle's weights: weigh an empty one and an unopened one once. Not 1 g = 1 ml: a liqueur is
 // heavier than a spirit, so the two weights are what make it right.
@@ -259,14 +308,17 @@ function ctPut(r, full, open) {
 }
 const ctRow = (key) => ctRows().find((r) => r.key === key);
 function ctGo(key) {
-  ctOpen = key; ctHeard = null; ctRender();
+  ctOpen = key; ctHeard = null; ctLvl = false; ctRender();
   requestAnimationFrame(() => document.getElementById(`ct-r-${ctSlug(key)}`)?.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }));
 }
 function ctHear(text) {
   text = text.trim(); if (!text) return;
   const p = ctParse(text);
   ctHeard = p ? { ...p } : { text, none: true };
-  if (p && ctMode === "weigh") { const r = ctRow(p.key); if (r?.u === "bottle" && ctWeighable(r) && !p.grams && p.n > 30) ctHeard.grams = true; }
+  // A bottle said with a number no bottle count gets to (“Kraken 845”) is grams on the scale.
+  if (p) { const r = ctRow(p.key); if (r?.u === "bottle" && ctWeighable(r) && !p.grams && p.n >= 100) ctHeard.grams = true; }
+  // The list below shows what was heard, so its line is there to open.
+  ctQ = text; if ($("#ct-say")) $("#ct-say").value = text; if ($("#ct-say-go")) $("#ct-say-go").hidden = true;
   ctRender(true);
 }
 function ctMic() {
@@ -418,25 +470,30 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-ct-open]
 $("#sheet").addEventListener("click", (e) => {
   if (!$("#ct")) return;
   const t = (s) => e.target.closest(s);
-  const md = t("[data-ct-mode]"); if (md) { ctMode = md.dataset.ctMode; store.set("ctMode", ctMode); return ctRender(); }
+  const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
+  if (t("[data-ct-lvl]")) { ctLvl = true; return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
-  if (t("[data-ct-find]")) {
-    haptic();
-    return pkOpen({ mode: "one", title: "Find an item to count", only: [...new Set(ctRows().map((r) => r.item))], other: false, onPick: ([n]) => {
-      const rs = ctRows().filter((r) => r.item === n), r = rs.find((x) => !ctLine(x)) || rs[0]; if (r) ctGo(r.key);
-    } });
+  const jp = t("[data-ct-jump]"); if (jp) {
+    // A place already counted is hidden under Not counted yet: going to it shows everything.
+    const a = jp.dataset.ctJump; ctClearFind();
+    if (ctShow === "todo" && ctRows().filter((r) => r.area === a).every(ctLine)) { ctShow = "all"; store.set("ctShow", ctShow); }
+    ctRender(true); return document.getElementById(`ct-a-${ctSlug(a)}`)?.scrollIntoView({ block: "start" });
   }
-  const jp = t("[data-ct-jump]"); if (jp) return document.getElementById(`ct-a-${ctSlug(jp.dataset.ctJump)}`)?.scrollIntoView({ block: "start" });
   const r = ctOpen && ctRow(ctOpen), x = r && ctLine(r);
   const ad = t("[data-ct-add]"); if (ad && r) { haptic(); const d = +ad.dataset.ctAdd.split(":")[1]; ctPut(r, Math.max(0, (x?.full || 0) + d), x?.open || 0); return; }
   const lv = t("[data-ct-lv]"); if (lv && r) { haptic(); ctPut(r, x?.full || 0, +lv.dataset.ctLv * 10); return; }
   const st = t("[data-ct-set]"); if (st && r) { haptic(); const [f, o] = st.dataset.ctSet.split(":").map(Number); ctPut(r, f, o); return; }
   const dr = t("[data-ct-drop]"); if (dr && r) { track(LIVE.api.dropCountLine(ctId(ctDay, r.area, r.item)), null, "Not cleared. Try again"); return; }
-  const nx = t("[data-ct-next]"); if (nx) { const rs = ctRows(), i = rs.findIndex((y) => y.key === nx.dataset.ctNext); if (i >= 0 && !ctLine(rs[i])) ctPut(rs[i], 0, 0); const n = rs[i + 1]; if (n) ctGo(n.key); else { ctOpen = ""; ctRender(); toast("That's the last one"); } return; }
+  // Next: down the shelf from this one, past anything counted already when only what's left is showing.
+  const nx = t("[data-ct-next]"); if (nx) {
+    const rs = ctRows(), i = rs.findIndex((y) => y.key === nx.dataset.ctNext); if (i >= 0 && !ctLine(rs[i])) ctPut(rs[i], 0, 0);
+    const n = rs.slice(i + 1).find((y) => ctShow !== "todo" || !ctLine(y)); ctClearFind();
+    if (n) ctGo(n.key); else { ctOpen = ""; ctRender(); toast(rs.every(ctLine) ? "Everything's counted" : "That's the last one"); } return;
+  }
   if (t("#ct-say-go")) return ctHear($("#ct-say").value);
   if (t("#ct-mic")) return ctMic();
   const ha = t("[data-ct-heard-area]"); if (ha) { ctHeard.key = ha.dataset.ctHeardArea; return ctRender(); }
-  if (t("#ct-heard-ok") && ctHeard) { const hr = ctRow(ctHeard.key), v = hr && ctValue(hr, ctHeard); if (v) { ctPut(hr, v.full, v.open); toast(`${hr.item}: ${ctSay(hr.u, v.full + v.open / 100)}`); } ctHeard = null; ctRender(); $("#ct-say") && ($("#ct-say").value = "", $("#ct-say").focus()); return; }
+  if (t("#ct-heard-ok") && ctHeard) { const hr = ctRow(ctHeard.key), v = hr && ctValue(hr, ctHeard); if (v) { ctPut(hr, v.full, v.open); toast(`${hr.item}: ${ctSay(hr.u, v.full + v.open / 100)}`); } ctHeard = null; ctClearFind(); ctRender(); $("#ct-say")?.focus(); return; }
   if (t("#ct-heard-no")) { ctHeard = null; return ctRender(); }
   if (t("#ct-csv")) return ctShareCsv();
   if (t("#ct-in-go")) {
@@ -467,23 +524,42 @@ $("#sheet").addEventListener("toggle", (e) => {
   // A redraw fires toggle on the details it replaced too, after they've gone: only the ones on the page count.
   const d = e.target; if (!$("#ct") || !d.matches?.("details") || !d.isConnected) return;
   if (d.id === "ct-in-box") ctInHtml.open = d.open;
+  else if (d.id === "ct-tot-box") ctTotOpen = d.open;
+  else if (d.id === "ct-how") store.set("ctHow", !d.open);
   else if (d.id === "ct-use-box") ctUseHtml.open = d.open;
   else if (d.dataset.ctSk) { if (d.open) { if (ctSetOpen !== d.dataset.ctSk) { ctSetOpen = d.dataset.ctSk; ctRender(); } } else if (ctSetOpen === d.dataset.ctSk) ctSetOpen = ""; }
 }, true);
+// The find box: the list narrows as it's typed, in every place. Count it shows once it reads as a count.
+function ctClearFind() { ctQ = ""; const i = $("#ct-say"); if (i) i.value = ""; if ($("#ct-say-go")) $("#ct-say-go").hidden = true; }
 $("#sheet").addEventListener("input", (e) => {
+  if (e.target.id === "ct-say") {
+    ctQ = e.target.value; $("#ct-say-go").hidden = !ctParse(ctQ);
+    if (ctHeard) { ctHeard = null; $("#ct-heard-slot").innerHTML = ""; }
+    return ctPaint();
+  }
   const g = e.target.closest("[data-ct-g]"); if (!g) return;
-  const r = ctRow(g.dataset.ctG), w = r && ctWeigh(r, +g.value.replace(",", "."));
-  $("#ct-g-out").textContent = !w ? "" : r.u !== "bottle" ? `${ctSay(r.u, w.n)}` : w.full ? "That's an unopened bottle: it goes on the full count" : `Open bottle ${ctNum(w.open / 100)}${w.ml ? ` · ${w.ml} ml · ${ctNum(w.ml / 10)} cl` : ""}`;
+  const r = ctRow(g.dataset.ctG), n = +g.value.replace(",", "."), w = r && ctWeigh(r, n);
+  $("#ct-g-out").textContent = !w ? "" : r.u !== "bottle" ? `${ctSay(r.u, w.n)}` : n < r.e - 20 ? "Lighter than an empty one: check the scale reads 0 with nothing on it"
+    : w.full ? "That's a sealed one: tap + under Full instead" : `Open bottle ${ctNum(w.open / 100)}${w.ml ? ` · ${w.ml} ml · ${ctNum(w.ml / 10)} cl` : ""}`;
+  // Saved a moment after the typing stops, so Next straight after it never loses the weight.
+  clearTimeout(ctWeighPut.t); ctWeighPut.t = setTimeout(() => ctWeighPut(g), 700);
 });
+// The grams on the scale onto the line: a bottle's open one, or how many of anything else. A sealed bottle on the scale
+// goes on Full by its + instead, so a weight typed twice never counts it twice.
+function ctWeighPut(el) {
+  clearTimeout(ctWeighPut.t);
+  const r = ctRow(el.dataset.ctG), n = +el.value.replace(",", "."), w = r && ctWeigh(r, n), x = r && ctLine(r);
+  if (!w) return;
+  if (r.u !== "bottle") return ctPut(r, Math.floor(w.n), (w.n % 1) * 100);
+  if (!w.full && n >= r.e - 20 && (x?.open ?? -1) !== w.open) ctPut(r, x?.full || 0, w.open);
+}
 $("#sheet").addEventListener("change", (e) => {
   if (!$("#ct")) return;
   const el = e.target;
   if (el.id === "ct-day") { ctDay = el.value && el.value <= shiftDay() ? el.value : shiftDay(); ctOpen = ""; ctUse = null; el.blur(); return ctRender(); }
   if (el.id === "ct-type") { const r = ctRow(ctOpen), n = +el.value.replace(",", "."); el.blur(); if (r && n >= 0) ctPut(r, Math.floor(n + 1e-9), ((n + 1e-9) % 1) * 100); return ctRender(); }
   if (el.dataset.ctG) {
-    const r = ctRow(el.dataset.ctG), w = r && ctWeigh(r, +el.value.replace(",", ".")), x = r && ctLine(r); el.blur();
-    if (w) r.u === "bottle" ? ctPut(r, (x?.full || 0) + (w.full ? 1 : 0), w.full ? 0 : w.open) : ctPut(r, Math.floor(w.n), (w.n % 1) * 100);
-    return ctRender();
+    ctWeighPut(el); el.blur(); return;
   }
   const f = el.dataset.ctF; if (!f) return;
   const b = el.closest("[data-ct-item]"), r = ctRows(true).find((y) => y.item === b.dataset.ctItem), area = b.dataset.ctArea; el.blur();
@@ -497,7 +573,12 @@ $("#sheet").addEventListener("change", (e) => {
 });
 $("#sheet").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
-  if (e.target.id === "ct-say") { e.preventDefault(); ctHear(e.target.value); }
+  if (e.target.id === "ct-say") {
+    // A count (“Smirnoff 2.5”) goes to the check; just a name opens the best match.
+    e.preventDefault(); const v = e.target.value;
+    if (ctParse(v)) return ctHear(v);
+    const f = ctFind(v, ctRows()); if (f?.length) { e.target.blur(); ctGo((f.find((r) => !ctLine(r)) || f[0]).key); } else if (v.trim()) ctHear(v);
+  }
   if (e.target.id === "ct-in") { e.preventDefault(); $("#ct-in-go").click(); }
   if (e.target.id === "ct-anew") { e.preventDefault(); $("#ct-aadd").click(); }
 });

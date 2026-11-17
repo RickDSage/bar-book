@@ -1,5 +1,5 @@
 /* ---------- Pick an item: one picker for the whole app ----------
-   The 86 board, the bar station, Log it, restocking, running low, date labels and the stock count all choose items the
+   The 86 board, the bar station, Log it, restocking, running low and date labels all choose items the
    same way: type a few letters (typos are fine), tap a kind, or scroll. Recent and the team's most 86'd sit on top.
    It reads the one item list the app already has (the stock list plus what the team has added, the bar's own line-up
    and the drinks), and the 86 board is still the one source: an 86 here is the same 86 everywhere.

@@ -57,12 +57,20 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
   // Typed for things that aren't bottles: halves too.
   await S.click(row("Cake fridge", "Victoria sponge")); await S.fill("#ct-type", "1.5"); await S.press("#ct-type", "Enter");
   await waitLine(S, "Victoria sponge", [1, 50]);
+  await S.click("#ct-tot-box summary");
   assert.match(await text(S, ".ct-tot"), /Smirnoff 3\.4 bottles .*Whole milk 5\b/);
 
   // Live on every phone, with who counted it.
   await openCount(M);
   await M.waitForFunction(() => LIVE.counts.length >= 9);
+  // Only what's left shows to start with; Counted shows what's done, with who did it.
+  assert.equal(await M.$(row("Speed rail", "Smirnoff")), null, "counted lines are out of Not counted yet");
+  assert.ok(await M.$(row("Back bar", "Grey Goose")));
+  await M.click('[data-ct-show="done"]');
+  await M.waitForSelector(row("Speed rail", "Smirnoff"));
+  assert.equal(await M.$(row("Back bar", "Grey Goose")), null);
   assert.match(await text(M, row("Speed rail", "Smirnoff")), /3\.4 bottles Sam Staff/);
+  await M.click('[data-ct-show="todo"]');
   assert.match(await text(M, ".ct-head"), /lines counted by Sam Staff/);
 
   // Sending: totals as words and a picture table; the spreadsheet has a row per product.
@@ -122,16 +130,24 @@ test("managers set it up; weighing, deliveries and usage between counts", async 
 
   // Weighing on the scale: grams to the open bottle, with ml and cl. An unopened one goes on the full count.
   await openCount(S);
-  await S.click('[data-ct-mode="weigh"]');
+  // One flow for a bottle: full ones, then the open one on the scale. No mode to pick.
   await S.click(row("Back bar", "Kraken"));
+  assert.match(await text(S, ".ct-edit"), /1\. Full, sealed bottles .*2\. The open one On the scale, grams/);
   await S.fill("#ct-g", "932.5");
   assert.equal(await text(S, "#ct-g-out"), "Open bottle 0.5 · 350 ml · 35 cl");
   await S.press("#ct-g", "Enter"); await waitLine(S, "Kraken", [0, 50]);
-  await S.fill("#ct-g", "1264"); await S.press("#ct-g", "Enter"); await waitLine(S, "Kraken", [1, 0]);
-  await say(S, "kraken 800 grams"); assert.match(await text(S, ".ct-heard"), /Kraken, Back bar: 1\.3 bottles/); await S.click("#ct-heard-ok"); await waitLine(S, "Kraken", [1, 30]);
+  // A sealed one on the scale goes on Full by its +, so typing it twice never counts it twice.
+  await S.fill("#ct-g", "1264"); assert.equal(await text(S, "#ct-g-out"), "That's a sealed one: tap + under Full instead");
+  await S.press("#ct-g", "Enter"); await S.waitForTimeout(900); assert.deepEqual(await line(S, "Kraken"), [0, 50, "Sam Staff"]);
+  await S.click('[data-ct-add="full:1"]'); await waitLine(S, "Kraken", [1, 50]);
+  // Typed grams save by themselves a moment after typing stops, so Next straight after keeps them.
+  await S.fill("#ct-g", "800"); await waitLine(S, "Kraken", [1, 30]);
+  await say(S, "kraken 932 grams"); assert.match(await text(S, ".ct-heard"), /Kraken, Back bar: 1\.5 bottles/); await S.click("#ct-heard-ok"); await waitLine(S, "Kraken", [1, 50]);
+  await say(S, "kraken 800"); assert.match(await text(S, ".ct-heard"), /Kraken, Back bar: 1\.3 bottles/, "a number no bottle count gets to is grams"); await S.click("#ct-heard-ok"); await waitLine(S, "Kraken", [1, 30]);
   // No weights: tap the level instead.
   await S.click(row("Back bar", "Grey Goose"));
-  assert.match(await text(S, ".ct-edit"), /Grey Goose has no bottle weights yet, so tap the level\. A manager sets them once/);
+  assert.match(await text(S, ".ct-edit"), /No bottle weights for Grey Goose yet, so tap how full it is\. A manager sets them once/);
+  assert.ok(await S.$(".ct-edit [data-ct-lv]"), "the level is there straight away");
 
   // Usage between counts: three counts, a delivery in between.
   const today = await S.evaluate(() => ctDay), d = (n) => S.evaluate(([t, k]) => addDays(t, k), [today, n]);
@@ -153,4 +169,42 @@ test("managers set it up; weighing, deliveries and usage between counts", async 
   const rid = await S.evaluate(() => LIVE.received[0].id);
   await M.waitForFunction(() => LIVE.received.length === 1);
   assert.equal(await attempt(M, (i) => LIVE.api.dropReceived(i), rid), "allowed");
+});
+
+test("finding it when it isn't in shelf order: every place, not counted yet, Next past what's done, the how-to", async () => {
+  await resetEmulators();
+  const { S } = await team(browser, site, people);
+  await S.evaluate(() => store.set("ctHow", false));
+  await openCount(S);
+  // The how-to is open the first time, and stays shut once closed.
+  assert.match(await text(S, "#ct-how"), /Full, sealed bottles: tap \+ for each one\. The open bottle: stand it on the scale/);
+  assert.equal(await S.$eval("#ct-how", (d) => d.open), true);
+  await S.click("#ct-how summary"); await S.waitForFunction(() => store.get("ctHow") === true);
+  // Search looks in every place: milk is in two, and each line says where.
+  await S.fill("#ct-say", "whole mil");
+  await S.waitForFunction(() => document.querySelectorAll("#ct-list .ct-row").length === 2);
+  assert.match(await text(S, "#ct-list"), /Found in every place Whole milk Bar fridge Whole milk Shake station/i);
+  // A typed count finds by its name, and Count it shows; Enter checks it before it saves.
+  await S.fill("#ct-say", "grey goose 2");
+  assert.equal(await S.$eval("#ct-say-go", (b) => b.hidden), false);
+  assert.match(await text(S, "#ct-list"), /Found in Back bar Grey Goose/i);
+  await S.press("#ct-say", "Enter");
+  assert.match(await text(S, ".ct-heard"), /Grey Goose, Back bar: 2 bottles/);
+  await S.click("#ct-heard-ok"); await waitLine(S, "Grey Goose", [2, 0]);
+  assert.equal(await S.inputValue("#ct-say"), "", "the box clears for the next one");
+  // Just a name and Go: the line opens. Nothing like it: says so.
+  await S.fill("#ct-say", "xqzv"); assert.match(await text(S, "#ct-list"), /Nothing called “xqzv”/);
+  await S.fill("#ct-say", "smirnoff vanil"); await S.press("#ct-say", "Enter");
+  await S.waitForSelector('.ct-row.on [data-ct-next="Speed rail|Smirnoff Vanilla"]');
+  // Next goes past anything counted already while only what's left shows.
+  await S.evaluate(() => { const r = ctRows().find((x) => x.item === "Tanqueray"); return LIVE.api.countLine(ctId(ctDay, r.area, r.item), { day: ctDay, area: r.area, item: r.item, unit: r.u, full: 1, open: 0 }); });
+  await S.waitForFunction(() => LIVE.counts.some((x) => x.item === "Tanqueray" && !x.pending));
+  const after = await S.evaluate(() => { const rs = ctRows(), i = rs.findIndex((r) => r.item === "Smirnoff Vanilla"); return rs.slice(i + 1).find((r) => !ctLine(r)).key; });
+  assert.notEqual(after, "Speed rail|Tanqueray");
+  await S.click('[data-ct-next="Speed rail|Smirnoff Vanilla"]');
+  await S.waitForSelector(`.ct-row.on [data-ct-next="${after}"]`);
+  // A place: the chip goes there; a place all counted shows everything.
+  await S.click('[data-ct-jump="Freezer"]');
+  assert.ok(await S.$(row("Freezer", "Ice cream")));
+  assert.deepEqual(S.errs, []);
 });

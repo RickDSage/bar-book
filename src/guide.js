@@ -7,8 +7,8 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 3;
-const WALK_NEW = "Search everything to 86 finds anything in a few letters, every drink shows if you can make it tonight, 🎤 takes it by voice, and Take over picks up a part of the close someone left.";
+const WALK_V = 4;
+const WALK_NEW = "Stock count is simpler: full bottles with +, the open one on the scale, Next. Find at the top looks in every place, and Not counted yet shows only what's left.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -21,6 +21,12 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
   "Pick what it is. 86 goes on the 86 board for everyone and Broken goes on Issues. Running low, Not finished and For tomorrow go straight into tonight's handover. The rest goes under Logged tonight.",
   "Log it and send on WhatsApp puts it in the team chat from your phone, so everyone knows now.",
 ], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
+const WALK_COUNT = { t: "Stock count", how: [
+  "Shift, Stock, Count stock: every place in the order you walk it. Not counted yet shows only what's left.",
+  "Tap an item: + for each full, sealed bottle, then the open one on the scale in grams (or tap how full it is). Next › opens the one after.",
+  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
+], tip: "No signal in the cellar? It saves anyway and sends when you're back." };
 const WALK_SEND = { t: "Hand over and send", how: [
   "Shift, Handover: tap who closed, then check Running low, Outstanding and For tomorrow. Whatever the team logged is already in.",
   "Tap Hand over and send on WhatsApp. It saves for the morning team and opens WhatsApp with the whole close in tick boxes: pick the team chat and send.",
@@ -49,11 +55,7 @@ const WALK = {
       "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
       "The timer at the top shows how long the close is taking against the team's best.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
-    { t: "Stock count", how: [
-      "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
-      "Tap a line, + and − for full ones, tap how full the open bottle is, then Next. Or say it: “Smirnoff two and a half”.",
-      "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
-    ], tip: "No signal in the cellar? It saves anyway and sends when you're back." },
+    WALK_COUNT,
     WALK_SEND,
   ],
   floor: [
@@ -76,11 +78,7 @@ const WALK = {
       "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
       "The timer at the top shows how long the close is taking against the team's best.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
-    { t: "Stock count", how: [
-      "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
-      "Tap a line, + and − for full ones, tap how full the open bottle is, then Next. Or say it: “Smirnoff two and a half”.",
-      "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
-    ], tip: "No signal in the cellar? It saves anyway and sends when you're back." },
+    WALK_COUNT,
     WALK_SEND,
   ],
 };
