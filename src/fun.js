@@ -294,10 +294,20 @@ function qnPlayerHtml(q) {
     <div class="qn-opts">${x.opts.map((o, j) => `<button class="qn-o q${j}${mine === o ? " mine" : ""}${show && o === x.answer ? " right" : show ? " dim" : ""}" data-qn-pick="${esc(o)}"${mine != null || show ? " disabled" : ""}><b>${QN_LETTER[j]}</b><span translate="no">${esc(o)}</span></button>`).join("")}</div>
     ${show ? `<p class="qz-said" role="status"><b>${mine === x.answer ? "Right!" : mine == null ? "Too slow this time." : "Not this one."}</b></p>` : mine != null ? `<p class="note">Locked in. Watch the big screen.</p>` : ""}</div>`;
 }
+// Quiz night couldn't load: say why, with Try again, never an endless "Loading".
+let qnWaitT = null;
+function qnWaitHtml() {
+  const e = LIVE.quizErr, why = e === "permission-denied" ? "Quiz night isn't switched on for the team yet: maintenance needs to publish the new Firebase rules. The daily drill and bar phrases work now."
+    : e ? "Quiz night couldn't load. Check the signal and try again."
+    : !navigator.onLine ? "No signal. Quiz night needs it, because everyone's answers go to the big screen."
+    : qnWaitT === "slow" ? "Still loading. The signal may be weak." : "Loading quiz night…";
+  if (!e && qnWaitT === null) qnWaitT = setTimeout(() => { qnWaitT = "slow"; if (cur === "fun" && FN.view === "quiz") renderFun(); }, 8000);
+  return `<div class="card"><h2>Quiz night</h2><p class="note" role="status">${why}</p>${e || qnWaitT === "slow" || !navigator.onLine ? `<div class="actions"><button class="btn" data-fn="qn-retry">Try again</button><button class="btn" data-fn="home">Back to games</button></div>` : ""}</div>`;
+}
 function qnHtml() {
   const back = `<button class="back" data-fn="home">‹ Games and drills</button>`;
   if (!LIVE.me) return `${back}<div class="card"><h2>Quiz night</h2><p class="note">Join the team first: quiz night runs through the team side, so everyone's answers reach the big screen.</p><div class="actions"><button class="btn pri" data-fn="join">Join the team</button></div></div>`;
-  if (!LIVE.loaded.has("quiz")) return `${back}<p class="note">Loading. Needs signal.</p>`;
+  if (LIVE.quizErr || !LIVE.loaded.has("quiz")) return back + qnWaitHtml();
   const q = qnLive(), z = LIVE.quiz;
   // Just finished: the host and everyone who played still see the scores, until someone starts the next one.
   if (!q && z?.state === "end" && Date.now() - ms(z.at) < QN_STALE && (qnHost() || qnPlayers().some((p) => p.uid === LIVE.uid)))
@@ -433,7 +443,7 @@ function funScreen() {
   return false;
 }
 // Leaving the page: a drill in progress counts as done, and quiz night stops listening (it costs reads).
-function funLeave() { if (DRUN && !DRUN.over) drillEnd(); DRUN = null; PRUN = null; if (FN.view !== "quiz") FN.view = "home"; LIVE.api?.watchQuiz(false); }
+function funLeave() { clearTimeout(qnWaitT); qnWaitT = null; if (DRUN && !DRUN.over) drillEnd(); DRUN = null; PRUN = null; if (FN.view !== "quiz") FN.view = "home"; LIVE.api?.watchQuiz(false); }
 function funGo(view) { FN.view = view; if (cur === "fun") renderFun(); else show("fun"); scrollTo(0, 0); }
 $("#v-fun").addEventListener("click", (e) => {
   const b = e.target.closest("[data-fn], [data-dr-pick], [data-qn-pick]"); if (!b) return;
@@ -446,6 +456,7 @@ $("#v-fun").addEventListener("click", (e) => {
   if (k === "drill-stop") return drillEnd();
   if (k === "quiz") return funGo("quiz");
   if (k === "wrap") return wrapShare();
+  if (k === "qn-retry") { qnWaitT = null; LIVE.api?.watchQuiz(true, true); return renderFun(); }
   if (k === "qn-new") return qnNew();
   if (k === "qn-go") return qnMove({ state: "q", i: 0 });
   if (k === "qn-show") return qnMove({ state: "show" });

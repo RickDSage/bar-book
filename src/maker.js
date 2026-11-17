@@ -748,12 +748,14 @@ function mkBarPane() {
     <div style="margin-top:12px">${mkTypeBox("bar", "Add a bottle, juice or syrup")}</div>${mine}
     <div class="h3">Add from the list</div>${mkCatsHtml(on, "mk-bar")}`;
 }
+// "Only what My bar can make" counts only once My bar has something in it: an empty bar would leave nothing to spin.
+const mkRndMine = () => mk.rnd.mine && mk.bar.length > 0;
 function mkPool() {
   return D.filter((d) => (mk.rnd.mode === "any" || (mk.rnd.mode === "zero") === (mkKids(d) === "zero"))
     && (mk.rnd.mode !== "alc" || mk.rnd.kind === "all" || (mk.rnd.kind === "spritz" ? /Spritz/.test(d.section) : mkKids(d) === mk.rnd.kind))
     && (!mk.rnd.mood || d.tags.some((t) => FLAVOURS[mk.rnd.mood].includes(t)))
     && (!mk.rnd.base || mk.rnd.mode === "zero" || d._b === mk.rnd.base)
-    && !isOut(d.name) && plOutOf(d).ok && (!mk.rnd.mine || mkCanMake(d)));
+    && !isOut(d.name) && plOutOf(d).ok && (!mkRndMine() || mkCanMake(d)));
 }
 function mkRndCard(d) {
   if (!d) return `<div class="mk-rnd"><p class="sub" style="margin:0">Tap Spin and the book picks one for you.</p></div>`;
@@ -784,8 +786,8 @@ function mkRndPane() {
     ${mk.rnd.mode === "alc" ? `<div class="chips hrow">${[["all", "Any"], ["cocktail", "Cocktail"], ["spritz", "Spritz"], ["shot", "Shot"]].map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.kind === k}" data-mk-rkind="${k}">${l}</button>`).join("")}</div>` : ""}
     <div class="mini">Mood</div><div class="chips hrow">${Object.keys(FLAVOURS).map((k) => `<button class="chip" aria-pressed="${mk.rnd.mood === k}" data-mk-rmood="${esc(k)}">${esc(k)}</button>`).join("")}</div>
     ${mk.rnd.mode === "zero" ? "" : `<div class="mini">Spirit</div><div class="chips hrow">${MK_SPIRITS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.rnd.base === k}" data-mk-rbase="${k}">${l}</button>`).join("")}</div>`}
-    <div class="mk-opts"><button class="chip" aria-pressed="${mk.rnd.mine}" data-mk-rmine="1">Only what My bar can make</button></div>
-    <p class="note">${pool.length} ${pool.length === 1 ? "drink" : "drinks"} in the hat.${mk.rnd.mine && !mk.bar.length ? " My bar is empty, so add your bottles first." : ""}${pool.length ? "" : " Take off a mood or spirit."}${MK_SHAKE.can ? " Or shake the phone." : ""}</p>
+    <div class="mk-opts"><button class="chip" aria-pressed="${mkRndMine()}" data-mk-rmine="1"${mk.bar.length ? "" : " disabled"}>Only what My bar can make</button></div>
+    <p class="note">${pool.length} ${pool.length === 1 ? "drink" : "drinks"} in the hat.${mk.bar.length ? "" : " Add bottles to My bar to spin only what you can make."}${pool.length ? "" : " Take off a mood or spirit."}${MK_SHAKE.can ? " Or shake the phone." : ""}</p>
     <div id="mk-rcard">${mkRndCard(mk.rnd.cur && D[mk.rnd.cur])}</div>
     <button class="btn pri mk-spin" data-mk="spin"${pool.length ? "" : " disabled"}>${mk.rnd.cur != null ? "Spin again" : "Spin"}</button>`;
 }
