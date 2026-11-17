@@ -80,9 +80,13 @@ test("a drink's next and previous buttons and the arrow keys move through the li
   assert.deepEqual(p.errs, []);
 });
 
-test("recently opened drinks come back as shortcuts", async () => {
+test("recently opened drinks show when you tap the empty search box", async () => {
   const p = await open({ recent: "[3,7,12]" });
-  assert.equal(await p.$$eval("#quick [data-open]", (x) => x.length), 3);
+  assert.equal(await p.locator("#dpanel").isHidden(), true);
+  await p.focus("#q");
+  assert.equal(await p.$$eval("#dpanel [data-open]", (x) => x.length), 3);
+  await p.fill("#q", "gin");
+  assert.equal(await p.locator("#dpanel").isHidden(), true);
   assert.deepEqual(p.errs, []);
 });
 

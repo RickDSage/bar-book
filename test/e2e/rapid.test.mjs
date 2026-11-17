@@ -96,8 +96,8 @@ test("the Black Tap line-up: serve cards, classics, the shelf and My bar", async
 test("several specs go out as one WhatsApp message, a tick box each", async () => {
   const p = await open();
   await p.click("#w-ok");
-  await p.click("#secs [data-sec='Signatures']");
-  await p.click("#list [data-send=specs]");
+  // Each section heading sends that section's specs.
+  await p.click("#list .sec .ssend >> nth=0");
   const boxes = await p.$$eval("#send [data-send-part]", (x) => x.map((b) => b.checked));
   assert.equal(boxes.length, 8); assert.ok(boxes.every(Boolean));
   const text = await p.evaluate(() => msgText(sndMsg(), snd.pick, "", true));

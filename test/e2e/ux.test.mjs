@@ -21,16 +21,17 @@ test("the drinks search finds pages, and the section counts follow it", async ()
   await S.click('nav.tabs [data-tab="drinks"]');
   await S.fill("#q", "86");
   await S.waitForSelector('#quick [data-goto="stock"]');
-  // A drink word brings no pages, and the chips count what's left.
+  // A drink word brings no pages, and the row under the search says how many drinks are left.
   await S.fill("#q", "gin");
   assert.equal(await S.$("#quick [data-goto]"), null);
-  const all = await S.$eval('#secs [data-sec="All"] .cn', (e) => +e.textContent);
+  const all = +(await S.$eval("#dbar .dj", (e) => e.textContent)).match(/\d+/)[0];
   assert.equal(all, await S.evaluate(() => listIds.length));
   assert.ok(all < 301);
-  // Kinds of drink sit on the Filters row.
+  // Kinds of drink are in Filters.
   await S.fill("#q", "");
-  await S.click('#plf [data-pl-fam="martini"]');
-  assert.equal(await S.$eval('#plf [data-pl-fam="martini"]', (b) => b.getAttribute("aria-pressed")), "true");
+  await S.click("#dbar [data-dp=filters]");
+  await S.click('#dpanel [data-pl-fam="martini"]');
+  assert.equal(await S.$eval('#dpanel [data-pl-fam="martini"]', (b) => b.getAttribute("aria-pressed")), "true");
   assert.deepEqual(S.errs, []);
 });
 
