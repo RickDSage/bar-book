@@ -2354,7 +2354,8 @@ function tallyText() {
       return xs.length ? `\n${title}:\n${xs.join("\n")}` : "";
     };
     const c = closeClock(k);
-    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
+    const who = groupsOf(k).filter(([g]) => g).map(([g, xs]) => { const w = secWho(k, xs.map(([i]) => i)); return !w.first ? "" : `- ${g}: ${!w.last || w.last === w.first ? `${openOf(k, xs.map(([i]) => i)).length ? "started" : "done"} by ${w.first}` : `started by ${w.first}, finished by ${w.last}`}`; }).filter(Boolean);
+    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}${who.length ? `\nWho did each part:\n${who.join("\n")}` : ""}`;
   };
   return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}${loggedLines().length ? `\n\nLogged tonight:\n${loggedLines().map((l) => `- ${l}`).join("\n")}` : ""}`;
 }
@@ -2533,7 +2534,7 @@ function checklistHtml(k) {
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
     const on = g && left ? onIt(k, xs) : [];
-    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${on.length || !LIVE.me ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">I'll do this</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${on.length ? `<p class="lon"><b translate="no">${esc(on.join(", "))}</b> on it</p>` : ""}` : "";
+    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${!LIVE.me || on.includes(LIVE.me) ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">${on.length ? "Take over" : "I'll do this"}</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${secWhoHtml(k, xs, left, on)}` : "";
     // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
     const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
@@ -2546,11 +2547,26 @@ function checklistHtml(k) {
 // Splitting the close: "I'll do this" on a heading starts everything not yet started under it in your name, so the
 // others see who has that part and pick another. It is the same Start as on each item (no new data), so Stop on an
 // item, Done or Tick all carry on as usual. The heading names whoever has started something under it.
+// Who started a heading's part and who finished it, from tonight's record of every tick: someone who leaves early is
+// still named for what they did, and whoever takes over is named for finishing it.
+function secWho(k, ids) {
+  const ev = LIVE.events.filter((e) => e.kind === "task" && e.list === k && ids.includes(e.item) && (e.to === "doing" || e.to === "done")).sort((a, b) => ms(a.at) - ms(b.at));
+  const done = ev.filter((e) => e.to === "done");
+  return { first: ev[0]?.name || "", last: done.at(-1)?.name || "" };
+}
+function secWhoHtml(k, xs, left, on) {
+  const w = secWho(k, xs.map(([i]) => i)), now = on.filter((n) => n !== w.first);
+  const t = !w.first ? (on.length ? `<b translate="no">${esc(on.join(", "))}</b> on it` : "")
+    : !left ? (w.first === w.last ? `Done by <b translate="no">${esc(w.first)}</b>` : `Started by <b translate="no">${esc(w.first)}</b> · finished by <b translate="no">${esc(w.last)}</b>`)
+    : `Started by <b translate="no">${esc(w.first)}</b>${now.length ? ` · now <b translate="no">${esc(now.join(", "))}</b>` : on.includes(w.first) ? "" : " · nobody on it now"}`;
+  return t ? `<p class="lon">${t}</p>` : "";
+}
 const onIt = (k, xs) => [...new Set(xs.filter(([i]) => statusOf(k, i) === "doing").map(([i]) => { const x = taskOf(k, i); return x && lastMove(k, i, x).name; }).filter(Boolean))];
 function claimGroup(k, g) {
   if (isLocked(k)) return toast(`${LISTS[k].title} is finished. Reopen it to change anything`);
   const ids = shown(k).filter(([i]) => groupOf(k, i) === g && statusOf(k, i) === "todo").map(([i]) => i);
-  if (!ids.length) return toast("Nothing left to start there");
+  // Taking over from someone who left: what they started stays in their name, and each tick from here is in yours.
+  if (!ids.length) return toast(openOf(k, shown(k).filter(([i]) => groupOf(k, i) === g).map(([i]) => i)).length ? `${g}: it's yours. Tick each one as you finish it` : "Nothing left to start there");
   haptic();
   const p = Promise.all(ids.map((i) => LIVE.api.setTask(k, i, itemText(k, i), "doing")))
     .then(() => { if (!runOf(k)) { const q = progress(k); return LIVE.api.setRun(k, LISTS[k].title, "started", q.n, q.of); } });
@@ -3259,13 +3275,28 @@ function labelsReport() {
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
-    <p class="note">The close, or anything you worked on. Take them here or choose from your photos: they go with your report.</p>
-    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
+    <p class="note">Any time of the shift, from a phone or the iPad. Each one is saved for tonight straight away (with no signal it waits on the phone, even if the app is closed) and goes with the handover. Send now shares one on WhatsApp as well.</p>
+    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div></div>`).join("")}
     ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
       : photoBusy ? `<p class="note" role="status">Adding…</p>`
       : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
 }
 let photoBusy = false;
+// A saved photo as a file, made straight away (no waiting), because the share sheet only opens from the tap itself.
+function dataFile(url, name) {
+  const bin = atob(url.slice(url.indexOf(",") + 1)), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new File([u], name, { type: "image/jpeg" });
+}
+// Send now: the photo on its own to the share sheet (WhatsApp and the rest). It stays saved for tonight either way.
+function sendPhotoNow(id) {
+  const p = LIVE.draftPhotos.find((x) => x.id === id); if (!p) return;
+  const f = dataFile(p.data, `${(p.note || "closing-photo").replace(/[^\w ]+/g, "").trim().slice(0, 40).replace(/ +/g, "-") || "closing-photo"}.jpg`);
+  if (navigator.canShare?.({ files: [f] })) return navigator.share({ files: [f] }).catch(() => {});
+  const u = URL.createObjectURL(f), a = document.createElement("a"); a.href = u; a.download = f.name; a.target = "_blank"; a.rel = "noopener";
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000);
+  toast("This phone can't share photos straight to apps: it's opened to save instead");
+}
 // Phone photos are several MB; shrink to a JPEG under about 450 KB (600,000 characters of text) so each fits in one
 // database record and a month of them stays well inside the free storage. The rules refuse anything over 700,000.
 async function shrink(file) {
@@ -3511,6 +3542,7 @@ $("#tally").addEventListener("click", async (e) => {
     track(LIVE.api.askRestock({ item, qty, unit: rsF.unit, dest: rsDest(), detail: rsF.detail.trim() }), "Asked. The team can see it now", "Not sent. Try again");
     haptic(); Object.assign(rsF, { item: "", other: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
   }
+  const ps = e.target.closest("[data-ph-send]"); if (ps) { sendPhotoNow(ps.dataset.phSend); return; }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
   const oq = e.target.closest("[data-out-quick]"); if (oq) { const n = oq.dataset.outQuick; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return; }
