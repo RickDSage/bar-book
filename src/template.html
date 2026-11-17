@@ -33,22 +33,30 @@
   --paper: #f6f1e7;     /* pictures sit on a light card, like the printed guides */
   --shadow: rgba(0,0,0,.5);
 }
-/* Daylight: the same brass and wood, darkened so text keeps at least 4.5:1 contrast on paper. */
+/* Daylight: as punchy as dark. Near-black ink on warm paper, pure white cards that lift off it with a soft shadow,
+   and a deeper, richer amber. Every text colour here keeps at least 4.5:1 on both paper and white (WCAG AA). */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f6f1e6;
-  --surface: #fffdf8;
-  --line: #d8cdb9;
-  --fg: #1f1b16;
-  --muted: #665c4e;
-  --brass: #8a5a0b;
-  --brass-ink: #fffaf0;
-  --warn: #b0361b;
-  --ok: #2d7a3a;
-  --cool: #2a5f9e;
-  --game: #6a3fb0;
-  --shadow: rgba(60,40,10,.18);
+  --bg: #f3ecdf;
+  --surface: #ffffff;
+  --line: #d6c8ae;
+  --fg: #14110d;
+  --muted: #5a4f40;
+  --brass: #a14f00;     /* 4.9:1 on paper, 5.8:1 on white, and white on it is 5.8:1 */
+  --brass-ink: #ffffff;
+  --warn: #b42318;
+  --ok: #17772f;
+  --cool: #1d4ed8;
+  --game: #6d28d9;
+  --shadow: rgba(70,40,5,.16);
+  --lift: 0 1px 2px rgba(70,40,5,.08), 0 3px 10px rgba(70,40,5,.07);
 }
+/* Depth: cards, tiles, groups and buttons sit on the page instead of melting into it. Dark mode has no --lift. */
+:root[data-theme="light"] :is(.card, .tile, .hub, .seg, .how, .sendsum, .sendpre, .search input) { box-shadow: var(--lift); }
+:root[data-theme="light"] :is(.chip, .btn, .round, .hbtn, .mult button):not([aria-pressed="true"]):not(.pri):not(:disabled) { background-color: var(--surface); box-shadow: 0 1px 2px rgba(70,40,5,.08); }
+:root[data-theme="light"] :is(.btn.pri, .chip[aria-pressed="true"], .seg button[aria-pressed="true"], .mult button[aria-pressed="true"]) { box-shadow: 0 2px 6px rgba(161,79,0,.28), inset 0 1px 0 rgba(255,255,255,.18); }
+:root[data-theme="light"] .chip { color: var(--fg); }
+:root[data-theme="light"] nav.tabs { box-shadow: 0 -2px 12px rgba(70,40,5,.08); }
 /* Black and gold: the owner's pick. Black, with gold for headings, tabs and buttons (gold on black is 9:1). */
 :root[data-theme="gold"] {
   --bg: #0a0a0a;
@@ -178,6 +186,7 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .facts dt { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .facts dd { margin: 2px 0 0; font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
 .h3 { font-family: var(--display); font-size: 22px; color: var(--brass); text-transform: uppercase; margin: 22px 0 6px; }
+.h3.tm-sub { font-family: inherit; font-size: 13px; font-weight: 700; letter-spacing: .06em; color: var(--muted, inherit); margin: 18px 0 2px; }
 .spec { list-style: none; margin: 0; padding: 0; }
 .spec li { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 18px; }
 .spec .q { font-weight: 700; color: var(--brass); text-align: right; }
@@ -1032,7 +1041,7 @@ function applyTheme() {
   let t = "auto"; try { t = JSON.parse(localStorage.getItem("btbar.theme")) || "auto"; } catch {}
   const light = t === "light" || (t === "auto" && LIGHT.matches), theme = t === "gold" ? "gold" : light ? "light" : "dark";
   document.documentElement.dataset.theme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", { light: "#f6f1e6", dark: "#15130f", gold: "#0a0a0a" }[theme]);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", { light: "#f3ecdf", dark: "#15130f", gold: "#0a0a0a" }[theme]);
 }
 applyTheme(); LIGHT.addEventListener("change", applyTheme);
 </script>
@@ -2034,7 +2043,7 @@ function quizStart(night) {
 // A go as "1" or "0" for each question, and how many of those are right.
 const qzMarks = (x) => x.qs.map((q, j) => (x.picks[j] === q.answer ? "1" : "0")).join("");
 const qzScore = (right) => [...right].filter((c) => c === "1").length;
-// Tonight's first go on this phone. Scores stay on the phone: nobody else sees them.
+// Tonight's first go on this phone. Logged in, it also goes to the managers' Training page (quizDone).
 const qzHere = () => { const x = store.get("qzNight", null); return x?.day === shiftDay() ? x : null; };
 const qzFirst = () => !qzHere();
 // The first go is kept as it goes, so a guest at the bar or a closed app doesn't lose it: Stop, and it carries on
@@ -2559,7 +2568,8 @@ function secWhoHtml(k, xs, left, on) {
   const w = secWho(k, xs.map(([i]) => i)), now = on.filter((n) => n !== w.first);
   const t = !w.first ? (on.length ? `<b translate="no">${esc(on.join(", "))}</b> on it` : "")
     : !left ? (w.first === w.last ? `Done by <b translate="no">${esc(w.first)}</b>` : `Started by <b translate="no">${esc(w.first)}</b> · finished by <b translate="no">${esc(w.last)}</b>`)
-    : `Started by <b translate="no">${esc(w.first)}</b>${now.length ? ` · now <b translate="no">${esc(now.join(", "))}</b>` : on.includes(w.first) ? "" : " · nobody on it now"}`;
+    : !now.length && on.includes(w.first) ? `<b translate="no">${esc(w.first)}</b> on it`
+    : `Started by <b translate="no">${esc(w.first)}</b>${now.length ? ` · now <b translate="no">${esc(now.join(", "))}</b>` : " · nobody on it now"}`;
   return t ? `<p class="lon">${t}</p>` : "";
 }
 const onIt = (k, xs) => [...new Set(xs.filter(([i]) => statusOf(k, i) === "doing").map(([i]) => { const x = taskOf(k, i); return x && lastMove(k, i, x).name; }).filter(Boolean))];
@@ -4917,6 +4927,7 @@ const IC = {
   features: '<path d="M12 3l2.6 5.6L20 9.3l-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.4-.7z"/>',
   siri: '<path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   fun: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
+  replay: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/><path d="M10.5 9.5l4 2.5-4 2.5z"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
@@ -4929,14 +4940,19 @@ function renderInfo() {
     <div class="sec">Drinks</div>
     <div class="hub">
       ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
-      ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards and tonight's quiz")}
       ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A page per kind of drink, to send to WhatsApp or print")}
-      ${hubRow("fun", 'data-go="fun"', "Games and drills", "Daily drill with a streak, quiz night, your month, Spin and the spec of the day")}
       ${mode !== "bar" && !stationOn ? "" : hubRow("station", 'data-go="station"', "Bar station", stationOn ? "On: this iPad opens on it. Exit bar station turns it off" : "Turn this iPad into the bar station: big drink search and specs, rounds, tonight's 86s and the close")}
+    </div>
+    <div class="sec">Training</div>
+    <div class="hub">
+      ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards, tonight's quiz, speed drills, Bar 101 and the new starter path")}
+      ${hubRow("fun", 'data-go="fun"', "Games and drills", "Daily drill with a streak, quiz night, Bar phrases, your month and Spin for a drink")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
       ${hubRow("features", "data-guide", "Guide: how Bar Book works", "Your shift step by step, every section, and a search for anything")}
+      ${hubRow("replay", `data-walk-open="${mode}"`, "Replay the walkthrough", `Your ${mode} shift step by step, opening to handover`)}
+      ${hubRow("replay", "data-intro-open", "Replay the tour", `Everything Bar Book does, ${INTRO.length} short cards`)}
       ${hubRow("siri", "data-sc-open", "Siri and shortcuts", "\u201cHey Siri, Bar Book 86\u201d: open any page by voice or a tap on the back of the phone")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
     </div>
@@ -5024,8 +5040,8 @@ const FEATURES = [
     what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
     staff: "Tap an allergen to see every drink with it." },
   { g: "Drinks", k: "practice", n: "Practise", go: "tab:practice", tour: 1,
-    what: "Flashcards on the specs, and tonight's quiz: 10 questions from our own specs, the same for everyone.",
-    staff: "Practise one section or everything, and take tonight's quiz. Your score stays on your phone." },
+    what: "Flashcards on the specs, tonight's quiz (the same 10 for everyone), speed drills against the clock, Bar 101 for what to say when a guest asks, and the new starter path.",
+    staff: "Practise one section or everything. Bar 101 remembers the cards you know and asks the rest first. Your first go at tonight's quiz, your drills and Bar 101 show on the managers' Training page; your best times stay on your phone." },
   { g: "Drinks", k: "sheets", n: "Cheat sheets", go: "tab:sheets",
     what: "A4 pages to print double-sided and laminate for behind the bar, a section of drinks on each." },
   { g: "Drinks", k: "info", n: "More", go: "tab:info",
@@ -5034,7 +5050,7 @@ const FEATURES = [
     what: "Everything about your pay in one tab: add your payslips and every month is broken down by itself (hours, your rate plus tronc an hour, tax, National Insurance and take-home), with your next pay predicted from your average hours and tronc, holiday built up, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
     staff: "Tap Add payslips and pick your payslips, a year's at once if you like, or Type it in to put the figures in by hand. Change the hours or tronc an hour under any month still to come to see what it would pay." },
   { g: "Shift", k: "morning", n: "Morning", go: "morning", team: 1, tour: 1,
-    what: "Last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
+    what: "Before you open: a short brief of what matters today (tap the ring to play it full screen, one card at a time). Then last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
     staff: "Read the handover, send that it's checked with anything outstanding, send the order and the prep list on WhatsApp." },
   { g: "Shift", k: "lists", n: "Closing checklists", go: "shift", team: 1, tour: 1,
     what: "The bar and floor closes, ticked off live on every phone, with how long it's taking and who has ticked what.",
@@ -5091,9 +5107,6 @@ const FEATURES = [
   { g: "Drinks", k: "siri", n: "Siri and shortcuts", go: "siri",
     what: "A link for each page (86, Rapid fire, Closing, Handover, Labels, Bar station, Drill, Quiz night) to save as a Shortcut, so Siri or a double tap on the back of the phone opens it.",
     staff: "Copy a link, paste it into the Shortcuts app, name it, and say it." },
-  { g: "Team", k: "spin", n: "Spin the wheel", go: "spin",
-    what: "Who does the bins, who goes on break first, who picks the music: tap the names and spin.",
-    staff: "Spin, then tell the team on WhatsApp." },
   { g: "Team", k: "call", n: "Who to call", go: "call", team: 1,
     what: "Emergency and utility numbers, and the venue's own. A tap calls.",
     mgr: "Add and remove the venue's numbers." },
@@ -5102,10 +5115,11 @@ const FEATURES = [
     staff: "Share the Bar Book link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. Maintenance adds or removes the managers and their codes." },
 ];
 const navCols = () => ($("nav.tabs").style.gridTemplateColumns = `repeat(${[...$$("nav.tabs [data-tab]")].filter((b) => !b.hidden).length}, 1fr)`);
-const fUsable = (f) => !f.team || !!LIVE.me;
+// adm: managers only; own: Maintenance only.
+const fUsable = (f) => (!f.team || !!LIVE.me) && (!f.adm || LIVE.admin) && (!f.own || LIVE.owner);
 function featHtml() {
   const card = (f) => {
-    const can = fUsable(f), why = can ? "" : "Join the team first";
+    const can = fUsable(f), why = can ? "" : !LIVE.me ? "Join the team first" : f.own ? "Maintenance only" : "Managers only";
     return `<article class="notice feat" data-feat="${f.k}"><div class="fh"><b>${f.n}</b>${why ? ` <span class="pill">${why}</span>` : ""}</div>
       <p class="txt">${f.what}</p>${f.staff ? `<p class="s"><b>Staff:</b> ${f.staff}</p>` : ""}${f.mgr ? `<p class="s"><b>Managers:</b> ${f.mgr}</p>` : ""}
       ${can ? `<div class="actions"><button class="btn" data-feat-go="${f.k}">Open it</button></div>` : ""}</article>`;
@@ -5114,7 +5128,7 @@ function featHtml() {
     <p class="lead">The drinks, the shift and the team in one app, for the bar and floor. Here's every feature and what it's for.</p>
     <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without joining you get the drinks, the cocktail maker, Allergens, Practise, More, My pay and the WhatsApp tools. Join with the team code for the rest: no login or password."}</p>
     <div class="actions"><button class="btn pri" id="tour-go">Take the tour (${tourSteps().length} steps)</button></div>
-    ${[...new Set(FEATURES.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${FEATURES.filter((f) => f.g === g).map(card).join("")}`).join("")}`;
+    ${(() => { const xs = featSorted(FEATURES); return [...new Set(xs.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${xs.filter((f) => f.g === g).map(card).join("")}`).join(""); })()}`;
 }
 function openFeatures() {
   lastFocus = document.activeElement;
@@ -5160,7 +5174,7 @@ $("#sheet").addEventListener("click", (e) => {
 });
 // The tour: a card over the app for each step, opening each feature in turn.
 let tourAt = -1;
-const tourSteps = () => FEATURES.filter((f) => f.tour && fUsable(f));
+const tourSteps = () => featSorted(FEATURES.filter((f) => f.tour && fUsable(f)));
 function tour(i) {
   const xs = tourSteps();
   if (i < 0 || i >= xs.length) { tourAt = -1; $("#tour").hidden = true; return; }
@@ -5547,29 +5561,6 @@ SHARE.team = () => ({ what: "Bar Book link", title: "Bar Book",
   head: ["Open this on your phone, pick your name and type the team code. Ask a manager for the code in person.", appLink()],
   parts: [], noteHead: null, tip: "Never write the team code in a message: say it in person." });
 
-/* ---------- Spin the wheel ----------
-   Who does the bins, who goes on break first, who picks the music: tap the names, say what for, spin. */
-let spinF = { names: [], what: "", got: "", rolling: false };
-function spinHtml() {
-  return `<label class="fld">What for<input data-spin="what" maxlength="60" value="${esc(spinF.what)}" placeholder="Bins, first break, music, last glass run…"></label>
-    ${nameChips("", "data-spin-name").replace(/aria-pressed="false"/g, "").replace(/data-spin-name="([^"]+)"/g, (m, n) => `${m} aria-pressed="${spinF.names.includes(n.replace(/&amp;/g, "&"))}"`)}
-    <div class="actions"><button class="btn pri" id="spin-go"${spinF.names.length < 2 || spinF.rolling ? " disabled" : ""}>Spin (${spinF.names.length})</button><button class="btn" id="spin-all">Everyone</button><button class="btn" id="spin-none">Nobody</button></div>
-    <div class="spin" id="spin-out" aria-live="polite" translate="no">${esc(spinF.got) || "?"}</div>
-    ${spinF.got && !spinF.rolling ? `<div class="actions">${sendBtn("spin", "Tell the team on WhatsApp")}</div>` : ""}`;
-}
-function spin() {
-  const xs = spinF.names; if (xs.length < 2) return;
-  spinF.rolling = true; renderCard("spin");
-  let n = 0; const steps = 18 + Math.floor(Math.random() * xs.length);
-  const go = () => {
-    const out = $("#spin-out"); spinF.got = xs[Math.floor(Math.random() * xs.length)];
-    if (out) out.textContent = spinF.got; haptic();
-    if (++n < steps) setTimeout(go, 40 + n * 9); else { spinF.rolling = false; renderCard("spin"); }
-  };
-  go();
-}
-SHARE.spin = () => (spinF.got ? { what: "Spin the wheel", title: `🎡 ${spinF.what || "The wheel has spoken"}`, head: [`${spinF.got} it is!`, `Out of ${spinF.names.join(", ")}`], parts: [], noteHead: null } : null);
-
 /* ---------- Who to call ----------
    Britain's emergency and utility lines, then the venue's own numbers, which the manager keeps. A tap calls. */
 const CALL_UK = [
@@ -5789,9 +5780,29 @@ const TC_SUB = { quick: "Tonight's report, the handover, the 86 list, running la
 const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${TC_SUB[k] ? `<small class="tsub">${TC_SUB[k]}</small>` : ""}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
 // For the owner and seniors, everything they look after comes first under Manager, then the same Team cards as
 // everyone. A ["§", title, html] entry is a heading.
+// The managers' cards, sorted into headings so the page reads in the order a manager needs it. A card not listed here
+// goes under the last heading, so nothing new is ever lost.
+const MGR_GROUPS = [
+  ["Needs you", ["tells", "inbox", "setup"]],
+  ["Tonight and the week", ["reports", "replay", "sent", "outlog", "week", "lblog", "pilot"]],
+  ["Stock and the menu", ["order", "season", "venue"]],
+  ["Training", ["training"]],
+  ["People and codes", ["people", "names", "seniors", "mgr"]],
+  ["Safety net", ["history", "backup", "health"]],
+];
+function mgrGrouped(cards) {
+  const left = new Map(cards.map((c) => [c[0], c])), out = [];
+  for (const [t, ks] of MGR_GROUPS) {
+    const xs = ks.filter((k) => left.has(k)).map((k) => left.get(k)); ks.forEach((k) => left.delete(k));
+    if (t === MGR_GROUPS.at(-1)[0]) xs.push(...left.values());
+    if (xs.length) out.push(["§", t, null, "sub"], ...xs);
+  }
+  return out;
+}
 const CARDS = () => [
   ...(LIVE.admin ? [
     ["§", "Manager", glanceHtml],
+    ...mgrGrouped([
     ...(LIVE.owner ? [["tells", "App feedback from the team", tellsHtml, newTells().length ? { t: `${newTells().length} new`, hot: 1 } : ""]] : []),
     ["inbox", "Inbox from the team", inboxHtml, newAsks().length ? { t: `${newAsks().length} new`, hot: 1 } : ""],
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
@@ -5803,6 +5814,8 @@ const CARDS = () => [
       ["mgr", "Maintenance settings", mgrHtml, LIVE.gate?.tries >= LIVE.api.GATE_MAX ? { t: "joining locked", hot: 1 } : ""]] : []),
     ...mgCards(),
     ...sdCards(),
+    ...mgHealthCard(),
+    ]),
     ["§", "Team"],
   ] : []),
   ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager or maintenance? Unlock with your code", unlockHtml]] : []),
@@ -5812,10 +5825,9 @@ const CARDS = () => [
   ["rate", "Team only: rate the shift", rateHtml, draftPill("rate")],
   ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : draftPill("issue")]] : []),
   ...(LIVE.me && !LIVE.owner ? [["tell", "App feedback", tellHtml, draftPill("tell")]] : []),
-  ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
-  ...mgHealthCard(),
+  ...(LIVE.admin ? [] : mgHealthCard()),
 ];
 // Everything that goes out on WhatsApp in one place: tonight's, then your own.
 function quickHtml() {
@@ -5891,7 +5903,7 @@ function renderTeam() {
   if ($("#v-notices").hidden) return;
   const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if (!typing($("#tm-top"))) $("#tm-top").innerHTML = topHtml();
-  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = sinceHtml() + CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
+  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = sinceHtml() + CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3${sub ? " tm-sub" : ""}">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
   renderBell();
 }
 function renderNotices() { renderTeam(); }
@@ -5908,7 +5920,6 @@ $("#v-notices").addEventListener("input", (e) => {
   if (t.dataset.rt) { rateF[t.dataset.rt] = t.value; store.set("rateDraft", rateF); }
   if (t.dataset.is) isF[t.dataset.is] = t.type === "checkbox" ? t.checked : t.value;
   if (t.dataset.fixt) fixText[t.dataset.fixt] = t.value;
-  if (t.dataset.spin) spinF[t.dataset.spin] = t.value;
   if (t.dataset.tell) tellF[t.dataset.tell] = t.value;
   if (t.dataset.cl) clF[t.dataset.cl] = t.value;
   if (t.dataset.askReply) askReply[t.dataset.askReply] = t.value;
@@ -6040,11 +6051,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   }
   if ((x = b("[data-tell-done]"))) return track(A.tellDone(x.dataset.tellDone), "Marked done");
   if ((x = b("[data-tell-drop]"))) { if (confirm("Remove this for good?")) track(A.dropTell(x.dataset.tellDrop), "Removed"); return; }
-  // Spin the wheel.
-  if ((x = b("[data-spin-name]"))) { const n = x.dataset.spinName; spinF.names = spinF.names.includes(n) ? spinF.names.filter((y) => y !== n) : [...spinF.names, n]; spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-all")) { spinF.names = allStaff(); spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-none")) { spinF.names = []; spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-go")) return spin();
   // Who to call (the manager keeps the venue's numbers).
   if (b("#cl-add")) {
     const c = { t: clF.t.trim(), n: clF.n.trim(), p: clF.p.trim() };

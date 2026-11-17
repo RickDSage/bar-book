@@ -17,10 +17,10 @@ test("floor close: I'll do this takes a heading in your name, the others see it,
   const shake = await groupIds(A, "Milkshake bar");
   await A.click('[data-claim=fclose][data-g="Milkshake bar"]');
   await B.waitForFunction((ids) => ids.every((i) => LIVE.tasks[`fclose-${i}`]?.status === "doing" && !LIVE.tasks[`fclose-${i}`].pending), shake);
-  // Anub sees it's taken: Mounika's name on the heading, and no I'll do this there. Other headings are still free.
+  // Anub sees it's taken: Mounika's name on the heading, and Take over there instead of I'll do this. Other headings are still free.
   await B.waitForSelector(".lon");
   assert.match(await B.locator(".lon").first().innerText(), /Mounika on it/);
-  assert.equal(await B.locator('[data-claim=fclose][data-g="Milkshake bar"]').count(), 0);
+  assert.equal(await B.locator('[data-claim=fclose][data-g="Milkshake bar"]').innerText(), "Take over");
   assert.equal(await B.locator('[data-claim=fclose][data-g="Terrace"]').count(), 1);
   // Only that heading started; the run started too, so the clock shows.
   assert.equal(await B.evaluate(() => Object.values(LIVE.tasks).filter((x) => x.status === "doing").length), shake.length);
