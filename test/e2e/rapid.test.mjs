@@ -10,7 +10,7 @@ after(async () => { await browser.close(); site.close(); });
 
 async function open(width = 390) {
   const c = await browser.newContext({ viewport: { width, height: 844 }, isMobile: true, timezoneId: "Europe/London", colorScheme: "dark", reducedMotion: "reduce" });
-  await c.addInitScript(() => localStorage.setItem("btbar.introSeen", "true"));
+  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))));
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = [];

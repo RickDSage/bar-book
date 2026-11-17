@@ -449,6 +449,10 @@ LIVE.api = {
       qty: to === "delivered" ? m : to === "received" ? g : null, unit: r.unit, dest: r.dest, note, v, ...me() });
     return b.commit();
   },
+  // Log it: one line in tonight's day log (events), with the name and the time. what is note, told, low, open or next.
+  logIt: (side, what, label) => setDoc(doc(db, "events", `g-${doc(collection(db, "events")).id}`), { kind: "log", day: shiftDay(), area: side, what, label, note: "", ...me() }),
+  // Its writer or a manager can take one off.
+  dropLog: (id) => deleteDoc(doc(db, "events", id)),
   addPhoto: (data, side) => addDoc(collection(db, "photos"), { data, note: "", report: null, side, ...me() }),
   saveDraft: (side, x) => { const day = shiftDay(); return setDoc(doc(db, "drafts", `${day}-${side}`), { day, side, ...x, ...me() }); },
   dropDraft: (side) => deleteDoc(doc(db, "drafts", `${shiftDay()}-${side}`)),
