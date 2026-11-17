@@ -2,7 +2,7 @@
 // clock, Clear everything for anyone, and the owner's master clear.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, adminWrite, part, handOver } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, adminWrite, part, handOver, pick86, pickRows, pickClose } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -204,9 +204,13 @@ test("the bar station shows tonight's 86s and both closes live, and a tap opens 
   await O.evaluate(() => LIVE.api.set86("Mojito", true));
   await S.waitForFunction(() => [...$$("#sx-list .sx-row.out")].some((r) => /^Mojito/.test(r.innerText)));
   // Any ingredient typed on the station goes on the board under the stock list's name, and the spec shows the swap.
-  await S.fill("#sx-86q", "lime juice"); await S.click("[data-sx-86go]");
-  await O.waitForFunction(() => [...LIVE.out].some((n) => /^lime juice$/i.test(n) || /^Limes?$/i.test(n) || /lime juice/i.test(n)));
-  await S.fill("#sx-86q", "Veggie burger"); await S.keyboard.press("Enter");
+  await pick86(S, "lime juice", "Lime juice", "#sx-86q");
+  await O.waitForFunction(() => LIVE.out.has("Lime juice"));
+  // Several at once: tick them, then one 86 for all. Anything not on the list goes on as typed.
+  await pickRows(S, "red bull", "#sx-86q"); await S.click('#pk-list [data-pk-tog="Red Bull"]'); await S.click('#pk-list [data-pk-tog="Red Bull Sugarfree"]');
+  await S.click("[data-pk-go=out]");
+  await O.waitForFunction(() => LIVE.out.has("Red Bull") && LIVE.out.has("Red Bull Sugarfree"));
+  await S.fill("#pk-q", "Veggie burger"); await S.click("[data-pk-typed]"); await pickClose(S);
   await O.waitForFunction(() => LIVE.out.has("Veggie burger"));
   await S.waitForFunction(() => /Veggie burger/.test($("#v-station .st-86").innerText));
   await S.click('[data-sx-back="Veggie burger"]');

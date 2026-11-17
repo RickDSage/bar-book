@@ -2,7 +2,7 @@
 // and managers' adds wait for Maintenance; once on, it's on the 86 list, restocking, the date labels and closing.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, pickRows, pickClose, pick86 } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -24,7 +24,6 @@ const wiki = (p, down = false) => p.route("https://en.wikipedia.org/**", (r) => 
   r.fulfill({ json: { query: { pages: (WIKI[q] || []).map(([title, description], i) => ({ title, description, index: i + 1 })) } } });
 });
 const look = async (p, name) => { if (!(await p.$eval("#it-add", (e) => e.open))) await p.click("#it-add summary"); await p.fill("#it-name", name); await p.click("#it-look"); await p.waitForSelector(".itf"); };
-const opts = (p, sel) => p.$$eval(`${sel} optgroup`, (gs) => Object.fromEntries(gs.map((g) => [g.label, [...g.children].map((o) => o.textContent)])));
 
 test("staff add Rubicon Mango: it's worked out, waits for Maintenance, then it's on the 86 list, restocking and closing", async () => {
   await resetEmulators();
@@ -43,7 +42,7 @@ test("staff add Rubicon Mango: it's worked out, waits for Maintenance, then it's
   await S.waitForFunction(() => LIVE.items.length === 1 && !LIVE.items[0].pending);
   assert.match(await text(S, "#it-add"), /Rubicon Mango Waiting for Maintenance/);
   // Not on the lists yet, and nobody but Maintenance can put it on.
-  assert.equal((await opts(S, "#s-86"))["Soft drinks and mixers"].includes("Rubicon Mango"), false);
+  assert.equal((await pickRows(S, "rubicon")).includes("Rubicon Mango"), false); await pickClose(S);
   const x = await S.evaluate(() => LIVE.items[0]);
   assert.equal(await attempt(S, (x) => LIVE.api.saveItem(x, x), x), "permission-denied");
   assert.equal(await attempt(M, (x) => LIVE.api.saveItem(x, x), x), "permission-denied");
@@ -63,13 +62,14 @@ test("staff add Rubicon Mango: it's worked out, waits for Maintenance, then it's
   const now = await S.evaluate(() => LIVE.items[0]);
   assert.equal(now.addedBy, "Sam Staff");
   await S.evaluate(() => { document.activeElement.blur(); renderTally(); });
-  const g = await opts(S, "#s-86");
-  assert.equal(g["Soft drinks and mixers"].filter((n) => n === "Rubicon Mango").length, 1, "on the 86 list once, beside the other softs");
-  // 86 it from the list: the one board has it.
-  await S.selectOption("#s-86", "Rubicon Mango");
+  assert.deepEqual(await S.evaluate(() => pkPool().filter((x) => x.n === "Rubicon Mango").map((x) => x.c)), ["mixers"], "on the 86 list once, beside the other softs");
+  // 86 it from the picker: the one board has it.
+  await pick86(S, "rubicn mango", "Rubicon Mango");
   await O.waitForFunction(() => LIVE.out.has("Rubicon Mango"));
   // Restocking has it too, and the bar's closing page says what to do with it.
-  assert.equal((await opts(S, "#rs-item"))["Soft drinks and mixers"].includes("Rubicon Mango"), true);
+  assert.equal((await pickRows(S, "rubicon", "#rs-item")).includes("Rubicon Mango"), true);
+  await S.click('#pk-list [data-pk-tog="Rubicon Mango"]');
+  assert.match(await text(S, "#rs-item"), /Rubicon Mango/);
   await pane(S, "close");
   await S.click("#it-close summary");
   assert.match(await text(S, "#it-close"), /Putting away: 1 added item Leave it where it lives Rubicon Mango · Bottle fridge · Opened bottle or can left over: bin it\. Restock the fridge\./i);
@@ -94,7 +94,7 @@ test("strawberries are on the stock list already: adding them says where they're
   await S.waitForFunction(() => LIVE.items.some((x) => x.item === "Strawberries" && x.status === "live" && !x.pending) && LIVE.labels.some((x) => x.item === "Strawberries" && !x.pending));
   assert.deepEqual(await S.evaluate(() => { const l = LIVE.labels.find((x) => x.item === "Strawberries"); return [l.side, l.life, l.on]; }), ["bar", 3, true]);
   await pane(S, "stock");
-  assert.equal((await opts(S, "#s-86"))["Fruit and garnish"].filter((n) => n === "Strawberries").length, 1, "still one line on the 86 list");
+  assert.equal((await pickRows(S, "strawberries")).filter((n) => n === "Strawberries").length, 1, "still one line on the 86 list"); await pickClose(S);
   await S.click("#it-add summary");
   await S.click("#it-list summary");
   assert.match(await text(S, "#it-list"), /Strawberries Fruit and garnish Fridge · date label, keeps 3 days once opened · at close: cover, label and fridge/);
@@ -161,9 +161,10 @@ test("typos and other languages: lymes 86s Limes, strawbery is Strawberries, Hin
   });
   // The 86 box takes a typo and 86s the stock list's own name, so the drinks see it.
   await pane(S, "stock");
-  await S.fill("#s-86-own", "lymes"); await S.click("#s-86-go");
+  assert.equal((await pickRows(S, "lymes"))[0], "Limes");
+  await S.press("#pk-q", "Enter"); await pickClose(S);
   await O.waitForFunction(() => LIVE.out.has("Limes"));
-  assert.equal(await toastOf(S), "Limes 86'd (you typed “lymes”)");
+  assert.match(await toastOf(S), /^Limes 86'd for everyone/);
   // A typo of something we stock is the stock list's item.
   await pane(O, "stock");
   await look(O, "strawbery");

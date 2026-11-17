@@ -30,6 +30,7 @@ const WALK = {
       "Shift, Bar has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
       "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top.",
+      "Ran out? Stock, Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
     ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
     WALK_NAV,
     { t: "Opening", how: [
@@ -56,7 +57,7 @@ const WALK = {
     { t: "Your floor shift", how: [
       "Shift, Floor has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "86 anything, food too: type it, like a burger or a dessert, and every phone knows.",
+      "86 anything, food too: Stock, Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
     ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
     WALK_NAV,
     { t: "Opening", how: [

@@ -2,7 +2,7 @@
 // Tasks and restocking have their own file, tasks.test.mjs.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, part, handOver } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, part, handOver, pick86, pickRows, pickClose } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -14,10 +14,10 @@ test("the 86 board is shared, says who did it, and keeps a log everyone can read
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=stock]");
-  await S.selectOption("#s-86", "Guinness");
+  await pick86(S, "guiness", "Guinness");
   await O.waitForFunction(() => LIVE.out.has("Guinness"));
-  await S.waitForSelector('[data-back="Guinness"]');
-  assert.match(await S.$eval('[data-back="Guinness"]', (e) => e.parentElement.innerText), /86'd by Sam Staff/);
+  await S.waitForSelector('[data-out-back="Guinness"]');
+  assert.match(await S.$eval('[data-out-back="Guinness"]', (e) => e.parentElement.innerText), /86'd by Sam Staff/);
 
   await O.evaluate(() => openSheet(D.find((d) => d.name === "Negroni").id));
   await O.click("#sh-86");
@@ -26,7 +26,8 @@ test("the 86 board is shared, says who did it, and keeps a log everyone can read
   assert.match(await S.$eval(".outbar", (e) => e.innerText), /By Olly Owner/);
   await S.evaluate(() => closeSheet());
 
-  await S.click('[data-back="Guinness"]');
+  await S.click('[data-out-back="Guinness"]');
+  assert.equal(await S.evaluate(() => cur), "tally", "Back in stock stays on the Shift page");
   await O.waitForFunction(() => !LIVE.out.has("Guinness") && LIVE.outlog.length === 3);
   assert.deepEqual(await O.evaluate(() => LIVE.outlog.map((x) => `${x.itemName} ${x.action} ${x.name}`).reverse()),
     ["Guinness out Sam Staff", "Negroni out Olly Owner", "Guinness back Sam Staff"]);
