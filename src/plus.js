@@ -113,7 +113,7 @@ function plStatsHtml(d, n = 1) {
 }
 
 /* ---------- Serves, batching and ml or oz ---------- */
-const PL = { oz: store.get("oz", false), ticks: { id: null, spec: new Set(), steps: new Set() }, base: null, how: null, fam: null, sort: store.get("sort", "menu"), open: false, list: null, sq: null, can: false };
+const PL = { oz: store.get("oz", false), ticks: { id: null, spec: new Set(), steps: new Set() }, base: null, how: null, fam: null, sort: store.get("sort", "menu"), list: null, sq: null, can: false };
 const PL_SERVES = [1, 2, 3, 4, 6, 8, 10, 12];
 function plServesHtml() {
   const i = Math.max(0, PL_SERVES.indexOf(mult)), pv = PL_SERVES[Math.max(0, i - 1)], nx = PL_SERVES[Math.min(PL_SERVES.length - 1, i + 1)];
@@ -246,25 +246,28 @@ function plSort(rows) {
 // The filters that are on, each with how to take it off. Sort isn't a filter: it shows on its own button.
 const plOn = () => [PL.fam && ["fam", PL_FAMS.find((f) => f[0] === PL.fam)[1]], PL.can && ["can", "What we can make"], PL.base && ["base", PL_SPIRITS.find((x) => x[0] === PL.base)[1]], flav && ["flav", flav], PL.how && ["how", PL.how]].filter(Boolean);
 const plActive = () => [...plOn().map((x) => x[1]), PL.sort !== "menu" && PL_SORTS.find((x) => x[0] === PL.sort)[1]].filter(Boolean);
+// Above the menu: the shared list you're looking at, and each filter that's on (a tap takes it off). Nothing otherwise.
 function renderPlf() {
   const box = $("#plf"); if (!box) return;
-  const on = plOn(), sortName = PL_SORTS.find((x) => x[0] === PL.sort)[1], chips = (list, key, cur) => list.map(([k, l]) => `<button class="chip" data-pl-${key}="${esc(k)}" aria-pressed="${cur === k}">${esc(l)}</button>`).join("");
-  const tastes = [...Object.keys(FLAVOURS), "No alcohol"].map((f) => [f, f]);
+  const on = [...plOn(), ...(PL.sort !== "menu" ? [["sort", `Sort: ${PL_SORTS.find((x) => x[0] === PL.sort)[1]}`]] : [])];
   box.innerHTML = (PL.list ? `<div class="pl-list"><span>📋 <b translate="no">${esc(PL.list.name)}</b> · ${PL.list.names.size} ${PL.list.names.size === 1 ? "drink" : "drinks"}</span>${PL.list.saved ? `<button class="chip" data-pl="droplist">Delete list</button>` : `<button class="chip" data-pl="savelist">☆ Save to favourites</button>`}<button class="chip" data-pl="endlist" aria-label="Close the list">✕</button></div>` : "")
-    // One row: Filters, Sort, then each filter that's on (tap one to take it off).
-    + `<div class="pl-bar"><button class="chip pl-fbtn" data-pl="filters" aria-expanded="${PL.open}">Filters${on.length ? ` <span>(${on.length})</span>` : ""}</button><button class="chip pl-fbtn" data-pl="filters">Sort: <span>${esc(sortName)}</span></button>${!PL.open ? on.filter(([k]) => k !== "fam").map(([k, l]) => `<button class="chip pl-on pl-off" data-pl-off="${k}" aria-label="Take off ${esc(l)}">${esc(l)}</button>`).join("") + (on.length > 1 ? `<button class="chip" data-pl="clear">Clear all</button>` : "")
-      // Kinds of drink (Martinis, Margaritas, Spritzes…) on the same row, one tap away.
-      + (PL.list ? "" : PL_FAMS.filter((f) => PL.fam === f[0] || D.some((d) => inSec(d) && f[2](d))).map(([k, l]) => `<button class="chip fam" data-pl-fam="${k}" aria-pressed="${PL.fam === k}">${esc(l)}</button>`).join("")) : ""}</div>`
-    + (PL.open ? `<div class="pl-panel"><div class="mini">Sort</div><div class="chips">${chips(PL_SORTS, "sort", PL.sort)}</div>
-      ${plOutKeys().size ? `<div class="mini">Tonight</div><div class="chips"><button class="chip" data-pl-can aria-pressed="${PL.can}">Only what we can make</button></div>` : ""}
+    + (on.length ? `<div class="pl-bar">${on.map(([k, l]) => `<button class="chip pl-on pl-off" data-pl-off="${k}" aria-label="Take off ${esc(l)}">${esc(l)}</button>`).join("")}${on.length > 1 ? `<button class="chip" data-pl="clear">Clear all</button>` : ""}</div>` : "");
+}
+// The Filters panel under the search: your saved lists, sort, and every way to narrow the menu, all on show at once.
+function plPanel() {
+  const chips = (list, key, cur) => list.map(([k, l]) => `<button class="chip" data-pl-${key}="${esc(k)}" aria-pressed="${cur === k}">${esc(l)}</button>`).join("");
+  const tastes = [...Object.keys(FLAVOURS), "No alcohol"].map((f) => [f, f]), lists = plLists();
+  return `<div class="pl-panel">${lists.length ? `<div class="mini">Your lists</div><div class="chips">${lists.map((x, i) => `<button class="chip" data-mylist="${i}">📋 ${esc(x.name)} <span class="cn">${x.drinks.length}</span></button>`).join("")}</div>` : ""}
       <div class="mini">Kind of drink</div><div class="chips">${chips(PL_FAMS.map(([k, l]) => [k, l]), "fam", PL.fam)}</div>
+      ${plOutKeys().size ? `<div class="mini">Tonight</div><div class="chips"><button class="chip" data-pl-can aria-pressed="${PL.can}">Only what we can make</button></div>` : ""}
       <div class="mini">Spirit</div><div class="chips">${chips(PL_SPIRITS, "base", PL.base)}</div>
       <div class="mini">What does the guest fancy?</div><div class="chips">${chips(tastes, "flav", flav)}</div>
       <div class="mini">How it's made</div><div class="chips">${chips(PL_HOW.map(([k]) => [k, k]), "how", PL.how)}</div>
-      <div class="pl-row"><button class="btn" data-pl="clear">Clear all</button><button class="btn pri" data-pl="filters">Show ${listIds.length} ${listIds.length === 1 ? "drink" : "drinks"}</button></div></div>` : "");
+      <div class="mini">Sort</div><div class="chips">${chips(PL_SORTS, "sort", PL.sort)}</div>
+      <div class="pl-row"><button class="btn" data-pl="clear">Clear all</button><button class="btn pri" data-pl="done">Show ${listIds.length} ${listIds.length === 1 ? "drink" : "drinks"}</button></div></div>`;
 }
 document.addEventListener("click", (e) => {
-  const b = e.target.closest("#plf button"); if (!b) return;
+  const b = e.target.closest("#plf button, #dpanel .pl-panel button"); if (!b || "mylist" in b.dataset) return;
   const ds = b.dataset;
   if ("plCan" in ds) PL.can = !PL.can;
   else if (ds.plBase) PL.base = PL.base === ds.plBase ? null : ds.plBase;
@@ -272,12 +275,12 @@ document.addEventListener("click", (e) => {
   else if (ds.plFam) PL.fam = PL.fam === ds.plFam ? null : ds.plFam;
   else if (ds.pl === "droplist") { if (!confirm(`Delete the list "${PL.list.name}" from this phone?`)) return; plSaveLists(plLists().filter((x) => x.name !== PL.list.name)); PL.list = null; toast("List deleted"); }
   else if (ds.plFlav) flav = flav === ds.plFlav ? null : ds.plFlav;
-  else if (ds.plOff) { if (ds.plOff === "can") PL.can = false; else if (ds.plOff === "flav") flav = null; else PL[ds.plOff] = null; }
+  else if (ds.plOff) { if (ds.plOff === "can") PL.can = false; else if (ds.plOff === "flav") flav = null; else if (ds.plOff === "sort") { PL.sort = "menu"; store.set("sort", "menu"); } else PL[ds.plOff] = null; }
   else if (ds.plSort) { PL.sort = ds.plSort; store.set("sort", PL.sort); }
-  else if (ds.pl === "filters") PL.open = !PL.open;
+  else if (ds.pl === "done") { dp = null; scrollTo(0, 0); }
   else if (ds.pl === "clear") { PL.base = PL.how = PL.fam = flav = null; PL.can = false; PL.sort = "menu"; store.set("sort", "menu"); }
   else if (ds.pl === "endlist") { PL.list = null; if (location.hash.startsWith("#list=")) history.replaceState(null, "", location.pathname + location.search); }
-  else if (ds.pl === "savelist") { for (const n of PL.list.names) fav.add(n); store.set("fav", [...fav]); renderChips(); toast(`${PL.list.names.size} drinks in your favourites`); return; }
+  else if (ds.pl === "savelist") { for (const n of PL.list.names) fav.add(n); store.set("fav", [...fav]); renderBar(); toast(`${PL.list.names.size} drinks in your favourites`); return; }
   haptic(); renderList();
 });
 
@@ -423,7 +426,7 @@ function plOpenList(hash) {
   const names = new Set(m[2].split(".").map((s) => PL_BY_SLUG.get(s)?.name).filter(Boolean));
   if (!names.size) return false;
   PL.list = { name: decodeURIComponent(m[1]) || "Drinks list", names };
-  sec = "All"; flav = null; $("#q").value = ""; renderChips(); show("drinks"); renderList();
+  favOnly = false; flav = null; $("#q").value = ""; show("drinks"); renderList();
   return true;
 }
 let plQrLib = null;
@@ -435,11 +438,11 @@ function plOpenSaved(i) {
   const x = plLists()[i]; if (!x) return;
   const names = new Set(x.drinks.map((s) => PL_BY_SLUG.get(s)?.name).filter(Boolean));
   PL.list = { name: x.name, names, saved: true };
-  sec = "All"; flav = null; $("#q").value = ""; renderChips(); show("drinks"); renderList();
+  favOnly = false; flav = null; $("#q").value = ""; show("drinks"); renderList();
 }
 function openListMaker(ids) {
   if ($("#sheet").hidden) lastFocus = document.activeElement;
-  const name = PL.list?.name || (sec !== "All" ? sec.replace(/^★ /, "") : "Tonight's drinks");
+  const name = PL.list?.name || (favOnly ? "Favourites" : "Tonight's drinks");
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Share as a list</span><span></span></div></div>
     <div id="pl-lm"><p class="lead" style="margin-top:12px">A link that opens the Bar Book on just these ${ids.length} drinks. Good for tonight's specials, a practice set or a party.</p>
     <label class="fld">Name of the list<input id="pl-ln" maxlength="60" value="${esc(name)}"></label>

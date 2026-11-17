@@ -120,8 +120,9 @@ header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; backg
 .search { margin-top: 8px; display: flex; gap: 8px; }
 .search input { flex: 1; min-width: 0; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; -webkit-appearance: none; appearance: none; }
 .search input::placeholder { color: var(--muted); }
-.chips { display: flex; gap: 8px; overflow-x: auto; padding-block: 10px 2px; scrollbar-width: none; margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.chips::-webkit-scrollbar { display: none; }
+/* Chip rows wrap onto a second line instead of scrolling sideways, so no chip is ever cut off at the screen edge. */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 10px 2px; }
+.chips .chip { max-width: 100%; white-space: normal; text-align: start; }
 .chip { flex: none; min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 15px; white-space: nowrap; }
 .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); font-weight: 700; }
 
@@ -139,7 +140,7 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .row .g { width: 40px; height: 46px; color: var(--fg); }
 .row .g svg { width: 100%; height: 100%; }
 .row .n { font-weight: 700; font-size: 17px; }
-.row .s { color: var(--muted); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.row .s { color: var(--muted); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .row > div { min-width: 0; }
 .price { font-weight: 700; text-align: right; white-space: nowrap; }
 .price i { display: block; font-style: normal; font-weight: 400; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
@@ -207,9 +208,28 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .seg.dseg button { line-height: 1.15; white-space: nowrap; padding-inline: 4px; }
 #hdr #hdr-drinks[hidden] { display: none; }
 #hdr .search { margin-top: 10px; }
-/* The section chips fade at the edge while there are more to swipe to. */
-#secs { -webkit-mask-image: linear-gradient(to right, #000 85%, transparent); mask-image: linear-gradient(to right, #000 85%, transparent); }
-#secs.end { -webkit-mask-image: none; mask-image: none; }
+/* Menu: one row under the search, always all on screen. Jump to a section (it names the one you're in), Filters,
+   Favourites. Each opens a panel under the row, so the menu itself is just drinks. */
+.dbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; padding-top: 10px; }
+.dbar .chip { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--fg); font-weight: 600; min-width: 48px; }
+.dbar .chip b { color: var(--brass); }
+.dbar .dj { justify-content: space-between; text-align: start; }
+.dbar .dj span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dbar .dj::after { content: "▾"; color: var(--brass); flex: none; }
+.dbar .dj:disabled { opacity: 1; color: var(--muted); }
+.dbar .dj:disabled::after { content: none; }
+.dbar .chip[aria-expanded="true"], .dbar .chip[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
+.dpanel { max-height: 60vh; max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 8px; }
+.dpanel .pl-panel { margin-top: 8px; }
+.djump { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: 8px; }
+.djump.az { grid-template-columns: repeat(6, 1fr); }
+.djump button { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 44px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-weight: 600; font-size: 15px; text-align: start; line-height: 1.2; }
+.djump.az button { justify-content: center; color: var(--brass); }
+.djump button .cn { color: var(--muted); font-weight: 400; font-size: 13px; }
+.djump button[aria-current="true"] { border-color: var(--brass); color: var(--brass); }
+.dpanel .recent { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: 8px; }
+.dpanel .recent .mini { flex: 1 1 100%; margin: 0; }
+#list .sec .ssend { float: right; font-family: var(--body); font-size: 13px; text-transform: none; color: var(--brass); font-weight: 600; padding: 6px 0 6px 12px; margin-top: -4px; }
 /* More: rows that open a page, like a phone's own settings. */
 .pgt { font-size: 28px; margin-top: 12px; }
 .hub { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
@@ -281,8 +301,6 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .calday[aria-pressed="true"].has::after { background: var(--brass-ink); }
 .calday:disabled { opacity: .3; }
 .payrt { float: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-.recent.paytabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 10px; overflow: visible; }
-.recent.paytabs .chip { padding: 8px 2px; font-size: 14px; text-align: center; white-space: normal; line-height: 1.15; }
 .paysteps { margin: 8px 0 4px; padding-left: 22px; line-height: 1.5; }
 .paysteps li { margin: 4px 0; }
 .paysteps li:last-child { font-size: 18px; }
@@ -608,7 +626,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .cat > summary::-webkit-details-marker { display: none; }
 .cat > summary > span:first-child { flex: 1; min-width: 0; }
 .cat > summary b { display: block; font-size: 18px; }
-.cat > summary small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat > summary small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
 .cat > summary::after { content: "›"; flex: none; font-size: 22px; color: var(--muted); transition: transform .15s; }
 .cat[open] > summary::after { transform: rotate(90deg); }
 .cat[open] > summary small { display: none; }
@@ -857,7 +875,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .pl-daily .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--brass); font-weight: 700; }
 .pl-daily b { font-size: 18px; } .pl-daily small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-daily .go { font-size: 28px; color: var(--brass); }
-.pl-bar { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
+.pl-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 2px; }
 .pl-bar .pl-fbtn { color: var(--fg); } .pl-bar .pl-fbtn span { color: var(--brass); font-weight: 700; }
 .pl-on { color: var(--brass); border-color: var(--brass); }
 .pl-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 12px 12px; margin-top: 8px; }
@@ -872,7 +890,8 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 #list, #rp-out { --jb: 0px; }
 #list.jb, #rp-out.jb { --jb: 46px; }
 .azbar button[aria-current="true"] { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
-#rp-out .sec, #list .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
+#list .sec { margin: 0; padding: 18px 0 4px; }
+#rp-out .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
 #list .anc, #rp-out .anc { display: block; scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); }
 .azsec { scroll-margin-top: 190px; }
 .pl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
@@ -917,7 +936,8 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <nav class="seg dseg" id="subnav" aria-label="Drinks"><button data-tab="rapid">⚡ Rapid fire</button><button data-tab="drinks">Menu</button><button data-tab="make">Make</button></nav>
   <div id="hdr-drinks">
     <div class="search"><input id="q" type="search" placeholder="Search drink, spirit or glass" autocomplete="off" enterkeyhint="search" aria-label="Search drinks"></div>
-    <div class="chips" id="secs" role="toolbar" aria-label="Sections"></div>
+    <div class="dbar" id="dbar" role="toolbar" aria-label="Find a drink"></div>
+    <div class="dpanel" id="dpanel" hidden></div>
   </div>
 </header>
 
@@ -1253,35 +1273,50 @@ const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.de
 const issueLines = (x) => [`${x.title} · ${AREA[x.area] || "Other"}${x.status === "taken" && x.who ? `, ${x.who} is on it` : ", nobody on it yet"}`, ...(x.detail ? [subLine(x.detail)] : [])];
 
 /* ---------- Drinks list ---------- */
-const CATS = {
-  "Signatures": ["Black Tap Signatures"],
-  "Cocktails": ["Fresh & Fruity", "Tiki & Tropical", "Sour & Zesty", "Martinis", "Bold & Stirred", "Long & Refreshing", "After Dinner", "Born in NYC"],
-  "Spritz & serves": ["Spritz & Sparkling", "Perfect Serves"],
-  "Shots & bombs": ["Classic Shots", "House Shots", "Bombs & Boilermakers"],
-  "No alcohol": ["Zero Proof"],
-  "Pitchers": ["Pitchers"],
-};
-const CHIPS = ["All", "\u2605 Favourites", ...Object.keys(CATS)];
+// One row under the search: Jump to (the section you're in), Filters and Favourites. Each opens a panel under it.
+let favOnly = store.get("favOnly", false);
 let fav = new Set(store.get("fav", []));
-let sec = store.get("sec", "All");
-if (!CHIPS.includes(sec)) sec = "All";
-const inSec = (d) => sec === "All" || (sec === CHIPS[1] ? fav.has(d.name) : CATS[sec].includes(d.section));
-// The drinks the search and filters leave, so each section chip counts what tapping it would show.
-let chipPool = D;
-function renderChips() {
-  // Each with how many drinks it holds, so it's clear before tapping.
-  const P = chipPool, n = (c) => (c === "All" ? P.length : c === CHIPS[1] ? P.filter((d) => fav.has(d.name)).length : P.filter((d) => CATS[c].includes(d.section)).length);
-  $("#secs").innerHTML = CHIPS.map((s) => `<button class="chip" aria-pressed="${s === sec}" data-sec="${esc(s)}">${esc(s)}${s !== CHIPS[1] || fav.size ? ` <span class="cn">${n(s)}</span>` : ""}</button>`).join("");
-  secsEdge();
+const favOk = (d) => !favOnly || fav.has(d.name);
+// The menu's sections by their short names, so they fit the button and the jump list.
+const SEC_SHORT = { "Black Tap Signatures": "Signatures", "Bombs & Boilermakers": "Bombs", "Zero Proof": "No alcohol" };
+const secName = (x) => SEC_SHORT[x] || x;
+// The panel that's open under the row: "jump", "filters", "recent" (search box tapped with nothing in it) or null.
+let dp = null, jumpParts = [], jumpLabel = "";
+function renderBar() {
+  const on = plOn().length + (PL.sort !== "menu" ? 1 : 0), n = fav.size;
+  const jump = jumpParts.length ? `<button class="chip dj" data-dp="jump" aria-expanded="${dp === "jump"}" aria-label="Jump to a section"><span>${esc(jumpLabel || secName(jumpParts[0][1]))}</span></button>`
+    : `<button class="chip dj" disabled><span>${listIds.length} ${listIds.length === 1 ? "drink" : "drinks"}</span></button>`;
+  $("#dbar").innerHTML = jump
+    + `<button class="chip" data-dp="filters" aria-expanded="${dp === "filters"}">Filters${on ? ` <b>${on}</b>` : ""}</button>`
+    + `<button class="chip" data-fav aria-pressed="${favOnly}" aria-label="Favourites only">\u2605${n ? ` ${n}` : ""}</button>`;
+  const box = $("#dpanel");
+  box.hidden = !dp;
+  if (dp === "jump") {
+    const az = jumpParts.length && jumpParts[0][0].startsWith("az-");
+    box.innerHTML = `<div class="djump${az ? " az" : ""}">${jumpParts.map(([id, t, c]) => `<button data-jump="${id}" aria-current="${secName(t) === jumpLabel}">${esc(secName(t))}${c ? ` <span class="cn">${c}</span>` : ""}</button>`).join("")}</div>`;
+  } else if (dp === "filters") box.innerHTML = plPanel();
+  else if (dp === "recent") box.innerHTML = `<div class="recent"><div class="mini">Opened recently</div>${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>`;
+  else box.innerHTML = "";
 }
-// The fade at the end of the section chips goes once you've swiped to the last one.
-const secsEdge = () => { const c = $("#secs"); c.classList.toggle("end", c.scrollLeft + c.clientWidth >= c.scrollWidth - 4); };
-$("#secs").addEventListener("scroll", secsEdge, { passive: true });
-addEventListener("resize", secsEdge);
-$("#secs").addEventListener("click", (e) => {
-  const b = e.target.closest("[data-sec]"); if (!b) return;
-  sec = b.dataset.sec; store.set("sec", sec); renderChips(); renderList();
+const dpSet = (k) => { dp = k; renderBar(); };
+$("#dbar").addEventListener("click", (e) => {
+  const b = e.target.closest("button"); if (!b || b.disabled) return;
+  haptic();
+  if ("fav" in b.dataset) { favOnly = !favOnly; store.set("favOnly", favOnly); dp = null; renderList(); return scrollTo(0, 0); }
+  dpSet(dp === b.dataset.dp ? null : b.dataset.dp);
 });
+$("#dpanel").addEventListener("click", (e) => {
+  const j = e.target.closest("[data-jump]"); if (j) { dpSet(null); jumpGo(document.getElementById(j.dataset.jump)); return; }
+  const o = e.target.closest("[data-open]"); if (o) { dpSet(null); $("#q").blur(); return openSheet(+o.dataset.open); }
+  const ml = e.target.closest("[data-mylist]"); if (ml) { haptic(); dp = null; plOpenSaved(+ml.dataset.mylist); scrollTo(0, 0); }
+});
+// A tap anywhere else, or Escape, closes the panel.
+// (The path, not the target: the tapped button may have just been redrawn.)
+document.addEventListener("click", (e) => { if (dp && dp !== "recent" && !e.composedPath().some((x) => x.id === "dbar" || x.id === "dpanel")) dpSet(null); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape" && dp) dpSet(null); });
+// Tapping the empty search box shows what you opened last, like a phone's own search.
+$("#q").addEventListener("focus", () => { if (!$("#q").value.trim() && recent.length) dpSet("recent"); });
+$("#q").addEventListener("blur", () => setTimeout(() => { if (dp === "recent") dpSet(null); }, 250));
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
@@ -1297,7 +1332,7 @@ function rowHtml(d) {
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)} · ${esc(blurb(d))}${plOutTag(d)}</div></div></button>`;
 }
-let recent = store.get("recent", []).filter((id) => D[id]);
+var recent = store.get("recent", []).filter((id) => D[id]);
 const FLAVOURS = {
   "Fruity": ["Fruity"], "Sweet": ["Sweet"], "Sour": ["Sour", "Zesty", "Citrus"], "Fresh & light": ["Fresh", "Light", "Easy"],
   "Fizzy": ["Fizzy"], "Tropical": ["Tropical"], "Creamy": ["Creamy", "Silky", "Rich"], "Coffee": ["Coffee"],
@@ -1305,66 +1340,69 @@ const FLAVOURS = {
 };
 let flav = null;
 const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Proof" || d.tags.includes("No alcohol") : d.tags.some((t) => FLAVOURS[flav].includes(t)));
+// While you search: pages it matches ("handover", "86") and what a typo was read as. Nothing otherwise.
 function renderQuick(show, q = "") {
-  if (!show) { const f = PL.sq?.fixed || [], go = placeHits(q); $("#quick").innerHTML = (go.length ? `<div class="goto"><span class="mini">Go to</span>${go.map((x) => `<button class="chip" data-goto="${x.go}">${esc(x.n)} ›</button>`).join("")}</div>` : "") + (f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : ""); return; }
-  // Kinds of drink (Martinis, Margaritas, Spritzes…) one tap away; your saved lists; what you opened last. What the
-  // guest fancies, the spirit and the method are in Filters, so there's one place to narrow the list.
-  if (PL.list) { $("#quick").innerHTML = ""; return; }
-  const lists = plLists(), mine = lists.length ? `<div class="mini">Your lists</div><div class="chips hrow">${lists.map((x, i) => `<button class="chip" data-mylist="${i}">📋 ${esc(x.name)} <span class="cn">${x.drinks.length}</span></button>`).join("")}</div>` : "";
-  const rec = recent.length && sec === "All" && !plActive().length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = mine + rec;
+  if (show) { $("#quick").innerHTML = ""; return; }
+  const f = PL.sq?.fixed || [], go = placeHits(q);
+  $("#quick").innerHTML = (go.length ? `<div class="goto"><span class="mini">Go to</span>${go.map((x) => `<button class="chip" data-goto="${x.go}">${esc(x.n)} ›</button>`).join("")}</div>` : "") + (f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : "");
 }
-$("#quick").addEventListener("click", (e) => {
-  const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
-  const ml = e.target.closest("[data-mylist]"); if (ml) { haptic(); plOpenSaved(+ml.dataset.mylist); return; }
-});
 let listIds = D.map((d) => d.id);
 const SEC_ORDER = [...new Set(D.map((d) => d.section))];
 function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const words = q ? plQuery(q).words : [];
   renderQuick(!q, q);
-  chipPool = D.filter((d) => plHits(d, words) && flavHit(d) && plOk(d)); renderChips();
-  let rows = chipPool.filter(inSec);
+  if (q && dp === "recent") dp = null;
+  let rows = D.filter((d) => plHits(d, words) && flavHit(d) && plOk(d) && favOk(d));
   const flat = !!q || PL.sort !== "menu";
   // The menu keeps each section together, in menu order, so nothing hides under a repeated heading further down.
   rows = q && PL.sort === "menu" ? plRank(rows, words) : flat ? plSort(rows) : rows.slice().sort((a, b) => SEC_ORDER.indexOf(a.section) - SEC_ORDER.indexOf(b.section) || a.id - b.id);
-  $("#count").textContent = `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}`;
+  const narrowed = !!(favOnly || q || flav || PL.list || plOn().length);
+  $("#count").textContent = narrowed ? `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}` : "";
   listIds = rows.map((d) => d.id);
-  renderPlf();
-  if (!rows.length && sec === CHIPS[1] && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here.</p>`; return; }
-  if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
-  let html = "", last = "";
-  const per = {}; rows.forEach((d) => (per[d.section] = (per[d.section] || 0) + 1));
-  // Every drink shows. A to Z puts a letter heading over each run, the menu a heading over each section; the
-  // heading sticks while you scroll its drinks, and the bar at the top jumps straight to any letter or section.
+  // Every drink shows. The menu puts a heading over each section, A to Z over each letter; Jump to lists them all.
   const az = PL.sort === "az" && rows.length > 12, L = (d) => (/[a-z]/i.test(plNorm(d.name)[0]) ? plNorm(d.name)[0].toUpperCase() : "#");
-  const secs = !flat ? [...new Set(rows.map((d) => d.section))] : [], sid = (x) => `sec-${SEC_ORDER.indexOf(x)}`;
-  if (az) html += `<nav class="azbar" aria-label="Jump to a letter">${[...new Set(rows.map(L))].map((l) => `<button data-jump="az-${l}">${l}</button>`).join("")}</nav>`;
-  else if (secs.length > 1) html += `<nav class="azbar secbar" aria-label="Jump to a section">${secs.map((x) => `<button data-jump="${sid(x)}">${esc(x)}</button>`).join("")}</nav>`;
-  for (const d of rows) {
-    if (az && L(d) !== last) { last = L(d); html += `<i class="anc" id="az-${last}"></i><div class="sec azsec">${last}</div>`; }
-    else if (!flat && d.section !== last) { html += `<i class="anc" id="${sid(d.section)}"></i><div class="sec">${esc(d.section)}<span class="cnt">${per[d.section]}</span></div>`; last = d.section; }
-    html += rowHtml(d);
-  }
-  // A filtered list (a section, a flavour or a search) can go out as one WhatsApp message of specs.
-  if (sec !== "All" || q || flav || PL.list || PL.fam || plActive().length) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
+  const sid = (x) => `sec-${SEC_ORDER.indexOf(x)}`;
+  const groups = new Map();
+  if (az || !flat) for (const d of rows) { const k = az ? L(d) : d.section; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(d); }
+  jumpParts = groups.size > 1 ? [...groups].map(([k, ds]) => [az ? `az-${k}` : sid(k), k, az ? 0 : ds.length]) : [];
+  jumpLabel = jumpParts.length ? secName(jumpParts[0][1]) : "";
+  renderPlf(); renderBar();
+  if (!rows.length && favOnly && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here. Tap \u2605 again to see every drink.</p>`; return; }
+  if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
+  let html = "";
+  if (groups.size) for (const [k, ds] of groups) {
+    // Each section can go out as one WhatsApp message of its specs, straight from its heading.
+    html += az ? `<i class="anc" id="az-${k}"></i><div class="sec azsec">${k}</div>`
+      : `<i class="anc" id="${sid(k)}"></i><div class="sec">${esc(k)}<span class="cnt">${ds.length}</span><button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button></div>`;
+    html += ds.map(rowHtml).join("");
+  } else html += rows.map(rowHtml).join("");
+  // A narrowed list (favourites, a filter or a search) can go out as one WhatsApp message of specs.
+  if (narrowed) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
   $("#list").innerHTML = html;
-  $("#list").classList.toggle("jb", az || secs.length > 1); jumpSync();
+  jumpSync();
 }
 $("#q").addEventListener("input", renderList);
 /* Jump bars (Menu and Rapid fire): a tap goes to that part, the part you're in lights up in the bar, and a sideways
    swipe on the page goes to the next or the previous part. */
 const jumpBox = () => (cur === "drinks" ? $("#list") : cur === "rapid" ? $("#rp-out") : null);
-const jumpGo = (a) => { haptic(); a.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }); };
-document.addEventListener("click", (e) => { const b = e.target.closest(".azbar [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
+const jumpGo = (a) => { haptic(); hdhSet(); a.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }); };
+document.addEventListener("click", (e) => { const b = e.target.closest(".azbar [data-jump], .rpjump [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
 function jumpAt(box) {
   const line = $("#hdr").getBoundingClientRect().bottom + 60, ancs = [...box.querySelectorAll(".anc")];
   let i = 0; ancs.forEach((a, j) => { if (a.getBoundingClientRect().top <= line) i = j; });
   return [ancs, i];
 }
 function jumpSync() {
-  const box = jumpBox(), bar = box?.querySelector(".azbar"); if (!bar) return;
+  const box = jumpBox();
+  // Menu: the Jump to button names the section (or letter) you're scrolled to.
+  if (cur === "drinks") {
+    if (!jumpParts.length) return;
+    const [ancs, i] = jumpAt(box), p = ancs[i] && jumpParts.find((x) => x[0] === ancs[i].id), t = p ? secName(p[1]) : jumpLabel;
+    if (t !== jumpLabel) { jumpLabel = t; const l = $("#dbar .dj span"); if (l) l.textContent = t; }
+    return;
+  }
+  const bar = box?.querySelector(".azbar"); if (!bar) return;
   const [ancs, i] = jumpAt(box), on = ancs[i] && bar.querySelector(`[data-jump="${ancs[i].id}"]`);
   if (!on || on.getAttribute("aria-current") === "true") return;
   bar.querySelectorAll("[aria-current]").forEach((x) => x.removeAttribute("aria-current"));
@@ -1376,7 +1414,7 @@ addEventListener("scroll", () => { if (!jumpRaf) jumpRaf = requestAnimationFrame
 let swStart = null;
 document.addEventListener("touchstart", (e) => {
   const t = e.touches[0];
-  swStart = e.touches.length > 1 || !jumpBox() || !$("#sheet").hidden || e.target.closest(".hrow,.azbar,.chips,input,textarea,.rush") ? null : [t.clientX, t.clientY];
+  swStart = e.touches.length > 1 || !jumpBox() || !$("#sheet").hidden || e.target.closest(".hrow,.azbar,.chips,.dbar,.dpanel,input,textarea,.rush") ? null : [t.clientX, t.clientY];
 }, { passive: true });
 document.addEventListener("touchend", (e) => {
   if (!swStart) return;
@@ -1387,7 +1425,8 @@ document.addEventListener("touchend", (e) => {
   if (a) jumpGo(a);
 }, { passive: true });
 // The sticky jump bar and headings sit under the sticky search bar, whatever its height.
-new ResizeObserver(() => document.documentElement.style.setProperty("--hdh", `${$("#hdr").offsetHeight}px`)).observe($("#hdr"));
+function hdhSet() { document.documentElement.style.setProperty("--hdh", `${$("#hdr").offsetHeight}px`); }
+new ResizeObserver(hdhSet).observe($("#hdr"));
 document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
 
 /* ---------- Spec sheet ---------- */
@@ -1637,7 +1676,7 @@ $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("[data-pl-card]")) { toast("Making the picture…"); plShareCard(D[curId]).catch(() => toast("Picture not made. Try again")); return; }
   if (e.target.closest("[data-pl-print]")) { plPrintCard(D[curId]); return; }
   const mb = e.target.closest("[data-mult]"); if (mb) { const y = $("#sheet").scrollTop; mult = +mb.dataset.mult; openSheet(curId, true); $("#sheet").scrollTop = y; return; }
-  const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderChips(); renderList(); return; }
+  const fb = e.target.closest("#sh-fav"); if (fb) { const n = D[curId].name; fav.has(n) ? fav.delete(n) : fav.add(n); store.set("fav", [...fav]); toast(fav.has(n) ? `${n} added to favourites` : `${n} removed from favourites`); openSheet(curId, true); renderList(); return; }
   const o86 = e.target.closest("#sh-86"); if (o86) { const n = o86.dataset.name, on = !outNow().has(n); setOut(n, on); toast(on ? `${n} marked 86'd` : `${n} back in stock`); openSheet(curId, true); renderList(); return; }
   const st = e.target.closest(".step"); if (st) {
     st.classList.toggle("done"); st.querySelector(".tick").textContent = st.classList.contains("done") ? "Done \u2713" : "Tap when done"; haptic();
@@ -4352,7 +4391,8 @@ function payInner() {
   const f = (k, label, hint = "", mode = "decimal") => `<label class="fld">${label}<input data-pay="${k}" inputmode="${mode}" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
   const M = monthPay(pm), H = M.H, open = (k) => (paySec.has(k) ? " open" : ""), ns = Object.keys(pay.slips).length, xs = inM(pm);
   const panel = hf.open ? hfHtml() : slip.open ? slipPanelHtml() : slipTy.open ? slipTyHtml() : "";
-  const tabs = `<div class="recent paytabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button class="chip" role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}" aria-pressed="${payTab === k}">${t}</button>`).join("")}</div>`;
+  // The same tabs as Shift, under the same kind of page title.
+  const tabs = `<h2 class="pgt">My pay</h2><div class="ptabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}">${t}</button>`).join("")}</div>`;
   if (payTab === "months") return `${tabs}
     <div id="pay-months">${monthsHtml()}</div>
     <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-ty-open>Type it in</button><button class="btn" data-hf-open>Add hours</button></div>`;
@@ -5805,6 +5845,7 @@ function show(tab) {
   $$("#subnav [data-tab]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === tab));
   $("#hdr").hidden = !DRINK_TABS.includes(tab);
   $("#hdr-drinks").hidden = tab !== "drinks";
+  if (tab !== "drinks" && dp) dpSet(null);
   if (tab === "make") renderMaker();
   if (tab === "rapid") showRapid();
   if (tab === "allergens") renderAllergens();
@@ -5844,7 +5885,7 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener("controllerchange", () => { $("#upd").hidden = false; }, { once: true });
   $("#upd").addEventListener("click", () => location.reload());
 }
-renderChips(); renderList();
+renderList();
 // The bar station refreshing itself (a new release, or the morning's fresh start) goes straight back to the station.
 const autoBack = stationOn && (() => { try { const v = sessionStorage.getItem("sx.auto"); sessionStorage.removeItem("sx.auto"); return !!v; } catch { return false; } })();
 if (autoBack) $("#welcome").remove();

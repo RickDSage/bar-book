@@ -30,9 +30,9 @@ test("Rapid fire is one tap from the start page and lists the house cocktails fi
   // The top 10 are big cards with the spec on them, and don't repeat the signatures above.
   assert.match(await p.$eval("#rp-out .rush", (e) => e.innerText), /Pornstar Martini\s+\S/i);
   assert.doesNotMatch(await p.$eval("#rp-out .rush", (e) => e.innerText), /London Cosmo/);
-  // The bar jumps to a part, and a sideways swipe goes to the next one.
-  await p.click('#rp-out .azbar [data-jump="rp-3"]');
-  await p.waitForFunction(() => document.querySelector('#rp-out .azbar [data-jump="rp-3"]').getAttribute("aria-current") === "true");
+  // The grid at the top shows every part and jumps to it.
+  await p.click('#rp-out .rpjump [data-jump="rp-3"]');
+  await p.waitForFunction(() => Math.abs(document.querySelector("#rp-3").getBoundingClientRect().top - $("#hdr").getBoundingClientRect().bottom) < 80);
   // Specs on the page, kept on the phone; search reaches the whole book.
   await p.click("#rp-specs");
   assert.match(await p.$eval("#rp-out", (e) => e.innerText), /The Rockefeller\s+\S/);
@@ -96,8 +96,8 @@ test("the Black Tap line-up: serve cards, classics, the shelf and My bar", async
 test("several specs go out as one WhatsApp message, a tick box each", async () => {
   const p = await open();
   await p.click("#w-ok");
-  await p.click("#secs [data-sec='Signatures']");
-  await p.click("#list [data-send=specs]");
+  // Each section heading sends that section's specs.
+  await p.click("#list .sec .ssend >> nth=0");
   const boxes = await p.$$eval("#send [data-send-part]", (x) => x.map((b) => b.checked));
   assert.equal(boxes.length, 8); assert.ok(boxes.every(Boolean));
   const text = await p.evaluate(() => msgText(sndMsg(), snd.pick, "", true));
