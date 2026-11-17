@@ -2231,8 +2231,11 @@ const hoLines = (id) => ho[id].split("\n").map((x) => x.trim()).filter(Boolean);
 const hoAll = (id) => [...hoLines(id), ...logLines(id)];
 const hoNote = () => HO.filter((f) => hoAll(f.id).length).map((f) => `${f.short}: ${hoAll(f.id).join("\n")}`).join("\n");
 // The handover note and closing manager are for one night: at 6am they start empty again.
-// Tonight's unsent closing photos for this side, whoever took them. Old drafts with no side count for the taker's side.
-const draftPhotos = () => LIVE.draftPhotos.filter((p) => (p.side || (p.uid === LIVE.uid ? mode : "")) === mode);
+// Tonight's unsent closing photos (this business day only, so a close that was never sent can't put last night's
+// photos on tonight's report), for this side, whoever took them. Old drafts with no side count for the taker's side.
+// A photo still saving has no server time yet, so it counts as now.
+const tonightPhotos = () => LIVE.draftPhotos.filter((p) => ukDay((p.at ? p.at.toMillis() : Date.now()) - 6 * 36e5) === shiftDay());
+const draftPhotos = () => tonightPhotos().filter((p) => (p.side || (p.uid === LIVE.uid ? mode : "")) === mode);
 const draftOf = (side) => LIVE.drafts.find((x) => x.day === shiftDay() && x.side === side);
 let draftT = null;
 // The shared draft into this phone: not the box being typed in, and not while this phone's own change is waiting to go.
@@ -2518,7 +2521,7 @@ async function clearAll(master) {
     tasks: lists.flatMap((k) => touched(k).map((i) => ({ k, i, status: statusOf(k, i), note: taskOf(k, i).note || "" }))),
     runs: lists.filter(isLocked).map((k) => ({ k, ...progress(k), note: runOf(k).note || "" })),
     out: [...outNow()],
-    photos: LIVE.draftPhotos.map((x) => ({ data: x.data, side: x.side || mode, note: x.note || "" })),
+    photos: tonightPhotos().map((x) => ({ data: x.data, side: x.side || mode, note: x.note || "" })),
     drafts: Object.keys(MODE_LISTS).map(draftOf).filter(Boolean).map((d) => ({ side: d.side, x: { low: d.low, issues: d.issues, next: d.next, closer: d.closer, noPhotos: d.noPhotos } })),
     local: { ho: { ...ho }, closer, noPhotos },
     restock: master ? rsOpen().filter((x) => x.status !== "delivered").map((r) => r.id) : [],
@@ -2735,7 +2738,7 @@ function handoverOf(r) {
     const m = l.match(/^(Running low|Outstanding|For tomorrow): (.*)$/);
     if (m) { cur = by[m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
   }
-  const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
+  const left = [...r.text.matchAll(/^(Not done|Blocked):\n((?:- .*(?:\n|$))+)/gm)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
   const logged = (r.text.match(/\n\nLogged tonight:\n((?:- .*(?:\n|$))+)/)?.[1] || "").trim().split("\n").filter(Boolean).map((x) => x.slice(2));
   return { ...pts, left, logged, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
 }
@@ -8772,7 +8775,7 @@ var IT_KEEP = [
   [/baileys|irish cream|cream liqueur/, { fridge: false, say: "Baileys: 24 months from bottling, opened or not. No fridge needed" }],
   [/oat ?milk|oatly|oat drink/, { fridge: true, days: 5, say: "Oatly: keep in the fridge, use within 5 days once opened" }],
   [/\bmilk\b/, { fridge: true, days: 3, say: "Fresh milk: fridge, usually 3 days once opened" }],
-  [/(?<!ice |whipped |cream )\bcream\b(?! soda)/, { fridge: true, days: 3, say: "Fresh cream: fridge, usually 3 days once opened" }],
+  [/^(?!.*\b(?:ice|whipped|cream) cream\b).*\bcream\b(?! soda)/, { fridge: true, days: 3, say: "Fresh cream: fridge, usually 3 days once opened" }],
   [/funkin|pur[ée]e/, { fridge: true, days: 8, say: "Funkin purées: fridge once opened, 8 to 10 days (the pack says which)" }],
   [/maraschino|cocktail cherr/, { fridge: true, days: 28, say: "Venue rule: 4 weeks once opened" }],
   [/(strawberry|raspberry) sauce/, { fridge: true, days: 14, say: "Bar Book's list: 14 days once opened" }],
@@ -9668,6 +9671,8 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});
+  // Ask the browser not to clear this phone's saved data (the team login, drafts, offline copy) when space is short.
+  navigator.storage?.persist?.().catch(() => {});
   navigator.serviceWorker.ready.then(() => caches.match("./")).then((hit) => { offlineReady = !!hit; if (hit && cur === "info") renderInfo(); }).catch(() => {});
   // The app opens from the phone, so a new release arrives in the background. Once it's stored, say so: a tap reloads
   // into it, or it's there next time the app opens. Anything half-typed is kept as a draft either way.

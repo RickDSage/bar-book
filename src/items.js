@@ -39,7 +39,7 @@ var IT_KEEP = [
   [/baileys|irish cream|cream liqueur/, { fridge: false, say: "Baileys: 24 months from bottling, opened or not. No fridge needed" }],
   [/oat ?milk|oatly|oat drink/, { fridge: true, days: 5, say: "Oatly: keep in the fridge, use within 5 days once opened" }],
   [/\bmilk\b/, { fridge: true, days: 3, say: "Fresh milk: fridge, usually 3 days once opened" }],
-  [/(?<!ice |whipped |cream )\bcream\b(?! soda)/, { fridge: true, days: 3, say: "Fresh cream: fridge, usually 3 days once opened" }],
+  [/^(?!.*\b(?:ice|whipped|cream) cream\b).*\bcream\b(?! soda)/, { fridge: true, days: 3, say: "Fresh cream: fridge, usually 3 days once opened" }],
   [/funkin|pur[ée]e/, { fridge: true, days: 8, say: "Funkin purées: fridge once opened, 8 to 10 days (the pack says which)" }],
   [/maraschino|cocktail cherr/, { fridge: true, days: 28, say: "Venue rule: 4 weeks once opened" }],
   [/(strawberry|raspberry) sauce/, { fridge: true, days: 14, say: "Bar Book's list: 14 days once opened" }],

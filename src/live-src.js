@@ -130,8 +130,11 @@ function listen(uid) {
     sub("restock", query(collection(db, "restock"), where("status", "in", RS_OPEN)), (snap) => { rs.open = rows(snap); mergeRestock(); });
     sub("restock-recent", query(collection(db, "restock"), orderBy("at", "desc"), limit(30)), (snap) => { rs.recent = rows(snap); mergeRestock(); });
     // Tonight's closing photos that aren't on a sent report yet, whoever took them: the phone shows its side's.
+    // Unsent ones from a close that was never sent are binned after two days (any phone on the team may), because every
+    // phone downloads every unsent photo each time it opens, and that would use up the free plan's monthly download.
     sub("photos", query(collection(db, "photos"), where("report", "==", null)), (snap) => {
       LIVE.draftPhotos = rows(snap).sort((a, b) => ms(a.at) - ms(b.at)); liveChanged("photos");
+      if (!snap.metadata.fromCache) binStalePhotos(snap);
     });
     // Tonight's handover drafts, one per side, shared by everyone closing it.
     sub("drafts", query(collection(db, "drafts"), orderBy("at", "desc"), limit(6)), (snap) => {
@@ -194,6 +197,16 @@ async function clearOldPhotos() {
   if (!old || old.empty) return;
   for (let i = 0; i < old.docs.length; i += 10) {
     const b = writeBatch(db); old.docs.slice(i, i + 10).forEach((d) => b.delete(d.ref)); await b.commit().catch(() => {});
+  }
+}
+
+const STALE_DAYS = 2, binning = new Set();
+function binStalePhotos(snap) {
+  const cutoff = Date.now() - STALE_DAYS * 864e5;
+  for (const d of snap.docs) {
+    const at = d.data().at;
+    if (!at || at.toMillis() >= cutoff || binning.has(d.id)) continue;
+    binning.add(d.id); deleteDoc(d.ref).catch(() => binning.delete(d.id));
   }
 }
 
