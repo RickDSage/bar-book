@@ -1236,15 +1236,29 @@ const hhmm = (d) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-
 const stamp = (d) => `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: UK })}, ${hhmm(d)}`;
 /* Saving state. Firestore keeps a change on the phone until the server takes it, so nothing is called sent until then.
    After a moment, or with no signal, a banner says what's still waiting. */
-let unsent = 0, slow = 0;
+let unsent = 0, slow = 0, earlier = false;
 function renderNet() {
   const n = $("#net"), off = !navigator.onLine, many = (k) => `${k} change${k > 1 ? "s" : ""}`;
-  n.hidden = !LIVE.me || (!off && !slow);
+  n.hidden = !LIVE.me || (!off && !slow && !earlier);
   document.body.classList.toggle("neton", !n.hidden);
   n.classList.toggle("off", off);
-  n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : "No signal. Showing what this phone last saw")
-    : `Sending ${many(unsent)}…`;
+  n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : earlier ? "No signal. Changes saved on this phone, sending when you're back online" : "No signal. Showing what this phone last saw")
+    : slow ? `Sending ${many(unsent)}…` : "Sending changes saved on this phone earlier…";
 }
+// Changes made with no signal are kept on the phone (even if the app is closed) and sent in order once it's back.
+// When the app opens or the signal comes back, show that some are still going, and say when they've all arrived.
+let wasOff = !navigator.onLine, queueCheck = null;
+function checkQueued() {
+  if (!LIVE.api?.queued || !LIVE.me || queueCheck) return;
+  const t = setTimeout(() => { earlier = true; renderNet(); }, 1500), after = wasOff;
+  queueCheck = LIVE.api.queued().then(() => {
+    clearTimeout(t); queueCheck = null;
+    if (earlier || after) toast("Back online. Everything's sent");
+    earlier = false; wasOff = false; renderNet();
+  }, () => { clearTimeout(t); queueCheck = null; earlier = false; renderNet(); });
+}
+addEventListener("offline", () => { wasOff = true; });
+addEventListener("online", () => setTimeout(checkQueued, 300));
 function track(p, ok, fail = "Not saved. Try again") {
   unsent++; let late = false;
   const t = setTimeout(() => { late = true; slow++; renderNet(); }, 1200);
@@ -6183,7 +6197,7 @@ function liveChanged(what) {
   // next), so it doesn't join straight back. The link from the staff group brings it back.
   if (what === "left" && idleOut) return;
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
-  if (what === "me") { autoJoin(); sharedLock(); }
+  if (what === "me") { autoJoin(); sharedLock(); checkQueued(); }
   if (what === "names" && LIVE.names) { Object.assign(STAFF, LIVE.names); store.set("names", LIVE.names); }
   if (what === "seniors") { store.set("codeNames", LIVE.seniors.map((x) => x.name)); tryPendingPin(); }
   if (what === "me" || what === "seniors") renderWelcomeName();
@@ -10125,7 +10139,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T17:52";
+const BUILD = "2026-11-17T17:56";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {

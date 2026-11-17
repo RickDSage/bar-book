@@ -14,15 +14,17 @@ import {
   signInWithEmailAndPassword, signOut, updatePassword,
 } from "firebase/auth";
 import {
-  initializeFirestore, persistentLocalCache, connectFirestoreEmulator, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc,
+  initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc,
   collection, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
   terminate, clearIndexedDbPersistence, deleteField, runTransaction, getDocFromServer, waitForPendingWrites,
 } from "firebase/firestore";
 
 const app = initializeApp(__CONFIG__);
 const auth = getAuth(app);
-// Kept on the phone so the app works with no signal. Leaving clears it.
-const db = initializeFirestore(app, { localCache: persistentLocalCache() });
+// Kept on the phone so the app works with no signal: what it last saw, and every change made with no signal, which
+// survives the app being closed and goes in order once there's signal. Shared by every tab of the app on a laptop
+// (with one tab only, a second tab would lose the offline copy). Leaving clears it.
+const db = initializeFirestore(app, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
 if (__EMU__) {
   connectAuthEmulator(auth, "http://127.0.0.1:9099", { disableWarnings: true });
   connectFirestoreEmulator(db, "127.0.0.1", 8080);
@@ -584,6 +586,8 @@ LIVE.api = {
     await getDocFromServer(doc(db, "staff", auth.currentUser.uid));
     return Math.round(performance.now() - t);
   },
+  // Resolves once every change waiting on this phone has reached the server, including ones saved before it was closed.
+  queued: () => waitForPendingWrites(db),
   synced: (ms = 4000) => Promise.race([waitForPendingWrites(db).then(() => true), new Promise((ok) => setTimeout(() => ok(false), ms))]),
   // Stock count: one record per product and place for the day, saved on every tap under who counted it.
   watchCount(day) {
