@@ -332,6 +332,12 @@ LIVE.api = {
     b.set(doc(db, "pins", id), { salt, hash: await hashPin(pin, salt) });
     return b.commit();
   },
+  // The setup check: does this code match the one saved for this person? Only the owner can read the hashes, and
+  // nothing is counted or unlocked: it's checked on the owner's phone.
+  async checkPin(id, pin) {
+    const p = await getDoc(doc(db, "pins", id));
+    return p.exists() && (await hashPin(pin, p.data().salt)) === p.data().hash;
+  },
   resetTries: (id) => updateDoc(doc(db, "seniors", id), { tries: 0, lastTry: serverTimestamp() }),
   // Takes a senior off: their code stops working and every phone they unlocked goes back to staff powers.
   dropSenior(id) {

@@ -5142,7 +5142,7 @@ const newTells = () => (LIVE.owner ? LIVE.tells.filter((a) => a.status === "new"
 let seenAt = store.get("seenAt", 0), seenBefore = seenAt;
 function renderBell() {
   // What's waiting for this person, plus what's changed since they last looked at the Team page.
-  const n = newAsks().length + newTells().length + (LIVE.me && cur !== "notices" && seenAt ? changesSince(seenAt).length : 0);
+  const n = newAsks().length + newTells().length + (LIVE.me && cur !== "notices" && seenAt ? changesSince(seenAt).length : 0) + (typeof alBadge === "function" && MG_READY ? alBadge() : 0);
   $("#team-n").hidden = !n; $("#team-n").textContent = n > 9 ? "9+" : n;
 }
 
@@ -5981,6 +5981,7 @@ function liveChanged(what) {
     }
   }
   renderBell(); renderNet();
+  if (MG_READY && ["me", "labels", "items", "asks", "tells", "reports", "events"].includes(what)) renderAlerts();
   if (what === "me" || what === "out") plOutRefresh();
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();

@@ -325,12 +325,15 @@ function briefParts(side = mode) {
     { id: "issues", k: "issues", label: "Open faults", lines: iss.map((x) => `${x.urgent ? "URGENT: " : ""}${x.title}`), hot: iss.some((x) => x.urgent) },
     { id: "restock", k: "stock", label: "Restocks waiting", lines: rsOpen().filter((x) => DEST_SIDE[x.dest] === side).map((x) => amtOf(x.qty, x.unit, x.item)) },
     { id: "games", k: "football", label: "Games on today", lines: games.map((x) => `${x.ko} ${x.home} v ${x.away}`) },
+    { id: "approve", k: "stock", label: "Waiting for you to check", lines: LIVE.owner ? LIVE.items.filter((x) => x.status === "waiting").map((x) => `${x.item} (${x.addedBy})`) : [] },
   ];
 }
 function briefHtml() {
   if (!LIVE.me) return "";
   const ps = briefParts(), any = ps.filter((p) => p.lines.length);
-  return `<div class="brief"><div class="sec">Before you open</div>
+  const seen = store.get("storySeen", "") === `${shiftDay()}-${mode}`;
+  return `<div class="brief"><button class="story-ring${seen ? " seen" : ""}" data-story aria-label="Play tonight's brief"><span class="sr-dot">▶</span><span><b>Tonight's brief</b><small>${seen ? "Watched. Tap to see it again" : `${plural(any.length + 2, "card")}, tap through`}</small></span></button>
+    <div class="sec">Before you open</div>
     ${any.length ? any.map((p) => `<button class="bline${p.hot ? " hot" : ""}" data-goto="${p.k}"><b>${p.label}</b><span translate="no">${p.lines.slice(0, 4).map(esc).join(" · ")}${p.lines.length > 4 ? ` +${p.lines.length - 4}` : ""}</span></button>`).join("")
       : `<p class="note">✅ Nothing 86'd, no labels due, no open faults.</p>`}
     <p class="note">Tonight's quiz is ready in Practise: same 10 for everyone.</p>
@@ -343,12 +346,200 @@ SHARE.brief = () => {
 };
 LINKS.brief = () => "#at=morning"; LINKS.week = () => "#at=week"; LINKS.lblog = () => "#at=lblog"; LINKS.training = () => "#at=tab:practice";
 
+/* ---------- Maintenance setup: everything for the codes on one screen ----------
+   Your code, the managers' codes (names from the managers list), the team code, then a check that each code works.
+   Each step ticks itself off from what's saved, so it can be left and picked up again. */
+const weakCode = (c) => /^(\d)\1+$/.test(c) || "0123456789".includes(c) || "9876543210".includes(c) || /^(19|20)\d\d$/.test(c);
+const SU = { pins: {}, test: {}, teamDone: store.get("teamCodeSet", false) };
+const suSteps = () => {
+  const mg = STAFF.mgr, set = managersOnly().map((x) => x.name);
+  return [["you", "Your own code", !!ownerEntry()], ["mgr", "The managers' codes", mg.length > 0 && mg.every((n) => set.includes(n))],
+    ["team", "The team code", SU.teamDone || LIVE.staff.filter((x) => !x.username).length > 1], ["test", "Check they work", LIVE.seniors.length > 0 && LIVE.seniors.every((x) => SU.test[x.id] === true)]];
+};
+function setupHtml() {
+  const st = suSteps(), done = st.filter((x) => x[2]).length, me = ownerEntry(), mgrs = managersOnly();
+  const tick = (ok) => `<span class="pill ${ok ? "ok" : ""}">${ok ? "✓ Done" : "To do"}</span>`;
+  const pin = (k, ph = "4 digits") => `<input data-su-pin="${esc(k)}" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="${ph}" value="${esc(SU.pins[k] || "")}">`;
+  const left = STAFF.mgr.filter((n) => !mgrs.some((x) => x.name === n));
+  return `<div class="cprog"><b>${done} of ${st.length} done</b><span class="dots" aria-hidden="true">${st.map((x) => `<i class="${x[2] ? "ok" : ""}"></i>`).join("")}</span></div>
+    <div class="su"><div class="suh"><b>1. ${st[0][1]}</b>${tick(st[0][2])}</div>
+      ${me ? `<p class="note">Set. You unlock any phone on the team by picking <b translate="no">${esc(me.name)}</b> and typing it.</p>`
+        : `<p class="note">You'll log in like the managers: pick your name, type your code.</p><div class="surow"><span translate="no">${esc(firstName(LIVE.me))}</span>${pin("owner")}</div>`}</div>
+    <div class="su"><div class="suh"><b>2. ${st[1][1]}</b>${tick(st[1][2])}</div>
+      <p class="note">One each, different from yours and each other's. Give them in person, never in a message. Names come from Names to pick from.</p>
+      ${mgrs.map((x) => `<div class="surow"><span translate="no">${esc(x.name)}</span><span class="pill ok">✓ code set</span></div>`).join("")}
+      ${left.slice(0, Math.max(0, LIVE.api.MAX_SENIORS - mgrs.length)).map((n) => `<div class="surow"><span translate="no">${esc(n)}</span>${pin("m:" + n)}</div>`).join("")}
+      ${left.length > LIVE.api.MAX_SENIORS - mgrs.length ? `<p class="note">Up to ${LIVE.api.MAX_SENIORS} managers: ${left.slice(LIVE.api.MAX_SENIORS - mgrs.length).map(esc).join(", ")} can't have a code until one comes off.</p>` : ""}</div>
+    ${!me || left.length ? `<div class="actions"><button class="btn pri" data-su-save>Save the codes</button></div>` : ""}
+    <div class="su"><div class="suh"><b>3. ${st[2][1]}</b>${tick(st[2][2])}</div>
+      <p class="note">Everyone types it once to join. 4 to 8 numbers nobody would guess. Changing it takes every phone off, this one too: do it before the team joins, then join again with it.</p>
+      <div class="surow"><input data-su-team type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="New team code" value="${esc(SU.team || "")}"><button class="btn" data-su-team-go>Set it</button></div></div>
+    <div class="su"><div class="suh"><b>4. ${st[3][1]}</b>${tick(st[3][2])}</div>
+      <p class="note">Type each code to check it's the one saved. Nothing unlocks and no tries are counted.</p>
+      ${LIVE.seniors.map((x) => `<div class="surow"><span translate="no">${esc(x.name)}${x.id === OWNER_ID ? " (you)" : ""}</span>${pin("t:" + x.id, "Type it")}<button class="btn" data-su-test="${esc(x.id)}">Check</button>${SU.test[x.id] === true ? `<span class="pill ok">✓ Works</span>` : SU.test[x.id] === false ? `<span class="pill no">Doesn't match</span>` : ""}${x.tries >= LIVE.api.MAX_TRIES ? `<button class="btn pri" data-sn-reset="${esc(x.id)}">Unlock</button>` : ""}</div>`).join("") || `<p class="note">Set the codes first.</p>`}
+      ${(LIVE.gate?.tries || 0) >= LIVE.api.GATE_MAX ? `<p class="note warnline">Joining is locked after too many wrong team codes. <button class="linkbtn" id="gate-reset">Unlock joining</button></p>` : ""}</div>
+    ${done === st.length ? `<p class="qz-got">✅ All set. The team joins with the team code, managers unlock with theirs.</p>` : ""}`;
+}
+async function suSave(btn) {
+  const A = A_(), jobs = [];
+  if (!ownerEntry() && SU.pins.owner) jobs.push([firstName(LIVE.me), SU.pins.owner, OWNER_ID]);
+  for (const n of STAFF.mgr) if (SU.pins["m:" + n]) jobs.push([n, SU.pins["m:" + n]]);
+  if (!jobs.length) return toast("Type at least one code");
+  if (jobs.some(([, p]) => !/^[0-9]{4}$/.test(p))) return toast("Each code is 4 digits");
+  if (new Set(jobs.map(([, p]) => p)).size < jobs.length) return toast("Two of those are the same. Each one must be different");
+  const weak = jobs.filter(([, p]) => weakCode(p)).map(([n]) => n);
+  if (weak.length && !confirm(`${weak.join(", ")}: that code is easy to guess (like 1111 or 1234). Use it anyway?`)) return;
+  btn.disabled = true; let ok = 0;
+  for (const j of jobs) { try { await A.setSenior(...j); ok++; delete SU.pins[j[2] === OWNER_ID ? "owner" : "m:" + j[0]]; } catch (e) { toast(`${j[0]}: ${e.message || "not saved"}`); } }
+  btn.disabled = false; if (ok) toast(`${plural(ok, "code")} saved. Now check they work in step 4`); renderCard("setup");
+}
+function suTeam() {
+  const c = (SU.team || "").trim();
+  if (!/^[0-9]{4,8}$/.test(c)) return toast("The team code is 4 to 8 numbers");
+  if (weakCode(c) && !confirm("That team code is easy to guess (like 0000 or 1234). Use it anyway?")) return;
+  if (!confirm("Set the team code? Every phone comes off the team, this one too unless it's the password login, and everyone joins again with the new code.")) return;
+  track(A_().setTeamCode(c).then(() => { SU.teamDone = true; store.set("teamCodeSet", true); SU.team = ""; renderCard("setup"); }), "Team code set. Tell the team in person", "Not changed");
+}
+async function suTest(id) {
+  const pin = SU.pins["t:" + id] || ""; if (!/^[0-9]{4}$/.test(pin)) return toast("Type the 4 digit code");
+  SU.test[id] = await A_().checkPin(id, pin).catch(() => null); delete SU.pins["t:" + id];
+  if (SU.test[id] == null) toast("Couldn't check. Check your signal"); renderCard("setup");
+}
+document.addEventListener("input", (e) => {
+  const p = e.target.closest("[data-su-pin]"); if (p) SU.pins[p.dataset.suPin] = p.value.replace(/\D/g, "");
+  if (e.target.closest("[data-su-team]")) SU.team = e.target.value.replace(/\D/g, "");
+});
+document.addEventListener("click", (e) => {
+  const t = (s) => e.target.closest(s); let x;
+  if ((x = t("[data-su-save]"))) suSave(x);
+  else if (t("[data-su-team-go]")) suTeam();
+  else if ((x = t("[data-su-test]"))) suTest(x.dataset.suTest);
+});
+
+/* ---------- Alerts when Bar Book opens ----------
+   No push (sending to a locked phone needs Firebase's paid plan): when the app is opened or brought back to the front,
+   a banner says what needs this person now, and the Team badge counts it. Tap one to go there; × hides them until
+   something changes. */
+let alShown = "";
+function alertsNow() {
+  if (!LIVE.me || !MG_READY) return [];
+  const xs = [], now = toChange([mode]), r = lastReport(), hour = +new Date().toLocaleTimeString("en-GB", { hour: "2-digit", hour12: false, timeZone: UK });
+  if (now.length) xs.push({ id: `lb${now.map((x) => x.id + x.v).join()}`, hot: 1, t: `🚨 ${URGENT(now.length)}: ${now.slice(0, 3).map((x) => x.item).join(", ")}`, go: "labels" });
+  if (r && reportDay(r) === lastNight() && store.get("hoRead", "") !== r.id && hour >= 6 && hour < 18) xs.push({ id: `ho${r.id}`, t: `📋 Last night's ${lower(sideName(mode))} handover is in, from ${handoverOf(r).by}. Read it`, go: "morning" });
+  if (LIVE.owner) { const w = LIVE.items.filter((x) => x.status === "waiting"); if (w.length) xs.push({ id: `it${w.map((x) => x.id).join()}`, t: `🆕 ${plural(w.length, "item")} to check: ${w.slice(0, 3).map((x) => x.item).join(", ")}`, go: "stock" }); }
+  if (LIVE.admin) {
+    const a = newAsks().length + newTells().length; if (a) xs.push({ id: `in${a}${LIVE.asks[0]?.id || ""}`, t: `📥 ${plural(a, "new message")} from the team`, go: newAsks().length ? "inbox" : "tells" });
+    const logs = LIVE.events.filter((e) => e.kind === "log" && e.uid !== LIVE.uid && !e.pending && ms(e.at) > store.get("alLogs", 0));
+    if (logs.length) xs.push({ id: `lg${logs.length}${logs.at(-1).id}`, t: `📝 ${plural(logs.length, "new Log it entry", "new Log it entries")}: ${logs.slice(-2).map((e) => `${e.name}, ${e.label}`).join("; ")}`, go: "send", logs: 1 });
+  }
+  return xs;
+}
+function renderAlerts(force) {
+  let box = $("#alerts");
+  if (!box) { $("#net").insertAdjacentHTML("afterend", `<div class="gut alerts" id="alerts" role="status" hidden></div>`); box = $("#alerts"); }
+  const off = new Set(store.get("alOff", [])), xs = alertsNow().filter((x) => !off.has(x.id));
+  const sig = xs.map((x) => x.id).join("|");
+  if ((!force && sig === alShown) || cur === "station") { if (!xs.length || cur === "station") box.hidden = true; return; }
+  alShown = sig;
+  box.hidden = !xs.length;
+  box.innerHTML = xs.length ? `<div class="al-in"><b>Needs you now</b><button class="al-x" data-al-x aria-label="Hide these">×</button>${xs.map((x) => `<button class="al${x.hot ? " hot" : ""}" data-al-go="${x.go}" data-al-id="${esc(x.id)}">${esc(x.t)}</button>`).join("")}</div>` : "";
+}
+// The Team badge counts new messages already, so they aren't counted twice.
+const alBadge = () => { const off = new Set(store.get("alOff", [])); return alertsNow().filter((x) => !off.has(x.id) && !x.id.startsWith("in")).length; };
+document.addEventListener("click", (e) => {
+  const g = e.target.closest("[data-al-go]"), x = e.target.closest("[data-al-x]");
+  if (!g && !x) return;
+  const ids = g ? [g.dataset.alId] : [...$$("#alerts [data-al-id]")].map((b) => b.dataset.alId);
+  store.set("alOff", [...new Set([...store.get("alOff", []), ...ids])].slice(-60));
+  if (ids.some((i) => i.startsWith("lg"))) store.set("alLogs", Date.now());
+  $("#alerts").hidden = true; alShown = "";
+  if (g) { haptic(); openAt(g.dataset.alGo); scrollTo(0, 0); }
+});
+// Shown when the app opens (once the team's data is in) and each time it comes back to the front.
+document.addEventListener("visibilitychange", () => { if (!document.hidden) { alShown = ""; renderAlerts(true); } });
+setTimeout(() => renderAlerts(true), 2500);
+
+
+/* ---------- Tonight's brief as stories ----------
+   The same brief, full screen, one card at a time like stories: bars along the top, tap the right side (or swipe left)
+   for the next, the left side to go back, hold to pause, × to close. Each card moves on by itself after 8 seconds. */
+const STORY_MS = 8000;
+let sto = null;
+function storyCards() {
+  const ps = briefParts().filter((p) => p.lines.length), hot = ps.filter((p) => p.hot).length;
+  return [
+    { k: "", label: `${sideName(mode)} · ${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}`, big: ps.length ? `${plural(ps.length, "thing")} to know${hot ? `, ${hot} urgent` : ""}` : "All clear tonight", lines: ps.map((p) => p.label) },
+    ...ps.map((p) => ({ k: p.k, label: p.label, lines: p.lines, hot: p.hot })),
+    { k: "tab:practice", label: "Tonight's quiz", big: "10 questions. First go counts.", lines: ["Same 10 for everyone", "Then try a speed drill and beat your best"], end: true },
+  ];
+}
+function storyOpen() {
+  if (!$("#story")) document.body.insertAdjacentHTML("beforeend", `<div id="story" class="story" role="dialog" aria-modal="true" aria-label="Tonight's brief" hidden></div>`);
+  sto = { i: 0, xs: storyCards(), t0: Date.now(), paused: 0 };
+  $("#story").hidden = false; document.body.classList.add("storyon"); store.set("storySeen", `${shiftDay()}-${mode}`);
+  storyDraw(); storyTimer();
+}
+function storyClose() { if (!sto) return; sto = null; clearInterval(storyTimer.h); $("#story").hidden = true; document.body.classList.remove("storyon"); if (cur === "tally") renderTally(); }
+function storyGo(d) { if (!sto) return; const n = sto.i + d; if (n < 0) { sto.t0 = Date.now(); return storyDraw(); } if (n >= sto.xs.length) return storyClose(); sto.i = n; sto.t0 = Date.now(); haptic(); storyDraw(); }
+function storyTimer() {
+  clearInterval(storyTimer.h);
+  storyTimer.h = setInterval(() => {
+    if (!sto || document.hidden) return;
+    if (sto.paused) { sto.t0 += 100; return; }
+    const f = Math.min(1, (Date.now() - sto.t0) / STORY_MS), bar = $(`#story .sb i[data-n="${sto.i}"]`);
+    if (bar) bar.style.width = `${f * 100}%`;
+    if (f >= 1 && !sto.xs[sto.i].end) storyGo(1);
+  }, 100);
+}
+function storyDraw() {
+  const c = sto.xs[sto.i];
+  $("#story").innerHTML = `<div class="sbars">${sto.xs.map((_, j) => `<span class="sb"><i data-n="${j}" style="width:${j < sto.i ? 100 : 0}%"></i></span>`).join("")}</div>
+    <button class="st-x" data-story-x aria-label="Close">×</button>
+    <div class="st-card${c.hot ? " hot" : ""}"><div class="st-k">${esc(c.label)}</div>${c.big ? `<div class="st-big">${esc(c.big)}</div>` : ""}
+      <ul class="st-l" translate="no">${c.lines.slice(0, 9).map((l) => `<li>${esc(l)}</li>`).join("")}${c.lines.length > 9 ? `<li>+${c.lines.length - 9} more</li>` : ""}</ul>
+      <div class="st-act">${c.k ? `<button class="btn pri" data-story-go="${esc(c.k)}">${c.end ? "Take the quiz" : "Go there"}</button>` : ""}${c.end ? sendBtn("brief", "Send the brief") : ""}</div></div>
+    <button class="st-prev" data-story-step="-1" aria-label="Back"></button><button class="st-next" data-story-step="1" aria-label="Next"></button>`;
+}
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-story]")) { haptic(); storyOpen(); return; }
+  if (!sto) return;
+  if (e.target.closest("[data-story-x]")) return storyClose();
+  const g = e.target.closest("[data-story-go]"); if (g) { const k = g.dataset.storyGo; storyClose(); openAt(k); scrollTo(0, 0); return; }
+  if (e.target.closest("[data-send]")) { storyClose(); return; }
+  const s = e.target.closest("[data-story-step]"); if (s) storyGo(+s.dataset.storyStep);
+});
+// Hold to pause, swipe sideways to move, down to close. Escape closes, arrows move.
+let stTouch = null;
+document.addEventListener("pointerdown", (e) => { if (sto && e.target.closest("#story")) { sto.paused = 1; stTouch = { x: e.clientX, y: e.clientY }; } });
+document.addEventListener("pointerup", (e) => {
+  if (!sto || !stTouch) return; sto.paused = 0;
+  const dx = e.clientX - stTouch.x, dy = e.clientY - stTouch.y; stTouch = null;
+  if (dy > 90 && Math.abs(dx) < 60) { e.preventDefault(); storyClose(); }
+  else if (Math.abs(dx) > 50 && Math.abs(dy) < 60) storyGo(dx < 0 ? 1 : -1);
+});
+document.addEventListener("keydown", (e) => { if (!sto) return; if (e.key === "Escape") storyClose(); if (e.key === "ArrowRight") storyGo(1); if (e.key === "ArrowLeft") storyGo(-1); });
+document.head.insertAdjacentHTML("beforeend", `<style>
+.story-ring{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--fg);margin-top:12px;padding:6px 0}
+.sr-dot{flex:none;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:18px;color:var(--brass);background:var(--surface);box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--brass)}
+.story-ring.seen .sr-dot{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--line);color:var(--muted)}.story-ring b{display:block;font-size:17px}.story-ring small{display:block;color:var(--muted);font-size:13px}
+body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background:#0d0c0a;color:#f4f1ea;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 20px);touch-action:none;user-select:none}
+.sbars{display:flex;gap:4px}.sb{flex:1;height:3px;border-radius:2px;background:#ffffff40;overflow:hidden}.sb i{display:block;height:100%;background:#fff}
+.st-x{position:absolute;top:calc(env(safe-area-inset-top,0px) + 18px);right:10px;z-index:3;width:44px;height:44px;font-size:30px;color:#fff}
+.st-card{position:relative;z-index:2;margin:auto 0;max-width:640px;width:100%;align-self:center;pointer-events:none}.st-card .btn,.st-card a{pointer-events:auto}
+.st-k{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#c9a45c}.st-card.hot .st-k{color:#ff6b5b}
+.st-big{font-family:var(--display);font-size:42px;line-height:1.05;text-transform:uppercase;margin-top:10px}
+.st-l{list-style:none;margin:16px 0 0;padding:0}.st-l li{font-size:22px;line-height:1.3;padding:8px 0;border-bottom:1px solid #ffffff1f}
+.st-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.st-prev,.st-next{position:absolute;top:70px;bottom:0;z-index:1}.st-prev{left:0;width:33%}.st-next{right:0;width:67%}
+@media (min-width:700px){.st-big{font-size:56px}.st-l li{font-size:26px}}
+</style>`);
+
 /* ---------- Where it goes on the Team page ---------- */
 Object.assign(TC_SUB, { week: "Most 86'd, closes not fully done, late labels", lblog: "Every date label tap, for an EHO visit", training: "Quiz scores, speed drills, sign-off on the house cocktails",
-  history: "Undo changes to date labels and added items", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
+  history: "Undo changes to date labels and added items", setup: "Your code, the managers' codes, the team code, then check they work", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
 function mgCards() {
   if (!MG_READY) return [];
-  return LIVE.admin ? [["week", "Weekly summary", weekHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml]] : [];
+  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["week", "Weekly summary", weekHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml]] : [];
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
@@ -385,5 +576,10 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .brief{margin-bottom:6px}.bline{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:12px;padding:10px 12px;margin-top:8px;color:var(--fg)}
 .bline b{display:block;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--brass)}.bline span{display:block;font-size:16px;margin-top:2px;line-height:1.35}
 .bline.hot{border-left-color:var(--warn)}.bline.hot b{color:var(--warn)}
+.su{border-top:1px solid var(--line);margin-top:12px;padding-top:6px}.suh{display:flex;justify-content:space-between;align-items:center;gap:8px}.suh b{font-size:17px}
+.surow{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:8px}.surow>span:first-child{min-width:90px;font-weight:700}.surow input{width:120px;flex:0 1 160px}
+.alerts{margin-top:8px}.al-in{position:relative;background:var(--surface);border:1px solid var(--brass);border-radius:14px;padding:10px 12px}.al-in>b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brass);padding-right:36px}
+.al{display:block;width:100%;text-align:left;color:var(--fg);padding:8px 0;border-top:1px solid var(--line);margin-top:6px;font-size:15.5px;line-height:1.35}.al.hot{color:var(--warn);font-weight:700}
+.al-x{position:absolute;top:4px;right:6px;width:36px;height:36px;font-size:22px;color:var(--muted)}
 </style>`);
 MG_READY = true;

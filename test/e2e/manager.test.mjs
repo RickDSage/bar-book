@@ -174,3 +174,63 @@ test("health check, the pre-shift brief and Bar 101", async () => {
   await waitText(S, "#pquiz", /10 out of 10/);
   assert.deepEqual(S.errs, []);
 });
+
+test("Set up codes: one screen for every code, then a check that each one works", async () => {
+  await resetEmulators();
+  const { O } = await team(browser, site);
+  await O.evaluate(() => { const n = { mgr: ["Hassan", "Ilias"], bar: ["Emily"], floor: ["Pema"] }; return LIVE.api.saveNames(n).then(() => Object.assign(STAFF, n)); });
+  const box = await card(O, "setup");
+  assert.match(await text(O, box), /0 of 4 done/i);
+  await O.fill('[data-su-pin="owner"]', "4821"); await O.fill('[data-su-pin="m:Hassan"]', "4821"); await O.fill('[data-su-pin="m:Ilias"]', "7305");
+  await O.click("[data-su-save]");
+  assert.equal(await O.evaluate(() => $("#toast").textContent), "Two of those are the same. Each one must be different");
+  await O.fill('[data-su-pin="m:Hassan"]', "6194");
+  await O.click("[data-su-save]");
+  await O.waitForFunction(() => LIVE.seniors.length === 3);
+  await waitText(O, box, /2 of 4 done/);
+  await O.fill('[data-su-pin="t:hassan"]', "6194"); await O.click('[data-su-test="hassan"]');
+  await waitText(O, box, /Hassan 6194|Hassan.*Works/);
+  await O.fill('[data-su-pin="t:ilias"]', "1111"); await O.click('[data-su-test="ilias"]');
+  await waitText(O, box, /Doesn't match/);
+  // Nothing was counted by the check.
+  assert.deepEqual(await O.evaluate(() => LIVE.seniors.map((x) => x.tries)), [0, 0, 0]);
+  assert.deepEqual(O.errs, []);
+});
+
+test("alerts: a banner when the app opens for urgent labels, items to check and new Log it entries", async () => {
+  await resetEmulators();
+  const { O, S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
+  await O.evaluate(() => LIVE.api.label(null, "added", { item: "Lime juice", side: "bar", life: 1, on: true }));
+  await S.waitForFunction(() => LIVE.labels.some((x) => !x.pending));
+  await S.evaluate(() => LIVE.api.label(LIVE.labels[0], "opened", { useBy: shiftDay() }));
+  await S.evaluate(() => LIVE.api.addItem({ item: "Rubicon Mango", kind: "soft", group: "Soft drinks and mixers", side: "bar", store: "bottle", label: false, life: 0, close: "keep", note: "", found: "" }, false));
+  await O.waitForFunction(() => LIVE.items.some((x) => x.status === "waiting") && LIVE.labels.some((x) => x.state === "open"));
+  await O.evaluate(() => renderAlerts(true));
+  await waitText(O, "#alerts", /Needs you now/);
+  const t = await text(O, "#alerts");
+  assert.match(t, /URGENT: 1 date label to change now: Lime juice/);
+  assert.match(t, /1 item to check: Rubicon Mango/);
+  await O.click('#alerts [data-al-go="stock"]');
+  assert.equal(await O.$eval("#alerts", (e) => e.hidden), true);
+  await O.evaluate(() => renderAlerts(true));
+  assert.doesNotMatch(await text(O, "#alerts"), /Rubicon/);
+  assert.deepEqual([...O.errs, ...S.errs], []);
+});
+
+test("tonight's brief plays as stories: bars, tap through, Go there, close", async () => {
+  await resetEmulators();
+  const { S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
+  await S.evaluate(() => LIVE.api.set86("Limes", true)); await S.waitForFunction(() => LIVE.out.has("Limes"));
+  await S.evaluate(() => { pane = "morning"; show("tally"); });
+  await S.click("[data-story]");
+  assert.equal(await S.locator("#story .sb").count(), 3);
+  assert.match(await text(S, "#story"), /1 thing to know/i);
+  await S.click("#story .st-next");
+  assert.match(await text(S, "#story"), /86'd Limes/i);
+  await S.click("#story [data-story-go]");
+  assert.equal(await S.$eval("#story", (e) => e.hidden), true);
+  assert.equal(await S.evaluate(() => pane), "stock");
+  await S.evaluate(() => { pane = "morning"; renderTally(); });
+  assert.match(await text(S, ".story-ring"), /Watched/);
+  assert.deepEqual(S.errs, []);
+});
