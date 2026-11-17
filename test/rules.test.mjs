@@ -1420,5 +1420,12 @@ describe("stock count: lines, deliveries and the setup", () => {
     await fails(setDoc(doc(db("mgr1"), "countSetup", "other"), s("mgr1")), "only main");
     await fails(setDoc(doc(db("mgr1"), "countSetup", "main"), s("mgr1", { areas: "Bar" })), "places are a list");
     await assertSucceeds(getDoc(doc(db("staff1"), "countSetup", "main")));
+describe("which rules these are", () => {
+  test("the build's fingerprint can be asked for; any other is refused, and nothing can be written", async () => {
+    const id = fs.readFileSync(new URL("../firestore.rules", import.meta.url), "utf8").match(/v == '([0-9a-f]{12})'; \/\/ RULES-FINGERPRINT/)[1];
+    await assertSucceeds(getDoc(doc(db("staff1"), "rulesv", id)));
+    await fails(getDoc(doc(db("staff1"), "rulesv", "0123456789ab")), "a different build's fingerprint");
+    await fails(getDoc(doc(db(null), "rulesv", id)), "not signed in");
+    await fails(setDoc(doc(db("owner1"), "rulesv", id), { x: 1 }), "writing one");
   });
 });
