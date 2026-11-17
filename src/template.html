@@ -1490,7 +1490,7 @@ function renderList() {
   const words = q ? plQuery(q).words : [];
   renderQuick(!q, q);
   if (q && dp === "recent") dp = null;
-  let rows = D.filter((d) => plHits(d, words) && flavHit(d) && plOk(d) && favOk(d));
+  let rows = D.filter((d) => plHits(d, words) && flavHit(d) && plOk(d) && favOk(d) && sdSeasonOk(d, q));
   const flat = !!q || PL.sort !== "menu";
   // The menu keeps each section together, in menu order, so nothing hides under a repeated heading further down.
   rows = q && PL.sort === "menu" ? plRank(rows, words) : flat ? plSort(rows) : rows.slice().sort((a, b) => SEC_ORDER.indexOf(a.section) - SEC_ORDER.indexOf(b.section) || a.id - b.id);
@@ -1507,7 +1507,7 @@ function renderList() {
   renderPlf(); renderBar();
   if (!rows.length && favOnly && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here. Tap \u2605 again to see every drink.</p>`; return; }
   if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
-  let html = "";
+  let html = q ? "" : sdSeasonBanner();
   if (groups.size) for (const [k, ds] of groups) {
     // Each section can go out as one WhatsApp message of its specs, straight from its heading.
     html += az ? `<i class="anc" id="az-${k}"></i><div class="sec azsec">${k}</div>`
@@ -1686,6 +1686,7 @@ function openSheet(id, keepScroll) {
     <ul class="spec" translate="no">${d.spec.map(specRow).join("")}</ul>
     <div class="h3">Method</div>${steps(d.method)}
     ${plOutHtml(d) || (d.subs ? `<details class="subs"><summary>Out of something?<span class="cnt">${d.subs.length}</span></summary><ul translate="no">${d.subs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : "")}
+    ${sdBatchHtml(d)}
     <p class="note">Jigger everything. 12.5 ml is half a 25 ml jigger.</p>
     ${plMistakesHtml(d)}
     <p class="note pl-tickhint">Tap a line or a step to tick it off as you go.</p>
@@ -3456,6 +3457,7 @@ $("#tally").addEventListener("click", async (e) => {
     const lb = toChange([mode]).length;
     const summary = `${sideName(mode)} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${lb ? ` · URGENT: ${lb} date label${lb > 1 ? "s" : ""} to change` : ""}${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closed by ${closer}` : ""}`;
     track(LIVE.api.sendReport(mode, tallyText(), summary, draftPhotos()), "Handover saved for the next shift", "Handover not saved. Try again"); haptic();
+    sdClosed(mode);
     openSend("shift"); return;
   }
   if (e.target.closest("[data-login]")) { show("notices"); return; }
@@ -4959,8 +4961,9 @@ function renderInfo() {
     <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
     <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Use Send feedback above.</p>
     <div class="mini" style="margin-top:14px">Light or dark</div>
-    <div class="seg" style="grid-template-columns:repeat(4,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
-    <p class="note">Auto follows your phone. This phone only.</p>
+    <div class="seg" style="grid-template-columns:repeat(5,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["clock", "Clock"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
+    <p class="note">Auto follows your phone. Clock goes light and dark at the venue's times, set by a manager. This phone only.</p>
+    ${sdPhoneHtml()}
     <div class="mini" style="margin-top:14px">Help buttons (?)</div>
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
     <div class="mini" style="margin-top:14px">Shared iPad or tablet</div>
@@ -5805,6 +5808,7 @@ const CARDS = () => [
     ...(LIVE.owner ? [["seniors", "Codes: you and the managers", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : !ownerEntry() ? { t: "set yours", hot: 1 } : managersOnly().length || ""],
       ["mgr", "Maintenance settings", mgrHtml, LIVE.gate?.tries >= LIVE.api.GATE_MAX ? { t: "joining locked", hot: 1 } : ""]] : []),
     ...mgCards(),
+    ...sdCards(),
     ["§", "Team"],
   ] : []),
   ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager or maintenance? Unlock with your code", unlockHtml]] : []),

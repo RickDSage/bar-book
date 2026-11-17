@@ -201,7 +201,7 @@ test("We're out of Passoa: the drink, the menu, Rapid fire and Make all show the
   await p.click('#sheet details.pl-outs summary');
   const key = await p.evaluate(() => mkFind("Passoa").k);
   await p.click(`#sheet [data-pl-out="${key}"]`);
-  assert.match(await text(p, "#sheet .pl-outbar"), /No Passoa: .*Monin Passion Fruit/);
+  assert.match(await text(p, "#sheet .sd-state.swap"), /Can make with a swap[\s\S]*No Passoa: .*Monin Passion Fruit/);
   assert.equal(await p.$$eval("#sheet ul.spec li.pl-out", (x) => x.length), 1);
   assert.match(await text(p, "#sheet ul.spec li.pl-out .pl-swap"), /Passion Fruit/);
   // Kept on this phone off the team.
@@ -214,7 +214,8 @@ test("We're out of Passoa: the drink, the menu, Rapid fire and Make all show the
   // Back in stock clears it everywhere.
   await p.evaluate((i) => openSheet(i), id);
   await p.click(`#sheet [data-pl-out="${key}"]`);
-  assert.equal(await p.$$eval("#sheet .pl-outbar", (x) => x.length), 0);
+  assert.equal(await p.$$eval("#sheet .sd-state.swap", (x) => x.length), 0);
+  assert.match(await text(p, "#sheet .sd-state.ok"), /Can make tonight/);
   assert.deepEqual(await p.evaluate(() => store.get("outIng")), []);
   assert.deepEqual(p.errs, []);
 });
@@ -227,7 +228,7 @@ test("out of an ingredient with no swap: the drink offers something close, and S
   assert.ok(r.miss.length >= 1);
   assert.ok(r.alts.length > 0 && r.alts.every(Boolean));
   await p.evaluate(() => openSheet(D.find((x) => x.name === "Espresso Martini").id));
-  assert.match(await text(p, "#sheet .pl-outbar.no"), /Offer instead/);
+  assert.match(await text(p, "#sheet .sd-state.no"), /Can't make tonight[\s\S]*Go with the flow[\s\S]*Or pick/);
   assert.ok(await p.evaluate(() => mkPool().every((d) => plOutOf(d).ok) && plOutOf(plDaily()).ok));
   // The filter hides it.
   await p.evaluate(() => { $("#sheet").hidden = true; PL.can = true; renderList(); });
