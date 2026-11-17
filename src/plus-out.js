@@ -58,7 +58,14 @@ function plOutOf(d) {
   PL_OUTD.set(d.id, res);
   return res;
 }
-const plOutTag = (d) => { const o = plOutOf(d); return o.miss.length ? ` <span class="pl-swaptag${o.ok ? "" : " no"}">${o.ok ? "Swap" : "Can't make"}: no ${esc(o.miss.map((m) => m.it.n).join(", "))}</span>` : ""; };
+// Three states, in words as well as colour: can make, can make with a swap, can't make tonight. With nothing out
+// tonight every drink can be made, so the list stays quiet; once something is out, the rest say they're fine.
+const plOutTag = (d) => {
+  if (isOut(d.name)) return ` <span class="pl-swaptag no">\u2715 86'd tonight</span>`;
+  const o = plOutOf(d);
+  if (!o.miss.length) return plOutKeys().size ? ` <span class="pl-swaptag ok">✓ Can make</span>` : "";
+  return ` <span class="pl-swaptag${o.ok ? "" : " no"}">${o.ok ? "⚠ Swap" : "✕ Can't make"}: no ${esc(o.miss.map((m) => m.it.n).join(", "))}</span>`;
+};
 // Drinks to offer instead when one can't be made: same spirit, same kind of drink, most flavours in common, all makeable.
 function plAlts(d, n = 3) {
   const tags = new Set(d.tags);
@@ -77,9 +84,9 @@ function plOutHtml(d) {
   const out = plOutKeys(), its = [...new Map((MK.reqs.get(d.id) || []).map((r) => [r.it.k, r.it])).values()];
   if (!its.length) return "";
   const any = its.some((it) => out.has(it.k));
-  return `<details class="subs pl-outs"${any ? " open" : ""}><summary>Out of something?<span class="cnt">${its.filter((it) => out.has(it.k)).length || its.length}</span></summary>
-    <p class="note" style="margin-top:4px">Tap what's run out. ${LIVE.me ? "It goes on the 86 board for the whole team" : "It's kept on this phone"} and every drink that uses it shows the swap.</p>
-    <ul class="pl-outlist">${its.map((it) => { const o = out.has(it.k), sw = plSwapFor(d, it); return `<li><span><b translate="no">${esc(it.n)}</b>${sw ? `<small translate="no">${o ? "" : "If out: "}${esc(sw)}</small>` : ""}</span><button class="chip${o ? " on" : ""}" data-pl-out="${esc(it.k)}" aria-pressed="${o}">${o ? "Back in" : "We're out"}</button></li>`; }).join("")}</ul></details>`;
+  return `<details class="subs pl-outs"${any ? " open" : ""}><summary>Missing something? Tap it<span class="cnt">${its.filter((it) => out.has(it.k)).length || its.length}</span></summary>
+    <p class="note" style="margin-top:4px">Tap Missing on anything you haven't got. The drink works out the swap, or says it can't be made, straight away${LIVE.me ? ", and it goes on the 86 board for the whole team" : " (kept on this phone)"}.</p>
+    <ul class="pl-outlist">${its.map((it) => { const o = out.has(it.k), sw = plSwapFor(d, it); return `<li><span><b translate="no">${esc(it.n)}</b>${sw ? `<small translate="no">${o ? "" : "If out: "}${esc(sw)}</small>` : ""}</span><button class="chip${o ? " on" : ""}" data-pl-out="${esc(it.k)}" aria-pressed="${o}">${o ? "Back in" : "Missing"}</button></li>`; }).join("")}</ul></details>`;
 }
 function plSetOut(it, on) {
   const name = plOutName(it);
@@ -117,7 +124,7 @@ const plOutLines = (d) => plOutOf(d).miss.map((m) => `⚠️ No ${m.it.n} tonigh
 }
 document.head.insertAdjacentHTML("beforeend", `<style>
 .pl-swaptag{display:inline-block;font-size:12px;font-weight:700;color:var(--brass);border:1px solid var(--brass);border-radius:999px;padding:0 7px;margin-left:4px}
-.pl-swaptag.no{color:var(--warn);border-color:var(--warn)}
+.pl-swaptag.no{color:var(--warn);border-color:var(--warn)}.pl-swaptag.ok{color:var(--ok);border-color:var(--ok)}
 .pl-outbar{border:1px solid var(--brass);background:var(--surface);border-radius:12px;padding:10px 12px;margin:10px 0}
 .pl-outbar.no{border-color:var(--warn)}.pl-alts{margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center}.pl-outbar b{display:block;color:var(--brass);margin-bottom:4px}.pl-outbar.no b{color:var(--warn)}
 .pl-outlist{list-style:none;padding:0;margin:8px 0 0}.pl-outlist li{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
