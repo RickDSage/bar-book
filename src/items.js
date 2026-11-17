@@ -248,7 +248,7 @@ function itemsHtml(side) {
     <div class="actions">${LIVE.owner ? `<button class="btn pri" data-it-edit="${x.id}">Check it</button>` : `<button class="btn" data-it-drop="${x.id}">Take it back</button>`}</div></div>`;
   const liveRow = (x) => `<div class="it-row"><div><b>${esc(x.item)}</b> <span class="pill">${esc(x.group)}</span><div class="s">${esc(itLine(x))}</div>${x.note ? `<div class="s">${esc(x.note)}</div>` : ""}</div>
     ${LIVE.owner ? `<div class="actions"><button class="btn" data-it-edit="${x.id}">Change</button></div>` : ""}</div>`;
-  const form = itF?.kind && !itF.id ? itFormHtml() : `<div class="ltools"><input id="it-name" maxlength="60" placeholder="A name, or a barcode's numbers" aria-label="What it is" value="${esc(itF?.item || "")}"><button class="btn pri" id="it-look"${itBusy ? " disabled" : ""}>${itBusy ? "Looking…" : "Look it up"}</button></div>${navigator.mediaDevices?.getUserMedia ? `<div class="actions"><button class="btn" id="it-scan-go">Scan a barcode</button></div>` : ""}`;
+  const form = itF?.kind && !itF.id ? itFormHtml() : `<div class="ltools"><input id="it-name" maxlength="60" placeholder="A name, or a barcode's numbers" aria-label="What it is" value="${esc(itF?.item || "")}"><button class="btn pri" id="it-look"${itBusy ? " disabled" : ""}>${itBusy ? "Looking…" : "Look it up"}</button></div><div class="s it-have" id="it-have" aria-live="polite"></div>${navigator.mediaDevices?.getUserMedia ? `<div class="actions"><button class="btn" id="it-scan-go">Scan a barcode</button></div>` : ""}`;
   return `<details class="setup" id="it-add"${itOpen || wait.length && LIVE.owner ? " open" : ""}><summary>Add something new${wait.length ? ` <span class="pill wait">${wait.length} waiting</span>` : ""}</summary>
     <p class="note">An ingredient, a drink we sell, a garnish, a dessert. Type what it is: the app looks it up and works out where it's kept, if it needs a date label and what happens to it at close. ${LIVE.owner ? "Yours go on straight away." : "Maintenance checks it, then it's on every phone."}</p>
     ${form}
@@ -353,6 +353,13 @@ $("#tally").addEventListener("click", (e) => {
   }
 });
 $("#tally").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "it-name") { e.preventDefault(); itLook(); } });
+// While typing a new item: what's on the list already with a name like it (the same search as everywhere), so nothing
+// goes on twice.
+$("#tally").addEventListener("input", (e) => {
+  if (e.target.id !== "it-name") return;
+  const q = e.target.value.trim(), xs = q.length >= 3 ? pkSearch(q, pkPool().filter((x) => x.c !== "drinks")).slice(0, 4) : [];
+  $("#it-have").innerHTML = xs.length ? `Already on the list: ${xs.map((x) => `<b translate="no">${esc(x.n)}</b> <span class="pill">${esc(PK_CAT[x.c])}</span>`).join(" ")}. Only add it if it's something else.` : "";
+});
 $("#tally").addEventListener("input", (e) => { const k = e.target.dataset.it; if (itF && (k === "life" || k === "note" || k === "item")) itF[k] = e.target.value; });
 $("#tally").addEventListener("change", (e) => {
   const k = e.target.dataset.it; if (!itF || !k || k === "life" || k === "note") return;

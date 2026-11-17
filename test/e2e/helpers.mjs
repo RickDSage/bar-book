@@ -137,3 +137,13 @@ export async function handOver(p) {
   await p.click("#sh-close");
   await p.waitForSelector("#sheet", { state: "hidden" });
 }
+// The one item picker (src/pick.js): open it with a button, type, and read the rows or tap one.
+export async function pickRows(p, typed, opener = "[data-pk86]") {
+  await p.click(opener); await p.fill("#pk-q", typed);
+  return p.$$eval("#pk-list .pk-t b", (xs) => xs.map((x) => x.textContent));
+}
+export const pickClose = (p) => p.click("#pick [data-pk-x]");
+// 86 one item from the picker, with its own 86 button.
+export async function pick86(p, typed, name = typed, opener = "[data-pk86]") {
+  await pickRows(p, typed, opener); await p.click(`#pk-list [data-pk-one="${name}"]`); await pickClose(p);
+}

@@ -16,7 +16,7 @@ function plOutKeys() {
   if (sig === OUT_SIG) return OUT_KEYS;
   const ks = new Set();
   for (const n of names) {
-    const it = MK.byKey.get(mkNorm(n)) || mkFind(n); if (it) ks.add(it.k);
+    const it = pkIt(n); if (it) ks.add(it.k);
     for (const x of OUT_ALSO[n] || []) { const j = MK.byKey.get(mkNorm(x)) || mkFind(x); if (j) ks.add(j.k); }
   }
   OUT_SIG = sig; OUT_KEYS = ks; PL_OUTD.clear();
@@ -24,7 +24,7 @@ function plOutKeys() {
 }
 // The name to put on the 86 board for an ingredient: the stock list's own name when it has one, so it matches.
 const STOCK_FLAT = Object.values(STOCK).flat();
-const plOutName = (it) => STOCK_FLAT.find((s) => (MK.byKey.get(mkNorm(s)) || mkFind(s)) === it) || it.n;
+const plOutName = (it) => STOCK_FLAT.find((s) => pkIt(s) === it) || it.n;
 // The swap for one missing ingredient: the drink's own "Out of something?" line, else another bottle of the same kind
 // from the line-up, else one from the same family (a change of flavour), else nothing close.
 const plStocked = new Set(typeof BT_KEYS !== "undefined" ? BT_KEYS : []);

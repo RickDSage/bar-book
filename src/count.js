@@ -196,6 +196,7 @@ function ctHtml() {
     <div class="recent ct-mode"><button class="chip" data-ct-mode="tap" aria-pressed="${ctMode === "tap"}">Tap the level</button><button class="chip" data-ct-mode="weigh" aria-pressed="${ctMode === "weigh"}">Weigh on the scale</button></div>
     <div class="ltools ct-say"><input id="ct-say" maxlength="80" autocomplete="off" placeholder="Say or type: Smirnoff 2 and a half" aria-label="Say or type a count">${speech ? `<button class="btn" id="ct-mic" aria-label="Say it">${ctRx ? "Listening…" : "🎤"}</button>` : ""}<button class="btn" id="ct-say-go">Add</button></div>
     ${ctHeardHtml()}
+    ${pkBtn("Find an item: type a few letters or pick a kind", "data-ct-find")}
     <div class="recent ct-jump">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip" data-ct-jump="${esc(a)}">${esc(a)} <small>${n}/${rs.length}</small></button>`; }).join("")}</div>
     ${areas.map((a) => `<i class="anc" id="ct-a-${ctSlug(a)}"></i><div class="sec">${esc(a)}</div>${rows.filter((r) => r.area === a).map(ctRowHtml).join("")}`).join("")}
     <div class="sec">Totals</div>
@@ -418,6 +419,12 @@ $("#sheet").addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s);
   const md = t("[data-ct-mode]"); if (md) { ctMode = md.dataset.ctMode; store.set("ctMode", ctMode); return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
+  if (t("[data-ct-find]")) {
+    haptic();
+    return pkOpen({ mode: "one", title: "Find an item to count", only: [...new Set(ctRows().map((r) => r.item))], other: false, onPick: ([n]) => {
+      const rs = ctRows().filter((r) => r.item === n), r = rs.find((x) => !ctLine(x)) || rs[0]; if (r) ctGo(r.key);
+    } });
+  }
   const jp = t("[data-ct-jump]"); if (jp) return document.getElementById(`ct-a-${ctSlug(jp.dataset.ctJump)}`)?.scrollIntoView({ block: "start" });
   const r = ctOpen && ctRow(ctOpen), x = r && ctLine(r);
   const ad = t("[data-ct-add]"); if (ad && r) { haptic(); const d = +ad.dataset.ctAdd.split(":")[1]; ctPut(r, Math.max(0, (x?.full || 0) + d), x?.open || 0); return; }

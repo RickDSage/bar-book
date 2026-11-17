@@ -308,9 +308,8 @@ function renderStation() {
     <div class="sx-lbs" id="sx-lbs" hidden></div>
     <div class="sx" id="sx">
       <aside class="sx-tonight" id="sx-tonight" aria-label="Tonight"><button class="sx-tsum" id="sx-tsum" aria-controls="sx-tgrid"></button><div class="sx-tgrid" id="sx-tgrid"><div class="sx-live" id="sx-live"></div>
-        <div class="st-tile sx-tools" id="sx-tools" hidden><label class="st-k" for="sx-86q">Ran out of something?</label>
-          <div class="sx-86in"><input id="sx-86q" list="sx-86l" maxlength="80" autocomplete="off" autocorrect="off" placeholder="Any ingredient, bottle or drink" enterkeyhint="done"><button class="btn pri" data-sx-86go>86 it</button></div>
-          <datalist id="sx-86l"></datalist><span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></div></aside>
+        <div class="st-tile sx-tools" id="sx-tools" hidden><span class="st-k">Ran out of something?</span>
+          ${pkBtn("Search or pick: any ingredient, bottle or drink", 'data-pk86="bar" id="sx-86q"')}<span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></div></aside>
       <section class="sx-drinks" aria-label="Drinks">
         <div class="search sx-search"><input id="sx-q" type="search" placeholder="Search any drink, spirit or glass" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Search drinks"></div>
         <div class="sx-gbar"><button class="sx-gbtn" id="sx-gbtn" aria-expanded="false" aria-controls="sx-grp"></button></div>
@@ -320,7 +319,6 @@ function renderStation() {
       </section>
       <section class="sx-spec" id="sx-spec" aria-label="Spec"></section>
     </div>`;
-  if (!$("#sx-86l").children.length) $("#sx-86l").innerHTML = sx86Names().map((n) => `<option value="${esc(n)}">`).join("");
   document.body.classList.toggle("sxbig", SX.big);
   sxBars(); sxList(); sxSpec(); sxTonight(); sxTimers(); sxFit();
 }
@@ -332,12 +330,6 @@ function sx86Name(t) {
   if (OUT_DRINKS.has(hit) || STOCK_FLAT.includes(hit)) return hit;
   // An ingredient goes on under the stock list's own name, so the board and the drinks agree.
   const it = MK.byKey.get(mkNorm(hit)); return it ? plOutName(it) : hit;
-}
-function sx86Go() {
-  const inp = $("#sx-86q"), t = inp.value.trim().replace(/\s+/g, " "); if (!t) return inp.focus();
-  const n = sx86Name(t);
-  if (isOut(n)) return toast(`${n} is already 86'd`);
-  setOut(n, true); haptic(); inp.value = ""; inp.blur(); toast(`${n} 86'd for everyone`);
 }
 // On an iPad the columns scroll on their own and fill the screen to the bottom.
 function sxFit() {
@@ -393,7 +385,6 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-sx-qznext]")) { haptic(); const z = SX.qz; z.i++; z.pick = null; if (z.i >= z.qs.length) sxQuizNew(); sxList(); sxSpec(); return; }
   if (e.target.closest("[data-sx-big]")) { SX.big = !SX.big; store.set("sx.big", SX.big); haptic(); document.body.classList.toggle("sxbig", SX.big); e.target.closest("[data-sx-big]").setAttribute("aria-pressed", SX.big); sxFit(); return; }
   const dm = e.target.closest("[data-sx-dm]"); if (dm) { curId = +dm.dataset.sxDm; return; }
-  if (e.target.closest("[data-sx-86go]")) return sx86Go();
   const bk = e.target.closest("[data-sx-back]"); if (bk) { const n = bk.dataset.sxBack; haptic(); setOut(n, false); toast(`${n} back in stock`); return; }
   const lbg = e.target.closest("[data-sx-labels]"); if (lbg) { haptic(); if (lbg.dataset.sxLabels !== mode) setMode(lbg.dataset.sxLabels); pane = labelPane(mode); show("tally"); return; }
   if (e.target.closest("[data-sx-exit]")) { haptic(); stationSet(false); show("info"); toast("Bar station off. Turn it on again in More"); return; }
@@ -424,7 +415,6 @@ document.addEventListener("input", (e) => { if (e.target.id !== "sx-q") return; 
 function sxOpenQuiet(id) { if (!sxWide()) return; SX.id = id; $$("#sx-list [data-sx-id]").forEach((b) => b.setAttribute("aria-current", +b.dataset.sxId === id)); sxSpec(); }
 document.addEventListener("keydown", (e) => {
   if (cur !== "station" || !$("#sheet").hidden) return;
-  if (e.target.id === "sx-86q" && e.key === "Enter") { e.preventDefault(); return sx86Go(); }
   if (e.target.id === "sx-q" && e.key === "Enter") { e.preventDefault(); if (SX.ids.length) { e.target.blur(); sxOpen(SX.ids[0]); } return; }
   if (e.target.closest("input, textarea, select")) return;
   if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); sxStep(1); }
@@ -570,8 +560,6 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .sx-tb [data-sx-big][aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .sx-live { display: contents; }
 .sx-tools[hidden] { display: none; }
-.sx-86in { display: flex; gap: 8px; width: 100%; }
-.sx-86in input { flex: 1; min-width: 0; font: inherit; font-size: 17px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .sx-outl { list-style: none; margin: 0; padding: 0; width: 100%; max-height: 14em; overflow-y: auto; }
 .sx-outl li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--line); }
 .sx-outl .chip { min-height: 34px; padding: 4px 12px; font-size: 14px; }

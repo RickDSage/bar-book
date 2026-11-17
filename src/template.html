@@ -2915,9 +2915,6 @@ function stillToDoHtml() {
     ${open.map(([k, i, t]) => `<button class="todo" data-jump="${k}" data-jump-i="${i}">${st(k, i)}${esc(t)} <span class="s">· ${esc(LISTS[k].short)}</span></button>`).join("")}</details>`;
 }
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
-const OTHER = "Other (write it in)";
-// The stock list plus what the team has added (items.js), each in its group.
-const stockOptions = (skip, pick = "") => Object.entries(stockGroups()).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
 /* ---------- Restocking from the cellar (logged in) ----------
    Ask for something, how much and where it's going. Anyone can take it on (or a manager gives it to someone), bring it
    up saying how much they moved, and whoever is there confirms how much arrived, so a request is never taken as proof
@@ -2935,7 +2932,7 @@ const rsWait = (r) => (r.pending ? 0 : ["asked", "given"].includes(r.status) ? m
 const rsLate = (r) => rsWait(r) >= RS_LATE;
 const rsLateText = (r) => (r.status === "delivered" ? `Not confirmed after ${rsWait(r)} min` : `Waiting ${rsWait(r)} min`);
 // Kept outside the form so live updates don't wipe a half-filled ask.
-const rsF = { item: "", other: "", qty: "1", unit: "each", dest: "", detail: "" };
+const rsF = { item: "", qty: "1", unit: "each", dest: "", detail: "" };
 const rsDest = () => rsF.dest || { bar: "up", floor: "floor" }[mode];
 function rsCard(r) {
   const A = LIVE.admin, mine = r.whoUid === LIVE.uid, asker = r.askedUid === LIVE.uid, st = r.status;
@@ -2964,8 +2961,7 @@ function restockHtml() {
   const head = `<div class="sec">Restock from the cellar</div>`;
   const open = rsOpen().sort((a, b) => ms(a.askedAt) - ms(b.askedAt)), done = LIVE.restock.filter((r) => !RS_OPEN.includes(r.status) && bday(r.at) === shiftDay());
   return `${head}
-    <label class="fld">What's needed<select id="rs-item"><option value="">Choose…</option><option${rsF.item === OTHER ? " selected" : ""}>${OTHER}</option>${stockOptions(() => false, rsF.item)}</select></label>
-    ${rsF.item === OTHER ? `<label class="fld">What is it<input id="rs-other" maxlength="80" value="${esc(rsF.other)}"></label>` : ""}
+    <div class="fld">What's needed${pkBtn(rsF.item ? `<b class="pk-chosen" translate="no">${esc(rsF.item)}</b> <small>Change</small>` : "Search or pick what's needed", 'id="rs-item"')}</div>
     <div class="two"><label class="fld">How many<input id="rs-qty" inputmode="decimal" value="${esc(rsF.qty)}"></label><label class="fld">Unit<select id="rs-unit">${Object.keys(UNIT).map((u) => `<option value="${u}"${u === rsF.unit ? " selected" : ""}>${u === "each" ? "Each" : UNIT[u][1][0].toUpperCase() + UNIT[u][1].slice(1)}</option>`).join("")}</select></label></div>
     <div class="fld">Where it's going<div class="recent" style="margin-top:6px">${Object.entries(DEST).map(([k, t]) => `<button class="chip" data-rs-dest="${k}" aria-pressed="${k === rsDest()}">${t}</button>`).join("")}</div></div>
     <label class="fld">Detail (optional)<input id="rs-detail" maxlength="200" value="${esc(rsF.detail)}" placeholder="Running low, the big bottles, for the weekend…"></label>
@@ -3224,6 +3220,7 @@ function addIdeas(side) {
 function labelAddHtml(side) {
   return `${labelListHtml(side)}<details class="setup" id="lb-add"${lbF.open ? " open" : ""}><summary>Add something else to date</summary>
     <label class="fld">What it is<input id="lb-item" maxlength="60" value="${esc(lbF.item)}" placeholder="Anything opened that goes off"></label>
+    ${pkBtn("Or pick it from the list", 'data-lb-pick')}
     <label class="fld">Days it keeps once opened<input id="lb-life" inputmode="numeric" maxlength="3" value="${esc(lbF.life)}"></label>
     ${stationField(side, lbF.station, 'id="lb-station"')}
     <label class="check"><input type="checkbox" id="lb-on"${lbF.on ? " checked" : ""}> Needs a date label</label>
@@ -3340,11 +3337,10 @@ function renderTally() {
     fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${putAwayHtml("floor")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
-      ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
+      ${outList.length ? outList.map((n) => { const sw = pkSwap(n), u = pkUses(n); return `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) || u ? `<div class="s">${outBy(n) ? `86'd by ${outBy(n)}` : ""}${u ? `${outBy(n) ? " · " : ""}${plural(u, "drink")} use it` : ""}</div>` : ""}${sw ? `<div class="s pk-sw">${esc(sw)}</div>` : ""}</div><button class="btn" data-out-back="${esc(n)}">Back in stock</button></div>`; }).join("") : `<p class="note">Nothing 86'd.</p>`}
       ${outList.length ? `<div class="actions">${sendBtn("out", "Send the 86 list")}<button class="btn" data-out-clear>All back in stock</button></div>` : ""}
-      <div class="mini">Quick 86</div><div class="recent" translate="no">${QUICK86[mode].filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-      <label class="fld">Something else ran out?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
-      <div class="ltools"><input id="s-86-own" maxlength="80" placeholder="Not on the list? Type it, like a burger" aria-label="86 something not on the list"><button class="btn" id="s-86-go">86 it</button></div>
+      ${pkBtn("Search everything to 86: drinks, bottles, cakes, boxes", `data-pk86="${mode}"`)}
+      <div class="mini">Quick 86: recent and most 86'd</div><div class="recent" translate="no">${pkTop(mode).filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
       ${restockHtml()}${itemsHtml(mode)}${ctCardHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
     close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
@@ -3361,7 +3357,7 @@ function renderTally() {
       <p class="note">Every night: what's cleaned, what's running low, what's outstanding and what tomorrow needs, with photos.</p>
       <div class="hopt"><b>1. Cleaning completed</b><span>${(() => { const p = progress(closeList()); return p.n === p.of ? "\u2705 Closing all ticked" : `${p.n} of ${p.of} closing items ticked`; })()}</span></div>
       ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
-      <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
+      <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${f.id === "low" ? `<button class="chip pk-chip" data-ho-pick>⌕ Pick from the list</button>` : ""}${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
       ${logHoHtml()}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
       <div class="draftbar"><span>${LIVE.me ? "Shared live with everyone closing this side" : "Saved on this phone as you type"}</span><button class="btn" data-ho-save>Save draft</button><button class="btn" data-ho-clear>Discard</button></div>
@@ -3397,7 +3393,6 @@ $("#ph-pick").addEventListener("change", addClosingPhotos);
 const taskKey = (id) => { const j = id.lastIndexOf("-"); return [id.slice(0, j), +id.slice(j + 1)]; };
 $("#tally").addEventListener("change", async (e) => {
   const t = e.target;
-  if (t.id === "rs-item") { const was = rsF.item; rsF.item = t.value; if ((was === OTHER) !== (t.value === OTHER)) renderTally(); return; }
   if (t.id === "rs-unit") { rsF.unit = t.value; return; }
   if (t.dataset.giveTask && t.value) {
     const [k, i] = taskKey(t.dataset.giveTask), p = t.value === "-" ? null : LIVE.staff.find((x) => x.uid === t.value);
@@ -3422,15 +3417,11 @@ $("#tally").addEventListener("change", async (e) => {
   if (t.id === "lb-on") { lbF.on = t.checked; return; }
   if (t.dataset.lbsOn != null) { lbS.off[lbKey(mode, t.dataset.lbsOn)] = !t.checked; return; }
   if (t.dataset.lbe && lbe) { lbe[t.dataset.lbe] = t.type === "checkbox" ? t.checked : t.value; return; }
-  if (t.id !== "s-86" || !t.value) return;
-  const n = t.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
 });
 keepOpen($("#tally"), (e) => { if (e.target.id === "lb-add") lbF.open = e.target.open; if (e.target.id === "lb-list") lbS.open = e.target.open; });
-$("#tally").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "s-86-own") { e.preventDefault(); $("#s-86-go")?.click(); } });
 $("#tally").addEventListener("input", (e) => {
   if (le && e.target.dataset.leT != null) { le.items[+e.target.dataset.leT].t = e.target.value; return; }
   if (le && e.target.dataset.leG != null) { le.items[+e.target.dataset.leG].g = e.target.value; return; }
-  if (e.target.id === "rs-other") { rsF.other = e.target.value; return; }
   if (e.target.id === "rs-qty") { rsF.qty = e.target.value; return; }
   if (e.target.id === "rs-detail") { rsF.detail = e.target.value; return; }
   if (e.target.id === "lb-item") { lbF.item = e.target.value; return; }
@@ -3536,27 +3527,30 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#lbs-go")) { addIdeas(mode); return; }
   if (e.target.closest("#lb-go")) { addLabel(mode); return; }
   if (e.target.closest("#rs-go")) {
-    const item = (rsF.item === OTHER ? rsF.other : rsF.item).trim(), qty = Number(rsF.qty.replace(",", "."));
-    if (!item) return toast(rsF.item === OTHER ? "Write what's needed in the box" : "Pick what's needed");
+    const item = rsF.item.trim(), qty = Number(rsF.qty.replace(",", "."));
+    if (!item) return toast("Pick what's needed");
     if (!(qty > 0 && qty <= 1000)) return toast("Enter how many, over 0 and up to 1,000");
     track(LIVE.api.askRestock({ item, qty, unit: rsF.unit, dest: rsDest(), detail: rsF.detail.trim() }), "Asked. The team can see it now", "Not sent. Try again");
-    haptic(); Object.assign(rsF, { item: "", other: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
+    haptic(); Object.assign(rsF, { item: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
   }
   const ps = e.target.closest("[data-ph-send]"); if (ps) { sendPhotoNow(ps.dataset.phSend); return; }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
-  const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  const oq = e.target.closest("[data-out-quick]"); if (oq) { const n = oq.dataset.outQuick; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return; }
-  if (e.target.closest("#s-86-go")) {
-    const typed = $("#s-86-own").value.trim().replace(/\s+/g, " ").slice(0, 80), n = typed && itFix86(typed);
-    if (!n) return toast("Type what ran out");
-    if (outNow().has(n)) return toast(`${n} is already 86'd`);
-    setOut(n, true); haptic(); toast(n === typed ? `${n} 86'd` : `${n} 86'd (you typed “${typed}”)`); renderList(); renderTally(); return;
-  }
+  const bk = e.target.closest("[data-out-back]"); if (bk) { pk86([bk.dataset.outBack], false); renderTally(); renderList(); return; }
+  const oq = e.target.closest("[data-out-quick]"); if (oq) { pk86([oq.dataset.outQuick], true); renderList(); renderTally(); return; }
   if (e.target.closest("[data-out-clear]")) {
     const xs = [...outNow()];
     if (!xs.length || !confirm(`Put all ${xs.length} back in stock? It clears the 86 board on every phone.`)) return;
     track(Promise.all(xs.map((n) => LIVE.api.set86(n, false))), "The 86 board is clear", "Not all cleared. Check your signal and try again");
     haptic(); return;
+  }
+  if (e.target.closest("#rs-item")) { haptic(); return pkOpen({ mode: "one", title: "What's needed from the cellar?", other: true, onPick: ([n]) => { rsF.item = n.slice(0, 80); renderTally(); } }); }
+  if (e.target.closest("[data-lb-pick]")) {
+    haptic();
+    return pkOpen({ mode: "one", title: "What needs a date label?", other: true, onPick: ([n]) => { lbF.item = n.slice(0, 60); if (!lbF.life && itKeep(n)?.days) lbF.life = String(itKeep(n).days); lbF.open = true; renderTally(); } });
+  }
+  if (e.target.closest("[data-ho-pick]")) {
+    haptic();
+    return pkOpen({ mode: "many", title: "What's running low?", onPick: (ns) => { const v = ho.low.trim(); ho.low = [v, ...ns].filter(Boolean).join(", "); keepDraft(); renderTally(); } });
   }
   // A chip adds to its box: running low is a list, the others start a new line.
   const hc = e.target.closest("[data-ho-add]"); if (hc) {
@@ -5833,7 +5827,7 @@ function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc
    loses nothing. Save draft puts it away to finish later (its card says Draft, and the app says so when it opens);
    Discard wipes it. Clear everything wipes them all. Nothing here leaves the phone until it's sent. */
 const DRAFTS = {
-  restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", other: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "other", "detail"] },
+  restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "detail"] },
   label: { n: "Date label", get: () => lbF, blank: () => ({ item: "", life: "", on: true, open: false }), fs: ["item", "life"] },
   ask: { n: "To the managers", get: () => askF, blank: () => ({ kind: askF.kind, text: "", when: "", anon: false }), card: "ask", fs: ["text", "when"] },
   issue: { n: "Issue", get: () => isF, blank: () => ({ title: "", detail: "", area: "", urgent: false, again: null }), card: "issues", fs: ["title", "detail"] },
@@ -6162,6 +6156,7 @@ function liveChanged(what) {
   funLive(what);
   if (what === "drafts" || what === "me") pullDraft();
   if (what === "events") logLive();
+  pkLive(what);
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of Object.values(LIVE[what])) {

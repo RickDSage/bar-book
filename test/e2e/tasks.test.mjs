@@ -4,7 +4,7 @@
 // and the layout on a phone and a desktop in light and dark.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
-import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, ukDay, part } from "./helpers.mjs";
+import { serve, resetEmulators, launch, team, toastOf, attempt, adminWrite, ukDay, part, pickRows } from "./helpers.mjs";
 
 let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
@@ -229,7 +229,7 @@ test("restocking: asked for, given to someone, brought up and confirmed, each st
   const ready = (p, st) => p.waitForFunction((st) => LIVE.restock[0]?.status === st && !LIVE.restock[0].pending, st);
 
   // Asked for: what, how many, where it's going and why. The team is told.
-  await S.selectOption("#rs-item", "Limes"); await S.fill("#rs-qty", "2"); await S.selectOption("#rs-unit", "bag"); await S.fill("#rs-detail", "For the weekend");
+  await pickRows(S, "limes", "#rs-item"); await S.click('#pk-list [data-pk-tog="Limes"]'); await S.fill("#rs-qty", "2"); await S.selectOption("#rs-unit", "bag"); await S.fill("#rs-detail", "For the weekend");
   await S.click("#rs-go");
   await waitToast(S, /^Asked\. The team can see it now$/);
   await ready(T, "asked");
