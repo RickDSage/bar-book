@@ -235,7 +235,7 @@ LIVE.api = {
     const s = LIVE.seniors.find((x) => x.id === id), uid = auth.currentUser.uid;
     if (!s) err("Pick your name");
     const wait = waitFor(s);
-    if (wait === Infinity) err(`Locked after ${MAX_TRIES} wrong codes. Ask Derek to unlock it`);
+    if (wait === Infinity) err(`Locked after ${MAX_TRIES} wrong codes. Ask maintenance to unlock it`);
     if (wait) err(`Too many wrong codes. Try again in ${wait} min`);
     const n = s.tries + 1, a = writeBatch(db);
     a.set(doc(db, "unlocks", uid), { id, guess, n, at: serverTimestamp() });
@@ -244,7 +244,7 @@ LIVE.api = {
     const b = writeBatch(db);
     b.update(doc(db, "staff", uid), { name: s.name, role: "manager", pin: id, at: serverTimestamp() });
     b.update(doc(db, "seniors", id), { tries: 0, lastTry: serverTimestamp() });
-    await b.commit().catch(() => err(n >= MAX_TRIES ? `Wrong code. Now locked: ask Derek to unlock it`
+    await b.commit().catch(() => err(n >= MAX_TRIES ? `Wrong code. Now locked: ask maintenance to unlock it`
       : n >= FREE_TRIES ? `Wrong code. Next try in ${WAIT_MIN} min` : `Wrong code. ${FREE_TRIES - n} more before it slows down`));
     await deleteDoc(doc(db, "unlocks", uid)).catch(() => {});
   },
@@ -256,9 +256,9 @@ LIVE.api = {
   async setSenior(name, pin, id) {
     id = id || slug(name);
     if (!id || id.length > 30) err("Put in a first name");
-    if (!LIVE.seniors.some((x) => x.id === id) && LIVE.seniors.length >= MAX_SENIORS) err(`Up to ${MAX_SENIORS} seniors. Take one off first`);
+    if (!LIVE.seniors.some((x) => x.id === id) && LIVE.seniors.length >= MAX_SENIORS) err(`Up to ${MAX_SENIORS} managers. Take one off first`);
     const others = (await getDocs(collection(db, "pins"))).docs.filter((x) => x.id !== id);
-    for (const o of others) if ((await hashPin(pin, o.data().salt)) === o.data().hash) err("Another senior has that code. Pick a different one");
+    for (const o of others) if ((await hashPin(pin, o.data().salt)) === o.data().hash) err("Another manager has that code. Pick a different one");
     const salt = hex(crypto.getRandomValues(new Uint8Array(16)).buffer), b = writeBatch(db);
     b.set(doc(db, "seniors", id), { name, tries: 0, lastTry: serverTimestamp() });
     b.set(doc(db, "pins", id), { salt, hash: await hashPin(pin, salt) });
