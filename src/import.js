@@ -169,6 +169,8 @@ const IM_KINDS = {
         const ml = num("ml", r.ml), e = num("e", r.e), f = num("f", r.f), pw = num("pw", r.pw), off = !imYes(o.count, !r.off);
         if ([ml, e, f, pw].some((v) => v === null || v < 0 || v > 20000)) return { o, st: "skip", why: "Sizes and weights must be numbers, 0 to 20000" };
         if (u === "bottle" && e && f && f <= e) return { o, st: "skip", why: "Full bottle must weigh more than empty" };
+        // Weighed by a manager: locked. A file never changes it; Unlock on the stock count is the way to re-weigh.
+        if (r.lock && (+ml !== +r.ml || +e !== +r.e || +f !== +r.f || +pw !== +r.pw)) return { o, st: "skip", why: "Weighed and locked. Unlock it on the stock count to re-weigh" };
         const next = { u, a, ml, e, f, pw, off }, same = next.u === r.u && next.a.join("|") === r.a.join("|") && +next.ml === +r.ml && +next.e === +r.e && +next.f === +r.f && +next.pw === +r.pw && next.off === r.off;
         const line = `${r.item} · ${a.join(", ")} · ${u}${u === "bottle" && ml ? ` · ${ml} ml` : ""}${e && f ? ` · ${e} to ${f} g` : ""}${off ? " · not counted" : ""}`;
         // Sizes and weights come filled in as estimates (measures.js). Left as they were, they stay estimates rather than

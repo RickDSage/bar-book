@@ -109,7 +109,7 @@ test("managers set it up; weighing, deliveries and usage between counts", async 
   await M.fill('[data-ct-sk="Back bar|Kraken"] [data-ct-wf="f"]', "590");
   await M.click('[data-ct-wsave="Kraken"]'); await waitToast(M, /unopened one has to weigh more/);
   await M.fill('[data-ct-sk="Back bar|Kraken"] [data-ct-wf="f"]', "1265");
-  await M.click('[data-ct-wsave="Kraken"]'); await waitToast(M, /^Weights saved for Kraken$/);
+  await M.click('[data-ct-wsave="Kraken"]'); await waitToast(M, /^Weights saved for Kraken\. Locked$/);
   await M.waitForFunction(() => LIVE.countSetup?.items?.Kraken?.f === 1265);
   const before = await M.evaluate(() => ctRows().filter((r) => r.area === "Back bar").map((r) => r.item));
   await M.click('[data-ct-sk="Back bar|Kraken"] [data-ct-move="-1"]');
@@ -177,15 +177,27 @@ test("finding it when it isn't in shelf order: every place, not counted yet, Nex
   await resetEmulators();
   const { S } = await team(browser, site, people);
   await S.evaluate(() => store.set("ctHow", false));
-  await openCount(S);
-  // The how-to is open the first time, and stays shut once closed.
-  assert.match(await text(S, "#ct-how"), /Full, sealed bottles: tap \+ for each one\. The open bottle: take the pourer off, stand it on the scale/);
-  assert.equal(await S.$eval("#ct-how", (d) => d.open), true);
-  await S.click("#ct-how summary"); await S.waitForFunction(() => store.get("ctHow") === true);
+  // The first time: a walkthrough in plain words with pictures, before the list. The scale, then bottles, then not listed.
+  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=stock]"); await S.click("[data-ct-open]");
+  await S.waitForSelector(".ct-intro");
+  assert.match(await text(S, ".ct-intro"), /^1 of 8 Counting stock: how it works/i);
+  assert.ok(await S.$(".ct-intro svg.ct-pic"));
+  assert.equal(await S.$eval("#ct-find", (e) => e.hidden), true, "no find box while it's on");
+  await S.click('[data-ct-intro="1"]'); assert.match(await text(S, ".ct-intro"), /Set up the scale .*flat, dry part of the bar top.*It should say 0 g\. If it doesn't, press Tare or Zero/i);
+  await S.click('[data-ct-intro="2"]'); await S.click('[data-ct-intro="3"]'); assert.match(await text(S, ".ct-intro"), /2\. The open bottle Take the pourer off/i);
+  for (const i of [4, 5, 6]) await S.click(`[data-ct-intro="${i}"]`);
+  assert.match(await text(S, ".ct-intro"), /Can't find it\? .*Still not there\? Tell the duty manager and put it in ＋ Log it/i);
+  await S.click('[data-ct-intro="7"]'); await S.click('[data-ct-intro="go"]');
+  await S.waitForSelector("#ct .ct-row"); assert.equal(await S.evaluate(() => store.get("ctHow")), true);
+  // Each line says what to do with it; How to count brings the walkthrough back.
+  assert.match(await text(S, row("Speed rail", "Smirnoff")), /Smirnoff Full bottles, then weigh the open one/);
+  assert.match(await text(S, row("Bar fridge", "Tonic")), /Tonic Count them: one is a 200 ml Fever-Tree bottle/);
+  assert.match(await text(S, row("Bar fridge", "Funkin purées")), /Count them or weigh them: one is a 1 kg pouch/);
+  await S.click('.ct-head [data-ct-intro="0"]'); await S.waitForSelector(".ct-intro"); await S.click('[data-ct-intro="go"]'); await S.waitForSelector("#ct .ct-row");
   // Search looks in every place: milk is in two, and each line says where.
   await S.fill("#ct-say", "whole mil");
   await S.waitForFunction(() => document.querySelectorAll("#ct-list .ct-row").length === 2);
-  assert.match(await text(S, "#ct-list"), /Found in every place Whole milk Bar fridge Whole milk Shake station/i);
+  assert.match(await text(S, "#ct-list"), /Found in every place Whole milk Bar fridge .*Whole milk Shake station/i);
   // A typed count finds by its name, and Count it shows; Enter checks it before it saves.
   await S.fill("#ct-say", "grey goose 2");
   assert.equal(await S.$eval("#ct-say-go", (b) => b.hidden), false);
@@ -236,18 +248,29 @@ test("every bottle and pack comes filled in: size, empty and full weights, marke
   await openCount(M); await M.click('[data-ct-show="all"]');
   await M.click(row("Speed rail", "Smirnoff"));
   await M.click(".ct-wbox summary"); await M.fill('[data-ct-chk="Smirnoff"]', "1100"); await M.click('[data-ct-chkgo="Smirnoff"]');
-  await waitToast(M, /^Smirnoff checked: empty 434 g, full 1100 g$/);
+  await waitToast(M, /^Smirnoff checked: empty 434 g, full 1100 g\. Locked$/);
   await S.waitForFunction(() => { const r = ctRows().find((x) => x.item === "Smirnoff"); return r.e === 434 && r.f === 1100 && !r.est; });
   await S.click('[data-ct-show="all"]'); await S.click(row("Speed rail", "Smirnoff"));
-  assert.match(await text(S, ".ct-edit"), /Weights checked\./);
+  assert.match(await text(S, ".ct-edit"), /🔒 Locked: weighed by Mia Manager/);
   // Packs: a full one, packaging and all, gives what's in one.
   await M.click(row("Bar fridge", "Funkin purées")); await M.click(".ct-wbox summary");
   await M.fill('[data-ct-chk="Funkin purées"]', "1050"); await M.click('[data-ct-chkgo="Funkin purées"]');
-  await waitToast(M, /^Funkin purées checked: 1020 g in one$/);
+  await waitToast(M, /^Funkin purées checked: 1020 g in one\. Locked$/);
   // Setup shows which are estimated, and the spreadsheet has the size.
   assert.match(await S.evaluate(() => ctCsv()), /,Monkey 47,,bottle,50 cl,,/);
   await M.click("#ct-setup");
   assert.match(await text(M, '[data-ct-sk="Back bar|Grey Goose"] summary'), /bottle · 70 cl · weights estimated/);
-  assert.match(await text(M, '[data-ct-sk="Speed rail|Smirnoff"] summary'), /weights checked/);
+  assert.match(await text(M, '[data-ct-sk="Speed rail|Smirnoff"] summary'), /🔒 weighed/);
+  // Weighed is locked: no weights to edit by accident, until a deliberate Unlock, and it locks again once re-weighed.
+  await M.click('[data-ct-sk="Speed rail|Smirnoff"] summary'); await M.waitForSelector('[data-ct-sk="Speed rail|Smirnoff"] [data-ct-unlock]');
+  assert.match(await text(M, '[data-ct-sk="Speed rail|Smirnoff"] .ct-w'), /🔒 Locked: weighed by Mia Manager, .* Empty 434 g, full 1100 g/);
+  assert.equal(await M.$('[data-ct-sk="Speed rail|Smirnoff"] [data-ct-wf="e"]'), null);
+  await M.click('[data-ct-sk="Speed rail|Smirnoff"] [data-ct-unlock]');
+  await M.fill('[data-ct-sk="Speed rail|Smirnoff"] [data-ct-wf="e"]', "430"); await M.fill('[data-ct-sk="Speed rail|Smirnoff"] [data-ct-wf="f"]', "1096");
+  await M.click('[data-ct-wsave="Smirnoff"]'); await waitToast(M, /^Weights saved for Smirnoff\. Locked$/);
+  await M.waitForSelector('[data-ct-sk="Speed rail|Smirnoff"] [data-ct-unlock]');
+  assert.deepEqual(await M.evaluate(() => { const o = LIVE.countSetup.items.Smirnoff; return [o.e, o.f, o.wb]; }), [430, 1096, "Mia Manager"]);
+  // A spreadsheet can't change a locked one.
+  assert.deepEqual(await M.evaluate(() => [[{ item: "Smirnoff", unit: "bottle", ml: 700, e: 500, f: 1200 }], [{ item: "Smirnoff", unit: "bottle", ml: 700, e: 430, f: 1096 }]].map((xs) => IM_KINDS.setup.plan(xs)[0]).map((x) => x.why || x.st)), ["Weighed and locked. Unlock it on the stock count to re-weigh", "same"]);
   for (const p of [M, S]) assert.deepEqual(p.errs, []);
 });
