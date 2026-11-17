@@ -51,3 +51,60 @@ test("a shared iPad asks who's using it, hides My pay and locks a senior's code 
   assert.ok(await p.$eval('nav.tabs [data-tab="pay"]', (b) => !b.hidden));
   assert.deepEqual(p.errs, []);
 });
+
+test("bar station mode: big search and spec side by side on an iPad, rounds, and a clear way in and out", async () => {
+  const p = await open(false);
+  await p.setViewportSize({ width: 1180, height: 820 });
+  await p.click("#w-ok");
+  await p.evaluate(() => show("info"));
+  assert.match(await p.textContent('[data-go="station"]'), /Turn this iPad into the bar station/);
+  await p.click('[data-go="station"]');
+  // Station mode: the tab bar steps aside and the page uses the whole width.
+  assert.ok(await p.$eval("body", (b) => b.classList.contains("stmode")));
+  assert.equal(await p.isVisible("nav.tabs"), false);
+  assert.ok(await p.$eval("main", (m) => m.getBoundingClientRect().width) > 1100);
+  // Signatures first, then the Top 10, then every drink once.
+  const heads = await p.$$eval("#sx-list .sx-h", (x) => x.map((h) => h.firstChild.textContent.trim()));
+  assert.equal(heads[0], "Black Tap signatures"); assert.equal(heads[1], "Top 10");
+  assert.equal(await p.evaluate(() => new Set(SX.ids).size), await p.evaluate(() => D.length));
+  // A typo still finds it, and the spec shows next to the list, scaled on a tap.
+  await p.fill("#sx-q", "pornstr");
+  assert.match(await p.textContent("#sx-spec h3"), /Pornstar Martini/);
+  assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /50 ml\s+Smirnoff Vanilla/);
+  await p.click('[data-sx-x="2"]');
+  assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /100 ml\s+Smirnoff Vanilla/);
+  // Arrow keys go through the list.
+  await p.fill("#sx-q", ""); await p.click("#sx-spec h3");
+  const i = await p.evaluate(() => SX.ids.indexOf(SX.id));
+  await p.keyboard.press("ArrowRight");
+  assert.equal(await p.evaluate(() => SX.ids.indexOf(SX.id)), i + 1);
+  // A round: two of one, one of another, scaled, with the glasses to pull.
+  const [a, b] = await p.evaluate(() => [SX.ids[0], SX.ids[3]]);
+  await p.click(`#sx-list [data-sx-add="${a}"]`); await p.click(`#sx-list [data-sx-add="${a}"]`); await p.click(`#sx-list [data-sx-add="${b}"]`);
+  await p.click("[data-sx-round=show]");
+  assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /ROUND OF 3[\s\S]*Pull: /i);
+  // Away from the station there's a way back; it reopens on the station; Exit turns it off.
+  await p.evaluate(() => show("tally"));
+  assert.equal(await p.isVisible("#sx-back"), true);
+  await p.click("#sx-back");
+  assert.equal(await p.evaluate(() => cur), "station");
+  await p.reload(); await p.click("#w-ok");
+  assert.equal(await p.evaluate(() => [cur, SX.round.size].join()), "station,2");
+  await p.click("[data-sx-exit]");
+  assert.equal(await p.evaluate(() => [cur, stationOn, document.body.classList.contains("stmode")].join()), "info,false,false");
+  assert.equal(await p.isVisible("#sx-back"), false);
+  assert.deepEqual(p.errs, []);
+});
+
+test("bar station on a phone: one column, a tap opens the drink page, nothing wider than the screen", async () => {
+  const p = await open(false);
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.click("#w-ok");
+  await p.evaluate(() => show("station"));
+  assert.equal(await p.isVisible("#sx-spec"), false);
+  await p.click("#sx-list [data-sx-id] >> nth=0");
+  assert.equal(await p.isVisible("#sheet"), true);
+  assert.equal(await p.evaluate(() => ctx.length), await p.evaluate(() => SX.ids.length));
+  assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 390);
+  assert.deepEqual(p.errs, []);
+});

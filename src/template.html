@@ -970,6 +970,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <button data-tab="pay"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>My pay</button>
   <button data-tab="info"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>More</button>
 </nav>
+<button class="sx-back" id="sx-back" hidden>‹ Bar station</button>
 <div id="tour" class="tour" hidden role="dialog" aria-label="Tour of the app"></div>
 
 <div id="sheet" class="sheet gut" hidden role="dialog" aria-modal="true" aria-labelledby="sh-name"></div>
@@ -1481,7 +1482,7 @@ function slideTo(step) {
 }
 function openSheet(id, keepScroll) {
   const d = D[id];
-  if (!keepScroll) { ctx = listIds.includes(id) && !$("#v-drinks").hidden ? listIds.slice() : MK.ids.includes(id) && !$("#v-make").hidden ? MK.ids.slice() : RAPID.ids.includes(id) && !$("#v-rapid").hidden ? RAPID.ids.slice() : D.map((x) => x.id); mult = 1; }
+  if (!keepScroll) { ctx = listIds.includes(id) && !$("#v-drinks").hidden ? listIds.slice() : MK.ids.includes(id) && !$("#v-make").hidden ? MK.ids.slice() : RAPID.ids.includes(id) && !$("#v-rapid").hidden ? RAPID.ids.slice() : SX.ids.includes(id) && !$("#v-station").hidden ? SX.ids.slice() : D.map((x) => x.id); mult = 1; }
   if (!ctx.includes(id)) ctx = D.map((x) => x.id);
   curId = id;
   if (!keepScroll) { lastFocus = document.activeElement; recent = [id, ...recent.filter((r) => r !== id)].slice(0, 6); store.set("recent", recent); keepAwake(); }
@@ -4531,7 +4532,7 @@ function renderInfo() {
       ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards and tonight's quiz")}
       ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A page per kind of drink, to send to WhatsApp or print")}
       ${hubRow("fun", 'data-go="fun"', "Just for fun", "Spin for a drink, and the spec of the day")}
-      ${hubRow("station", 'data-go="station"', "Bar station", "One always-on screen for the iPad: tonight's 86s, the close and the handover")}
+      ${hubRow("station", 'data-go="station"', "Bar station", stationOn ? "On: this iPad opens on it. Exit bar station turns it off" : "Turn this iPad into the bar station: big drink search and specs, rounds, tonight's 86s and the close")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
@@ -5629,7 +5630,7 @@ function liveChanged(what) {
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
   if (what === "me") { autoJoin(); sharedLock(); }
   if (what === "lists") applyLists();
-  if (cur === "station") renderStation();
+  if (cur === "station") stationLive(what);
   if (what === "drafts" || what === "me") pullDraft();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
@@ -5702,6 +5703,8 @@ addEventListener("resize", csFit);
    Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
    Tapping the tab you're on takes you back to its top. */
 const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station"];
+// Bar station mode: this iPad opens on the bar station until Exit bar station turns it off.
+let stationOn = store.get("station", false);
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
 let cur = "drinks";
 function show(tab) {
@@ -5710,6 +5713,9 @@ function show(tab) {
   if (tab !== "notices" && cur === "notices") { seenBefore = seenAt = Date.now(); store.set("seenAt", seenAt); }
   if (tab === "notices" && !seenAt) { seenAt = Date.now(); store.set("seenAt", seenAt); }
   cur = tab;
+  if (tab === "station" && !stationOn) { stationOn = true; store.set("station", true); }
+  document.body.classList.toggle("stmode", tab === "station");
+  $("#sx-back").hidden = !stationOn || tab === "station";
   TABS.forEach((t) => ($("#v-" + t).hidden = t !== tab));
   $$("nav.tabs [data-tab]").forEach((b) => b.setAttribute("aria-current", b.dataset.tab === tabOf(tab) ? "page" : "false"));
   $$("#subnav [data-tab]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.tab === tab));
@@ -5763,7 +5769,8 @@ renderChips(); renderList();
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);
     if (linkAt && openLink(linkAt)) { linkAt = ""; history.replaceState(null, "", location.pathname); return; }
-    if (b.dataset.rapid) show("rapid");
+    if (stationOn && !b.dataset.rapid) show("station");
+    else if (b.dataset.rapid) show("rapid");
     else if (mode !== "bar") show("tally");
   });
 }
@@ -5771,6 +5778,6 @@ applyShared();
 setLang(lang);
 // A link from a message opens there once Bar or Floor is picked on the start screen.
 let linkAt = /^#(d|at|list)=/.test(location.hash) ? location.hash : "";
-if (!plOpenList(location.hash)) show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : store.get("tab", "drinks"));
+if (!plOpenList(location.hash)) show(TABS.includes(location.hash.slice(1)) ? location.hash.slice(1) : stationOn ? "station" : store.get("tab", "drinks"));
 addEventListener("hashchange", () => openLink(location.hash));
 </script>
