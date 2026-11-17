@@ -203,8 +203,8 @@ nav.tabs button .dot { top: 4px; right: auto; left: calc(50% + 4px); min-width: 
 nav.tabs button svg { padding: 2px 0; box-sizing: content-box; width: 24px; border-radius: 999px; transition: background .15s; padding-inline: 16px; }
 nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--brass) 18%, transparent); }
 /* Drinks: three modes that always fit on one line, above the Menu's search. */
-.seg.dseg { grid-template-columns: repeat(3, 1fr); margin-top: 6px; }
-.seg.dseg button { line-height: 1.15; }
+.seg.dseg { grid-template-columns: 1.4fr 1fr 1fr; margin-top: 6px; }
+.seg.dseg button { line-height: 1.15; white-space: nowrap; padding-inline: 4px; }
 #hdr #hdr-drinks[hidden] { display: none; }
 #hdr .search { margin-top: 10px; }
 /* The section chips fade at the edge while there are more to swipe to. */
@@ -388,6 +388,7 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 #shift-day { color: var(--muted); font-size: 14px; }
 .ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px var(--shadow); }
 .ptabs button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 52px; padding: 6px 2px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--muted); }
+@media (max-width: 380px) { .ptabs button { font-size: 13px; padding-inline: 0; } }
 .ptabs small { font-size: 11.5px; font-weight: 600; opacity: .85; min-height: 14px; }
 .ptabs button[aria-selected="true"] { background: var(--brass); color: var(--brass-ink); }
 .pane.enter { animation: paneIn .18s ease-out; }
@@ -519,6 +520,11 @@ a.btn { text-decoration: none; color: inherit; }
 details.tpl { margin: 6px 0; } details.tpl > summary { cursor: pointer; color: var(--muted); font-weight: 700; padding: 6px 0; }
 .chip.x { min-width: 32px; padding: 0 8px; margin-left: -4px; }
 .tcard > summary .pill { margin-left: 6px; }
+/* Each Team card says what's inside, so nobody has to open them all to find one. */
+.tcard > summary { flex-wrap: wrap; }
+.tcard > summary .tsub { order: 9; flex-basis: 100%; color: var(--muted); font-weight: 400; font-size: 14px; line-height: 1.35; margin: -2px 0 6px; }
+.goto { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin: 8px 0 2px; }
+.goto .mini { margin: 0 4px 0 0; }
 .glance { margin-bottom: 14px; }
 ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; } ul.live .s { color: var(--muted); }
 .warnbox { border: 2px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
@@ -901,7 +907,6 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <div id="w-name"></div>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
   <button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire: house cocktails</button>
-  <p class="sig">Thank me later ~ Derek</p>
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
@@ -1177,7 +1182,8 @@ function printMsg(text, photos) {
 }
 /* A copy of everything sent from the Send page (WhatsApp, email, the share sheet or print) goes to the seniors and the
    owner, once per message. Team only: rate the shift goes with no name; My pay and the team link stay on the phone. */
-const PRIVATE_SEND = new Set(["hours", "pay", "slip", "team"]);
+// Health stays off the team's database: an off sick message and an incident write-up go on WhatsApp only.
+const PRIVATE_SEND = new Set(["hours", "pay", "slip", "team", "sick", "incident"]);
 function logSent(m) {
   if (!LIVE.me || !LIVE.api || PRIVATE_SEND.has(snd.k)) return;
   const anon = snd.k === "rate", text = msgText(anon ? SHARE.rate(null, true) : m, snd.pick, snd.note, false).slice(0, 8000);
@@ -1258,9 +1264,11 @@ let fav = new Set(store.get("fav", []));
 let sec = store.get("sec", "All");
 if (!CHIPS.includes(sec)) sec = "All";
 const inSec = (d) => sec === "All" || (sec === CHIPS[1] ? fav.has(d.name) : CATS[sec].includes(d.section));
+// The drinks the search and filters leave, so each section chip counts what tapping it would show.
+let chipPool = D;
 function renderChips() {
   // Each with how many drinks it holds, so it's clear before tapping.
-  const n = (c) => (c === "All" ? D.length : c === CHIPS[1] ? fav.size : D.filter((d) => CATS[c].includes(d.section)).length);
+  const P = chipPool, n = (c) => (c === "All" ? P.length : c === CHIPS[1] ? P.filter((d) => fav.has(d.name)).length : P.filter((d) => CATS[c].includes(d.section)).length);
   $("#secs").innerHTML = CHIPS.map((s) => `<button class="chip" aria-pressed="${s === sec}" data-sec="${esc(s)}">${esc(s)}${s !== CHIPS[1] || fav.size ? ` <span class="cn">${n(s)}</span>` : ""}</button>`).join("");
   secsEdge();
 }
@@ -1295,20 +1303,17 @@ const FLAVOURS = {
 };
 let flav = null;
 const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Proof" || d.tags.includes("No alcohol") : d.tags.some((t) => FLAVOURS[flav].includes(t)));
-function renderQuick(show) {
-  if (!show) { const f = PL.sq?.fixed || []; $("#quick").innerHTML = f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : ""; return; }
+function renderQuick(show, q = "") {
+  if (!show) { const f = PL.sq?.fixed || [], go = placeHits(q); $("#quick").innerHTML = (go.length ? `<div class="goto"><span class="mini">Go to</span>${go.map((x) => `<button class="chip" data-goto="${x.go}">${esc(x.n)} ›</button>`).join("")}</div>` : "") + (f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : ""); return; }
   // Kinds of drink (Martinis, Margaritas, Spritzes…) one tap away; your saved lists; what you opened last. What the
   // guest fancies, the spirit and the method are in Filters, so there's one place to narrow the list.
   if (PL.list) { $("#quick").innerHTML = ""; return; }
-  const fams = PL_FAMS.filter((f) => D.some((d) => inSec(d) && f[2](d)));
-  const fam = fams.length ? `<div class="chips hrow fams">${fams.map(([k, l]) => `<button class="chip" aria-pressed="${PL.fam === k}" data-fam="${k}">${esc(l)}</button>`).join("")}</div>` : "";
   const lists = plLists(), mine = lists.length ? `<div class="mini">Your lists</div><div class="chips hrow">${lists.map((x, i) => `<button class="chip" data-mylist="${i}">📋 ${esc(x.name)} <span class="cn">${x.drinks.length}</span></button>`).join("")}</div>` : "";
   const rec = recent.length && sec === "All" && !plActive().length ? `<div class="mini">Opened recently</div><div class="chips hrow">${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>` : "";
-  $("#quick").innerHTML = fam + mine + rec;
+  $("#quick").innerHTML = mine + rec;
 }
 $("#quick").addEventListener("click", (e) => {
   const o = e.target.closest("[data-open]"); if (o) return openSheet(+o.dataset.open);
-  const fm = e.target.closest("[data-fam]"); if (fm) { PL.fam = PL.fam === fm.dataset.fam ? null : fm.dataset.fam; haptic(); renderList(); return; }
   const ml = e.target.closest("[data-mylist]"); if (ml) { haptic(); plOpenSaved(+ml.dataset.mylist); return; }
 });
 let listIds = D.map((d) => d.id);
@@ -1316,8 +1321,9 @@ const SEC_ORDER = [...new Set(D.map((d) => d.section))];
 function renderList() {
   const q = $("#q").value.trim().toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
   const words = q ? plQuery(q).words : [];
-  renderQuick(!q);
-  let rows = D.filter((d) => inSec(d) && plHits(d, words) && flavHit(d) && plOk(d));
+  renderQuick(!q, q);
+  chipPool = D.filter((d) => plHits(d, words) && flavHit(d) && plOk(d)); renderChips();
+  let rows = chipPool.filter(inSec);
   const flat = !!q || PL.sort !== "menu";
   // The menu keeps each section together, in menu order, so nothing hides under a repeated heading further down.
   rows = q && PL.sort === "menu" ? plRank(rows, words) : flat ? plSort(rows) : rows.slice().sort((a, b) => SEC_ORDER.indexOf(a.section) - SEC_ORDER.indexOf(b.section) || a.id - b.id);
@@ -2174,8 +2180,8 @@ SHARE.shift = () => {
 };
 // Each side: the morning (last night's handover, prep pars, the order), date labels, stock and 86s, the close, and the handover.
 const PANES = {
-  bar: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Send"]],
-  floor: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["fclose", "Closing"], ["send", "Send"]],
+  bar: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Handover"]],
+  floor: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["fclose", "Closing"], ["send", "Handover"]],
 };
 const labelPane = () => "labels";
 // Each side's last list is its close.
@@ -3967,6 +3973,42 @@ function slipSave() {
   pm = S.m;
   haptic(); renderPay(); toast(`Payslip for ${mName(S.m)} saved`);
 }
+/* Type it in: a payslip's figures typed by hand, for anyone who'd rather not add a photo or a PDF. It's saved as the
+   same payslip a photo makes, on this phone only. Blank boxes count as nothing; take-home is worked out if it's left. */
+const ST_F = [["h", "Hours worked", "130.5"], ["rate", "Hourly rate (£)", ""], ["basic", "Hours pay (£)", "Worked out"], ["tronc", "Tronc (£)", "0"],
+  ["holH", "Holiday hours", "0"], ["hol", "Holiday pay (£)", "0"], ["tax", "Income tax (£)", "0"], ["ni", "National Insurance (£)", "0"],
+  ["loan", "Student loan (£)", "0"], ["pen", "Pension (£)", "0"], ["net", "Take-home (£)", "Worked out"]];
+const slipTy = { open: false, m: "", f: {} };
+const tyNum = (k) => Math.max(0, num(slipTy.f[k]) || 0);
+function slipTyped() {
+  const h = tyNum("h"), rate = tyNum("rate") || (h ? num(pay.rate) : 0), basic = pence(tyNum("basic") || h * rate), holH = tyNum("holH");
+  const hol = pence(tyNum("hol") || holH * rate), tronc = pence(tyNum("tronc")), [tax, ni, loan, pen] = ["tax", "ni", "loan", "pen"].map((k) => pence(tyNum(k)));
+  const gross = pence(basic + hol + tronc), net = tyNum("net") ? pence(tyNum("net")) : pence(gross - tax - ni - loan - pen);
+  const it = (l, k, a, u = 0, r = 0) => (a ? [{ l, k, u, r, a }] : []);
+  const items = [...it("Hours", "basic", basic, h, rate), ...it("Holiday", "hol", hol, holH, rate), ...it("Tronc", "tronc", tronc), ...it("Income tax", "tax", tax),
+    ...it("National Insurance", "ni", ni), ...it("Student loan", "loan", loan), ...it("Pension", "pen", pen), ...it("Take-home", "net", net)];
+  return { v: SLIP_V, typed: true, items, ytd: {}, code: "", basis: "", date: "", period: 0, m: slipTy.m, basicH: h || (rate ? pence(basic / rate) : 0), basicAmt: basic, basicRate: rate,
+    holH, holAmt: hol, holRate: holH ? rate : 0, tronc, troncH: 0, tax, ni, loan, pgl: 0, pen, other: 0, gross, net };
+}
+function slipTyHtml() {
+  const ms = Array.from({ length: 15 }, (_, i) => { let m = nextM(curM()); for (let j = 0; j < i; j++) m = prevM(m); return m; });
+  return `<div class="notice" id="slip-ty">
+      <h3 style="margin:0">Type in a payslip</h3>
+      <p class="note">Copy the figures off your payslip. Leave a box blank if it isn't on there. It stays on this phone.</p>
+      <label class="fld">Month it pays for<select data-ty-m>${ms.map((m) => `<option value="${m}"${m === slipTy.m ? " selected" : ""}>${mName(m, true)}</option>`).join("")}</select></label>
+      <div class="paygrid">${ST_F.map(([k, l, ph]) => `<label class="fld">${l}<input data-ty="${k}" inputmode="decimal" value="${esc(slipTy.f[k] ?? "")}" placeholder="${esc(k === "rate" ? pay.rate || "12.71" : ph)}"></label>`).join("")}</div>
+      <div class="actions"><button class="btn pri" data-ty-save>Save the payslip</button><button class="btn" data-ty-cancel>Cancel</button></div>
+    </div>`;
+}
+function slipTySave() {
+  if (!tyNum("h") && !tyNum("basic") && !tyNum("net")) return toast("Put in the hours, the hours pay or the take-home");
+  const S = slipTyped();
+  if (pay.slips[S.m] && !confirm(`Replace your ${mName(S.m, true)} payslip?`)) return;
+  pay.slips[S.m] = S;
+  slip.learnt = learnSlip(S); savePay();
+  Object.assign(slipTy, { open: false, f: {} }); pm = S.m; payTab = "month";
+  haptic(); renderPay(); toast(`Payslip for ${mName(S.m)} saved`);
+}
 const cmpRow = ([k, a, b]) => { const d = b == null ? 0 : pence(a - b); return `<dt>${k}</dt><dd>${gbp(a)}${b == null ? "" : ` <span class="${Math.abs(d) >= 1 ? "neg" : "muted"}">(app ${gbp(b)}${Math.abs(d) >= 1 ? `, ${d > 0 ? "+" : "−"}${gbp(Math.abs(d))}` : ""})</span>`}</dd>`; };
 function slipPanelHtml() {
   return `<div class="notice" id="slip">
@@ -4290,11 +4332,11 @@ function payInner() {
   if (!pm || pm > lastPm()) pm = curM();
   const f = (k, label, hint = "", mode = "decimal") => `<label class="fld">${label}<input data-pay="${k}" inputmode="${mode}" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
   const M = monthPay(pm), H = M.H, open = (k) => (paySec.has(k) ? " open" : ""), ns = Object.keys(pay.slips).length, xs = inM(pm);
-  const panel = hf.open ? hfHtml() : slip.open ? slipPanelHtml() : "";
+  const panel = hf.open ? hfHtml() : slip.open ? slipPanelHtml() : slipTy.open ? slipTyHtml() : "";
   const tabs = `<div class="recent paytabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button class="chip" role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}" aria-pressed="${payTab === k}">${t}</button>`).join("")}</div>`;
   if (payTab === "months") return `${tabs}
     <div id="pay-months">${monthsHtml()}</div>
-    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add hours</button></div>`;
+    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-ty-open>Type it in</button><button class="btn" data-hf-open>Add hours</button></div>`;
   if (payTab === "hol") return `${tabs}
     <div class="paycard" id="pay-hol">${holHtml()}</div>
     ${pay.hol === "rolled" ? "" : `<div class="actions"><button class="btn" data-hol-book>Book holiday</button></div>
@@ -4309,7 +4351,7 @@ function payInner() {
     <details class="setup" data-sec="slips"${open("slips")}><summary>Your payslips (${ns})</summary>
       ${ns ? Object.values(pay.slips).sort((a, b) => b.m.localeCompare(a.m)).map((S) => `<div class="staffrow"><div class="n">${mName(S.m, true)} <span class="payrt">${gbp(S.net)}</span></div>
         <div class="s"><span>Gross ${gbp(S.gross)} · ${fmtH(S.basicH)} h${S.tronc ? ` · tronc ${gbp(S.tronc)}` : ""}</span> · <button class="linkbtn" data-pm-go="${S.m}">Open</button></div></div>`).join("")
-      : `<p class="note">None yet. Add payslips above: photos, screenshots or PDFs, a whole year's at once if you like.</p>`}
+      : `<p class="note">None yet. Add payslips: photos, screenshots or PDFs, a whole year's at once, or tap Type it in and copy the figures yourself.</p>`}
       <p class="note">Payslips are read on this phone and never sent anywhere; only the figures are kept. Your rate, tax code, loan plan and pension are updated from the latest one.</p>
       <label class="fld">Or paste a payslip's text<textarea data-slip-text rows="4" placeholder="Regular Hours 130.26 hours 12.71 1,655.60">${esc(slip.text)}</textarea></label>
       <div class="actions"><button class="btn" data-slip-read>Read it</button></div>
@@ -4359,7 +4401,7 @@ function payInner() {
     ${M.slip ? "" : `<div class="paygrid"><label class="fld">Hours in ${mName(pm)}<input data-pay-plan inputmode="decimal" value="${esc(pay.plan[pm] ?? "")}" placeholder="${fmtN(planless(pm))}"></label>
       ${pay.trOn ? `<label class="fld">Tronc an hour (£)<input data-pay="trRate" inputmode="decimal" value="${esc(pay.trRate ?? "")}" placeholder="${troncAuto(pm).r.toFixed(2)}"></label>` : ""}</div>
       <p class="note">Put in the hours you expect to work to see what ${mName(pm)} would pay. Clear it to go back to your average. Tronc an hour applies to every month without a payslip.</p>`}
-    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-hf-open>Add hours</button></div>
+    <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-ty-open>Type it in</button><button class="btn" data-hf-open>Add hours</button></div>
     <p class="note" id="slip-st" aria-live="polite">${esc(slip.busy)}</p>
     ${slip.learnt.length ? `<p class="note">Updated from your payslip: ${slip.learnt.map((x) => `<b>${esc(x)}</b>`).join(", ")}.</p>` : ""}
     ${panel}
@@ -4430,7 +4472,7 @@ function moneyAddFrom(k) {
   if (!amt) return toast("Put in how much a month");
   pay[k] = [...pay[k], { id: newId(), name: name.slice(0, 30), amt: amt.toFixed(2) }]; savePay(); haptic(); renderPay();
 }
-const closePanels = () => { Object.assign(hf, { open: false, hol: false, days: new Set() }); Object.assign(slip, { open: false, busy: "", read: null, queue: [] }); };
+const closePanels = () => { slipTy.open = false; Object.assign(hf, { open: false, hol: false, days: new Set() }); Object.assign(slip, { open: false, busy: "", read: null, queue: [] }); };
 // Opens a folded section and brings it into view.
 const paySecGo = (k) => {
   if (k === "hol") { payTab = "hol"; renderPay(); return $("#pay-hol").scrollIntoView({ behavior: "smooth", block: "start" }); }
@@ -4439,6 +4481,7 @@ const paySecGo = (k) => {
 $("#v-pay").addEventListener("input", (e) => {
   const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; if (h === "h" && $("#hf-worth")) $("#hf-worth").textContent = hfWorth(); return; }
   if (e.target.matches("[data-slip-text]")) { slip.text = e.target.value; return; }
+  if (e.target.dataset.ty) { slipTy.f[e.target.dataset.ty] = e.target.value.trim().slice(0, 12); return; }
   if (e.target.matches("[data-pay-plan]")) { const v = e.target.value.trim().slice(0, 6); if (v === "") delete pay.plan[pm]; else pay.plan[pm] = v; savePay(); return paySums(); }
   const k = e.target.dataset.pay; if (!k) return;
   pay[k] = e.target.value.trim().slice(0, 12); savePay(); paySums();
@@ -4448,6 +4491,7 @@ $("#v-pay").addEventListener("change", (e) => {
   const h = e.target.dataset.hf; if (h) { hf[h] = e.target.value; return; }
   if (e.target.matches("[data-slip-file]")) { const fs = [...e.target.files]; e.target.value = ""; if (fs.length) { closePanels(); payTab = "month"; renderPay(); slipFiles(fs); } return; }
   if (e.target.matches("[data-slip-m]")) { slip.m = e.target.value; return; }
+  if (e.target.matches("[data-ty-m]")) { slipTy.m = e.target.value; return; }
   const sel = e.target.dataset.paySel; if (sel) { pay[sel] = e.target.value; savePay(); paySums(); return; }
   const c = e.target.dataset.payCheck; if (!c) return;
   pay[c] = e.target.checked; savePay(); haptic();
@@ -4466,6 +4510,9 @@ $("#v-pay").addEventListener("click", (e) => {
   if (e.target.closest("[data-hf-save]")) return hfSave();
   if (e.target.closest("[data-slip-read]")) { if (!slip.text.trim()) return toast("Paste your payslip's text first"); return slipTake(slip.text); }
   if (e.target.closest("[data-slip-save]")) return slipSave();
+  if (e.target.closest("[data-ty-open]")) { closePanels(); Object.assign(slipTy, { open: true, m: pm, f: { rate: pay.rate || "" } }); payTab = "month"; renderPay(); $("#slip-ty")?.scrollIntoView({ block: "start" }); return; }
+  if (e.target.closest("[data-ty-cancel]")) { closePanels(); renderPay(); return; }
+  if (e.target.closest("[data-ty-save]")) return slipTySave();
   const sd = e.target.closest("[data-slip-del]");
   if (sd) { if (confirm(`Remove the payslip for ${mName(sd.dataset.slipDel, true)}?`)) { delete pay.slips[sd.dataset.slipDel]; savePay(); renderPay(); } return; }
   const dy = e.target.closest("[data-hf-day]");
@@ -4537,7 +4584,7 @@ function renderInfo() {
     <div class="sec">Help</div>
     <div class="hub">
       ${hubRow("features", "data-intro-open", "How Bar Book works", "What it does, tips and tricks, and every feature")}
-      ${hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Derek reads every one")}
+      ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
     </div>
     <div class="sec">Bar reference</div>
     ${fold("law", "Measures and the law", `<ul>
@@ -4566,7 +4613,7 @@ function renderInfo() {
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
     <div class="mini" style="margin-top:14px">Shared iPad or tablet</div>
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div>
-    <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a senior's code or the owner's login locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
+    <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a manager's code or the maintenance login locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
     ${fold("home", "Put this app on your home screen", `
     <h3 style="font-size:18px;margin-top:4px">iPhone</h3>
@@ -4636,13 +4683,13 @@ const FEATURES = [
     what: "Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's language, look and home screen icon." },
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", tour: 1,
     what: "Everything about your pay in one tab: add your payslips and every month is broken down by itself (hours, your rate plus tronc an hour, tax, National Insurance and take-home), with your next pay predicted from your average hours and tronc, holiday built up, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
-    staff: "Tap Add payslips and pick your payslips, a year's at once if you like. Change the hours or tronc an hour under any month still to come to see what it would pay." },
+    staff: "Tap Add payslips and pick your payslips, a year's at once if you like, or Type it in to put the figures in by hand. Change the hours or tronc an hour under any month still to come to see what it would pay." },
   { g: "Shift", k: "morning", n: "Morning", go: "morning", team: 1, tour: 1,
     what: "Last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
     staff: "Read the handover, send that it's checked with anything outstanding, send the order and the prep list on WhatsApp." },
   { g: "Shift", k: "lists", n: "Closing checklists", go: "shift", team: 1, tour: 1,
     what: "The bar and floor closes, ticked off live on every phone, with how long it's taking and who has ticked what.",
-    staff: "Tick items off or a whole heading at once, mark one blocked and say why, give one to someone, or clear everything for a fresh start.", mgr: "The owner also has a master clear in Owner settings." },
+    staff: "Tick items off or a whole heading at once, mark one blocked and say why, give one to someone, or clear everything for a fresh start.", mgr: "Maintenance also has a master clear in Maintenance settings." },
   { g: "Shift", k: "labels", n: "Date labels", go: "labels", team: 1,
     what: "Everything that gets dated once it's opened: when each one needs changing, and what's due tomorrow.",
     staff: "Tap Opened one or Changed it, and add items. Each tap is saved with your name and the time." },
@@ -4655,26 +4702,26 @@ const FEATURES = [
   { g: "Shift", k: "football", n: "Football", go: "football", team: 1,
     what: "Today's and coming games at the top of the Shift tab, so everyone knows what's on the screens.",
     staff: "See the games, and add or remove one." },
-  { g: "Team", k: "ask", n: "To the seniors", go: "ask", team: 1,
-    what: "Days off, swaps, complaints, faults, things to fix, ideas or anything else, straight to the seniors, with your name or anonymously.",
+  { g: "Team", k: "ask", n: "To the managers", go: "ask", team: 1,
+    what: "Days off, swaps, complaints, faults, things to fix, ideas or anything else, straight to the managers, with your name or anonymously.",
     staff: "Send one and see when it's seen or done.", mgr: "Read them all in the Inbox, mark each seen or done, and reply." },
   { g: "Team", k: "incident", n: "Incident or accident", go: "incident",
     what: "Write up what happened while it's fresh, with ticks for first aid, the accident book and telling the duty manager, then send it on WhatsApp or to the manager. The accident book stays the record.",
     staff: "Fill it in, send it, then write it in the accident book." },
   { g: "Team", k: "rate", n: "Team only: rate the shift", go: "rate",
-    what: "Tonight out of 10, what went well, what was hard and anything else for the team. It goes on WhatsApp to the chat you pick, and Derek and the seniors get a copy with no name.",
+    what: "Tonight out of 10, what went well, what was hard and anything else for the team. It goes on WhatsApp to the chat you pick, and The managers get a copy with no name.",
     staff: "Rate it and send it to the team's own group." },
-  { g: "Team", k: "tell", n: "Tell Derek", go: "tell", team: 1,
-    what: "What's missing from Bar Book, what to add, or what's wrong in it, straight to Derek. Only Derek reads them.",
+  { g: "Team", k: "tell", n: "App feedback", go: "tell", team: 1,
+    what: "What's missing from Bar Book, what to add, or what's wrong in it, straight to maintenance. Only maintenance reads them.",
     staff: "Pick one, say what it is, and send it. You see yours again with Done when it's sorted." },
   { g: "Team", k: "issues", n: "Issues and faults", go: "issues", team: 1, tour: 1,
     what: "Anything that needs fixing, from a leaking glass washer to a broken heater, listed until someone fixes it.",
     staff: "Raise one (urgent if it is), take it on or give it to someone, fix it, or raise it again if it's still broken." },
-  { g: "Team", k: "quick", n: "Quick WhatsApp messages", go: "quick",
-    what: "Running late, off sick and swap a shift, written for you, plus the 86 list and open issues.",
+  { g: "Team", k: "quick", n: "Send on WhatsApp", go: "quick",
+    what: "Tonight's report, the handover, the 86 list and open issues, plus running late, off sick and swap a shift, written for you.",
     staff: "Tap one, change it if you like, and send it." },
   { g: "Team", k: "sent", n: "Everything sent", go: "sent", team: 1,
-    what: "Everything the team sends from Bar Book on WhatsApp, email or print is copied here for Derek and the seniors. Team only ratings come with no name; My pay never leaves the phone.",
+    what: "Everything the team sends from Bar Book on WhatsApp, email or print is copied here for the managers. Team only ratings come with no name; My pay never leaves the phone.",
     mgr: "Read any of them again." },
   { g: "Team", k: "spin", n: "Spin the wheel", go: "spin",
     what: "Who does the bins, who goes on break first, who picks the music: tap the names and spin.",
@@ -4683,8 +4730,8 @@ const FEATURES = [
     what: "Emergency and utility numbers, and the venue's own. A tap calls.",
     mgr: "Add and remove the venue's numbers." },
   { g: "Team", k: "people", n: "Who's on the team", go: "people", team: 1,
-    what: "Every phone on the team. Seniors unlock theirs with their own 4 digit code.",
-    staff: "Share the team link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. The owner adds or removes the seniors and their codes." },
+    what: "Every phone on the team. Managers unlock theirs with their own 4 digit code.",
+    staff: "Share the team link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. Maintenance adds or removes the managers and their codes." },
 ];
 const navCols = () => ($("nav.tabs").style.gridTemplateColumns = `repeat(${[...$$("nav.tabs [data-tab]")].filter((b) => !b.hidden).length}, 1fr)`);
 const fUsable = (f) => !f.team || !!LIVE.me;
@@ -4692,7 +4739,7 @@ function featHtml() {
   const card = (f) => {
     const can = fUsable(f), why = can ? "" : "Join the team first";
     return `<article class="notice feat" data-feat="${f.k}"><div class="fh"><b>${f.n}</b>${why ? ` <span class="pill">${why}</span>` : ""}</div>
-      <p class="txt">${f.what}</p>${f.staff ? `<p class="s"><b>Staff:</b> ${f.staff}</p>` : ""}${f.mgr ? `<p class="s"><b>Seniors:</b> ${f.mgr}</p>` : ""}
+      <p class="txt">${f.what}</p>${f.staff ? `<p class="s"><b>Staff:</b> ${f.staff}</p>` : ""}${f.mgr ? `<p class="s"><b>Managers:</b> ${f.mgr}</p>` : ""}
       ${can ? `<div class="actions"><button class="btn" data-feat-go="${f.k}">Open it</button></div>` : ""}</article>`;
   };
   return `<h2 id="sh-name" style="margin-top:12px">What's in Bar Book</h2>
@@ -4717,6 +4764,18 @@ function openAt(where) {
   document.querySelector(`[data-card="${where}"]`)?.scrollIntoView({ block: "start" });
 }
 document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-open]")) openFeatures(); });
+// One tap to any page: from the drinks search, the Send card and More.
+document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) closeSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
+/* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
+   drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
+const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran",
+  send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
+  tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team link join leave",
+  pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift" };
+function placeHits(q) {
+  const ws = q.toLowerCase().split(/\s+/).filter((w) => w.length >= 3 || /^\d+$/.test(w)); if (!ws.length) return [];
+  return FEATURES.filter((f) => PLACE_KW[f.k] && fUsable(f) && !(f.k === "tell" && LIVE.owner) && ws.every((w) => `${f.n} ${PLACE_KW[f.k]}`.toLowerCase().split(/[\s:]+/).some((x) => x.startsWith(w)))).slice(0, 3);
+}
 $("#sheet").addEventListener("click", (e) => {
   const g = e.target.closest("[data-feat-go]"), t = e.target.closest("#tour-go");
   if (!g && !t) return;
@@ -4899,13 +4958,14 @@ const askLine = (a) => `<article class="notice"><div class="meta"><b>${ASK[a.kin
   ${a.when ? `<p class="note">When: ${esc(a.when)}</p>` : ""}<p class="txt">${ut(a.text)}</p>${a.reply ? `<p class="note">${esc(a.by)}: ${ut(a.reply)}</p>` : ""}`;
 function askHtml() {
   const mine = LIVE.asks.filter((a) => a.uid === LIVE.uid);
-  return `<p class="note">Only the seniors see these, not the rest of the team. For things the team shouldn't share with the seniors, use Team only below.</p>
+  return `<p class="note">Only the managers see these, not the rest of the team. For things the team shouldn't share with the managers, use Team only below.</p>
     <div class="recent">${Object.entries(ASK).map(([k, t]) => `<button class="chip" data-ask-kind="${k}" aria-pressed="${askF.kind === k}">${t}</button>`).join("")}</div>
     ${["dayoff", "swap"].includes(askF.kind) ? `<label class="fld">Which day or days<input data-ask="when" maxlength="60" value="${esc(askF.when)}" placeholder="Sat 22 Nov, or 1 to 3 Dec"></label>` : ""}
     <label class="fld">${askF.kind === "complaint" ? "What happened" : "Message"}<textarea data-ask="text" rows="3" maxlength="2000" placeholder="${{ dayoff: "Family wedding, I can swap with Pema", complaint: "Say what happened, when, and who was there", fault: "Glass washer leaking again", fix: "Bar stool wobbles at table 4" }[askF.kind] || ""}">${esc(askF.text)}</textarea></label>
+    <p class="note">Keep health, home and bank details out of it: tell a manager those in person.</p>
     <label class="check"><input type="checkbox" data-ask="anon"${askF.anon ? " checked" : ""}> Send it anonymously</label>
-    ${askF.anon ? `<p class="note">No name and no phone id go with it, and you won't see a reply here. In a small team the seniors might still guess who sent it from what it says.</p>` : ""}
-    ${draftBar("ask")}<div class="actions"><button class="btn pri" id="ask-go">Send to the seniors</button></div>
+    ${askF.anon ? `<p class="note">No name and no phone id go with it, and you won't see a reply here. In a small team the managers might still guess who sent it from what it says.</p>` : ""}
+    ${draftBar("ask")}<div class="actions"><button class="btn pri" id="ask-go">Send to the managers</button></div>
     ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map(askLine).join("</article>")}</article>` : ""}
     ${sentAnon.length ? `<p class="note">${plural(sentAnon.length, "anonymous message")} sent from this phone.</p>` : ""}`;
 }
@@ -4929,8 +4989,8 @@ function incHtml() {
     <label class="check"><input type="checkbox" data-inc="ambulance"${incF.ambulance ? " checked" : ""}> Ambulance or police called</label>
     <label class="check"><input type="checkbox" data-inc="book"${incF.book ? " checked" : ""}> Written in the accident book</label>
     <label class="check"><input type="checkbox" data-inc="told"${incF.told ? " checked" : ""}> Duty manager told</label>
-    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}${LIVE.me ? `<button class="btn" id="inc-mgr">Send to the seniors</button>` : ""}</div>${draftBar("incident")}
-    <p class="note">What you type stays on this phone until you tap Discard.</p>`;
+    <div class="actions">${sendBtn("incident", "Send on WhatsApp")}</div>${draftBar("incident")}
+    <p class="note">What you type stays on this phone until you tap Discard. Bar Book never saves it to the team or keeps a copy: send it to the duty manager on WhatsApp and write it in the accident book.</p>`;
 }
 const tickBox = (b) => (b ? "✅" : "⬜");
 const incText = () => [`${INC[incF.kind]} at ${incF.time || "?"}${incF.where ? `, ${incF.where}` : ""}`, incF.who && `Who: ${incF.who}`, `What happened: ${incF.what || "?"}`, incF.done && `What was done: ${incF.done}`,
@@ -4950,7 +5010,7 @@ SHARE.incident = () => ({ what: "Incident or accident", title: `⚠️ ${INC[inc
    except on WhatsApp, and never goes to the manager through the app. */
 let rateF = { score: 0, good: "", bad: "", feel: "", ...store.get("rateDraft", {}) };
 function rateHtml() {
-  return `<p class="note">It goes on WhatsApp, to whichever chat you pick. When you send it, Derek and the seniors also get a copy with no name, no side and nothing about this phone, like everything sent from Bar Book. They can't tell who sent it from the app, but in a small team what it says may give it away.</p>
+  return `<p class="note">It goes on WhatsApp, to whichever chat you pick. When you send it, the managers also get a copy with no name, no side and nothing about this phone, like everything sent from Bar Book. They can't tell who sent it from the app, but in a small team what it says may give it away.</p>
     <div class="mini">Tonight out of 10</div>
     <div class="recent score">${Array.from({ length: 10 }, (_, i) => `<button class="chip" data-rate="${i + 1}" aria-pressed="${rateF.score === i + 1}">${i + 1}</button>`).join("")}</div>
     <label class="fld">What went well<textarea data-rt="good" rows="2" maxlength="600">${esc(rateF.good)}</textarea></label>
@@ -5071,7 +5131,7 @@ SHARE.issue = (id) => {
     notePh: "When can you come?", tip: "Add a photo of it, so whoever fixes it knows what to bring." };
 };
 
-/* ---------- Quick WhatsApp messages ---------- */
+/* ---------- Send on WhatsApp: the messages written for you ---------- */
 const LATE = ["5", "10", "15", "20", "30", "45", "60"];
 SHARE.late = (o = "15") => {
   const by = o === "60" ? "an hour" : `${o} minutes`;
@@ -5087,7 +5147,7 @@ const nextDays = () => Array.from({ length: 14 }, (_, i) => addDays(shiftDay(), 
 SHARE.swap = (o) => {
   const d = o || nextDays()[1];
   return { what: "Swap a shift", title: "Can anyone swap or cover a shift?", choose: { label: "Which day", v: d, opts: nextDays().map((k, i) => [k, i ? dayName(k) : "Today"]) },
-    head: [`${longDay(d)}, ${sideName(mode).toLowerCase()}. Message me if you can take it.`, "The seniors still have to agree it."],
+    head: [`${longDay(d)}, ${sideName(mode).toLowerCase()}. Message me if you can take it.`, "The managers still have to agree it."],
     parts: [], noteHead: null, notePh: "Times, and anything else" };
 };
 SHARE.team = () => (teamCode ? { what: "Team link", title: "Join Bar Book",
@@ -5136,11 +5196,11 @@ function callHtml() {
   return `<div class="mini">In an emergency</div>${CALL_UK.map(([p, t, sub], i) => callRow(p, t, sub, i ? "" : " sos")).join("")}
     <div class="mini">Our numbers</div>
     ${ours.map((c, i) => `${callRow(c.p, c.t, c.n, "", true)}${LIVE.admin ? `<div class="actions"><button class="btn" data-cl-drop="${i}">Remove</button></div>` : ""}`).join("")
-      || `<p class="note">None yet. ${LIVE.admin ? "Add the numbers the team needs on a shift: the duty manager, maintenance, the glass washer engineer." : "The seniors add them."}</p>`}
+      || `<p class="note">None yet. ${LIVE.admin ? "Add the numbers the team needs on a shift: the duty manager's work phone, maintenance, the glass washer engineer. Work numbers only, never someone's personal mobile." : "The managers add them."}</p>`}
     <div class="actions">${sendBtn("contacts", "Send the numbers")}</div>
     ${LIVE.admin ? `<div class="h3">Add a number</div>
       <label class="fld">What for<input data-cl="t" maxlength="40" value="${esc(clF.t)}" placeholder="Duty manager"></label>
-      <label class="fld">Who (optional)<input data-cl="n" maxlength="60" value="${esc(clF.n)}" placeholder="The company or the person"></label>
+      <label class="fld">Who (optional)<input data-cl="n" maxlength="60" value="${esc(clF.n)}" placeholder="The company or the role"></label>
       <label class="fld">Number<input data-cl="p" type="tel" maxlength="20" value="${esc(clF.p)}" placeholder="020 7946 0000"></label>
       <div class="actions"><button class="btn pri" id="cl-add">Add it</button></div>` : ""}`;
 }
@@ -5149,15 +5209,14 @@ function callHtml() {
    Anyone on the team tells the owner what's missing from the app, what to add or what's wrong. Only the owner reads
    them; everyone sees their own again. */
 const TELL = { missing: "Something missing", add: "Add this", wrong: "Something's wrong" };
-const ownerName = () => firstName(LIVE.staff.find((p) => p.role === "owner")?.name) || "Derek";
 let tellF = { kind: "missing", text: "" };
 const tellRow = (x, own) => `<article class="notice"><div class="meta"><b>${TELL[x.kind]}</b> · ${own ? "" : `<span translate="no">${esc(x.name)}</span> · `}${when(x.at)} <span class="pill ${x.status === "done" ? "ok" : "wait"}">${x.status === "done" ? "Done" : "Sent"}</span></div><p class="txt">${ut(x.text)}</p>`;
 function tellHtml() {
   const mine = LIVE.tells.filter((x) => x.uid === LIVE.uid);
-  return `<p class="note">Only ${esc(ownerName())} reads these: what's missing from Bar Book, what to add, or what's wrong in it.</p>
+  return `<p class="note">Only maintenance reads these: what's missing from Bar Book, what to add, or what's wrong in it.</p>
     <div class="recent">${Object.entries(TELL).map(([k, v]) => `<button class="chip" data-tell-kind="${k}" aria-pressed="${tellF.kind === k}">${v}</button>`).join("")}</div>
     <label class="fld">What is it?<textarea data-tell="text" rows="3" maxlength="1000" placeholder="${{ missing: "A list for the terrace", add: "The new house spritz", wrong: "The Mojito spec says 50 ml rum, we use 37.5 ml" }[tellF.kind]}">${esc(tellF.text)}</textarea></label>
-    ${draftBar("tell")}<div class="actions"><button class="btn pri" id="tell-go">Send to ${esc(ownerName())}</button></div>
+    ${draftBar("tell")}<div class="actions"><button class="btn pri" id="tell-go">Send to maintenance</button></div>
     ${mine.length ? `<div class="h3">You sent</div>${mine.slice(0, 10).map((x) => tellRow(x, true) + "</article>").join("")}` : ""}`;
 }
 function tellsHtml() {
@@ -5186,7 +5245,7 @@ function reportsHtml() {
     <div class="actions">${sendBtn("report", "Send this report", r.id)}${r.photos ? `<button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button>` : ""}</div>${r.photos ? `<div id="rp-ph-${r.id}" class="sendph"></div>` : ""}</details>`).join("") || `<p class="note">No closing reports yet.</p>`;
 }
 const outlogHtml = () => LIVE.outlog.slice(0, 60).map((x) => `<div class="staffrow"><div class="n">${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "86'd" : "back on"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">No 86s yet.</p>`;
-const ROLE = { owner: "owner", manager: "senior", staff: "" };
+const ROLE = { owner: "maintenance", manager: "manager", staff: "" };
 // A senior's record from before codes (a password login) holds no pin and no longer counts as a senior.
 const oldLogin = (p) => p.role === "manager" && !p.pin;
 function peopleHtml() {
@@ -5202,25 +5261,25 @@ function peopleHtml() {
 let unF = { id: "" };
 function unlockHtml() {
   const S = LIVE.seniors, s = S.find((x) => x.id === unF.id), w = s ? LIVE.api.waitFor(s) : 0;
-  if (!S.length) return `<p class="note">${esc(ownerName())} hasn't added any seniors yet.</p>`;
-  return `<p class="note">Seniors: unlock everything you need on this phone with your own code. Tap Lock before you hand the phone back.</p>
+  if (!S.length) return `<p class="note">No managers added yet.</p>`;
+  return `<p class="note">Managers: unlock everything you need on this phone with your own code. Tap Lock before you hand the phone back.</p>
     <div class="mini">Who are you?</div><div class="recent" translate="no">${S.map((x) => `<button class="chip" data-un-id="${esc(x.id)}" aria-pressed="${x.id === unF.id}">${esc(x.name)}</button>`).join("")}</div>
-    ${w === Infinity ? `<p class="note warn" role="alert">Locked after ${LIVE.api.MAX_TRIES} wrong codes. Ask ${esc(ownerName())} to unlock it.</p>` : w ? `<p class="note warn" role="alert">Too many wrong codes. Try again in ${w} min.</p>` : ""}
+    ${w === Infinity ? `<p class="note warn" role="alert">Locked after ${LIVE.api.MAX_TRIES} wrong codes. Ask maintenance to unlock it.</p>` : w ? `<p class="note warn" role="alert">Too many wrong codes. Try again in ${w} min.</p>` : ""}
     <label class="fld">Your 4 digit code<input id="un-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></label>
     <button class="btn pri wide" id="un-go">Unlock</button>`;
 }
 function seniorsHtml() {
   const S = LIVE.seniors, A = LIVE.api, old = LIVE.staff.filter(oldLogin);
   const state = (x) => (x.tries >= A.MAX_TRIES ? `<span class="pill no">locked</span>` : x.tries ? `<span class="pill no">${plural(x.tries, "wrong code")}</span>` : "");
-  return `<p class="note">Each senior unlocks any phone on the team with their own 4 digit code and sees and changes everything you do, except Tell ${esc(ownerName())} and this card. 5 wrong codes slow it to one try every 15 minutes; 10 lock it until you unlock it here. Give codes in person.</p>
+  return `<p class="note">Each manager unlocks any phone on the team with their own 4 digit code and sees and changes everything you do, except App feedback and this card. 5 wrong codes slow it to one try every 15 minutes; 10 lock it until you unlock it here. Give codes in person.</p>
     ${S.map((x) => { const on = LIVE.staff.filter((p) => p.pin === x.id).length; return `<div class="staffrow"><div class="n"><b translate="no">${esc(x.name)}</b> ${state(x)}</div>
       <div class="s">${on ? `Unlocked on ${plural(on, "phone")}` : "Not unlocked on any phone"}</div>
-      <div class="actions">${x.tries ? `<button class="btn pri" data-sn-reset="${esc(x.id)}">Unlock the code</button>` : ""}<button class="btn" data-sn-code="${esc(x.id)}">New code</button><button class="btn" data-sn-drop="${esc(x.id)}">Take off</button></div></div>`; }).join("") || `<p class="note">No seniors yet.</p>`}
-    ${S.length < A.MAX_SENIORS ? `<div class="h3">Add a senior</div>
+      <div class="actions">${x.tries ? `<button class="btn pri" data-sn-reset="${esc(x.id)}">Unlock the code</button>` : ""}<button class="btn" data-sn-code="${esc(x.id)}">New code</button><button class="btn" data-sn-drop="${esc(x.id)}">Take off</button></div></div>`; }).join("") || `<p class="note">No managers yet.</p>`}
+    ${S.length < A.MAX_SENIORS ? `<div class="h3">Add a manager</div>
       <label class="fld">First name<input id="sn-name" maxlength="30" translate="no"></label>
       <label class="fld">Their 4 digit code<input id="sn-pin" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></label>
-      <div class="actions"><button class="btn pri" id="sn-go">Add the senior</button></div>` : ""}
-    ${old.length ? `<div class="h3">Old senior logins</div><p class="note">These logins from before codes no longer work. Take them off.</p>
+      <div class="actions"><button class="btn pri" id="sn-go">Add the manager</button></div>` : ""}
+    ${old.length ? `<div class="h3">Old manager logins</div><p class="note">These logins from before codes no longer work. Take them off.</p>
       ${old.map((p) => `<div class="staffrow"><div class="n"><b translate="no">${esc(p.name)}</b></div><div class="actions"><button class="btn" data-tm-drop="${p.uid}">Take off the team</button></div></div>`).join("")}` : ""}`;
 }
 function mgrHtml() {
@@ -5291,40 +5350,52 @@ function glanceHtml() {
     <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
     <div class="mini">Open issues and faults</div><ul class="live">${iss.join("") || "<li>None</li>"}</ul>
     <div class="mini">Restocks waiting</div><ul class="live">${rs.join("") || "<li>None</li>"}</ul>
-    <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Seniors unlocked: ${seniors.map(esc).join(", ")}` : ""}</p>
+    <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Managers unlocked: ${seniors.map(esc).join(", ")}` : ""}</p>
     <div class="actions">${sendBtn("tonight", "Send tonight's report")}</div></div>`;
 }
 
 /* ---------- The Team page ----------
    Who you are, then posting a message and the messages, then a card for each tool. Cards stay open or shut as left. */
 const tmOpen = new Set(store.get("tmOpen", []));
-const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
+const TC_SUB = { quick: "Tonight's report, the handover, the 86 list, running late, off sick", ask: "Days off, swaps, complaints, ideas. Named or anonymous",
+  issues: "Anything broken, listed until someone fixes it", incident: "Write it up, send it on WhatsApp, then the accident book", rate: "Tonight out of 10. The managers' copy has no name",
+  tell: "What's missing, to add or wrong in Bar Book", call: "Emergency, utility and venue numbers", people: "Every phone on the team and the team link", spin: "Who does the bins, who breaks first",
+  unlock: "For managers on this phone", tells: "What the team says is missing or wrong in the app", inbox: "Days off, swaps, complaints and ideas sent to the managers",
+  reports: "Every closing with its photos", sent: "A copy of everything sent from Bar Book", outlog: "Who 86'd what, and when it came back", seniors: "Add, change or unlock the managers' codes", mgr: "Team code, master clear and the rest" };
+const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${TC_SUB[k] ? `<small class="tsub">${TC_SUB[k]}</small>` : ""}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
 // For the owner and seniors, everything they look after comes first under Manager, then the same Team cards as
 // everyone. A ["§", title, html] entry is a heading.
 const CARDS = () => [
   ...(LIVE.admin ? [
     ["§", "Manager", glanceHtml],
-    ...(LIVE.owner ? [["tells", "What the team told you", tellsHtml, newTells().length ? { t: `${newTells().length} new`, hot: 1 } : ""]] : []),
+    ...(LIVE.owner ? [["tells", "App feedback from the team", tellsHtml, newTells().length ? { t: `${newTells().length} new`, hot: 1 } : ""]] : []),
     ["inbox", "Inbox from the team", inboxHtml, newAsks().length ? { t: `${newAsks().length} new`, hot: 1 } : ""],
     ["reports", "Closing reports", reportsHtml, LIVE.reports.length || ""],
     ["sent", "Everything sent", sentHtml, LIVE.sent.length || ""],
     ["outlog", "86 log", outlogHtml],
     ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""],
-    ...(LIVE.owner ? [["seniors", "Seniors and their codes", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : LIVE.seniors.length || ""],
-      ["mgr", "Owner settings", mgrHtml]] : []),
+    ...(LIVE.owner ? [["seniors", "Managers and their codes", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : LIVE.seniors.length || ""],
+      ["mgr", "Maintenance settings", mgrHtml]] : []),
     ["§", "Team"],
   ] : []),
-  ...(LIVE.me && !LIVE.admin ? [["ask", "To the seniors", askHtml, draftPill("ask")]] : []),
+  ["quick", "Send on WhatsApp", quickHtml],
+  ...(LIVE.me && !LIVE.admin ? [["ask", "To the managers", askHtml, draftPill("ask")]] : []),
   ["incident", "Incident or accident", incHtml, draftPill("incident")],
   ["rate", "Team only: rate the shift", rateHtml, draftPill("rate")],
   ...(LIVE.me ? [["issues", "Issues and faults", issuesHtml, openIssues().length ? { t: `${openIssues().length} open`, hot: openIssues().some((x) => x.urgent) } : draftPill("issue")]] : []),
-  ...(LIVE.me && !LIVE.owner ? [["tell", `Tell ${ownerName()}`, tellHtml, draftPill("tell")]] : []),
-  ["quick", "Quick WhatsApp messages", () => `<div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}${sendBtn("out", "The 86 list")}${LIVE.me ? sendBtn("issues", "Open issues") + sendBtn("tonight", "Tonight's report") : ""}</div>`],
+  ...(LIVE.me && !LIVE.owner ? [["tell", "App feedback", tellHtml, draftPill("tell")]] : []),
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
-  ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Senior? Unlock with your code", unlockHtml]] : []),
+  ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager? Unlock with your code", unlockHtml]] : []),
 ];
+// Everything that goes out on WhatsApp in one place: tonight's, then your own.
+function quickHtml() {
+  const last = LIVE.me && LIVE.reports.find((x) => x.side === mode && !x.pending);
+  return `${LIVE.me ? `<div class="mini">Tonight</div><div class="actions">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-goto="send">Hand over ›</button>${last ? sendBtn("report", `Last ${sideName(mode).toLowerCase()} handover`, last.id) : ""}${sendBtn("out", "The 86 list")}${sendBtn("issues", "Open issues")}</div>` : `<div class="actions">${sendBtn("out", "The 86 list")}</div>`}
+    <div class="mini">From you</div><div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}</div>
+    <p class="note">Each message ends with a link that opens the right page in Bar Book, never the team code. Off sick goes on WhatsApp only: Bar Book keeps no copy.</p>`;
+}
 function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (c && box) box.innerHTML = c[2](); }
 /* ---------- Drafts ----------
    Whatever someone types in a form stays on this phone as they type, so a guest, a locked phone or closing the app
@@ -5333,9 +5404,9 @@ function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc
 const DRAFTS = {
   restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", other: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "other", "detail"] },
   label: { n: "Date label", get: () => lbF, blank: () => ({ item: "", life: "", on: true, open: false }), fs: ["item", "life"] },
-  ask: { n: "To the seniors", get: () => askF, blank: () => ({ kind: askF.kind, text: "", when: "", anon: false }), card: "ask", fs: ["text", "when"] },
+  ask: { n: "To the managers", get: () => askF, blank: () => ({ kind: askF.kind, text: "", when: "", anon: false }), card: "ask", fs: ["text", "when"] },
   issue: { n: "Issue", get: () => isF, blank: () => ({ title: "", detail: "", area: "", urgent: false, again: null }), card: "issues", fs: ["title", "detail"] },
-  tell: { get n() { return `Tell ${ownerName()}`; }, get: () => tellF, blank: () => ({ kind: tellF.kind, text: "" }), card: "tell", fs: ["text"] },
+  tell: { n: "App feedback", get: () => tellF, blank: () => ({ kind: tellF.kind, text: "" }), card: "tell", fs: ["text"] },
   incident: { n: "Incident", get: () => incF, blank: INC_BLANK, key: "incDraft", card: "incident", fs: ["where", "who", "what", "done", "witnesses"] },
   rate: { n: "Rate the shift", get: () => rateF, blank: () => ({ score: 0, good: "", bad: "", feel: "" }), key: "rateDraft", card: "rate", fs: ["score", "good", "bad", "feel"] },
 };
@@ -5380,10 +5451,10 @@ function topHtml() {
     <p>No login or password. Open the team link from the staff WhatsApp group on this phone, or paste the team code here.</p>
     ${joinErr ? `<p class="note warn" role="alert">${esc(joinErr)}</p>` : ""}
     <div class="mini">Who are you?</div>${nameChips(myName, "data-j-name")}
-    <label class="fld">Or type your first name<input id="j-name" maxlength="30" value="${esc(ALL_STAFF.includes(myName) ? "" : myName)}" translate="no"></label>
+    <label class="fld">Or type your first name (first name only)<input id="j-name" maxlength="30" value="${esc(ALL_STAFF.includes(myName) ? "" : myName)}" translate="no"></label>
     <label class="fld">Team code<input id="j-code" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(teamCode)}"></label>
     <button class="btn pri wide" id="j-go">Join</button>`}</div>
-    <details class="setup"><summary>Owner login</summary>
+    <details class="setup"><summary>Maintenance login</summary>
       <label class="fld">Username<input id="l-user" autocapitalize="none" autocomplete="username" spellcheck="false"></label>
       <label class="fld">Password<input id="l-pw" type="password" autocomplete="current-password"></label>
       <button class="btn pri wide" id="l-go">Log in</button></details>`;
@@ -5463,7 +5534,7 @@ $("#v-notices").addEventListener("click", async (e) => {
   if ((x = b("[data-sn-reset]"))) return track(A.resetTries(x.dataset.snReset), "Unlocked. They can try their code again", "Not changed");
   if ((x = b("[data-sn-drop]"))) {
     const s = LIVE.seniors.find((y) => y.id === x.dataset.snDrop); if (!s) return;
-    if (!confirm(`Take ${s.name} off as a senior? Their code stops working and any phone they unlocked goes back to the team's view.`)) return;
+    if (!confirm(`Take ${s.name} off as a manager? Their code stops working and any phone they unlocked goes back to the team's view.`)) return;
     return track(A.dropSenior(s.id), `${s.name} taken off`, "Not taken off");
   }
   if (b("#tm-leave")) { if (confirm(LIVE.admin ? "Log out on this phone?" : "Leave the team on this phone? Open the team link to join again.")) A.leave(); return; }
@@ -5476,7 +5547,7 @@ $("#v-notices").addEventListener("click", async (e) => {
     const a = { kind: askF.kind, text: tx, when: ["dayoff", "swap"].includes(askF.kind) ? askF.when.trim() : "", anon: askF.anon };
     return busy(b("#ask-go"), "Sending…", A.ask(a).then(() => {
       if (a.anon) { sentAnon = [...sentAnon, Date.now()].slice(-50); store.set("sentAnon", sentAnon); }
-      askF = { kind: askF.kind, text: "", when: "", anon: false }; toast("Sent to the seniors"); haptic(); renderCard("ask");
+      askF = { kind: askF.kind, text: "", when: "", anon: false }; toast("Sent to the managers"); haptic(); renderCard("ask");
     }, () => toast("Not sent. Check the signal and try again")));
   }
   if ((x = b("[data-inbox]"))) { inboxAll = x.dataset.inbox === "1"; return renderCard("inbox"); }
@@ -5485,12 +5556,6 @@ $("#v-notices").addEventListener("click", async (e) => {
   if ((x = b("[data-ask-drop]"))) { if (confirm("Remove this message?")) track(A.dropAsk(x.dataset.askDrop), "Removed"); return; }
   // Incident.
   if ((x = b("[data-inc-kind]"))) { incF.kind = x.dataset.incKind; saveInc(); return renderCard("incident"); }
-  if (b("#inc-mgr")) {
-    if (!incF.what.trim()) return toast("Say what happened first");
-    if (rude(incText())) return toast(RUDE);
-    const text = `${incText()}\n${tickBox(incF.firstAid)} First aid given\n${tickBox(incF.ambulance)} Ambulance or police called\n${tickBox(incF.book)} Written in the accident book\n${tickBox(incF.told)} Duty manager told`;
-    return busy(b("#inc-mgr"), "Sending…", A.ask({ kind: "incident", text: text.slice(0, 2000), when: "", anon: false }).then(() => toast("Sent to the seniors. Write it in the accident book too"), () => toast("Not sent. Check the signal and try again")));
-  }
   // Rate the shift.
   if ((x = b("[data-rate]"))) { rateF.score = +x.dataset.rate; store.set("rateDraft", rateF); haptic(); return renderCard("rate"); }
   // Issues.
@@ -5518,7 +5583,7 @@ $("#v-notices").addEventListener("click", async (e) => {
   if (b("#tell-go")) {
     const tx = tellF.text.trim(); if (!tx) return toast("Say what it is first");
     if (rude(tx)) return toast(RUDE);
-    return busy(b("#tell-go"), "Sending…", A.tell(tellF.kind, tx.slice(0, 1000)).then(() => { tellF = { kind: tellF.kind, text: "" }; toast(`Sent to ${ownerName()}`); haptic(); renderCard("tell"); }, () => toast("Not sent. Check the signal and try again")));
+    return busy(b("#tell-go"), "Sending…", A.tell(tellF.kind, tx.slice(0, 1000)).then(() => { tellF = { kind: tellF.kind, text: "" }; toast("Sent to maintenance"); haptic(); renderCard("tell"); }, () => toast("Not sent. Check the signal and try again")));
   }
   if ((x = b("[data-tell-done]"))) return track(A.tellDone(x.dataset.tellDone), "Marked done");
   if ((x = b("[data-tell-drop]"))) { if (confirm("Remove this for good?")) track(A.dropTell(x.dataset.tellDrop), "Removed"); return; }

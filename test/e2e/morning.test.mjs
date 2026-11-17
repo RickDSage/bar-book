@@ -130,7 +130,7 @@ test("drafts: what's typed survives closing the app, Save draft puts it away, Di
   await S.reload();
   if (await S.locator("#w-ok").isVisible()) await S.click("#w-ok");
   await S.waitForFunction(() => LIVE.ready && LIVE.me);
-  await waitToast(S, /^Unfinished draft: Tell Olly$/);
+  await waitToast(S, /^Unfinished draft: App feedback$/);
   await part(S, "tell");
   assert.equal(await S.$eval('[data-tell="text"]', (e) => e.value), "Add the house spritz");
   await S.click('[data-draft-drop="tell"]');

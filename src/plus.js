@@ -252,7 +252,9 @@ function renderPlf() {
   const tastes = [...Object.keys(FLAVOURS), "No alcohol"].map((f) => [f, f]);
   box.innerHTML = (PL.list ? `<div class="pl-list"><span>📋 <b translate="no">${esc(PL.list.name)}</b> · ${PL.list.names.size} ${PL.list.names.size === 1 ? "drink" : "drinks"}</span>${PL.list.saved ? `<button class="chip" data-pl="droplist">Delete list</button>` : `<button class="chip" data-pl="savelist">☆ Save to favourites</button>`}<button class="chip" data-pl="endlist" aria-label="Close the list">✕</button></div>` : "")
     // One row: Filters, Sort, then each filter that's on (tap one to take it off).
-    + `<div class="pl-bar"><button class="chip pl-fbtn" data-pl="filters" aria-expanded="${PL.open}">Filters${on.length ? ` <span>(${on.length})</span>` : ""}</button><button class="chip pl-fbtn" data-pl="filters">Sort: <span>${esc(sortName)}</span></button>${!PL.open ? on.filter(([k]) => k !== "fam").map(([k, l]) => `<button class="chip pl-on pl-off" data-pl-off="${k}" aria-label="Take off ${esc(l)}">${esc(l)}</button>`).join("") + (on.length > 1 ? `<button class="chip" data-pl="clear">Clear all</button>` : "") : ""}</div>`
+    + `<div class="pl-bar"><button class="chip pl-fbtn" data-pl="filters" aria-expanded="${PL.open}">Filters${on.length ? ` <span>(${on.length})</span>` : ""}</button><button class="chip pl-fbtn" data-pl="filters">Sort: <span>${esc(sortName)}</span></button>${!PL.open ? on.filter(([k]) => k !== "fam").map(([k, l]) => `<button class="chip pl-on pl-off" data-pl-off="${k}" aria-label="Take off ${esc(l)}">${esc(l)}</button>`).join("") + (on.length > 1 ? `<button class="chip" data-pl="clear">Clear all</button>` : "")
+      // Kinds of drink (Martinis, Margaritas, Spritzes…) on the same row, one tap away.
+      + (PL.list ? "" : PL_FAMS.filter((f) => PL.fam === f[0] || D.some((d) => inSec(d) && f[2](d))).map(([k, l]) => `<button class="chip fam" data-pl-fam="${k}" aria-pressed="${PL.fam === k}">${esc(l)}</button>`).join("")) : ""}</div>`
     + (PL.open ? `<div class="pl-panel"><div class="mini">Sort</div><div class="chips">${chips(PL_SORTS, "sort", PL.sort)}</div>
       ${plOutKeys().size ? `<div class="mini">Tonight</div><div class="chips"><button class="chip" data-pl-can aria-pressed="${PL.can}">Only what we can make</button></div>` : ""}
       <div class="mini">Kind of drink</div><div class="chips">${chips(PL_FAMS.map(([k, l]) => [k, l]), "fam", PL.fam)}</div>
@@ -571,8 +573,8 @@ function renderStarter() {
 }
 function stPassHtml(s) {
   return `<div class="sec">3. Tell the manager</div>
-    <div class="actions">${LIVE.me && !s.told ? `<button class="btn pri" data-st-tell>Tell the seniors</button>` : ""}${sendBtn("starter", "Post it on WhatsApp")}</div>
-    ${s.told ? `<p class="note">The seniors have been told.</p>` : ""}`;
+    <div class="actions">${LIVE.me && !s.told ? `<button class="btn pri" data-st-tell>Tell the managers</button>` : ""}${sendBtn("starter", "Post it on WhatsApp")}</div>
+    ${s.told ? `<p class="note">The managers have been told.</p>` : ""}`;
 }
 SHARE.starter = () => {
   const s = stState(); if (!s.passed) return null;
@@ -595,7 +597,7 @@ document.addEventListener("click", async (e) => {
   const t = e.target.closest("[data-st-tell]");
   if (t) {
     const s = stState(); t.disabled = true;
-    try { await LIVE.api.ask({ kind: "other", text: `New starter path passed: ${s.best} out of 10 on the ${stDrinks().length} house cocktails.`, when: "", anon: false }); s.told = true; stSet(s); toast("The seniors have been told"); }
+    try { await LIVE.api.ask({ kind: "other", text: `New starter path passed: ${s.best} out of 10 on the ${stDrinks().length} house cocktails.`, when: "", anon: false }); s.told = true; stSet(s); toast("The managers have been told"); }
     catch { t.disabled = false; toast("Not sent. Try again"); }
     if (qz?.starter) renderPractice(); else renderStarter();
   }

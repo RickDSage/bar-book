@@ -101,20 +101,20 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
   await p.click("[data-pl=filters] >> nth=0"); await p.click('[data-pl-sort="menu"]');
   await p.click('.pl-row .btn.pri');
   // Kinds of drink, one tap above the menu.
-  await p.click('#quick [data-fam="margarita"]');
+  await p.click('#plf [data-pl-fam="margarita"]');
   const ritas = await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent));
   assert.ok(ritas.includes("Margarita") && ritas.includes("Paloma") && !ritas.includes("Mojito"));
-  await p.click('#quick [data-fam="spritz"]');
+  await p.click('#plf [data-pl-fam="spritz"]');
   assert.ok((await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent))).includes("Aperol Spritz"));
-  await p.click('#quick [data-fam="spritz"]');
+  await p.click('#plf [data-pl-fam="spritz"]');
   assert.equal(await p.evaluate(() => listIds.length), await p.evaluate(() => D.length));
   // Your own list: saved on the phone, opened in one tap, and deleted.
-  await p.click('#quick [data-fam="martini"]');
+  await p.click('#plf [data-pl-fam="martini"]');
   await p.click("[data-pl-share]");
   await p.fill("#pl-ln", "Tonight's specials");
   await p.click('[data-pl-l="save"]');
   await p.click("#sh-close");
-  await p.click('#quick [data-fam="martini"]');
+  await p.click('#plf [data-pl-fam="martini"]');
   await p.click('#quick [data-mylist="0"]');
   assert.match(await text(p, "#plf .pl-list"), /Tonight's specials · \d+ drinks/);
   assert.ok((await p.$$eval("#list .row .n", (x) => x.map((e) => e.textContent))).includes("Espresso Martini"));
