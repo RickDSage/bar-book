@@ -32,6 +32,42 @@ var IT_KINDS = {
   supplies: { t: "Supplies (not food or drink)", side: "bar", store: "ambient", label: false, close: "keep", tip: "" },
   other: { t: "Something else", side: "bar", store: "ambient", label: false, close: "keep", tip: "" },
 };
+// Shelf life: where it lives and how long it typically keeps once opened, from the makers' own packs and help pages
+// (checked 17 Nov 2026) or the venue's own rules. It's typical only: the date on the pack always wins, and whoever
+// opens one reads it. days fills in the date label's days; no days means "read the pack".
+var IT_KEEP = [
+  [/baileys|irish cream|cream liqueur/, { fridge: false, say: "Baileys: 24 months from bottling, opened or not. No fridge needed" }],
+  [/oat ?milk|oatly|oat drink/, { fridge: true, days: 5, say: "Oatly: keep in the fridge, use within 5 days once opened" }],
+  [/\bmilk\b/, { fridge: true, days: 3, say: "Fresh milk: fridge, usually 3 days once opened" }],
+  [/(?<!ice |whipped |cream )\bcream\b(?! soda)/, { fridge: true, days: 3, say: "Fresh cream: fridge, usually 3 days once opened" }],
+  [/funkin|pur[ée]e/, { fridge: true, days: 8, say: "Funkin purées: fridge once opened, 8 to 10 days (the pack says which)" }],
+  [/maraschino|cocktail cherr/, { fridge: true, days: 28, say: "Venue rule: 4 weeks once opened" }],
+  [/(strawberry|raspberry) sauce/, { fridge: true, days: 14, say: "Bar Book's list: 14 days once opened" }],
+  [/vermouth|martini (rosso|bianco|extra dry)/, { fridge: true, days: 30, say: "Vermouth: fridge once opened, about a month" }],
+  [/monin|giffard|1883|torani/, { fridge: false, say: "Monin: room temperature, 90 to 180 days with the cap on, 30 to 60 with a pump or pourer" }],
+  [/prosecco|champagne|cava|sparkling/, { fridge: true, say: "Opened fizz: stopper on, fridge, use it the next day or two" }],
+];
+var IT_KEEP_KIND = {
+  fresh: { fridge: true, say: "Cut fruit and garnish: use it the same day. Whole: fridge" }, dairy: { fridge: true, say: "Fridge. Days once opened: on the pack" },
+  juice: { fridge: true, say: "Fridge once opened. Days: on the pack" }, puree: { fridge: true, say: "Fridge once opened. Days: on the pack" },
+  prep: { fridge: true, say: "Fridge. Date it the day it's made" }, syrup: { fridge: false, say: "Room temperature unless the bottle says fridge" },
+  soft: { fridge: false, say: "Sealed: the date on the can or bottle. Opened: bin it at close" }, beer: { fridge: false, say: "Sealed: the date on the bottle" }, cider: { fridge: false, say: "Sealed: the date on the bottle" },
+  wine: { fridge: true, say: "Opened: stopper on, fridge" }, vermouth: { fridge: true, say: "Fridge once opened" }, spirit: { fridge: false, say: "Keeps for years with the cap on" },
+  liqueur: { fridge: false, say: "Keeps a long time with the cap on. Cream liqueurs: check the bottle" }, coffee: { fridge: false, say: "Opened bag: clip it shut, use it within a few weeks" },
+  dessert: { fridge: true, days: 2, say: "Venue rule: opened today plus 2 days" }, sauce: { fridge: true, say: "Fridge once opened. Days: on the pack" },
+  topping: { fridge: false, say: "Lid on. Days: on the pack" }, icecream: { fridge: false, say: "Freezer, lid on" }, supplies: null, other: null,
+};
+// The shelf life for something by name (and kind, when it's known).
+// A name's own line only counts while it's still that kind of thing: Funkin changed to "dessert" keeps a dessert's days.
+function itKeep(name, kind) {
+  const t = ` ${name.toLowerCase()} `, own = itKindOf(name) || itKindOf(name, true), hit = (!kind || !own || own === kind) && IT_KEEP.find(([re]) => re.test(t));
+  return hit ? hit[1] : IT_KEEP_KIND[kind || own] || null;
+}
+function itKeepHtml(name, kind) {
+  const k = itKeep(name, kind); if (!k) return "";
+  const set = (LIVE.labels || []).filter((x) => itNorm(x.item) === itNorm(name)).map((x) => `${sideName(x.side)}: keeps ${nDays(x.life)} once opened (set on Labels)`);
+  return `<div class="it-keep"><b>Shelf life</b> · ${k.fridge ? "Fridge once opened" : "No fridge needed"}<div class="s">${esc(k.say)}. Typical only: the date on the pack always wins.</div>${set.length ? `<div class="s">${esc(set.join(" · "))}</div>` : ""}</div>`;
+}
 var IT_STORE = { fridge: "Fridge", bottle: "Bottle fridge", backbar: "Back bar", ambient: "Dry store or shelf", freezer: "Freezer", cellar: "Cellar" };
 var IT_CLOSE = { keep: "Leave it where it lives", fridge: "Back in the fridge", cover: "Cover, label and fridge", bin: "Bin it" };
 // How to tell what something is, first match wins. Strong words decide on the name alone ("juice", "purée", a brand).
@@ -81,15 +117,29 @@ function itGroup(kind, text, side) {
 }
 // Wikipedia's search: what the top few pages are and their one-line descriptions ("UK soft drink manufacturer").
 // Anyone can read it from a web page, with no key. Six seconds, then the name alone decides.
-async function itLookup(name) {
-  const u = "https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrlimit=3&prop=description&format=json&formatversion=2&origin=*&gsrsearch=" + encodeURIComponent(name);
+// In the phone's own language too (the language picked in Info): Hindi स्ट्रॉबेरी is looked up on Hindi Wikipedia, which
+// links it to the English page, Strawberry. Only pages whose title shares a word with what was typed count, so a typo
+// that Wikipedia can't place finds nothing rather than a film.
+async function itWiki(host, params) {
   const c = new AbortController(), t = setTimeout(() => c.abort(), 6000);
   try {
-    const r = await fetch(u, { signal: c.signal });
+    const r = await fetch(`https://${host}.wikipedia.org/w/api.php?action=query&format=json&formatversion=2&origin=*&${params}`, { signal: c.signal });
     if (!r.ok) throw new Error(r.status);
-    const pages = ((await r.json()).query || {}).pages || [];
-    return pages.sort((a, b) => a.index - b.index).map((p) => ({ title: p.title, desc: p.description || "" }));
+    return (((await r.json()).query || {}).pages || []).sort((a, b) => (a.index || 0) - (b.index || 0));
   } finally { clearTimeout(t); }
+}
+const itSearch = (q) => `generator=search&gsrlimit=3&gsrsearch=${encodeURIComponent(q)}`;
+async function itLookup(name) {
+  const en = itWiki("en", `${itSearch(name)}&prop=description`).then((ps) => ps.filter((p) => itNear(name, p.title)).map((p) => ({ title: p.title, desc: p.description || "" })));
+  if (!lang) return en;
+  const own = itWiki(lang, `${itSearch(name)}&prop=langlinks&lllang=en`).then(async (ps) => {
+    const titles = ps.filter((p) => itNear(name, p.title)).map((p) => p.langlinks?.[0]?.title).filter(Boolean);
+    if (!titles.length) return [];
+    const ds = await itWiki("en", `titles=${encodeURIComponent(titles.join("|"))}&prop=description`);
+    return titles.map((t) => ({ title: t, desc: (ds.find((d) => d.title === t) || {}).description || "", en: true }));
+  }).catch(() => []);
+  const [a, b] = await Promise.all([own, en.catch(() => [])]);
+  return [...a, ...b];
 }
 // The best guess from the name and what was found online: strong words in the name, then the first page found that
 // says what it is (any kind of word counts there), then a fruit or herb in the name, then the app's own ingredient
@@ -103,9 +153,9 @@ function itOwn(name) {
   return IT_MK[it.cat] || itKindOf(`${it.n} ${it.cat}`, true);
 }
 // Pages about something else with the same name: a song, a film, a person, a place.
-var IT_NOISE = /\b(single|song|album|film|band|novel|book|episode|television|series|video game|footballer|singer|rapper|actor|actress|musician|politician|entrepreneur|village|town|city|river|locality|disambiguation|topics referred|born \d|surname|given name|airline)\b/i;
+var IT_NOISE = /\b(single|song|album|film|band|novel|book|episode|television|series|video game|footballer|singer|rapper|actor|actress|musician|politician|entrepreneur|village|town|city|river|locality|disambiguation|topics referred|born \d|surname|given name|airline|colou?r|shade of|software|programming|typeface|mineral|material|chemical|compound|element)\b/i;
 function itGuess(name, hits) {
-  const said = (hits || []).filter((h) => !IT_NOISE.test(h.desc)).map((h) => [itKindOf(`${h.title} ${h.desc}`, true), `${h.title}: ${h.desc}`.slice(0, 200)]);
+  const said = (hits || []).filter((h) => !IT_NOISE.test(h.desc)).map((h) => [itKindOf(`${h.title} ${h.desc}`, true), `${h.title}: ${h.desc}`.slice(0, 170) + ` (${h.src || "Wikipedia"})`]);
   const kind = itKindOf(name) || (said.find(([k]) => k) || [])[0] || itKindOf(name, true) || itOwn(name) || "other";
   // What was found online that agrees, to show why.
   return { kind, found: (said.find(([k]) => k === kind) || [0, ""])[1] };
@@ -113,13 +163,41 @@ function itGuess(name, hits) {
 // A form filled in from a kind. Changing the kind fills in its defaults again; anything typed in the note stays.
 function itFill(f, kind) {
   const k = IT_KINDS[kind];
-  Object.assign(f, { kind, side: k.side, store: k.store, label: k.label, life: k.life ? String(k.life) : "", close: k.close });
+  const days = (itKeep(f.item, kind) || {}).days || k.life;
+  Object.assign(f, { kind, side: k.side, store: k.store, label: k.label, life: days ? String(days) : "", close: k.close });
   if (kind === "beer" && /draught|draft|\bkeg\b/i.test(f.item)) f.store = "cellar";
   return f;
 }
 var itF = null, itBusy = false, itOpen = false, itShow = "";
 // Names compared loosely: "Fresh strawberries" is the stock list's "Strawberries".
 function itNorm(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\b(fresh|the|a|bottles?|cans?)\b/g, " ").replace(/ies\b/g, "y").replace(/s\b/g, "").replace(/\s+/g, " ").trim(); }
+// Typos: two names are near when every word typed is the start of a word in the other, or one or two letters off
+// (the Make tab's spelling check). Letters in any alphabet count.
+function itWords(s) { return s.toLowerCase().normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\p{L}\p{M}\p{N}]+/gu, " ").replace(/ies\b/g, "y").replace(/s\b/g, "").split(" ").filter((w) => w.length >= 3); }
+function itNear(a, b) { const ws = itWords(b); return itWords(a).some((w) => ws.some((x) => x.startsWith(w) || w.startsWith(x) || (w.length >= 4 && mkLev(w, x) <= (w.length >= 7 ? 2 : 1)))); }
+// The name the app already knows for what was typed, typos and all: the stock list, added items, the date labels'
+// list and the drinks. Every word has to be near and the word counts match, so "lymes" is Limes but "lime juice" isn't.
+function itKnown(typed) {
+  const ws = itWords(typed); if (!ws.length) return null;
+  const pool = [...Object.values(STOCK).flat(), ...(LIVE.items || []).map((x) => x.item), ...Object.values(LABEL_IDEAS).flatMap((gs) => gs.flatMap(([, xs]) => xs.map(([n]) => n))), ...D.map((d) => d.name)];
+  let best = null;
+  for (const n of pool) {
+    const xs = itWords(n); if (xs.length !== ws.length) continue;
+    let d = 0;
+    for (let i = 0; i < ws.length && d < 9; i++) d += ws[i] === xs[i] ? 0 : ws[i].length >= 4 ? (mkLev(ws[i], xs[i]) <= (ws[i].length >= 7 ? 2 : 1) ? mkLev(ws[i], xs[i]) : 9) : 9;
+    if (d < 9 && (!best || d < best.d)) best = { n, d };
+  }
+  return best ? best.n : null;
+}
+// The closest names the app knows, for "Did you mean": any word near, best first, so a typo never ends nowhere.
+function itClosest(typed, n = 4) {
+  const ws = itWords(typed); if (!ws.length) return [];
+  const pool = [...new Set([...Object.values(STOCK).flat(), ...(LIVE.items || []).map((x) => x.item), ...Object.values(LABEL_IDEAS).flatMap((gs) => gs.flatMap(([, xs]) => xs.map(([k]) => k)))])];
+  return pool.map((x) => [x, itWords(x).filter((w) => ws.some((y) => w.startsWith(y) || y.startsWith(w) || (y.length >= 4 && mkLev(y, w) <= (y.length >= 7 ? 2 : 1)))).length])
+    .filter(([x, k]) => k && itNorm(x) !== itNorm(typed)).sort((a, b) => b[1] - a[1] || a[0].length - b[0].length).slice(0, n).map(([x]) => x);
+}
+// What was typed into the 86 box, as the name the 86 list knows, so it reaches the drinks.
+function itFix86(typed) { const n = itKnown(typed); return n && (Object.values(stockGroups()).flat().includes(n) || D.some((d) => d.name === n)) ? n : typed; }
 // The stock list's own name and group for something already on it.
 function itStock(name) { const n = itNorm(name); for (const [g, xs] of Object.entries(STOCK)) { const x = xs.find((y) => itNorm(y) === n); if (x) return { item: x, group: g }; } return null; }
 function itLive(side) { return (LIVE.items || []).filter((x) => x.status === "live" && (!side || x.side === side)).sort((a, b) => a.item.localeCompare(b.item)); }
@@ -144,13 +222,17 @@ function itFormHtml() {
   const f = itF, k = IT_KINDS[f.kind], own = LIVE.owner, edit = !!f.id;
   const opt = (o, v) => Object.entries(o).map(([key, t]) => `<option value="${key}"${key === v ? " selected" : ""}>${esc(t)}</option>`).join("");
   return `<div class="itf">
-    ${f.looked ? `<p class="s it-found">${f.found ? `Found online: <b>${esc(f.found)}</b> (Wikipedia)` : f.offline ? "Couldn't look it up online (no signal?). Worked out from the name." : "Nothing found online. Worked out from the name."}</p>` : ""}
+    ${f.looked ? `<p class="s it-found">${f.found ? `Found online: <b>${esc(f.found)}</b>` : f.offline ? "Couldn't look it up online (no signal?). Worked out from the name." : "Nothing found online. Worked out from the name."}</p>` : ""}
+    ${f.typed && itNorm(f.typed) !== itNorm(f.item) ? `<p class="s">You typed “${esc(f.typed)}”: it's <b>${esc(f.item)}</b>.</p>` : ""}
+    ${f.near?.length ? `<div class="s">Did you mean <span class="recent">${f.near.map((x) => `<button class="chip" data-it-pick="${esc(x)}">${esc(x)}</button>`).join("")}</span></div>` : ""}
     <p class="it-guess"><b>${esc(f.item)}</b> looks like: <b>${esc(k.t)}</b>. Check it and change anything that's wrong.</p>
+    ${itKeepHtml(f.item, f.kind)}
+    <label class="fld">Name on the lists<input data-it="item" maxlength="60" value="${esc(f.item)}"></label>
     <label class="fld">What kind of thing<select data-it="kind">${opt(Object.fromEntries(Object.entries(IT_KINDS).map(([key, x]) => [key, x.t])), f.kind)}</select></label>
     <div class="two"><label class="fld">Side<select data-it="side">${opt(SIDE_NAME, f.side)}</select></label>
       <label class="fld">Where it's kept<select data-it="store">${opt(IT_STORE, f.store)}</select></label></div>
     <label class="check"><input type="checkbox" data-it="label"${f.label ? " checked" : ""}> Needs a date label once it's opened</label>
-    ${f.label ? `<label class="fld">Days it keeps once opened<input data-it="life" inputmode="numeric" maxlength="3" placeholder="From the pack. Blank: a manager fills it in" value="${esc(f.life)}"></label>` : ""}
+    ${f.label ? `<label class="fld">Days it keeps once opened<input data-it="life" inputmode="numeric" maxlength="3" placeholder="From the pack. Blank: a manager fills it in" value="${esc(f.life)}"></label>${f.life && (itKeep(f.item, f.kind) || {}).days === Number(f.life) ? `<p class="s">Filled in from the typical shelf life above. Change it to what the pack says.</p>` : ""}` : ""}
     <label class="fld">At close<select data-it="close">${opt(IT_CLOSE, f.close)}</select></label>
     ${k.tip ? `<p class="note">${esc(k.tip)}</p>` : ""}
     <label class="fld">Anything else to know <span class="s">(optional)</span><input data-it="note" maxlength="200" value="${esc(f.note)}" placeholder="Which shelf, which fridge, who orders it"></label>
@@ -166,7 +248,7 @@ function itemsHtml(side) {
     <div class="actions">${LIVE.owner ? `<button class="btn pri" data-it-edit="${x.id}">Check it</button>` : `<button class="btn" data-it-drop="${x.id}">Take it back</button>`}</div></div>`;
   const liveRow = (x) => `<div class="it-row"><div><b>${esc(x.item)}</b> <span class="pill">${esc(x.group)}</span><div class="s">${esc(itLine(x))}</div>${x.note ? `<div class="s">${esc(x.note)}</div>` : ""}</div>
     ${LIVE.owner ? `<div class="actions"><button class="btn" data-it-edit="${x.id}">Change</button></div>` : ""}</div>`;
-  const form = itF?.kind && !itF.id ? itFormHtml() : `<div class="ltools"><input id="it-name" maxlength="60" placeholder="Like Rubicon Mango or fresh strawberries" aria-label="What it is" value="${esc(itF?.item || "")}"><button class="btn pri" id="it-look"${itBusy ? " disabled" : ""}>${itBusy ? "Looking…" : "Look it up"}</button></div>`;
+  const form = itF?.kind && !itF.id ? itFormHtml() : `<div class="ltools"><input id="it-name" maxlength="60" placeholder="A name, or a barcode's numbers" aria-label="What it is" value="${esc(itF?.item || "")}"><button class="btn pri" id="it-look"${itBusy ? " disabled" : ""}>${itBusy ? "Looking…" : "Look it up"}</button></div>${navigator.mediaDevices?.getUserMedia ? `<div class="actions"><button class="btn" id="it-scan-go">Scan a barcode</button></div>` : ""}`;
   return `<details class="setup" id="it-add"${itOpen || wait.length && LIVE.owner ? " open" : ""}><summary>Add something new${wait.length ? ` <span class="pill wait">${wait.length} waiting</span>` : ""}</summary>
     <p class="note">An ingredient, a drink we sell, a garnish, a dessert. Type what it is: the app looks it up and works out where it's kept, if it needs a date label and what happens to it at close. ${LIVE.owner ? "Yours go on straight away." : "Maintenance checks it, then it's on every phone."}</p>
     ${form}
@@ -184,22 +266,63 @@ function putAwayHtml(side) {
 // Black Tap's date label list also holds the added items that need a label and have no days yet, for a manager to fill
 // in from the pack.
 function itLabelIdeas(side) { const xs = itLive(side).filter((x) => x.label && !x.life).map((x) => [x.item]); return xs.length ? [["Added by the team", xs]] : []; }
-async function itLook() {
-  const typed = ($("#it-name")?.value || "").trim().replace(/\s+/g, " ").slice(0, 60);
+// A barcode (scanned, or typed as digits): Open Food Facts says what the product is (free, no key), and then it goes
+// through the same lookup as a typed name, with what Open Food Facts says about it first.
+async function itBarcode(code) {
+  itBusy = true; itF = { item: code }; renderTally();
+  let p = null;
+  try {
+    const c = new AbortController(), t = setTimeout(() => c.abort(), 6000);
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,categories_tags,quantity`, { signal: c.signal }).finally(() => clearTimeout(t));
+    const j = r.ok ? await r.json() : null; p = j?.status === 1 ? j.product : null;
+  } catch {}
+  itBusy = false;
+  if (!p?.product_name) { itF = null; renderTally(); return toast(p === null && !navigator.onLine ? "No signal: type the name instead" : "That barcode isn't listed online. Type the name instead"); }
+  const brand = (p.brands || "").split(",")[0].trim(), name = (brand && !p.product_name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${p.product_name}` : p.product_name).slice(0, 60);
+  const cats = (p.categories_tags || []).filter((c) => c.startsWith("en:")).map((c) => c.slice(3).replace(/-/g, " ")).slice(0, 6).join(", ");
+  itF = null; return itLook(name, [{ title: name, desc: cats || p.quantity || "", src: "Open Food Facts" }]);
+}
+var itZX = null;
+// The camera, read by ZXing (free, loaded the first time it's needed, so the app stays light on old phones).
+async function itScan() {
+  const box = document.createElement("div");
+  box.id = "it-scan"; box.innerHTML = `<video playsinline muted></video><p>Point the camera at the barcode</p><button class="btn" id="it-scan-x">Cancel</button>`;
+  document.body.append(box);
+  let reader = null; const done = () => { try { reader?.reset(); } catch {} box.remove(); };
+  box.querySelector("#it-scan-x").onclick = done;
+  try {
+    if (!window.ZXing) await (itZX ||= new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"; sc.onload = ok; sc.onerror = no; document.head.append(sc); }));
+    reader = new ZXing.BrowserMultiFormatReader();
+    const res = await reader.decodeOnceFromVideoDevice(undefined, box.querySelector("video"));
+    done(); haptic(); itBarcode(res.getText());
+  } catch (e) { if (box.isConnected) { done(); toast(itZX && window.ZXing ? "Couldn't use the camera. Type the barcode's numbers or the name" : "The scanner needs signal the first time"); } itZX = window.ZXing ? itZX : null; }
+}
+async function itLook(given, extra) {
+  const typed = (given || $("#it-name")?.value || "").trim().replace(/\s+/g, " ").slice(0, 60);
   if (!typed) return toast("Type what it is first");
-  const st = itStock(typed), item = st ? st.item : typed;
+  if (!extra && /^\d{8,14}$/.test(typed)) return itBarcode(typed);
+  const known = itKnown(typed), st = itStock(known || typed);
+  let item = st ? st.item : known || typed;
   const dup = itDup(item); if (dup) return toast(dup);
   itBusy = true; itF = { item }; renderTally();
   let hits = null, offline = false;
+
   try { hits = await itLookup(item); } catch { offline = true; }
+  if (extra) hits = [...extra, ...(hits || [])];
   itBusy = false;
   if (itF?.item !== item) return;
+  // Typed in another language: it goes on the lists under the English name (the one the stock list uses, if it's there).
+  const eng = !known && hits?.find((h) => h.en);
+  if (eng) { const k2 = itKnown(eng.title); item = itStock(k2 || eng.title)?.item || k2 || eng.title.slice(0, 60); const d2 = itDup(item); if (d2) { itF = null; renderTally(); return toast(d2); } }
   const g = itGuess(item, hits);
-  itF = itFill({ item, note: "", found: g.found, looked: true, offline, stock: st?.group || "" }, g.kind);
+  // Nothing it knows and nothing found online: the closest things it does know, to pick from, or carry on adding.
+  const near = !known && !itStock(item) && !g.found ? itClosest(typed) : [];
+  itF = itFill({ item, typed, near, note: "", found: g.found, looked: true, offline }, g.kind);
   renderTally();
 }
 function itSave() {
   const f = itF, life = f.label && f.life.trim() ? Number(f.life) : 0;
+  f.item = f.item.trim().replace(/\s+/g, " ").slice(0, 60); if (!f.item) return toast("Give it a name");
   if (!Number.isInteger(life) || life < 0 || life > 365) return toast("Days it keeps: a whole number from 1 to 365, or leave it blank");
   const dup = itDup(f.item, f.id); if (dup) return toast(dup);
   const x = { item: f.item, kind: f.kind, group: itStock(f.item)?.group || itGroup(f.kind, `${f.item} ${f.found || ""}`, f.side), side: f.side, store: f.store, label: f.label, life: f.label ? life : 0, close: f.close, note: f.note.trim().slice(0, 200), found: f.found || "" };
@@ -213,6 +336,8 @@ function itSave() {
 }
 $("#tally").addEventListener("click", (e) => {
   if (e.target.closest("#it-look")) { itLook(); return; }
+  if (e.target.closest("#it-scan-go")) { itScan(); return; }
+  const pk = e.target.closest("[data-it-pick]"); if (pk) { itF = null; renderTally(); $("#it-name").value = pk.dataset.itPick; itLook(); return; }
   if (e.target.closest("#it-cancel")) { itF = null; renderTally(); return; }
   if (e.target.closest("#it-save")) { if (itF) itSave(); return; }
   const ed = e.target.closest("[data-it-edit]"); if (ed) {
@@ -228,9 +353,10 @@ $("#tally").addEventListener("click", (e) => {
   }
 });
 $("#tally").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "it-name") { e.preventDefault(); itLook(); } });
-$("#tally").addEventListener("input", (e) => { const k = e.target.dataset.it; if (itF && (k === "life" || k === "note")) itF[k] = e.target.value; });
+$("#tally").addEventListener("input", (e) => { const k = e.target.dataset.it; if (itF && (k === "life" || k === "note" || k === "item")) itF[k] = e.target.value; });
 $("#tally").addEventListener("change", (e) => {
   const k = e.target.dataset.it; if (!itF || !k || k === "life" || k === "note") return;
+  if (k === "item") { renderTally(); return; }
   if (k === "kind") itFill(itF, e.target.value);
   else itF[k] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
   renderTally();

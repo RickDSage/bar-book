@@ -502,6 +502,7 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+.wquick #w-ipad { grid-column: 1 / -1; }
 .bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
 .utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
@@ -688,6 +689,10 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .it-found { margin: 0; overflow-wrap: anywhere; }
 .it-pa { padding: 4px 0; }
 #it-add summary .pill { margin-left: 6px; }
+#it-scan { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #000; color: #fff; padding: 16px; }
+#it-scan video { width: 100%; max-width: 520px; border-radius: 12px; }
+.lbst { margin-top: 14px; }
+.it-keep { margin: 8px 0 0; padding: 8px 10px; border-left: 3px solid var(--brass); background: var(--bg); border-radius: 6px; }
 .lbpick { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .lbpick .check { flex: 1; min-height: 44px; margin-top: 0; }
 .lbpick input[data-lbs-life] { width: 76px; flex: none; font: inherit; font-size: 17px; text-align: center; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; }
@@ -932,14 +937,14 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
   <div id="w-name"></div>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
-  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button></div>
+  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button><button class="btn wrapid" id="w-ipad" data-start="bar" data-ipad="1">📲 iPad bar station</button></div>
   <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
-  <p class="wip"><button class="linkbtn" data-intro-open>How Bar Book works: what it does, tips and tricks ›</button></p>
+  <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Guide: find anything in Bar Book">?</button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <header class="gut" id="hdr">
@@ -965,6 +970,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-practice" hidden>
     <button class="back" data-back>‹ More</button>
     <h2 style="font-size:28px">Practise specs</h2>
+    <div class="gd-ask"><div class="mini">Ask Bar Book</div><div class="search gd-search"><input id="gd-q-p" class="gd-in" type="search" placeholder="How do I make…? What's a…?" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div></div>
     <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button><button data-pmode="starter">New starter</button></div>
     <p class="lead" id="plead"></p>
     <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
@@ -1092,7 +1098,7 @@ const appUrl = (h) => `${location.origin}${location.pathname}${h}`;
 const LINKS = {
   drink: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`, swap: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`,
   specs: (o) => { const ids = String(o || "").split(",").filter((i) => D[+i]).slice(0, 15); return ids.length ? `#list=~${ids.map((i) => plSlug(D[+i].name)).join(".")}` : ""; },
-  out: () => "#at=stock", restock: () => "#at=stock", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
+  out: () => "#at=stock", restock: () => "#at=stock", log: () => "#at=send", logs: () => "#at=send", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
   tonight: () => "#at=tab:notices", morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
   contacts: () => "#at=call", games: () => "#at=football", lineup: () => "#at=tab:make", sheet: () => "#at=tab:sheets", allergen: () => "#at=tab:allergens",
 };
@@ -1605,7 +1611,12 @@ function showSheet(keepScroll) {
   const sh = $("#sheet"); sh.classList.remove("closing"); sh.hidden = false; document.body.style.overflow = "hidden";
   if (!keepScroll && !history.state?.sheet) history.pushState({ sheet: 1 }, "");
 }
-window.addEventListener("popstate", () => { if (!$("#sheet").hidden) hideSheet(); });
+window.addEventListener("popstate", (e) => {
+  if (!$("#sheet").hidden) return hideSheet();
+  if (!$("#help").hidden) helpClose();
+  if (!$("#logit").hidden) logClose();
+  if (e.state?.tab && e.state.tab !== cur) show(e.state.tab, true);
+});
 let lock = null;
 async function keepAwake() { try { if (!lock && navigator.wakeLock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch {} }
 /* ---------- House photos and how-to videos ----------
@@ -2080,7 +2091,7 @@ const SIDE_NAME = { bar: "Bar", floor: "Floor" };
 const sideName = (s) => SIDE_NAME[s] || "Bar";
 let mode = MODE_LISTS[store.get("mode")] ? store.get("mode") : "bar";
 if (!MODE_LISTS[mode]) mode = "bar";
-function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); pullDraft(); renderTally(); }
+function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); pullDraft(); renderTally(); if (cur === "tally") walkMaybe(m); }
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
@@ -2138,7 +2149,9 @@ let ho = { low: "", issues: "", next: "", ...store.get("ho", {}) };
 // Why there are no closing photos, when there really can't be any. It goes in the handover.
 let noPhotos = store.get("noPhotos", "");
 const hoLines = (id) => ho[id].split("\n").map((x) => x.trim()).filter(Boolean);
-const hoNote = () => HO.filter((f) => hoLines(f.id).length).map((f) => `${f.short}: ${hoLines(f.id).join("\n")}`).join("\n");
+// What was typed in the box, then what the team logged for that point tonight (Log it), with who and when.
+const hoAll = (id) => [...hoLines(id), ...logLines(id)];
+const hoNote = () => HO.filter((f) => hoAll(f.id).length).map((f) => `${f.short}: ${hoAll(f.id).join("\n")}`).join("\n");
 // The handover note and closing manager are for one night: at 6am they start empty again.
 // Tonight's unsent closing photos for this side, whoever took them. Old drafts with no side count for the taker's side.
 const draftPhotos = () => LIVE.draftPhotos.filter((p) => (p.side || (p.uid === LIVE.uid ? mode : "")) === mode);
@@ -2175,7 +2188,7 @@ function tallyText() {
     const c = closeClock(k);
     return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
-  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}${loggedLines().length ? `\n\nLogged tonight:\n${loggedLines().map((l) => `- ${l}`).join("\n")}` : ""}`;
 }
 // The shift for the managers' WhatsApp group or email, so nobody needs the app to know where it stands: how each list
 // ended, then everything still open (not done, blocked, 86'd, labels, restocks, issues, guest issues), the handover
@@ -2210,7 +2223,7 @@ SHARE.shift = () => {
   if (draftPhotos().length) bg.push(`\ud83d\udcf7 ${draftPhotos().length} closing photo${draftPhotos().length > 1 ? "s" : ""}, sent next`);
   else if (noPhotos) bg.push(`\ud83d\udcf7 No closing photos: ${noPhotos}`);
   // The four handover points always show, so "nothing" is said, not left out.
-  const point = (id, label, none) => ({ id, label, one: true, lines: hoLines(id).length ? hoLines(id) : [none] });
+  const point = (id, label, none) => ({ id, label, one: true, lines: hoAll(id).length ? hoAll(id) : [none] });
   return { what: `${sideName(mode)} shift`, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
     { id: "sit", label: "S \u00b7 Situation", one: true, lines: head },
     { id: "bg", label: "B \u00b7 Background", one: true, lines: bg },
@@ -2224,6 +2237,7 @@ SHARE.shift = () => {
     point("issues", "A \u00b7 3. Outstanding issues", "None"),
     { id: "blocked", label: "A \u00b7 Blocked", raw: true, lines: items(lists, ["blocked"]) },
     { id: "open-issues", label: "Reported issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
+    { id: "logged", label: "A \u00b7 Logged tonight", lines: loggedLines() },
     ...LB_SIDES.map((side) => ({ id: `labels-${side}`, label: `A \u00b7 Date labels to change, ${lower(sideName(side))}`, lines: lbs(side).map(lbLine) })),
     point("next", "R \u00b7 4. For tomorrow (what the morning does first)", "Nothing extra"),
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
@@ -2644,7 +2658,8 @@ function handoverOf(r) {
     if (m) { cur = by[m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
   }
   const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
-  return { ...pts, left, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
+  const logged = (r.text.match(/\n\nLogged tonight:\n((?:- .*(?:\n|$))+)/)?.[1] || "").trim().split("\n").filter(Boolean).map((x) => x.slice(2));
+  return { ...pts, left, logged, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
 }
 // Prep to par: how much of each thing the morning sets up, more on Friday and Saturday. Starting amounts, for the
 // manager to correct.
@@ -2668,6 +2683,7 @@ function morningHtml() {
     : `${stale ? `<p class="note warnline" id="ho-stale"><b>Last night's handover hasn't arrived.</b> Ask whoever closed to open Bar Book with signal: it may be waiting on their phone. This one is from ${esc(dayName(reportDay(r)))}.</p>` : ""}
       <article class="notice" id="handover"><div class="meta">${stale ? "Latest handover" : "Last night's handover"} · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
       ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
+      ${h.logged.length ? `<div class="hopt"><b>Logged</b><span>${h.logged.map(ut).join("<br>")}</span></div>` : ""}
       ${h.left.length ? `<p class="note">Left from that shift:<br>${h.left.map(esc).join("<br>")}</p>` : ""}
       ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
       ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}
@@ -2806,24 +2822,31 @@ function moveRs(r, to) {
 // Black Tap's own list of what each side dates once it's opened, by where it lives. Days are filled in only where the
 // venue's closing procedure already gives them (desserts opened today plus 2 days, cherries 4 weeks) or Bar Book's lists
 // had them (fruit sauces 14). Names are the team's own, so they match the labels on the boxes. Everything else waits for a manager to read "once opened, use within" on the pack.
+// Grouped by station: where on each side it lives, so the labels page reads like a walk round the bar or the floor.
+// A label's station is set when it's added from here and can be changed by a manager; one with none goes under the
+// station this list gives its name, or Other.
 const LABEL_IDEAS = {
   bar: [
-    ["Milk, cream and eggs", [["Whole milk"], ["Oat milk"], ["Double cream"], ["Egg whites"], ["Aquafaba"]]],
-    ["Fruit, herbs and garnishes", [["Limes"], ["Lemons"], ["Oranges"], ["Apples"], ["Strawberries"], ["Mint"], ["Cocktail pickles"], ["Olives"], ["Maraschino cherries", 28]]],
-    ["Juices", [["Apple juice"], ["Cranberry juice"], ["Orange juice"], ["Pineapple juice"], ["Tomato juice"], ["Lime juice"], ["Lemon juice"]]],
-    ["Syrups and purées", [["Sugar syrup"], ["Honey syrup"], ["Funkin purées"]]],
-    ["Opened bottles and coffee", [["Prosecco, opened bottle"], ["Vermouth, opened bottle"], ["Coffee beans, opened bag"]]],
+    ["Bar fridge", [["Whole milk"], ["Oat milk"], ["Double cream"], ["Egg whites"], ["Aquafaba"], ["Apple juice"], ["Cranberry juice"], ["Orange juice"], ["Pineapple juice"],
+      ["Tomato juice"], ["Grapefruit juice"], ["Funkin purées"], ["Coco Real"], ["Opened soft drink bottles"]]],
+    ["Garnish station", [["Limes"], ["Lemons"], ["Oranges"], ["Apples"], ["Grapefruit"], ["Strawberries"], ["Pineapple"], ["Passion fruit"], ["Cucumber"], ["Mint"], ["Basil"],
+      ["Chillies"], ["Jalapeños"], ["Cocktail pickles"], ["Olives"], ["Maraschino cherries", 28]]],
+    ["Prep and syrups", [["Lime juice"], ["Lemon juice"], ["Sugar syrup"], ["Honey syrup"], ["Pickle brine"], ["Batched espresso"]]],
+    ["Back bar", [["Prosecco, opened bottle"], ["Vermouth, opened bottle"], ["Coffee beans, opened bag"]]],
   ],
   floor: [
-    ["Cakes and desserts", [["Sprinkle cake", 2], ["Black velvet cake", 2], ["Guinness stout cake", 2], ["Brownies", 2], ["Victoria sponge", 2], ["New York cheesecake", 2],
+    ["Shake station", [["Whole milk"], ["Oat milk"], ["Whipped cream"], ["Vegan whipped cream"], ["Ice cream, opened tub"], ["Vegan ice cream, opened tub"], ["Maraschino cherries", 28],
+      ["Strawberries"], ["Raspberries"], ["Strawberry sauce", 14], ["Raspberry sauce", 14], ["Chocolate sauce"], ["Salted caramel sauce"], ["Vanilla frosting"], ["Chocolate frosting"],
+      ["Philadelphia cheese"], ["Graham crackers"], ["Oreo crumb"], ["Cookies"], ["Jammie Dodgers, big"], ["Jammie Dodgers, regular"], ["Lotus biscuits"], ["Ice cream cones"], ["Sprinkles"],
+      ["White chocolate pieces"], ["Chocolate pieces"], ["Cotton candy"], ["Cotton candy beads"]]],
+    ["Cake fridge", [["Sprinkle cake", 2], ["Black velvet cake", 2], ["Guinness stout cake", 2], ["Brownies", 2], ["Victoria sponge", 2], ["New York cheesecake", 2],
       ["Oreo sandwiches", 2], ["Cookie sandwiches", 2]]],
-    ["Milk, cream and ice cream", [["Whole milk"], ["Oat milk"], ["Whipped cream"], ["Vegan whipped cream"], ["Ice cream, opened tub"], ["Vegan ice cream, opened tub"]]],
-    ["Sauces, frosting and cheese", [["Strawberry sauce", 14], ["Raspberry sauce", 14], ["Chocolate sauce"], ["Salted caramel sauce"], ["Vanilla frosting"], ["Chocolate frosting"], ["Philadelphia cheese"]]],
-    ["Shake toppings", [["Graham crackers"], ["Oreo crumb"], ["Cookies"], ["Jammie Dodgers, big"], ["Jammie Dodgers, regular"], ["Lotus biscuits"], ["Ice cream cones"], ["Sprinkles"], ["White chocolate pieces"], ["Chocolate pieces"], ["Cotton candy"], ["Cotton candy beads"]]],
-    ["Fruit", [["Strawberries"], ["Raspberries"], ["Maraschino cherries", 28]]],
-    ["Table sauces in the fridge", [["Mayonnaise"], ["Ketchup"], ["Mustard"]]],
+    ["Floor fridge", [["Mayonnaise"], ["Ketchup"], ["Mustard"]]],
   ],
 };
+// Where a label lives: its own station, else where Black Tap's list puts its name, else Other.
+const stationOf = (x) => x.station || (LABEL_IDEAS[x.side] || []).find(([, xs]) => xs.some(([n]) => n.toLowerCase() === x.item.toLowerCase()))?.[0] || "Other";
+const stationsOf = (side) => [...new Set([...(LABEL_IDEAS[side] || []).map(([g]) => g), ...LIVE.labels.filter((x) => x.side === side && x.station).map((x) => x.station)])];
 const LB_SIDES = Object.keys(MODE_LISTS);
 // Sums on YYYY-MM-DD dates, done in UTC so the clocks changing never moves a date.
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -2862,7 +2885,8 @@ function labelText(e, prev, mine) {
   if (e.act === "added") return `added ${mine ? "it" : `${e.label} to the date labels`}: keeps ${nDays(e.life)}${e.on ? "" : ", no label needed"}`;
   if (e.act === "opened") return `opened ${mine ? "one" : e.label}, use by ${dayName(e.useBy)}`;
   if (e.act === "changed") return `changed ${it}${late}. New one, use by ${dayName(e.useBy)}`;
-  if (e.act === "binned") return `binned ${it}${late}`;
+  if (e.act === "binned") return `discarded ${it}${late}`;
+  if (e.act === "found") return `found ${mine ? "one" : e.label} open with no label and dated it: use by ${dayName(e.useBy)}. ${e.note}`;
   if (e.act === "removed") return `took ${mine ? "it" : e.label} off the date labels`;
   const what = prev ? [prev.label !== e.label && `renamed from ${prev.label}`, prev.life !== e.life && `keeps ${nDays(e.life)}`, prev.area !== e.area && `moved to the ${lower(sideName(e.area))}`,
     prev.on !== e.on && (e.on ? "needs a label again" : "no label needed")] : [`keeps ${nDays(e.life)}`, !e.on && "no label needed"];
@@ -2871,11 +2895,12 @@ function labelText(e, prev, mine) {
 // The label being opened or changed ({id, act, v, date}), the one whose ⋯ is open, a manager's changes to it, its
 // history and the add form, kept apart from the page so a teammate's change redrawing it loses nothing.
 let lbo = null, lbm = "", lbe = null, lbh = null;
-const lbF = { item: "", life: "", on: true, open: false };
+const lbF = { item: "", life: "", on: true, open: false, station: "" };
+const stationField = (side, v, attr) => `<label class="fld">Station<input ${attr} maxlength="30" list="lb-stations" value="${esc(v)}" placeholder="Like Shake station or Garnish station"></label><datalist id="lb-stations">${stationsOf(side).map((k) => `<option value="${esc(k)}">`).join("")}</datalist>`;
 function labelRow(x) {
   const due = labelDue(x), [tag, cls] = x.on ? LB_DUE[due] : ["No label needed", ""];
   const b = (act, t, c = "") => `<button class="btn${c}" data-lb="${x.id}" data-lb-act="${act}">${t}</button>`;
-  const btns = !x.on ? "" : x.state === "open" ? b("changed", "Changed it", ["overdue", "today"].includes(due) ? " pri" : "") + b("binned", "Binned…") : b("opened", "Opened one", " pri");
+  const btns = !x.on ? "" : (x.state === "open" ? b("changed", "Changed it", ["overdue", "today"].includes(due) ? " pri" : "") + b("binned", "Discarded…") : b("opened", "Opened one", " pri") + b("found", "Found open"));
   return `<div class="lb${flashed("lb-" + x.id, x) ? " flash" : ""}"><div class="le-row"><div><b>${esc(x.item)}</b> <span class="pill ${cls}">${tag}</span>
       <div class="s">${x.pending ? "Saving… · " : ""}${esc(labelLine(x))}</div></div>
     <button class="more" data-lb-more="${x.id}" aria-expanded="${lbm === x.id}" aria-label="History${LIVE.admin ? " and changes" : ""}: ${esc(x.item)}">⋯</button></div>
@@ -2883,23 +2908,45 @@ function labelRow(x) {
 }
 // Opening or changing one: the date to write on the label, which can be brought forward to the pack's own date.
 function openHtml(x) {
+  if (lbo.act === "found") return foundHtml(x);
   return `<div class="lbo"><p class="s">${lbo.act === "changed" ? "Bin the old one, open a new one and write this on its label:" : "Write this on its label:"}</p>
     <p class="lbdate">Use by <b>${dayName(lbo.date)}</b></p>
     <label class="fld">Its own use-by date is sooner? Pick that instead<input type="date" data-lb-date min="${shiftDay()}" max="${addDays(shiftDay(), x.life)}" value="${lbo.date}"></label>
     <div class="actions"><button class="btn pri" data-lb-save="${x.id}">Save</button><button class="btn" data-lb-cancel>Cancel</button></div></div>`;
 }
-const LB_PAST = { added: "added", edited: "changed the details of", opened: "opened", changed: "changed", binned: "binned" };
+// Found one open with no label. Nobody can say when it was opened, so staff are told to discard it (the safe call). A
+// manager who knows (they opened it, or saw it opened) dates it to that day with a note saying how they know.
+function foundHtml(x) {
+  const min = addDays(shiftDay(), -x.life);
+  if (!LIVE.admin) return `<div class="lbo"><p><b>Don't know when it was opened? Discard it.</b> With no label nobody can say it's safe.</p>
+    <p class="s">Opening a new one? Tap Opened one. Someone knows the day it was opened? A manager can date it.</p>
+    <div class="actions"><button class="btn" data-lb-cancel>OK</button></div></div>`;
+  return `<div class="lbo"><p class="s">No label and nobody knows when it was opened? Discard it. Know the day? Date it, and say how you know:</p>
+    <label class="fld">Opened on<input type="date" data-lb-found min="${min}" max="${shiftDay()}" value="${lbo.date}"></label>
+    <p class="lbdate">Use by <b>${dayName(addDays(lbo.date, x.life))}</b></p>
+    <label class="fld">How you know<input data-lb-why maxlength="300" value="${esc(lbo.why || "")}" placeholder="I opened it at Sunday's close"></label>
+    <div class="actions"><button class="btn pri" data-lb-save="${x.id}">Date it</button><button class="btn" data-lb-cancel>Cancel</button></div></div>`;
+}
+const LB_PAST = { added: "added", edited: "changed the details of", opened: "opened", changed: "changed", binned: "discarded", found: "dated" };
 function saveOpen(x) {
   const max = addDays(shiftDay(), x.life), d = lbo.date, act = lbo.act;
   if (x.v !== lbo.v) { lbo = null; renderTally(); return toast(`${x.name} has just ${LB_PAST[x.act]} it. Check it and try again`); }
+  if (act === "found") {
+    const why = (lbo.why || "").trim().slice(0, 300);
+    if (!ISO_DAY.test(d) || d > shiftDay() || d < addDays(shiftDay(), -x.life)) return toast(`Pick a day from ${dayName(addDays(shiftDay(), -x.life))} to today. Older than that: discard it`);
+    if (!why) return toast("Say how you know when it was opened");
+    lbo = null;
+    track(LIVE.api.label(x, "found", { openedOn: d, useBy: addDays(d, x.life), note: why }), `Dated. Use by ${dayName(addDays(d, x.life))}`, "Not saved. Someone may have just changed it");
+    haptic(); renderTally(); return;
+  }
   if (!ISO_DAY.test(d) || d < shiftDay() || d > max) return toast(`Pick a date from today to ${dayName(max)}`);
   lbo = null;
   track(LIVE.api.label(x, act, { useBy: d }), `Saved. Use by ${dayName(d)}`, "Not saved. Someone may have just changed it");
   haptic(); renderTally();
 }
 function binLabel(x) {
-  if (!confirm(`Bin ${x.item}? Only if it's used up or thrown away, with no new one opened. Opened a new one? Tap Changed it instead.`)) return;
-  track(LIVE.api.label(x, "binned"), `${x.item} binned`, "Not saved. Someone may have just changed it");
+  if (!confirm(`Discard ${x.item}? Only if it's used up or thrown away, with no new one opened. Its days stay set for the next one. Opened a new one? Tap Changed it instead.`)) return;
+  track(LIVE.api.label(x, "binned"), `${x.item} discarded. Its days stay set for the next one`, "Not saved. Someone may have just changed it");
   haptic();
 }
 // ⋯: the label's history for everyone, and for managers, a form to change it or take it off the list.
@@ -2908,20 +2955,35 @@ function labelMore(x) {
     <label class="fld">What it is<input data-lbe="item" maxlength="60" value="${esc(lbe.item)}"></label>
     <div class="two"><label class="fld">Days it keeps<input data-lbe="life" inputmode="numeric" maxlength="3" value="${esc(lbe.life)}"></label>
       <label class="fld">Side<select data-lbe="side">${LB_SIDES.map((s) => `<option value="${s}"${s === lbe.side ? " selected" : ""}>${sideName(s)}</option>`).join("")}</select></label></div>
+    ${stationField(lbe.side, lbe.station, 'data-lbe="station"')}
     <label class="check"><input type="checkbox" data-lbe="on"${lbe.on ? " checked" : ""}> Needs a date label</label>
     <div class="actions"><button class="btn pri" data-lb-edit="${x.id}">Save changes</button><button class="btn danger" data-lb-del="${x.id}">Take it off the list</button></div>` : "";
-  return `<div class="tmore">${edit}<div class="mini">History</div>${labelHist(x)}</div>`;
+  return `<div class="tmore">${edit}${labelPhotoHtml(x)}<div class="mini">History</div>${labelHist(x)}</div>`;
+}
+// A photo of the pack or the label, as a record: the latest one, read when ⋯ is opened. Anyone can take one.
+let lbPh = null;
+function labelPhotoHtml(x) {
+  const p = lbPh?.id === x.id ? lbPh : null;
+  return `<div class="mini">Photo of the pack or label</div>
+    ${p?.busy ? `<p class="note">Reading…</p>` : p?.data ? `<div class="photo"><img src="${p.data}" alt="Photo of ${esc(x.item)}"><p class="s">Taken by ${esc(p.name)}${p.at ? `, ${when(p.at)}` : ""}</p></div>` : ""}
+    <div class="actions"><label class="btn" for="lb-ph-in">${p?.data ? "Take a new one" : "Take a photo"}</label><input type="file" accept="image/*" capture="environment" id="lb-ph-in" data-lb-ph="${x.id}" hidden></div>`;
+}
+async function loadLabelPhoto(id) {
+  lbPh = { id, busy: true }; renderTally();
+  const d = await LIVE.api.loadLabelPhoto(id).catch(() => null);
+  if (lbPh?.id === id) { lbPh = { id, ...(d || {}) }; renderTally(); }
 }
 function openMore(x) {
+  if (lbm !== x.id) loadLabelPhoto(x.id);
   lbm = lbm === x.id ? "" : x.id;
-  lbe = lbm && LIVE.admin ? { id: x.id, item: x.item, life: String(x.life), side: x.side, on: x.on } : null;
+  lbe = lbm && LIVE.admin ? { id: x.id, item: x.item, life: String(x.life), side: x.side, on: x.on, station: stationOf(x) === "Other" ? "" : stationOf(x) } : null;
   if (lbm) loadLabelHist(x.id); else renderTally();
 }
 function editLabel(x) {
-  const item = lbe.item.trim().slice(0, 60), life = Number(lbe.life), f = { item, life, side: lbe.side, on: lbe.on };
+  const item = lbe.item.trim().slice(0, 60), life = Number(lbe.life), f = { item, life, side: lbe.side, on: lbe.on, station: lbe.station.trim().slice(0, 30) };
   if (!item) return toast("Say what it is");
   if (!Number.isInteger(life) || life < 1 || life > 365) return toast("Days it keeps: a whole number from 1 to 365");
-  if (item === x.item && life === x.life && f.side === x.side && f.on === x.on) return toast("Nothing changed");
+  if (item === x.item && life === x.life && f.side === x.side && f.on === x.on && f.station === (stationOf(x) === "Other" ? "" : stationOf(x))) return toast("Nothing changed");
   if (dupLabel(item, f.side, x.id)) return toast(`${item} is on the ${lower(sideName(f.side))}'s list already`);
   track(LIVE.api.label(x, "edited", f), f.side === x.side ? "Saved. Every phone has it now" : `Saved. It's on the ${lower(sideName(f.side))}'s labels now`, "Not saved. Someone may have just changed it");
   if (f.side !== x.side) { lbm = ""; lbe = null; }
@@ -2955,10 +3017,10 @@ function labelListHtml(side) {
   const left = ideasLeft(side); if (!left.length) return "";
   const n = left.reduce((k, [, xs]) => k + xs.length, 0), open = lbS.open ?? !sideLabels(side).length;
   return `<details class="setup" id="lb-list"${open ? " open" : ""}><summary>Black Tap's list: ${n} not added yet</summary>
-    <p class="note">Everything the ${lower(sideName(side))} dates once it's opened. Days are filled in only where our closing procedure gives them. Fill in the rest from each pack ("once opened, use within…") or the kitchen's food safety sheet, untick anything this side doesn't keep, then add them.</p>
+    <p class="note">Everything the ${lower(sideName(side))} dates once it's opened. Days are filled in only where our closing procedure gives them. Fill in the rest from each pack ("once opened, use within…") or the kitchen's food safety sheet, untick anything this side doesn't keep, then add them. "typ." is what it typically keeps: the pack always wins.</p>
     ${left.map(([g, xs]) => `<div class="mini">${esc(g)}</div>${xs.map(([it, d]) => {
       const k = lbKey(side, it);
-      return `<div class="lbpick"><label class="check"><input type="checkbox" data-lbs-on="${esc(it)}"${lbS.off[k] ? "" : " checked"}> ${esc(it)}</label><input data-lbs-life="${esc(it)}" inputmode="numeric" maxlength="3" placeholder="Days" aria-label="Days ${esc(it)} keeps once opened" value="${esc(ideaLife(side, it, d))}"></div>`;
+      return `<div class="lbpick"><label class="check"><input type="checkbox" data-lbs-on="${esc(it)}"${lbS.off[k] ? "" : " checked"}> ${esc(it)}</label><input data-lbs-life="${esc(it)}" inputmode="numeric" maxlength="3" placeholder="${itKeep(it)?.days ? `typ. ${itKeep(it).days}` : "Days"}" aria-label="Days ${esc(it)} keeps once opened" value="${esc(ideaLife(side, it, d))}"></div>`;
     }).join("")}`).join("")}
     <div class="actions"><button class="btn pri" id="lbs-go">Add the ticked ones</button></div></details>`;
 }
@@ -2971,13 +3033,15 @@ function addIdeas(side) {
   if (!go.length) { $(`[data-lbs-life="${CSS.escape(wait[0][0])}"]`)?.focus(); return toast("Fill in the days it keeps once opened: a whole number from 1 to 365"); }
   let left = go.length, failed = 0;
   const done = () => { if (--left) return; toast(failed ? `${failed} not saved. Try again` : `${go.length} added${wait.length ? `. ${wait.length} still need their days` : ". Everyone on the " + lower(sideName(side)) + " can see them"}`); };
-  for (const [n, d] of go) track(LIVE.api.label(null, "added", { item: n, side, life: life(n, d), on: true }).catch((e) => { failed++; throw e; }).finally(done), null, null);
+  const st = (n) => ideasLeft(side).find(([, ys]) => ys.some(([m]) => m === n))?.[0] || "";
+  for (const [n, d] of go) track(LIVE.api.label(null, "added", { item: n, side, life: life(n, d), on: true, station: st(n) === "Added by the team" ? "" : st(n) }).catch((e) => { failed++; throw e; }).finally(done), null, null);
   haptic(); renderTally();
 }
 function labelAddHtml(side) {
   return `${labelListHtml(side)}<details class="setup" id="lb-add"${lbF.open ? " open" : ""}><summary>Add something else to date</summary>
     <label class="fld">What it is<input id="lb-item" maxlength="60" value="${esc(lbF.item)}" placeholder="Anything opened that goes off"></label>
     <label class="fld">Days it keeps once opened<input id="lb-life" inputmode="numeric" maxlength="3" value="${esc(lbF.life)}"></label>
+    ${stationField(side, lbF.station, 'id="lb-station"')}
     <label class="check"><input type="checkbox" id="lb-on"${lbF.on ? " checked" : ""}> Needs a date label</label>
     ${draftBar("label")}<div class="actions"><button class="btn pri" id="lb-go">Add it</button></div></details>`;
 }
@@ -2986,14 +3050,22 @@ function addLabel(side) {
   if (!item) return toast("Say what it is");
   if (!Number.isInteger(life) || life < 1 || life > 365) return toast("Days it keeps once opened: a whole number from 1 to 365");
   if (dupLabel(item, side)) return toast(`${item} is on the list already`);
-  track(LIVE.api.label(null, "added", { item, side, life, on: lbF.on }), `${item} added. Everyone on the ${lower(sideName(side))} can see it`, "Not saved. Try again");
-  Object.assign(lbF, { item: "", life: "", on: true }); haptic(); renderTally();
+  track(LIVE.api.label(null, "added", { item, side, life, on: lbF.on, station: lbF.station.trim().slice(0, 30) }), `${item} added. Everyone on the ${lower(sideName(side))} can see it`, "Not saved. Try again");
+  Object.assign(lbF, { item: "", life: "", on: true, station: "" }); haptic(); renderTally();
+}
+// The side's labels under their stations, the stations in the order of Black Tap's list, each with how many to change.
+function labelsByStation(side) {
+  const xs = sideLabels(side); if (!xs.length) return "";
+  const order = [...stationsOf(side), "Other"], by = new Map(order.map((k) => [k, []]));
+  for (const x of xs) { const k = stationOf(x); if (!by.has(k)) by.set(k, []); by.get(k).push(x); }
+  return [...by].filter(([, ys]) => ys.length).map(([k, ys]) => { const n = ys.filter((x) => x.on && ["overdue", "today"].includes(labelDue(x))).length;
+    return `<div class="mini lbst">${esc(k)}${n ? ` <span class="pill no">${n} to change</span>` : ""}</div>${ys.map(labelRow).join("")}`; }).join("");
 }
 function labelsHtml(side) {
   const head = `<div class="sec">Date labels</div>`;
   if (!LIVE.loaded.has("labels")) return `${head}<p class="note">Loading. It needs signal the first time.</p>`;
-  return `${head}<p class="note">Opened one? Tap Opened one and write the date it gives you on the label. Binned the old one and opened a new one? Tap Changed it. Each tap is saved with your name and the time.</p>
-    ${sideLabels(side).map(labelRow).join("") || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
+  return `${head}<p class="note">Opened one? Tap Opened one and write the date it gives you on the label. Binned the old one and opened a new one? Tap Changed it. Found one open with no label? Tap Found open. Each tap is saved with your name and the time.</p>
+    ${labelsByStation(side) || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
     ${sideLabels(side).some((x) => x.on) ? `<div class="actions">${sendBtn("labels", "Send the date labels", side)}</div>` : ""}
     ${LIVE.admin ? labelAddHtml(side) : ""}`;
 }
@@ -3062,7 +3134,7 @@ function renderTally() {
   $("#shift-title").textContent = `${sideName(mode)} shift`;
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
   // Clear everything is for a fresh start, so it sits at the foot of the page, away from the thumb; Undo stays on top.
-  const tabs = `${canUndoClear() ? `<div class="actions"><button class="btn pri" id="undo-clear">\u21a9 Undo clear</button></div>` : ""}<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
+  const tabs = `${canUndoClear() ? `<div class="actions"><button class="btn pri" id="undo-clear">\u21a9 Undo clear</button></div>` : ""}<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>${logBarHtml()}`;
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
@@ -3091,6 +3163,7 @@ function renderTally() {
       <div class="hopt"><b>1. Cleaning completed</b><span>${(() => { const p = progress(closeList()); return p.n === p.of ? "\u2705 Closing all ticked" : `${p.n} of ${p.of} closing items ticked`; })()}</span></div>
       ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
       <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
+      ${logHoHtml()}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
       <div class="draftbar"><span>${LIVE.me ? "Shared live with everyone closing this side" : "Saved on this phone as you type"}</span><button class="btn" data-ho-save>Save draft</button><button class="btn" data-ho-clear>Discard</button></div>
       <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done` : "Hand over and send on WhatsApp"}</button>
@@ -3138,6 +3211,14 @@ $("#tally").addEventListener("change", async (e) => {
     haptic(); return;
   }
   if (t.dataset.phNote) { track(LIVE.api.notePhoto(t.dataset.phNote, t.value.trim()), null, "Note not saved"); return; }
+  if (t.id === "lb-ph-in" && t.files[0]) {
+    const x = LIVE.labels.find((y) => y.id === t.dataset.lbPh); if (!x) return;
+    const data = await shrink(t.files[0]).catch(() => null); t.value = "";
+    if (!data) return toast("Couldn't read that photo");
+    lbPh = { id: x.id, data, name: LIVE.me };
+    track(LIVE.api.labelPhoto(x, data), "Photo kept with the label", "Photo not saved. Try again"); renderTally(); return;
+  }
+  if (t.dataset.lbFound != null && lbo) { if (ISO_DAY.test(t.value)) { lbo.date = t.value; renderTally(); } return; }
   if (t.dataset.lbDate != null && lbo) { if (ISO_DAY.test(t.value)) { lbo.date = t.value; t.closest(".lbo").querySelector(".lbdate b").textContent = dayName(t.value); } return; }
   if (t.id === "lb-on") { lbF.on = t.checked; return; }
   if (t.dataset.lbsOn != null) { lbS.off[lbKey(mode, t.dataset.lbsOn)] = !t.checked; return; }
@@ -3155,6 +3236,8 @@ $("#tally").addEventListener("input", (e) => {
   if (e.target.id === "rs-detail") { rsF.detail = e.target.value; return; }
   if (e.target.id === "lb-item") { lbF.item = e.target.value; return; }
   if (e.target.id === "lb-life") { lbF.life = e.target.value; return; }
+  if (e.target.id === "lb-station") { lbF.station = e.target.value; return; }
+  if (e.target.dataset.lbWhy != null && lbo) { lbo.why = e.target.value; return; }
   if (e.target.dataset.lbsLife != null) { lbS.life[lbKey(mode, e.target.dataset.lbsLife)] = e.target.value; return; }
   if (lbe && e.target.dataset.lbe && e.target.type !== "checkbox") { lbe[e.target.dataset.lbe] = e.target.value; return; }
   if (e.target.dataset.hoF) { ho[e.target.dataset.hoF] = e.target.value; keepDraft(); }
@@ -3243,7 +3326,7 @@ $("#tally").addEventListener("click", async (e) => {
   const la = e.target.closest("[data-lb]"); if (la) {
     const x = lbOf(la, "lb"); if (!x) return;
     if (la.dataset.lbAct === "binned") return binLabel(x);
-    lbo = { id: x.id, act: la.dataset.lbAct, v: x.v, date: addDays(shiftDay(), x.life) }; renderTally(); return;
+    lbo = { id: x.id, act: la.dataset.lbAct, v: x.v, date: la.dataset.lbAct === "found" ? shiftDay() : addDays(shiftDay(), x.life) }; renderTally(); return;
   }
   const ls = e.target.closest("[data-lb-save]"); if (ls) { const x = lbOf(ls, "lbSave"); if (x) saveOpen(x); return; }
   if (e.target.closest("[data-lb-cancel]")) { lbo = null; renderTally(); return; }
@@ -3264,10 +3347,10 @@ $("#tally").addEventListener("click", async (e) => {
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
   const oq = e.target.closest("[data-out-quick]"); if (oq) { const n = oq.dataset.outQuick; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return; }
   if (e.target.closest("#s-86-go")) {
-    const n = $("#s-86-own").value.trim().replace(/\s+/g, " ").slice(0, 80);
+    const typed = $("#s-86-own").value.trim().replace(/\s+/g, " ").slice(0, 80), n = typed && itFix86(typed);
     if (!n) return toast("Type what ran out");
     if (outNow().has(n)) return toast(`${n} is already 86'd`);
-    setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return;
+    setOut(n, true); haptic(); toast(n === typed ? `${n} 86'd` : `${n} 86'd (you typed “${typed}”)`); renderList(); renderTally(); return;
   }
   if (e.target.closest("[data-out-clear]")) {
     const xs = [...outNow()];
@@ -4656,7 +4739,7 @@ function renderInfo() {
     </div>
     <div class="sec">Help</div>
     <div class="hub">
-      ${hubRow("features", "data-intro-open", "How Bar Book works", "What it does, tips and tricks, and every feature")}
+      ${hubRow("features", "data-guide", "Guide: how Bar Book works", "Your shift step by step, every section, and a search for anything")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
     </div>
     <div class="sec">Bar reference</div>
@@ -4667,13 +4750,7 @@ function renderInfo() {
       <li>No drinking games, no “drink as much as you can” deals, free tap water on request. Shot trays and pitchers are fine as fixed amounts.</li>
       <li>ID check on bombs and shots under the venue's Challenge policy.</li>
     </ul>`)}
-    ${fold("tech", "Technique key", `<dl class="kv">
-      <dt>Dry shake</dt><dd>Shake without ice to whip the foam, then add ice and shake again.</dd>
-      <dt>Double strain</dt><dd>Hawthorne strainer plus a fine strainer, so no ice chips or pulp.</dd>
-      <dt>Foamer</dt><dd>2 drops, as on the house cards. Used for foam instead of egg white.</dd>
-      <dt>Build</dt><dd>Pour straight into the glass over ice. No shaker.</dd>
-      <dt>Float</dt><dd>Pour slowly over the back of a bar spoon so it sits on top.</dd>
-    </dl>`)}
+    ${fold("tech", "Technique key and words we use", glossHtml())}
     ${fold("prep", "Prep and batches", prep)}
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
     <div class="sec">This phone</div>
@@ -4838,7 +4915,7 @@ function openAt(where) {
 }
 document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-open]")) openFeatures(); });
 // One tap to any page: from the drinks search, the Send card and More.
-document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) closeSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
+document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
 const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge",
@@ -5440,7 +5517,7 @@ SHARE.tonight = () => {
       const x = taskOf(k, i); return `${sideName(sd)}: ${itemText(k, i)}${x?.status === "blocked" && x.note ? ` (blocked: ${x.note})` : ""}`; });
     return r?.status === "finished" ? [...(r.note ? [`${sideName(sd)} reason: ${r.note}`] : []), ...left] : left.filter((l) => l.includes("(blocked"));
   });
-  const ho = (id) => ["bar", "floor"].flatMap((sd) => { const v = (draftOf(sd)?.[id] || "").trim(); return v ? v.split("\n").map((l) => `${sideName(sd)}: ${l.trim()}`).filter((l) => !l.endsWith(": ")) : []; });
+  const ho = (id) => ["bar", "floor"].flatMap((sd) => { const v = (draftOf(sd)?.[id] || "").trim(); return [...(v ? v.split("\n").map((l) => `${sideName(sd)}: ${l.trim()}`).filter((l) => !l.endsWith(": ")) : []), ...logLines(id, sd).map((l) => `${sideName(sd)}: ${l}`)]; });
   const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `${n}, since ${shortAt(x.at)}${x.name ? ` (${x.name})` : ""}`);
   const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status)).map((x) => `${amtOf(x.qty, x.unit, x.item)} for the ${lower(DEST[x.dest] || "")}: ${RS_SAY[x.status]}`);
   const iss = openIssues().sort((a, b) => b.urgent - a.urgent);
@@ -5452,6 +5529,7 @@ SHARE.tonight = () => {
     { id: "issues", label: "Issues and faults", lines: iss.flatMap((x) => (x.urgent ? [`URGENT: ${issueLines(x)[0]}`, ...issueLines(x).slice(1)] : issueLines(x))) },
     { id: "outstanding", label: "Outstanding", lines: ho("issues") },
     { id: "next", label: "For tomorrow", lines: ho("next") },
+    { id: "logged", label: "Logged tonight", lines: ["bar", "floor"].flatMap((sd) => loggedLines(sd).map((l) => `${sideName(sd)}: ${l}`)) },
     { id: "team", label: "On the team", one: true, lines: [plural(LIVE.staff.length, "phone")], off: true },
   );
   return { what: "Tonight's report", title: `Black Tap Soho · tonight · ${dayName(shiftDay())} ${hhmm(new Date())}`,
@@ -5468,6 +5546,7 @@ function glanceHtml() {
     ${glanceSide("bar")}${glanceSide("floor")}
     <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
     <div class="mini">Open issues and faults</div><ul class="live">${iss.join("") || "<li>None</li>"}</ul>
+    <div class="mini">Logged tonight</div>${logsOf().length ? `<ul class="lg-list">${logsOf().slice().reverse().map((e) => `<li><div><span class="pill">${esc(sideName(e.area))} \u00b7 ${esc(LOG_NAME[e.what])}</span><p>${ut(e.label)}</p><small><span translate="no">${esc(e.name)}</span> \u00b7 ${shortAt(e.at)}</small></div></li>`).join("")}</ul>` : `<ul class="live"><li>Nothing</li></ul>`}
     <div class="mini">Restocks waiting</div><ul class="live">${rs.join("") || "<li>None</li>"}</ul>
     <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Managers unlocked: ${seniors.map(esc).join(", ")}` : ""}</p>
     <div class="actions">${sendBtn("tonight", "Send tonight's report")}</div></div>`;
@@ -5512,7 +5591,7 @@ const CARDS = () => [
 // Everything that goes out on WhatsApp in one place: tonight's, then your own.
 function quickHtml() {
   const last = LIVE.me && LIVE.reports.find((x) => x.side === mode && !x.pending);
-  return `${LIVE.me ? `<div class="mini">Tonight</div><div class="actions">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-goto="send">Hand over ›</button>${last ? sendBtn("report", `Last ${sideName(mode).toLowerCase()} handover`, last.id) : ""}${sendBtn("out", "The 86 list")}${sendBtn("issues", "Open issues")}</div>` : `<div class="actions">${sendBtn("out", "The 86 list")}</div>`}
+  return `${LIVE.me ? `<div class="mini">Tonight</div><div class="actions">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-goto="send">Hand over ›</button>${last ? sendBtn("report", `Last ${sideName(mode).toLowerCase()} handover`, last.id) : ""}${sendBtn("out", "The 86 list")}${sendBtn("issues", "Open issues")}${logsOf().length ? sendBtn("logs", "Tonight's log") : ""}<button class="btn" data-log>\uff0b Log it</button></div>` : `<div class="actions">${sendBtn("out", "The 86 list")}</div>`}
     <div class="mini">From you</div><div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}</div>
     <p class="note">Each message ends with a link that opens the right page in Bar Book, never the team code. Off sick goes on WhatsApp only: Bar Book keeps no copy.</p>`;
 }
@@ -5800,6 +5879,7 @@ function eventToast(e) {
     const before = LIVE.events.find((x) => x.kind === "task" && x.list === e.list && x.item === e.item && x.v === e.v - 1);
     return e.from === "done" && e.to === "todo" && e.note !== CLEARED && before?.uid === LIVE.uid ? `${e.name} took back your item: ${e.label}${e.note ? `: ${e.note}` : ""}` : "";
   }
+  if (e.kind === "log") return side && e.uid !== LIVE.uid ? `\ud83d\udcdd ${e.name} logged: ${e.label}` : "";
   if (!side) return "";
   return e.to === "finished" ? `${e.label} finished by ${e.name}${e.done < e.required ? `, with ${e.required - e.done} not done` : ""}` : e.from === "finished" ? `${e.label} reopened by ${e.name}` : "";
 }
@@ -5847,6 +5927,7 @@ function liveChanged(what) {
   if (what === "lists") applyLists();
   if (cur === "station") stationLive(what);
   if (what === "drafts" || what === "me") pullDraft();
+  if (what === "events") logLive();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of Object.values(LIVE[what])) {
@@ -5922,8 +6003,16 @@ const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun
 let stationOn = store.get("station", false);
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
 let cur = "drinks";
-function show(tab) {
+// Each page change goes in the browser's history, so the phone's own back (a swipe on an iPhone) goes back a page.
+// An open drink's place in the history is taken over by the page instead.
+let pageShown = false;
+function show(tab, fromBack = false) {
   if (!TABS.includes(tab) || (tab === "pay" && sharedDev)) tab = "drinks";
+  if (!fromBack) {
+    if (!pageShown || history.state?.sheet) history.replaceState({ tab }, "");
+    else if (tab !== cur) history.pushState({ tab }, "");
+  }
+  pageShown = true;
   // Leaving the Team page counts as having seen what was on it; the next visit shows what's changed since.
   if (tab !== "notices" && cur === "notices") { seenBefore = seenAt = Date.now(); store.set("seenAt", seenAt); }
   if (tab === "notices" && !seenAt) { seenAt = Date.now(); store.set("seenAt", seenAt); }
@@ -5944,7 +6033,7 @@ function show(tab) {
   if (tab === "sheets") renderSheets();
   if (tab === "fun") renderFun();
   if (tab === "station") { renderStation(); keepAwake(); }
-  if (tab === "tally") renderTally();
+  if (tab === "tally") { renderTally(); walkMaybe(mode); }
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();
   if (tab === "notices") renderNotices();
@@ -5998,7 +6087,7 @@ else {
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);
     if (linkAt && openLink(linkAt)) { linkAt = ""; history.replaceState(null, "", location.pathname); return; }
-    if (stationOn && !b.dataset.rapid) show("station");
+    if (b.dataset.ipad || (stationOn && !b.dataset.rapid)) show("station");
     else if (b.dataset.rapid) show("rapid");
     else if (b.dataset.drinks) show("drinks");
     else if (mode !== "bar") show("tally");

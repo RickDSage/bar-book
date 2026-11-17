@@ -907,6 +907,53 @@ describe("date labels: managers keep the list, anyone opens, changes or bins one
   });
 });
 
+describe("date labels: stations, found open with no label, and photos", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  test("a station is optional, managers set or change it, and only as a change of details", async () => {
+    const { b, id } = await labelBatch(db("mgr1"), "mgr1", "added", { l: { station: "Shake station" } });
+    await assertSucceeds(b.commit());
+    await fails((await labelBatch(db("mgr1"), "mgr1", "added", { l: { station: "x".repeat(31) } })).b.commit(), "station too long");
+    await assertSucceeds((await labelBatch(db("mgr1"), "mgr1", "edited", { id, l: { station: "Cake fridge" } })).b.commit());
+    await fails((await labelBatch(db("staff1"), "staff1", "opened", { id, l: { station: "Garnish station" } })).b.commit(), "staff moving it while opening");
+    await assertSucceeds((await labelBatch(db("staff1"), "staff1", "opened", { id, l: { station: "Cake fridge" } })).b.commit());
+  });
+  // A label found open: dated back to the day it was opened, with a note, in the manager's name.
+  async function found(uid, id, openedOn, { useBy, note = "Opened at Sunday's close, Hassan saw it", l = {} } = {}) {
+    const d = db(uid), cur = await current(`labels/${id}`), v = cur.v + 1, b = writeBatch(d);
+    const x = { item: cur.item, side: cur.side, life: cur.life, on: cur.on, state: "open", openedOn, useBy: useBy ?? plusDays(openedOn, cur.life), openedBy: TEAM[uid].name, openedUid: uid, act: "found", v, ...by(uid), ...l };
+    b.set(doc(d, "labels", id), x);
+    b.set(doc(d, "events", `l-${id}-${v}`), { kind: "label", day: today(), ref: id, label: cur.item, area: cur.side, act: "found", life: cur.life, on: cur.on, useBy: x.useBy, was: cur.useBy, note, v, ...by(uid) });
+    return b.commit();
+  }
+  test("only managers date one found open, back to its life at most, with a note", async () => {
+    const { b, id } = await labelBatch(db("mgr1"), "mgr1", "added", { def: { life: 3 } });
+    await b.commit();
+    await fails(found("staff1", id, plusDays(today(), -1)), "staff");
+    await fails(found("mgr1", id, plusDays(today(), -1), { note: "" }), "no note");
+    await fails(found("mgr1", id, plusDays(today(), 2)), "opened in the future");
+    await fails(found("mgr1", id, plusDays(today(), -6)), "older than its life");
+    await fails(found("mgr1", id, plusDays(today(), -1), { useBy: plusDays(today(), 5) }), "use-by past its life");
+    await assertSucceeds(found("mgr1", id, plusDays(today(), -1)));
+    const now = await current(`labels/${id}`);
+    assert.equal(now.openedOn, plusDays(today(), -1)); assert.equal(now.useBy, plusDays(today(), 2)); assert.equal(now.openedBy, "Mia Manager");
+    // A newer one found open on top of it: a manager dates that one too.
+    await assertSucceeds(found("owner1", id, today()));
+  });
+  test("anyone on the team keeps a photo of a label's pack; managers remove it", async () => {
+    const { b, id } = await labelBatch(db("mgr1"), "mgr1", "added");
+    await b.commit();
+    const ph = (uid, extra = {}) => ({ data: JPEG, label: "Apple juice", ...by(uid), ...extra });
+    await assertSucceeds(setDoc(doc(db("staff1"), "labelPhotos", id), ph("staff1")));
+    await assertSucceeds(setDoc(doc(db("staff2"), "labelPhotos", id), ph("staff2")));
+    await assertSucceeds(getDoc(doc(db("staff1"), "labelPhotos", id)));
+    await fails(setDoc(doc(db("staff1"), "labelPhotos", "nolabel123"), ph("staff1")), "no such label");
+    await fails(setDoc(doc(db("staff1"), "labelPhotos", id), ph("staff1", { data: "data:image/png;base64,AAAA" })), "not a JPEG");
+    await fails(setDoc(doc(db("staff1"), "labelPhotos", id), ph("staff1", { name: "Mia Manager" })), "someone else's name");
+    await fails(deleteDoc(doc(db("staff1"), "labelPhotos", id)), "staff removing");
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "labelPhotos", id)));
+  });
+});
+
 describe("items the team adds: anyone suggests one, the owner approves it", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const item = (uid, extra = {}) => ({ item: "Rubicon Mango", kind: "soft", group: "Soft drinks and mixers", side: "bar", store: "bottle", label: false, life: 0,
@@ -1161,6 +1208,36 @@ describe("tonight's handover draft, one per side, shared live", () => {
     await assertFails(setDoc(doc(db("staff1"), "drafts", "2020-01-01-bar"), draft("staff1", { day: "2020-01-01" })));
     for (const bad of [{ side: "kitchen" }, { low: "x".repeat(2001) }, { closer: "x".repeat(301) }, { name: "Mia Manager" }, { at: daysAgo(1) }, { extra: 1 }]) {
       await fails(setDoc(doc(db("staff1"), "drafts", `${day}-${bad.side || "bar"}`), draft("staff1", bad)), JSON.stringify(bad).slice(0, 40));
+    }
+  });
+});
+
+describe("Log it: one line for tonight's handover, in the day's events", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const day = today();
+  const line = (uid, extra = {}) => ({ kind: "log", day, area: "bar", what: "note", label: "Ice machine leaking", note: "", ...by(uid), ...extra });
+  const id = () => `g-${autoId()}`;
+  test("anyone on the team logs, everyone on the team reads it, and only its writer or a manager takes it off", async () => {
+    const a = id(), b = id();
+    await assertSucceeds(setDoc(doc(db("staff1"), "events", a), line("staff1")));
+    await assertSucceeds(setDoc(doc(db("staff1"), "events", b), line("staff1", { what: "told", label: "Told Mia: two kegs left" })));
+    for (const uid of ["staff2", "mgr1", "owner1"]) assert.equal((await getDoc(doc(db(uid), "events", a))).data().label, "Ice machine leaking");
+    await assertFails(getDoc(doc(db("stranger"), "events", a)));
+    await fails(deleteDoc(doc(db("staff2"), "events", a)), "someone else took it off");
+    await assertFails(updateDoc(doc(db("staff1"), "events", a), { label: "changed" }));
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "events", a)));
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "events", b)));
+  });
+  test("a closing tick's history can't be deleted, even by a manager", async () => {
+    await seed((s) => setDoc(doc(s, "events", "t-x"), { kind: "task", day }));
+    await assertFails(deleteDoc(doc(db("owner1"), "events", "t-x")));
+  });
+  test("the shape is fixed: a real kind, side and id, the writer's own name and the server's time", async () => {
+    await fails(setDoc(doc(db("stranger"), "events", id()), line("stranger")), "not on the team");
+    await fails(setDoc(doc(db("staff1"), "events", "g-short"), line("staff1")), "bad id");
+    await fails(setDoc(doc(db("staff1"), "events", `t-${autoId()}`), line("staff1")), "a log under a task id");
+    for (const bad of [{ what: "gossip" }, { what: "out" }, { area: "kitchen" }, { label: "" }, { label: "x".repeat(201) }, { note: "x" }, { name: "Mia Manager" }, { at: daysAgo(1) }, { day: "2020-01-01" }, { extra: 1 }]) {
+      await fails(setDoc(doc(db("staff1"), "events", id()), line("staff1", bad)), JSON.stringify(bad).slice(0, 40));
     }
   });
 });

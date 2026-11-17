@@ -392,20 +392,25 @@ LIVE.api = {
   // A date label: added, edited or removed (item, side, life and on say what it is), or opened, changed or binned
   // (useBy is the date written on it). Opening and changing date it today and put this person's name on it. The label
   // and its event go in one write, and the version goes up by one, so a change made from an old copy is refused.
-  label(x, act, { item, side, life, on, useBy } = {}) {
+  // found: one found open with no label, dated by a manager to the day it was opened (openedOn), with a note saying how
+  // they know. station is where on its side it lives (Shake station, Garnish station); old labels have none.
+  label(x, act, { item, side, life, on, useBy, station, openedOn, note = "" } = {}) {
     const day = shiftDay(), add = act === "added", ref = add ? doc(collection(db, "labels")) : doc(db, "labels", x.id), v = add ? 1 : x.v + 1;
-    const def = add || act === "edited" ? { item, side, life, on } : { item: x.item, side: x.side, life: x.life, on: x.on };
-    const open = act === "opened" || act === "changed", shut = add || act === "binned", keep = (k) => (shut ? null : x[k]);
+    const def = add || act === "edited" ? { item, side, life, on, station: station || "" } : { item: x.item, side: x.side, life: x.life, on: x.on, station: x.station || "" };
+    const open = act === "opened" || act === "changed" || act === "found", shut = add || act === "binned", keep = (k) => (shut ? null : x[k]);
     const now = act === "removed" ? null : {
-      ...def, state: open ? "open" : shut ? "none" : x.state, openedOn: open ? day : keep("openedOn"), useBy: open ? useBy : keep("useBy"),
+      ...def, state: open ? "open" : shut ? "none" : x.state, openedOn: act === "found" ? openedOn : open ? day : keep("openedOn"), useBy: open ? useBy : keep("useBy"),
       openedBy: open ? LIVE.me : keep("openedBy"), openedUid: open ? auth.currentUser.uid : keep("openedUid"), act, v, ...me(),
     };
     const b = writeBatch(db);
     if (now) b.set(ref, now); else b.delete(ref);
     b.set(doc(db, "events", `l-${ref.id}-${v}`), { kind: "label", day, ref: ref.id, label: def.item, area: def.side, act, life: def.life, on: def.on,
-      useBy: now ? now.useBy : null, was: add ? null : x.useBy, note: "", v, ...me() });
+      useBy: now ? now.useBy : null, was: add ? null : x.useBy, note: act === "found" ? note : "", v, ...me() });
     return b.commit();
   },
+  // A photo of the pack or the label, kept with the date label as a record: the latest one only.
+  labelPhoto: (x, data) => setDoc(doc(db, "labelPhotos", x.id), { data, label: x.item, ...me() }),
+  loadLabelPhoto: (id) => getDoc(doc(db, "labelPhotos", id)).then((d) => (d.exists() ? d.data() : null)),
   // Every change to one date label, oldest first, read when someone opens its history.
   eventsOf: (id, kind) => getDocs(query(collection(db, "events"), where("ref", "==", id))).then((s) => rows(s).filter((e) => e.kind === kind).sort((a, b) => a.v - b.v)),
   askRestock({ item, qty, unit, dest, detail }) {
@@ -426,6 +431,10 @@ LIVE.api = {
       qty: to === "delivered" ? m : to === "received" ? g : null, unit: r.unit, dest: r.dest, note, v, ...me() });
     return b.commit();
   },
+  // Log it: one line in tonight's day log (events), with the name and the time. what is note, told, low, open or next.
+  logIt: (side, what, label) => setDoc(doc(db, "events", `g-${doc(collection(db, "events")).id}`), { kind: "log", day: shiftDay(), area: side, what, label, note: "", ...me() }),
+  // Its writer or a manager can take one off.
+  dropLog: (id) => deleteDoc(doc(db, "events", id)),
   addPhoto: (data, side) => addDoc(collection(db, "photos"), { data, note: "", report: null, side, ...me() }),
   saveDraft: (side, x) => { const day = shiftDay(); return setDoc(doc(db, "drafts", `${day}-${side}`), { day, side, ...x, ...me() }); },
   dropDraft: (side) => deleteDoc(doc(db, "drafts", `${shiftDay()}-${side}`)),
