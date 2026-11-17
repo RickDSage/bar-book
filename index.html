@@ -820,6 +820,8 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .welcome .wip { color: var(--muted); font-size: 15px; margin: 0 0 22px; }
 .welcome .wbtns { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .welcome .wbtns .btn { min-height: 56px; font-size: 20px; padding-inline: 6px; }
+.welcome .wquick { grid-template-columns: 1fr 1fr; margin-top: 8px; } .welcome .wquick .btn { min-height: 48px; font-size: 17px; margin: 0; }
+.welcome .wcodes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; text-align: left; }
 .welcome .sig { font-style: italic; color: var(--brass); font-size: 18px; margin: 18px 0 0; text-align: center; }
 .credit { text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .04em; margin: 28px 0 8px; }
 .credit b { color: var(--brass); font-weight: 700; }
@@ -908,7 +910,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
   <div id="w-name"></div>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
-  <button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire: house cocktails</button>
+  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button></div>
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
@@ -1972,8 +1974,11 @@ function renderQuiz() {
 /* ---------- Shift ---------- */
 // The standard opening and closing checklists for each side. A manager can change any of them in the app (see Changing
 // a list), and that version then shows on every phone instead. sect() puts items under a heading (g) on the page.
-// Who works where. Closing is signed by first name: tap whoever closed tonight.
-const STAFF = { bar: ["Angel", "Emily", "Kadir"], floor: ["Mounika", "Anub", "PK", "Derek", "Pema", "Vi"], both: ["Tomas"] };
+// Who works where, first names only (never surnames: this is public). Closing is signed by first name: tap whoever
+// closed tonight. The managers keep the list in the app (settings/names); this phone keeps the last one it saw, so
+// the start screen has it before joining. This is the app's own list until they first save one.
+const STAFF_DEFAULT = { mgr: ["Hassan", "Ilias", "Artur", "Sarul"], bar: ["Emily", "Angel", "Simroy", "Kadir"], floor: ["Derek", "Pema", "Anup", "Mounika", "PK", "Vio", "Tom"] };
+const STAFF = { ...STAFF_DEFAULT, ...store.get("names", {}) };
 const sect = (g, xs) => xs.map((x) => (typeof x === "string" ? { t: x, g } : { ...x, g }));
 const LISTS = {
   // The bar's close, in the order it's done, grouped so two people can split it. Each group has its own Tick all.
@@ -2633,7 +2638,7 @@ function listFoot(k) {
 const listPane = (k) => (le?.k === k ? editHtml(k) : checklistHtml(k) + listFoot(k));
 // Who can be picked as closing manager: the managers and the owner, from the team's logins.
 // Who can be ticked as having closed: this side's team first, then everyone else. Several can be ticked.
-const closers = () => [...new Set([...(STAFF[mode] || []), ...STAFF.both, ...Object.values(STAFF).flat(), ...closer.split(", ").filter(Boolean)])];
+const closers = () => [...new Set([...(STAFF[mode] || []), ...STAFF.mgr, ...Object.values(STAFF).flat(), ...closer.split(", ").filter(Boolean)])];
 const closedBy = () => closer.split(", ").filter(Boolean);
 // The last report this side sent before tonight, for whoever opens: its handover note and what it left undone.
 const reportDay = (r) => ukDay(ms(r.at) - 6 * 36e5);
@@ -4943,13 +4948,13 @@ const val = (id) => $(id).value.trim();
    Nobody has a login or password. The phone remembers a first name (picked on the welcome screen or here) and the
    team code, typed once on the Join screen. The code is never put in a link or a message: it's said in person. Then a
    manager or maintenance picks their name and types their own 4 digit code to unlock everything on that phone. */
-const ALL_STAFF = [...STAFF.bar, ...STAFF.floor, ...STAFF.both];
+const allStaff = () => [...STAFF.mgr, ...STAFF.bar, ...STAFF.floor];
 let myName = store.get("me", ""), teamCode = store.get("team", "");
 // Old team links (...#join=CODE) carry the code in the address, which ends up in chats and browser history. They no
 // longer join: the address is tidied and the Join screen asks for the code.
 if (/^#join=/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
 const appLink = () => `${location.origin}${location.pathname}`;
-// Up to three seniors (Illias, Hassan, Artur) unlock with their own code (role "manager" in the data), and so does
+// Up to four seniors (Hassan, Ilias, Artur, Sarul) unlock with their own code (role "manager" in the data), and so does
 // maintenance (the owner). Everything sent "to the seniors" reaches all of them and the owner.
 let joining = false, joinErr = store.get("kicked", false) ? "You were taken off the team on this phone. Type the team code to join again." : "";
 function autoJoin() {
@@ -4958,7 +4963,7 @@ function autoJoin() {
   if (LIVE.me === myName && !LIVE.admin) return;
   if (LIVE.uid && !LIVE.anon) return;
   joining = true; joinErr = "";
-  LIVE.api.join(teamCode, myName).catch((e) => { joinErr = e.message; }).finally(() => { joining = false; renderTeam(); });
+  LIVE.api.join(teamCode, myName).catch((e) => { joinErr = e.message; toast(e.message); pendingPin = null; }).finally(() => { joining = false; renderTeam(); renderWelcomeName(); });
 }
 function setName(n) {
   if (rude(n)) return toast(RUDE);
@@ -4966,12 +4971,30 @@ function setName(n) {
   if (LIVE.me && LIVE.anon && myName && LIVE.me !== myName) { joining = false; LIVE.me = null; }
   autoJoin(); renderWelcomeName(); renderTeam();
 }
-const nameChips = (pick, attr) => Object.entries({ Bar: STAFF.bar, Floor: STAFF.floor, "Bar and floor": STAFF.both }).map(([g, ns]) =>
+const nameChips = (pick, attr) => Object.entries({ Managers: STAFF.mgr, Bar: STAFF.bar, Floor: STAFF.floor }).map(([g, ns]) =>
   `<div class="mini">${g}</div><div class="recent" translate="no">${ns.map((n) => `<button class="chip" ${attr}="${esc(n)}" aria-pressed="${n === pick}">${esc(n)}</button>`).join("")}</div>`).join("");
+// Names that have their own code (the managers, and maintenance once this phone has seen the team's list), so the
+// start screen asks for it.
+const codeNames = () => new Set([...STAFF.mgr, ...store.get("codeNames", [])].map((n) => n.toLowerCase()));
+const hasCode = (n) => !!n && codeNames().has(n.toLowerCase());
+// The start screen: pick your name, type the team code once, and a manager's own code; or go straight to the drinks.
 function renderWelcomeName() {
-  const box = $("#w-name"); if (!box) return;
-  box.innerHTML = myName && !box.dataset.edit && !sharedDev ? `<p class="wme">Hi <b translate="no">${esc(myName)}</b> · <button class="linkbtn" id="w-notme">Not you?</button></p>`
+  const box = $("#w-name"); if (!box || (box.contains(document.activeElement) && document.activeElement.tagName === "INPUT")) return;
+  const pick = myName && !box.dataset.edit && !sharedDev ? `<p class="wme">Hi <b translate="no">${esc(myName)}</b> · <button class="linkbtn" id="w-notme">Not you?</button></p>`
     : `<p class="wme">${sharedDev ? "Shared iPad: who's using it?" : "Who are you?"}</p>${nameChips(myName, "data-w-name")}<label class="fld">Someone else<input id="w-other" maxlength="30" autocomplete="given-name" placeholder="Your first name" translate="no"></label>`;
+  const joined = LIVE.me || (LIVE.uid && !LIVE.anon), code = !joined && !teamCode && LIVE.api;
+  const mine = myName && hasCode(myName) && !LIVE.admin && LIVE.api;
+  box.innerHTML = pick + (code || mine ? `<div class="wcodes">${code ? `<label class="fld">Team code<input id="w-code" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" placeholder="Ask a manager"></label>` : ""}
+    ${mine ? `<label class="fld">Your own code<input id="w-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off" placeholder="4 numbers"></label>` : ""}</div>` : "");
+}
+// A manager's code typed on the start screen is checked once the phone is on the team and has the managers' names.
+let pendingPin = null;
+function tryPendingPin() {
+  if (!pendingPin || !LIVE.me || LIVE.admin || !LIVE.loaded.has("seniors")) return;
+  const { name, pin } = pendingPin, s = LIVE.seniors.find((x) => x.name.toLowerCase() === name.toLowerCase());
+  pendingPin = null;
+  if (!s) return toast(`${name} has no code yet. Maintenance sets it`);
+  LIVE.api.unlock(s.id, pin).then(() => { haptic(); toast("Unlocked. Tap Lock before you hand the phone back"); }, (er) => toast(er.message));
 }
 
 /* ---------- Shared iPad ----------
@@ -5355,7 +5378,7 @@ function peopleHtml() {
     ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, give the team a new code in Maintenance settings.</p>` : ""}`;
 }
 /* ---------- Seniors' codes ----------
-   Up to three seniors, plus maintenance (the owner) under the id "owner". Each unlocks any phone on the team by picking
+   Up to four seniors, plus maintenance (the owner) under the id "owner". Each unlocks any phone on the team by picking
    their name and typing their own 4 digit code; the server checks it and counts wrong ones (firestore.rules: seniors and
    pins). Only the owner adds, re-codes or takes off a senior, and sets their own code. */
 let unF = { id: "" };
@@ -5388,6 +5411,16 @@ function seniorsHtml() {
       <div class="actions"><button class="btn pri" id="sn-go">Add the manager</button></div>` : ""}
     ${old.length ? `<div class="h3">Old manager logins</div><p class="note">These logins from before codes no longer work. Take them off.</p>
       ${old.map((p) => `<div class="staffrow"><div class="n"><b translate="no">${esc(p.name)}</b></div><div class="actions"><button class="btn" data-tm-drop="${p.uid}">Take off the team</button></div></div>`).join("")}` : ""}`;
+}
+// The names everyone picks from, kept by the managers: first names only.
+const NAME_SECS = [["mgr", "Managers"], ["bar", "Bar"], ["floor", "Floor"]];
+function namesHtml() {
+  return `<p class="note">The names on the start screen and on closing. First names only. Changes show on every phone.</p>
+    ${NAME_SECS.map(([k, t]) => `<div class="mini">${t}</div><div class="recent" translate="no">${STAFF[k].map((n, i) => `<button class="chip" data-nm-drop="${k}:${i}" aria-label="Take ${esc(n)} off">${esc(n)} ✕</button>`).join("") || "None"}</div>
+      <label class="fld">Add to ${t}<input data-nm-new="${k}" maxlength="20" placeholder="First name" translate="no"></label><div class="actions"><button class="btn" data-nm-add="${k}">Add</button></div>`).join("")}`;
+}
+function saveNames(next, ok) {
+  return track(LIVE.api.saveNames(next).then(() => { Object.assign(STAFF, next); store.set("names", next); renderCard("names"); }), ok, "Not saved. Check the signal");
 }
 function mgrHtml() {
   const g = LIVE.gate || { tries: 0 }, gw = LIVE.api.gateWait(g);
@@ -5475,7 +5508,7 @@ const tmOpen = new Set(store.get("tmOpen", []));
 const TC_SUB = { quick: "Tonight's report, the handover, the 86 list, running late, off sick", ask: "Days off, swaps, complaints, ideas. Named or anonymous",
   issues: "Anything broken, listed until someone fixes it", incident: "Write it up, send it on WhatsApp, then the accident book", rate: "Tonight out of 10. The managers' copy has no name",
   tell: "What's missing, to add or wrong in Bar Book", call: "Emergency, utility and venue numbers", people: "Every phone on the team and the Bar Book link", spin: "Who does the bins, who breaks first",
-  unlock: "Pick your name and type your own code", tells: "What the team says is missing or wrong in the app", inbox: "Days off, swaps, complaints and ideas sent to the managers",
+  unlock: "Pick your name and type your own code", names: "Managers, bar and floor, first names only", tells: "What the team says is missing or wrong in the app", inbox: "Days off, swaps, complaints and ideas sent to the managers",
   reports: "Every closing with its photos", sent: "A copy of everything sent from Bar Book", outlog: "Who 86'd what, and when it came back", seniors: "Add, change or unlock the managers' codes", mgr: "Team code, joining, master clear" };
 const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${TC_SUB[k] ? `<small class="tsub">${TC_SUB[k]}</small>` : ""}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
 // For the owner and seniors, everything they look after comes first under Manager, then the same Team cards as
@@ -5489,6 +5522,7 @@ const CARDS = () => [
     ["sent", "Everything sent", sentHtml, LIVE.sent.length || ""],
     ["outlog", "86 log", outlogHtml],
     ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""],
+    ["names", "Names to pick from", namesHtml],
     ...(LIVE.owner ? [["seniors", "Codes: you and the managers", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : !ownerEntry() ? { t: "set yours", hot: 1 } : managersOnly().length || ""],
       ["mgr", "Maintenance settings", mgrHtml, LIVE.gate?.tries >= LIVE.api.GATE_MAX ? { t: "joining locked", hot: 1 } : ""]] : []),
     ["§", "Team"],
@@ -5566,7 +5600,7 @@ function topHtml() {
     <p>No login or password. Pick your name and type the team code (ask a manager). Managers and maintenance: join here first, then unlock with your own code.</p>
     ${joinErr ? `<p class="note warn" role="alert">${esc(joinErr)}</p>` : ""}
     <div class="mini">Who are you?</div>${nameChips(myName, "data-j-name")}
-    <label class="fld">Or type your first name (first name only)<input id="j-name" maxlength="30" value="${esc(ALL_STAFF.includes(myName) ? "" : myName)}" translate="no"></label>
+    <label class="fld">Or type your first name (first name only)<input id="j-name" maxlength="30" value="${esc(allStaff().includes(myName) ? "" : myName)}" translate="no"></label>
     <label class="fld">Team code<input id="j-code" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" value="${esc(teamCode)}"></label>
     <button class="btn pri wide" id="j-go">Join</button>`}</div>
     <details class="setup"><summary>Maintenance code locked? Password</summary>
@@ -5646,6 +5680,18 @@ $("#v-notices").addEventListener("click", async (e) => {
     if (!confirm("Change the team code? Every phone comes off the team, this one too, and everyone joins again with the new code.")) return;
     return busy(b("#tc-go"), "Changing…", A.setTeamCode(c).then(() => toast("Team code changed. Tell the team in person"), (er) => toast(er.message || "Not changed")));
   }
+  if ((x = b("[data-nm-add]"))) {
+    const k = x.dataset.nmAdd, n = ($(`[data-nm-new="${k}"]`).value || "").trim().split(/\s+/)[0];
+    if (!n) return toast("Type a first name");
+    if (rude(n)) return toast(RUDE);
+    if (STAFF[k].some((y) => y.toLowerCase() === n.toLowerCase())) return toast(`${n} is already there`);
+    return saveNames({ ...STAFF, [k]: [...STAFF[k], n] }, `${n} added`);
+  }
+  if ((x = b("[data-nm-drop]"))) {
+    const [k, i] = x.dataset.nmDrop.split(":"), n = STAFF[k][+i];
+    if (!confirm(`Take ${n} off the list?`)) return;
+    return saveNames({ ...STAFF, [k]: STAFF[k].filter((_, j) => j !== +i) }, `${n} taken off`);
+  }
   if (b("#gate-reset")) return track(A.unlockJoining(), "Joining unlocked", "Not changed");
   if (b("#sn-go")) {
     const n = val("#sn-name"), pin = val("#sn-pin");
@@ -5717,7 +5763,7 @@ $("#v-notices").addEventListener("click", async (e) => {
   if ((x = b("[data-tell-drop]"))) { if (confirm("Remove this for good?")) track(A.dropTell(x.dataset.tellDrop), "Removed"); return; }
   // Spin the wheel.
   if ((x = b("[data-spin-name]"))) { const n = x.dataset.spinName; spinF.names = spinF.names.includes(n) ? spinF.names.filter((y) => y !== n) : [...spinF.names, n]; spinF.got = ""; return renderCard("spin"); }
-  if (b("#spin-all")) { spinF.names = [...ALL_STAFF]; spinF.got = ""; return renderCard("spin"); }
+  if (b("#spin-all")) { spinF.names = allStaff(); spinF.got = ""; return renderCard("spin"); }
   if (b("#spin-none")) { spinF.names = []; spinF.got = ""; return renderCard("spin"); }
   if (b("#spin-go")) return spin();
   // Who to call (the manager keeps the venue's numbers).
@@ -5822,6 +5868,9 @@ function liveChanged(what) {
   if (what === "left" && idleOut) return;
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
   if (what === "me") { autoJoin(); sharedLock(); }
+  if (what === "names" && LIVE.names) { Object.assign(STAFF, LIVE.names); store.set("names", LIVE.names); }
+  if (what === "seniors") { store.set("codeNames", LIVE.seniors.map((x) => x.name)); tryPendingPin(); }
+  if (what === "me" || what === "seniors") renderWelcomeName();
   if (what === "lists") applyLists();
   if (cur === "station") stationLive(what);
   if (what === "drafts" || what === "me") pullDraft();
@@ -8639,11 +8688,22 @@ else {
   $("#w-lang").innerHTML = langOptions(); renderWelcomeName();
   w.addEventListener("click", (e) => {
     const b = e.target.closest("[data-start]"); if (!b) return;
+    // Bar or Floor with codes typed: join and unlock in the background. Rapid fire and Drinks go straight in.
+    if (!b.dataset.rapid && !b.dataset.drinks) {
+      const c = $("#w-code")?.value.trim() || "", pin = $("#w-pin")?.value.trim() || "";
+      if (c && !/^[0-9]{4,8}$/.test(c)) return toast("The team code is 4 to 8 numbers");
+      if (pin && !/^[0-9]{4}$/.test(pin)) return toast("Your own code is 4 numbers");
+      if ((c || pin) && !myName) return toast("Tap your name first");
+      if (pin) pendingPin = { name: myName, pin };
+      if (c) { teamCode = c; store.set("team", c); store.set("kicked", false); joinErr = ""; autoJoin(); }
+      tryPendingPin();
+    }
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);
     if (linkAt && openLink(linkAt)) { linkAt = ""; history.replaceState(null, "", location.pathname); return; }
     if (stationOn && !b.dataset.rapid) show("station");
     else if (b.dataset.rapid) show("rapid");
+    else if (b.dataset.drinks) show("drinks");
     else if (mode !== "bar") show("tally");
   });
 }

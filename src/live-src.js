@@ -32,7 +32,7 @@ if (__EMU__) {
 // codes are 4 digits. The rules count guesses at a senior's code: FREE_TRIES, then one every WAIT_MIN minutes, then none
 // from MAX_TRIES. Guesses at the team code, counted for everyone together: GATE_FREE, then one every GATE_WAIT minutes,
 // then none from GATE_MAX until the owner unlocks joining.
-const PASSWORD_MIN = 6, MAX_PHOTOS = 8, FREE_TRIES = 5, MAX_TRIES = 10, WAIT_MIN = 15, MAX_SENIORS = 3;
+const PASSWORD_MIN = 6, MAX_PHOTOS = 8, FREE_TRIES = 5, MAX_TRIES = 10, WAIT_MIN = 15, MAX_SENIORS = 4;
 const GATE_FREE = 10, GATE_WAIT = 5, GATE_MAX = 30, OWNER_ID = "owner";
 const TEAM_CODE_RE = /^[0-9]{4,8}$/;
 const hex = (buf) => [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
@@ -152,6 +152,8 @@ function listen(uid) {
     // A copy of everything the team sends on WhatsApp, email or print, for the seniors and the owner.
     if (LIVE.admin) sub("sent", query(collection(db, "sent"), orderBy("at", "desc"), limit(150)), (snap) => { LIVE.sent = rows(snap); liveChanged("sent"); });
     // Who to call: the venue's own numbers, kept by the manager.
+    // The names to pick from, kept by the managers. None saved yet means the app's own list.
+    sub("names", doc(db, "settings", "names"), (x) => { LIVE.names = x.exists() ? { mgr: x.data().mgr, bar: x.data().bar, floor: x.data().floor } : null; liveChanged("names"); });
     sub("contacts", doc(db, "settings", "contacts"), (x) => { LIVE.contacts = x.exists() ? x.data().list : []; liveChanged("contacts"); });
     // The count of wrong team codes, so the owner can see it and unlock joining.
     if (LIVE.owner) sub("gate", doc(db, "gate", "team"), (x) => { LIVE.gate = x.exists() ? x.data({ serverTimestamps: "estimate" }) : { tries: 0 }; liveChanged("gate"); });
@@ -449,6 +451,7 @@ LIVE.api = {
   take: (id, person) => updateDoc(doc(db, "issues", id), { status: "taken", who: person.name, whoUid: person.uid, setBy: LIVE.me, setByUid: auth.currentUser.uid, setAt: serverTimestamp() }),
   fixed: (id, fix) => updateDoc(doc(db, "issues", id), { status: "fixed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
   withdrawIssue: (id) => deleteDoc(doc(db, "issues", id)),
+  saveNames: (n) => setDoc(doc(db, "settings", "names"), { mgr: n.mgr, bar: n.bar, floor: n.floor, ...me() }),
   saveContacts: (list) => setDoc(doc(db, "settings", "contacts"), { list, ...me() }),
   watchMedia,
   // A drink's photo and video link, saved together. With neither, the record goes.
@@ -457,7 +460,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
+  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

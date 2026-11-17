@@ -1150,6 +1150,21 @@ describe("no messaging inside the app", () => {
   });
 });
 
+describe("the names to pick from: the managers keep them", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const names = (uid, extra = {}) => setDoc(doc(db(uid), "settings", "names"), { mgr: ["Mia"], bar: ["Sam"], floor: ["Tia"], ...by(uid), ...extra });
+  test("managers and the owner save them, everyone on the team reads them, nobody else", async () => {
+    await assertSucceeds(names("mgr1"));
+    await assertSucceeds(names("owner1"));
+    await assertFails(names("staff1"));
+    await assertFails(names("mgr1", { bar: Array(41).fill("x") }));
+    await assertFails(names("mgr1", { kitchen: ["Chef"] }));
+    await assertSucceeds(getDoc(doc(db("staff1"), "settings", "names")));
+    await assertFails(getDoc(doc(db("phone9"), "settings", "names")));
+    await assertFails(getDoc(doc(db(), "settings", "names")));
+  });
+});
+
 describe("issues and handover", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const raise = (uid, extra) => addDoc(collection(db(uid), "issues"), issue(uid, extra));

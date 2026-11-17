@@ -9,7 +9,7 @@ rules_version = '2';
 //   because a stranger can make as many anonymous phones as they like: each guess is first saved to joins/{uid} with a +1
 //   on gate/team.tries, and a join is only allowed for the latest counted guess. 10 wrong guesses since the last join
 //   are free, then one every 5 minutes, then none from 30 until the owner unlocks joining.
-// - Up to three seniors (role 'manager'). The owner adds each one by name with their own 4 digit code: seniors/{id} =
+// - Up to four seniors (role 'manager'). The owner adds each one by name with their own 4 digit code: seniors/{id} =
 //   {name, tries, lastTry} for the team to pick from, and pins/{id} = {salt, hash}, which only the owner can read. A
 //   senior unlocks on any joined phone by picking their name and typing their code. Guesses are counted by the server:
 //   each one is first saved to unlocks/{uid} together with a +1 on that senior's tries (5 free, then one every 15
@@ -594,10 +594,14 @@ service cloud.firestore {
 
     // ---------- Who to call ----------
     // settings/contacts {list}: the venue's own numbers (the duty manager, maintenance, engineers), kept by the manager.
+    // settings/names {mgr, bar, floor}: the first names to pick from when joining and closing, kept by the managers.
+    function nameList(l) { return l is list && l.size() <= 40; }
     match /settings/{id} {
-      allow read: if isMember() && id == 'contacts';
+      allow read: if isMember() && id in ['contacts', 'names'];
       allow write: if isManager() && id == 'contacts' && exactly(['list', 'uid', 'name', 'at']) && incoming().list is list
         && incoming().list.size() <= 30 && stamped();
+      allow write: if isManager() && id == 'names' && exactly(['mgr', 'bar', 'floor', 'uid', 'name', 'at'])
+        && nameList(incoming().mgr) && nameList(incoming().bar) && nameList(incoming().floor) && stamped();
     }
 
     // ---------- Issues and handover ----------
