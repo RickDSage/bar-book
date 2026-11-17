@@ -403,53 +403,167 @@ if (typeof renderAlerts === "function") {
 }
 
 /* ---------- 11. Voice ----------
-   🎤 on every screen: "86 limes", "back in limes", "log it the ice machine is leaking", "how do I make a Negroni",
-   "what can I make", "open closing". It says what it heard and asks before it changes anything. Where the phone's
-   browser has speech recognition it listens; where it doesn't (most iPhone home screen apps), the box opens with the
-   keyboard so the keyboard's own microphone does the listening. */
+   🎤 on every screen, the bar station included. It listens for the key words in whatever is said, so loose speech
+   works: "can you 86 the Corona please", "we've run out of limes", "limes are back", "Marshmallow Boulevard spec",
+   "count tonic 12", "what's 86'd", "log it the ice machine is leaking", "open closing". The thing named is matched to
+   the app's one item list (the picker's, pick.js) by its words, its other names, a letter or two off, and how it
+   sounds, so "tanker ray" is Tanqueray and "marsh mellow" is Marshmallow. The phone offers up to five guesses at what
+   was said and the one that makes the most sense wins. It shows what it heard and asks before it changes anything;
+   when it isn't sure it shows the closest few to tap. Where the phone's browser has speech recognition it listens;
+   where it doesn't (most iPhone home screen apps), the box opens with the keyboard so the keyboard's own microphone
+   does the listening, and the same key words work typed. Free: the phone's own speech to text, nothing paid. */
 const SD_REC = window.SpeechRecognition || window.webkitSpeechRecognition;
-SD.vc = { text: "", heard: null, on: false };
+SD.vc = { text: "", heard: null, on: false, err: "" };
 const SD_GO = [[/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"]];
-function sdDrink(t) {
-  const n = plNorm(t.replace(/^(a|an|the)\s+/i, "")); if (n.length < 3) return null;
-  const xs = D.map((d) => [d, plNorm(d.name)]);
-  return (xs.find(([, x]) => x === n) || xs.find(([, x]) => x.startsWith(n)) || xs.find(([, x]) => n.includes(x) && x.length > 3) || xs.find(([, x]) => x.includes(n)) || [])[0] || null;
+// Words said round a command that don't change it.
+const VC_FILL = /\b(?:please|pls|cheers|thanks|thank you|mate|guys|bro|babe|innit|yeah|yes|yep|yo|actually|basically|i think|i reckon|maybe|hey|hi|ok(?:ay)?|right|um+|uh+|erm+|er|so|just|quickly|real quick|now|for me|for us|can you|could you|would you|will you|can we|could we|i need you to|i need to|we need to|need to|i want to|i wanna|let'?s|go ahead and|bar book)\b/g;
+// Words round the thing named that aren't part of its name.
+const VC_STOP = new Set(["the", "a", "an", "some", "any", "our", "all", "of", "we", "ve", "i", "is", "are", "it", "its", "that", "this", "there", "s", "d", "ll", "re", "got", "get", "more", "left", "anymore", "to", "me", "us", "for", "please", "tonight", "today"]);
+function vcNorm(t) {
+  return ` ${t.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[’‘]/g, "'")
+    .replace(/\beighty[\s-]?six(?:ed|'?d)?\b/g, "86").replace(/\b8 6\b/g, "86").replace(/\b86(?:ed|'?d|'s)(?![a-z])/g, "86").replace(/\bun[\s-]?86\b/g, "un86")
+    .replace(/[^a-z0-9'&.,\s]/g, " ").replace(/[.]+(\s|$)/g, " ").replace(VC_FILL, " ").replace(/\s+/g, " ").trim()} `;
 }
+// How a name sounds, roughly: so "tanker ray" and "Tanqueray", or "marsh mellow" and "Marshmallow", come out the same.
+function vcKey(s) {
+  return s.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]/g, "").replace(/ph/g, "f").replace(/qu/g, "k").replace(/ck/g, "k")
+    .replace(/[cq]/g, "k").replace(/x/g, "ks").replace(/z/g, "s").replace(/([^aeiou])h/g, "$1").replace(/[aeiouy]+/g, "a").replace(/(.)\1+/g, "$1");
+}
+const VC_KEY = new WeakMap();
+const vcKeyOf = (x) => { let k = VC_KEY.get(x); if (k == null) VC_KEY.set(x, (k = vcKey(x.n))); return k; };
+const VC_SURE = 3;
+// One word said against one item: how well it fits the name (and which of the name's words it fits), and what the
+// item is also called. "zero" and "0" are the same word, so "San Miguel zero" is San Miguel 0,0.
+function vcWord(w, x) {
+  const ws = w === "zero" ? [w, "0"] : w === "0" ? [w, "zero"] : [w];
+  let f = 0, mask = 0, a = 0;
+  for (const v of ws) {
+    x.w.forEach((nw, j) => { const s = pkFit(v, [nw]); if (s > f) f = s; if (s >= 1.2) mask |= 1 << j; });
+    a = Math.max(a, pkFit(v, x.a) * 0.6);
+  }
+  return { f: Math.max(f, a), mask };
+}
+const vcBits = (m) => { let n = 0; for (; m; m &= m - 1) n++; return n; };
+// The items said, best first. Every run of up to five words is tried against every item: its own name counts most, a
+// sound-alike nearly as much, what it's also called a little. A longer run that fits counts more, so "Fever-Tree light
+// tonic" beats "tonic" when all of it was said, and words said that fit nothing count against it, so "burger sauce" is
+// not Strawberry sauce.
+function vcSpot(text, pool, boost) {
+  const ws = pkWords(text).filter((w) => !VC_STOP.has(w)).slice(0, 16), T = ws.length, best = new Map();
+  if (!T) return [];
+  const fit = ws.map((w) => pool.map((x) => vcWord(w, x)));
+  for (let i = 0; i < T; i++) for (let j = i + 1; j <= Math.min(T, i + 5); j++) {
+    const n = j - i, key = vcKey(ws.slice(i, j).join("")), len = (1 + 0.15 * n) * (n / T) ** 0.7;
+    pool.forEach((x, k) => {
+      let s = 0, mask = 0;
+      for (let q = i; q < j; q++) { const h = fit[q][k]; if (!h.f) { s = 0; break; } s += h.f; mask |= h.mask; }
+      let v = s ? (s / n) * (0.5 + vcBits(mask) / x.w.length) * len : 0;
+      const kx = vcKeyOf(x);
+      if (key.length >= 4 && key === kx) v = Math.max(v, 6.5 * len);
+      else if (key.length >= 6 && Math.abs(key.length - kx.length) <= 2 && mkLev(key, kx) <= (key.length >= 9 ? 2 : 1)) v = Math.max(v, 5.5 * len);
+      if (boost) v *= boost(x);
+      if (v > (best.get(x) || 0)) best.set(x, v);
+    });
+  }
+  return [...best].map(([x, s]) => ({ x, s })).filter((h) => h.s >= 1.2).sort((a, b) => b.s - a.s || a.x.w.length - b.x.w.length);
+}
+const vcCap = (s) => (s ? s[0].toUpperCase() + s.slice(1) : s);
+const vcList = (ns) => (ns.length > 1 ? `${ns.slice(0, -1).join(", ")} and ${ns[ns.length - 1]}` : ns[0]);
+function vc86(names, on, sc, typed) {
+  const say = on ? `86 ${vcList(names)} for everyone?` : `${vcList(names)} back in stock?`;
+  return { kind: on ? "86" : "back", names, sc, say, typed };
+}
+// "86 limes and mint": each part on its own, when each is plainly an item. Otherwise the best match for the lot.
+function vcItems(rest, on) {
+  const pool = pkPool(), outs = outNow(), boost = on ? null : (x) => (outs.has(x.n) ? 1.4 : 1);
+  const whole = vcSpot(rest, pool, boost), top = whole[0];
+  const parts = rest.split(/\s*(?:,|&|\band\b|\bplus\b|\balso\b)\s*/).filter((p) => pkWords(p).some((w) => !VC_STOP.has(w)));
+  if (parts.length > 1 && !/\band\b|&/i.test(top?.x.n || "")) {
+    const each = parts.map((p) => vcSpot(p, pool, boost)[0]);
+    if (each.every((h) => h && h.s >= VC_SURE)) return { ...vc86([...new Set(each.map((h) => h.x.n))], on, 6), alts: [] };
+  }
+  const alts = (top && top.s >= VC_SURE ? whole.slice(1) : whole).filter((h) => h.s >= 2).slice(0, 3).map((h) => ({ t: h.x.n, h: vc86([h.x.n], on, 5) }));
+  if (top && top.s >= VC_SURE) return { ...vc86([top.x.n], on, 5 + top.s / 10), alts };
+  // Not on the list: an 86 still goes on as said (a burger, a glass), with the closest ones to tap instead.
+  const said = rest.split(" ").filter((w) => w && !VC_STOP.has(w)).join(" ").trim();
+  if (on && said) { const n = vcCap(pkName(said)); return { ...vc86([n], true, 2, true), alts }; }
+  return { kind: "none", sc: 1, say: on ? "86 what? Say the name, like “86 limes”." : "Back in what? Say the name, like “limes are back”.", alts };
+}
+const VC_BACK = /\b(?:back in(?: stock)?|back on(?: the menu)?|un86|restocked|in stock again|(?:is|are|'s) back)\b/;
+const VC_86 = /\b(?:86|we'?ve run out of|we have run out of|ran out of|run out of|run out|sold out of|sold out|out of|no more|none left|(?:is|are|'s) (?:out|gone|finished|done)|we'?ve got no|we have no|there'?s no|take off)\b/;
+const VC_SPEC = /\b(?:how (?:do|to|would|d|should)(?: i| you| we| u)? (?:make|build|do|pour|serve)|what'?s in(?: a| an| the)?|what goes in(?: a| an| the)?|specs?(?: for| of| sheet| on)?|recipe(?: for| of)?|builds?(?: for)?|make(?: a| an| me a| me)?|ingredients(?: for| in)?|show me|pull up|bring up|method(?: for)?)\b/;
+const vcCut = (re, s) => s.replace(new RegExp(re.source, "g"), " ");
+// What was said, worked out. sc is how much sense it makes, so the best of the phone's guesses wins.
 function sdParse(raw) {
-  const t = raw.trim().replace(/[.!?]+$/, ""), l = t.toLowerCase();
+  const t = raw.trim().replace(/[.!?]+$/, ""), l = vcNorm(t);
   let m;
-  if ((m = l.match(/^(?:86|eighty[- ]six|we'?re out of|we are out of|out of|ran out of)\s+(.+)/))) { const n = sx86Name(t.slice(t.length - m[1].length)); return { kind: "86", n, say: `86 ${n} for everyone?` }; }
-  if ((m = l.match(/^(?:back in|back in stock|un-?86)\s+(.+)/))) { const n = sx86Name(t.slice(t.length - m[1].length)); return { kind: "back", n, say: `${n} back in stock?` }; }
-  if ((m = l.match(/^(?:log it|log|note)\s*[:,]?\s+(.+)/))) { const s = t.slice(t.length - m[1].length); return { kind: "log", n: s[0].toUpperCase() + s.slice(1), say: `Log "${s}" in tonight's handover?` }; }
-  if (/what can (i|we) make/.test(l)) return { kind: "make", say: "Open My bar to see what you can make" };
-  if (/last orders/.test(l)) { const lo = sdLast(); return { kind: "info", say: lo ? `Last orders at ${lo.at}` : "No last orders time set" }; }
-  if ((m = l.match(/^(?:open|go to|show)\s+(.+)/))) { const g = SD_GO.find(([re]) => re.test(m[1])); if (g) return { kind: "go", go: g[1], say: `Opening ${m[1]}` }; }
-  const q = l.replace(/^(?:how do (?:i|you|we) make|how to make|make|spec for|spec of|recipe for|show me)\s+/, "");
-  const d = sdDrink(q); if (d) return { kind: "drink", d, say: `${d.name}` };
-  return { kind: "none", say: `Didn't catch a command in "${t}". Try "86 limes" or "how do I make a Negroni".` };
+  if (!l.trim()) return { kind: "none", sc: 0, say: "Didn't hear anything. Try again.", alts: [] };
+  if (/what can (?:i|we) make/.test(l)) return { kind: "make", sc: 9, say: "Open My bar to see what you can make" };
+  if (/last orders?/.test(l)) { const lo = sdLast(); return { kind: "info", sc: 9, say: lo ? `Last orders at ${lo.at}` : "No last orders time set" }; }
+  if (/\bwhat(?:'s| is| are|s)? (?:86|out|off)\b|\b86 (?:list|board)\b|\bwhat have we (?:86|run out)/.test(l)) return { kind: "go", go: "stock", sc: 9, say: "Opening the 86 board" };
+  if ((m = t.match(/^\s*(?:(?:please|can you|could you|hey|ok(?:ay)?|right|um+|so)[\s,]+)*(?:log it|log|note|write down|add a note|handover note)\b\s*[:,-]?\s*(.+)/i)) && m[1].trim()) {
+    const s = m[1].trim(); return { kind: "log", sc: 9, n: vcCap(s), say: `Log "${s}" in tonight's handover?` };
+  }
+  if (VC_BACK.test(l)) return vcItems(vcCut(VC_BACK, l), false);
+  if (/\b86\b/.test(l) && !vcCut(VC_86, l).replace(/\b(?:the|a|an|some)\b/g, "").trim()) return { kind: "go", go: "pick86", sc: 8, say: "Open 86 something" };
+  if (VC_86.test(l)) return vcItems(vcCut(VC_86, l), true);
+  if (/\b(?:count(?:ed|ing)?|stock count)\b/.test(l)) {
+    const rest = l.replace(/\b(?:stock count|count(?:ed|ing)?|we have|we'?ve got|there (?:are|is)|i)\b/g, " ").trim();
+    const p = LIVE.me && rest ? ctParse(rest) : null, r = p && ctRow(p.key);
+    if (r) return { kind: "count", sc: 8, p, say: `Count ${r.item}: ${p.grams ? `${p.n} g on the scale` : ctSay(r.u, p.n)}?` };
+    return { kind: "go", go: "count", sc: 6, say: rest ? `Open the stock count. Didn't catch the number for “${rest}”.` : "Open the stock count" };
+  }
+  if ((m = l.match(/\b(?:open|go to|take me to|jump to|show me|show)\s+(.+)/))) { const g = SD_GO.find(([re]) => re.test(m[1])); if (g) return { kind: "go", go: g[1], sc: 8, say: `Opening ${m[1].trim()}` }; }
+  // A drink: with "spec", "how do I make" and the like, or just its name.
+  const want = VC_SPEC.test(l), hits = vcSpot(vcCut(VC_SPEC, l), pkPool().filter((x) => x.c === "drinks")), top = hits[0];
+  const dAlt = (h) => ({ t: h.x.n, h: { kind: "drink", d: D[h.x.d], sc: 4, say: h.x.n } });
+  if (top && top.s >= (want ? 2.5 : 3.5)) return { kind: "drink", d: D[top.x.d], sc: 3 + top.s / 10, say: top.x.n, alts: hits.slice(1).filter((h) => h.s >= 2.5).slice(0, 3).map(dAlt) };
+  const g = l.trim().split(" ").length <= 3 && SD_GO.find(([re]) => re.test(l));
+  if (g) return { kind: "go", go: g[1], sc: 5, say: `Opening ${l.trim()}` };
+  const near = hits.filter((h) => h.s >= 2);
+  return { kind: "none", sc: near.length ? 1 : 0, say: near.length ? `Not sure what “${t}” was. Is it one of these?` : `Didn't catch a command in “${t}”. Try “86 the Corona”, “Negroni spec” or “count tonic 12”.`, alts: near.slice(0, 3).map(dAlt) };
+}
+// The phone's guesses, best first: the one that makes most sense wins.
+function vcBest(texts) {
+  let best = null;
+  for (const x of texts.filter(Boolean)) { const h = sdParse(x); if (!best || h.sc > best.h.sc) best = { t: x, h }; }
+  return best;
 }
 function sdVoiceOpen() {
   let el = $("#sd-voice");
   if (!el) { document.body.insertAdjacentHTML("beforeend", `<div id="sd-voice" class="help" hidden><div class="help-in" role="dialog" aria-modal="true" aria-labelledby="sd-vt"></div></div>`); el = $("#sd-voice"); }
-  SD.vc.heard = null; SD.vc.text = ""; SD.vc.on = false; sdVoiceRender(); el.hidden = false;
+  SD.vc.heard = null; SD.vc.text = ""; SD.vc.on = false; SD.vc.err = ""; sdVoiceRender(); el.hidden = false;
   if (SD_REC) sdListen(); else setTimeout(() => $("#sd-vtext")?.focus(), 50);
 }
 function sdVoiceRender() {
-  const h = SD.vc.heard, acts = h && ["86", "back", "log"].includes(h.kind);
+  const h = SD.vc.heard, acts = h && ["86", "back", "log"].includes(h.kind), alts = h?.alts || [];
+  const btn = !h ? "" : acts ? "Yes, do it" : h.kind === "count" ? "Open the count" : h.kind !== "none" && h.kind !== "info" ? "Go" : "";
   $("#sd-voice .help-in").innerHTML = `<div class="help-h"><h3 id="sd-vt">🎤 Say it</h3><button class="hq-x" data-sd-vx aria-label="Close">×</button></div>
-    ${SD.vc.on ? `<p class="sd-big sd-pulse">Listening…</p>` : ""}
-    ${h ? `<div class="sd-heard${h.kind === "none" ? " no" : ""}"><b>${esc(h.say)}</b>${acts ? `<p class="note">${h.kind === "log" ? "It goes in tonight's handover with your name." : "Every phone sees it straight away."}</p>` : ""}</div>
-      <div class="actions">${acts ? `<button class="btn pri" data-sd-vgo>Yes, do it</button>` : h.kind !== "none" && h.kind !== "info" ? `<button class="btn pri" data-sd-vgo>Go</button>` : ""}<button class="btn" data-sd-vagain>${SD_REC ? "Say it again" : "Try again"}</button></div>` : ""}
+    ${SD.vc.on ? `<p class="sd-big sd-pulse">Listening…</p><p class="note">Say it how you like. It picks out the key words.</p>` : ""}
+    ${SD.vc.err ? `<p class="note warnline">${esc(SD.vc.err)}</p>` : ""}
+    ${h ? `<div class="sd-heard${h.kind === "none" ? " no" : ""}">${SD.vc.text && h.kind !== "none" ? `<p class="s">Heard “${esc(SD.vc.text)}”</p>` : ""}<b>${esc(h.say)}</b>${acts ? `<p class="note">${h.kind === "log" ? "It goes in tonight's handover with your name." : h.typed ? "It isn't on the list, so it goes on as said. Or tap the right one below." : "Every phone sees it straight away."}</p>` : ""}
+      ${alts.length ? `<p class="mini" style="margin-top:10px">${h.kind === "none" || h.typed ? "Did you mean" : "Or"}</p><div class="recent">${alts.map((a, i) => `<button class="chip" data-sd-valt="${i}" translate="no">${esc(a.t)}</button>`).join("")}</div>` : ""}</div>
+      <div class="actions">${btn ? `<button class="btn pri" data-sd-vgo>${btn}</button>` : ""}<button class="btn" data-sd-vagain>${SD_REC ? "Say it again" : "Try again"}</button></div>` : ""}
     <form class="sd-vform" data-sd-vform><input id="sd-vtext" type="text" enterkeyhint="go" autocomplete="off" placeholder="${SD_REC ? "Or type it" : "Tap the 🎤 on your keyboard and speak"}" value="${esc(SD.vc.text)}" aria-label="Command"><button class="btn" type="submit">Go</button></form>
-    <p class="note">Try: "86 limes", "back in limes", "log it the glass washer is leaking", "how do I make a Margarita", "what can I make", "open closing". Nothing changes until you say yes.</p>`;
+    <p class="note">Try: “86 the Corona”, “limes are back”, “Marshmallow Boulevard spec”, “count tonic 12”, “log it the glass washer is leaking”, “what's 86'd”, “open closing”. Nothing changes until you say yes.</p>`;
 }
 let sdRx = null;
 function sdListen() {
   try {
     sdRx?.abort?.();
-    sdRx = new SD_REC(); sdRx.lang = "en-GB"; sdRx.interimResults = false; sdRx.maxAlternatives = 1;
-    sdRx.onresult = (e) => { const t = e.results[0][0].transcript; SD.vc.text = t; SD.vc.heard = sdParse(t); SD.vc.on = false; sdVoiceRender(); sdSpeak(SD.vc.heard.say); };
-    sdRx.onerror = () => { SD.vc.on = false; sdVoiceRender(); $("#sd-vtext")?.focus(); };
+    SD.vc.err = "";
+    sdRx = new SD_REC(); sdRx.lang = "en-GB"; sdRx.interimResults = false; sdRx.continuous = false; sdRx.maxAlternatives = 5;
+    sdRx.onresult = (e) => {
+      const r = e.results[0], b = vcBest(Array.from({ length: r.length }, (_, i) => r[i].transcript));
+      if (!b) return;
+      SD.vc.text = b.t; SD.vc.heard = b.h; SD.vc.on = false; sdVoiceRender(); sdSpeak(b.h.say);
+    };
+    sdRx.onerror = (e) => {
+      SD.vc.on = false;
+      SD.vc.err = e.error === "not-allowed" || e.error === "service-not-allowed" ? "The microphone is off for Bar Book. Allow it in the phone's settings, or tap the 🎤 on the keyboard and speak into the box."
+        : e.error === "no-speech" ? "Didn't hear anything. Tap Say it again and speak close to the phone." : e.error === "network" ? "Speech needs signal on this phone. Type it, or use the keyboard's 🎤." : "";
+      sdVoiceRender(); if (e.error !== "no-speech") $("#sd-vtext")?.focus();
+    };
     sdRx.onend = () => { if (SD.vc.on) { SD.vc.on = false; sdVoiceRender(); } };
     SD.vc.on = true; sdVoiceRender(); sdRx.start();
   } catch { SD.vc.on = false; sdVoiceRender(); $("#sd-vtext")?.focus(); }
@@ -459,12 +573,18 @@ function sdVoiceClose() { sdRx?.abort?.(); SD.vc.on = false; const el = $("#sd-v
 function sdVoiceGo() {
   const h = SD.vc.heard; if (!h) return;
   sdVoiceClose(); haptic();
-  if (h.kind === "86") { if (!LIVE.me) return toast("Join the team to 86 for everyone"); if (outNow().has(h.n)) return toast(`${h.n} is already 86'd`); setOut(h.n, true); renderList(); sdCue("ok"); return toast(`${h.n} 86'd for everyone`); }
-  if (h.kind === "back") { if (!LIVE.me) return toast("Join the team first"); if (!outNow().has(h.n)) return toast(`${h.n} isn't on the 86 list`); setOut(h.n, false); renderList(); sdCue("ok"); return toast(`${h.n} back in`); }
+  if (h.kind === "86" || h.kind === "back") {
+    const on = h.kind === "86";
+    if (!LIVE.me) return toast(on ? "Join the team to 86 for everyone" : "Join the team first");
+    const xs = h.names.filter((n) => isOut(n) !== on);
+    if (!xs.length) return toast(on ? `${vcList(h.names)} ${h.names.length > 1 ? "are" : "is"} already 86'd` : `${vcList(h.names)} ${h.names.length > 1 ? "aren't" : "isn't"} on the 86 list`);
+    pk86(xs, on); renderList(); sdCue("ok"); return;
+  }
   if (h.kind === "log") { if (!LIVE.me) return toast("Join the team to log it"); sdCue("ok"); return track(LIVE.api.logIt(mode, "note", h.n.slice(0, LOG_MAX)), "Logged. It's in tonight's handover", "Not saved. Try again"); }
-  if (h.kind === "drink") return openSheet(h.d.id);
+  if (h.kind === "drink") return cur === "station" ? sxOpen(h.d.id) : openSheet(h.d.id);
   if (h.kind === "make") { mk.pane = "bar"; mkSave(); return openAt("tab:make"); }
-  if (h.kind === "go") { openAt(h.go); scrollTo(0, 0); }
+  if (h.kind === "count") { if (!LIVE.me) return toast("Join the team to count stock"); openAt("count"); ctHeard = { ...h.p }; ctRender(true); return; }
+  if (h.kind === "go") { if (h.go === "pick86") return pkOpen({ mode: "86" }); if (h.go === "count" && !LIVE.me) return toast("Join the team to count stock"); openAt(h.go); scrollTo(0, 0); }
 }
 
 /* ---------- 12. Accessible mode and one-hand mode (this phone) ----------
@@ -498,7 +618,7 @@ function sdPhoneHtml() {
   return row("a11y", "Accessible mode", "Easier to read: plain headings, bigger text and spacing, colour-blind-safe colours, bigger buttons.")
     + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and voice in a row above the tabs, in reach of your thumb.")
     + row("sound", "Sounds", "A short sound for urgent things, last orders and a new best close. Android phones buzz too; iPhones can't from a web app.")
-    + row("voice", "Voice button 🎤", "Say \"86 limes\", \"log it ...\" or \"how do I make a Negroni\". Nothing changes until you say yes.");
+    + row("voice", "Voice button 🎤", "Say it how you like: \"86 the Corona\", \"Negroni spec\", \"count tonic 12\". It picks out the key words. Nothing changes until you say yes.");
 }
 
 /* ---------- Where it all goes ---------- */
@@ -512,7 +632,7 @@ FEATURES.push(
   { g: "Team", k: "replay", n: "Shift replay", go: "replay", team: 1, adm: 1, what: "One night start to finish for the managers: every 86, Log it, label, closing tick, restock, fault, send and the handover, in time order with who.", mgr: "Pick a night and send it on WhatsApp." },
   { g: "Team", k: "order", n: "Order draft", go: "order", team: 1, adm: 1, what: "What to order, worked out from the last stock counts, the deliveries and each item's par.", mgr: "Set a par on anything you always want on the shelf, then send the list." },
   { g: "Team", k: "season", n: "Seasonal menu", go: "season", team: 1, adm: 1, what: "A Christmas or summer menu for the whole team in one tap, and back again.", mgr: "Make the menu once, then switch it on and off." },
-  { g: "Drinks", k: "voice", n: "Voice", go: "tab:drinks", what: "Tap 🎤 and say \"86 limes\", \"log it ...\" or \"how do I make a Negroni\". It asks before it changes anything." });
+  { g: "Drinks", k: "voice", n: "Voice", go: "tab:drinks", what: "Tap 🎤 and say it how you like: \"86 the Corona\", \"limes are back\", \"Marshmallow Boulevard spec\", \"count tonic 12\". It picks out the key words, matches the name even if it's misheard, and asks before it changes anything." });
 Object.assign(PLACE_KW, { replay: "replay timeline night history what happened", order: "order par reorder supplier", season: "season christmas summer seasonal menu switch", venue: "last orders time day night theme" });
 
 /* ---------- Events ---------- */
@@ -533,6 +653,7 @@ document.addEventListener("click", (e) => {
   if (t("#sd-voice")) {
     if (e.target.id === "sd-voice" || t("[data-sd-vx]")) return sdVoiceClose();
     if (t("[data-sd-vgo]")) return sdVoiceGo();
+    if ((x = t("[data-sd-valt]"))) { const a = SD.vc.heard?.alts?.[+x.dataset.sdValt]; if (a) { haptic(); SD.vc.heard = { ...a.h, alts: [] }; sdVoiceRender(); sdSpeak(a.h.say); } return; }
     if (t("[data-sd-vagain]")) { SD.vc.heard = null; if (SD_REC) sdListen(); else { sdVoiceRender(); $("#sd-vtext")?.focus(); } return; }
   }
   if ((x = t("[data-sd-rp-day]"))) { SD.rp.day = x.dataset.sdRpDay; haptic(); sdReplayLoad(); return; }

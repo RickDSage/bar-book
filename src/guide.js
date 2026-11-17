@@ -13,7 +13,7 @@ const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
-  "Hands full? Tap 🎤 and say it, like “86 limes”. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
+  "Hands full? Tap 🎤 and say it how you like, like “can you 86 the Corona” or “Negroni spec”: it picks out the key words. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
   "? at the top right opens the Guide: every part of Bar Book by section, and a search for anything, like “how do I make a mojito” or “what's a dry shake”.",
 ], tip: "× closes this at any time. More, Replay the walkthrough brings it back." };
 const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
@@ -159,7 +159,7 @@ const gdItems = () => featSorted([
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
   { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: any drink in big type, rounds, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
 ]);
-const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch jug bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone siri hands free talk", stock: "86 out of missing run out back in swap" };
+const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch jug bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
 // What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.

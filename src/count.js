@@ -272,8 +272,9 @@ function ctHear(text) {
 function ctMic() {
   const R = window.SpeechRecognition || window.webkitSpeechRecognition; if (!R) return;
   if (ctRx) { ctRx.stop(); return; }
-  const rx = ctRx = new R(); rx.lang = "en-GB"; rx.interimResults = false; rx.maxAlternatives = 1;
-  rx.onresult = (e) => { const t = e.results[0][0].transcript; if ($("#ct-say")) $("#ct-say").value = t; ctHear(t); };
+  const rx = ctRx = new R(); rx.lang = "en-GB"; rx.interimResults = false; rx.maxAlternatives = 5;
+  // The phone's guesses at what was said: the first one that names a product and a number wins.
+  rx.onresult = (e) => { const r = e.results[0], ts = Array.from({ length: r.length }, (_, i) => r[i].transcript), t = ts.find((x) => ctParse(x.trim())) || ts[0]; if ($("#ct-say")) $("#ct-say").value = t; ctHear(t); };
   rx.onerror = (e) => toast(e.error === "not-allowed" ? "Allow the microphone for Bar Book, or use the keyboard's mic" : "Didn't catch that. Try again");
   rx.onend = () => { ctRx = null; ctRender(); };
   try { rx.start(); ctRender(); } catch { ctRx = null; }
