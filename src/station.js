@@ -74,9 +74,9 @@ function sxSpecHtml(d) {
     <div class="sx-acts"><button class="btn pri" data-sx-add="${d.id}">+ Add to round${SX.round.get(d.id) ? ` (${SX.round.get(d.id)})` : ""}</button><button class="btn" data-sx-sheet="steps:${d.id}">Step by step</button><button class="btn" data-sx-sheet="spec:${d.id}">Full card and send</button>${!out && LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">86 it</button>` : ""}</div>
     ${nx ? `<div class="sx-pn"><button class="btn" data-sx-step="-1">‹ <span translate="no">${esc(pv.name)}</span></button><span>${i + 1} of ${SX.ids.length}</span><button class="btn" data-sx-step="1"><span translate="no">${esc(nx.name)}</span> ›</button></div>` : ""}`;
 }
-// The round: every drink scaled to how many, shaken and stirred first, built next, anything topped with fizz last so
-// it doesn't go flat while the rest are made. The glasses to pull at the top.
-const sxOrder = (d) => (/shake|stir/i.test(d.method) ? 0 : /^top/i.test(d.spec.at(-1) || "") || d.tags.includes("Fizzy") ? 2 : 1);
+// The round: every drink scaled to how many, in the bar's making order: the ones that hold longest first (stirred, then
+// built), shaken next so the foam and chill are fresh, anything topped with fizz last so it doesn't go flat. The glasses to pull at the top.
+const sxOrder = (d) => (/^top/i.test(d.spec.at(-1) || "") || d.tags.includes("Fizzy") ? 3 : /shake/i.test(d.method) ? 2 : /stir/i.test(d.method) ? 0 : 1);
 function sxRoundHtml() {
   const ds = [...SX.round].map(([id, n]) => [D[id], n]).filter(([d]) => d).sort((a, b) => sxOrder(a[0]) - sxOrder(b[0]));
   const back = `<button class="back" data-sx-round="back">‹ Drinks</button>`;
@@ -90,7 +90,7 @@ function sxRoundHtml() {
       <ul class="spec sx-specl" translate="no">${s}</ul><p class="sx-rmeth" translate="no">${esc(d.method)}</p></div>`; }).join("");
   return `${back}<div class="sx-k">Round of ${sxRoundN()}<button class="linkbtn" data-sx-round="clear">Clear the round</button></div>
     <p class="sx-glasses"><b>Pull:</b> <span translate="no">${[...gl].map(([g, n]) => `${n} × ${esc(g)}`).join(", ")}</span></p>
-    <p class="note" style="margin-top:0">In making order: shaken and stirred first, built next, fizz last so it stays lively.</p>${cards}`;
+    <p class="note" style="margin-top:0">In making order: stirred, then built, then shaken so the foam is fresh, fizz last so it stays lively.</p>${cards}`;
 }
 function sxSpec() {
   const el = $("#sx-spec"); if (!el || !sxWide()) return;
