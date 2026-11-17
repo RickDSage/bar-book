@@ -5,7 +5,7 @@
    manager can run it on their own phone, the bar iPad or a laptop, whoever logged it and wherever. Nothing is written.
    No library: the workbook is a few XML files in a plain zip, built here. */
 const EX_MAX = 92;
-const EX = { from: "", to: "", side: "all", who: "", off: new Set(store.get("exOff", [])), D: null, busy: false, err: false, key: "" };
+const EX = { tab: "out", from: "", to: "", side: "all", who: "", off: new Set(store.get("exOff", [])), D: null, busy: false, err: false, key: "" };
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const exDays = (a, b) => { const xs = []; for (let d = b; d >= a && xs.length < EX_MAX; d = addDays(d, -1)) xs.push(d); return xs; };
 const exList = (k) => LISTS[k]?.title || k || "";
@@ -81,7 +81,7 @@ const exAbout = () => [["Exported", mgShort({ toMillis: () => Date.now() })], ["
   ["Side", EX.side === "all" ? "Bar and floor" : sideName(EX.side)], ["Person", EX.who || "Everyone"], ["Logs", exPicked().map((x) => x.L.n).join(", ")],
   ["Shift date", "The business day. Anything after midnight counts for the night before, as it does in Bar Book."], ["Photos", "Closing photos stay in Bar Book: Team, Closing reports."]];
 
-function exportHtml() {
+function exOutHtml() {
   if (!EX.to) { EX.to = shiftDay(); EX.from = addDays(EX.to, -6); }
   if (!EX.busy && EX.key !== `${EX.from}|${EX.to}`) setTimeout(exLoad);
   const quick = [["Tonight", 0, 0], ["Last night", 1, 1], ["Last 7 nights", 6, 0], ["Last 31 nights", 30, 0]].map(([t, a, b]) => {
@@ -98,11 +98,15 @@ function exportHtml() {
     <div class="ex-logs">${T.map((x) => `<label class="check"><input type="checkbox" data-ex-log="${x.L.k}"${EX.off.has(x.L.k) ? "" : " checked"}> <span><b>${x.L.n}</b> <span class="s">${x.rows.length ? plural(x.rows.length, "line") : "nothing"} · ${x.L.what}</span></span></label>`).join("")}</div>`;
   const none = T.some((x) => x.rows.length) ? "Tick a log with lines in it." : "Nothing logged for these filters. Try more nights, both sides or everyone.";
   return `${filters}
-    ${n ? `<div class="actions"><button class="btn pri" data-ex-go="xlsx">Excel workbook</button><button class="btn" data-ex-go="csv">CSV files</button><button class="btn" data-ex-go="print">Print</button><button class="btn" data-ex-go="copy">Copy</button></div>
-      <p class="note">${plural(n, "line")} from ${plural(picked.length, "log")}. <b>Excel workbook</b>: one file, a tab for each log, opens in Excel, Numbers and Google Sheets. <b>CSV files</b>: one for each log, for Nory or any system that imports a spreadsheet. <b>Copy</b> pastes into a spreadsheet as columns. On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp.</p>` : `<p class="note">${none}</p>`}
+    ${n ? `<div class="actions"><button class="btn pri" data-ex-go="xlsx">Excel workbook</button><button class="btn" data-ex-go="csv">CSV files</button><button class="btn" data-ex-go="docx">Word document</button><button class="btn" data-ex-go="print">Print</button><button class="btn" data-ex-go="copy">Copy</button></div>
+      <p class="note">${plural(n, "line")} from ${plural(picked.length, "log")}. <b>Excel workbook</b>: one file, a tab for each log, opens in Excel, Numbers and Google Sheets. <b>CSV files</b>: one for each log, for Nory or any system that imports a spreadsheet. <b>Word document</b>: the tables, ready for a report, opens in Word, Pages and Google Docs. <b>Copy</b> pastes as a table into Word or Docs, and as columns into a spreadsheet. On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp.</p>` : `<p class="note">${none}</p>`}
     ${logs}
     ${n ? `<div class="mini">See it here</div>${picked.map((x) => `<details class="ex-prev"><summary>${x.L.n} <span class="s">${plural(x.rows.length, "line")}</span></summary><div class="ex-scroll">${exTableHtml(x, 60)}</div>${x.rows.length > 60 ? `<p class="note">First 60 lines here. The file has all ${x.rows.length}.</p>` : ""}</details>`).join("")}` : ""}
     <p class="note">Bar Book can't send to Nory by itself: Nory doesn't offer a link for other apps to send to. Import the CSV in Nory, if your account takes a spreadsheet import, or attach it to an email.</p>`;
+}
+// One card, both ways: Export (what the team logged, out to a file) and Import (a spreadsheet in, src/import.js).
+function exportHtml() {
+  return `<div class="seg ex-tabs"><button data-ex-tab="out" aria-pressed="${EX.tab === "out"}">Export</button><button data-ex-tab="in" aria-pressed="${EX.tab === "in"}">Import</button></div>${EX.tab === "in" ? importHtml() : exOutHtml()}`;
 }
 const exTableHtml = (x, max = Infinity) => `<table class="ex-t"><thead><tr>${x.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${x.rows.slice(0, max).map((r) => `<tr>${r.map((v, i) => `<td${i === 0 ? ' class="nw"' : ""}>${esc(i === 0 ? dayName(v) : v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 
@@ -117,10 +121,15 @@ function exGo(how) {
   haptic();
   if (how === "xlsx") return mgSaveFile(exName("xlsx"), XLSX_TYPE, exXlsx([...xs.map((x) => [x.L.n, x.head, x.rows]), ["About this export", ["About", "Detail"], exAbout()]]));
   if (how === "csv") return exSaveFiles(xs.map((x) => new File([toCsv(x.head, x.rows)], exName(`${x.L.k}.csv`).replace(/\.(\w+)\.csv$/, "-$1.csv"), { type: "text/csv" })));
+  if (how === "docx") return mgSaveFile(exName("docx"), DOCX_TYPE, exDocx(xs));
   if (how === "copy") {
+    // Both at once: a table for Word, Pages or Docs, and tab-separated columns for a spreadsheet or a message.
     const cell = (v) => String(v ?? "").replace(/[\t\r\n]+/g, " ");
     const text = xs.map((x) => [x.L.n, x.head.join("\t"), ...x.rows.map((r) => r.map(cell).join("\t"))].join("\n")).join("\n\n");
-    return navigator.clipboard?.writeText(text).then(() => toast("Copied. Paste it into a spreadsheet or a message"), () => toast("Couldn't copy. Use Excel workbook instead"));
+    const html = `<meta charset="utf-8">${xs.map((x) => `<h3>${esc(x.L.n)}</h3><table border="1" cellpadding="4" style="border-collapse:collapse;font:10pt Calibri,Arial,sans-serif"><tr>${x.head.map((h) => `<th style="background:#eee;text-align:left">${esc(h)}</th>`).join("")}</tr>${x.rows.map((r) => `<tr>${r.map((v, i) => `<td>${esc(i === 0 ? dayName(v) : v)}</td>`).join("")}</tr>`).join("")}</table>`).join("")}`;
+    const done = () => toast("Copied. Paste it into Word, Docs, a spreadsheet or a message"), fail = () => toast("Couldn't copy. Use Word document or Excel workbook instead");
+    try { if (window.ClipboardItem) return navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([text], { type: "text/plain" }) })]).then(done, () => navigator.clipboard.writeText(text).then(done, fail)); } catch {}
+    return navigator.clipboard?.writeText(text).then(done, fail);
   }
   if (how === "print") {
     const st = document.createElement("style");
@@ -160,6 +169,24 @@ function exXlsx(sheets) {
   ];
   return exZip(files);
 }
+// A Word file (.docx): a title, then each log as a table with its headings repeated on every page, landscape A4.
+const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+function exDocx(xs) {
+  const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"', run = (t, b, sz = 18) => `<w:r><w:rPr>${b ? "<w:b/>" : ""}<w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${exXml(t)}</w:t></w:r>`;
+  const para = (t, b, sz) => `<w:p>${String(t).split("\n").map((l, i) => (i ? "<w:r><w:br/></w:r>" : "") + run(l, b, sz)).join("")}</w:p>`;
+  const cell = (t, b) => `<w:tc><w:tcPr>${b ? '<w:shd w:val="clear" w:color="auto" w:fill="EEEEEE"/>' : ""}</w:tcPr>${para(t, b, 16)}</w:tc>`;
+  const B = ["top", "left", "bottom", "right", "insideH", "insideV"].map((k) => `<w:${k} w:val="single" w:sz="4" w:space="0" w:color="999999"/>`).join("");
+  const table = (x) => `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>${B}</w:tblBorders><w:tblCellMar><w:left w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${x.head.map(() => `<w:gridCol w:w="${Math.floor(15398 / x.head.length)}"/>`).join("")}</w:tblGrid>`
+    + `<w:tr><w:trPr><w:tblHeader/></w:trPr>${x.head.map((h) => cell(h, true)).join("")}</w:tr>${x.rows.map((r) => `<w:tr><w:trPr><w:cantSplit/></w:trPr>${r.map((v, i) => cell(i === 0 ? dayName(v) : v ?? "")).join("")}</w:tr>`).join("")}</w:tbl>`;
+  const body = para("Black Tap Soho · Bar Book export", true, 32) + para(exAbout().slice(0, 5).map(([k, v]) => `${k}: ${v}`).join(" · "), false, 18)
+    + xs.map((x) => para(x.L.n, true, 26) + table(x) + para("", false, 10)).join("")
+    + '<w:sectPr><w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr>';
+  return new Blob([exZip([
+    ["[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'],
+    ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
+    ["word/document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document ${W}><w:body>${body}</w:body></w:document>`],
+  ])], { type: DOCX_TYPE });
+}
 // A plain zip with nothing compressed, which is all an .xlsx needs.
 const EX_CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const exCrc = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = EX_CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
@@ -188,6 +215,7 @@ document.addEventListener("click", (e) => {
   if ((x = t("[data-ex-all]"))) { EX.off = x.dataset.exAll === "1" ? new Set() : new Set(EX_LOGS.map((L) => L.k)); store.set("exOff", [...EX.off]); renderCard("export"); return; }
   // From another card (the date label record): the same nights and side, that log only.
   if ((x = t("[data-ex-only]"))) { const [k, n, side] = x.dataset.exOnly.split("|"); EX.to = shiftDay(); EX.from = addDays(EX.to, 1 - n); EX.side = side || "all"; EX.who = ""; EX.off = new Set(EX_LOGS.map((L) => L.k).filter((j) => j !== k)); haptic(); openAt("export"); return; }
+  if ((x = t("[data-ex-tab]"))) { EX.tab = x.dataset.exTab; haptic(); renderCard("export"); return; }
   if ((x = t("[data-ex-go]"))) { exGo(x.dataset.exGo); return; }
   if (t("[data-ex-again]")) { EX.key = ""; renderCard("export"); }
 });
@@ -204,14 +232,14 @@ document.addEventListener("change", (e) => {
 });
 document.head.insertAdjacentHTML("beforeend", `<style>
 .ex-dates{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}.ex-dates label,.ex-who{display:flex;align-items:center;gap:8px;font-weight:700}.ex-dates input,.ex-who select{min-height:44px;font-size:16px}
-.seg.ex-seg{grid-template-columns:1fr 1fr 1fr;margin-top:6px}.ex-who select{flex:1;min-width:0}.ex-who{margin:10px 0}.ex-logs .check b{margin-right:4px}.ex-logs .check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}.ex-logs .check input{flex:none;width:22px;height:22px;margin-top:2px}
+.seg.ex-tabs{margin-top:0;margin-bottom:10px}.seg.ex-seg{grid-template-columns:1fr 1fr 1fr;margin-top:6px}.ex-who select{flex:1;min-width:0}.ex-who{margin:10px 0}.ex-logs .check b{margin-right:4px}.ex-logs .check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}.ex-logs .check input{flex:none;width:22px;height:22px;margin-top:2px}
 .ex-logs .s{display:block;font-weight:400}.ex-prev{margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:0 10px}.ex-prev summary{min-height:44px;display:flex;align-items:center;gap:8px;font-weight:700;cursor:pointer}
 .ex-scroll{overflow-x:auto;margin:0 -10px 10px;padding:0 10px}.ex-t{border-collapse:collapse;font-size:13px;min-width:100%;width:max-content}.ex-t th,.ex-t td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;max-width:260px;min-width:64px}
 .ex-t th{position:sticky;top:0;background:var(--surface);white-space:nowrap}.ex-t td.nw{white-space:nowrap}
 </style>`);
 
 /* ---- Where it goes ---- */
-TC_SUB.export = "Every log as Excel, CSV, print or copy, filtered by dates, side and person";
-FEATURES.push({ g: "Team", k: "export", adm: 1, n: "Export", go: "export", team: 1, what: "Every log in Bar Book in one place: closing ticks and who did each section, take overs, handovers, 86s, Log it, date labels, restock, stock counts, deliveries, issues, training and everything sent.",
-  mgr: "Pick the nights, the side, a person and the logs, then Excel workbook, CSV files (for Nory or any import), Print or Copy. It works on any manager's phone, the iPad or a laptop." });
-PLACE_KW.export = "export excel spreadsheet csv xlsx download nory laptop print copy file data logs records numbers sheets";
+TC_SUB.export = "Every log out as Excel, CSV, Word, print or copy, and spreadsheets in";
+FEATURES.push({ g: "Team", k: "export", adm: 1, n: "Export and import", go: "export", team: 1, what: "Every log in Bar Book out to a file: closing ticks and who did each section, take overs, handovers, 86s, Log it, date labels, restock, stock counts, deliveries, issues, training and everything sent. And spreadsheets in: date labels, items, names, the stock setup with bottle sizes and weights, a past count and deliveries.",
+  mgr: "Export: pick the nights, side, person and logs, then Excel, CSV (for Nory or any import), Word, Print or Copy. Import: get the template, fill it in, choose the file, check every line, then save. Nothing is ever deleted." });
+PLACE_KW.export = "export import upload word docx template excel spreadsheet csv xlsx download nory laptop print copy file data logs records numbers sheets";
