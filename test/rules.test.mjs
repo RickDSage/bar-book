@@ -1059,6 +1059,10 @@ describe("training: quiz scores and new starter sign-off", () => {
     await assertSucceeds(score("staff1", "speed"));
     await assertSucceeds(score("staff1", "speed", { score: 10, secs: 31 }));
     await assertSucceeds(score("staff1", "starter", { score: 9 }));
+    // Bar 101: a quiz (no time) or its speed drill (timed).
+    await assertSucceeds(score("staff1", "b101", { score: 9 }));
+    await assertSucceeds(score("staff1", "b101", { score: 10, secs: 48 }));
+    await fails(score("staff1", "b101", { secs: 3 }), "a Bar 101 drill too fast");
     for (const [why, k, x] of [["no time", "speed", { secs: null }], ["too fast", "speed", { secs: 2 }], ["time on a test", "starter", { secs: 30 }], ["more than all", "speed", { score: 11 }],
       ["unknown kind", "drill", {}], ["someone else's name", "speed", { name: "Tia Staff" }], ["fractions", "speed", { score: 7.5 }], ["extra", "speed", { extra: 1 }]]) {
       await fails(score("staff1", k, x), why);

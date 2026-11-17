@@ -1864,10 +1864,10 @@ $("#v-practice").addEventListener("click", (e) => {
   if (qa) {
     const a = qa.dataset.qz;
     if (a === "starter") stStartQuiz();
-    else if (a === "speed") speedStart();
+    else if (a === "speed" || a === "speed101") speedStart(a === "speed101");
     else if (a === "b101") { qz = { b101: true, qs: b101Quiz(), i: 0, picks: [] }; renderPractice(); }
     else if (a === "night" || a === "practice") quizStart(a === "night");
-    else if (a === "next") { qz.i++; qzKeep(); if (qz.i === qz.qs.length) { if (qz.speed) speedDone(); quizDone(); } renderPractice(); }
+    else if (a === "next") { qz.i++; qzKeep(); if (qz.i === qz.qs.length) { if (qz.speed) speedDone(); if (qz.b101) b101Done(qz); quizDone(); } renderPractice(); }
     else { qz = null; renderPractice(); }
     $("#v-practice").scrollIntoView({ block: "start" });
     return;
@@ -2003,16 +2003,21 @@ function quizDone() {
    Ten questions from the part of the menu picked, against the clock. Each wrong answer adds 5 seconds. The best time
    is kept on the phone, and every go goes to the managers' Training page when logged in. */
 const SPEED_PEN = 5;
-function speedStart() { qz = { speed: true, t0: Date.now(), qs: quizMake(D.filter(POOLS[pool]), Math.random), i: 0, picks: [] }; renderPractice(); speedTick(); }
+// b101: the drill on the Bar 101 cards instead of the drinks, with its own best.
+function speedStart(b101) { qz = { speed: true, b101: !!b101, t0: Date.now(), qs: b101 ? b101Quiz() : quizMake(D.filter(POOLS[pool]), Math.random), i: 0, picks: [] }; renderPractice(); speedTick(); }
+const speedKey = () => (qz.b101 ? "Bar 101" : pool);
 function speedTick() { clearInterval(speedTick.h); speedTick.h = setInterval(() => { const c = $("#qz-clock"); if (!qz?.speed || qz.secs != null || !c) return clearInterval(speedTick.h); c.textContent = `${Math.floor((Date.now() - qz.t0) / 1000)} s`; }, 250); }
 function speedDone() {
   const right = qzScore(qzMarks(qz)), wrong = qz.qs.length - right;
   qz.raw = Math.max(1, Math.round((Date.now() - qz.t0) / 1000)); qz.secs = qz.raw + wrong * SPEED_PEN;
-  const best = store.get("speedBest", {}), was = best[pool];
-  qz.pb = !was || qz.secs < was.secs; if (qz.pb) { best[pool] = { secs: qz.secs, at: Date.now() }; store.set("speedBest", best); }
+  const best = store.get("speedBest", {}), was = best[speedKey()];
+  qz.pb = !was || qz.secs < was.secs; if (qz.pb) { best[speedKey()] = { secs: qz.secs, at: Date.now() }; store.set("speedBest", best); }
   qz.was = was;
-  if (LIVE.me && LIVE.api) LIVE.api.score("speed", right, qz.qs.length, Math.min(3600, Math.max(5, qz.secs))).catch(() => {});
+  if (LIVE.me && LIVE.api) LIVE.api.score(qz.b101 ? "b101" : "speed", right, qz.qs.length, Math.min(3600, Math.max(5, qz.secs))).catch(() => {});
 }
+// Under a missed question: open the drink, or for Bar 101 what to say and the card itself.
+const b101Act = (x) => (x.id != null ? `<div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div>`
+  : `${x.say ? `<p class="b101say"><b>Say it:</b> “${esc(x.say)}”</p>` : ""}<div class="actions"><button class="btn" data-b101-read="${esc(x.name)}">Read the card</button></div>`);
 function renderQuiz() {
   const box = $("#pquiz");
   if (!qz && pmode === "speed") {
@@ -2050,12 +2055,12 @@ function renderQuiz() {
   if (qz.speed) {
     box.innerHTML = `<div class="card"><h2>${qz.secs} seconds</h2><p class="lead" style="margin:6px auto 0">${right} out of ${qz.qs.length} right${right < qz.qs.length ? `, +${(qz.qs.length - right) * SPEED_PEN} s for the misses (${qz.raw} s on the clock)` : ""}.</p>
       ${qz.pb ? `<p class="qz-got">🏆 ${qz.was ? `New personal best! ${qz.was.secs - qz.secs} s faster.` : "Your first time on the board."}</p>` : `<p class="qz-got">Your best: ${qz.was.secs} s.</p>`}</div>
-      ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n" translate="no">${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b translate="no">${esc(x.answer)}</b></div><div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div></div>`).join("")}` : ""}
-      <div class="actions"><button class="btn pri" data-qz="speed">Go again</button><button class="btn" data-qz="home">Done</button></div>`;
+      ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n" translate="no">${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div>${b101Act(x)}</div>`).join("")}` : ""}
+      <div class="actions"><button class="btn pri" data-qz="${qz.b101 ? "speed101" : "speed"}">Go again</button><button class="btn" data-qz="home">Done</button></div>`;
     return;
   }
   box.innerHTML = `<div class="card"><h2>${right} out of ${qz.qs.length}</h2><p class="lead" style="margin:6px auto 0">${right === qz.qs.length ? "Perfect." : right >= 8 ? "Strong." : right >= 5 ? "Getting there." : "Practise these, then try again."}</p></div>
-    ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n"${x.id == null ? "" : ' translate="no"'}>${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div>${x.id == null ? "" : `<div class="actions"><button class="btn" data-open="${x.id}">Open the drink</button></div>`}</div>`).join("")}` : ""}
+    ${missed.length ? `<div class="sec">To practise</div>${missed.map((x) => `<div class="staffrow"><div class="n"${x.id == null ? "" : ' translate="no"'}>${esc(x.name)}</div><div class="s"><span>${esc(x.ask)}</span> ${x.of ? `<span translate="no">${esc(x.of)}:</span> ` : ""}<b${x.app ? "" : ' translate="no"'}>${esc(x.answer)}</b></div>${b101Act(x)}</div>`).join("")}` : ""}
     ${qz.starter ? stResult(right) : ""}
     <div class="actions">${qz.starter ? "" : qz.b101 ? `<button class="btn pri" data-qz="b101">Another 10</button>` : `<button class="btn pri" data-qz="practice">Another practice quiz</button>`}<button class="btn" data-qz="home">Done</button></div>`;
 }

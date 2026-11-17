@@ -242,7 +242,9 @@ function trOf(name) {
   const best = speed.filter((x) => x.score === x.of).sort((a, b) => a.secs - b.secs)[0] || speed.sort((a, b) => b.score - a.score || a.secs - b.secs)[0];
   const starter = xs.filter((x) => x.kind === "starter").sort((a, b) => b.score - a.score)[0];
   const signed = LIVE.signoffs.filter((x) => x.person === name);
-  return { night, avg: night.length ? night.reduce((t, x) => t + x.score / x.of, 0) / night.length : null, best, starter, signed };
+  // Bar 101: their best quiz or drill (the most right, then the quickest drill), and how many goes.
+  const b1 = xs.filter((x) => x.kind === "b101"), b101 = [...b1].sort((a, b) => b.score / b.of - a.score / a.of || (a.secs ?? 1e9) - (b.secs ?? 1e9))[0];
+  return { night, avg: night.length ? night.reduce((t, x) => t + x.score / x.of, 0) / night.length : null, best, starter, signed, b101, b101n: b1.length };
 }
 const trSig = () => stDrinks();
 function trainingHtml() {
@@ -253,13 +255,15 @@ function trainingHtml() {
   const quizTop = ppl.filter(([, t]) => t.night.length >= 3).sort((a, b) => b[1].avg - a[1].avg).slice(0, 3);
   const fast = ppl.filter(([, t]) => t.best && t.best.score === t.best.of).sort((a, b) => a[1].best.secs - b[1].best.secs).slice(0, 3);
   const medal = ["🥇", "🥈", "🥉"];
-  return `<p class="note">Last ${TR_DAYS} days. Tonight's quiz counts the first go each night; speed drills count every go. ${mgRefresh("tr")}</p>
+  const b1Top = ppl.filter(([, t]) => t.b101n).sort((a, b) => b[1].b101n - a[1].b101n || b[1].b101.score - a[1].b101.score).slice(0, 3);
+  return `<p class="note">Last ${TR_DAYS} days. Tonight's quiz counts the first go each night; speed drills and Bar 101 count every go. ${mgRefresh("tr")}</p>
     <div class="mini">Quiz leaders (3 nights or more)</div><ul class="live">${quizTop.map(([n, t], i) => `<li>${medal[i]} <b translate="no">${esc(n)}</b> ${Math.round(t.avg * 100)}% over ${plural(t.night.length, "night")}</li>`).join("") || "<li>Nobody's done 3 nights yet</li>"}</ul>
     <div class="mini">Fastest perfect speed drill</div><ul class="live">${fast.map(([n, t], i) => `<li>${medal[i]} <b translate="no">${esc(n)}</b> ${t.best.secs} s</li>`).join("") || "<li>No perfect drill yet</li>"}</ul>
+    <div class="mini">Most Bar 101 practice</div><ul class="live">${b1Top.map(([n, t], i) => `<li>${medal[i]} <b translate="no">${esc(n)}</b> ${plural(t.b101n, "go", "goes")}, best ${t.b101.score}/${t.b101.of}</li>`).join("") || "<li>No Bar 101 yet</li>"}</ul>
     <div class="mini">Everyone</div>
     ${ppl.map(([n, t]) => { const on = T.open === n, ok = t.signed.length >= sig.length;
       return `<article class="notice trrow${on ? " on" : ""}"><button class="trh" data-tr-open="${esc(n)}" aria-expanded="${on}"><b translate="no">${esc(n)}</b>
-          <span class="s">${t.avg == null ? "No quiz yet" : `Quiz ${Math.round(t.avg * 100)}% (${t.night.length})`} · ${t.best ? `Speed ${t.best.score}/${t.best.of} in ${t.best.secs} s` : "No speed drill"} · ${t.starter ? `Test ${t.starter.score}/${t.starter.of}` : "No test yet"}</span>
+          <span class="s">${t.avg == null ? "No quiz yet" : `Quiz ${Math.round(t.avg * 100)}% (${t.night.length})`} · ${t.best ? `Speed ${t.best.score}/${t.best.of} in ${t.best.secs} s` : "No speed drill"} · ${t.b101 ? `Bar 101 ${t.b101.score}/${t.b101.of} (${t.b101n})` : "No Bar 101 yet"} · ${t.starter ? `Test ${t.starter.score}/${t.starter.of}` : "No test yet"}</span>
           <span class="pill${ok ? " ok" : ""}">${ok ? "Signed off" : `${t.signed.length} of ${sig.length} signed off`}</span></button>
         ${on ? `<p class="note">Watch them make each one to spec, then sign it off. It shows on their phone too.</p>${sig.map((d) => { const s = t.signed.find((x) => x.drink === d.name);
           return `<div class="st-row"><span translate="no">${esc(d.name)}</span>${s ? `<span class="s">✅ ${esc(s.name)}, ${esc(dayName(bday(s.at)))} <button class="linkbtn" data-tr-undo="${esc(n)}|${esc(d.name)}">Undo</button></span>` : `<button class="btn" data-tr-sign="${esc(n)}|${esc(d.name)}">Sign off</button>`}</div>`; }).join("")}` : ""}</article>`; }).join("") || `<p class="note">Nobody on the names list yet.</p>`}
@@ -274,6 +278,7 @@ SHARE.training = () => {
     parts: [
       { id: "quiz", label: "Tonight's quiz", lines: quizTop.map(([n, t], i) => `${i + 1}. ${n}: ${Math.round(t.avg * 100)}% over ${t.night.length} nights`) },
       { id: "speed", label: "Fastest perfect speed drill", lines: fast.map(([n, t], i) => `${i + 1}. ${n}: ${t.best.secs} s`) },
+      { id: "b101", label: "Most Bar 101 practice", lines: ppl.filter(([, t]) => t.b101n).sort((a, b) => b[1].b101n - a[1].b101n).slice(0, 5).map(([n, t], i) => `${i + 1}. ${n}: ${plural(t.b101n, "go", "goes")}, best ${t.b101.score}/${t.b101.of}`) },
       { id: "signed", label: "Signed off on all house cocktails", lines: ppl.filter(([, t]) => t.signed.length >= sig).map(([n]) => `✅ ${n}`) },
     ] };
 };

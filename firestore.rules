@@ -710,10 +710,10 @@ service cloud.firestore {
     match /scores/{id} {
       allow read: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
       allow create: if isMember() && stamped() && exactly(['kind', 'day', 'score', 'of', 'secs', 'uid', 'name', 'at'])
-        && incoming().kind in ['night', 'speed', 'starter'] && nearNow(incoming().day)
+        && incoming().kind in ['night', 'speed', 'starter', 'b101'] && nearNow(incoming().day)
         && incoming().of is int && incoming().of >= 1 && incoming().of <= 20
         && incoming().score is int && incoming().score >= 0 && incoming().score <= incoming().of
-        && (incoming().kind == 'speed' ? incoming().secs is int && incoming().secs >= 5 && incoming().secs <= 3600 : incoming().secs == null)
+        && (incoming().kind == 'speed' || (incoming().kind == 'b101' && incoming().secs != null) ? incoming().secs is int && incoming().secs >= 5 && incoming().secs <= 3600 : incoming().secs == null)
         && (incoming().kind == 'night' ? id == 'night-' + incoming().day + '-' + request.auth.uid : autoId(id));
       allow delete: if isOwner();
     }
