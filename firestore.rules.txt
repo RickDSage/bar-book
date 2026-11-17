@@ -708,11 +708,28 @@ service cloud.firestore {
     // settings/names {mgr, bar, floor}: the first names to pick from when joining and closing, kept by the managers.
     function nameList(l) { return l is list && l.size() <= 40; }
     match /settings/{id} {
-      allow read: if isMember() && id in ['contacts', 'names'];
-      allow write: if isManager() && id == 'contacts' && exactly(['list', 'uid', 'name', 'at']) && incoming().list is list
+      allow read: if isMember() && id in ['contacts', 'names', 'venue', 'season'];
+      allow write: if id == 'contacts' && isManager() && exactly(['list', 'uid', 'name', 'at']) && incoming().list is list
         && incoming().list.size() <= 30 && stamped();
-      allow write: if isManager() && id == 'names' && exactly(['mgr', 'bar', 'floor', 'uid', 'name', 'at'])
+      allow write: if id == 'names' && isManager() && exactly(['mgr', 'bar', 'floor', 'uid', 'name', 'at'])
         && nameList(incoming().mgr) && nameList(incoming().bar) && nameList(incoming().floor) && stamped();
+      // settings/venue: last orders (a time, or '' for none) and when the app turns to its day and night looks.
+      allow write: if id == 'venue' && isManager() && exactly(['lastOrders', 'dayAt', 'nightAt', 'uid', 'name', 'at'])
+        && (incoming().lastOrders == '' || isTime(incoming().lastOrders)) && isTime(incoming().dayAt) && isTime(incoming().nightAt) && stamped();
+      // settings/season: the menus a manager can switch to (each a name and the drinks it takes off or puts first),
+      // and which one is on ('' is the full menu). Switching back is one tap, and nothing is deleted.
+      allow write: if id == 'season' && isManager() && exactly(['on', 'sets', 'uid', 'name', 'at'])
+        && optText(incoming().on, 40) && incoming().sets is list && incoming().sets.size() <= 8 && stamped();
+    }
+
+    // ---------- Closing times ----------
+    // closes/{day}--{side}: how long tonight's close took, from the first closing tick to the handover, written once by
+    // the phone that hands over. The team's best time is the quickest of these.
+    match /closes/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && exactly(['day', 'side', 'mins', 'uid', 'name', 'at']) && stamped()
+        && incoming().side in ['bar', 'floor'] && isDay(incoming().day) && nearNow(incoming().day)
+        && id == incoming().day + '--' + incoming().side && incoming().mins is int && incoming().mins >= 1 && incoming().mins <= 720;
     }
 
     // ---------- Issues and handover ----------

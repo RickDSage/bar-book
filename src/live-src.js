@@ -164,6 +164,11 @@ function listen(uid) {
     // Who to call: the venue's own numbers, kept by the manager.
     // The names to pick from, kept by the managers. None saved yet means the app's own list.
     sub("names", doc(db, "settings", "names"), (x) => { LIVE.names = x.exists() ? { mgr: x.data().mgr, bar: x.data().bar, floor: x.data().floor } : null; liveChanged("names"); });
+    // Last orders and the day and night times, and the seasonal menus: one record each, kept by the managers.
+    sub("venue", doc(db, "settings", "venue"), (x) => { LIVE.venue = x.exists() ? x.data() : null; liveChanged("venue"); });
+    sub("season", doc(db, "settings", "season"), (x) => { LIVE.season = x.exists() ? x.data() : null; liveChanged("season"); });
+    // How long each close took lately, for the closing timer's best time.
+    sub("closes", query(collection(db, "closes"), orderBy("at", "desc"), limit(60)), (snap) => { LIVE.closes = rows(snap); liveChanged("closes"); });
     sub("contacts", doc(db, "settings", "contacts"), (x) => { LIVE.contacts = x.exists() ? x.data().list : []; liveChanged("contacts"); });
     // The count of wrong team codes, so the owner can see it and unlock joining.
     if (LIVE.owner) sub("gate", doc(db, "gate", "team"), (x) => { LIVE.gate = x.exists() ? x.data({ serverTimestamps: "estimate" }) : { tries: 0 }; liveChanged("gate"); });
@@ -560,6 +565,20 @@ LIVE.api = {
   fixed: (id, fix) => updateDoc(doc(db, "issues", id), { status: "fixed", fix, fixedBy: LIVE.me, fixedByUid: auth.currentUser.uid, fixedAt: serverTimestamp() }),
   withdrawIssue: (id) => deleteDoc(doc(db, "issues", id)),
   saveNames: (n) => setDoc(doc(db, "settings", "names"), { mgr: n.mgr, bar: n.bar, floor: n.floor, ...me() }),
+  saveVenue: (v) => setDoc(doc(db, "settings", "venue"), { lastOrders: v.lastOrders, dayAt: v.dayAt, nightAt: v.nightAt, ...me() }),
+  saveSeason: (on, sets) => setDoc(doc(db, "settings", "season"), { on, sets, ...me() }),
+  // Tonight's close took this long, from the first closing tick to the handover. Written once a night a side.
+  closeTime: (day, side, mins) => setDoc(doc(db, "closes", `${day}--${side}`), { day, side, mins, ...me() }),
+  // Everything that happened on one business night, read once, for Shift replay (managers). Times are fetched with two
+  // hours either side and the app keeps what falls in that night.
+  async replay(day) {
+    const from = Timestamp.fromMillis(Date.parse(day + "T04:00:00Z")), to = Timestamp.fromMillis(Date.parse(day + "T04:00:00Z") + 30 * 36e5);
+    const range = (c, n) => getDocs(query(collection(db, c), where("at", ">=", from), where("at", "<=", to), limit(n))).then(rows).catch(() => []);
+    const [events, outlog, reports, sent, issues] = await Promise.all([
+      getDocs(query(collection(db, "events"), where("day", "==", day), limit(3000))).then(rows),
+      range("outlog", 300), range("reports", 20), LIVE.admin ? range("sent", 300) : [], range("issues", 100)]);
+    return { events, outlog, reports, sent, issues };
+  },
   saveContacts: (list) => setDoc(doc(db, "settings", "contacts"), { list, ...me() }),
   watchMedia,
   // A drink's photo and video link, saved together. With neither, the record goes.
@@ -568,7 +587,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
+  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }
