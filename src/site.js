@@ -9,7 +9,15 @@ const EMU = process.argv.includes("--emu");
 const CONFIG_FILE = EMU ? "../test/firebase-config.emu.json" : "../firebase-config.json";
 const CONFIG = fs.existsSync(CONFIG_FILE) ? fs.readFileSync(CONFIG_FILE, "utf8") : null;
 fs.mkdirSync(OUT, { recursive: true });
-if (CONFIG) require("esbuild").buildSync({ entryPoints: ["live-src.js"], bundle: true, format: "esm", minify: true, target: "es2020", outfile: OUT + "/live.js", define: { __CONFIG__: CONFIG, __EMU__: String(EMU) } });
+// Which rules this build was made with: a fingerprint of firestore.rules, written into the rules' own rulesv check so
+// Maintenance's phone can tell when the published rules are older than the app (they're pasted into the console by hand).
+const RULES_RE = /v == '[0-9a-f]{12}'; \/\/ RULES-FINGERPRINT/;
+const rulesText = fs.readFileSync("../firestore.rules", "utf8");
+if (!RULES_RE.test(rulesText)) throw new Error("firestore.rules has lost its rulesv fingerprint line");
+const RULES_ID = require("crypto").createHash("sha256").update(rulesText.replace(RULES_RE, "")).digest("hex").slice(0, 12);
+const rulesNow = rulesText.replace(RULES_RE, `v == '${RULES_ID}'; // RULES-FINGERPRINT`);
+if (rulesNow !== rulesText) fs.writeFileSync("../firestore.rules", rulesNow);
+if (CONFIG) require("esbuild").buildSync({ entryPoints: ["live-src.js"], bundle: true, format: "esm", minify: true, target: "es2020", outfile: OUT + "/live.js", define: { __CONFIG__: CONFIG, __EMU__: String(EMU), __RULES__: JSON.stringify(RULES_ID) } });
 // The app's own fonts.
 fs.mkdirSync(OUT + "/fonts", { recursive: true });
 for (const f of fs.readdirSync("fonts")) fs.copyFileSync("fonts/" + f, OUT + "/fonts/" + f);

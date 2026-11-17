@@ -81,6 +81,13 @@ service cloud.firestore {
     function slug(s) { return s.lower().replace('[^a-z0-9]+', '-'); }
     function autoId(s) { return s is string && s.matches('[A-Za-z0-9]{20}'); }
 
+    // ---------- Which rules these are ----------
+    // The build writes a fingerprint of this file here (src/site.js). Maintenance's phone asks for rulesv/{its build's
+    // fingerprint}: refused means the rules published in the console are older than the app. Nothing is stored here.
+    match /rulesv/{v} {
+      allow get: if signedIn() && v == 'ed3840a98bb6'; // RULES-FINGERPRINT
+    }
+
     // ---------- Joining the team ----------
     // config/team {code}: no phone can read it; the rules compare against it. The owner can set a new one from the app.
     match /config/{id} {
