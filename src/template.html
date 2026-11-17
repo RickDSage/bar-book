@@ -977,6 +977,18 @@ body.stmode #say { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 .since-p.hot { border-color: var(--warn); }
 .since-p span { color: var(--muted); font-size: 15px; }
 .since-card .btn.wide { margin-top: 8px; }
+.dr-card.ph .btn { margin-top: 8px; }
+.ph-langs { margin: 6px 0 0; padding: 0; }
+.ph-card { padding: 28px 18px; }
+.ph-say { font-size: 34px; line-height: 1.2; font-weight: 700; margin: 0; }
+.ph-pron { font-size: 20px; color: var(--brass); margin: 12px 0 0; letter-spacing: .02em; }
+.ph-en { font-size: 18px; color: var(--muted); margin: 12px 0 0; }
+.ph-hear { margin-top: 20px; min-height: 60px; font-size: 20px; width: 100%; }
+.ph-nav { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 12px; }
+.ph-nav .btn { min-height: 56px; font-size: 18px; }
+.ph-tg { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; }
+.ph-row { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 6px 0; }
+.ph-row span { color: var(--muted); font-size: 14px; }
 </style>
 <script>
 // Light, dark or auto (the phone's own setting, the default), picked in More.
@@ -4939,6 +4951,9 @@ const FEATURES = [
   { g: "Drinks", k: "quiz", n: "Quiz night", go: "quiz", team: 1,
     what: "A team quiz on our own specs: the iPad shows the questions big and everyone answers on their phone. A kind scoreboard: top three get a cheer, the host can hide names.",
     staff: "Join from Games and drills and answer on your phone. Anyone can host." },
+  { g: "Drinks", k: "phrases", n: "Bar phrases", go: "phrases",
+    what: "A few things you say to guests at the bar or on the floor, in French, Spanish or Italian: one big card at a time, with how to say it and a button to hear it. Counts towards the drill streak.",
+    staff: "Pick a language and Bar or Floor under More, Games and drills, then Start. Switch the English or the sound-it-out line off once you know them." },
   { g: "Drinks", k: "wrap", n: "Your month", go: "wrap",
     what: "Your month in Bar Book on one picture: closing nights, jobs ticked, specs learnt, drill days and quiz nights. Counted on your phone, first name and numbers only.",
     staff: "Share it on WhatsApp or Instagram from Games and drills." },
@@ -4977,11 +4992,13 @@ function openFeatures() {
 }
 // Where a feature lives: a bottom tab, a part of the Shift tab, or a card on the Team page.
 function openAt(where) {
+  // Going somewhere else closes a page left open on top (the Siri links open their own).
+  if (where !== "siri" && !$("#sheet").hidden) hideSheet();
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where === "shift") return show("tally");
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
-  if (["drill", "quiz", "wrap"].includes(where)) return funGo(where === "wrap" ? "home" : where);
+  if (["drill", "quiz", "wrap", "phrases"].includes(where)) return funGo(where === "wrap" ? "home" : where === "phrases" ? "phr" : where);
   if (["morning", "stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
   show("notices");
   document.activeElement?.blur?.();
@@ -4997,7 +5014,7 @@ const PLACE_KW = { morning: "opening prep pars order today", lists: "closing clo
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
-  drill: "daily drill streak train learn", quiz: "quiz night game team play", siri: "siri shortcut voice back tap", wrap: "wrapped month stats share card" };
+  drill: "daily drill streak train learn", quiz: "quiz night game team play", siri: "siri shortcut voice back tap", wrap: "wrapped month stats share card", phrases: "french spanish italian language phrases speak guests" };
 function placeHits(q) {
   const ws = q.toLowerCase().split(/\s+/).filter((w) => w.length >= 3 || /^\d+$/.test(w)); if (!ws.length) return [];
   return FEATURES.filter((f) => PLACE_KW[f.k] && fUsable(f) && !(f.k === "tell" && LIVE.owner) && ws.every((w) => `${f.n} ${PLACE_KW[f.k]}`.toLowerCase().split(/[\s:]+/).some((x) => x.startsWith(w)))).slice(0, 3);

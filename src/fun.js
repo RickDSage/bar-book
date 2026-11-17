@@ -8,7 +8,7 @@ const fnAdd = (day, n) => new Date(Date.parse(day + "T12:00:00Z") + n * 864e5).t
 const fnMonth = (day = fnDay()) => day.slice(0, 7);
 const fnMonthName = (ym) => new Date(ym + "-15T12:00:00Z").toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
 // Something running on this page that the bar station mustn't bounce away from after 2 idle minutes.
-function funBusy() { return cur === "fun" && (!!DRUN || FN.view === "quiz"); }
+function funBusy() { return cur === "fun" && (!!DRUN || FN.view === "quiz" || FN.view === "phr"); }
 
 /* ---------- Read it out (bar station) ----------
    The iPad reads a drink's steps out loud in a British voice, one step at a time, with Back, Again and Next, so the
@@ -321,6 +321,7 @@ const SC_LINKS = [
   ["Bar Book station", "#at=tab:station", "The iPad bar station"],
   ["Bar Book drill", "#at=drill", "Today's two-minute drill"],
   ["Bar Book quiz", "#at=quiz", "Quiz night"],
+  ["Bar Book phrases", "#at=phrases", "Bar phrases in French, Spanish or Italian"],
 ];
 function openShortcuts() {
   lastFocus = document.activeElement;
@@ -414,6 +415,7 @@ function funTopHtml() {
       <span class="go">${today ? "Go again" : "Start"} ›</span></button>
     <button class="dr-card qn" data-fn="quiz"><span class="k">Quiz night</span><b class="t">${q ? (qnHost() ? "You're hosting" : `Join <span translate="no">${esc(q.hostName)}</span>'s quiz`) : "Play as a team"}</b>
       <span class="s">${q ? "It's on now. Tap to play." : "The iPad shows the questions, everyone answers on their phone."}</span><span class="go">${q ? "Play" : "Open"} ›</span></button>
+    ${phCardHtml()}
     ${wrapHtml()}`;
 }
 // renderFun (maker.js) asks this first: a drill or quiz night takes over the page while it's on.
@@ -424,18 +426,22 @@ function funScreen() {
   if (LIVE.me) LIVE.api?.watchQuiz(true);
   if (FN.view === "quiz") { qnJoin(); el.innerHTML = qnHtml(); return true; }
   if (FN.view === "drill") { drillStart(); return true; }
+  if (FN.view === "phr" && PRUN) { el.innerHTML = phHtml(); return true; }
+  if (FN.view === "phrEnd" && PRUN) { el.innerHTML = phEndHtml(); return true; }
+  if (FN.view === "phr") { phStart(); return true; }
   return false;
 }
 // Leaving the page: a drill in progress counts as done, and quiz night stops listening (it costs reads).
-function funLeave() { if (DRUN && !DRUN.over) drillEnd(); DRUN = null; if (FN.view !== "quiz") FN.view = "home"; LIVE.api?.watchQuiz(false); }
+function funLeave() { if (DRUN && !DRUN.over) drillEnd(); DRUN = null; PRUN = null; if (FN.view !== "quiz") FN.view = "home"; LIVE.api?.watchQuiz(false); }
 function funGo(view) { FN.view = view; if (cur === "fun") renderFun(); else show("fun"); scrollTo(0, 0); }
 $("#v-fun").addEventListener("click", (e) => {
   const b = e.target.closest("[data-fn], [data-dr-pick], [data-qn-pick]"); if (!b) return;
   if (b.dataset.drPick != null) return drillPick(b.dataset.drPick);
   if (b.dataset.qnPick != null) return qnPick(b.dataset.qnPick);
   const k = b.dataset.fn, q = LIVE.quiz; haptic();
-  if (k === "home") { DRUN = null; return funGo("home"); }
+  if (k === "home") { DRUN = null; PRUN = null; return funGo("home"); }
   if (k === "drill") return drillStart();
+  if (k === "phr") return phStart();
   if (k === "drill-stop") return drillEnd();
   if (k === "quiz") return funGo("quiz");
   if (k === "wrap") return wrapShare();

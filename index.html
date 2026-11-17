@@ -977,6 +977,18 @@ body.stmode #say { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 .since-p.hot { border-color: var(--warn); }
 .since-p span { color: var(--muted); font-size: 15px; }
 .since-card .btn.wide { margin-top: 8px; }
+.dr-card.ph .btn { margin-top: 8px; }
+.ph-langs { margin: 6px 0 0; padding: 0; }
+.ph-card { padding: 28px 18px; }
+.ph-say { font-size: 34px; line-height: 1.2; font-weight: 700; margin: 0; }
+.ph-pron { font-size: 20px; color: var(--brass); margin: 12px 0 0; letter-spacing: .02em; }
+.ph-en { font-size: 18px; color: var(--muted); margin: 12px 0 0; }
+.ph-hear { margin-top: 20px; min-height: 60px; font-size: 20px; width: 100%; }
+.ph-nav { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; margin-top: 12px; }
+.ph-nav .btn { min-height: 56px; font-size: 18px; }
+.ph-tg { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 12px; }
+.ph-row { display: flex; flex-direction: column; align-items: flex-start; width: 100%; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 6px 0; }
+.ph-row span { color: var(--muted); font-size: 14px; }
 </style>
 <script>
 // Light, dark or auto (the phone's own setting, the default), picked in More.
@@ -5017,6 +5029,9 @@ const FEATURES = [
   { g: "Drinks", k: "quiz", n: "Quiz night", go: "quiz", team: 1,
     what: "A team quiz on our own specs: the iPad shows the questions big and everyone answers on their phone. A kind scoreboard: top three get a cheer, the host can hide names.",
     staff: "Join from Games and drills and answer on your phone. Anyone can host." },
+  { g: "Drinks", k: "phrases", n: "Bar phrases", go: "phrases",
+    what: "A few things you say to guests at the bar or on the floor, in French, Spanish or Italian: one big card at a time, with how to say it and a button to hear it. Counts towards the drill streak.",
+    staff: "Pick a language and Bar or Floor under More, Games and drills, then Start. Switch the English or the sound-it-out line off once you know them." },
   { g: "Drinks", k: "wrap", n: "Your month", go: "wrap",
     what: "Your month in Bar Book on one picture: closing nights, jobs ticked, specs learnt, drill days and quiz nights. Counted on your phone, first name and numbers only.",
     staff: "Share it on WhatsApp or Instagram from Games and drills." },
@@ -5055,11 +5070,13 @@ function openFeatures() {
 }
 // Where a feature lives: a bottom tab, a part of the Shift tab, or a card on the Team page.
 function openAt(where) {
+  // Going somewhere else closes a page left open on top (the Siri links open their own).
+  if (where !== "siri" && !$("#sheet").hidden) hideSheet();
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where === "shift") return show("tally");
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
-  if (["drill", "quiz", "wrap"].includes(where)) return funGo(where === "wrap" ? "home" : where);
+  if (["drill", "quiz", "wrap", "phrases"].includes(where)) return funGo(where === "wrap" ? "home" : where === "phrases" ? "phr" : where);
   if (["morning", "stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
   show("notices");
   document.activeElement?.blur?.();
@@ -5075,7 +5092,7 @@ const PLACE_KW = { morning: "opening prep pars order today", lists: "closing clo
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
-  drill: "daily drill streak train learn", quiz: "quiz night game team play", siri: "siri shortcut voice back tap", wrap: "wrapped month stats share card" };
+  drill: "daily drill streak train learn", quiz: "quiz night game team play", siri: "siri shortcut voice back tap", wrap: "wrapped month stats share card", phrases: "french spanish italian language phrases speak guests" };
 function placeHits(q) {
   const ws = q.toLowerCase().split(/\s+/).filter((w) => w.length >= 3 || /^\d+$/.test(w)); if (!ws.length) return [];
   return FEATURES.filter((f) => PLACE_KW[f.k] && fUsable(f) && !(f.k === "tell" && LIVE.owner) && ws.every((w) => `${f.n} ${PLACE_KW[f.k]}`.toLowerCase().split(/[\s:]+/).some((x) => x.startsWith(w)))).slice(0, 3);
@@ -9186,7 +9203,7 @@ const fnAdd = (day, n) => new Date(Date.parse(day + "T12:00:00Z") + n * 864e5).t
 const fnMonth = (day = fnDay()) => day.slice(0, 7);
 const fnMonthName = (ym) => new Date(ym + "-15T12:00:00Z").toLocaleDateString("en-GB", { month: "long", timeZone: "UTC" });
 // Something running on this page that the bar station mustn't bounce away from after 2 idle minutes.
-function funBusy() { return cur === "fun" && (!!DRUN || FN.view === "quiz"); }
+function funBusy() { return cur === "fun" && (!!DRUN || FN.view === "quiz" || FN.view === "phr"); }
 
 /* ---------- Read it out (bar station) ----------
    The iPad reads a drink's steps out loud in a British voice, one step at a time, with Back, Again and Next, so the
@@ -9499,6 +9516,7 @@ const SC_LINKS = [
   ["Bar Book station", "#at=tab:station", "The iPad bar station"],
   ["Bar Book drill", "#at=drill", "Today's two-minute drill"],
   ["Bar Book quiz", "#at=quiz", "Quiz night"],
+  ["Bar Book phrases", "#at=phrases", "Bar phrases in French, Spanish or Italian"],
 ];
 function openShortcuts() {
   lastFocus = document.activeElement;
@@ -9592,6 +9610,7 @@ function funTopHtml() {
       <span class="go">${today ? "Go again" : "Start"} ›</span></button>
     <button class="dr-card qn" data-fn="quiz"><span class="k">Quiz night</span><b class="t">${q ? (qnHost() ? "You're hosting" : `Join <span translate="no">${esc(q.hostName)}</span>'s quiz`) : "Play as a team"}</b>
       <span class="s">${q ? "It's on now. Tap to play." : "The iPad shows the questions, everyone answers on their phone."}</span><span class="go">${q ? "Play" : "Open"} ›</span></button>
+    ${phCardHtml()}
     ${wrapHtml()}`;
 }
 // renderFun (maker.js) asks this first: a drill or quiz night takes over the page while it's on.
@@ -9602,18 +9621,22 @@ function funScreen() {
   if (LIVE.me) LIVE.api?.watchQuiz(true);
   if (FN.view === "quiz") { qnJoin(); el.innerHTML = qnHtml(); return true; }
   if (FN.view === "drill") { drillStart(); return true; }
+  if (FN.view === "phr" && PRUN) { el.innerHTML = phHtml(); return true; }
+  if (FN.view === "phrEnd" && PRUN) { el.innerHTML = phEndHtml(); return true; }
+  if (FN.view === "phr") { phStart(); return true; }
   return false;
 }
 // Leaving the page: a drill in progress counts as done, and quiz night stops listening (it costs reads).
-function funLeave() { if (DRUN && !DRUN.over) drillEnd(); DRUN = null; if (FN.view !== "quiz") FN.view = "home"; LIVE.api?.watchQuiz(false); }
+function funLeave() { if (DRUN && !DRUN.over) drillEnd(); DRUN = null; PRUN = null; if (FN.view !== "quiz") FN.view = "home"; LIVE.api?.watchQuiz(false); }
 function funGo(view) { FN.view = view; if (cur === "fun") renderFun(); else show("fun"); scrollTo(0, 0); }
 $("#v-fun").addEventListener("click", (e) => {
   const b = e.target.closest("[data-fn], [data-dr-pick], [data-qn-pick]"); if (!b) return;
   if (b.dataset.drPick != null) return drillPick(b.dataset.drPick);
   if (b.dataset.qnPick != null) return qnPick(b.dataset.qnPick);
   const k = b.dataset.fn, q = LIVE.quiz; haptic();
-  if (k === "home") { DRUN = null; return funGo("home"); }
+  if (k === "home") { DRUN = null; PRUN = null; return funGo("home"); }
   if (k === "drill") return drillStart();
+  if (k === "phr") return phStart();
   if (k === "drill-stop") return drillEnd();
   if (k === "quiz") return funGo("quiz");
   if (k === "wrap") return wrapShare();
@@ -9636,6 +9659,153 @@ function funLive(what) {
   if ((what === "quiz" || what === "quizPlayers" || what === "me") && cur === "fun" && FN.view === "quiz") { qnJoin(); renderFun(); }
   if ((what === "quiz") && cur === "fun" && FN.view === "home") renderFun();
 }
+/* ---------- Bar phrases ----------
+   A few things the bar and floor really say to guests, in French, Spanish and Italian. One big card at a time: the
+   phrase, how to say it (sounded out), what it means, and a button to hear it in a native voice. No grammar. The English
+   and the sound-it-out line can each be switched off once you know them. Going through a set counts towards the same
+   daily streak as the drill. All on this phone only (store "phr").
+   Written by hand in everyday spoken style (vous in French, Spanish as said in Spain), not run through a translator.
+   Not yet checked by a native speaker on the team: App feedback for anything that sounds off. */
+const PH_LANGS = [["fr", "Français", "French", "fr-FR"], ["es", "Español", "Spanish", "es-ES"], ["it", "Italiano", "Italian", "it-IT"]];
+// [id, sides, English, French, how to say it, Spanish, how to say it, Italian, how to say it]. Capitals are the loud bit.
+const PH = [
+  ["learn", "bar floor", "Hi! I'm still learning {lang}, sorry!",
+    "Bonjour ! J'apprends encore le français, désolé !", "bon-ZHOOR! zhah-PRAHN ahn-KOR luh frahn-SAY, day-zoh-LAY",
+    "¡Hola! Todavía estoy aprendiendo español, ¡perdona!", "OH-lah! toh-dah-VEE-ah es-TOY ah-pren-DYEN-doh es-pan-YOL, pair-DOH-nah",
+    "Ciao! Sto ancora imparando l'italiano, scusa!", "CHOW! stoh ahn-KOH-rah eem-pah-RAHN-doh lee-tah-LYAH-noh, SKOO-zah"],
+  ["seat", "floor", "At the bar or at a table?",
+    "Au bar ou à une table ?", "oh BAR oo ah oon TAH-bluh",
+    "¿En la barra o en una mesa?", "en lah BAH-rah oh en OO-nah MEH-sah",
+    "Al bancone o al tavolo?", "ahl bahn-KOH-neh oh ahl TAH-voh-loh"],
+  ["allergy", "bar floor", "Any allergies?",
+    "Vous avez des allergies ?", "voo-zah-VAY day-zah-lair-ZHEE",
+    "¿Alguna alergia?", "ahl-GOO-nah ah-LAIR-hyah",
+    "Avete allergie?", "ah-VEH-teh ahl-lair-JEE-eh"],
+  ["single", "bar", "Single or double?",
+    "Simple ou double ?", "SAM-pluh oo DOO-bluh",
+    "¿Sencillo o doble?", "sen-SEE-yoh oh DOH-bleh",
+    "Singolo o doppio?", "SEEN-goh-loh oh DOHP-pyoh"],
+  ["ice", "bar", "With ice?",
+    "Avec des glaçons ?", "ah-VEK day glah-SOHN",
+    "¿Con hielo?", "kon YEH-loh",
+    "Con ghiaccio?", "kon GYAHT-choh"],
+  ["wine", "bar floor", "Red, white or rosé?",
+    "Rouge, blanc ou rosé ?", "ROOZH, BLAHN oo roh-ZAY",
+    "¿Tinto, blanco o rosado?", "TEEN-toh, BLAHN-koh oh roh-SAH-doh",
+    "Rosso, bianco o rosato?", "ROHS-soh, BYAHN-koh oh roh-ZAH-toh"],
+  ["glass", "bar floor", "A glass or a bottle?",
+    "Un verre ou une bouteille ?", "uhn VAIR oo oon boo-TAY",
+    "¿Una copa o una botella?", "OO-nah KOH-pah oh OO-nah boh-TEH-yah",
+    "Un bicchiere o una bottiglia?", "oon beek-KYEH-reh oh OO-nah boht-TEE-lyah"],
+  ["beer", "bar floor", "Which beer would you like?",
+    "Quelle bière voulez-vous ?", "kel BYAIR voo-lay VOO",
+    "¿Qué cerveza quieres?", "keh sair-VEH-sah KYEH-res",
+    "Quale birra vuoi?", "KWAH-leh BEER-rah VWOY"],
+  ["pint", "bar", "A pint or a half?",
+    "Une pinte ou un demi ?", "oon PANT oo uhn duh-MEE",
+    "¿Una pinta o media?", "OO-nah PEEN-tah oh MEH-dyah",
+    "Una pinta o mezza?", "OO-nah PEEN-tah oh MED-dzah"],
+  ["burger", "floor", "Beef burger or chicken burger?",
+    "Burger au bœuf ou au poulet ?", "bur-GAIR oh BUHF oo oh poo-LAY",
+    "¿Hamburguesa de ternera o de pollo?", "am-boor-GEH-sah deh tair-NEH-rah oh deh POH-yoh",
+    "Hamburger di manzo o di pollo?", "AM-boor-gair dee MAHN-dzoh oh dee POHL-loh"],
+  ["fries", "floor", "Fries with that?",
+    "Avec des frites ?", "ah-VEK day FREET",
+    "¿Con patatas fritas?", "kon pah-TAH-tahs FREE-tahs",
+    "Con le patatine?", "kon leh pah-tah-TEE-neh"],
+  ["drink", "floor", "Something to drink?",
+    "Quelque chose à boire ?", "kel-kuh SHOHZ ah BWAHR",
+    "¿Algo de beber?", "AHL-goh deh beh-BAIR",
+    "Qualcosa da bere?", "kwahl-KOH-zah dah BEH-reh"],
+  ["water", "floor", "Still or sparkling water?",
+    "Eau plate ou gazeuse ?", "oh PLAHT oo gah-ZUHZ",
+    "¿Agua con gas o sin gas?", "AH-gwah kon GAHS oh seen GAHS",
+    "Acqua naturale o frizzante?", "AHK-kwah nah-too-RAH-leh oh freed-DZAHN-teh"],
+  ["cheers", "bar", "Cheers!",
+    "Santé !", "sahn-TAY",
+    "¡Salud!", "sah-LOOD",
+    "Cin cin!", "cheen cheen"],
+  ["enjoy", "floor", "Enjoy your meal!",
+    "Bon appétit !", "bon ah-pay-TEE",
+    "¡Que aproveche!", "keh ah-proh-VEH-cheh",
+    "Buon appetito!", "bwon ahp-peh-TEE-toh"],
+  ["pay", "bar floor", "Card or cash?",
+    "Carte ou espèces ?", "KART oo es-PESS",
+    "¿Tarjeta o efectivo?", "tar-HEH-tah oh eh-fek-TEE-voh",
+    "Carta o contanti?", "KAR-tah oh kohn-TAHN-tee"],
+  ["bye", "bar floor", "Thank you, see you soon!",
+    "Merci, à bientôt !", "mair-SEE, ah byan-TOH",
+    "¡Gracias, hasta pronto!", "GRAH-syahs, AHS-tah PROHN-toh",
+    "Grazie, a presto!", "GRAHT-tsyeh, ah PREH-stoh"],
+];
+const phSet = () => ({ lang: "fr", side: "bar", en: true, say: true, seen: {}, ...store.get("phr", {}) });
+let PHS = phSet(), PRUN = null;
+const phSave = () => store.set("phr", PHS);
+const phLang = () => PH_LANGS.find(([c]) => c === PHS.lang) || PH_LANGS[0];
+const phCol = () => 3 + PH_LANGS.indexOf(phLang()) * 2;
+const phCards = () => PH.filter((r) => r[1].split(" ").includes(PHS.side));
+const phEn = (r) => r[2].replace("{lang}", phLang()[2]);
+// Hear it in the language's own voice. A phone without that voice still reads it with the language set.
+function phSpeak(text) {
+  if (!SAY_OK) return toast("This phone can't read out loud");
+  const tag = phLang()[3], vs = speechSynthesis.getVoices();
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text); u.lang = tag; u.rate = 0.85;
+  const v = vs.find((x) => x.lang === tag) || vs.find((x) => x.lang?.slice(0, 2) === tag.slice(0, 2)); if (v) u.voice = v;
+  speechSynthesis.speak(u);
+}
+function phStart() { haptic(); sayStop(); PRUN = { i: 0 }; FN.view = "phr"; renderFun(); }
+// Going through the whole set counts as today's practice, the same streak as the drill.
+function phDone() {
+  const t = fnDay();
+  if (!DR.days.includes(t)) { DR.days = [...DR.days, t].slice(-400); drillSave(); }
+  FN.view = "phrEnd"; renderFun();
+}
+function phHtml() {
+  const xs = phCards(), r = xs[PRUN.i], c = phCol(), [, nat] = phLang(), last = PRUN.i === xs.length - 1;
+  (PHS.seen[PHS.lang] ||= {})[r[0]] = 1; phSave();
+  return `<div class="dr-head"><b>${esc(nat)} · ${PHS.side === "bar" ? "Bar" : "Floor"}</b><span>${PRUN.i + 1} of ${xs.length}</span><button class="linkbtn" data-fn="home">Stop</button></div>
+    <div class="card ph-card">
+      <p class="ph-say" lang="${PHS.lang}" translate="no">${esc(r[c])}</p>
+      ${PHS.say ? `<p class="ph-pron" translate="no">${esc(r[c + 1])}</p>` : ""}
+      ${PHS.en ? `<p class="ph-en">${esc(phEn(r))}</p>` : ""}
+      <button class="btn pri ph-hear" data-ph-hear="${esc(r[c])}">🔊 Hear it</button>
+    </div>
+    <div class="ph-nav"><button class="btn" data-ph="back"${PRUN.i ? "" : " disabled"}>‹ Back</button><button class="btn pri" data-ph="next">${last ? "Finish" : "Next ›"}</button></div>
+    <div class="ph-tg"><label class="check"><input type="checkbox" data-ph-tg="en"${PHS.en ? " checked" : ""}> Show the English</label><label class="check"><input type="checkbox" data-ph-tg="say"${PHS.say ? " checked" : ""}> Show how to say it</label></div>`;
+}
+function phEndHtml() {
+  const s = drillStreak(), [, nat] = phLang(), c = phCol();
+  return `<button class="back" data-fn="home">‹ Games and drills</button>
+    <div class="card dr-end"><p class="dr-fire" aria-hidden="true">${s >= 2 ? "🔥" : "✅"}</p><h2>Nice one!</h2>
+      <p class="lead" style="margin:6px auto 0">${s ? `${plural(s, "day")} in a row.` : ""} Try one on a guest tonight.</p></div>
+    <div class="sec">Your ${esc(nat)} phrases</div>
+    ${phCards().map((r) => `<button class="ph-row" data-ph-hear="${esc(r[c])}"><b lang="${PHS.lang}" translate="no">🔊 ${esc(r[c])}</b>${PHS.en ? `<span>${esc(phEn(r))}</span>` : ""}</button>`).join("")}
+    <div class="actions"><button class="btn pri" data-fn="phr">Go again</button><button class="btn" data-fn="home">Done</button></div>
+    <p class="note">Something sound off to a native speaker? Tell maintenance in App feedback.</p>`;
+}
+function phCardHtml() {
+  const chip = (k, v, l, lang) => `<button class="chip" data-ph-${k}="${v}" aria-pressed="${PHS[k] === v}"${lang ? ` lang="${v}" translate="no"` : ""}>${l}</button>`;
+  return `<div class="dr-card ph"><span class="k">Bar phrases</span><b class="t">Say it to guests in their language</b>
+    <span class="s">One phrase at a time, with how to say it and a button to hear it.</span>
+    <span class="recent ph-langs">${PH_LANGS.map(([c, l]) => chip("lang", c, l, true)).join("")}</span>
+    <span class="recent ph-langs">${chip("side", "bar", "Bar")}${chip("side", "floor", "Floor")}</span>
+    <button class="btn pri" data-fn="phr">Start</button></div>`;
+}
+$("#v-fun").addEventListener("click", (e) => {
+  const l = e.target.closest("[data-ph-lang], [data-ph-side]");
+  if (l) { haptic(); if (l.dataset.phLang) PHS.lang = l.dataset.phLang; if (l.dataset.phSide) PHS.side = l.dataset.phSide; phSave(); renderFun(); return; }
+  const h = e.target.closest("[data-ph-hear]"); if (h) { haptic(); return phSpeak(h.dataset.phHear); }
+  const b = e.target.closest("[data-ph]"); if (!b || !PRUN) return;
+  haptic();
+  if (b.dataset.ph === "back" && PRUN.i > 0) PRUN.i--;
+  else if (b.dataset.ph === "next") { if (PRUN.i >= phCards().length - 1) return phDone(); PRUN.i++; }
+  renderFun();
+});
+document.addEventListener("change", (e) => {
+  const t = e.target.closest?.("[data-ph-tg]"); if (!t) return;
+  PHS[t.dataset.phTg] = t.checked; phSave(); if (cur === "fun") renderFun();
+});
 
 /* ---------- Help: the small ? buttons ----------
    A ? sits next to the parts of Bar Book that aren't obvious. Tapping it opens a short panel: what it's for, how to
