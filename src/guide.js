@@ -5,7 +5,7 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 2;
+const WALK_V = 3;
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -29,6 +29,7 @@ const WALK = {
       "Shift, Bar has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
       "Drinks has every spec, with Rapid fire for the rush. The bar iPad has both on the bar station, with tonight's 86s across the top.",
+      "Ran out? Stock, Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
     ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
     WALK_NAV,
     { t: "Opening", how: [
@@ -54,7 +55,7 @@ const WALK = {
     { t: "Your floor shift", how: [
       "Shift, Floor has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "86 anything, food too: type it, like a burger or a dessert, and every phone knows.",
+      "86 anything, food too: Stock, Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
     ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
     WALK_NAV,
     { t: "Opening", how: [

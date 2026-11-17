@@ -47,7 +47,8 @@ function logRender() {
     <p class="lead">Anything you see, find, do, are told or tell a manager. One line is enough: it saves with your name and the time.</p>
     <div class="lg-kinds" role="group" aria-label="What is it?">${LOG_KINDS.map(([id, t]) => `<button class="chip" data-lg-kind="${id}" aria-pressed="${id === lg.what}">${t}</button>`).join("")}</div>
     ${lg.what === "told" ? `<div class="mini">Who did you tell?</div><div class="recent" translate="no">${STAFF.mgr.map((n) => `<button class="chip" data-lg-told="${esc(n)}" aria-pressed="${lg.told === n}">${esc(n)}</button>`).join("")}</div>` : ""}
-    <label class="fld">${lg.what === "out" ? "What ran out?" : lg.what === "low" ? "What's running low?" : "What happened?"}<textarea id="lg-text" rows="2" maxlength="${LOG_MAX - 30}" placeholder="${esc(ph)}">${esc(lg.text)}</textarea></label>
+    ${lg.what === "out" ? pkBtn("Search or pick what ran out (several at once is fine)", "data-lg-pk86") : lg.what === "low" ? pkBtn("Pick from the list", "data-lg-pklow") : ""}
+    <label class="fld">${lg.what === "out" ? "Or type what ran out" : lg.what === "low" ? "What's running low?" : "What happened?"}<textarea id="lg-text" rows="2" maxlength="${LOG_MAX - 30}" placeholder="${esc(ph)}">${esc(lg.text)}</textarea></label>
     <div class="lg-side"><span>For</span><div class="seg" role="group" aria-label="Bar or floor">${Object.keys(MODE_LISTS).map((m) => `<button data-lg-side="${m}" aria-pressed="${m === lg.side}">${sideName(m)}</button>`).join("")}</div></div>
     <p class="note lg-where">${k[2]}</p>
     <div class="lg-go"><button class="btn pri" data-lg-go>Log it</button><button class="btn" data-lg-go="send">Log it and send on WhatsApp</button></div>
@@ -87,6 +88,11 @@ $("#logit").addEventListener("click", (e) => {
   const sd = t.closest("[data-lg-side]"); if (sd) { haptic(); lg.side = sd.dataset.lgSide; logRender(); return; }
   const go = t.closest("[data-lg-go]"); if (go) return logSave(go.dataset.lgGo === "send");
   const dr = t.closest("[data-lg-drop]"); if (dr) return logDrop(dr.dataset.lgDrop);
+  if (t.closest("[data-lg-pk86]")) { const side = lg.side; logClose(); return pkOpen({ mode: "86", side }); }
+  if (t.closest("[data-lg-pklow]")) {
+    $("#logit").hidden = true;
+    return pkOpen({ mode: "many", title: "What's running low?", side: lg.side, onClose: () => { $("#logit").hidden = false; }, onPick: (ns) => { const v = lg.text.trim(); lg.text = [v, ...ns].filter(Boolean).join(", "); store.set("logDraft", lg.text); $("#logit").hidden = false; logRender(); } });
+  }
 });
 function logDrop(id) { haptic(); track(LIVE.api.dropLog(id), "Taken off tonight's log", "Not taken off. Try again"); }
 $("#logit").addEventListener("keydown", (e) => { if (e.key === "Escape") logClose(); });
