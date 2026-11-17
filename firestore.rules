@@ -85,7 +85,7 @@ service cloud.firestore {
     // The build writes a fingerprint of this file here (src/site.js). Maintenance's phone asks for rulesv/{its build's
     // fingerprint}: refused means the rules published in the console are older than the app. Nothing is stored here.
     match /rulesv/{v} {
-      allow get: if signedIn() && v == 'fd4d1b2101a9'; // RULES-FINGERPRINT
+      allow get: if signedIn() && v == 'e84310554270'; // RULES-FINGERPRINT
     }
 
     // ---------- Joining the team ----------
@@ -736,5 +736,33 @@ service cloud.firestore {
       allow delete: if isManager();
     }
 
+
+    // ---------- Quiz night ----------
+    // One game at a time for the whole team (quiz/live). Whoever hosts it (the bar station iPad or any phone on the team)
+    // writes the game: the questions, which one is on, and whether it's open, showing its answer or finished. Another
+    // person can only start a new game once the old one is finished or has been left alone for an hour, or if they're a
+    // manager. Each player writes only their own answers (quiz/live/players/{uid}), only for the question that's on, and
+    // only while it's open, so nobody can change an answer once it's shown. Nothing is kept: the next game replaces it.
+    function quizDoc() { return /databases/$(database)/documents/quiz/live; }
+    match /quiz/live {
+      allow read: if isMember();
+      allow create, update: if isMember() && exactly(['game', 'qs', 'i', 'state', 'hide', 'host', 'hostName', 'at'])
+        && incoming().host == request.auth.uid && incoming().hostName == profile().data.name && incoming().at == request.time
+        && incoming().game is string && incoming().game.matches('[a-z0-9]{6,24}')
+        && incoming().qs is list && incoming().qs.size() >= 1 && incoming().qs.size() <= 20
+        && incoming().i is int && incoming().i >= 0 && incoming().i < incoming().qs.size()
+        && incoming().state in ['lobby', 'q', 'show', 'end'] && incoming().hide is bool
+        && (resource == null || resource.data.host == request.auth.uid || resource.data.state == 'end'
+            || resource.data.at < request.time - duration.value(1, 'h') || isManager());
+    }
+    match /quiz/live/players/{uid} {
+      allow read: if isMember();
+      allow create, update: if isMember() && uid == request.auth.uid && exactly(['game', 'picks', 'uid', 'name', 'at']) && stamped()
+        && incoming().game == get(quizDoc()).data.game && get(quizDoc()).data.state in ['lobby', 'q']
+        && incoming().picks is map && (get(quizDoc()).data.state == 'q' || incoming().picks.size() == 0)
+        && (((resource == null || resource.data.game != incoming().game) && incoming().picks.keys().hasOnly([string(get(quizDoc()).data.i)]))
+          || (resource != null && resource.data.game == incoming().game
+              && incoming().picks.diff(resource.data.picks).affectedKeys().hasOnly([string(get(quizDoc()).data.i)])));
+    }
   }
 }
