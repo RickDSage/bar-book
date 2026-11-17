@@ -1599,3 +1599,43 @@ describe("which rules these are", () => {
     await fails(setDoc(doc(db("owner1"), "rulesv", id), { x: 1 }), "writing one");
   });
 });
+
+describe("standout: last orders, day and night times, seasonal menus, closing times", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const venue = (uid, extra = {}) => setDoc(doc(db(uid), "settings", "venue"), { lastOrders: "22:30", dayAt: "07:00", nightAt: "19:00", ...by(uid), ...extra });
+  const season = (uid, extra = {}) => setDoc(doc(db(uid), "settings", "season"), { on: "xmas", sets: [{ id: "xmas", name: "Christmas", off: ["Mojito"], star: ["Negroni"] }], ...by(uid), ...extra });
+  const close = (uid, side = "bar", extra = {}) => setDoc(doc(db(uid), "closes", `${today()}--${side}`), { day: today(), side, mins: 42, ...by(uid), ...extra });
+  test("managers set last orders and the day and night times; everyone on the team reads them", async () => {
+    await assertSucceeds(venue("mgr1"));
+    await assertSucceeds(venue("owner1", { lastOrders: "" }));
+    await assertFails(venue("staff1"));
+    for (const bad of [{ lastOrders: "25:00" }, { lastOrders: "late" }, { dayAt: "" }, { nightAt: "7pm" }, { extra: 1 }, { name: "Max Manager" }]) await assertFails(venue("mgr1", bad));
+    await assertSucceeds(getDoc(doc(db("staff1"), "settings", "venue")));
+    await assertFails(getDoc(doc(db("phone9"), "settings", "venue")));
+  });
+  test("managers keep the seasonal menus and switch one on; staff only read", async () => {
+    await assertSucceeds(season("mgr1"));
+    await assertSucceeds(season("owner1", { on: "" }));
+    await assertFails(season("staff1"));
+    await assertFails(season("mgr1", { sets: Array(9).fill({ id: "a", name: "a", off: [], star: [] }) }));
+    await assertFails(season("mgr1", { on: "x".repeat(41) }));
+    await assertFails(season("mgr1", { sets: "Christmas" }));
+    await assertFails(season("mgr1", { extra: 1 }));
+    await assertSucceeds(getDoc(doc(db("staff1"), "settings", "season")));
+    await assertFails(getDoc(doc(db(), "settings", "season")));
+  });
+  test("the phone that hands over saves tonight's closing time once; nobody edits or deletes it", async () => {
+    await assertSucceeds(close("staff1"));
+    await assertFails(close("staff2"));
+    await assertFails(updateDoc(doc(db("staff1"), "closes", `${today()}--bar`), { mins: 5 }));
+    await assertFails(deleteDoc(doc(db("mgr1"), "closes", `${today()}--bar`)));
+    await assertSucceeds(close("staff2", "floor"));
+    for (const bad of [{ mins: 0 }, { mins: 721 }, { mins: 4.5 }, { mins: "40" }, { side: "kitchen" }, { day: "2020-01-01" }, { extra: 1 }, { name: "Mia Manager" }]) {
+      await assertFails(setDoc(doc(db("staff1"), "closes", `${bad.day || today()}--${bad.side || "bar"}`), { day: today(), side: "bar", mins: 42, ...by("staff1"), ...bad }));
+    }
+    await assertFails(setDoc(doc(db("staff1"), "closes", "anything"), { day: today(), side: "bar", mins: 42, ...by("staff1") }));
+    await assertFails(close("phone9", "bar"));
+    await assertSucceeds(getDocs(query(collection(db("staff1"), "closes"), orderBy("at", "desc"), limit(60))));
+    await assertFails(getDocs(collection(db("phone9"), "closes")));
+  });
+});
