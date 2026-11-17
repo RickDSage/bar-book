@@ -403,7 +403,7 @@ function mgRestore() {
 
 /* ---------- Health check: is this phone working properly? ---------- */
 async function mgHealth() {
-  const A = A_(), standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const A = A_(), standalone = onHomeScreen();
   const est = await navigator.storage?.estimate?.().catch(() => null), kept = await navigator.storage?.persisted?.().catch(() => null);
   let ping = null, synced = null;
   if (A && LIVE.me && navigator.onLine) { ping = await A.ping().catch(() => -1); synced = await A.synced(); }
@@ -424,6 +424,7 @@ function healthHtml() {
     ${H.est ? row(null, "Space used on this phone", `${mb(H.est.usage || 0)}${H.kept ? ", kept by the phone" : ""}`) : ""}
     <div class="actions"><button class="btn pri" data-mg-reload="health">Check again</button>${sendBtn("health", "Send to maintenance")}<button class="btn" data-mg-reboot>Reload Bar Book</button></div>`;
 }
+const onHomeScreen = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 SHARE.health = () => {
   const H = MG.health || {};
   return { what: "Health check", title: `Bar Book health check · ${LIVE.me || "a phone"} · ${stamp(new Date())}`, head: [], parts: [{ id: "h", label: "This phone", one: true, lines: [
@@ -433,6 +434,41 @@ SHARE.health = () => {
     `Phone: ${navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || "unknown"}`] }] };
 };
 
+/* ---------- Ready for Friday ----------
+   One look for the managers before the team starts using Bar Book: each line goes green by itself once it's done.
+   Backups is the one ticked by hand, because the app can't see the Firebase console. The rules and backups lines are
+   for maintenance, so a manager's phone says so instead of guessing. */
+async function mgReady() { const A = A_(); return { synced: A && LIVE.me && navigator.onLine ? await A.synced(3000) : null }; }
+function readySteps() {
+  const R = MG.ready || {}, own = LIVE.owner, mine = managersOnly().map((x) => x.name), miss = STAFF.mgr.filter((n) => !mine.includes(n));
+  const bk = store.get("readyBackup", "");
+  return [
+    { k: "rules", na: !own, t: "Firebase rules published", ok: own ? (LIVE.rulesOld === true ? false : LIVE.rulesOld === false ? true : null) : null,
+      s: !own ? "Checked on Maintenance's phone" : LIVE.rulesOld === true ? "The rules in the Firebase console are older than this version: some things will be refused. Open the rules, copy all of it, then in the Firebase console: Firestore Database, Rules, paste, Publish." : LIVE.rulesOld === false ? "The rules in the console match this version" : "Checking… (needs signal)",
+      act: own && LIVE.rulesOld === true ? `<a class="btn" href="firestore.rules.txt" target="_blank" rel="noopener">Open the rules</a>` : "" },
+    { k: "you", t: "Maintenance's code", ok: !!ownerEntry(), s: ownerEntry() ? "Set" : "Not set yet", act: own && !ownerEntry() ? `<button class="btn" data-goto="setup">Set up codes ›</button>` : "" },
+    { k: "mgr", t: "Every manager's code", ok: STAFF.mgr.length > 0 && !miss.length,
+      s: !STAFF.mgr.length ? "No managers in Names to pick from yet" : miss.length ? `Still to set: ${miss.map(esc).join(", ")}` : `All set: ${mine.map(esc).join(", ")}`, act: own && (miss.length || !STAFF.mgr.length) ? `<button class="btn" data-goto="setup">Set up codes ›</button>` : "" },
+    { k: "team", t: "Team code", ok: suSteps()[2][2], s: suSteps()[2][2] ? "Set. Give it out in person, never in a message" : "Not set from Bar Book yet", act: own && !suSteps()[2][2] ? `<button class="btn" data-goto="setup">Set up codes ›</button>` : "" },
+    { k: "backup", na: !own, t: "Daily backups switched on", ok: own ? !!bk : null,
+      s: !own ? "Ticked on Maintenance's phone" : bk ? `Ticked ${esc(bk)}` : "Firebase console: Firestore Database, Disaster recovery, daily backups kept 7 days. Bar Book can't see the console, so tick it once it's on.",
+      act: own ? `<button class="btn" data-ready-bk>${bk ? "Untick" : "✓ It's on"}</button><button class="btn" data-goto="backup">Save a backup file too ›</button>` : "" },
+    { k: "home", t: "This phone on the Home Screen", ok: onHomeScreen(), s: onHomeScreen() ? "Opened from the icon, so the phone keeps its data" : "Open Bar Book in Safari, tap Share, then Add to Home Screen, and open it from the icon from now on" },
+    { k: "queue", t: "Nothing waiting to send", ok: unsent ? false : R.synced == null ? null : R.synced,
+      s: unsent ? `${plural(unsent, "change")} still sending` : R.synced === true ? "Everything on this phone has reached the server" : R.synced === false ? "Some changes are still waiting. Find signal, then Check again" : "Checking… (needs signal)" },
+    { k: "update", t: "Bar Book up to date", ok: $("#upd").hidden, s: $("#upd").hidden ? `Version ${esc(BUILD)}` : "A newer version is ready: tap the banner at the top to load it" },
+  ];
+}
+const readyCount = () => { const st = readySteps().filter((x) => !x.na); return [st.filter((x) => x.ok === true).length, st.length]; };
+function readyHtml() {
+  if (!MG.ready) mgLoad("ready", mgReady, "ready");
+  const st = readySteps(), [n, of] = readyCount();
+  return `<div class="cprog"><b>${n} of ${of} ready</b><span class="dots" aria-hidden="true">${st.filter((x) => !x.na).map((x) => `<i class="${x.ok ? "ok" : ""}"></i>`).join("")}</span></div>
+    ${st.map((x) => `<div class="hrow" data-ready="${x.k}"><span class="pill ${x.ok === true ? "ok" : x.ok === false ? "no" : ""}">${x.ok === true ? "✓ Done" : x.ok === false ? "To do" : "·"}</span><div><b>${x.t}</b><div class="s">${x.s}</div>${x.act ? `<div class="actions">${x.act}</div>` : ""}</div></div>`).join("")}
+    ${n === of ? `<p class="qz-got">✅ Ready. Every line on this phone is green.</p>` : ""}
+    <div class="actions"><button class="btn pri" data-mg-reload="ready">Check again</button></div>
+    <p class="note">Each phone checks itself: the Home Screen, sending and version lines are for this phone. Ask each manager to open this card on theirs.</p>`;
+}
 /* ---------- Pre-shift brief ----------
    At the top of Morning: one look before the doors open, made from what's already in Bar Book. Nobody writes it. */
 function briefParts(side = mode) {
@@ -660,10 +696,10 @@ body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background
 
 /* ---------- Where it goes on the Team page ---------- */
 Object.assign(TC_SUB, { week: "Most 86'd, closes not fully done, late labels", pilot: "Week by week since launch, to show your manager", lblog: "Every date label tap, for an EHO visit", training: "Quiz scores, speed drills, sign-off on the house cocktails",
-  history: "Undo changes to date labels and added items", setup: "Your code, the managers' codes, the team code, then check they work", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
+  history: "Undo changes to date labels and added items", setup: "Your code, the managers' codes, the team code, then check they work", ready: "Rules, codes, backups and this phone, ticked off by themselves", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
 function mgCards() {
   if (!MG_READY) return [];
-  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml]] : [];
+  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml], ["ready", "Ready for Friday", readyHtml, (() => { const [n, of] = readyCount(); return n === of ? { t: "✓ ready" } : { t: `${n} of ${of}`, hot: 1 }; })()]] : [];
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
@@ -673,13 +709,14 @@ FEATURES.push(
   { g: "Team", k: "training", adm: 1, n: "Training", go: "training", team: 1, what: "Quiz and speed drill scores for everyone, leaderboards, and sign-off on the house cocktails by a manager.", mgr: "Sign off each house cocktail once you've watched it made to spec." },
   { g: "Team", k: "history", adm: 1, n: "Change history", go: "history", team: 1, what: "The latest changes to date labels and added items, with who and when.", mgr: "Undo a label change, or put back a label or item removed by mistake." },
   { g: "Team", k: "setup", own: 1, n: "Set up codes", go: "setup", team: 1, what: "For Maintenance: your code, each manager's code and the team code on one screen, then a check that each one works.", mgr: "Do it once at the start, and again whenever someone leaves." },
+  { g: "Team", k: "ready", adm: 1, n: "Ready for Friday", go: "ready", team: 1, what: "One checklist before the team starts: rules published, every code set, backups on, this phone on the Home Screen, nothing waiting to send and the app up to date.", mgr: "Each line goes green by itself. Tick backups once they're on in the Firebase console." },
   { g: "Team", k: "backup", adm: 1, n: "Backup and restore", go: "backup", team: 1, what: "Everything Bar Book keeps for the team, saved as one file.", mgr: "Save one now and then. Restore shows what's different and only adds or changes, never deletes." },
   { g: "Team", k: "health", n: "Health check", go: "health", what: "Whether this phone is online, saving, up to date and ready with no signal.", staff: "Something not syncing? Check here, then send it to maintenance." });
-Object.assign(PLACE_KW, { week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline" });
+Object.assign(PLACE_KW, { week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline", ready: "ready friday launch checklist go live rules backup" });
 
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
-  if ((x = t("[data-mg-reload]"))) { const k = x.dataset.mgReload, card = { week: "week", pilot: "pilot", tr: "training", hist: "history", health: "health" }[k]; MG[k] = k === "tr" ? { xs: null } : null; renderCard(card); return; }
+  if ((x = t("[data-mg-reload]"))) { const k = x.dataset.mgReload, card = { week: "week", pilot: "pilot", tr: "training", hist: "history", health: "health", ready: "ready" }[k]; MG[k] = k === "tr" ? { xs: null } : null; renderCard(card); return; }
   if ((x = t("[data-mg-lb]"))) { const [k, v] = x.dataset.mgLb.split(":"); MG.lb[k] = k === "days" ? +v : v; if (k === "days") MG.lb.xs = null; haptic(); renderCard("lblog"); return; }
   if (t("[data-mg-csv]")) { mgSaveFile(`date-label-record-${shiftDay()}.csv`, "text/csv", toCsv(["Date", "Time", "Who", "Side", "Item", "What", "Use by", "Use by before", "Days late", "Note"], mgCsvRows())); return; }
   if (t("[data-mg-pilot-img]")) { haptic(); mgPilotImage().then((b) => mgSaveFile(`bar-book-pilot-${shiftDay()}.jpg`, "image/jpeg", b)); return; }
@@ -690,6 +727,7 @@ document.addEventListener("click", (e) => {
   if ((x = t("[data-hi-lb-undo]"))) { mgLbUndo(x.dataset.hiLbUndo); return; }
   if ((x = t("[data-hi-lb-back]"))) { mgLbBack(x.dataset.hiLbBack); return; }
   if ((x = t("[data-hi-it]"))) { mgItBack(x.dataset.hiIt); return; }
+  if (t("[data-ready-bk]")) { haptic(); store.set("readyBackup", store.get("readyBackup", "") ? "" : dayName(shiftDay())); renderCard("ready"); return; }
   if ((x = t("[data-mg-backup]"))) { mgBackup(x); return; }
   if (t("[data-bk-go]")) { mgRestore(); return; }
   if (t("[data-mg-reboot]")) { location.reload(); }
