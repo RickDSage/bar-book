@@ -5761,7 +5761,10 @@ if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   $("#upd").addEventListener("click", () => location.reload());
 }
 renderChips(); renderList();
-{
+// The bar station refreshing itself (a new release, or the morning's fresh start) goes straight back to the station.
+const autoBack = stationOn && (() => { try { const v = sessionStorage.getItem("sx.auto"); sessionStorage.removeItem("sx.auto"); return !!v; } catch { return false; } })();
+if (autoBack) $("#welcome").remove();
+else {
   const w = $("#welcome"); w.hidden = false; document.body.style.overflow = "hidden";
   $("#w-lang").innerHTML = langOptions(); renderWelcomeName();
   w.addEventListener("click", (e) => {

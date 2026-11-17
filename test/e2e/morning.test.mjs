@@ -201,6 +201,16 @@ test("the bar station shows tonight's 86s and both closes live, and a tap opens 
   // An 86'd drink is greyed in the station's list as soon as it's 86'd on another phone.
   await O.evaluate(() => LIVE.api.set86("Mojito", true));
   await S.waitForFunction(() => [...$$("#sx-list .sx-row.out")].some((r) => /^Mojito/.test(r.innerText)));
+  // Any ingredient typed on the station goes on the board under the stock list's name, and the spec shows the swap.
+  await S.fill("#sx-86q", "lime juice"); await S.click("[data-sx-86go]");
+  await O.waitForFunction(() => [...LIVE.out].some((n) => /^lime juice$/i.test(n) || /^Limes?$/i.test(n) || /lime juice/i.test(n)));
+  await S.fill("#sx-86q", "Veggie burger"); await S.keyboard.press("Enter");
+  await O.waitForFunction(() => LIVE.out.has("Veggie burger"));
+  await S.waitForFunction(() => /Veggie burger/.test($("#v-station .st-86").innerText));
+  await S.click('[data-sx-back="Veggie burger"]');
+  await O.waitForFunction(() => !LIVE.out.has("Veggie burger"));
+  // The photos card takes a photo for tonight's handover.
+  assert.equal(await S.locator('#v-station label[for="ph-in"]').count(), 1);
   assert.match(await S.$eval("#v-station", (e) => e.innerText), /BAR CLOSING\s*0\/\d+[\s\S]*FLOOR CLOSING\s*0\/\d+/i);
   await O.evaluate(() => { setMode("bar"); pane = "close"; show("tally"); });
   await O.click("[data-list=close][data-i=\"0\"]");
