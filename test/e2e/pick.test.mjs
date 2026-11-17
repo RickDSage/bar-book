@@ -73,11 +73,11 @@ test("the same picker picks for restocking, running low, Log it, date labels and
   assert.equal(await S.isHidden("#logit"), true); assert.equal(await S.isVisible("#pick"), true);
   await S.fill("#pk-q", "prosecco"); await S.click('#pk-list [data-pk-one="Prosecco bottle"]'); await pickClose(S);
   await O.waitForFunction(() => LIVE.out.has("Prosecco bottle"));
-  // Date labels: pick it, and the typical days fill in.
-  await S.click(".ptabs [data-pane=labels]"); await S.click("#lb-add summary");
-  await pickRows(S, "oat", "[data-lb-pick]"); await S.click('#pk-list [data-pk-tog="Oat milk"]');
-  assert.equal(await S.inputValue("#lb-item"), "Oat milk");
-  assert.notEqual(await S.inputValue("#lb-life"), "");
+  // Date labels (managers add them): pick it, and the typical days fill in.
+  await stock(O); await O.click(".ptabs [data-pane=labels]"); await O.click("#lb-add summary");
+  await pickRows(O, "oat", "[data-lb-pick]"); await O.click('#pk-list [data-pk-tog="Oat milk"]');
+  assert.equal(await O.inputValue("#lb-item"), "Oat milk");
+  assert.notEqual(await O.inputValue("#lb-life"), "");
   // The stock count: find an item and its line opens.
   await S.click(".ptabs [data-pane=stock]"); await S.click("[data-ct-open]");
   await S.waitForSelector("[data-ct-find]");
