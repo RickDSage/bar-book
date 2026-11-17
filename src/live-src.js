@@ -119,6 +119,11 @@ function listen(uid) {
     // Items the team has added (Rubicon Mango, fresh strawberries): live ones join the 86 list, restocking, date labels
     // and closing; waiting ones wait for the owner. There are only ever a few dozen.
     sub("items", collection(db, "items"), (snap) => { LIVE.items = rows(snap); liveChanged("items"); });
+    // The stock count's setup (the places in walking order, units, bottle weights: one record a manager changes) and the
+    // deliveries logged lately. The count itself is read a day at a time, while the count is open (watchCount).
+    sub("countSetup", doc(db, "countSetup", "main"), (d) => { LIVE.countSetup = d.exists() ? d.data() : null; LIVE.countErr = false; liveChanged("countSetup"); },
+      (e) => { if (e?.code === "permission-denied") { LIVE.countErr = true; liveChanged("countSetup"); } });
+    sub("received", query(collection(db, "received"), orderBy("at", "desc"), limit(300)), (snap) => { LIVE.received = rows(snap); liveChanged("received"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
     // same record a moment apart, so the newer version wins.
     const rs = { open: [], recent: [] };
@@ -130,8 +135,11 @@ function listen(uid) {
     sub("restock", query(collection(db, "restock"), where("status", "in", RS_OPEN)), (snap) => { rs.open = rows(snap); mergeRestock(); });
     sub("restock-recent", query(collection(db, "restock"), orderBy("at", "desc"), limit(30)), (snap) => { rs.recent = rows(snap); mergeRestock(); });
     // Tonight's closing photos that aren't on a sent report yet, whoever took them: the phone shows its side's.
+    // Unsent ones from a close that was never sent are binned after two days (any phone on the team may), because every
+    // phone downloads every unsent photo each time it opens, and that would use up the free plan's monthly download.
     sub("photos", query(collection(db, "photos"), where("report", "==", null)), (snap) => {
       LIVE.draftPhotos = rows(snap).sort((a, b) => ms(a.at) - ms(b.at)); liveChanged("photos");
+      if (!snap.metadata.fromCache) binStalePhotos(snap);
     });
     // Tonight's handover drafts, one per side, shared by everyone closing it.
     sub("drafts", query(collection(db, "drafts"), orderBy("at", "desc"), limit(6)), (snap) => {
@@ -161,6 +169,7 @@ function listen(uid) {
     // The count of wrong team codes, so the owner can see it and unlock joining.
     if (LIVE.owner) sub("gate", doc(db, "gate", "team"), (x) => { LIVE.gate = x.exists() ? x.data({ serverTimestamps: "estimate" }) : { tries: 0 }; liveChanged("gate"); });
     if (LIVE.admin) clearOldPhotos();
+    if (LIVE.owner) checkRules();
   }, () => {});
 }
 
@@ -173,6 +182,24 @@ function watchMedia(drink) {
   const show = (m) => { LIVE.media = { photo: "", video: "", pending: false, ...m, drink }; liveChanged("media"); };
   if (drink) sub("media", doc(db, "drinkMedia", slug(drink)), (d) => show({ ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites }), () => show());
 }
+
+// Quiz night: one game at a time (quiz/live) and its players, listened to only while the Games and drills page is open.
+let quizGame = null;
+function watchQuiz(on) {
+  if (!on) { unsub("quiz"); unsub("quizPlayers"); quizGame = null; LIVE.loaded.delete("quiz"); return; }
+  sub("quiz", doc(db, "quiz", "live"), (d) => {
+    LIVE.quiz = d.exists() ? { ...d.data({ serverTimestamps: "estimate" }), pending: d.metadata.hasPendingWrites } : null;
+    const g = LIVE.quiz?.game || null;
+    if (g !== quizGame) {
+      unsub("quizPlayers"); quizGame = g; LIVE.quizPlayers = [];
+      if (g) sub("quizPlayers", query(collection(db, "quiz", "live", "players"), where("game", "==", g)), (snap) => {
+        LIVE.quizPlayers = snap.docs.map((x) => ({ ...x.data(), uid: x.id })); liveChanged("quizPlayers");
+      });
+    }
+    liveChanged("quiz");
+  });
+}
+const quizStamp = () => ({ host: auth.currentUser.uid, hostName: LIVE.me, at: serverTimestamp() });
 
 // Leaving, or being taken off the team, wipes this phone's copy of the team's data, then starts the app afresh.
 let leaving = false;
@@ -194,6 +221,23 @@ async function clearOldPhotos() {
   if (!old || old.empty) return;
   for (let i = 0; i < old.docs.length; i += 10) {
     const b = writeBatch(db); old.docs.slice(i, i + 10).forEach((d) => b.delete(d.ref)); await b.commit().catch(() => {});
+  }
+}
+
+// Are the rules published in the Firebase console the ones this version of the app was built with? Only a refusal
+// says no; no signal says nothing.
+async function checkRules() {
+  const old = await getDoc(doc(db, "rulesv", __RULES__)).then(() => false, (e) => (e.code === "permission-denied" ? true : null));
+  if (old !== null && old !== LIVE.rulesOld) { LIVE.rulesOld = old; liveChanged("rules"); }
+}
+
+const STALE_DAYS = 2, binning = new Set();
+function binStalePhotos(snap) {
+  const cutoff = Date.now() - STALE_DAYS * 864e5;
+  for (const d of snap.docs) {
+    const at = d.data().at;
+    if (!at || at.toMillis() >= cutoff || binning.has(d.id)) continue;
+    binning.add(d.id); deleteDoc(d.ref).catch(() => binning.delete(d.id));
   }
 }
 
@@ -462,6 +506,23 @@ LIVE.api = {
   addItem: (x, live) => addDoc(collection(db, "items"), { ...itemDef(x), status: live ? "live" : "waiting", addedBy: LIVE.me, addedUid: auth.currentUser.uid, ...me() }),
   saveItem: (x, f) => setDoc(doc(db, "items", x.id), { ...itemDef(f), status: "live", addedBy: x.addedBy, addedUid: x.addedUid, ...me() }),
   dropItem: (id) => deleteDoc(doc(db, "items", id)),
+  // Stock count: one record per product and place for the day, saved on every tap under who counted it.
+  watchCount(day) {
+    if (!LIVE.me) return;
+    subDay("counts", () => query(collection(db, "counts"), where("day", "==", day), limit(2000)), (snap) => { LIVE.counts = rows(snap); LIVE.countDay = day; liveChanged("count"); }, day);
+  },
+  countLine: (id, x) => setDoc(doc(db, "counts", id), { day: x.day, area: x.area, item: x.item, unit: x.unit, full: x.full, open: x.open, ...me() }),
+  dropCountLine: (id) => deleteDoc(doc(db, "counts", id)),
+  saveCountSetup: (x) => setDoc(doc(db, "countSetup", "main"), { areas: x.areas, items: x.items, order: x.order, ...me() }),
+  addReceived: (x) => addDoc(collection(db, "received"), { day: x.day, item: x.item, unit: x.unit, qty: x.qty, ...me() }),
+  dropReceived: (id) => deleteDoc(doc(db, "received", id)),
+  // The counts and deliveries of the last 90 days up to a day, for usage between counts. Read once, when asked for.
+  async countHistory(day) {
+    const from = new Date(Date.parse(day) - 90 * 864e5).toISOString().slice(0, 10), plainDocs = (snap) => snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id }));
+    const [c, r] = await Promise.all([getDocs(query(collection(db, "counts"), where("day", ">=", from), where("day", "<=", day), limit(6000))),
+      getDocs(query(collection(db, "received"), where("day", ">=", from), where("day", "<=", day), limit(2000)))]);
+    return { lines: plainDocs(c), received: plainDocs(r) };
+  },
   addFixture: (x) => addDoc(collection(db, "fixtures"), { day: x.day, ko: x.ko, home: x.home, away: x.away, comp: x.comp, channel: x.channel, screen: x.screen, ...me() }),
   dropFixture: (id) => deleteDoc(doc(db, "fixtures", id)),
   // Issues: raise, take on (or give to someone), mark fixed. "Still broken" raises a new one linked back.
@@ -472,13 +533,19 @@ LIVE.api = {
   saveNames: (n) => setDoc(doc(db, "settings", "names"), { mgr: n.mgr, bar: n.bar, floor: n.floor, ...me() }),
   saveContacts: (list) => setDoc(doc(db, "settings", "contacts"), { list, ...me() }),
   watchMedia,
+  watchQuiz,
+  // The host starts a game (taking over one that's finished or left alone for an hour) and moves it on.
+  quizHost: (x) => setDoc(doc(db, "quiz", "live"), { game: x.game, qs: x.qs, i: x.i, state: x.state, hide: x.hide, ...quizStamp() }),
+  quizMove: (patch) => updateDoc(doc(db, "quiz", "live"), { ...patch, ...quizStamp() }),
+  // A player's answers so far for this game, as { question number: the answer picked }.
+  quizPick: (game, picks) => setDoc(doc(db, "quiz", "live", "players", auth.currentUser.uid), { game, picks, ...me() }),
   // A drink's photo and video link, saved together. With neither, the record goes.
   setMedia: (drink, photo, video) => (photo || video ? setDoc(doc(db, "drinkMedia", slug(drink)), { drink, photo, video, ...me() }) : deleteDoc(doc(db, "drinkMedia", slug(drink)))),
   PASSWORD_MIN, MAX_PHOTOS, MAX_TRIES, MAX_SENIORS, GATE_MAX, OWNER_ID,
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
+  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], counts: [], countDay: null, countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

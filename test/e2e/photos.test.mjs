@@ -163,3 +163,19 @@ test("tonight's handover draft and unsent photos are the same on every phone clo
   assert.equal(r.photos, 1); assert.match(r.text, /Limes, mint/);
   assert.deepEqual([S.errs, T.errs], [[], []]);
 });
+
+test("unsent photos from an earlier night stay off tonight's report, and ones over two days old are binned", async () => {
+  await resetEmulators();
+  const { S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
+  const ago = (h) => new Date(Date.now() - h * 36e5).toISOString();
+  const photo = (at) => ({ data: { stringValue: "data:image/jpeg;base64,AAAA" }, note: { stringValue: "" }, report: { nullValue: null }, side: { stringValue: "bar" }, uid: { stringValue: "someone" }, name: { stringValue: "Sam Staff" }, at: { timestampValue: at } });
+  await adminWrite("photos/lastnight", photo(ago(30))); await adminWrite("photos/stale", photo(ago(72)));
+  await S.waitForFunction(() => LIVE.draftPhotos.some((p) => p.id === "lastnight"));
+  assert.equal(await S.evaluate(() => draftPhotos().length), 0, "last night's unsent photo isn't tonight's");
+  for (let i = 0; i < 40 && (await adminGet("photos/stale")).status !== 404; i++) await S.waitForTimeout(250);
+  assert.equal((await adminGet("photos/stale")).status, 404, "the three-day-old unsent photo is binned");
+  assert.equal((await adminGet("photos/lastnight")).status, 200, "last night's stays for now");
+  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=close]");
+  await addPhoto(S, small, 1);
+  assert.deepEqual(S.errs, []);
+});
