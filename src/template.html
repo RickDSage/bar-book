@@ -734,6 +734,8 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .lgroup h3 { margin: 0; font-family: var(--display); font-size: 17px; letter-spacing: .02em; color: var(--brass); text-transform: uppercase; }
 .lgroup .n { font-size: 13px; color: var(--muted); margin-left: 6px; font-family: inherit; text-transform: none; letter-spacing: 0; }
 .lgroup .btn { min-height: 36px; padding: 6px 12px; font-size: 14px; }
+.lgroup .lgb { display: flex; gap: 6px; flex: none; }
+.lon { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 .lgroup.full h3 { color: var(--ok, var(--brass)); }
 .lfold > summary { list-style: none; cursor: pointer; }
 .lfold > summary::-webkit-details-marker { display: none; }
@@ -1966,6 +1968,7 @@ Object.assign(LISTS, {
       "Cutlery replenished",
       "Side plates and milkshake plates laid with black napkins",
       { id: 28, t: "Tables, chairs and service stations organised for opening" },
+      { id: 33, t: "Card machines on charge" },
     ]),
     ...sect("Sauces and napkins", [
       "Mustard and ketchup packed into the fridge",
@@ -1998,6 +2001,7 @@ Object.assign(LISTS, {
       { id: 30, t: "Fridges wiped and cleaned inside: sauces, desserts and milkshake bar" },
       "Toilets checked: paper, soap, nothing left behind",
       { t: "Toilets bleached, swept and mopped", days: [0, 1] },
+      { id: 34, t: "Lost property bagged, dated and given to the duty manager" },
     ]),
     ...sect("Bins and stock", [
       "Bins emptied, fresh bin liners in, rubbish taken to the bin room",
@@ -2043,14 +2047,14 @@ const STOCK = {
   "Tequila and mezcal": ["El Jimador Blanco", "El Jimador Reposado", "Don Julio Blanco", "Don Julio Añejo", "Don Julio 1942", "Clase Azul Reposado", "Amarás Mezcal"],
   "Whiskey": ["Jack Daniel's", "Jameson", "Buffalo Trace", "Bulleit", "Bulleit Rye", "Elijah Craig", "Michter's", "Johnnie Walker Black", "Johnnie Walker Blue", "Talisker 10", "Port Charlotte 10", "Glenmorangie Signet", "Hakushu 12", "Hibiki Harmony", "Sheep Dog Peanut Butter"],
   "Brandy": ["Martell VS", "Courvoisier VSOP", "Hennessy XO", "Rémy Martin XO", "Avallen Calvados"],
-  "Desserts and shakes": ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Raspberries", "Maraschino cherries", "Shake cups", "Cup holders"],
+  "Desserts and shakes": ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Whipped cream", "Raspberries", "Maraschino cherries", "Shake cups", "Cup holders"],
   "Floor supplies": ["Napkins", "Side plates", "Toilet roll", "Bleach", "Mop heads"],
   "Liqueurs and vermouth": ["Aperol", "Campari", "Sarti Rosa", "Martini Rosso", "Martini Extra Dry", "Pimm's", "Cointreau", "Grand Marnier", "Kahlúa", "Baileys", "Disaronno", "Frangelico", "Chambord", "Heering Cherry", "Luxardo Limoncello", "Midori", "Passoa", "Archers", "Apple liqueur", "Ancho Reyes", "Yellow Chartreuse", "Jägermeister", "Absinthe", "Crème de violette", "Maraschino"],
 };
 // The things each side runs out of most, one tap to 86. Anything else is in the full list or can be typed in.
 const QUICK86 = {
   bar: ["Limes", "Lemons", "Mint", "Ice", "Prosecco bottle", "Red Bull", "Espresso beans", "Salted caramel sauce", "Guinness", "Corona"],
-  floor: ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Raspberries", "Maraschino cherries", "Side plates"],
+  floor: ["Guinness cake", "Sprinkle cake", "Brownies", "Cheesecake", "Ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich", "Whipped cream", "Strawberries", "Raspberries", "Maraschino cherries", "Side plates"],
 };
 // Business day in UK time: anything before 6am belongs to the night before, so a close that runs past midnight
 // stays one shift. (Taking the UTC date instead would roll the day over at 7am all summer.)
@@ -2073,7 +2077,7 @@ const HO = [
   { id: "next", label: "For tomorrow: prep and follow-up", short: "For tomorrow", hint: "What the opening team needs to prepare or chase", join: "\n" },
 ];
 const HO_CHIPS = {
-  low: { bar: ["Gas (CO2)", "Garnishes", "Limes", "Lemons", "Mint", "Ice", "Prosecco", "Red Bull", "Jarritos"], floor: ["Desserts", "Ice cream", "Sauces", "Napkins", "Black napkins", "Side plates", "Shake cups"] },
+  low: { bar: ["Gas (CO2)", "Garnishes", "Limes", "Lemons", "Mint", "Ice", "Prosecco", "Red Bull", "Jarritos"], floor: ["Desserts", "Ice cream", "Whipped cream", "Sauces", "Napkins", "Black napkins", "Side plates", "Cutlery", "Shake cups", "Toilet roll", "Hand soap"] },
   issues: ["Broken or needs fixing: ", "Not finished: ", "Guest to know about: ", "Tabs and cash: "],
   next: ["Prep: ", "Follow up: ", "Delivery due: ", "Ordered: "],
 };
@@ -2294,7 +2298,8 @@ function checklistHtml(k) {
     ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
-    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button>` : left ? "" : `<span class="pill ok">Done</span>`}</div>` : "";
+    const on = g && left ? onIt(k, xs) : [];
+    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${on.length || !LIVE.me ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">I'll do this</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${on.length ? `<p class="lon"><b translate="no">${esc(on.join(", "))}</b> on it</p>` : ""}` : "";
     // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
     const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
@@ -2303,6 +2308,19 @@ function checklistHtml(k) {
   return `${runHtml(k)}<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}${p.skipped ? ` · ${p.skipped} not needed tonight` : ""}</span><b>${p.pct}%</b></div>
     <div class="prog${p.n === p.of ? " full" : ""}" role="progressbar" aria-label="${esc(LISTS[k].title)}" aria-valuenow="${p.pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${p.pct}%"></i></div>
     ${tools}${groupsOf(k).map(group).join("")}`;
+}
+// Splitting the close: "I'll do this" on a heading starts everything not yet started under it in your name, so the
+// others see who has that part and pick another. It is the same Start as on each item (no new data), so Stop on an
+// item, Done or Tick all carry on as usual. The heading names whoever has started something under it.
+const onIt = (k, xs) => [...new Set(xs.filter(([i]) => statusOf(k, i) === "doing").map(([i]) => { const x = taskOf(k, i); return x && lastMove(k, i, x).name; }).filter(Boolean))];
+function claimGroup(k, g) {
+  if (isLocked(k)) return toast(`${LISTS[k].title} is finished. Reopen it to change anything`);
+  const ids = shown(k).filter(([i]) => groupOf(k, i) === g && statusOf(k, i) === "todo").map(([i]) => i);
+  if (!ids.length) return toast("Nothing left to start there");
+  haptic();
+  const p = Promise.all(ids.map((i) => LIVE.api.setTask(k, i, itemText(k, i), "doing")))
+    .then(() => { if (!runOf(k)) { const q = progress(k); return LIVE.api.setRun(k, LISTS[k].title, "started", q.n, q.of); } });
+  track(p, `${g}: it's yours. Everyone can see you're on it`, "Not all saved. Check your signal and try again");
 }
 // Tick all: every item still open in the list, or under one heading, done in one tap. Ticking the whole list also
 // finishes it, since everything is then done. Each item is still its own change, with its own name and time.
@@ -3153,6 +3171,7 @@ $("#tally").addEventListener("click", async (e) => {
     changeTask(k, i, st === "done" ? "todo" : "done"); return;
   }
   const ta = e.target.closest("[data-tick-all]"); if (ta) { tickAll(ta.dataset.tickAll, ta.dataset.g); return; }
+  const cg = e.target.closest("[data-claim]"); if (cg) { claimGroup(cg.dataset.claim, cg.dataset.g); return; }
   const cr = e.target.closest("[data-clear-list]"); if (cr) { clearList(cr.dataset.clearList); return; }
   if (e.target.closest("#clear-all")) { clearAll(false); return; }
   if (e.target.closest("#undo-clear")) { undoClearAll(); return; }
@@ -4579,7 +4598,7 @@ function renderInfo() {
       ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards and tonight's quiz")}
       ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A page per kind of drink, to send to WhatsApp or print")}
       ${hubRow("fun", 'data-go="fun"', "Just for fun", "Spin for a drink, and the spec of the day")}
-      ${hubRow("station", 'data-go="station"', "Bar station", stationOn ? "On: this iPad opens on it. Exit bar station turns it off" : "Turn this iPad into the bar station: big drink search and specs, rounds, tonight's 86s and the close")}
+      ${mode !== "bar" && !stationOn ? "" : hubRow("station", 'data-go="station"', "Bar station", stationOn ? "On: this iPad opens on it. Exit bar station turns it off" : "Turn this iPad into the bar station: big drink search and specs, rounds, tonight's 86s and the close")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
