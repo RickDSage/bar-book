@@ -62,7 +62,9 @@ test("the bar station sends tonight's report, hands over, and has the kinds of d
   await S.setViewportSize({ width: 1180, height: 820 });
   await S.evaluate(() => show("station"));
   await S.waitForSelector('#sx-live [data-send="tonight"]');
+  await S.click("#sx-gbtn");
   await S.click('#sx-grp [data-sx-grp="f:margarita"]');
+  assert.equal(await S.isVisible("#sx-grp"), false);
   const names = await S.$$eval("#sx-list .sx-open .n", (xs) => xs.map((x) => x.textContent));
   assert.ok(names.length > 2 && names.every((n) => /margarita|paloma|ranch water/i.test(n)), names.join(", "));
   await S.click('#sx-live [data-st-go="send"]');
