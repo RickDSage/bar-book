@@ -7,8 +7,8 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 4;
-const WALK_NEW = "Stock count is simpler: full bottles with +, the open one on the scale, Next. Find at the top looks in every place, and Not counted yet shows only what's left.";
+const WALK_V = 5;
+const WALK_NEW = "Stock count: every bottle comes with its size and weights filled in, each line says what to do, and the first time it walks you through it with pictures.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -22,7 +22,7 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
   "Log it and send on WhatsApp puts it in the team chat from your phone, so everyone knows now.",
 ], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
 const WALK_COUNT = { t: "Stock count", how: [
-  "Shift, Stock, Count stock: every place in the order you walk it. Not counted yet shows only what's left.",
+  "Shift, Stock, Count stock: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left.",
   "Tap an item: + for each full, sealed bottle, then the open one on the scale in grams (or tap how full it is). Next › opens the one after.",
   "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 🎤 Say it: “Smirnoff two and a half”.",
   "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
