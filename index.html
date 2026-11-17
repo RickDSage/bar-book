@@ -5182,7 +5182,7 @@ const FEATURES = [
   { g: "Shift", k: "count", n: "Stock count", go: "count", team: 1, tour: 1,
     what: "The count book on your phone: everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, and usage between counts.",
     staff: "Tap an item: + for each full, sealed bottle, then weigh the open one on the scale (or tap how full it is), then Next. Find looks in every place, Not counted yet shows what's left, and 🎤 takes “Smirnoff two and a half”. Send the totals on WhatsApp or as a spreadsheet.",
-    mgr: "Set up the count: the places in walking order, what's counted where and in what, and each bottle's empty and full weight for weighing." },
+    mgr: "Every bottle and pack comes with its size and estimated weights. Make one exact by weighing a sealed bottle once (Check it). Set up the count: the places in walking order, what's counted where and in what, and any size or weight." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos, handed over to the next shift and sent on WhatsApp.",
     staff: "Hand over and send it on WhatsApp.", mgr: "Read every closing report with its photos on the Team page." },
@@ -9634,6 +9634,79 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .pk-open span{font-size:20px;color:var(--brass);line-height:1}
 body.sxbig .pk-t b{font-size:21px}
 </style>`);
+/* ---------- What a full one is: every bottle and pack the bar stocks, filled in ----------
+   So a weight on the kitchen scale turns straight into ml, and nobody has to type sizes in. Each bottle has its size,
+   the empty bottle's weight and how heavy its liquid is (a liqueur with sugar weighs more than water; a spirit less), and
+   the full weight is worked out from those. Each pack has what one of them is, and where it can be weighed, what's in it
+   and what the packaging weighs.
+   Sizes: from the UK label (the brand, or the trade and retail listings of the same product: Matthew Clark, LWC, Tesco,
+   The Whisky Exchange). 70 cl is the UK size for spirits; a size the label doesn't settle (a house bottle, a brand
+   that isn't named) is marked as a guess.
+   Weights: no brand publishes an empty bottle's weight, so every one here is an estimate: from published tare lists for
+   the same bottle in 75 cl (scaled to 70 cl) where there is one, else from the bottle's build (a heavy base, a decanter).
+   Liquid weights: published specific gravities (Smirnoff 0.950, Tanqueray 0.937, Kahlúa 1.079, Baileys 1.057, Cointreau
+   1.039, Campari 1.066, Chambord 1.130, Archers 1.103, Malibu 1.044, Grenadine 1.287), else from strength and sugar.
+   A manager corrects any of them in one go by weighing a sealed bottle (the empty weight follows from it), or both
+   weights in Set up the count. What a manager sets always wins and is shown as checked. */
+// Bottles: name: [ml, empty bottle in grams, grams per ml of what's in it, 1 if the size is off the label].
+var CT_BOTTLE = {
+  // Vodka
+  "Smirnoff": [700, 420, 0.952, 1], "Smirnoff Vanilla": [700, 440, 0.955, 1], "Smirnoff Miami Peach": [700, 440, 0.98, 1],
+  "Grey Goose": [700, 780, 0.95, 1], "Belvedere Blackberry & Lemongrass": [700, 600, 0.953, 1],
+  "Cîroc Red Berry": [700, 680, 0.955, 1], "Cîroc Apple": [700, 680, 0.955, 1], "Cîroc Pineapple": [700, 680, 0.955, 1], "Cîroc Mango": [700, 680, 0.955, 1],
+  "Chase Marmalade": [700, 620, 0.955, 1], "Chase Rhubarb": [700, 620, 0.955, 1],
+  // Gin
+  "Tanqueray": [700, 530, 0.937, 1], "Tanqueray Flor de Sevilla": [700, 530, 0.955, 1], "Drumshanbo Gunpowder": [700, 720, 0.94, 1], "Roku": [700, 600, 0.94, 1],
+  "Monkey 47": [500, 480, 0.935, 1], "Aviation": [700, 560, 0.94, 1], "The Botanist": [700, 750, 0.935, 1], "Cygnet": [700, 600, 0.94, 1], "Brockmans": [700, 620, 0.948, 1],
+  // Rum and cachaça
+  "Captain Morgan White": [700, 390, 0.957, 1], "Captain Morgan Spiced Gold": [700, 400, 0.962, 1], "Captain Morgan Dark": [700, 400, 0.955, 1],
+  "Kraken": [700, 640, 0.965, 1], "Zacapa 23": [700, 700, 0.975, 1], "52North Spiced": [700, 550, 0.96, 1], "Malibu": [700, 560, 1.044, 1], "Abelha cachaça": [700, 600, 0.952, 1],
+  // Tequila and mezcal
+  "El Jimador Blanco": [700, 520, 0.951, 1], "El Jimador Reposado": [700, 520, 0.951, 1], "Don Julio Blanco": [700, 640, 0.95, 1], "Don Julio Añejo": [700, 630, 0.95, 1],
+  "Don Julio 1942": [700, 1050, 0.95, 1], "Clase Azul Reposado": [700, 1350, 0.95, 1], "Amarás Mezcal": [700, 600, 0.945, 1],
+  // Whiskey
+  "Jack Daniel's": [700, 460, 0.95, 1], "Jameson": [700, 510, 0.95, 1], "Buffalo Trace": [700, 560, 0.948, 1], "Bulleit": [700, 600, 0.94, 1], "Bulleit Rye": [700, 600, 0.94, 1],
+  "Elijah Craig": [700, 560, 0.937, 1], "Michter's": [700, 650, 0.94, 1], "Johnnie Walker Black": [700, 480, 0.948, 1], "Johnnie Walker Blue": [700, 620, 0.948, 1],
+  "Talisker 10": [700, 520, 0.94, 1], "Port Charlotte 10": [700, 600, 0.93, 1], "Glenmorangie Signet": [700, 900, 0.94, 1], "Hakushu 12": [700, 560, 0.945, 1],
+  "Hibiki Harmony": [700, 780, 0.945, 1], "Sheep Dog Peanut Butter": [700, 470, 0.99, 1],
+  // Brandy
+  "Martell VS": [700, 480, 0.955, 1], "Courvoisier VSOP": [700, 540, 0.955, 1], "Hennessy XO": [700, 900, 0.955, 1], "Rémy Martin XO": [700, 570, 0.955, 1], "Avallen Calvados": [700, 560, 0.952, 1],
+  // Liqueurs and vermouth
+  "Aperol": [700, 480, 1.04, 1], "Campari": [700, 460, 1.066, 1], "Sarti Rosa": [700, 480, 1.04, 1], "Martini Rosso": [750, 530, 1.05, 1], "Martini Extra Dry": [750, 530, 1.0, 1],
+  "Pimm's": [700, 500, 1.0, 1], "Cointreau": [700, 720, 1.039, 1], "Grand Marnier": [700, 640, 1.03, 1], "Kahlúa": [700, 580, 1.079, 1], "Baileys": [700, 630, 1.057, 1],
+  "Disaronno": [700, 770, 1.08, 1], "Frangelico": [700, 520, 1.065, 1], "Chambord": [700, 520, 1.13, 1], "Heering Cherry": [700, 520, 1.07, 1], "Luxardo Limoncello": [700, 480, 1.05, 1],
+  "Midori": [700, 640, 1.05, 1], "Passoa": [700, 520, 1.09, 1], "Archers": [700, 460, 1.103, 1], "Apple liqueur": [700, 500, 1.06, 0], "Ancho Reyes": [700, 560, 1.02, 1],
+  "Yellow Chartreuse": [700, 550, 1.04, 1], "Jägermeister": [700, 600, 1.007, 1], "Absinthe": [700, 520, 0.9, 0], "Crème de violette": [500, 420, 1.12, 0], "Maraschino": [700, 600, 1.1, 1],
+  // Wine
+  "Prosecco bottle": [750, 560, 0.99, 1],
+  // Syrups and bitters: Monin's 70 cl glass; Coco Real's 50 cl squeezy bottle (595 g in it)
+  "Sugar syrup": [700, 460, 1.33, 0], "Vanilla syrup": [700, 460, 1.32, 1], "Marshmallow syrup": [700, 460, 1.32, 1], "Orgeat": [700, 460, 1.3, 1], "Grenadine": [700, 460, 1.287, 1],
+  "Elderflower cordial": [700, 460, 1.25, 0], "Honey syrup": [700, 460, 1.3, 0], "Coco Real": [500, 60, 1.19, 1],
+  "Angostura bitters": [200, 230, 0.99, 1], "Peychaud's bitters": [148, 200, 1.0, 1], "Cocoa bitters": [100, 160, 0.96, 0],
+  // Juices: 1 litre cartons, the fresh citrus in the house's own bottles
+  "Lime juice": [1000, 60, 1.03, 0], "Lemon juice": [1000, 60, 1.03, 0], "Orange juice": [1000, 35, 1.045, 0], "Pineapple juice": [1000, 35, 1.05, 0], "Cranberry juice": [1000, 35, 1.04, 0],
+  "Apple juice": [1000, 35, 1.045, 0], "Grapefruit juice": [1000, 35, 1.04, 0], "Tomato juice": [1000, 35, 1.03, 0],
+  // Shake station sauces: catering squeezy bottles
+  "Strawberry sauce": [1000, 70, 1.3, 0], "Raspberry sauce": [1000, 70, 1.3, 0], "Chocolate sauce": [1000, 70, 1.3, 0], "Salted caramel sauce": [1000, 70, 1.3, 0],
+};
+// Packs: name: [what one is, grams in it, grams of packaging, 1 if the size is off the label]. Grams only where a
+// kitchen scale (up to 5 kg) can weigh an open one.
+var CT_PACK = {
+  "Stella bottles": ["330 ml bottle", 0, 0, 1], "Corona bottles": ["330 ml bottle", 0, 0, 1], "Corona Cero": ["330 ml bottle", 0, 0, 1], "San Miguel 0,0": ["330 ml bottle", 0, 0, 1],
+  "Kopparberg Strawberry & Lime (bottle)": ["500 ml bottle", 0, 0, 1], "Kopparberg Mixed Fruit (bottle)": ["500 ml bottle", 0, 0, 1],
+  "Coke": ["7 litre bag-in-box", 0, 0, 1], "Coke Zero": ["7 litre bag-in-box", 0, 0, 1], "Diet Coke": ["7 litre bag-in-box", 0, 0, 1],
+  "Coke bottles": ["330 ml glass bottle", 0, 0, 0], "Coke Zero bottles": ["330 ml glass bottle", 0, 0, 0], "Diet Coke bottles": ["330 ml glass bottle", 0, 0, 0],
+  "Red Bull": ["250 ml can", 0, 0, 1], "Red Bull Sugarfree": ["250 ml can", 0, 0, 1], "Crodino": ["175 ml bottle", 0, 0, 1],
+  "Tonic": ["200 ml Fever-Tree bottle", 0, 0, 1], "Light tonic": ["200 ml Fever-Tree bottle", 0, 0, 1], "Ginger beer": ["200 ml Fever-Tree bottle", 0, 0, 1], "Ginger ale": ["200 ml Fever-Tree bottle", 0, 0, 1],
+  "Jarritos Guava": ["370 ml bottle", 0, 0, 1], "Jarritos Mandarin": ["370 ml bottle", 0, 0, 1], "Jarritos Pineapple": ["370 ml bottle", 0, 0, 1],
+  "Jarritos Grapefruit": ["370 ml bottle", 0, 0, 1], "Jarritos Strawberry": ["370 ml bottle", 0, 0, 1], "Jarritos Lime": ["370 ml bottle", 0, 0, 1],
+  "Still water, large": ["750 ml bottle", 0, 0, 0], "Still water, small": ["330 ml bottle", 0, 0, 0], "Sparkling water, large": ["750 ml bottle", 0, 0, 0], "Sparkling water, small": ["330 ml bottle", 0, 0, 0],
+  "Whole milk": ["2 pint (1.14 litre) bottle", 1170, 40, 0], "Oat milk": ["1 litre carton", 1030, 30, 0], "Double cream": ["1 litre carton", 980, 35, 0],
+  "Egg whites": ["1 kg carton", 1000, 35, 0], "Funkin purées": ["1 kg pouch", 1000, 30, 1], "Espresso beans": ["1 kg bag", 1000, 15, 0],
+  "Ice cream": ["4 litre tub", 2200, 200, 0], "Vegan ice cream": ["4 litre tub", 2200, 200, 0],
+};
+// The full weight a bottle comes to: the empty one plus what's in it.
+const ctFullG = (ml, e, d) => Math.round(e + ml * d);
 /* ---------- Stock count: the notebook, on the phone ----------
    Everything the bar and floor hold, from the one stock list (the stock list plus anything added with Add something
    new), walked in shelf order: each place (speed rail, back bar, fridges, freezer, store room) and what's on it. Tap a
@@ -9661,7 +9734,7 @@ var CT_NAME = [
   [/^(Lime juice|Lemon juice)$/, "Prep and syrups", "bottle"], [/^(Mint|Basil)$/, null, "bunch"], [/^(Strawberries|Raspberries)$/, null, "punnet"],
   [/^(Olives|Jalapeños|Cherries|Maraschino cherries)$/, null, "jar"], [/^(Guinness cake|Sprinkle cake|Brownies|Cheesecake)$/, "Cake fridge", "each"],
   [/^Ice cream$/, "Freezer", "tub"], [/ice cream sandwich/, "Freezer", "each"], [/^Whipped cream$/, null, "can"], [/^(Shake cups|Cup holders)$/, "Store room", "pack"],
-  [/^Espresso beans$/, null, "bag"], [/powder|brine/, null, "tub"], [/^Salted caramel sauce$/, null, "bottle"],
+  [/^Espresso beans$/, null, "bag"], [/ powder$|brine/, null, "tub"], [/^Salted caramel sauce$/, null, "bottle"],
   [/^(Whole milk|Oat milk)$/, ["Bar fridge", "Shake station"], "each"], [/^Double cream$/, null, "each"], [/^Funkin purées$/, null, "each"], [/^(Apples|Chillies)$/, null, "each"],
   [/^Cocktail pickles$/, null, "jar"], [/^(Black velvet cake|Victoria sponge)$/, "Cake fridge", "each"], [/^Vegan ice cream$/, "Freezer", "tub"], [/^Vegan whipped cream$/, null, "can"],
   [/sauce$/, null, "bottle"], [/frosting|Philadelphia/, null, "tub"], [/crackers|crumb|^Cookies$|Jammie Dodgers|Lotus|cones|Sprinkles|pieces|Cotton candy/, null, "pack"],
@@ -9689,6 +9762,18 @@ function ctDefault(name, group) {
   for (const [re, a2, u2, o] of CT_NAME) if (re.test(name)) { a = a2 || a; u = u2 || u; off = !!o; break; }
   return { a: [a].flat(), u, ml: u === "bottle" && !/sauce|Mayonnaise|Ketchup|Mustard/.test(name) ? ml || 700 : 0, off };
 }
+// A product's size and weights: what a manager set, else what's filled in (measures.js), marked as estimated.
+// est: the weights are estimates nobody has checked. guess: the size isn't off the label.
+const ctCl = (ml) => (ml % 10 ? `${ml} ml` : `${ml / 10} cl`);
+function ctMeasure(item, u, o, d) {
+  const m = CT_BOTTLE[item], p = CT_PACK[item], set = +o.e > 0 && +o.f > +o.e;
+  if (u === "bottle") {
+    const ml = +o.ml || (m ? m[0] : d.ml), dn = m ? m[2] : 0.95;
+    return { u, ml, dn, e: set ? +o.e : m ? m[1] : 0, f: set ? +o.f : m ? ctFullG(ml, m[1], dn) : 0, pw: +o.pw || 0, est: !set && !!m, size: m || +o.ml ? ctCl(ml) : "", guess: !!m && !m[3] && !+o.ml };
+  }
+  const pw = +o.pw || (p ? p[1] : 0);
+  return { u, ml: 0, dn: 1, e: +o.pw ? +o.e || 0 : p ? p[2] : 0, f: 0, pw, est: !+o.pw && !!p?.[1], size: p ? p[0] : "", guess: !!p && !p[3] };
+}
 // Every line of the count in shelf order: one per product and place (a product kept in two places has two lines, and
 // its total adds them up). all includes the ones not counted, for the setup.
 function ctRows(all) {
@@ -9696,7 +9781,7 @@ function ctRows(all) {
   let i = 0;
   for (const [g, xs] of Object.entries(stockGroups())) for (const item of xs) {
     const d = ctDefault(item, g), o = s.items[item] || {};
-    const r = { item, group: g, i: i++, u: o.u || d.u, a: o.a?.length ? o.a : d.a, e: +o.e || 0, f: +o.f || 0, ml: o.ml ?? d.ml, pw: +o.pw || 0, off: o.off ?? d.off };
+    const r = { item, group: g, i: i++, a: o.a?.length ? o.a : d.a, off: o.off ?? d.off, ...ctMeasure(item, o.u || d.u, o, d) };
     if (r.off && !all) continue;
     for (const area of r.a) out.push({ ...r, area, key: `${area}|${item}` });
   }
@@ -9711,7 +9796,7 @@ const ctQty = (x) => x.full + x.open / 100;
 function ctTotals(day = ctDay, lines = ctLines()) {
   const out = new Map();
   for (const r of ctRows()) {
-    const t = out.get(r.item) || { item: r.item, u: r.u, n: 0, done: 0, of: 0, where: [], by: new Set(), ml: r.ml };
+    const t = out.get(r.item) || { item: r.item, u: r.u, n: 0, done: 0, of: 0, where: [], by: new Set(), ml: r.ml, size: r.size };
     const x = lines.find((y) => y.day === day && y.area === r.area && y.item === r.item);
     t.of++; if (x) { t.done++; t.n += ctQty(x); t.where.push(`${r.area} ${ctNum(ctQty(x))}`); t.by.add(x.name); }
     out.set(r.item, t);
@@ -9807,9 +9892,9 @@ function ctCardHtml() {
 // version (one row of places that scrolls sideways, the totals folded away, the bottle level behind one tap when the
 // scale can do it); the iPad gets everything open side by side.
 const ctWide = () => matchMedia("(min-width: 700px)").matches;
-var ctQ = "", ctShow = store.get("ctShow", "todo"), ctLvl = false, ctTotOpen = null;
+var ctQ = "", ctShow = store.get("ctShow", "todo"), ctLvl = store.get("ctLvl", false), ctTotOpen = null;
 function ctPage() {
-  ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null; ctQ = ""; ctLvl = false;
+  ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null; ctQ = "";
   lastFocus = document.activeElement;
   const speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Stock count</span><span></span></div>
@@ -9862,7 +9947,7 @@ function ctHtml() {
     <details class="setup ct-how" id="ct-how"${store.get("ctHow", false) ? "" : " open"}><summary>How to count</summary><ol>
       <li>Walk the bar in order and tap each item. Find at the top looks in every place, if it's somewhere else.</li>
       <li><b>Full, sealed bottles:</b> tap + for each one.</li>
-      <li><b>The open bottle:</b> stand it on the scale and type the grams. No scale, or no weights for it yet? Tap how full it is.</li>
+      <li><b>The open bottle:</b> take the pourer off, stand it on the scale and type the grams. Every bottle's size and weights are filled in already. No scale? Tap how full it is.</li>
       <li><b>Anything else</b> (cans, cakes, packs): + and −, or type it. Half is .5.</li>
       <li><b>Next ›</b> saves it and opens the next one. Nothing there? Next saves it as none.</li>
       <li><b>Hands full?</b> 🎤 Say it, or type, the name then how many: “Smirnoff two and a half”, “Kraken 845 grams”. Check it, then Save it.</li>
@@ -9912,10 +9997,12 @@ function ctEditHtml(r, x) {
   const lvl = `<div class="ct-open"><div><span>Open bottle</span><b>${open ? `${ctNum(open / 100)}${r.ml ? ` · ${Math.round((open / 100) * r.ml)} ml` : ""}` : "None"}</b><button class="btn" data-ct-set="${full}:0">No open one</button></div>${ctBottle(open)}</div>`;
   const total = x ? `<p class="ct-sum">Total here: <b>${ctSay(r.u, ctQty(x))}</b></p>` : "";
   const foot = `${total}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}<button class="btn pri" data-ct-next="${esc(r.key)}">Next ›</button></div>`;
-  if (r.u !== "bottle") return `<div class="ct-edit">${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
-  const how = can ? `${ctWeighHtml(r)}${wide || ctLvl ? lvl : `<button class="btn ct-lvl" data-ct-lvl>No scale? Tap how full it is</button>`}`
-    : `<p class="s">No bottle weights for ${esc(r.item)} yet, so tap how full it is.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${lvl}${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}`;
-  return `<div class="ct-edit ct-b"><div class="ct-c1"><p class="ct-n">1. Full, sealed bottles</p>${step("full", full, "Full")}</div>
+  const one = r.size && r.u !== "bottle" ? `<p class="s ct-size">One is a ${esc(r.size)}${r.guess ? " (the usual size: a manager can change it)" : ""}.</p>` : "";
+  if (r.u !== "bottle") return `<div class="ct-edit">${one}${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
+  // Phones show one way at a time, the scale first; picking the level sticks until the scale is picked again.
+  const how = can ? (wide ? `${ctWeighHtml(r)}${lvl}` : ctLvl ? `${lvl}<button class="btn ct-lvl" data-ct-lvl="0">Use the scale instead</button>` : `${ctWeighHtml(r)}<button class="btn ct-lvl" data-ct-lvl="1">No scale? Tap how full it is</button>`)
+    : `<p class="s">No weights for ${esc(r.item)} yet, so tap how full it is.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${lvl}${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}`;
+  return `<div class="ct-edit ct-b"><div class="ct-c1"><p class="ct-n">1. Full, sealed bottles${r.size ? ` <small>${esc(r.size)}</small>` : ""}</p>${step("full", full, "Full")}</div>
     <div class="ct-c2"><p class="ct-n">2. The open one</p>${how}</div>${foot}</div>`;
 }
 // The open bottle: tap how full it is, in tenths. Top band is full.
@@ -9929,12 +10016,18 @@ function ctBottle(open) {
 // The scale: for a bottle, the open one's grams; for anything else with a portion weight, all of them on it at once.
 function ctWeighHtml(r) {
   const b = r.u === "bottle";
-  return `<label class="fld ct-g">${b ? "On the scale, grams" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the container ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="Grams"></label><p class="s" id="ct-g-out">${b ? `Empty ${r.e} g, full ${r.f} g${r.ml ? `, ${r.ml} ml` : ""}. A sealed one goes on Full.` : ""}</p>`;
+  const est = r.est ? ` Weights estimated.${LIVE.admin ? "" : " A manager can check them."}` : " Weights checked.";
+  return `<label class="fld ct-g">${b ? "On the scale, grams (pourer off)" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the packaging ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="Grams"></label><p class="s" id="ct-g-out">${b ? `${r.size}: empty ${r.e} g, full ${r.f} g. A sealed one goes on Full.` : ""}</p><p class="s ct-est">${est.trim()}</p>${r.est && LIVE.admin ? ctCheckHtml(r) : ""}`;
+}
+// A manager checking the estimate: a sealed bottle on the scale is enough, as the empty one is that less what's in it.
+function ctCheckHtml(r) {
+  return `<details class="ct-wbox"><summary>Check it: weigh a sealed one</summary><div class="ct-w"><div class="ltools"><input inputmode="decimal" data-ct-chk="${esc(r.item)}" placeholder="Sealed ${esc(r.item)}, grams" aria-label="Sealed bottle, grams"><button class="btn" data-ct-chkgo="${esc(r.item)}">Save</button></div>
+    <p class="s">${r.u === "bottle" ? `${ctCl(r.ml)} of it weighs ${Math.round(r.ml * r.dn)} g, so the empty bottle is the rest.` : ""} Saves for everyone. Set up the count has both weights.</p></div></details>`;
 }
 // A manager setting a bottle's weights: weigh an empty one and an unopened one once. Not 1 g = 1 ml: a liqueur is
-// heavier than a spirit, so the two weights are what make it right.
+// heavier than a spirit, so the two weights are what make it right. Filled in already; estimates say so.
 function ctWeightsHtml(r) {
-  return `<div class="ct-w" data-ct-w="${esc(r.item)}"><p class="s">Weigh an empty ${esc(r.item)} bottle (rinsed, pourer on if it has one) and an unopened one.</p>
+  return `<div class="ct-w" data-ct-w="${esc(r.item)}"><p class="s">${r.est ? `Filled in with estimates for a ${r.size} bottle${r.guess ? " (usual size: check yours)" : ""}. Weigh yours to make them exact: ` : ""}an empty ${esc(r.item)} bottle (rinsed, pourer off) and an unopened one.</p>
     <div class="two"><label class="fld">Empty, grams<input inputmode="decimal" data-ct-wf="e" value="${r.e || ""}"></label><label class="fld">Unopened, grams<input inputmode="decimal" data-ct-wf="f" value="${r.f || ""}"></label></div>
     <label class="fld">Bottle size, ml<input inputmode="numeric" data-ct-wf="ml" value="${r.ml || ""}"></label><div class="actions"><button class="btn" data-ct-wsave="${esc(r.item)}">Save the weights</button></div></div>`;
 }
@@ -9944,7 +10037,7 @@ function ctPut(r, full, open) {
 }
 const ctRow = (key) => ctRows().find((r) => r.key === key);
 function ctGo(key) {
-  ctOpen = key; ctHeard = null; ctLvl = false; ctRender();
+  ctOpen = key; ctHeard = null; ctRender();
   requestAnimationFrame(() => document.getElementById(`ct-r-${ctSlug(key)}`)?.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }));
 }
 function ctHear(text) {
@@ -10059,9 +10152,9 @@ function ctPictures(title, head, rows) {
 // The spreadsheet: one row per product, with where it was and who counted it. Opens in Numbers, Excel or Sheets.
 function ctCsv(day = ctDay) {
   const q = (v) => (/[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v));
-  const lines = [["Date", "Item", "Count", "Unit", "Where", "Counted by"], ...ctTable(day).map((t) => [day, t.item, t.done ? ctNum(t.n) : "", t.u, t.where.join("; "), t.by])];
+  const lines = [["Date", "Item", "Count", "Unit", "Size", "Where", "Counted by"], ...ctTable(day).map((t) => [day, t.item, t.done ? ctNum(t.n) : "", t.u, t.size, t.where.join("; "), t.by])];
   const ins = (LIVE.received || []).filter((x) => x.day === day);
-  if (ins.length) lines.push([], ["Date", "Delivery in", "Count", "Unit", "", "Logged by"], ...ins.map((x) => [day, x.item, ctNum(x.qty / 100), x.unit, "", x.name]));
+  if (ins.length) lines.push([], ["Date", "Delivery in", "Count", "Unit", "", "", "Logged by"], ...ins.map((x) => [day, x.item, ctNum(x.qty / 100), x.unit, "", "", x.name]));
   return "﻿" + lines.map((l) => l.map(q).join(",")).join("\r\n");
 }
 function ctShareCsv() {
@@ -10091,7 +10184,7 @@ function ctSetupHtml() {
     <div class="ltools"><input id="ct-anew" maxlength="40" placeholder="Add a place, like Keg room" aria-label="New place"><button class="btn" id="ct-aadd">Add</button></div>
     ${areas.map((a) => { const rs = all.filter((r) => r.area === a); return `<div class="sec">${esc(a)}</div>${rs.map((r, i) => {
       const k = `${a}|${r.item}`, open = ctSetOpen === k, first = !seen.has(r.item); seen.add(r.item);
-      return `<details class="ct-set"${open ? " open" : ""} data-ct-sk="${esc(k)}"><summary><span>${esc(r.item)}</span><small>${r.off ? "not counted" : `${r.u}${r.u === "bottle" && ctWeighable(r) ? " · weights set" : ""}${r.a.length > 1 ? ` · also ${esc(r.a.filter((x) => x !== a).join(", "))}` : ""}`}</small></summary>${open ? `<div class="ct-sbody" data-ct-item="${esc(r.item)}" data-ct-area="${esc(a)}">
+      return `<details class="ct-set"${open ? " open" : ""} data-ct-sk="${esc(k)}"><summary><span>${esc(r.item)}</span><small>${r.off ? "not counted" : `${r.u}${r.size ? ` · ${esc(r.size)}` : ""}${ctWeighable(r) ? (r.est ? " · weights estimated" : " · weights checked") : ""}${r.a.length > 1 ? ` · also ${esc(r.a.filter((x) => x !== a).join(", "))}` : ""}`}</small></summary>${open ? `<div class="ct-sbody" data-ct-item="${esc(r.item)}" data-ct-area="${esc(a)}">
         <div class="actions"><button class="btn" data-ct-move="-1"${i ? "" : " disabled"}>↑ Up the shelf</button><button class="btn" data-ct-move="1"${i < rs.length - 1 ? "" : " disabled"}>↓ Down the shelf</button></div>
         <div class="two"><label class="fld">Counted in<select data-ct-f="u">${CT_UNITS.map((u) => `<option${u === r.u ? " selected" : ""}>${u}</option>`).join("")}</select></label>
         <label class="fld">Place<select data-ct-f="area">${areas.map((x) => `<option${x === a ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label></div>
@@ -10107,7 +10200,7 @@ $("#sheet").addEventListener("click", (e) => {
   if (!$("#ct")) return;
   const t = (s) => e.target.closest(s);
   const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
-  if (t("[data-ct-lvl]")) { ctLvl = true; return ctRender(); }
+  const lb = t("[data-ct-lvl]"); if (lb) { ctLvl = lb.dataset.ctLvl === "1"; store.set("ctLvl", ctLvl); return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
   const jp = t("[data-ct-jump]"); if (jp) {
     // A place already counted is hidden under Not counted yet: going to it shows everything.
@@ -10143,6 +10236,13 @@ $("#sheet").addEventListener("click", (e) => {
   // Setup
   if (t("#ct-setup")) { ctSetupOn = true; ctSetOpen = ""; ctRender(); $("#sheet").scrollTop = 0; return; }
   if (t("#ct-setup-done")) { ctSetupOn = false; ctRender(); $("#sheet").scrollTop = 0; return; }
+  const ck = t("[data-ct-chkgo]"); if (ck) {
+    const item = ck.dataset.ctChkgo, rr = ctRows(true).find((y) => y.item === item), g = +$(`[data-ct-chk="${CSS.escape(item)}"]`).value.replace(",", ".") || 0;
+    if (rr.u !== "bottle") { if (!(g > rr.e)) return toast("Weigh a full one, packaging and all"); return ctSave((s) => ctItemSet(s, rr, { pw: Math.round(g - rr.e), e: rr.e }), `${item} checked: ${Math.round(g - rr.e)} g in one`); }
+    const e0 = Math.round(g - rr.ml * rr.dn);
+    if (!(e0 > 50)) return toast(`That's too light for a sealed ${rr.size} bottle. Check the scale reads 0 first`);
+    return ctSave((s) => ctItemSet(s, rr, { e: e0, f: Math.round(g), ml: rr.ml }), `${item} checked: empty ${e0} g, full ${Math.round(g)} g`);
+  }
   const ws = t("[data-ct-wsave]"); if (ws) {
     const box = ws.closest("[data-ct-w]"), v = (k) => +box.querySelector(`[data-ct-wf="${k}"]`).value || 0, e0 = v("e"), f0 = v("f"), ml = v("ml"), rr = ctRows(true).find((y) => y.item === ws.dataset.ctWsave);
     if (!(e0 > 0 && f0 > e0)) return toast("The unopened one has to weigh more than the empty one");
@@ -10562,7 +10662,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T22:37";
+const BUILD = "2026-11-17T22:59";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -11393,7 +11493,10 @@ const IM_KINDS = {
         if (u === "bottle" && e && f && f <= e) return { o, st: "skip", why: "Full bottle must weigh more than empty" };
         const next = { u, a, ml, e, f, pw, off }, same = next.u === r.u && next.a.join("|") === r.a.join("|") && +next.ml === +r.ml && +next.e === +r.e && +next.f === +r.f && +next.pw === +r.pw && next.off === r.off;
         const line = `${r.item} · ${a.join(", ")} · ${u}${u === "bottle" && ml ? ` · ${ml} ml` : ""}${e && f ? ` · ${e} to ${f} g` : ""}${off ? " · not counted" : ""}`;
-        return same ? { o, st: "same", line } : { o, st: "change", line, was: `${r.a.join(", ")}, ${r.u}${r.e && r.f ? `, ${r.e} to ${r.f} g` : ""}`, go: { setup: true, item: r.item, next } };
+        // Sizes and weights come filled in as estimates (measures.js). Left as they were, they stay estimates rather than
+        // being saved as if a manager had weighed them; a changed one is saved, and counts as checked.
+        const keep = r.est && +ml === +r.ml && +e === +r.e && +f === +r.f && +pw === +r.pw, save = keep ? { ...next, ml: 0, e: 0, f: 0, pw: 0 } : next;
+        return same ? { o, st: "same", line } : { o, st: "change", line, was: `${r.a.join(", ")}, ${r.u}${r.e && r.f ? `, ${r.e} to ${r.f} g` : ""}`, go: { setup: true, item: r.item, next: save } };
       });
     } },
   count: { n: "Stock count", what: "A count from the notebook or another sheet, for the day it was done. Same columns as Export's stock counts.", must: "item", days: true,
@@ -12399,14 +12502,14 @@ const HELP = {
     behind: ["Each tap is saved with your name and the time, so a label that wasn't changed can be traced.", "Due today, tomorrow and overdue show at the top of Morning and Closing, and go in the handover.", "Only managers add, change or remove items. They set each side up from Black Tap's list in one go, with the days from each pack."] },
   count: { t: "Stock count", what: "The count book: everything the bar and floor hold, place by place, in the order you walk it.",
     how: ["Shift, Stock, Count stock. Walk it in order and tap each item.",
-      "A bottle, one way through: + for each full, sealed one, then the open one. Stand it on the scale and type the grams; no scale, or no weights for it yet, tap how full it is. Next › saves it and opens the one after (nothing there saves it as none).",
+      "A bottle, one way through: + for each full, sealed one, then the open one. Take the pourer off, stand it on the scale and type the grams: every bottle comes with its size and weights filled in. No scale? Tap how full it is, and it stays that way until Use the scale. Next › saves it and opens the one after (nothing there saves it as none).",
       "Anything else (cans, cakes, packs): + and −, or type it. Half is .5.",
       "Not in shelf order? Type a few letters in Find at the top: it looks in every place and says where each one is. The place buttons jump to a place.",
       "Not counted yet shows only what's left, so the list gets shorter as you go. Counted shows what's done and who did it. All shows the lot.",
       "Hands full? 🎤 Say it, or type in the same box, the name then how many: “Smirnoff two and a half”, “Kraken 845 grams”. Check what it heard, then Save it.",
       "Delivery in: log what came in so usage between counts comes out right.",
       "Done: Send on WhatsApp sends the totals as a table, or Spreadsheet gives a file for Numbers or Excel to type into Nory."],
-    behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Weighing uses each bottle's own empty and unopened weights, set once by a manager: a liqueur weighs more than a spirit, so grams are never taken as ml. A sealed bottle goes on Full with +, so it's never counted twice.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory."] },
+    behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Every bottle and pack comes filled in: its size from the label (70 cl, Monkey 47's 50 cl, Martini's 75 cl, a 200 ml Fever-Tree, a 1 kg Funkin pouch) and estimated empty and full weights. A liqueur weighs more than a spirit, so grams are never taken as ml.", "Estimates are near enough to count with, and say so. A manager makes one exact by weighing a sealed bottle once (Check it, on the line): the empty weight follows. Set up the count changes any size or weight. A sealed bottle goes on Full with +, so it's never counted twice.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory."] },
   stock: { t: "86 board and restock", what: "What's run out tonight, and getting stock up from the cellar.",
     how: ["Tap Search everything to 86: type a few letters (typos are fine) or pick a kind, like Spirits, Cakes or Frozen.", "Tap 86 on a row, or tick several and 86 them together. Each row says how many drinks use it, and the swap once it's out.", "Quick 86 has this phone's recent ones and the team's most 86'd: one tap. Not on the list? Type it and it goes on as you typed it.", "Back in stock takes it off for everyone.", "Restock: pick what's needed from the same list, then how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it."],
     behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere. An 86'd ingredient turns every drink that uses it to Can make with a swap, or Can't make tonight if nothing close is in.", "Missing on a drink's own ingredient goes on this same board, so one tap does both.", "Restocks waiting over 15 minutes show as late. The weekly count is Stock count, at the foot of this page: its totals go into Nory.", "Clear everything puts every 86 back in stock."] },

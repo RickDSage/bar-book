@@ -32,6 +32,8 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
   // Tap: three full, the open one at four tenths.
   await S.click(row("Speed rail", "Smirnoff"));
   for (let i = 0; i < 3; i++) await S.click('[data-ct-add="full:1"]');
+  // The scale comes first on a phone; no scale, the level is one tap away, and stays picked.
+  await S.click('[data-ct-lvl="1"]');
   await S.click('[data-ct-lv="4"]');
   await waitLine(S, "Smirnoff", [3, 40]);
   assert.deepEqual(await line(S, "Smirnoff"), [3, 40, "Sam Staff"]);
@@ -81,10 +83,10 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
   assert.ok((await S.evaluate(() => SHARE.count().photos().then((x) => x.length))) >= 1);
   const csv = await S.evaluate(() => ctCsv());
   const day = await S.evaluate(() => ctDay);
-  assert.ok(csv.startsWith("﻿Date,Item,Count,Unit,Where,Counted by\r\n"));
-  assert.ok(csv.includes(`\r\n${day},Smirnoff,3.4,bottle,Speed rail 3.4,Sam Staff\r\n`));
-  assert.ok(csv.includes(`\r\n${day},Whole milk,5,each,Bar fridge 2; Shake station 3,Sam Staff\r\n`));
-  assert.ok(csv.includes(`\r\n${day},Grey Goose,,bottle,,\r\n`), "not counted is a blank row");
+  assert.ok(csv.startsWith("﻿Date,Item,Count,Unit,Size,Where,Counted by\r\n"));
+  assert.ok(csv.includes(`\r\n${day},Smirnoff,3.4,bottle,70 cl,Speed rail 3.4,Sam Staff\r\n`));
+  assert.ok(csv.includes(`\r\n${day},Whole milk,5,each,2 pint (1.14 litre) bottle,Bar fridge 2; Shake station 3,Sam Staff\r\n`));
+  assert.ok(csv.includes(`\r\n${day},Grey Goose,,bottle,70 cl,,\r\n`), "not counted is a blank row");
 
   // The rules: a line has to be filed under its own day, and only managers set the count up.
   const x = (o) => ({ day, area: "Back bar", item: "Kraken", unit: "bottle", full: 1, open: 0, ...o });
@@ -145,8 +147,8 @@ test("managers set it up; weighing, deliveries and usage between counts", async 
   await say(S, "kraken 932 grams"); assert.match(await text(S, ".ct-heard"), /Kraken, Back bar: 1\.5 bottles/); await S.click("#ct-heard-ok"); await waitLine(S, "Kraken", [1, 50]);
   await say(S, "kraken 800"); assert.match(await text(S, ".ct-heard"), /Kraken, Back bar: 1\.3 bottles/, "a number no bottle count gets to is grams"); await S.click("#ct-heard-ok"); await waitLine(S, "Kraken", [1, 30]);
   // No weights: tap the level instead.
-  await S.click(row("Back bar", "Grey Goose"));
-  assert.match(await text(S, ".ct-edit"), /No bottle weights for Grey Goose yet, so tap how full it is\. A manager sets them once/);
+  await S.click(row("Prep and syrups", "Foamer"));
+  assert.match(await text(S, ".ct-edit"), /No weights for Foamer yet, so tap how full it is\. A manager sets them once/);
   assert.ok(await S.$(".ct-edit [data-ct-lv]"), "the level is there straight away");
 
   // Usage between counts: three counts, a delivery in between.
@@ -165,7 +167,7 @@ test("managers set it up; weighing, deliveries and usage between counts", async 
   const um = await S.evaluate(() => shareText("countuse", false));
   assert.match(um, /Flagged \(2\)/); assert.match(um, /Grey Goose: 6 bottles \(More than usual/);
   // Deliveries are in the spreadsheet too, and only whoever logged one (or a manager) takes it off.
-  assert.match(await S.evaluate(() => ctCsv()), new RegExp(`${today},Kraken,6,bottle,,Sam Staff`));
+  assert.match(await S.evaluate(() => ctCsv()), new RegExp(`${today},Kraken,6,bottle,,,Sam Staff`));
   const rid = await S.evaluate(() => LIVE.received[0].id);
   await M.waitForFunction(() => LIVE.received.length === 1);
   assert.equal(await attempt(M, (i) => LIVE.api.dropReceived(i), rid), "allowed");
@@ -177,7 +179,7 @@ test("finding it when it isn't in shelf order: every place, not counted yet, Nex
   await S.evaluate(() => store.set("ctHow", false));
   await openCount(S);
   // The how-to is open the first time, and stays shut once closed.
-  assert.match(await text(S, "#ct-how"), /Full, sealed bottles: tap \+ for each one\. The open bottle: stand it on the scale/);
+  assert.match(await text(S, "#ct-how"), /Full, sealed bottles: tap \+ for each one\. The open bottle: take the pourer off, stand it on the scale/);
   assert.equal(await S.$eval("#ct-how", (d) => d.open), true);
   await S.click("#ct-how summary"); await S.waitForFunction(() => store.get("ctHow") === true);
   // Search looks in every place: milk is in two, and each line says where.
@@ -207,4 +209,45 @@ test("finding it when it isn't in shelf order: every place, not counted yet, Nex
   await S.click('[data-ct-jump="Freezer"]');
   assert.ok(await S.$(row("Freezer", "Ice cream")));
   assert.deepEqual(S.errs, []);
+});
+
+test("every bottle and pack comes filled in: size, empty and full weights, marked estimated until a manager checks one", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  await openCount(S);
+  // Filled in from measures.js: Smirnoff 70 cl, empty 420 g, full 420 + 700 × 0.952; Monkey 47 is a 50 cl bottle.
+  const m = await S.evaluate(() => Object.fromEntries(["Smirnoff", "Monkey 47", "Baileys", "Drumshanbo Gunpowder", "Tonic", "Funkin purées", "Foamer"].map((n) => { const r = ctRows().find((x) => x.item === n); return [n, [r.u, r.ml, r.e, r.f, r.pw, r.est, r.size]]; })));
+  assert.deepEqual(m.Smirnoff, ["bottle", 700, 420, 1086, 0, true, "70 cl"]);
+  assert.deepEqual(m["Monkey 47"].slice(0, 2), ["bottle", 500]);
+  assert.ok(m.Baileys[3] - m.Baileys[2] > 700, "a cream liqueur weighs more than its ml");
+  assert.equal(m["Drumshanbo Gunpowder"][0], "bottle", "Gunpowder gin isn't a tub of powder");
+  assert.deepEqual(m.Tonic.slice(0, 1).concat(m.Tonic.slice(6)), ["each", "200 ml Fever-Tree bottle"]);
+  assert.deepEqual(m["Funkin purées"].slice(2, 7), [30, 0, 1000, true, "1 kg pouch"]);
+  assert.deepEqual(m.Foamer.slice(2, 4), [0, 0], "nothing made up where the product isn't known");
+  // Weighing works straight away, and says the weights are estimates.
+  await S.click(row("Speed rail", "Smirnoff"));
+  assert.match(await text(S, ".ct-edit"), /1\. Full, sealed bottles 70 cl/);
+  assert.match(await text(S, ".ct-edit"), /70 cl: empty 420 g, full 1086 g\. A sealed one goes on Full\. Weights estimated\. A manager can check them\./);
+  await S.fill("#ct-g", "753"); await waitLine(S, "Smirnoff", [0, 50]);
+  assert.equal(await S.$("[data-ct-chk]"), null, "only managers check");
+  await S.click(row("Bar fridge", "Tonic"));
+  assert.match(await text(S, ".ct-edit"), /One is a 200 ml Fever-Tree bottle\./);
+  // A manager weighs one sealed bottle: the empty weight follows, and it's checked for everyone.
+  await openCount(M); await M.click('[data-ct-show="all"]');
+  await M.click(row("Speed rail", "Smirnoff"));
+  await M.click(".ct-wbox summary"); await M.fill('[data-ct-chk="Smirnoff"]', "1100"); await M.click('[data-ct-chkgo="Smirnoff"]');
+  await waitToast(M, /^Smirnoff checked: empty 434 g, full 1100 g$/);
+  await S.waitForFunction(() => { const r = ctRows().find((x) => x.item === "Smirnoff"); return r.e === 434 && r.f === 1100 && !r.est; });
+  await S.click('[data-ct-show="all"]'); await S.click(row("Speed rail", "Smirnoff"));
+  assert.match(await text(S, ".ct-edit"), /Weights checked\./);
+  // Packs: a full one, packaging and all, gives what's in one.
+  await M.click(row("Bar fridge", "Funkin purées")); await M.click(".ct-wbox summary");
+  await M.fill('[data-ct-chk="Funkin purées"]', "1050"); await M.click('[data-ct-chkgo="Funkin purées"]');
+  await waitToast(M, /^Funkin purées checked: 1020 g in one$/);
+  // Setup shows which are estimated, and the spreadsheet has the size.
+  assert.match(await S.evaluate(() => ctCsv()), /,Monkey 47,,bottle,50 cl,,/);
+  await M.click("#ct-setup");
+  assert.match(await text(M, '[data-ct-sk="Back bar|Grey Goose"] summary'), /bottle · 70 cl · weights estimated/);
+  assert.match(await text(M, '[data-ct-sk="Speed rail|Smirnoff"] summary'), /weights checked/);
+  for (const p of [M, S]) assert.deepEqual(p.errs, []);
 });

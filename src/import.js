@@ -171,7 +171,10 @@ const IM_KINDS = {
         if (u === "bottle" && e && f && f <= e) return { o, st: "skip", why: "Full bottle must weigh more than empty" };
         const next = { u, a, ml, e, f, pw, off }, same = next.u === r.u && next.a.join("|") === r.a.join("|") && +next.ml === +r.ml && +next.e === +r.e && +next.f === +r.f && +next.pw === +r.pw && next.off === r.off;
         const line = `${r.item} · ${a.join(", ")} · ${u}${u === "bottle" && ml ? ` · ${ml} ml` : ""}${e && f ? ` · ${e} to ${f} g` : ""}${off ? " · not counted" : ""}`;
-        return same ? { o, st: "same", line } : { o, st: "change", line, was: `${r.a.join(", ")}, ${r.u}${r.e && r.f ? `, ${r.e} to ${r.f} g` : ""}`, go: { setup: true, item: r.item, next } };
+        // Sizes and weights come filled in as estimates (measures.js). Left as they were, they stay estimates rather than
+        // being saved as if a manager had weighed them; a changed one is saved, and counts as checked.
+        const keep = r.est && +ml === +r.ml && +e === +r.e && +f === +r.f && +pw === +r.pw, save = keep ? { ...next, ml: 0, e: 0, f: 0, pw: 0 } : next;
+        return same ? { o, st: "same", line } : { o, st: "change", line, was: `${r.a.join(", ")}, ${r.u}${r.e && r.f ? `, ${r.e} to ${r.f} g` : ""}`, go: { setup: true, item: r.item, next: save } };
       });
     } },
   count: { n: "Stock count", what: "A count from the notebook or another sheet, for the day it was done. Same columns as Export's stock counts.", must: "item", days: true,

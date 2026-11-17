@@ -141,14 +141,18 @@ test("a manager imports a spreadsheet: preview first, saves new and changed line
   assert.equal(await M.evaluate(async () => (await LIVE.api.daysOf("counts", shiftDay(), shiftDay(), 10)).map((x) => `${x.item} ${x.full} ${x.open}`).join()), "Smirnoff 2 45");
 
   // Stock setup from the Excel template: change Smirnoff's weights, round trip through a real .xlsx.
-  const x64 = await M.evaluate(async () => { const K = IM_KINDS.setup, rows = K.tpl().map((r) => (r[0] === "Smirnoff" ? [r[0], r[1], "bottle", 700, 520, 1180, "", "Yes"] : r));
+  const x64 = await M.evaluate(async () => { const K = IM_KINDS.setup, rows = K.tpl().map((r) => (r[0] === "Smirnoff" ? [r[0], r[1], "bottle", 700, 520, 1180, "", "Yes"] : r[0] === "Kraken" ? [r[0], "Back bar; Store room", ...r.slice(2)] : r));
     const u = new Uint8Array(await exXlsx([[K.n, K.cols, rows]]).arrayBuffer()); let s = ""; for (const c of u) s += String.fromCharCode(c); return btoa(s); });
   await M.click('#tc-export [data-im-kind="setup"]');
   await M.setInputFiles("#tc-export [data-im-file]", { name: "setup.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(x64, "base64") });
   await M.waitForFunction(() => IM.plan || IM.err);
-  assert.deepEqual(await M.evaluate(() => IM.err || IM.plan.filter((x) => x.st !== "same").map((x) => x.line)), ["Smirnoff · Speed rail · bottle · 700 ml · 520 to 1180 g"]);
+  assert.deepEqual(await M.evaluate(() => IM.err || IM.plan.filter((x) => x.st !== "same").map((x) => x.line)), ["Smirnoff · Speed rail · bottle · 700 ml · 520 to 1180 g", "Kraken · Back bar, Store room · bottle · 700 ml · 640 to 1316 g"]);
   await M.click("#tc-export [data-im-save]");
   await S.waitForFunction(() => LIVE.countSetup?.items?.Smirnoff?.f === 1180);
+  // Kraken moved but its filled-in weights weren't touched: they stay estimates, not saved as weighed.
+  await S.waitForFunction(() => LIVE.countSetup?.items?.Kraken?.a?.includes("Store room"));
+  assert.deepEqual(await S.evaluate(() => { const r = ctRows().find((x) => x.item === "Kraken"); return [r.e, r.f, r.est, LIVE.countSetup.items.Kraken.e]; }), [640, 1316, true, 0]);
+  assert.equal(await S.evaluate(() => ctRows().find((x) => x.item === "Smirnoff").est), false);
 
   // A manager's new item waits for Maintenance; one in Bar Book's own list is skipped.
   assert.deepEqual(await upload(M, "items", "items.csv", "Item,Side,Group,Kind,Kept in,Date label,Keeps (days),At close,Note\nYuzu purée,Bar,Fruit,Purée,Fridge,Yes,7,,\nSmirnoff,Bar,Spirits,Spirit,Back bar,No,0,,"), ["new", "skip: Already in Bar Book's own list"]);
