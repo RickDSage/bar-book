@@ -54,7 +54,7 @@ function logRender() {
     <p class="note lg-acc"><b>Someone hurt or an accident?</b> Tell the duty manager now and write it in the accident book. <button class="linkbtn" data-goto="incident">Incident or accident ›</button></p>
     ${mine.length ? `<div class="mini">Logged tonight, ${esc(lower(sideName(lg.side)))}</div><ul class="lg-list">${mine.map(logRow).join("")}</ul>` : ""}`;
 }
-const logRow = (e) => `<li><span class="pill">${esc(LOG_NAME[e.what] || "Logged")}</span> ${ut(e.label)} <span class="s">· <span translate="no">${esc(e.name)}</span> ${hhmm(new Date(ms(e.at)))}</span>${canDropLog(e) ? `<button class="lg-drop" data-lg-drop="${e.id}" aria-label="Take it off">×</button>` : ""}</li>`;
+const logRow = (e) => `<li><div><span class="pill">${esc(LOG_NAME[e.what] || "Logged")}</span><p>${ut(e.label)}</p><small><span translate="no">${esc(e.name)}</span> \u00b7 ${hhmm(new Date(ms(e.at)))}</small></div>${canDropLog(e) ? `<button class="lg-drop" data-lg-drop="${e.id}" aria-label="Take it off">\u00d7</button>` : ""}</li>`;
 function logSave(send) {
   const raw = ($("#lg-text")?.value || "").trim().replace(/\s+/g, " ");
   if (!raw) { toast(lg.what === "out" ? "Say what ran out" : "Write what happened first"); $("#lg-text")?.focus(); return; }
@@ -126,7 +126,8 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .lg-go{display:grid;grid-template-columns:1fr;gap:8px;margin:10px 0 6px}.lg-go .btn{width:100%;margin:0}
 @media (min-width:520px){.lg-go{grid-template-columns:1fr 1.4fr}}
 .lg-acc{border-left:3px solid var(--warn);padding-left:10px}
-.lg-list{list-style:none;padding:0;margin:6px 0}.lg-list li{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}
-.lg-list li:last-child{border-bottom:0}.lg-list .s{color:var(--muted);font-size:13px}
-.lg-drop{margin-left:auto;background:none;border:0;color:var(--muted);font-size:22px;line-height:1;min-height:0;padding:2px 8px}
+.lg-list{list-style:none;padding:0;margin:6px 0}.lg-list li{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.lg-list li>div{flex:1;min-width:0}.lg-list p{margin:6px 0 2px;line-height:1.35}.lg-list small,.lg-list .s{color:var(--muted);font-size:13px}
+.lg-list li:last-child{border-bottom:0}
+.lg-drop{flex:none;background:none;border:0;color:var(--muted);font-size:24px;line-height:1;min-height:0;padding:4px 8px}
 </style>`);

@@ -502,6 +502,7 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+.wquick #w-ipad { grid-column: 1 / -1; }
 .bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
 .utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
@@ -969,7 +970,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-practice" hidden>
     <button class="back" data-back>‹ More</button>
     <h2 style="font-size:28px">Practise specs</h2>
-    <div class="gd-ask"><div class="mini">Ask Bar Book</div><div class="search gd-search"><input id="gd-q-p" class="gd-in" type="search" placeholder="How do I make a mojito? What's a dry shake?" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div></div>
+    <div class="gd-ask"><div class="mini">Ask Bar Book</div><div class="search gd-search"><input id="gd-q-p" class="gd-in" type="search" placeholder="How do I make…? What's a…?" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div></div>
     <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button><button data-pmode="starter">New starter</button></div>
     <p class="lead" id="plead"></p>
     <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
@@ -5623,7 +5624,7 @@ function glanceHtml() {
     ${glanceSide("bar")}${glanceSide("floor")}
     <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
     <div class="mini">Open issues and faults</div><ul class="live">${iss.join("") || "<li>None</li>"}</ul>
-    <div class="mini">Logged tonight</div>${logsOf().length ? `<ul class="lg-list">${logsOf().slice().reverse().map((e) => `<li><span class="pill">${esc(sideName(e.area))} \u00b7 ${esc(LOG_NAME[e.what])}</span> ${ut(e.label)} ${byAt(e.name, e.at)}</li>`).join("")}</ul>` : `<ul class="live"><li>Nothing</li></ul>`}
+    <div class="mini">Logged tonight</div>${logsOf().length ? `<ul class="lg-list">${logsOf().slice().reverse().map((e) => `<li><div><span class="pill">${esc(sideName(e.area))} \u00b7 ${esc(LOG_NAME[e.what])}</span><p>${ut(e.label)}</p><small><span translate="no">${esc(e.name)}</span> \u00b7 ${shortAt(e.at)}</small></div></li>`).join("")}</ul>` : `<ul class="live"><li>Nothing</li></ul>`}
     <div class="mini">Restocks waiting</div><ul class="live">${rs.join("") || "<li>None</li>"}</ul>
     <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Managers unlocked: ${seniors.map(esc).join(", ")}` : ""}</p>
     <div class="actions">${sendBtn("tonight", "Send tonight's report")}</div></div>`;
@@ -7810,6 +7811,7 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .st-bar { display: block; width: 100%; height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .st-bar i { display: block; height: 100%; background: var(--brass); }
 .sx-tb { display: flex; gap: 8px; }
+@media (max-width: 559px) { .sx-top { flex-wrap: wrap; } .sx-tb { flex-wrap: wrap; } }
 .sx-tb [data-sx-big] { min-width: 52px; font-size: 18px; }
 .sx-tb [data-sx-big][aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .sx-live { display: contents; }
@@ -9353,7 +9355,7 @@ function logRender() {
     <p class="note lg-acc"><b>Someone hurt or an accident?</b> Tell the duty manager now and write it in the accident book. <button class="linkbtn" data-goto="incident">Incident or accident ›</button></p>
     ${mine.length ? `<div class="mini">Logged tonight, ${esc(lower(sideName(lg.side)))}</div><ul class="lg-list">${mine.map(logRow).join("")}</ul>` : ""}`;
 }
-const logRow = (e) => `<li><span class="pill">${esc(LOG_NAME[e.what] || "Logged")}</span> ${ut(e.label)} <span class="s">· <span translate="no">${esc(e.name)}</span> ${hhmm(new Date(ms(e.at)))}</span>${canDropLog(e) ? `<button class="lg-drop" data-lg-drop="${e.id}" aria-label="Take it off">×</button>` : ""}</li>`;
+const logRow = (e) => `<li><div><span class="pill">${esc(LOG_NAME[e.what] || "Logged")}</span><p>${ut(e.label)}</p><small><span translate="no">${esc(e.name)}</span> \u00b7 ${hhmm(new Date(ms(e.at)))}</small></div>${canDropLog(e) ? `<button class="lg-drop" data-lg-drop="${e.id}" aria-label="Take it off">\u00d7</button>` : ""}</li>`;
 function logSave(send) {
   const raw = ($("#lg-text")?.value || "").trim().replace(/\s+/g, " ");
   if (!raw) { toast(lg.what === "out" ? "Say what ran out" : "Write what happened first"); $("#lg-text")?.focus(); return; }
@@ -9425,9 +9427,10 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .lg-go{display:grid;grid-template-columns:1fr;gap:8px;margin:10px 0 6px}.lg-go .btn{width:100%;margin:0}
 @media (min-width:520px){.lg-go{grid-template-columns:1fr 1.4fr}}
 .lg-acc{border-left:3px solid var(--warn);padding-left:10px}
-.lg-list{list-style:none;padding:0;margin:6px 0}.lg-list li{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px;padding:8px 0;border-bottom:1px solid var(--line)}
-.lg-list li:last-child{border-bottom:0}.lg-list .s{color:var(--muted);font-size:13px}
-.lg-drop{margin-left:auto;background:none;border:0;color:var(--muted);font-size:22px;line-height:1;min-height:0;padding:2px 8px}
+.lg-list{list-style:none;padding:0;margin:6px 0}.lg-list li{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.lg-list li>div{flex:1;min-width:0}.lg-list p{margin:6px 0 2px;line-height:1.35}.lg-list small,.lg-list .s{color:var(--muted);font-size:13px}
+.lg-list li:last-child{border-bottom:0}
+.lg-drop{flex:none;background:none;border:0;color:var(--muted);font-size:24px;line-height:1;min-height:0;padding:4px 8px}
 </style>`);
 /* ---------- Your shift, and the Guide ----------
    Bar or Floor on the start screen (or the first time someone opens Shift, after going straight to the drinks) shows a
@@ -9571,7 +9574,7 @@ function gdResultsHtml() {
     terms: r.terms.length && `<div class="mini">What it means</div>${r.terms.map(termRow).join("")}` };
   const body = r.order.map((k) => parts[k]).filter(Boolean).join("");
   const asked = gdAsked === gdQ.trim().toLowerCase();
-  const miss = `<div class="gd-miss"><b>${body ? "Not what you meant?" : "That isn't in Bar Book yet."}</b><span>${asked ? "Sent to maintenance to add. Thanks." : "Send it to maintenance to add. They check it first, so nothing goes in until it's right."}</span>
+  const miss = `<div class="gd-miss${body ? " soft" : ""}"><b>${body ? "Not what you meant?" : "That isn't in Bar Book yet."}</b><span>${asked ? "Sent to maintenance to add. Thanks." : "Send it to maintenance to add. They check it first, so nothing goes in until it's right."}</span>
     ${asked ? "" : `<button class="btn${body ? "" : " pri"}" data-gd-add>Add it</button>`}${body ? "" : `<button class="linkbtn" data-gd-new>A new bottle or ingredient? Add something new ›</button>`}</div>`;
   return `${r.fixed.length ? `<p class="note">Showing results for <b>${esc(r.fixed.join(", "))}</b>.</p>` : ""}${body}${miss}`;
 }
@@ -9586,7 +9589,7 @@ function gdHomeHtml() {
     <details class="gd-sec"><summary>Words we use<span>${GLOSSARY.length}</span></summary>${GLOSSARY.map(([t, d]) => `<div class="gd-term"><b>${esc(t)}</b><span>${esc(d)}</span></div>`).join("")}</details>`;
 }
 // The search box itself, for the Guide, Practise and the bar station.
-const gdBoxHtml = (id, ph = "How do I make a mojito? What's a dry shake? Where's the handover?") => `<div class="search gd-search"><input id="${id}" class="gd-in" type="search" placeholder="${esc(ph)}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div>`;
+const gdBoxHtml = (id, ph = "Ask: how do I make a mojito?") => `<div class="search gd-search"><input id="${id}" class="gd-in" type="search" placeholder="${esc(ph)}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div>`;
 function guideOpen(q = "") {
   if (!$("#help").hidden && $("#gd-q")) { $("#gd-q").focus(); return; }
   helpFrom = helpFrom || document.activeElement; introAt = -1; gdQ = q;
@@ -9657,7 +9660,8 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .gd-sec>summary::-webkit-details-marker{display:none}.gd-sec>summary span{color:var(--muted);font-weight:600;font-size:14px}
 .gd-sec>summary::after{content:"▾";color:var(--brass);margin-left:8px}.gd-sec[open]>summary::after{content:"▴"}.gd-sec>summary span{margin-left:auto}
 .gd-miss{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin:14px 0 4px;padding:12px;border:1px dashed var(--line);border-radius:14px}
-.gd-miss span{color:var(--muted);font-size:14px;line-height:1.4}.gd-miss .btn{margin:0}
+.gd-miss span{color:var(--muted);font-size:14px;line-height:1.4}.gd-miss .btn{margin:0}.gd-miss .linkbtn{text-align:left;padding:0;font-size:14px}
+.gd-miss.soft{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:12px;border-style:solid;padding:10px 12px}.gd-miss.soft b{font-size:15px}.gd-miss.soft span{grid-column:1}.gd-miss.soft .btn{grid-column:2;grid-row:1/3}
 .gd-foot{margin-top:14px}
 .gd-ask{margin:4px 0 14px}.gd-ask .mini{margin-bottom:4px}
 </style>`);

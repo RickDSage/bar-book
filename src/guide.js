@@ -140,7 +140,7 @@ function gdResultsHtml() {
     terms: r.terms.length && `<div class="mini">What it means</div>${r.terms.map(termRow).join("")}` };
   const body = r.order.map((k) => parts[k]).filter(Boolean).join("");
   const asked = gdAsked === gdQ.trim().toLowerCase();
-  const miss = `<div class="gd-miss"><b>${body ? "Not what you meant?" : "That isn't in Bar Book yet."}</b><span>${asked ? "Sent to maintenance to add. Thanks." : "Send it to maintenance to add. They check it first, so nothing goes in until it's right."}</span>
+  const miss = `<div class="gd-miss${body ? " soft" : ""}"><b>${body ? "Not what you meant?" : "That isn't in Bar Book yet."}</b><span>${asked ? "Sent to maintenance to add. Thanks." : "Send it to maintenance to add. They check it first, so nothing goes in until it's right."}</span>
     ${asked ? "" : `<button class="btn${body ? "" : " pri"}" data-gd-add>Add it</button>`}${body ? "" : `<button class="linkbtn" data-gd-new>A new bottle or ingredient? Add something new ›</button>`}</div>`;
   return `${r.fixed.length ? `<p class="note">Showing results for <b>${esc(r.fixed.join(", "))}</b>.</p>` : ""}${body}${miss}`;
 }
@@ -155,7 +155,7 @@ function gdHomeHtml() {
     <details class="gd-sec"><summary>Words we use<span>${GLOSSARY.length}</span></summary>${GLOSSARY.map(([t, d]) => `<div class="gd-term"><b>${esc(t)}</b><span>${esc(d)}</span></div>`).join("")}</details>`;
 }
 // The search box itself, for the Guide, Practise and the bar station.
-const gdBoxHtml = (id, ph = "How do I make a mojito? What's a dry shake? Where's the handover?") => `<div class="search gd-search"><input id="${id}" class="gd-in" type="search" placeholder="${esc(ph)}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div>`;
+const gdBoxHtml = (id, ph = "Ask: how do I make a mojito?") => `<div class="search gd-search"><input id="${id}" class="gd-in" type="search" placeholder="${esc(ph)}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div>`;
 function guideOpen(q = "") {
   if (!$("#help").hidden && $("#gd-q")) { $("#gd-q").focus(); return; }
   helpFrom = helpFrom || document.activeElement; introAt = -1; gdQ = q;
@@ -226,7 +226,8 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .gd-sec>summary::-webkit-details-marker{display:none}.gd-sec>summary span{color:var(--muted);font-weight:600;font-size:14px}
 .gd-sec>summary::after{content:"▾";color:var(--brass);margin-left:8px}.gd-sec[open]>summary::after{content:"▴"}.gd-sec>summary span{margin-left:auto}
 .gd-miss{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin:14px 0 4px;padding:12px;border:1px dashed var(--line);border-radius:14px}
-.gd-miss span{color:var(--muted);font-size:14px;line-height:1.4}.gd-miss .btn{margin:0}
+.gd-miss span{color:var(--muted);font-size:14px;line-height:1.4}.gd-miss .btn{margin:0}.gd-miss .linkbtn{text-align:left;padding:0;font-size:14px}
+.gd-miss.soft{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:12px;border-style:solid;padding:10px 12px}.gd-miss.soft b{font-size:15px}.gd-miss.soft span{grid-column:1}.gd-miss.soft .btn{grid-column:2;grid-row:1/3}
 .gd-foot{margin-top:14px}
 .gd-ask{margin:4px 0 14px}.gd-ask .mini{margin-bottom:4px}
 </style>`);

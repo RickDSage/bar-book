@@ -564,6 +564,7 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .st-bar { display: block; width: 100%; height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .st-bar i { display: block; height: 100%; background: var(--brass); }
 .sx-tb { display: flex; gap: 8px; }
+@media (max-width: 559px) { .sx-top { flex-wrap: wrap; } .sx-tb { flex-wrap: wrap; } }
 .sx-tb [data-sx-big] { min-width: 52px; font-size: 18px; }
 .sx-tb [data-sx-big][aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .sx-live { display: contents; }
