@@ -46,7 +46,7 @@ const ART = (() => {
     return "";
   };
   const cache = new Map();
-  return (kind, colour, garnish, iceText) => {
+  const draw = (kind, colour, garnish, iceText) => {
     const key = kind + colour + garnish;
     if (cache.has(key)) return cache.get(key);
     const s = G[kind] || G.coupe;
@@ -71,4 +71,7 @@ ${garnishSvg(garnish, s.rim)}</svg>`;
     cache.set(key, out);
     return out;
   };
+  // The garnish on its own, for the bar station's Garnish box. Empty when there's no picture for it.
+  draw.garnish = (text) => { const g = garnishSvg(text, [12, 13]); return g ? `<svg viewBox="-1 -1 26 26" xmlns="http://www.w3.org/2000/svg">${g}</svg>` : ""; };
+  return draw;
 })();
