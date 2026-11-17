@@ -5864,7 +5864,7 @@ const card = (k, title, body, sub = "") => `<details class="setup tcard" data-ca
 // goes under the last heading, so nothing new is ever lost.
 const MGR_GROUPS = [
   ["Needs you", ["tells", "inbox", "setup"]],
-  ["Tonight and the week", ["reports", "replay", "sent", "outlog", "week", "lblog", "pilot"]],
+  ["Tonight and the week", ["export", "reports", "replay", "sent", "outlog", "week", "lblog", "pilot"]],
   ["Stock and the menu", ["order", "season", "venue"]],
   ["Training", ["training"]],
   ["People and codes", ["people", "names", "seniors", "mgr"]],
@@ -10309,15 +10309,14 @@ const mgLbRows = () => (MG.lb.xs || []).filter((e) => MG.lb.side === "all" || e.
 function lbLogHtml() {
   const L = MG.lb;
   if (!L.xs && !L.busy && !L.err) { mgLoad("lb", mgLbData, "lblog"); return mgBusy(null, "the label record"); }
-  const seg = (k, opts) => `<div class="seg">${opts.map(([v, t]) => `<button data-mg-lb="${k}:${v}" aria-pressed="${String(L[k]) === String(v)}">${t}</button>`).join("")}</div>`;
+  const seg = (k, opts) => `<div class="seg" style="grid-template-columns:repeat(${opts.length},1fr)">${opts.map(([v, t]) => `<button data-mg-lb="${k}:${v}" aria-pressed="${String(L[k]) === String(v)}">${t}</button>`).join("")}</div>`;
   const busy = mgBusy(L, "the label record"), xs = mgLbRows();
   const byDay = [...new Set(xs.map((e) => e.day))];
   return `<p class="note">Every date label tap, with who and when. Saved by the server as it happens: nobody can change or delete it.</p>
     ${seg("days", [[7, "7 days"], [14, "14 days"], [30, "30 days"]])}${seg("side", [["all", "Both"], ["bar", "Bar"], ["floor", "Floor"]])}
-    ${busy || `${xs.length ? `<div class="actions">${sendBtn("lblog", "Send on WhatsApp")}<button class="btn" data-mg-csv="lblog">Save as a spreadsheet</button></div>` : ""}
+    ${busy || `${xs.length ? `<div class="actions">${sendBtn("lblog", "Send on WhatsApp")}<button class="btn" data-ex-only="labels|${MG.lb.days}|${MG.lb.side}">Excel or CSV</button></div>` : ""}
       ${byDay.map((d) => `<div class="mini">${esc(dayName(d, { weekday: "long", day: "numeric", month: "short" }))}</div><div class="hist">${xs.filter((e) => e.day === d).map((e) => `<div class="s">${at(e)} · <b>${esc(e.name)}</b> ${esc(labelText(e, null, false))}${e.area ? ` <span class="pill">${esc(lower(sideName(e.area)))}</span>` : ""}</div>`).join("")}</div>`).join("") || `<p class="note">No date label taps in the last ${MG.lb.days} days.</p>`}`}`;
 }
-const mgCsvRows = () => mgLbRows().map((e) => { const d = new Date(ms(e.at)); return [d.toLocaleDateString("en-GB", { timeZone: UK }), hhmm(d), e.name, sideName(e.area), e.label, LB_ACT[e.act] || e.act, e.useBy || "", e.was || "", lateBy(e) || "", e.note || ""]; });
 const csvCell = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) || /^[=+\-@]/.test(s) ? `"${(/^[=+\-@]/.test(s) ? "'" : "") + s.replace(/"/g, '""')}"` : s; };
 const toCsv = (head, rows) => "﻿" + [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
 SHARE.lblog = () => {
@@ -10444,7 +10443,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T21:09";
+const BUILD = "2026-11-17T21:15";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -10803,13 +10802,13 @@ Object.assign(TC_SUB, { week: "Most 86'd, closes not fully done, late labels", p
   history: "Undo changes to date labels and added items", setup: "Your code, the managers' codes, the team code, then check they work", ready: "Rules, codes, backups and this phone, ticked off by themselves", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
 function mgCards() {
   if (!MG_READY) return [];
-  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml], ["ready", "Ready for Friday", readyHtml, (() => { const [n, of] = readyCount(); return n === of ? { t: "✓ ready" } : { t: `${n} of ${of}`, hot: 1 }; })()]] : [];
+  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["export", "Export to Excel or CSV", exportHtml], ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml], ["ready", "Ready for Friday", readyHtml, (() => { const [n, of] = readyCount(); return n === of ? { t: "✓ ready" } : { t: `${n} of ${of}`, hot: 1 }; })()]] : [];
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
   { g: "Team", k: "week", adm: 1, n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
   { g: "Team", k: "pilot", adm: 1, n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
-  { g: "Team", k: "lblog", adm: 1, n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp or save it as a spreadsheet." },
+  { g: "Team", k: "lblog", adm: 1, n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp, or Excel or CSV for a spreadsheet." },
   { g: "Team", k: "training", adm: 1, n: "Training", go: "training", team: 1, what: "Quiz and speed drill scores for everyone, leaderboards, and sign-off on the house cocktails by a manager.", mgr: "Sign off each house cocktail once you've watched it made to spec." },
   { g: "Team", k: "history", adm: 1, n: "Change history", go: "history", team: 1, what: "The latest changes to date labels and added items, with who and when.", mgr: "Undo a label change, or put back a label or item removed by mistake." },
   { g: "Team", k: "setup", own: 1, n: "Set up codes", go: "setup", team: 1, what: "For Maintenance: your code, each manager's code and the team code on one screen, then a check that each one works.", mgr: "Do it once at the start, and again whenever someone leaves." },
@@ -10822,7 +10821,6 @@ document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
   if ((x = t("[data-mg-reload]"))) { const k = x.dataset.mgReload, card = { week: "week", pilot: "pilot", tr: "training", hist: "history", health: "health", ready: "ready" }[k]; MG[k] = k === "tr" ? { xs: null } : null; renderCard(card); return; }
   if ((x = t("[data-mg-lb]"))) { const [k, v] = x.dataset.mgLb.split(":"); MG.lb[k] = k === "days" ? +v : v; if (k === "days") MG.lb.xs = null; haptic(); renderCard("lblog"); return; }
-  if (t("[data-mg-csv]")) { mgSaveFile(`date-label-record-${shiftDay()}.csv`, "text/csv", toCsv(["Date", "Time", "Who", "Side", "Item", "What", "Use by", "Use by before", "Days late", "Note"], mgCsvRows())); return; }
   if (t("[data-mg-pilot-img]")) { haptic(); mgPilotImage().then((b) => mgSaveFile(`bar-book-pilot-${shiftDay()}.jpg`, "image/jpeg", b)); return; }
   if (t("[data-mg-pilot-csv]")) { mgSaveFile(`bar-book-pilot-${shiftDay()}.csv`, "text/csv", piCsv(MG.pilot)); return; }
   if ((x = t("[data-tr-open]"))) { MG.tr.open = MG.tr.open === x.dataset.trOpen ? "" : x.dataset.trOpen; haptic(); renderCard("training"); return; }
@@ -10858,6 +10856,223 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .al-x{position:absolute;top:4px;right:6px;width:36px;height:36px;font-size:22px;color:var(--muted)}
 </style>`);
 MG_READY = true;
+/* ---------- Export ----------
+   Everything the team logs in Bar Book, in one place for the managers: pick the dates, the side, a person and which
+   logs, then open it as an Excel workbook (one tab per log), CSV files (for Nory or anything else that imports a
+   spreadsheet), a printable table, or copy it straight into a spreadsheet. It reads the shared database, so any
+   manager can run it on their own phone, the bar iPad or a laptop, whoever logged it and wherever. Nothing is written.
+   No library: the workbook is a few XML files in a plain zip, built here. */
+const EX_MAX = 92;
+const EX = { from: "", to: "", side: "all", who: "", off: new Set(store.get("exOff", [])), D: null, busy: false, err: false, key: "" };
+const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+const exDays = (a, b) => { const xs = []; for (let d = b; d >= a && xs.length < EX_MAX; d = addDays(d, -1)) xs.push(d); return xs; };
+const exList = (k) => LISTS[k]?.title || k || "";
+const exGroup = (k, i) => (LISTS[k] ? groupOf(k, i) : "");
+const exDur = (m) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`);
+// One row: when it happened, which business day it counts for, the side (blank when it's for both), and everyone named
+// on it (for the person filter).
+const exRow = (x, side, who, c) => ({ t: ms(x.at), day: x.day || bday(x.at), side: side === "bar" || side === "floor" ? side : "", who: who.filter(Boolean), c });
+const EX_KIND = { night: "Tonight's quiz", speed: "Speed drill", starter: "New starter test", b101: "Bar 101" };
+const EX_RUN = { started: "Started", finished: "Finished", todo: "Reopened" };
+const EX_LOGS = [
+  { k: "closing", n: "Closing ticks", what: "Every closing tick, with who and when", cols: ["Side", "List", "Section", "Task", "Was", "Now", "Given to", "By", "Note"],
+    rows: (D) => D.events.filter((e) => e.kind === "task").map((e) => exRow(e, e.area, [e.name, e.who], [sideName(e.area), exList(e.list), exGroup(e.list, e.item), e.label, TS[e.from] || e.from, TS[e.to] || e.to, e.who || "", e.name, e.note || ""])) },
+  { k: "sections", n: "Closing by section", what: "Who started and who finished each part, and take overs", cols: ["Side", "List", "Section", "Started by", "Finished by", "Taken over", "Everyone on it", "Ticks done"],
+    rows(D) {
+      const m = new Map();
+      for (const e of D.events.filter((e) => e.kind === "task" && (e.to === "doing" || e.to === "done")).sort((a, b) => ms(a.at) - ms(b.at))) {
+        const g = exGroup(e.list, e.item) || "Whole list", key = `${e.day}|${e.list}|${g}`;
+        let x = m.get(key); if (!x) m.set(key, (x = { e, g, first: e.name, last: "", ppl: new Set(), done: 0 }));
+        x.ppl.add(e.name); if (e.to === "done") { x.last = e.name; x.done++; }
+      }
+      return [...m.values()].map((x) => exRow(x.e, x.e.area, [...x.ppl], [sideName(x.e.area), exList(x.e.list), x.g, x.first, x.last, x.last && x.last !== x.first ? "Yes" : "", [...x.ppl].join(", "), x.done]));
+    } },
+  { k: "lists", n: "Closing lists", what: "Each list started and finished, how much was done and how long the close took", cols: ["Side", "List", "What", "Done", "Of", "By", "Note", "Close took (min)"],
+    rows: (D) => D.events.filter((e) => e.kind === "run").map((e) => { const c = e.to === "finished" && D.closes.find((x) => x.day === e.day && x.side === e.area);
+      return exRow(e, e.area, [e.name], [sideName(e.area), exList(e.list), EX_RUN[e.to] || e.to, e.done ?? "", e.required ?? "", e.name, e.note || "", c ? c.mins : ""]); }) },
+  { k: "handover", n: "Handovers", what: "Every handover sent, word for word. Its photos stay in Closing reports", cols: ["Side", "Sent by", "Photos", "Summary", "Handover"],
+    rows: (D) => D.reports.map((x) => exRow(x, x.side, [x.name], [sideName(x.side), x.name, x.photos || 0, x.summary || "", x.text || ""])) },
+  { k: "out", n: "86 log", what: "What was 86'd, by who, and when it came back", cols: ["Item", "What", "By", "Out for"],
+    rows: (D) => D.outlog.map((x) => { const o = x.action === "back" && D.outlog.find((y) => y.id === x.id.replace(/-back$/, ""));
+      return exRow(x, "", [x.name], [x.itemName, x.action === "back" ? "Back in" : "86'd", x.name, o ? exDur(Math.max(0, Math.round((ms(x.at) - ms(o.at)) / 6e4))) : ""]); }) },
+  { k: "logit", n: "Log it", what: "Notes, told a manager, running low, not finished, for tomorrow", cols: ["Side", "Kind", "What", "By"],
+    rows: (D) => D.events.filter((e) => e.kind === "log").map((e) => exRow(e, e.area, [e.name], [sideName(e.area), LOG_NAME[e.what] || e.what, e.label, e.name])) },
+  { k: "labels", n: "Date labels", what: "Every date label opened, changed or discarded", cols: ["Side", "Item", "What", "Use by", "Use by before", "Days late", "By", "Note"],
+    rows: (D) => D.events.filter((e) => e.kind === "label").map((e) => exRow(e, e.area, [e.name], [sideName(e.area), e.label, LB_ACT[e.act] || e.act, e.useBy || "", e.was || "", lateBy(e) || "", e.name, e.note || ""])) },
+  { k: "restock", n: "Restock", what: "Every restock asked for, brought up and received", cols: ["Side", "Item", "Amount", "Unit", "For", "Was", "Now", "Person", "By", "Note"],
+    rows: (D) => D.events.filter((e) => e.kind === "restock").map((e) => exRow(e, e.area, [e.name, e.who], [sideName(e.area), e.label, e.qty ?? "", e.unit || "", DEST[e.dest] || e.dest || "", e.from === "new" ? "" : RS[e.from] || e.from, RS[e.to] || e.to, e.who || "", e.name, e.note || ""])) },
+  { k: "count", n: "Stock counts", what: "Every line counted, by place", cols: ["Place", "Item", "Full", "Open", "Total", "Unit", "Counted by"],
+    rows: (D) => D.counts.map((x) => exRow(x, "", [x.name], [x.area, x.item, x.full, x.open / 100, Math.round((x.full + x.open / 100) * 100) / 100, x.unit, x.name])) },
+  { k: "received", n: "Deliveries in", what: "Deliveries logged on the stock count", cols: ["Item", "Amount", "Unit", "Logged by"],
+    rows: (D) => D.received.map((x) => exRow(x, "", [x.name], [x.item, x.qty / 100, x.unit, x.name])) },
+  { k: "issues", n: "Issues", what: "Issues raised, who took them on and the fix", cols: ["Area", "Issue", "Detail", "Urgent", "Status", "Taken by", "Fixed by", "Fixed", "Fix", "Raised by"],
+    rows: (D) => D.issues.map((x) => exRow(x, x.area, [x.name, x.who, x.fixedBy], [AREAS.find((a) => a[0] === x.area)?.[1] || x.area || "", x.title, x.detail || "", x.urgent ? "Yes" : "", { open: "Open", taken: "Being fixed", fixed: "Fixed" }[x.status] || x.status, x.who || "", x.fixedBy || "", x.fixedAt ? mgShort(x.fixedAt) : "", x.fix || "", x.name])) },
+  { k: "training", n: "Training scores", what: "Quiz, speed drill, Bar 101 and new starter test scores", cols: ["Name", "Kind", "Score", "Of", "Seconds"],
+    rows: (D) => D.scores.map((x) => exRow(x, "", [x.name], [x.name, EX_KIND[x.kind] || x.kind, x.score, x.of, x.secs ?? ""])) },
+  { k: "sent", n: "Everything sent", what: "A copy of every message sent from Bar Book", cols: ["Message", "By", "Text"],
+    rows: (D) => D.sent.map((x) => exRow(x, "", [x.anon ? "" : x.name], [x.what, x.anon ? "No name" : x.name, x.text || ""])) },
+];
+async function exLoad() {
+  const { from, to } = EX, key = `${from}|${to}`, A = A_(), days = exDays(from, to);
+  const t0 = Date.parse(from + "T00:00:00Z"), t1 = Date.parse(addDays(to, 1) + "T12:00:00Z");
+  EX.busy = true; EX.err = false; EX.key = key; renderCard("export");
+  try {
+    const [events, outlog, reports, counts, received, issues, scores, sent, closes] = await Promise.all([A.eventsOn(days), A.between("outlog", t0, t1, 3000), A.between("reports", t0, t1, 500),
+      A.daysOf("counts", from, to, 6000), A.daysOf("received", from, to, 2000), A.between("issues", t0, t1, 1000), A.between("scores", t0, t1, 3000), A.between("sent", t0, t1, 2000), A.daysOf("closes", from, to, 400)]);
+    if (EX.key === key) EX.D = { events, outlog, reports, counts, received, issues, scores, sent, closes };
+  } catch (e) { console.warn(e); if (EX.key === key) EX.err = true; }
+  if (EX.key === key) { EX.busy = false; renderCard("export"); }
+}
+// The logs ticked, each with its rows after the filters, oldest first.
+function exTables() {
+  if (!EX.D) return [];
+  return EX_LOGS.map((L) => {
+    const rows = L.rows(EX.D).filter((r) => r.day >= EX.from && r.day <= EX.to && (EX.side === "all" || !r.side || r.side === EX.side) && (!EX.who || r.who.includes(EX.who))).sort((a, b) => a.t - b.t);
+    return { L, head: ["Shift date", "Time", ...L.cols], rows: rows.map((r) => [r.day, hhmm(new Date(r.t)), ...r.c]) };
+  });
+}
+const exPicked = () => exTables().filter((x) => !EX.off.has(x.L.k) && x.rows.length);
+const exPeople = () => [...new Set(EX.D ? EX_LOGS.flatMap((L) => L.rows(EX.D).flatMap((r) => r.who)) : [])].sort((a, b) => a.localeCompare(b));
+const exName = (ext) => `bar-book-${EX.from === EX.to ? EX.from : `${EX.from}-to-${EX.to}`}${EX.side === "all" ? "" : `-${EX.side}`}${EX.who ? `-${slugName(EX.who)}` : ""}.${ext}`;
+const slugName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+const exAbout = () => [["Exported", mgShort({ toMillis: () => Date.now() })], ["By", LIVE.me || ""], ["Shift dates", EX.from === EX.to ? dayName(EX.from) : `${dayName(EX.from)} to ${dayName(EX.to)}`],
+  ["Side", EX.side === "all" ? "Bar and floor" : sideName(EX.side)], ["Person", EX.who || "Everyone"], ["Logs", exPicked().map((x) => x.L.n).join(", ")],
+  ["Shift date", "The business day. Anything after midnight counts for the night before, as it does in Bar Book."], ["Photos", "Closing photos stay in Bar Book: Team, Closing reports."]];
+
+function exportHtml() {
+  if (!EX.to) { EX.to = shiftDay(); EX.from = addDays(EX.to, -6); }
+  if (!EX.busy && EX.key !== `${EX.from}|${EX.to}`) setTimeout(exLoad);
+  const quick = [["Tonight", 0, 0], ["Last night", 1, 1], ["Last 7 nights", 6, 0], ["Last 31 nights", 30, 0]].map(([t, a, b]) => {
+    const f = addDays(shiftDay(), -a), to = addDays(shiftDay(), -b);
+    return `<button class="chip" data-ex-q="${f}|${to}" aria-pressed="${EX.from === f && EX.to === to}">${t}</button>`; }).join("");
+  const T = exTables(), ppl = exPeople(), picked = T.filter((x) => !EX.off.has(x.L.k) && x.rows.length), n = picked.reduce((t, x) => t + x.rows.length, 0);
+  const filters = `<p class="note">Everything the team logs, read from the shared database, so any manager can export it from their own phone, the bar iPad or a laptop.</p>
+    <div class="recent">${quick}</div>
+    <div class="ex-dates"><label>From <input type="date" data-ex-d="from" value="${EX.from}" max="${shiftDay()}"></label><label>To <input type="date" data-ex-d="to" value="${EX.to}" max="${shiftDay()}"></label></div>
+    <div class="seg ex-seg">${[["all", "Both"], ["bar", "Bar"], ["floor", "Floor"]].map(([v, t]) => `<button data-ex-side="${v}" aria-pressed="${EX.side === v}">${t}</button>`).join("")}</div>
+    <label class="ex-who">Person <select data-ex-who><option value="">Everyone</option>${ppl.map((p) => `<option${p === EX.who ? " selected" : ""} translate="no">${esc(p)}</option>`).join("")}</select></label>`;
+  if (EX.busy || !EX.D) return `${filters}<p class="note">${EX.err ? `Couldn't read the logs. Check your signal. <button class="linkbtn" data-ex-again>Try again</button>` : "Reading the logs…"}</p>`;
+  const logs = `<div class="mini">Logs <button class="linkbtn" data-ex-all="1">All</button> <button class="linkbtn" data-ex-all="0">None</button></div>
+    <div class="ex-logs">${T.map((x) => `<label class="check"><input type="checkbox" data-ex-log="${x.L.k}"${EX.off.has(x.L.k) ? "" : " checked"}> <span><b>${x.L.n}</b> <span class="s">${x.rows.length ? plural(x.rows.length, "line") : "nothing"} · ${x.L.what}</span></span></label>`).join("")}</div>`;
+  const none = T.some((x) => x.rows.length) ? "Tick a log with lines in it." : "Nothing logged for these filters. Try more nights, both sides or everyone.";
+  return `${filters}
+    ${n ? `<div class="actions"><button class="btn pri" data-ex-go="xlsx">Excel workbook</button><button class="btn" data-ex-go="csv">CSV files</button><button class="btn" data-ex-go="print">Print</button><button class="btn" data-ex-go="copy">Copy</button></div>
+      <p class="note">${plural(n, "line")} from ${plural(picked.length, "log")}. <b>Excel workbook</b>: one file, a tab for each log, opens in Excel, Numbers and Google Sheets. <b>CSV files</b>: one for each log, for Nory or any system that imports a spreadsheet. <b>Copy</b> pastes into a spreadsheet as columns. On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp.</p>` : `<p class="note">${none}</p>`}
+    ${logs}
+    ${n ? `<div class="mini">See it here</div>${picked.map((x) => `<details class="ex-prev"><summary>${x.L.n} <span class="s">${plural(x.rows.length, "line")}</span></summary><div class="ex-scroll">${exTableHtml(x, 60)}</div>${x.rows.length > 60 ? `<p class="note">First 60 lines here. The file has all ${x.rows.length}.</p>` : ""}</details>`).join("")}` : ""}
+    <p class="note">Bar Book can't send to Nory by itself: Nory doesn't offer a link for other apps to send to. Import the CSV in Nory, if your account takes a spreadsheet import, or attach it to an email.</p>`;
+}
+const exTableHtml = (x, max = Infinity) => `<table class="ex-t"><thead><tr>${x.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${x.rows.slice(0, max).map((r) => `<tr>${r.map((v, i) => `<td${i === 0 ? ' class="nw"' : ""}>${esc(i === 0 ? dayName(v) : v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
+
+/* ---- The outputs ---- */
+async function exSaveFiles(files) {
+  try { if (navigator.canShare?.({ files })) { await navigator.share({ files }); return; } } catch (e) { if (e?.name === "AbortError") return; }
+  // A laptop: each file downloads. The browser may ask once to allow several downloads.
+  files.forEach((f, i) => setTimeout(() => { const u = URL.createObjectURL(f), a = document.createElement("a"); a.href = u; a.download = f.name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000); }, i * 400));
+}
+function exGo(how) {
+  const xs = exPicked(); if (!xs.length) return toast("Nothing to export. Tick a log with lines in it");
+  haptic();
+  if (how === "xlsx") return mgSaveFile(exName("xlsx"), XLSX_TYPE, exXlsx([...xs.map((x) => [x.L.n, x.head, x.rows]), ["About this export", ["About", "Detail"], exAbout()]]));
+  if (how === "csv") return exSaveFiles(xs.map((x) => new File([toCsv(x.head, x.rows)], exName(`${x.L.k}.csv`).replace(/\.(\w+)\.csv$/, "-$1.csv"), { type: "text/csv" })));
+  if (how === "copy") {
+    const cell = (v) => String(v ?? "").replace(/[\t\r\n]+/g, " ");
+    const text = xs.map((x) => [x.L.n, x.head.join("\t"), ...x.rows.map((r) => r.map(cell).join("\t"))].join("\n")).join("\n\n");
+    return navigator.clipboard?.writeText(text).then(() => toast("Copied. Paste it into a spreadsheet or a message"), () => toast("Couldn't copy. Use Excel workbook instead"));
+  }
+  if (how === "print") {
+    const st = document.createElement("style");
+    st.textContent = "@page{size:A4 landscape;margin:10mm}#print h2{font-size:13pt;margin:10pt 0 4pt}#print table{border-collapse:collapse;width:100%;font-size:8pt;margin-bottom:10pt}#print th,#print td{border:1px solid #999;padding:2pt 4pt;text-align:left;vertical-align:top}#print th{background:#eee}#print tr{break-inside:avoid}#print td.nw{white-space:nowrap}";
+    document.head.append(st);
+    $("#print").innerHTML = `<h1 style="font-size:15pt;margin:0">Black Tap Soho · Bar Book export</h1><p>${exAbout().slice(0, 5).map(([k, v]) => `${esc(k)}: ${esc(v)}`).join(" · ")}</p>${xs.map((x) => `<h2>${esc(x.L.n)}</h2>${exTableHtml(x)}`).join("")}`;
+    addEventListener("afterprint", () => { st.remove(); $("#print").innerHTML = ""; }, { once: true });
+    window.print();
+  }
+}
+// An .xlsx file: sheets is [[name, head, rows]]. A first column holding a business day (yyyy-mm-dd) is a real date,
+// so it sorts and filters as one. Header in bold, top row frozen, a filter on every column.
+const exXml = (s) => String(s).slice(0, 32000).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])).replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f]/g, "");
+const exCol = (i) => { let s = ""; for (let n = i + 1; n; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + ((n - 1) % 26)) + s; return s; };
+const exSheetName = (s, used) => { let n = s.replace(/[[\]:*?/\\']/g, "").slice(0, 31) || "Sheet"; for (let i = 2; used.has(n); i++) n = `${n.slice(0, 28)} ${i}`; used.add(n); return n; };
+function exXlsx(sheets) {
+  const NS = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"', R = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"', used = new Set();
+  const isDay = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
+  const cell = (v, ref, st = "") => (v === "" || v == null ? "" : typeof v === "number" && isFinite(v) ? `<c r="${ref}"${st}><v>${v}</v></c>`
+    : isDay(v) ? `<c r="${ref}" s="2"><v>${Date.parse(v) / 864e5 + 25569}</v></c>` : `<c r="${ref}" t="inlineStr"${st}><is><t xml:space="preserve">${exXml(v)}</t></is></c>`);
+  const ws = sheets.map(([, head, rows]) => {
+    const all = [head, ...rows], last = exCol(head.length - 1);
+    const w = head.map((h, i) => Math.min(60, Math.max(8, ...all.slice(0, 300).map((r) => (i === 0 && r !== head ? 11 : String(r[i] ?? "").length + 2)))));
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<worksheet ${NS} ${R}><sheetViews><sheetView workbookViewId="0"><pane ySplit="1" topLeftCell="A2" activePane="bottomLeft" state="frozen"/></sheetView></sheetViews>`
+      + `<cols>${w.map((x, i) => `<col min="${i + 1}" max="${i + 1}" width="${x}" customWidth="1"/>`).join("")}</cols><sheetData>`
+      + all.map((r, y) => `<row r="${y + 1}">${r.map((v, i) => cell(y ? v : String(v ?? ""), exCol(i) + (y + 1), y ? "" : ' s="1"')).join("")}</row>`).join("")
+      + `</sheetData><autoFilter ref="A1:${last}${all.length}"/></worksheet>`;
+  });
+  const names = sheets.map(([n]) => exSheetName(n, used));
+  const files = [
+    ["[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"/>${ws.map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`],
+    ["_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`],
+    ["xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<workbook ${NS} ${R}><sheets>${names.map((n, i) => `<sheet name="${exXml(n)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets><definedNames>${sheets.map(([, head, rows], i) => `<definedName name="_xlnm._FilterDatabase" localSheetId="${i}" hidden="1">'${exXml(names[i])}'!$A$1:$${exCol(head.length - 1)}$${rows.length + 1}</definedName>`).join("")}</definedNames></workbook>`],
+    ["xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${ws.map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`).join("")}<Relationship Id="rId${ws.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/></Relationships>`],
+    ["xl/styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<styleSheet ${NS}><numFmts count="1"><numFmt numFmtId="164" formatCode="dd/mm/yyyy"/></numFmts><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="3"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/><xf numFmtId="164" fontId="0" fillId="0" borderId="0" xfId="0" applyNumberFormat="1"/></cellXfs><cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles></styleSheet>`],
+    ...ws.map((x, i) => [`xl/worksheets/sheet${i + 1}.xml`, x]),
+  ];
+  return exZip(files);
+}
+// A plain zip with nothing compressed, which is all an .xlsx needs.
+const EX_CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const exCrc = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = EX_CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
+function exZip(files) {
+  const enc = new TextEncoder(), parts = [], cen = []; let off = 0;
+  for (const [name, text] of files) {
+    const n = enc.encode(name), d = enc.encode(text), crc = exCrc(d), h = new DataView(new ArrayBuffer(30)), c = new DataView(new ArrayBuffer(46));
+    // Local header, then the central directory entry: version 2.0, UTF-8 names, stored, dated 1 Jan 1980.
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(12, 0x21, true);
+    h.setUint32(14, crc, true); h.setUint32(18, d.length, true); h.setUint32(22, d.length, true); h.setUint16(26, n.length, true);
+    c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true); c.setUint16(14, 0x21, true);
+    c.setUint32(16, crc, true); c.setUint32(20, d.length, true); c.setUint32(24, d.length, true); c.setUint16(28, n.length, true); c.setUint32(42, off, true);
+    parts.push(new Uint8Array(h.buffer), n, d); cen.push(new Uint8Array(c.buffer), n);
+    off += 30 + n.length + d.length;
+  }
+  const size = cen.reduce((t, x) => t + x.length, 0), e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, files.length, true); e.setUint16(10, files.length, true); e.setUint32(12, size, true); e.setUint32(16, off, true);
+  return new Blob([...parts, ...cen, new Uint8Array(e.buffer)], { type: XLSX_TYPE });
+}
+
+/* ---- Taps ---- */
+document.addEventListener("click", (e) => {
+  const t = (s) => e.target.closest(s); let x;
+  if ((x = t("[data-ex-q]"))) { [EX.from, EX.to] = x.dataset.exQ.split("|"); haptic(); renderCard("export"); return; }
+  if ((x = t("[data-ex-side]"))) { EX.side = x.dataset.exSide; haptic(); renderCard("export"); return; }
+  if ((x = t("[data-ex-all]"))) { EX.off = x.dataset.exAll === "1" ? new Set() : new Set(EX_LOGS.map((L) => L.k)); store.set("exOff", [...EX.off]); renderCard("export"); return; }
+  // From another card (the date label record): the same nights and side, that log only.
+  if ((x = t("[data-ex-only]"))) { const [k, n, side] = x.dataset.exOnly.split("|"); EX.to = shiftDay(); EX.from = addDays(EX.to, 1 - n); EX.side = side || "all"; EX.who = ""; EX.off = new Set(EX_LOGS.map((L) => L.k).filter((j) => j !== k)); haptic(); openAt("export"); return; }
+  if ((x = t("[data-ex-go]"))) { exGo(x.dataset.exGo); return; }
+  if (t("[data-ex-again]")) { EX.key = ""; renderCard("export"); }
+});
+document.addEventListener("change", (e) => {
+  const d = e.target.closest("[data-ex-d]"), w = e.target.closest("[data-ex-who]"), l = e.target.closest("[data-ex-log]");
+  if (d && d.value) {
+    EX[d.dataset.exD] = d.value > shiftDay() ? shiftDay() : d.value;
+    if (EX.from > EX.to) [EX.from, EX.to] = [EX.to, EX.from];
+    if (exDays(EX.from, EX.to).at(-1) !== EX.from) { EX.from = exDays(EX.from, EX.to).at(-1); toast(`Up to ${EX_MAX} nights at a time`); }
+    renderCard("export"); return;
+  }
+  if (w) { EX.who = w.value; renderCard("export"); return; }
+  if (l) { l.checked ? EX.off.delete(l.dataset.exLog) : EX.off.add(l.dataset.exLog); store.set("exOff", [...EX.off]); renderCard("export"); }
+});
+document.head.insertAdjacentHTML("beforeend", `<style>
+.ex-dates{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}.ex-dates label,.ex-who{display:flex;align-items:center;gap:8px;font-weight:700}.ex-dates input,.ex-who select{min-height:44px;font-size:16px}
+.seg.ex-seg{grid-template-columns:1fr 1fr 1fr;margin-top:6px}.ex-who select{flex:1;min-width:0}.ex-who{margin:10px 0}.ex-logs .check b{margin-right:4px}.ex-logs .check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}.ex-logs .check input{flex:none;width:22px;height:22px;margin-top:2px}
+.ex-logs .s{display:block;font-weight:400}.ex-prev{margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:0 10px}.ex-prev summary{min-height:44px;display:flex;align-items:center;gap:8px;font-weight:700;cursor:pointer}
+.ex-scroll{overflow-x:auto;margin:0 -10px 10px;padding:0 10px}.ex-t{border-collapse:collapse;font-size:13px;min-width:100%;width:max-content}.ex-t th,.ex-t td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;max-width:260px;min-width:64px}
+.ex-t th{position:sticky;top:0;background:var(--surface);white-space:nowrap}.ex-t td.nw{white-space:nowrap}
+</style>`);
+
+/* ---- Where it goes ---- */
+TC_SUB.export = "Every log as Excel, CSV, print or copy, filtered by dates, side and person";
+FEATURES.push({ g: "Team", k: "export", adm: 1, n: "Export", go: "export", team: 1, what: "Every log in Bar Book in one place: closing ticks and who did each section, take overs, handovers, 86s, Log it, date labels, restock, stock counts, deliveries, issues, training and everything sent.",
+  mgr: "Pick the nights, the side, a person and the logs, then Excel workbook, CSV files (for Nory or any import), Print or Copy. It works on any manager's phone, the iPad or a laptop." });
+PLACE_KW.export = "export excel spreadsheet csv xlsx download nory laptop print copy file data logs records numbers sheets";
 /* ---------- Bar 101: what to say when a guest asks ----------
    Short cards for training only (Practise > Bar 101): why one bottle costs more and what it changes in a drink, the
    differences between styles, picking a whisky for someone, beer basics, and how to suggest something better. Only
@@ -11779,6 +11994,9 @@ const HELP = {
   ready: { t: "Ready for Friday", what: "One checklist before the team starts using Bar Book. Each line goes green by itself once it's done.",
     how: ["Work down the lines marked To do. Set up codes › goes straight to the codes.", "Rules: if they're older than the app, Open the rules, copy all of it and publish it in the Firebase console.", "Backups: switch on daily backups in the Firebase console, then tap It's on.", "Check again after fixing anything."],
     behind: ["Rules and codes are read from the server. Home Screen, sending and version are checked on this phone only, so each manager opens it on theirs.", "Bar Book can't see the Firebase console, so backups is the one line ticked by hand, on Maintenance's phone."] },
+  export: { t: "Export to Excel or CSV", what: "Every log in Bar Book as a spreadsheet, a printout or a copy, for a laptop, Nory or a file to keep.",
+    how: ["Pick the nights (Tonight, Last 7 nights, or any dates up to 92 nights), the side and a person, or leave them on Everyone.", "Tick the logs you want. Each one says how many lines it has, and opens to show them as a table.", "Excel workbook: one file with a tab for each log. CSV files: one for each log, for Nory or anything that imports a spreadsheet. Print: a table for the printer. Copy: paste into a spreadsheet.", "On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp. On a laptop it downloads."],
+    behind: ["It reads the shared database, so any manager can export from their own phone, the bar iPad or a laptop, whoever logged it.", "Shift date is the business day: a close after midnight counts for the night before.", "Nothing is changed or saved by exporting. Photos stay in Closing reports.", "The stock count's own Spreadsheet button gives one night's totals. Export gives every line counted, on any nights.", "Bar Book can't send to Nory by itself, because Nory has no link for other apps. Import or attach the CSV instead.", "Managers only."] },
   sent: { t: "Everything sent", what: "A copy of everything the team sends from Bar Book.",
     how: ["Tap one to read it again."],
     behind: ["Copied when someone sends from the Send page: WhatsApp, email, the share sheet, a picture or print.", "Rate the shift comes with no name. My pay, payslips, hours, off sick, incidents and the Bar Book link are never copied.", "Only the managers see this."] },
@@ -11849,7 +12067,7 @@ const INTRO = [
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift and Who to call."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "On an iPhone with photos: Copy the words, then Send with photos, then paste the words as the caption.", more: ["send"] },
-  { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, and Backup and restore.", "Safety net, Ready for Friday: rules, codes, backups and this phone, each going green by itself once it's done."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["inbox", "replay", "order", "season", "ready"] },
+  { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Export, Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Export: every log as an Excel workbook, CSV files, a printout or a copy, filtered by nights, side and person.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, and Backup and restore.", "Safety net, Ready for Friday: rules, codes, backups and this phone, each going green by itself once it's done."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["export", "inbox", "replay", "order", "season", "ready"] },
   { t: "Learn it, and look after yourself", how: ["More, Training, Practise specs: flashcards, tonight's quiz (the same 10 for everyone), speed drills against the clock, and the new starter path.", "Bar 101: what to say when a guest asks, from our own back bar. It remembers what you know and quizzes you on the rest.", "More, Training, Games and drills: the daily drill, quiz night and Bar phrases. More, Cheat sheets: a page per kind of drink, to print or send.", "My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
   { t: "Tips and tricks", how: ["The ? at the top right opens the Guide: every section, and a search for anything (\u201chow do I make a mojito\u201d). \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Hands full? Tap 🎤 and say it how you like: “can you 86 the Corona”, “Negroni spec” or “count tonic 12”. It picks out the key words and asks before it changes anything.", "More, This phone: one-hand mode, accessible mode, sounds and light or dark.", "Tap any small ? for how that part works and what happens behind the scenes.", "Needs you now: a banner at the top when you open the app, for a label due, last night's handover and more. Tap it to go there, × to hide it.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "More, under Help, has Replay the tour and Replay the walkthrough whenever you want them. Hide the ? buttons there too.", more: ["voice", "phone", "drafts"] },
 ];
@@ -11874,7 +12092,7 @@ const HELP_AT = [
   ["#shift-title", () => (!LIVE.me ? "join" : { morning: "morning", labels: "labels", stock: "stock", close: "closing", fclose: "closing", send: "handover" }[pane] || "shift")],
   ["#clear-all", "clearall", "after"],
   ["#v-notices .fbbox > h2", "join"],
-  ...["ask", "rate", "issues", "tell", "sent", "inbox", "people", "incident", "replay", "order", "season", "venue", "ready"].map((k) => [`#v-notices [data-card="${k}"] > summary`, k]),
+  ...["ask", "rate", "issues", "tell", "sent", "export", "inbox", "people", "incident", "replay", "order", "season", "venue", "ready"].map((k) => [`#v-notices [data-card="${k}"] > summary`, k]),
   [".draftbar > span", "drafts"],
   ["#send > h2", "send"],
   ["#sheet .pl-spech", "drink"],
@@ -12224,7 +12442,7 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", ready: "ready", sent: "sent", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
+const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [
@@ -12234,7 +12452,7 @@ const FEAT_SECS = [
   ["Stock", ["count", "order"]],
   ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
   ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "sent", "tell"]],
-  ["Managers", ["ready", "week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
+  ["Managers", ["ready", "export", "week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
   ["More", ["pay", "info", "siri", "health"]],
 ];
 const SEC_OF = Object.fromEntries(FEAT_SECS.flatMap(([g, ks]) => ks.map((k) => [k, g])));
