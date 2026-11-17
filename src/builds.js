@@ -39,7 +39,9 @@ const FIX = {
   "Long Island Iced Tea": { ml: { "Smirnoff": 15, "Tanqueray": 15, "Captain Morgan White": 15, "El Jimador Blanco": 15, "Cointreau": 15, "lemon juice": 25, "sugar syrup": 25 },
     spec: ["15 ml each: Smirnoff, Tanqueray, Captain Morgan White, El Jimador Blanco, Cointreau", "25 ml lemon juice", "25 ml sugar syrup", "Top Coca-Cola"],
     text: { pourGlass: "Measure each one with the jigger. Five spirits at 15 ml each, then the lemon and sugar." } },
-  "Mimosa": { ml: { "orange juice": 50, "Prosecco": 80 } },
+  // IBA (iba-world.com/iba-cocktail/mimosa, read 17 Nov 2026): 75 ml orange juice, 75 ml fizz. Equal parts keeps it apart from
+  // Buck's Fizz, which is two parts fizz to one of juice.
+  "Mimosa": { ml: { "orange juice": 75, "Prosecco": 75 } },
   // Four of the single serve, and "As Mojito" means the same lime and sugar.
   "Mojito Pitcher": { ml: { "lime juice": 80, "sugar syrup": 60 } },
   "Virgin Mojito": { ml: { "lime juice": 20, "sugar syrup": 15 } },
