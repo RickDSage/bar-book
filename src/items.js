@@ -155,7 +155,7 @@ function itOwn(name) {
 // Pages about something else with the same name: a song, a film, a person, a place.
 var IT_NOISE = /\b(single|song|album|film|band|novel|book|episode|television|series|video game|footballer|singer|rapper|actor|actress|musician|politician|entrepreneur|village|town|city|river|locality|disambiguation|topics referred|born \d|surname|given name|airline|colou?r|shade of|software|programming|typeface|mineral|material|chemical|compound|element)\b/i;
 function itGuess(name, hits) {
-  const said = (hits || []).filter((h) => !IT_NOISE.test(h.desc)).map((h) => [itKindOf(`${h.title} ${h.desc}`, true), `${h.title}: ${h.desc}`.slice(0, 200)]);
+  const said = (hits || []).filter((h) => !IT_NOISE.test(h.desc)).map((h) => [itKindOf(`${h.title} ${h.desc}`, true), `${h.title}: ${h.desc}`.slice(0, 170) + ` (${h.src || "Wikipedia"})`]);
   const kind = itKindOf(name) || (said.find(([k]) => k) || [])[0] || itKindOf(name, true) || itOwn(name) || "other";
   // What was found online that agrees, to show why.
   return { kind, found: (said.find(([k]) => k === kind) || [0, ""])[1] };
@@ -222,7 +222,7 @@ function itFormHtml() {
   const f = itF, k = IT_KINDS[f.kind], own = LIVE.owner, edit = !!f.id;
   const opt = (o, v) => Object.entries(o).map(([key, t]) => `<option value="${key}"${key === v ? " selected" : ""}>${esc(t)}</option>`).join("");
   return `<div class="itf">
-    ${f.looked ? `<p class="s it-found">${f.found ? `Found online: <b>${esc(f.found)}</b> (Wikipedia)` : f.offline ? "Couldn't look it up online (no signal?). Worked out from the name." : "Nothing found online. Worked out from the name."}</p>` : ""}
+    ${f.looked ? `<p class="s it-found">${f.found ? `Found online: <b>${esc(f.found)}</b>` : f.offline ? "Couldn't look it up online (no signal?). Worked out from the name." : "Nothing found online. Worked out from the name."}</p>` : ""}
     ${f.typed && itNorm(f.typed) !== itNorm(f.item) ? `<p class="s">You typed “${esc(f.typed)}”: it's <b>${esc(f.item)}</b>.</p>` : ""}
     ${f.near?.length ? `<div class="s">Did you mean <span class="recent">${f.near.map((x) => `<button class="chip" data-it-pick="${esc(x)}">${esc(x)}</button>`).join("")}</span></div>` : ""}
     <p class="it-guess"><b>${esc(f.item)}</b> looks like: <b>${esc(k.t)}</b>. Check it and change anything that's wrong.</p>
@@ -248,7 +248,7 @@ function itemsHtml(side) {
     <div class="actions">${LIVE.owner ? `<button class="btn pri" data-it-edit="${x.id}">Check it</button>` : `<button class="btn" data-it-drop="${x.id}">Take it back</button>`}</div></div>`;
   const liveRow = (x) => `<div class="it-row"><div><b>${esc(x.item)}</b> <span class="pill">${esc(x.group)}</span><div class="s">${esc(itLine(x))}</div>${x.note ? `<div class="s">${esc(x.note)}</div>` : ""}</div>
     ${LIVE.owner ? `<div class="actions"><button class="btn" data-it-edit="${x.id}">Change</button></div>` : ""}</div>`;
-  const form = itF?.kind && !itF.id ? itFormHtml() : `<div class="ltools"><input id="it-name" maxlength="60" placeholder="Like Rubicon Mango or fresh strawberries" aria-label="What it is" value="${esc(itF?.item || "")}"><button class="btn pri" id="it-look"${itBusy ? " disabled" : ""}>${itBusy ? "Looking…" : "Look it up"}</button></div>`;
+  const form = itF?.kind && !itF.id ? itFormHtml() : `<div class="ltools"><input id="it-name" maxlength="60" placeholder="A name, or a barcode's numbers" aria-label="What it is" value="${esc(itF?.item || "")}"><button class="btn pri" id="it-look"${itBusy ? " disabled" : ""}>${itBusy ? "Looking…" : "Look it up"}</button></div>${navigator.mediaDevices?.getUserMedia ? `<div class="actions"><button class="btn" id="it-scan-go">Scan a barcode</button></div>` : ""}`;
   return `<details class="setup" id="it-add"${itOpen || wait.length && LIVE.owner ? " open" : ""}><summary>Add something new${wait.length ? ` <span class="pill wait">${wait.length} waiting</span>` : ""}</summary>
     <p class="note">An ingredient, a drink we sell, a garnish, a dessert. Type what it is: the app looks it up and works out where it's kept, if it needs a date label and what happens to it at close. ${LIVE.owner ? "Yours go on straight away." : "Maintenance checks it, then it's on every phone."}</p>
     ${form}
@@ -266,15 +266,49 @@ function putAwayHtml(side) {
 // Black Tap's date label list also holds the added items that need a label and have no days yet, for a manager to fill
 // in from the pack.
 function itLabelIdeas(side) { const xs = itLive(side).filter((x) => x.label && !x.life).map((x) => [x.item]); return xs.length ? [["Added by the team", xs]] : []; }
-async function itLook() {
-  const typed = ($("#it-name")?.value || "").trim().replace(/\s+/g, " ").slice(0, 60);
+// A barcode (scanned, or typed as digits): Open Food Facts says what the product is (free, no key), and then it goes
+// through the same lookup as a typed name, with what Open Food Facts says about it first.
+async function itBarcode(code) {
+  itBusy = true; itF = { item: code }; renderTally();
+  let p = null;
+  try {
+    const c = new AbortController(), t = setTimeout(() => c.abort(), 6000);
+    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,categories_tags,quantity`, { signal: c.signal }).finally(() => clearTimeout(t));
+    const j = r.ok ? await r.json() : null; p = j?.status === 1 ? j.product : null;
+  } catch {}
+  itBusy = false;
+  if (!p?.product_name) { itF = null; renderTally(); return toast(p === null && !navigator.onLine ? "No signal: type the name instead" : "That barcode isn't listed online. Type the name instead"); }
+  const brand = (p.brands || "").split(",")[0].trim(), name = (brand && !p.product_name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${p.product_name}` : p.product_name).slice(0, 60);
+  const cats = (p.categories_tags || []).filter((c) => c.startsWith("en:")).map((c) => c.slice(3).replace(/-/g, " ")).slice(0, 6).join(", ");
+  itF = null; return itLook(name, [{ title: name, desc: cats || p.quantity || "", src: "Open Food Facts" }]);
+}
+var itZX = null;
+// The camera, read by ZXing (free, loaded the first time it's needed, so the app stays light on old phones).
+async function itScan() {
+  const box = document.createElement("div");
+  box.id = "it-scan"; box.innerHTML = `<video playsinline muted></video><p>Point the camera at the barcode</p><button class="btn" id="it-scan-x">Cancel</button>`;
+  document.body.append(box);
+  let reader = null; const done = () => { try { reader?.reset(); } catch {} box.remove(); };
+  box.querySelector("#it-scan-x").onclick = done;
+  try {
+    if (!window.ZXing) await (itZX ||= new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"; sc.onload = ok; sc.onerror = no; document.head.append(sc); }));
+    reader = new ZXing.BrowserMultiFormatReader();
+    const res = await reader.decodeOnceFromVideoDevice(undefined, box.querySelector("video"));
+    done(); haptic(); itBarcode(res.getText());
+  } catch (e) { if (box.isConnected) { done(); toast(itZX && window.ZXing ? "Couldn't use the camera. Type the barcode's numbers or the name" : "The scanner needs signal the first time"); } itZX = window.ZXing ? itZX : null; }
+}
+async function itLook(given, extra) {
+  const typed = (given || $("#it-name")?.value || "").trim().replace(/\s+/g, " ").slice(0, 60);
   if (!typed) return toast("Type what it is first");
+  if (!extra && /^\d{8,14}$/.test(typed)) return itBarcode(typed);
   const known = itKnown(typed), st = itStock(known || typed);
   let item = st ? st.item : known || typed;
   const dup = itDup(item); if (dup) return toast(dup);
   itBusy = true; itF = { item }; renderTally();
   let hits = null, offline = false;
+
   try { hits = await itLookup(item); } catch { offline = true; }
+  if (extra) hits = [...extra, ...(hits || [])];
   itBusy = false;
   if (itF?.item !== item) return;
   // Typed in another language: it goes on the lists under the English name (the one the stock list uses, if it's there).
@@ -302,6 +336,7 @@ function itSave() {
 }
 $("#tally").addEventListener("click", (e) => {
   if (e.target.closest("#it-look")) { itLook(); return; }
+  if (e.target.closest("#it-scan-go")) { itScan(); return; }
   const pk = e.target.closest("[data-it-pick]"); if (pk) { itF = null; renderTally(); $("#it-name").value = pk.dataset.itPick; itLook(); return; }
   if (e.target.closest("#it-cancel")) { itF = null; renderTally(); return; }
   if (e.target.closest("#it-save")) { if (itF) itSave(); return; }

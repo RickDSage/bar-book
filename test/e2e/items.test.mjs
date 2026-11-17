@@ -198,3 +198,53 @@ test("typos and other languages: lymes 86s Limes, strawbery is Strawberries, Hin
   assert.equal(await O.inputValue('[data-lbs-life="Whole milk"]'), "");
   for (const p of [O, S]) assert.deepEqual(p.errs, []);
 });
+
+test("labels by station; found open: staff are told to discard it, a manager dates it with a note; a photo of the pack; a barcode", async () => {
+  await resetEmulators();
+  const { O, M, S } = await team(browser, site, people);
+  const add = (p, a) => p.evaluate((a) => LIVE.api.label(null, "added", a), a);
+  await add(M, { item: "Oat milk", side: "floor", life: 5, on: true, station: "Shake station" });
+  await add(M, { item: "Brownies", side: "floor", life: 2, on: true });
+  await add(M, { item: "Mystery tub", side: "floor", life: 3, on: true });
+  await S.waitForFunction(() => LIVE.labels.length === 3 && LIVE.labels.every((x) => !x.pending));
+  await pane(S, "labels", "floor");
+  // Under their stations: its own, the one Black Tap's list gives its name, or Other.
+  assert.deepEqual(await S.$$eval("#tally .lbst", (xs) => xs.map((x) => x.textContent.trim())), ["Shake station", "Cake fridge", "Other"]);
+  // Staff who find one open with no label are told to discard it.
+  const id = await S.evaluate(() => LIVE.labels.find((x) => x.item === "Oat milk").id);
+  await S.click(`[data-lb="${id}"][data-lb-act=found]`);
+  assert.match(await text(S, ".lbo"), /^Don't know when it was opened\? Discard it\. With no label nobody can say it's safe\./);
+  await S.click("[data-lb-cancel]");
+  // A manager who knows dates it, with a note; the use-by counts from that day.
+  await pane(M, "labels", "floor");
+  await M.click(`[data-lb="${id}"][data-lb-act=found]`);
+  const yday = await M.evaluate(() => addDays(shiftDay(), -1));
+  await M.fill("[data-lb-found]", yday); await M.dispatchEvent("[data-lb-found]", "change");
+  await M.click(`[data-lb-save="${id}"]`);
+  assert.equal(await toastOf(M), "Say how you know when it was opened");
+  await M.fill("[data-lb-why]", "I opened it at yesterday's close");
+  await M.click(`[data-lb-save="${id}"]`);
+  await S.waitForFunction((id) => LIVE.labels.find((x) => x.id === id).act === "found" && !LIVE.labels.find((x) => x.id === id).pending, id);
+  const l = await S.evaluate((id) => LIVE.labels.find((x) => x.id === id), id);
+  assert.deepEqual([l.state, l.openedOn, l.useBy, l.openedBy], ["open", yday, await M.evaluate((d) => addDays(d, 5), yday), "Mia Manager"]);
+  // A photo of the pack, kept with the label.
+  await S.click(`[data-lb-more="${id}"]`);
+  await S.waitForSelector("#lb-ph-in", { state: "attached" });
+  await S.setInputFiles("#lb-ph-in", { name: "p.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==", "base64") });
+  await waitToast(S, /^Photo kept with the label$/);
+  await M.evaluate(() => { lbm = ""; });
+  await M.click(`[data-lb-more="${id}"]`);
+  await M.waitForSelector(".tmore .photo img");
+  assert.match(await text(M, ".tmore"), /Taken by Sam Staff/);
+  assert.match(await text(M, ".tmore"), /found one open with no label and dated it: use by .*I opened it at yesterday's close/);
+
+  // A barcode typed in: Open Food Facts says what it is, then the usual lookup.
+  await O.route("https://world.openfoodfacts.org/**", (r) => r.fulfill({ json: { status: 1, product: { product_name: "Mango", brands: "Rubicon", categories_tags: ["en:beverages", "en:carbonated-drinks", "en:sodas"] } } }));
+  await O.route("https://*.wikipedia.org/**", (r) => r.fulfill({ json: { query: { pages: [] } } }));
+  await pane(O, "stock");
+  await look(O, "5000382036333");
+  assert.equal(await O.evaluate(() => itF.item), "Rubicon Mango");
+  assert.match(await text(O, ".itf"), /Found online: Rubicon Mango: beverages, carbonated drinks, sodas \(Open Food Facts\)/);
+  assert.equal(await O.evaluate(() => itF.kind), "soft");
+  for (const p of [O, M, S]) assert.deepEqual(p.errs, []);
+});
