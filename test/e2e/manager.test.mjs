@@ -43,9 +43,15 @@ test("labels, 86s and closes feed the label record, its spreadsheet and the week
   assert.match(t, /Mia Manager added Apple juice to the date labels: keeps 3 days/);
   assert.match(t, /Sam Staff opened Apple juice, use by/);
   // The spreadsheet: one row per tap, with what was done in plain words. Formula-looking cells are made safe.
-  const csv = await M.evaluate(() => toCsv(["Date", "Time", "Who", "Side", "Item", "What"], mgCsvRows().map((r) => r.slice(0, 6))));
-  assert.match(csv, /Sam Staff,Bar,Apple juice,Discarded/);
-  assert.match(csv, /Mia Manager,Bar,Apple juice,Added to the list/);
+  // Excel or CSV goes to Export with that log only (export.test.mjs covers the files).
+  await M.click('[data-ex-only^="labels|"]');
+  const ex = await card(M, "export");
+  await waitText(M, ex, /Date labels 3 lines/);
+  const csv = await M.evaluate(() => { const x = exTables().find((t) => t.L.k === "labels"); return toCsv(x.head, x.rows); });
+  assert.match(csv, /Bar,Apple juice,Discarded/);
+  assert.match(csv, /Bar,Apple juice,Added to the list,,,,Mia Manager/);
+  assert.deepEqual(await M.evaluate(() => exPicked().map((x) => x.L.k)), ["labels"]);
+  await M.evaluate(() => show("notices"));
   assert.equal(await M.evaluate(() => csvCell("=HYPERLINK(1)")), `"'=HYPERLINK(1)"`);
   const msg = await M.evaluate(() => SHARE.lblog());
   assert.match(msg.title, /date label record · last 7 days/);
