@@ -14,17 +14,21 @@
 const SX = { big: store.get("sx.big", false), q: "", grp: "all", id: store.get("sx.id", null), view: "drink", x: 1, ids: [], round: new Map(store.get("sx.round", [])) };
 if (SX.id != null && !D[SX.id]) SX.id = null;
 const SX_GROUPS = [["all", "Everything"], ["sig", "Signatures"], ["top", "Top 10"], ["ask", "Guests ask for"], ["shots", "Shots"], ["zero", "No alcohol"], ["serves", "Serves"]];
+// The Menu's kinds of drink too (Martinis, Margaritas, Sours…), signatures first, then A to Z.
+const SX_FAMS = () => PL_FAMS.map(([k, t]) => [`f:${k}`, t]);
+const sxTitle = (k) => [...SX_GROUPS, ...SX_FAMS()].find((x) => x[0] === k)[1];
 const sxWide = () => matchMedia("(min-width: 700px)").matches;
 const sxSaveRound = () => store.set("sx.round", [...SX.round]);
 const sxRoundN = () => [...SX.round.values()].reduce((a, b) => a + b, 0);
 function sxGroup(k) {
+  if (k.startsWith("f:")) { const f = PL_FAMS.find((x) => x[0] === k.slice(2))[2], sig = (d) => (d.section === "Black Tap Signatures" ? 0 : 1); return D.filter(f).sort((a, b) => sig(a) - sig(b) || a.name.localeCompare(b.name)); }
   if (k === "top") return rushNames().map((n) => D.find((d) => d.name === n)).filter(Boolean);
   return rapidList(RAPID_GROUPS[{ sig: 0, ask: 1, shots: 2, zero: 3, serves: 4 }[k]][1]);
 }
 // The parts of the list: one group on its own, or (Everything, or any search) each drink once, house list first.
 function sxParts() {
   const q = SX.q.trim(), words = q ? plQuery(q).words : [], hit = (d) => plHits(d, words);
-  if (!q && SX.grp !== "all") return [[SX_GROUPS.find(([k]) => k === SX.grp)[1], sxGroup(SX.grp)]];
+  if (!q && SX.grp !== "all") return [[sxTitle(SX.grp), sxGroup(SX.grp)]];
   const seen = new Set(), parts = [];
   for (const [k, t] of SX_GROUPS.slice(1)) {
     const ds = sxGroup(k).filter((d) => !seen.has(d.id) && hit(d)); ds.forEach((d) => seen.add(d.id));
@@ -148,6 +152,9 @@ function sxTonight() {
       ${out.length ? `<ul class="sx-outl" translate="no">${out.map((n) => `<li><span>${esc(n)}</span><button class="chip" data-sx-back="${esc(n)}">Back in</button></li>`).join("")}</ul>` : `<b class="st-big">Nothing</b>`}
       <button class="linkbtn" data-st-go="stock">Open the 86 board \u203a</button></div>
     ${side("bar")}${side("floor")}
+    <div class="st-tile sx-send"><span class="st-k">Send on WhatsApp</span>
+      <div class="sx-phb">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-st-go="send">Hand over ›</button>${out.length ? sendBtn("out", "The 86 list") : ""}</div>
+      <span class="st-s">Each message ends with a link back into Bar Book, never the team code.</span></div>
     <div class="st-tile sx-ph"><span class="st-k">Tonight's photos \u00b7 ${esc(sideName(mode))}${ph.length ? ` \u00b7 ${ph.length}` : ""}</span>
       ${ph.length ? `<div class="sx-thumbs">${ph.slice(-6).map((x) => `<img src="${x.data}" alt="${esc(x.note || "Closing photo")}">`).join("")}</div>` : ""}
       ${ph.length >= LIVE.api.MAX_PHOTOS ? `<span class="st-s">${LIVE.api.MAX_PHOTOS} photos is the most for one handover.</span>`
@@ -164,7 +171,7 @@ function renderStation() {
           <datalist id="sx-86l"></datalist><span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></aside>
       <section class="sx-drinks" aria-label="Drinks">
         <div class="search sx-search"><input id="sx-q" type="search" placeholder="Search any drink, spirit or glass" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Search drinks"></div>
-        <div class="chips sx-chips" id="sx-grp" role="toolbar" aria-label="Groups">${SX_GROUPS.map(([k, t]) => `<button class="chip" data-sx-grp="${k}">${t}</button>`).join("")}</div>
+        <div class="chips sx-chips" id="sx-grp" role="toolbar" aria-label="Groups">${[...SX_GROUPS, ...SX_FAMS()].map(([k, t]) => `<button class="chip" data-sx-grp="${k}">${t}</button>`).join("")}</div>
         <div class="chips sx-chips" id="sx-recent"></div>
         <div class="sx-roundbar" id="sx-roundbar" hidden></div>
         <div id="sx-list"></div>
@@ -235,7 +242,7 @@ document.addEventListener("click", (e) => {
   const sd = e.target.closest("[data-st-side]"); if (sd) { haptic(); setMode(sd.dataset.stSide); pane = closeList(); show("tally"); return; }
   const go = e.target.closest("[data-st-go]"); if (!go) return; haptic();
   if (go.dataset.stGo === "notices") return show("notices");
-  pane = "stock"; show("tally");
+  pane = go.dataset.stGo === "send" ? "send" : "stock"; show("tally");
 });
 document.addEventListener("input", (e) => { if (e.target.id !== "sx-q") return; SX.q = e.target.value; SX.view = "drink"; $("#sx-list").scrollTop = 0; sxBars(); sxList(); if (SX.q.trim() && SX.ids.length) sxOpenQuiet(SX.ids[0]); });
 // Typing shows the top match on the iPad without stealing the keyboard; Enter opens it (on a phone, its page).

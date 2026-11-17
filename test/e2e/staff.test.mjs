@@ -36,7 +36,7 @@ test("joining: the team link and a name, no login; a wrong code is refused", asy
   const err = await q.evaluate(() => LIVE.api.join("wrong-code-123", "Vi").then(() => "allowed", (e) => e.message));
   assert.notEqual(err, "allowed");
   await q.evaluate(() => show("notices"));
-  assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Owner login/i);
+  assert.match(flat(await q.$eval("#tm-top", (e) => e.innerText)), /Join the team .* Team code .* Maintenance login/i);
   // Through the form: a refused code says why and gives the form back.
   await q.fill("#j-name", "Vi");
   await q.fill("#j-code", "wrong-code-456");
@@ -76,18 +76,22 @@ const sendVia = (p, sel) => p.evaluate((sel) => {
 test("a copy of everything sent goes to the owner and seniors; rate the shift with no name; My pay never", async () => {
   await resetEmulators();
   const { O, M, S, T } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Kadir"], ["T", "Pema"]]);
-  // A sick message on WhatsApp: logged once in Kadir's name, however many times the button is tapped.
+  // Off sick is health, so it goes on WhatsApp and never into the team's copy.
   await S.evaluate(() => openSend("sick"));
+  await sendVia(S, '#send a[data-via="wa"]');
+  await S.click("#sh-close"); await S.waitForSelector("#sheet", { state: "hidden" });
+  // A running late message on WhatsApp: logged once in Kadir's name, however many times the button is tapped.
+  await S.evaluate(() => openSend("late"));
   await sendVia(S, '#send a[data-via="wa"]');
   await sendVia(S, '#send a[data-via="mail"]');
   await M.waitForFunction(() => LIVE.sent.length === 1);
   const one = await M.evaluate(() => LIVE.sent[0]);
-  assert.equal(one.k, "sick"); assert.equal(one.name, "Kadir"); assert.match(one.text, /Off sick/);
+  assert.equal(one.k, "late"); assert.equal(one.name, "Kadir");
   await S.click("#sh-close");
 
   // Team only: the rating goes with no name, no side and no uid, and the app says so.
   await part(S, "rate");
-  assert.match(await S.$eval("#tc-rate", (e) => e.innerText), /Derek and the seniors also get a copy with no name, no side and nothing about this phone/);
+  assert.match(await S.$eval("#tc-rate", (e) => e.innerText), /the managers also get a copy with no name, no side and nothing about this phone/);
   await S.click('[data-rate="4"]');
   await S.fill('[data-rt="feel"]', "Short-staffed again");
   await S.evaluate(() => openSend("rate"));
@@ -120,7 +124,7 @@ test("Tell Derek: anyone says what's missing, to add or wrong; only the owner re
   await S.click('[data-tell-kind="wrong"]');
   await S.fill('[data-tell="text"]', "The Mojito spec says 50 ml rum");
   await S.click("#tell-go");
-  await waitToast(S, /^Sent to Olly$/);
+  await waitToast(S, /^Sent to maintenance$/);
   await M.evaluate(() => LIVE.api.tell("add", "A list for the terrace"));
   await O.waitForFunction(() => LIVE.tells.length === 2);
   await O.waitForFunction(() => document.querySelector("#team-n").textContent === "2");
@@ -140,12 +144,12 @@ test("the owner adds up to three seniors with their own codes; a senior unlocks 
   for (const p of [A, B]) assert.equal(await p.evaluate(() => LIVE.admin && !LIVE.owner), true);
   // The owner's Manager section, with the seniors' card.
   await O.evaluate(() => show("notices"));
-  assert.match(await O.$eval("#tm-cards", (e) => e.textContent), /Manager.*Bar.*Closing: Not started.*Seniors and their codes.*Owner settings.*Team/s);
+  assert.match(await O.$eval("#tm-cards", (e) => e.textContent), /Manager.*Bar.*Closing: Not started.*Managers and their codes.*Maintenance settings.*Team/s);
   await part(O, "seniors");
   // Codes are unique: Illias's is taken.
   await O.fill("#sn-name", "Artur"); await O.fill("#sn-pin", "4821");
   await O.click("#sn-go");
-  await waitToast(O, /^Another senior has that code/);
+  await waitToast(O, /^Another manager has that code/);
   await O.fill("#sn-pin", "7305");
   await O.click("#sn-go");
   await waitToast(O, /^Artur can unlock with their code now/);
@@ -209,16 +213,16 @@ test("to the seniors: named or anonymous, only the seniors see them, and the rep
   const { M, S, T } = await team(browser, site, [["M", "Illias", "illias", "manager"], ["S", "Vi"], ["T", "PK"]]);
   await part(S, "ask");
   await S.waitForSelector("#ask-go");
-  assert.equal(await S.$eval("#ask-go", (b) => b.textContent), "Send to the seniors");
+  assert.equal(await S.$eval("#ask-go", (b) => b.textContent), "Send to the managers");
   await S.fill('[data-ask="when"]', "Sat 22 Nov");
   await S.fill('[data-ask="text"]', "Family wedding");
   await S.click("#ask-go");
-  await waitToast(S, /^Sent to the seniors$/);
+  await waitToast(S, /^Sent to the managers$/);
   await S.click('[data-ask-kind="complaint"]');
   await S.fill('[data-ask="text"]', "Rota changed with no notice");
   await S.check('[data-ask="anon"]');
   await S.click("#ask-go");
-  await waitToast(S, /^Sent to the seniors$/);
+  await waitToast(S, /^Sent to the managers$/);
 
   await M.waitForFunction(() => LIVE.asks.length === 2);
   const asks = await M.evaluate(() => LIVE.asks.map((a) => ({ kind: a.kind, anon: a.anon, name: a.name ?? null, uid: a.uid ?? null })).sort((a, b) => a.kind.localeCompare(b.kind)));
@@ -394,7 +398,7 @@ test("managers see tonight at a glance without anyone sending it: closing, the h
   await M.waitForFunction((n) => { const t = document.querySelector(".glance")?.textContent || ""; return t.includes(n) && t.includes("Glass washer leaking") && t.includes("Heater broken"); }, drink);
   const t = await M.$eval(".glance", (e) => e.textContent);
   assert.match(t, /Bar.*Closing: Not started \(\d+ to do\).*Handover: being written.*Running low: Limes.*Floor.*Closing: Not started.*Handover: not started/s);
-  assert.match(t, /86'd now.*Kadir.*Open issues and faults.*Urgent: Heater broken.*Kadir.*On the team.*3 phones.*Seniors unlocked: Illias/s);
+  assert.match(t, /86'd now.*Kadir.*Open issues and faults.*Urgent: Heater broken.*Kadir.*On the team.*3 phones.*Managers unlocked: Illias/s);
   // Staff don't get it.
   await S.evaluate(() => show("notices"));
   assert.equal(await S.$$eval(".glance", (x) => x.length), 0);

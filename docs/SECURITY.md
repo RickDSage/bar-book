@@ -53,6 +53,8 @@ O = owner, M = senior (role `manager`), S = staff (joined with the current team 
 
 Visitors (V) can do one thing: look up a single username, which returns the made-up sign-in address and the uid. X can read their own staff record, and join if they have the current code. Both are tested.
 
+**No health data on the team's database (17 November 2026):** an incident write-up and an Off sick message go on WhatsApp only. The app no longer sends incidents to `asks`, and neither is copied to `sent` (with My pay, payslips, hours and the team link). Older incident asks stay readable until the owner removes them. Staff join with a first name, and Who to call is for work numbers only.
+
 Collections from before version 3 (rota, chat, briefings, guest recovery, sales, concerns, incidents, ratings, certificates and the rest) are no longer in the rules, so no app account can read or write them. Their data stays in the database until the owner deletes it in the console (optional; see "Moving to version 3").
 
 Hiding a button is never the protection. Every row above is enforced by `firestore.rules` and covered by allowed and refused cases in `test/rules.test.mjs`.
