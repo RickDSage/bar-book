@@ -1258,7 +1258,7 @@ function printMsg(text, photos) {
   window.print();
 }
 /* A copy of everything sent from the Send page (WhatsApp, email, the share sheet or print) goes to the seniors and the
-   owner, once per message. Team only: rate the shift goes with no name; My pay and the team link stay on the phone. */
+   owner, once per message. Team only: rate the shift goes with no name; My pay and the Bar Book link stay on the phone. */
 // Health stays off the team's database: an off sick message and an incident write-up go on WhatsApp only.
 const PRIVATE_SEND = new Set(["hours", "pay", "slip", "team", "sick", "incident"]);
 function logSent(m) {
@@ -3074,7 +3074,7 @@ function renderTally() {
   if (!LIVE.me) {
     renderFootball();
     $("#shift-title").textContent = `${sideName(mode)} shift`; $("#shift-day").textContent = "";
-    $("#tally").innerHTML = `<p class="note">${!LIVE.api ? "The shift checklists need the team side, which needs signal the first time." : LIVE.uid && !LIVE.anon ? "Checking your account…" : "Join the team to use the checklists, the 86 board, restocking and handover. No login: open the team link from the staff group. Everyone on shift sees the same lists."}</p>${LIVE.api && (!LIVE.uid || LIVE.anon) ? `<div class="actions"><button class="btn pri" data-login>Join the team</button></div>` : ""}`;
+    $("#tally").innerHTML = `<p class="note">${!LIVE.api ? "The shift checklists need the team side, which needs signal the first time." : LIVE.uid && !LIVE.anon ? "Checking your account…" : "Join the team to use the checklists, the 86 board, restocking and handover. No login: pick your name and type the team code. Everyone on shift sees the same lists."}</p>${LIVE.api && (!LIVE.uid || LIVE.anon) ? `<div class="actions"><button class="btn pri" data-login>Join the team</button></div>` : ""}`;
     return;
   }
   freshNight();
@@ -4707,7 +4707,7 @@ function renderInfo() {
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
     <div class="mini" style="margin-top:14px">Shared iPad or tablet</div>
     <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div>
-    <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a manager's code or the maintenance login locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
+    <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a manager's or maintenance's code locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
     ${fold("home", "Put this app on your home screen", `
     <h3 style="font-size:18px;margin-top:4px">iPhone</h3>
@@ -4754,7 +4754,7 @@ $("#v-info").addEventListener("click", (e) => {
 
 /* ---------- Features ----------
    Every feature: what it's for, what staff and the manager can do with it, and where it is. The tour goes through the
-   ones marked tour that this phone can use. Team features need the phone to be on the team (the team link). */
+   ones marked tour that this phone can use. Team features need the phone to be on the team (joined with the team code). */
 const FEATURES = [
   { g: "Drinks", k: "drinks", n: "Drinks", go: "tab:drinks", tour: 1,
     what: "Every drink with its spec, glass, ice, garnish and method, and a picture guide for each step.",
@@ -4825,7 +4825,7 @@ const FEATURES = [
     mgr: "Add and remove the venue's numbers." },
   { g: "Team", k: "people", n: "Who's on the team", go: "people", team: 1,
     what: "Every phone on the team. Managers unlock theirs with their own 4 digit code.",
-    staff: "Share the team link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. Maintenance adds or removes the managers and their codes." },
+    staff: "Share the Bar Book link, change your name, or leave.", mgr: "Take a lost phone or someone who has left off the team. Maintenance adds or removes the managers and their codes." },
 ];
 const navCols = () => ($("nav.tabs").style.gridTemplateColumns = `repeat(${[...$$("nav.tabs [data-tab]")].filter((b) => !b.hidden).length}, 1fr)`);
 const fUsable = (f) => !f.team || !!LIVE.me;
@@ -4838,7 +4838,7 @@ function featHtml() {
   };
   return `<h2 id="sh-name" style="margin-top:12px">What's in Bar Book</h2>
     <p class="lead">The drinks, the shift and the team in one app, for the bar and floor. Here's every feature and what it's for.</p>
-    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without the team link you get the drinks, the cocktail maker, Allergens, Practise, More, My pay and the WhatsApp tools. Open the team link from the staff group for the rest: no login or password."}</p>
+    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without joining you get the drinks, the cocktail maker, Allergens, Practise, More, My pay and the WhatsApp tools. Join with the team code for the rest: no login or password."}</p>
     <div class="actions"><button class="btn pri" id="tour-go">Take the tour (${tourSteps().length} steps)</button></div>
     ${[...new Set(FEATURES.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${FEATURES.filter((f) => f.g === g).map(card).join("")}`).join("")}`;
 }
@@ -4864,7 +4864,7 @@ document.addEventListener("click", (e) => { const g = e.target.closest("[data-go
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
 const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
-  tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team link join leave",
+  tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift" };
 function placeHits(q) {
   const ws = q.toLowerCase().split(/\s+/).filter((w) => w.length >= 3 || /^\d+$/.test(w)); if (!ws.length) return [];
@@ -4937,19 +4937,18 @@ const openIssues = () => LIVE.issues.filter((x) => x.status !== "fixed");
 const val = (id) => $(id).value.trim();
 
 /* ---------- Who you are and joining the team ----------
-   Bar and floor staff have no login or password. The phone remembers a first name (picked on the welcome screen or
-   here) and the team code, which comes in the team link from the staff WhatsApp group (...#join=CODE). With both, the
-   phone joins the team by itself. Only the owner and the manager log in, with a username and password. */
+   Nobody has a login or password. The phone remembers a first name (picked on the welcome screen or here) and the
+   team code, typed once on the Join screen. The code is never put in a link or a message: it's said in person. Then a
+   manager or maintenance picks their name and types their own 4 digit code to unlock everything on that phone. */
 const ALL_STAFF = [...STAFF.bar, ...STAFF.floor, ...STAFF.both];
 let myName = store.get("me", ""), teamCode = store.get("team", "");
-{
-  const m = location.hash.match(/^#join=([A-Za-z0-9-]{8,64})$/);
-  if (m) { teamCode = m[1]; store.set("team", teamCode); store.set("kicked", false); history.replaceState(null, "", location.pathname + location.search); }
-}
-const teamLink = () => `${location.origin}${location.pathname}#join=${teamCode}`;
-// Up to three seniors (Illias, Hassan, Artur) unlock with their own code (role "manager" in the data). Everything sent
-// "to the seniors" reaches all of them and the owner.
-let joining = false, joinErr = store.get("kicked", false) ? "You were taken off the team on this phone. Open the team link from the staff group to join again." : "";
+// Old team links (...#join=CODE) carry the code in the address, which ends up in chats and browser history. They no
+// longer join: the address is tidied and the Join screen asks for the code.
+if (/^#join=/.test(location.hash)) history.replaceState(null, "", location.pathname + location.search);
+const appLink = () => `${location.origin}${location.pathname}`;
+// Up to three seniors (Illias, Hassan, Artur) unlock with their own code (role "manager" in the data), and so does
+// maintenance (the owner). Everything sent "to the seniors" reaches all of them and the owner.
+let joining = false, joinErr = store.get("kicked", false) ? "You were taken off the team on this phone. Type the team code to join again." : "";
 function autoJoin() {
   // After a refused join it waits for the Join button or a new link: retrying by itself looped for ever on a wrong code.
   if (!LIVE.api || !LIVE.ready || joining || joinErr || LIVE.admin || !teamCode || !myName) return;
@@ -4989,8 +4988,8 @@ function sharedLock() {
   if (Date.now() - lastTap >= IDLE_MIN * 6e4) lockDue = true;
   if (!lockDue || !LIVE.api || !LIVE.ready) return;
   lockDue = false;
-  if (LIVE.owner) { idleOut = true; LIVE.api.leave(); return; }
-  if (LIVE.role === "manager") track(LIVE.api.lock(myName), "Locked: this iPad is shared", "Not locked. Check the signal");
+  if (LIVE.owner && !LIVE.pin) { idleOut = true; LIVE.api.leave(); return; }
+  if (LIVE.pin) track(LIVE.api.lock(myName), "Locked: this iPad is shared", "Not locked. Check the signal");
 }
 const tapped = () => {
   sharedLock();
@@ -5244,9 +5243,9 @@ SHARE.swap = (o) => {
     head: [`${longDay(d)}, ${sideName(mode).toLowerCase()}. Message me if you can take it.`, "The managers still have to agree it."],
     parts: [], noteHead: null, notePh: "Times, and anything else" };
 };
-SHARE.team = () => (teamCode ? { what: "Team link", title: "Join Bar Book",
-  head: ["Tap this on your phone to join the team in Bar Book (no login or password). Keep it in this group only.", teamLink()],
-  parts: [], noteHead: null, tip: "Anyone with this link can join the team, so only share it in the staff group." } : null);
+SHARE.team = () => ({ what: "Bar Book link", title: "Bar Book",
+  head: ["Open this on your phone, pick your name and type the team code. Ask a manager for the code in person.", appLink()],
+  parts: [], noteHead: null, tip: "Never write the team code in a message: say it in person." });
 
 /* ---------- Spin the wheel ----------
    Who does the bins, who goes on break first, who picks the music: tap the names, say what for, spin. */
@@ -5340,32 +5339,43 @@ function reportsHtml() {
 }
 const outlogHtml = () => LIVE.outlog.slice(0, 60).map((x) => `<div class="staffrow"><div class="n">${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "86'd" : "back on"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">No 86s yet.</p>`;
 const ROLE = { owner: "maintenance", manager: "manager", staff: "" };
+const OWNER_ID = "owner";
+const managersOnly = () => LIVE.seniors.filter((x) => x.id !== OWNER_ID);
+const ownerEntry = () => LIVE.seniors.find((x) => x.id === OWNER_ID);
 // A senior's record from before codes (a password login) holds no pin and no longer counts as a senior.
 const oldLogin = (p) => p.role === "manager" && !p.pin;
 function peopleHtml() {
-  const canGo = (p) => p.uid !== LIVE.uid && p.role !== "owner" && (LIVE.owner || (LIVE.admin && p.role === "staff"));
+  const canGo = (p) => p.uid !== LIVE.uid && (p.role !== "owner" || p.pin) && (LIVE.owner || (LIVE.admin && p.role === "staff"));
   return `<p class="note">${plural(LIVE.staff.length, "phone", "phones")} on the team.</p>
     ${LIVE.staff.map((p) => `<div class="staffrow"><div class="n"><b translate="no">${esc(p.name)}</b>${oldLogin(p) ? ` <span class="pill no">old login</span>` : ROLE[p.role] ? ` <span class="pill">${ROLE[p.role]}</span>` : ""}${p.uid === LIVE.uid ? ` <span class="pill ok">this phone</span>` : ""}</div>
       ${p.at ? `<div class="s">Joined ${when(p.at)}</div>` : ""}${canGo(p) ? `<div class="actions"><button class="btn" data-tm-drop="${p.uid}">Take off the team</button></div>` : ""}</div>`).join("")}
-    ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, change the team code in Firebase and share the new link.</p>` : ""}`;
+    ${LIVE.admin ? `<p class="note">A lost phone or someone who has left: take them off here. To take every phone off at once, give the team a new code in Maintenance settings.</p>` : ""}`;
 }
 /* ---------- Seniors' codes ----------
-   Up to three seniors. Each unlocks any phone on the team with their own 4 digit code; the server checks it and
-   counts wrong ones (firestore.rules: seniors and pins). Only the owner adds, re-codes or takes off a senior. */
+   Up to three seniors, plus maintenance (the owner) under the id "owner". Each unlocks any phone on the team by picking
+   their name and typing their own 4 digit code; the server checks it and counts wrong ones (firestore.rules: seniors and
+   pins). Only the owner adds, re-codes or takes off a senior, and sets their own code. */
 let unF = { id: "" };
 function unlockHtml() {
-  const S = LIVE.seniors, s = S.find((x) => x.id === unF.id), w = s ? LIVE.api.waitFor(s) : 0;
+  const S = [...LIVE.seniors].sort((a, b) => (b.id === OWNER_ID) - (a.id === OWNER_ID)), s = S.find((x) => x.id === unF.id), w = s ? LIVE.api.waitFor(s) : 0;
   if (!S.length) return `<p class="note">No managers added yet.</p>`;
-  return `<p class="note">Managers: unlock everything you need on this phone with your own code. Tap Lock before you hand the phone back.</p>
-    <div class="mini">Who are you?</div><div class="recent" translate="no">${S.map((x) => `<button class="chip" data-un-id="${esc(x.id)}" aria-pressed="${x.id === unF.id}">${esc(x.name)}</button>`).join("")}</div>
+  return `<p class="note">Managers and maintenance: tap your name and type your own code to unlock everything on this phone. Tap Lock before you hand the phone back.</p>
+    <div class="mini">Who are you?</div><div class="recent" translate="no">${S.map((x) => `<button class="chip" data-un-id="${esc(x.id)}" aria-pressed="${x.id === unF.id}">${esc(x.name)}${x.id === OWNER_ID ? " (maintenance)" : ""}</button>`).join("")}</div>
     ${w === Infinity ? `<p class="note warn" role="alert">Locked after ${LIVE.api.MAX_TRIES} wrong codes. Ask maintenance to unlock it.</p>` : w ? `<p class="note warn" role="alert">Too many wrong codes. Try again in ${w} min.</p>` : ""}
     <label class="fld">Your 4 digit code<input id="un-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></label>
     <button class="btn pri wide" id="un-go">Unlock</button>`;
 }
 function seniorsHtml() {
-  const S = LIVE.seniors, A = LIVE.api, old = LIVE.staff.filter(oldLogin);
+  const S = managersOnly(), A = LIVE.api, old = LIVE.staff.filter(oldLogin), me = ownerEntry();
   const state = (x) => (x.tries >= A.MAX_TRIES ? `<span class="pill no">locked</span>` : x.tries ? `<span class="pill no">${plural(x.tries, "wrong code")}</span>` : "");
-  return `<p class="note">Each manager unlocks any phone on the team with their own 4 digit code and sees and changes everything you do, except App feedback and this card. 5 wrong codes slow it to one try every 15 minutes; 10 lock it until you unlock it here. Give codes in person.</p>
+  const mine = me ? `<div class="staffrow"><div class="n"><b translate="no">${esc(me.name)}</b> <span class="pill">maintenance</span> ${state(me)}</div>
+      <div class="s">Your own code. On any phone on the team: Team, then Unlock with your code.</div>
+      <div class="actions">${me.tries ? `<button class="btn pri" data-sn-reset="${OWNER_ID}">Unlock my code</button>` : ""}<button class="btn" data-sn-code="${OWNER_ID}">New code</button></div></div>`
+    : `<label class="fld">Your name on the list<input id="ow-name" maxlength="30" value="${esc(firstName(LIVE.me))}" translate="no"></label>
+      <label class="fld">Your 4 digit code<input id="ow-pin" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="4" autocomplete="off"></label>
+      <div class="actions"><button class="btn pri" id="ow-go">Set my code</button></div>`;
+  return `<div class="h3">You (maintenance)</div>${me ? "" : `<p class="note warn">Set your own code first: then you log in like the managers, by picking your name and typing it.</p>`}${mine}
+    <div class="h3">Managers</div><p class="note">Each manager unlocks any phone on the team with their own 4 digit code and sees and changes everything you do, except App feedback and this card. 5 wrong codes slow it to one try every 15 minutes; 10 lock it until you unlock it here. Give codes in person.</p>
     ${S.map((x) => { const on = LIVE.staff.filter((p) => p.pin === x.id).length; return `<div class="staffrow"><div class="n"><b translate="no">${esc(x.name)}</b> ${state(x)}</div>
       <div class="s">${on ? `Unlocked on ${plural(on, "phone")}` : "Not unlocked on any phone"}</div>
       <div class="actions">${x.tries ? `<button class="btn pri" data-sn-reset="${esc(x.id)}">Unlock the code</button>` : ""}<button class="btn" data-sn-code="${esc(x.id)}">New code</button><button class="btn" data-sn-drop="${esc(x.id)}">Take off</button></div></div>`; }).join("") || `<p class="note">No managers yet.</p>`}
@@ -5377,9 +5387,17 @@ function seniorsHtml() {
       ${old.map((p) => `<div class="staffrow"><div class="n"><b translate="no">${esc(p.name)}</b></div><div class="actions"><button class="btn" data-tm-drop="${p.uid}">Take off the team</button></div></div>`).join("")}` : ""}`;
 }
 function mgrHtml() {
-  return `${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board and restock requests for everyone, and marks the inbox done. Open issues, the inbox's messages and sent handovers stay. Undo clear on Shift puts it back for 15 minutes.</p>
-      <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}<label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
-    <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>`;
+  const g = LIVE.gate || { tries: 0 }, gw = LIVE.api.gateWait(g);
+  return `<div class="h3">Team code</div>
+    <p class="note">Everyone types it once to join. Say it in person, never in a message. A new code takes every phone off the team, this one too, and everyone joins again with the new code. Pick 4 to 8 numbers nobody would guess: not 0000, 1234 or a birthday.</p>
+    <label class="fld">New team code<input id="tc-new" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off"></label>
+    <div class="actions"><button class="btn" id="tc-go">Change the team code</button></div>
+    <div class="h3">Joining</div>
+    <p class="note">${g.tries ? `${plural(g.tries, "wrong team code")} since the last phone joined. ${gw === Infinity ? "<b>Joining is locked</b>: no phone can join until you unlock it." : gw ? `Next try allowed in ${gw} min.` : ""}` : "No wrong team codes since the last phone joined."} 10 wrong codes slow joining to one try every 5 minutes for everyone; ${LIVE.api.GATE_MAX} lock it until you unlock it here.</p>
+    ${g.tries ? `<div class="actions"><button class="btn pri" id="gate-reset">Unlock joining</button></div>` : ""}
+    ${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board and restock requests for everyone, and marks the inbox done. Open issues, the inbox's messages and sent handovers stay. Undo clear on Shift puts it back for 15 minutes.</p>
+      <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}${LIVE.username ? `<div class="h3">Maintenance password</div><p class="note">Only for getting back in if your code gets locked.</p><label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
+    <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>` : ""}`;
 }
 // The top of the Manager section: tonight at a glance, for someone who isn't on the bar or the floor. Everything comes
 // from what the team is already doing in the app (nobody has to send it), each with who and when.
@@ -5438,7 +5456,7 @@ function glanceHtml() {
   const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `<li>${esc(n)} ${byAt(x.name || "", x.at)}</li>`);
   const iss = openIssues().sort((a, b) => b.urgent - a.urgent).map((x) => `<li>${x.urgent ? "<b>Urgent:</b> " : ""}${esc(x.title)} ${byAt(x.name, x.at)}${x.who ? ` <span class="s">· with ${esc(x.who)}</span>` : ""}</li>`);
   const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status)).map((x) => `<li>${esc(amtOf(x.qty, x.unit, x.item))} for the ${esc(lower(DEST[x.dest] || ""))}: ${RS_SAY[x.status]} ${byAt(x.askedBy, x.askedAt)}</li>`);
-  const seniors = LIVE.staff.filter((x) => x.role === "manager" && x.pin).map((x) => x.name);
+  const seniors = LIVE.staff.filter((x) => x.pin).map((x) => x.name);
   return `<div class="glance">${waiting.length ? `<p class="note"><b>${waiting.join(" · ")}</b></p>` : ""}
     ${glanceSide("bar")}${glanceSide("floor")}
     <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
@@ -5453,9 +5471,9 @@ function glanceHtml() {
 const tmOpen = new Set(store.get("tmOpen", []));
 const TC_SUB = { quick: "Tonight's report, the handover, the 86 list, running late, off sick", ask: "Days off, swaps, complaints, ideas. Named or anonymous",
   issues: "Anything broken, listed until someone fixes it", incident: "Write it up, send it on WhatsApp, then the accident book", rate: "Tonight out of 10. The managers' copy has no name",
-  tell: "What's missing, to add or wrong in Bar Book", call: "Emergency, utility and venue numbers", people: "Every phone on the team and the team link", spin: "Who does the bins, who breaks first",
-  unlock: "For managers on this phone", tells: "What the team says is missing or wrong in the app", inbox: "Days off, swaps, complaints and ideas sent to the managers",
-  reports: "Every closing with its photos", sent: "A copy of everything sent from Bar Book", outlog: "Who 86'd what, and when it came back", seniors: "Add, change or unlock the managers' codes", mgr: "Team code, master clear and the rest" };
+  tell: "What's missing, to add or wrong in Bar Book", call: "Emergency, utility and venue numbers", people: "Every phone on the team and the Bar Book link", spin: "Who does the bins, who breaks first",
+  unlock: "Pick your name and type your own code", tells: "What the team says is missing or wrong in the app", inbox: "Days off, swaps, complaints and ideas sent to the managers",
+  reports: "Every closing with its photos", sent: "A copy of everything sent from Bar Book", outlog: "Who 86'd what, and when it came back", seniors: "Add, change or unlock the managers' codes", mgr: "Team code, joining, master clear" };
 const card = (k, title, body, sub = "") => `<details class="setup tcard" data-card="${k}"${tmOpen.has(k) ? " open" : ""}><summary>${title}${TC_SUB[k] ? `<small class="tsub">${TC_SUB[k]}</small>` : ""}${sub ? ` <span class="pill${sub.hot ? " no" : ""}">${sub.t ?? sub}</span>` : ""}</summary><div id="tc-${k}">${tmOpen.has(k) ? body() : ""}</div></details>`;
 // For the owner and seniors, everything they look after comes first under Manager, then the same Team cards as
 // everyone. A ["§", title, html] entry is a heading.
@@ -5468,10 +5486,11 @@ const CARDS = () => [
     ["sent", "Everything sent", sentHtml, LIVE.sent.length || ""],
     ["outlog", "86 log", outlogHtml],
     ["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""],
-    ...(LIVE.owner ? [["seniors", "Managers and their codes", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : LIVE.seniors.length || ""],
-      ["mgr", "Maintenance settings", mgrHtml]] : []),
+    ...(LIVE.owner ? [["seniors", "Codes: you and the managers", seniorsHtml, LIVE.seniors.some((x) => x.tries >= LIVE.api.MAX_TRIES) ? { t: "locked", hot: 1 } : !ownerEntry() ? { t: "set yours", hot: 1 } : managersOnly().length || ""],
+      ["mgr", "Maintenance settings", mgrHtml, LIVE.gate?.tries >= LIVE.api.GATE_MAX ? { t: "joining locked", hot: 1 } : ""]] : []),
     ["§", "Team"],
   ] : []),
+  ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager or maintenance? Unlock with your code", unlockHtml]] : []),
   ["quick", "Send on WhatsApp", quickHtml],
   ...(LIVE.me && !LIVE.admin ? [["ask", "To the managers", askHtml, draftPill("ask")]] : []),
   ["incident", "Incident or accident", incHtml, draftPill("incident")],
@@ -5481,7 +5500,6 @@ const CARDS = () => [
   ["spin", "Spin the wheel", spinHtml],
   ...(LIVE.me ? [["call", "Who to call", callHtml]] : []),
   ...(LIVE.me && !LIVE.admin ? [["people", "Who's on the team", peopleHtml, LIVE.staff.length || ""]] : []),
-  ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager? Unlock with your code", unlockHtml]] : []),
 ];
 // Everything that goes out on WhatsApp in one place: tonight's, then your own.
 function quickHtml() {
@@ -5537,18 +5555,18 @@ addEventListener("pagehide", saveDrafts);
 setTimeout(() => { const ds = Object.keys(DRAFTS).filter(drafted).map((k) => DRAFTS[k].n); if (ds.length) toast(`Unfinished draft: ${ds.join(", ")}`); }, 600);
 function topHtml() {
   if (!LIVE.api) return `<p class="note">The team side needs signal the first time.</p>`;
-  if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span>${teamCode ? `<button class="linkbtn" data-send="team">Share the team link</button>` : ""}${LIVE.owner ? `<button class="linkbtn" id="tm-leave">Log out</button>` : `<button class="linkbtn" id="tm-lock">Lock</button>`}</p>`;
-  if (LIVE.me) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${sideName(mode)}</span><button class="linkbtn" id="tm-rename">Change name</button><button class="linkbtn" data-send="team">Share the team link</button><button class="linkbtn" id="tm-leave">Leave</button></p>`;
+  if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span><button class="linkbtn" data-send="team">Share the Bar Book link</button>${LIVE.pin ? `<button class="linkbtn" id="tm-lock">Lock</button>` : `<button class="linkbtn" id="tm-leave">Log out</button>`}</p>`;
+  if (LIVE.me) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${sideName(mode)}</span><button class="linkbtn" id="tm-rename">Change name</button><button class="linkbtn" data-send="team">Share the Bar Book link</button><button class="linkbtn" id="tm-leave">Leave</button></p>`;
   const busyNow = joining || (LIVE.uid && LIVE.anon && myName && teamCode && !joinErr);
   return `<div class="fbbox"><h2 style="margin-top:0">Join the team</h2>
     ${busyNow ? `<p class="note" role="status">Joining as <b translate="no">${esc(myName)}</b>…</p>` : `
-    <p>No login or password. Open the team link from the staff WhatsApp group on this phone, or paste the team code here.</p>
+    <p>No login or password. Pick your name and type the team code (ask a manager). Managers and maintenance: join here first, then unlock with your own code.</p>
     ${joinErr ? `<p class="note warn" role="alert">${esc(joinErr)}</p>` : ""}
     <div class="mini">Who are you?</div>${nameChips(myName, "data-j-name")}
     <label class="fld">Or type your first name (first name only)<input id="j-name" maxlength="30" value="${esc(ALL_STAFF.includes(myName) ? "" : myName)}" translate="no"></label>
-    <label class="fld">Team code<input id="j-code" autocapitalize="none" autocorrect="off" spellcheck="false" value="${esc(teamCode)}"></label>
+    <label class="fld">Team code<input id="j-code" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" value="${esc(teamCode)}"></label>
     <button class="btn pri wide" id="j-go">Join</button>`}</div>
-    <details class="setup"><summary>Maintenance login</summary>
+    <details class="setup"><summary>Maintenance code locked? Password</summary>
       <label class="fld">Username<input id="l-user" autocapitalize="none" autocomplete="username" spellcheck="false"></label>
       <label class="fld">Password<input id="l-pw" type="password" autocomplete="current-password"></label>
       <button class="btn pri wide" id="l-go">Log in</button></details>`;
@@ -5593,9 +5611,9 @@ $("#v-notices").addEventListener("click", async (e) => {
   // Joining and logging in.
   if ((x = b("[data-j-name]"))) { myName = x.dataset.jName; store.set("me", myName); return renderTeam(); }
   if (b("#j-go")) {
-    const n = val("#j-name") || myName, c = val("#j-code").replace(/^.*#join=/, "");
+    const n = val("#j-name") || myName, c = val("#j-code");
     if (!n) return toast("Pick your name first");
-    if (c.length < 8) return toast("Paste the team code, or open the team link from the staff group");
+    if (!/^[0-9]{4,8}$/.test(c)) return toast("The team code is 4 to 8 numbers. Ask a manager");
     teamCode = c; store.set("team", c); store.set("kicked", false); joinErr = ""; setName(n); haptic(); return;
   }
   if (b("#l-go")) {
@@ -5613,6 +5631,19 @@ $("#v-notices").addEventListener("click", async (e) => {
       (er) => { toast(er.message); renderCard("unlock"); }));
   }
   if (b("#tm-lock")) return track(A.lock(myName), "Locked. Back to the team's view", "Not locked. Check your signal");
+  if (b("#ow-go")) {
+    const n = val("#ow-name"), pin = val("#ow-pin");
+    if (!n || !/^[0-9]{4}$/.test(pin)) return toast("Your name and a 4 digit code");
+    if (rude(n)) return toast(RUDE);
+    return busy(b("#ow-go"), "Saving…", A.setSenior(n, pin, OWNER_ID).then(() => { toast("Your code is set. Pick your name and type it on any phone on the team"); renderCard("seniors"); }, (er) => toast(er.message || "Not saved")));
+  }
+  if (b("#tc-go")) {
+    const c = val("#tc-new");
+    if (!/^[0-9]{4,8}$/.test(c)) return toast("4 to 8 numbers");
+    if (!confirm("Change the team code? Every phone comes off the team, this one too, and everyone joins again with the new code.")) return;
+    return busy(b("#tc-go"), "Changing…", A.setTeamCode(c).then(() => toast("Team code changed. Tell the team in person"), (er) => toast(er.message || "Not changed")));
+  }
+  if (b("#gate-reset")) return track(A.unlockJoining(), "Joining unlocked", "Not changed");
   if (b("#sn-go")) {
     const n = val("#sn-name"), pin = val("#sn-pin");
     if (!n || !/^[0-9]{4}$/.test(pin)) return toast("A first name and a 4 digit code");
@@ -5621,9 +5652,9 @@ $("#v-notices").addEventListener("click", async (e) => {
   }
   if ((x = b("[data-sn-code]"))) {
     const s = LIVE.seniors.find((y) => y.id === x.dataset.snCode); if (!s) return;
-    const pin = (prompt(`New 4 digit code for ${s.name}`) || "").trim(); if (!pin) return;
+    const own = s.id === OWNER_ID, pin = (prompt(own ? "Your new 4 digit code" : `New 4 digit code for ${s.name}`) || "").trim(); if (!pin) return;
     if (!/^[0-9]{4}$/.test(pin)) return toast("A code is 4 digits");
-    return A.setSenior(s.name, pin, s.id).then(() => toast(`${s.name}'s code changed. Their phones stay unlocked`), (er) => toast(er.message || "Not changed"));
+    return A.setSenior(s.name, pin, s.id).then(() => toast(own ? "Your code changed" : `${s.name}'s code changed. Their phones stay unlocked`), (er) => toast(er.message || "Not changed"));
   }
   if ((x = b("[data-sn-reset]"))) return track(A.resetTries(x.dataset.snReset), "Unlocked. They can try their code again", "Not changed");
   if ((x = b("[data-sn-drop]"))) {
@@ -5631,7 +5662,7 @@ $("#v-notices").addEventListener("click", async (e) => {
     if (!confirm(`Take ${s.name} off as a manager? Their code stops working and any phone they unlocked goes back to the team's view.`)) return;
     return track(A.dropSenior(s.id), `${s.name} taken off`, "Not taken off");
   }
-  if (b("#tm-leave")) { if (confirm(LIVE.admin ? "Log out on this phone?" : "Leave the team on this phone? Open the team link to join again.")) A.leave(); return; }
+  if (b("#tm-leave")) { if (confirm(LIVE.admin ? "Log out on this phone?" : "Leave the team on this phone? Type the team code to join again.")) A.leave(); return; }
   if (b("#tm-rename")) { const n = prompt("Your first name", LIVE.me); if (n && n.trim()) setName(n); return; }
   // To the manager.
   if ((x = b("[data-ask-kind]"))) { askF.kind = x.dataset.askKind; return renderCard("ask"); }
@@ -8271,8 +8302,8 @@ const HELP = {
   clearall: { t: "Clear everything", what: "A fresh start for the shift, on every phone.",
     how: ["Tap it, then confirm."],
     behind: ["Clears: both closing lists back to not started, every 86 back in stock, tonight's handover boxes and Closed by, unsent closing photos, and the drafts on this phone.", "Stays: sent handovers and their photos, date labels, restocks and issues.", "Anyone on the team can do it, and it can't be undone, so check with whoever's closing first."] },
-  join: { t: "Joining the team", what: "One team link, no login or password.",
-    how: ["Open the team link from the staff WhatsApp group on this phone, or paste the code here.", "Pick your first name. That's it."],
+  join: { t: "Joining the team", what: "One team code, no login or password.",
+    how: ["Pick your first name and type the team code. Ask a manager for it in person.", "Managers and maintenance: then tap your name under Unlock with your code and type your own code."],
     behind: ["The phone signs in by itself with no account. The code is checked by the database, not by the app.", "Anyone with the link can join, so keep it in the staff group. A manager can take a lost phone off the team, and changing the code takes every phone off at once.", "Leaving wipes this phone's copy of the team's data.", "Saved for the team: first names, ticks, 86s, labels, restocks, issues, handovers and photos of the bar. Never saved: My pay, payslips, off sick messages, incident write-ups, or anyone's address, phone or bank details."] },
   ask: { t: "To the managers", what: "A day off, a swap, a complaint or anything else, straight to the managers.",
     how: ["Pick what it is, write it and send.", "You see it again here with Sent, Seen or Done, and any reply."],
@@ -8288,12 +8319,12 @@ const HELP = {
     behind: ["Only maintenance reads these. You see yours again, marked Done when it's sorted."] },
   sent: { t: "Everything sent", what: "A copy of everything the team sends from Bar Book.",
     how: ["Tap one to read it again."],
-    behind: ["Copied when someone sends from the Send page: WhatsApp, email, the share sheet, a picture or print.", "Rate the shift comes with no name. My pay, payslips, hours, off sick, incidents and the team link are never copied.", "Only the managers see this."] },
+    behind: ["Copied when someone sends from the Send page: WhatsApp, email, the share sheet, a picture or print.", "Rate the shift comes with no name. My pay, payslips, hours, off sick, incidents and the Bar Book link are never copied.", "Only the managers see this."] },
   inbox: { t: "Inbox from the team", what: "Everything sent To the managers.",
     how: ["Tap Seen so they know it's been read. Add a reply if you like, then tap Done."],
     behind: ["The sender sees Seen, Done and your reply. Anonymous ones can't see replies.", "Every manager shares one inbox."] },
   people: { t: "Who's on the team", what: "Every phone and account on the team.",
-    how: ["Share the team link with a new starter in the staff group.", "Managers: take off a lost phone or someone who has left."],
+    how: ["Send a new starter the Bar Book link and tell them the team code in person.", "Managers: take off a lost phone or someone who has left."],
     behind: ["A phone taken off forgets the team at once and goes back to drinks only.", "What they wrote keeps their name."] },
   incident: { t: "Incident or accident", what: "Write it up while it's fresh, then send it.",
     how: ["Fill in what happened and tick what's been done.", "Send it on WhatsApp or to the managers, then write it in the accident book."],
@@ -8303,7 +8334,7 @@ const HELP = {
     behind: ["A guest, a locked phone or closing the app loses nothing. Nothing leaves the phone until you send it.", "Clear everything and Reset this phone wipe drafts too."] },
   send: { t: "Sending", what: "Every Send button opens this page.",
     how: ["Untick anything you don't want in, add a note, and check How it will look.", "Tap WhatsApp or Email: your own app opens with the words in, and you pick the chat.", "With photos on an iPhone: Copy the words, then Send with photos, then paste the words as the caption."],
-    behind: ["Bar Book never sends anything by itself.", "When you're on the team, the managers get a copy in Everything sent. My pay, payslips, off sick, incidents and the team link are never copied.", "iPhones drop photos sent together with words, which is why the words go separately."] },
+    behind: ["Bar Book never sends anything by itself.", "When you're on the team, the managers get a copy in Everything sent. My pay, payslips, off sick, incidents and the Bar Book link are never copied.", "iPhones drop photos sent together with words, which is why the words go separately."] },
   drink: { t: "The drink page", what: "The spec, the method and a step-by-step guide.",
     how: ["Spec or Step by step at the top. Tap a line or a step to tick it off as you go.", "− and + scale the spec for up to 12 drinks. ml or oz switches units.", "Swipe sideways for the next drink in your list. ☆ keeps it in Favourites."],
     behind: ["Anything on the 86 board shows here with the closest swap. The swap is the drink's own Out of something? line first, else a bottle of the same kind.", "The screen stays on while a drink is open.", "Units and calories are estimates worked out on the phone."] },
@@ -8318,7 +8349,7 @@ const HELP = {
     behind: ["It stays on this phone: nobody else sees it and it never goes online. Payslips are read on the phone.", "Tronc is paid on the hours worked the month before, so its rate an hour is each payslip's tronc over the month before's hours. With no payslips yet it's a suggested £6.", "Tax uses the 2026 to 2027 GOV.UK rates, month by month. Your payslip is always the final word."] },
   reset: { t: "Reset this phone", what: "Wipes what Bar Book keeps on this phone and starts it again as new.",
     how: ["Type CLEAR, then tap Reset this phone."],
-    behind: ["Goes: favourites, My bar, My pay, drafts, settings, and this phone's place on the team. Open the team link again to rejoin.", "Nobody else's phone and nothing shared changes. It can't be undone.", "Not the same as Clear everything on Shift, which resets tonight's lists for the whole team."] },
+    behind: ["Goes: favourites, My bar, My pay, drafts, settings, and this phone's place on the team. Type the team code again to rejoin.", "Nobody else's phone and nothing shared changes. It can't be undone.", "Not the same as Clear everything on Shift, which resets tonight's lists for the whole team."] },
 };
 /* How Bar Book works: five short cards, shown once on a phone's first open (after Bar or Floor) and any time from
    More. Skip ends it. The last card leads to the full feature list and its tour. */

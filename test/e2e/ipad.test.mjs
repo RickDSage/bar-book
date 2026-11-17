@@ -39,7 +39,7 @@ test("a shared iPad asks who's using it, hides My pay and locks a senior's code 
   // A senior unlocked it and walked off: the next tap after 5 minutes puts it back to the team's view.
   const locked = await p.evaluate(() => {
     let n = 0;
-    Object.assign(LIVE, { ready: true, role: "manager", api: { ...LIVE.api, lock: async () => { n++; } } });
+    Object.assign(LIVE, { ready: true, role: "manager", pin: "illias", api: { ...LIVE.api, lock: async () => { n++; } } });
     sharedLock(); const early = n;
     lastTap = Date.now() - 6 * 6e4; sharedLock();
     return [early, n];
