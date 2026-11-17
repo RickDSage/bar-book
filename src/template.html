@@ -680,6 +680,14 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .lbdue.late b { color: var(--warn); }
 .lbdue .actions { margin-top: 4px; }
 .lbdue .s { display: block; color: var(--muted); font-size: 13.5px; margin-top: 2px; }
+/* Added items (items.js): one per row, the form in a soft box. */
+.it-row { padding: 10px 0; border-bottom: 1px solid var(--line); }
+.it-row .actions { margin-top: 6px; }
+.itf { margin-top: 8px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); }
+.it-guess { margin: 4px 0 0; }
+.it-found { margin: 0; overflow-wrap: anywhere; }
+.it-pa { padding: 4px 0; }
+#it-add summary .pill { margin-left: 6px; }
 .lbpick { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .lbpick .check { flex: 1; min-height: 44px; margin-top: 0; }
 .lbpick input[data-lbs-life] { width: 76px; flex: none; font: inherit; font-size: 17px; text-align: center; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; }
@@ -1322,7 +1330,7 @@ $("#q").addEventListener("blur", () => setTimeout(() => { if (dp === "recent") d
 const hay = (d) => [d.name, d.section, d.glass, d.garnish, d.tags.join(" "), d.spec.join(" "), d.allergens || ""].join(" ").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 D.forEach((d) => (d._h = hay(d)));
 // Live team layer (live.js fills this in on the website once Firebase is set up). Members share one 86 list.
-const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, pin: null, admin: false, owner: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
+const LIVE = { api: null, ready: false, loaded: new Set(), uid: null, anon: false, me: null, username: null, role: null, pin: null, admin: false, owner: false, staff: [], seniors: [], out: new Set(), outInfo: new Map(), outlog: [], reports: [], contacts: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], lists: {}, labels: [], items: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null };
 // The 86 board is shared by everyone on the team. Off the team, nothing shows as 86'd.
 const outNow = () => LIVE.out;
 const isOut = (n) => LIVE.out.has(n);
@@ -2708,7 +2716,8 @@ function stillToDoHtml() {
 }
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
 const OTHER = "Other (write it in)";
-const stockOptions = (skip, pick = "") => Object.entries(STOCK).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
+// The stock list plus what the team has added (items.js), each in its group.
+const stockOptions = (skip, pick = "") => Object.entries(stockGroups()).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
 /* ---------- Restocking from the cellar (logged in) ----------
    Ask for something, how much and where it's going. Anyone can take it on (or a manager gives it to someone), bring it
    up saying how much they moved, and whoever is there confirms how much arrived, so a request is never taken as proof
@@ -2940,7 +2949,7 @@ function labelHist(x) {
 // manager fills in the rest from each pack (or unticks what this side doesn't keep) and adds them all in one go.
 const lbS = { open: null, off: {}, life: {} };
 const lbKey = (side, n) => `${side}|${n}`;
-const ideasLeft = (side) => (LABEL_IDEAS[side] || []).map(([g, xs]) => [g, xs.filter(([n]) => !dupLabel(n, side))]).filter(([, xs]) => xs.length);
+const ideasLeft = (side) => [...(LABEL_IDEAS[side] || []), ...itLabelIdeas(side)].map(([g, xs]) => [g, xs.filter(([n]) => !dupLabel(n, side))]).filter(([, xs]) => xs.length);
 const ideaLife = (side, n, d) => lbS.life[lbKey(side, n)] ?? (d ? String(d) : "");
 function labelListHtml(side) {
   const left = ideasLeft(side); if (!left.length) return "";
@@ -3057,7 +3066,7 @@ function renderTally() {
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
-    fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+    fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${putAwayHtml("floor")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
       ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
@@ -3065,8 +3074,8 @@ function renderTally() {
       <div class="mini">Quick 86</div><div class="recent" translate="no">${QUICK86[mode].filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
       <label class="fld">Something else ran out?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
       <div class="ltools"><input id="s-86-own" maxlength="80" placeholder="Not on the list? Type it, like a burger" aria-label="86 something not on the list"><button class="btn" id="s-86-go">86 it</button></div>
-      ${restockHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
-    close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+      ${restockHtml()}${itemsHtml(mode)}${nextBtn(closeList(), "Next: closing checklist")}`,
+    close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
@@ -4832,7 +4841,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) closeSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran",
+const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift" };
@@ -5804,6 +5813,8 @@ const TOAST = {
   tells: (x) => (LIVE.owner && x.status === "new" ? `💡 ${x.name}: ${TELL[x.kind]}` : ""),
   sent: (x) => (LIVE.admin ? `📤 ${x.anon ? "Someone" : x.name} sent: ${x.what}` : ""),
   outlog: (x) => `${x.action === "out" ? "🚫 86'd" : "✅ Back on"}: ${x.itemName} (${x.name})`,
+  // Something added for Maintenance to check, and the person who added it told when it's on.
+  items: (x) => (LIVE.owner && x.status === "waiting" ? `🆕 ${x.addedBy} added ${x.item}: check it in Shift, Stock` : x.status === "live" && x.addedUid === LIVE.uid && x.uid !== LIVE.uid ? `✅ ${x.item} is on every phone now` : ""),
 };
 // What changed since this phone last opened the Team page: the same messages as the pop-ups, from what the app already
 // holds, so nothing is missed while the app was shut or a pop-up went by. The newest 15, other people's only.
@@ -5853,7 +5864,7 @@ function liveChanged(what) {
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // Overdue times move on with no change to the data, and date labels fall due when the day rolls over at 6am, so the

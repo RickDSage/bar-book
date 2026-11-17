@@ -434,6 +434,32 @@ service cloud.firestore {
         || (l.act == 'binned' && def && old.state == 'open' && notOpen(l));
     }
 
+    // ---------- Items the team adds: anything new behind the bar or on the floor ----------
+    // items/{id}: one thing the venue keeps (Rubicon Mango, fresh strawberries), with what kind of thing it is, which
+    // side and which 86 group it goes under, where it's stored, whether it needs a date label and how many days it keeps
+    // once opened (0: not known yet, a manager reads the pack), and what happens to it at close. found is what the
+    // phone read about it online, to show why it was placed there. Anyone on the team adds one and it waits for the
+    // owner (maintenance) to check it; the owner's own go live straight away. Only the owner changes or approves one,
+    // and addedBy always stays the person who added it. Whoever added one can take it back while it's still waiting.
+    match /items/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && autoId(id) && stamped() && validItem()
+        && incoming().addedBy == profile().data.name && incoming().addedUid == request.auth.uid
+        && (incoming().status == 'waiting' || isOwner());
+      allow update: if isOwner() && stamped() && validItem()
+        && incoming().addedBy == resource.data.addedBy && incoming().addedUid == resource.data.addedUid;
+      allow delete: if isOwner() || (isMember() && resource.data.addedUid == request.auth.uid && resource.data.status == 'waiting');
+    }
+    function validItem() {
+      let x = incoming();
+      return exactly(['item', 'kind', 'group', 'side', 'store', 'label', 'life', 'close', 'note', 'found', 'status', 'addedBy', 'addedUid', 'uid', 'name', 'at'])
+        && reqText(x.item, 60) && reqText(x.group, 40) && optText(x.note, 200) && optText(x.found, 200)
+        && x.kind in ['fresh', 'dairy', 'juice', 'puree', 'prep', 'syrup', 'soft', 'beer', 'cider', 'wine', 'vermouth', 'spirit', 'liqueur', 'coffee', 'dessert', 'sauce', 'topping', 'icecream', 'supplies', 'other']
+        && x.side in ['bar', 'floor'] && x.store in ['fridge', 'bottle', 'backbar', 'ambient', 'freezer', 'cellar']
+        && x.close in ['keep', 'fridge', 'cover', 'bin'] && x.label is bool && x.life is int && x.life >= 0 && x.life <= 365
+        && x.status in ['waiting', 'live'] && x.addedBy is string && x.addedUid is string;
+    }
+
     // ---------- Restocking from the cellar ----------
     // Someone asks for an item, an amount and where it's going, with any detail (which never changes). Someone takes it
     // on (or gives it to someone), brings it up saying how much they moved, and the bar or floor

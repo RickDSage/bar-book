@@ -536,6 +536,7 @@ describe("every query the app makes works for the people that make it", () => {
     query(collection(d, "outlog"), orderBy("at", "desc"), limit(100)),
     query(collection(d, "reports"), orderBy("at", "desc"), limit(30)),
     collection(d, "labels"),
+    collection(d, "items"),
     collection(d, "shift", today(), "tasks"),
     collection(d, "shift", today(), "runs"),
     query(collection(d, "events"), where("day", "==", today()), limit(2000)),
@@ -903,6 +904,48 @@ describe("date labels: managers keep the list, anyone opens, changes or bins one
       await fails(updateDoc(doc(db(uid), "events", `l-${id}-1`), { name: "Someone Else" }), `${uid} editing an event`);
       await fails(deleteDoc(doc(db(uid), "events", `l-${id}-1`)), `${uid} deleting an event`);
     }
+  });
+});
+
+describe("items the team adds: anyone suggests one, the owner approves it", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const item = (uid, extra = {}) => ({ item: "Rubicon Mango", kind: "soft", group: "Soft drinks and mixers", side: "bar", store: "bottle", label: false, life: 0,
+    close: "keep", note: "", found: "Rubicon Drinks: UK soft drink manufacturer", status: "waiting", addedBy: TEAM[uid]?.name ?? "Stray", addedUid: uid, ...by(uid), ...extra });
+  const add = (uid, extra) => addDoc(collection(db(uid), "items"), item(uid, extra));
+  test("anyone on the team adds one, waiting; only the owner adds one live; everyone on the team reads them", async () => {
+    const a = await assertSucceeds(add("staff1"));
+    await assertSucceeds(add("mgr1", { item: "Fresh strawberries", kind: "fresh", group: "Fruit and garnish", store: "fridge", label: true, close: "cover" }));
+    await fails(add("staff1", { status: "live" }), "staff adding live");
+    await fails(add("mgr1", { status: "live" }), "a manager adding live");
+    await assertSucceeds(add("owner1", { status: "live" }));
+    await assertSucceeds(getDoc(doc(db("staff2"), "items", a.id)));
+    await fails(add("stranger"), "not on the team");
+    await fails(getDocs(collection(db("stranger"), "items")), "not on the team reading");
+  });
+  test("bad ones are refused", async () => {
+    for (const bad of [{ item: " " }, { item: "x".repeat(61) }, { kind: "cocktail" }, { side: "kitchen" }, { store: "car" }, { close: "maybe" }, { label: "yes" },
+      { life: -1 }, { life: 366 }, { life: 2.5 }, { note: "x".repeat(201) }, { addedBy: "Mia Manager" }, { addedUid: "mgr1" }, { name: "Mia Manager" }, { extra: 1 }]) {
+      await fails(add("staff1", bad), JSON.stringify(bad).slice(0, 40));
+    }
+  });
+  test("only the owner approves or changes one, and who added it never changes", async () => {
+    const a = await add("staff1"), ref = (uid) => doc(db(uid), "items", a.id);
+    await fails(updateDoc(ref("staff1"), { status: "live", ...by("staff1") }), "staff approving their own");
+    await fails(updateDoc(ref("mgr1"), { status: "live", ...by("mgr1") }), "a manager approving");
+    await fails(updateDoc(ref("owner1"), { status: "live", addedBy: "Olly Owner", ...by("owner1") }), "owner taking the credit");
+    await assertSucceeds(updateDoc(ref("owner1"), { status: "live", life: 3, store: "fridge", ...by("owner1") }));
+    const now = await current(`items/${a.id}`);
+    assert.equal(now.addedBy, "Sam Staff"); assert.equal(now.status, "live");
+  });
+  test("whoever added one takes it back while it's waiting; the owner removes any; nobody else", async () => {
+    const a = await add("staff1"), b = await add("staff2"), c = await add("staff1");
+    await fails(deleteDoc(doc(db("staff2"), "items", a.id)), "someone else's");
+    await fails(deleteDoc(doc(db("mgr1"), "items", a.id)), "a manager");
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "items", a.id)));
+    await seed((s) => updateDoc(doc(s, "items", c.id), { status: "live" }));
+    await fails(deleteDoc(doc(db("staff1"), "items", c.id)), "own one once it's live");
+    await assertSucceeds(deleteDoc(doc(db("owner1"), "items", b.id)));
+    await assertSucceeds(deleteDoc(doc(db("owner1"), "items", c.id)));
   });
 });
 

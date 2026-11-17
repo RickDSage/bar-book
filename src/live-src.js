@@ -116,6 +116,9 @@ function listen(uid) {
     watchDays();
     // Date labels: every item each side dates once it's opened. There are only ever a few dozen.
     sub("labels", collection(db, "labels"), (snap) => { LIVE.labels = rows(snap); liveChanged("labels"); });
+    // Items the team has added (Rubicon Mango, fresh strawberries): live ones join the 86 list, restocking, date labels
+    // and closing; waiting ones wait for the owner. There are only ever a few dozen.
+    sub("items", collection(db, "items"), (snap) => { LIVE.items = rows(snap); liveChanged("items"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
     // same record a moment apart, so the newer version wins.
     const rs = { open: [], recent: [] };
@@ -194,6 +197,7 @@ async function clearOldPhotos() {
   }
 }
 
+const itemDef = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, found: x.found });
 // Listeners tied to the business day start again with the new query when it rolls over at 6am.
 const dayKeys = {};
 function subDay(k, ref, fn, when = shiftDay()) {
@@ -444,6 +448,11 @@ LIVE.api = {
     }
     return b.commit();
   },
+  // An item the team adds: the owner's go live, everyone else's wait for the owner. Approving or changing one keeps who
+  // added it.
+  addItem: (x, live) => addDoc(collection(db, "items"), { ...itemDef(x), status: live ? "live" : "waiting", addedBy: LIVE.me, addedUid: auth.currentUser.uid, ...me() }),
+  saveItem: (x, f) => setDoc(doc(db, "items", x.id), { ...itemDef(f), status: "live", addedBy: x.addedBy, addedUid: x.addedUid, ...me() }),
+  dropItem: (id) => deleteDoc(doc(db, "items", id)),
   addFixture: (x) => addDoc(collection(db, "fixtures"), { day: x.day, ko: x.ko, home: x.home, away: x.away, comp: x.comp, channel: x.channel, screen: x.screen, ...me() }),
   dropFixture: (id) => deleteDoc(doc(db, "fixtures", id)),
   // Issues: raise, take on (or give to someone), mark fixed. "Still broken" raises a new one linked back.
@@ -460,7 +469,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
+  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }
