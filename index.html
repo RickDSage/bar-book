@@ -9923,12 +9923,15 @@ function piHead(p) {
   const ok = all("lbOk"), late = all("lbLate");
   return [["Closes in the app", `${all("closes")}/${all("nights")}`], ["Labels on time", ok + late ? `${piPct(ok, ok + late)}%` : "–"], ["86s logged", String(all("outs"))], ["People", String(p.total)]];
 }
-const piRange = (p) => `${dayName([addDays(p.weeks[0].end, -6), p.launch].sort().at(-1))} to ${dayName(p.weeks.at(-1).end)}`;
+const piFrom = (p) => [addDays(p.weeks[0].end, -6), p.launch].sort().at(-1);
+const piRange = (p) => { const a = piFrom(p), b = p.weeks.at(-1).end; return a === b ? `Tonight, ${dayName(a)}` : `${dayName(a)} to ${dayName(b)}`; };
+// How long it has run: nights for the first fortnight, then weeks.
+const piLong = (p) => { const n = daysFrom(piFrom(p), p.weeks.at(-1).end) + 1; return n < 14 ? plural(n, "night") : plural(p.weeks.length, "week"); };
 function pilotHtml() {
   const p = MG.pilot; if (!p) { mgLoad("pilot", mgPilotData, "pilot"); return mgBusy(null, "the pilot"); }
   const busy = mgBusy(p, "the pilot"); if (busy) return busy;
   const bars = (row) => { const [, , num] = row, vs = p.weeks.map(num), top = Math.max(1, ...vs.filter((v) => v != null)); return vs.every((v) => v == null) ? "" : `<div class="pi-bars" aria-hidden="true">${vs.map((v) => `<i style="height:${v == null ? 0 : Math.max(6, (100 * v) / top)}%"></i>`).join("")}</div>`; };
-  return `<p class="note">${esc(piRange(p))}, ${plural(p.weeks.length, "week")}. Counted from what the team did in Bar Book: no names. ${mgRefresh("pilot")}</p>
+  return `<p class="note">${esc(piRange(p))}, ${piLong(p)}. Counted from what the team did in Bar Book: no names. ${mgRefresh("pilot")}</p>
     <div class="sumcard">${piHead(p).map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join("")}</div>
     ${PI_ROWS.map((r) => `<div class="pi-row"><div class="pi-h"><b>${r[1]}</b><span>${esc(r[3](p.weeks.at(-1)))}${piTrend(r, p.weeks)}</span></div>${bars(r)}</div>`).join("")}
     <p class="s">Bars: one a week, oldest on the left. The number is the latest week (${esc(piWeek(p.weeks.at(-1)))}).</p>
@@ -9950,7 +9953,7 @@ async function mgPilotImage() {
   g.fillStyle = v("--bg"); g.fillRect(0, 0, W, H);
   g.fillStyle = v("--brass"); g.font = F(700, 30); g.fillText("BLACK TAP SOHO · BAR BOOK PILOT", pad, 92);
   g.fillStyle = v("--fg"); g.font = F(700, 52); g.fillText("How the pilot is going", pad, 156);
-  g.fillStyle = v("--muted"); g.font = F(400, 30); g.fillText(`${piRange(p)} · ${plural(p.weeks.length, "week")} · no names`, pad, 202);
+  g.fillStyle = v("--muted"); g.font = F(400, 30); g.fillText(`${piRange(p)} · ${piLong(p)} · no names`, pad, 202);
   const hd = piHead(p), tw = (W - 2 * pad - 3 * 20) / 4;
   hd.forEach(([k, val], i) => {
     const x = pad + i * (tw + 20); g.fillStyle = v("--surface"); g.strokeStyle = v("--line"); g.lineWidth = 2;
@@ -10119,7 +10122,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T17:25";
+const BUILD = "2026-11-17T17:38";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
