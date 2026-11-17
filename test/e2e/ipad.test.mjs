@@ -81,7 +81,7 @@ test("bar station mode: big search and spec side by side on an iPad, rounds, and
   // A round: two of one, one of another, scaled, with the glasses to pull.
   const [a, b] = await p.evaluate(() => [SX.ids[0], SX.ids[3]]);
   await p.click(`#sx-list [data-sx-add="${a}"]`); await p.click(`#sx-list [data-sx-add="${a}"]`); await p.click(`#sx-list [data-sx-add="${b}"]`);
-  await p.click("[data-sx-round=show]");
+  await p.click("[data-sx-view=round]");
   assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /ROUND OF 3[\s\S]*Glasses[\s\S]*Tins/i);
   // Away from the station there's a way back; it reopens on the station; Exit turns it off.
   await p.evaluate(() => show("tally"));
@@ -125,7 +125,7 @@ test("bar station for express service: jugs, alcohol-free swaps, rounds by build
   assert.equal(await p.evaluate(() => sxZero(D.find((d) => d.name === "Mojito")).name), "Virgin Mojito");
   // A round: grouped by how it's made, with what to get ready.
   for (const n of ["Negroni", "Margarita", "Daiquiri", "Aperol Spritz"]) await p.evaluate((n) => sxRound(D.find((d) => d.name === n).id, 1), n);
-  await p.click("[data-sx-round=show]");
+  await p.click("[data-sx-view=round]");
   const r = await p.$eval("#sx-spec", (e) => e.innerText);
   assert.match(r, /GLASSES[\s\S]*ICE[\s\S]*GARNISH[\s\S]*TINS\s+2 to shake: 1 tin/i);
   assert.match(r, /STIR · 1[\s\S]*SHAKE TOGETHER · 2[\s\S]*TOP WITH FIZZ LAST · 1/i);
@@ -157,14 +157,18 @@ test("bar station extras: 86 strip, glass and garnish pictures, batches with one
   // On the team (stubbed): the 86 strip across the top, and a batch's label dated in one tap.
   const calls = await p.evaluate(() => {
     const calls = window.__calls = [];
-    Object.assign(LIVE, { me: { name: "Angel" }, ready: true, admin: false, labels: [{ id: "l1", item: "Sugar syrup", side: "bar", on: true, life: 7, state: "none", v: 1 }, { id: "l2", item: "Egg whites", side: "bar", on: true, life: 2, state: "open", useBy: shiftDay(), openedOn: shiftDay(), openedBy: "Emily", v: 3 }],
-      api: { ...LIVE.api, label: async (x, act, o) => { calls.push([x.id, act, o.useBy]); }, MAX_PHOTOS: 10 } });
+    Object.assign(LIVE, { me: { name: "Angel" }, ready: true, admin: false, labels: [{ id: "l1", item: "Sugar syrup", side: "bar", on: true, life: 7, state: "none", v: 1 }, { id: "l2", item: "Egg whites", side: "bar", on: true, life: 2, state: "open", useBy: shiftDay(), openedOn: shiftDay(), openedBy: "Emily", v: 3 },
+      { id: "l3", item: "Brownies", side: "floor", on: true, life: 2, state: "open", useBy: addDays(shiftDay(), 1), openedOn: shiftDay(), openedBy: "Pema", v: 2 }],
+      api: { ...LIVE.api, label: async (x, act, o) => { calls.push([x.id, act, o.useBy]); }, watchMedia: () => {}, MAX_PHOTOS: 10 } });
     LIVE.loaded.add("labels");
     LIVE.out = new Set(["Lime juice"]); stationLive("out");
     return calls;
   });
   assert.deepEqual(calls, []);
   assert.match(await p.textContent("#sx-86s"), /86'd\s*Lime juice/);
+  // Date labels on both sides, always on show: urgent now, and tomorrow's the day before.
+  assert.match(await p.textContent("#sx-lbs .sx-lbn"), /Urgent: change now\s*Egg whites/);
+  assert.match(await p.textContent("#sx-lbs .sx-lbt"), /Reminder: change tomorrow\s*Floor: Brownies/);
   await p.click('[data-sx-view="batch"]');
   const t = await p.$eval("#sx-spec", (e) => e.innerText);
   assert.match(t, /Sugar syrup[\s\S]*1 kg white caster sugar/);
@@ -177,6 +181,28 @@ test("bar station extras: 86 strip, glass and garnish pictures, batches with one
   assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /Write on the label: Use by/);
   await p.click('[data-sx-lb="l2"]');
   assert.deepEqual(await p.evaluate(() => window.__calls), await p.evaluate(() => [["l1", "opened", addDays(shiftDay(), 7)], ["l2", "changed", addDays(shiftDay(), 2)]]));
+  // A prep timer: counts down at the top, and when it's up the screen flashes until it's tapped.
+  await p.click('[data-sx-tm="1"]');
+  assert.match(await p.textContent("#sx-tms"), /\d:\d\d 1 min timer/);
+  await p.evaluate(() => { SX.timers[0].end = Date.now() - 1; });
+  await p.waitForSelector("#sx-up");
+  assert.match(await p.textContent("#sx-up"), /Time's up/);
+  await p.click("#sx-up");
+  assert.equal(await p.locator("#sx-up").count(), 0);
+  assert.equal(await p.isVisible("#sx-tms"), false);
+  // A round: each drink ticked Made as it's done, then cleared for the next one.
+  await p.evaluate(() => { for (const n of ["Negroni", "Daiquiri"]) sxRound(D.find((d) => d.name === n).id, 1); });
+  await p.click("[data-sx-view=round]");
+  await p.click('#sx-spec [data-sx-made][aria-pressed="false"] >> nth=0');
+  assert.match(await p.textContent("#sx-spec .sx-k"), /1 to make/);
+  await p.click('#sx-spec [data-sx-made][aria-pressed="false"] >> nth=0');
+  assert.match(await p.textContent("#sx-spec .sx-done"), /Round made/);
+  await p.click("#sx-spec .sx-done [data-sx-round=clear]");
+  assert.equal(await p.evaluate(() => SX.round.size + SX.made.size), 0);
+  // A spec line tapped as it goes in is ticked off.
+  await p.fill("#sx-q", "negroni"); await p.keyboard.press("Enter");
+  await p.click("#sx-spec ul.sx-specl > li >> nth=0");
+  assert.equal(await p.locator("#sx-spec ul.sx-specl > li.got").count(), 1);
   // Quiz: one question, a pick shows right or wrong, then the next.
   await p.click('[data-sx-view="quiz"]');
   await p.click("#sx-spec [data-sx-qz] >> nth=0");

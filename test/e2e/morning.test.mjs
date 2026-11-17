@@ -196,6 +196,8 @@ test("the bar station shows tonight's 86s and both closes live, and a tap opens 
   await resetEmulators();
   const { O, S } = await team(browser, site, [["S", "Sam Staff"]]);
   await S.evaluate(() => show("station"));
+  // On a phone Tonight is one line: a tap opens its boxes.
+  await S.click("#sx-tsum");
   await O.evaluate(() => LIVE.api.set86("Corona", true));
   await S.waitForFunction(() => /Corona/.test($("#v-station .st-86").innerText));
   // An 86'd drink is greyed in the station's list as soon as it's 86'd on another phone.
