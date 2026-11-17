@@ -10,7 +10,7 @@ after(async () => { await browser.close(); site.close(); });
 
 async function open(shared) {
   const c = await browser.newContext({ viewport: { width: 820, height: 1180 }, hasTouch: true, timezoneId: "Europe/London" });
-  await c.addInitScript((sh) => { localStorage.setItem("btbar.introSeen", "true"); localStorage.setItem("btbar.me", JSON.stringify("Angel")); if (sh) localStorage.setItem("btbar.shared", "true"); }, shared);
+  await c.addInitScript((sh) => { (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))); localStorage.setItem("btbar.me", JSON.stringify("Angel")); if (sh) localStorage.setItem("btbar.shared", "true"); }, shared);
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = [];

@@ -502,6 +502,7 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+.wquick #w-ipad { grid-column: 1 / -1; }
 .bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
 .utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
@@ -937,14 +938,14 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
   <div id="w-name"></div>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
-  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button></div>
+  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button><button class="btn wrapid" id="w-ipad" data-start="bar" data-ipad="1">📲 iPad bar station</button></div>
   <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
-  <p class="wip"><button class="linkbtn" data-intro-open>How Bar Book works: what it does, tips and tricks ›</button></p>
+  <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Guide: find anything in Bar Book">?</button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <header class="gut" id="hdr">
@@ -970,6 +971,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-practice" hidden>
     <button class="back" data-back>‹ More</button>
     <h2 style="font-size:28px">Practise specs</h2>
+    <div class="gd-ask"><div class="mini">Ask Bar Book</div><div class="search gd-search"><input id="gd-q-p" class="gd-in" type="search" placeholder="How do I make…? What's a…?" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div></div>
     <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button><button data-pmode="speed">Speed</button><button data-pmode="b101">Bar 101</button><button data-pmode="starter">Starter</button></div>
     <p class="lead" id="plead"></p>
     <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
@@ -1098,7 +1100,7 @@ const appUrl = (h) => `${location.origin}${location.pathname}${h}`;
 const LINKS = {
   drink: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`, swap: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`,
   specs: (o) => { const ids = String(o || "").split(",").filter((i) => D[+i]).slice(0, 15); return ids.length ? `#list=~${ids.map((i) => plSlug(D[+i].name)).join(".")}` : ""; },
-  out: () => "#at=stock", restock: () => "#at=stock", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
+  out: () => "#at=stock", restock: () => "#at=stock", log: () => "#at=send", logs: () => "#at=send", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
   tonight: () => "#at=tab:notices", morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
   contacts: () => "#at=call", games: () => "#at=football", lineup: () => "#at=tab:make", sheet: () => "#at=tab:sheets", allergen: () => "#at=tab:allergens",
 };
@@ -1611,7 +1613,12 @@ function showSheet(keepScroll) {
   const sh = $("#sheet"); sh.classList.remove("closing"); sh.hidden = false; document.body.style.overflow = "hidden";
   if (!keepScroll && !history.state?.sheet) history.pushState({ sheet: 1 }, "");
 }
-window.addEventListener("popstate", () => { if (!$("#sheet").hidden) hideSheet(); });
+window.addEventListener("popstate", (e) => {
+  if (!$("#sheet").hidden) return hideSheet();
+  if (!$("#help").hidden) helpClose();
+  if (!$("#logit").hidden) logClose();
+  if (e.state?.tab && e.state.tab !== cur) show(e.state.tab, true);
+});
 let lock = null;
 async function keepAwake() { try { if (!lock && navigator.wakeLock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch {} }
 /* ---------- House photos and how-to videos ----------
@@ -2122,7 +2129,7 @@ const SIDE_NAME = { bar: "Bar", floor: "Floor" };
 const sideName = (s) => SIDE_NAME[s] || "Bar";
 let mode = MODE_LISTS[store.get("mode")] ? store.get("mode") : "bar";
 if (!MODE_LISTS[mode]) mode = "bar";
-function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); pullDraft(); renderTally(); }
+function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); pullDraft(); renderTally(); if (cur === "tally") walkMaybe(m); }
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
@@ -2180,7 +2187,9 @@ let ho = { low: "", issues: "", next: "", ...store.get("ho", {}) };
 // Why there are no closing photos, when there really can't be any. It goes in the handover.
 let noPhotos = store.get("noPhotos", "");
 const hoLines = (id) => ho[id].split("\n").map((x) => x.trim()).filter(Boolean);
-const hoNote = () => HO.filter((f) => hoLines(f.id).length).map((f) => `${f.short}: ${hoLines(f.id).join("\n")}`).join("\n");
+// What was typed in the box, then what the team logged for that point tonight (Log it), with who and when.
+const hoAll = (id) => [...hoLines(id), ...logLines(id)];
+const hoNote = () => HO.filter((f) => hoAll(f.id).length).map((f) => `${f.short}: ${hoAll(f.id).join("\n")}`).join("\n");
 // The handover note and closing manager are for one night: at 6am they start empty again.
 // Tonight's unsent closing photos for this side, whoever took them. Old drafts with no side count for the taker's side.
 const draftPhotos = () => LIVE.draftPhotos.filter((p) => (p.side || (p.uid === LIVE.uid ? mode : "")) === mode);
@@ -2217,7 +2226,7 @@ function tallyText() {
     const c = closeClock(k);
     return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
-  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}${loggedLines().length ? `\n\nLogged tonight:\n${loggedLines().map((l) => `- ${l}`).join("\n")}` : ""}`;
 }
 // The shift for the managers' WhatsApp group or email, so nobody needs the app to know where it stands: how each list
 // ended, then everything still open (not done, blocked, 86'd, labels, restocks, issues, guest issues), the handover
@@ -2252,7 +2261,7 @@ SHARE.shift = () => {
   if (draftPhotos().length) bg.push(`\ud83d\udcf7 ${draftPhotos().length} closing photo${draftPhotos().length > 1 ? "s" : ""}, sent next`);
   else if (noPhotos) bg.push(`\ud83d\udcf7 No closing photos: ${noPhotos}`);
   // The four handover points always show, so "nothing" is said, not left out.
-  const point = (id, label, none) => ({ id, label, one: true, lines: hoLines(id).length ? hoLines(id) : [none] });
+  const point = (id, label, none) => ({ id, label, one: true, lines: hoAll(id).length ? hoAll(id) : [none] });
   return { what: `${sideName(mode)} shift`, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
     { id: "sit", label: "S \u00b7 Situation", one: true, lines: head },
     { id: "bg", label: "B \u00b7 Background", one: true, lines: bg },
@@ -2266,6 +2275,7 @@ SHARE.shift = () => {
     point("issues", "A \u00b7 3. Outstanding issues", "None"),
     { id: "blocked", label: "A \u00b7 Blocked", raw: true, lines: items(lists, ["blocked"]) },
     { id: "open-issues", label: "Reported issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
+    { id: "logged", label: "A \u00b7 Logged tonight", lines: loggedLines() },
     ...LB_SIDES.map((side) => ({ id: `labels-${side}`, label: `A \u00b7 Date labels to change, ${lower(sideName(side))}`, lines: lbs(side).map(lbLine) })),
     point("next", "R \u00b7 4. For tomorrow (what the morning does first)", "Nothing extra"),
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
@@ -2686,7 +2696,8 @@ function handoverOf(r) {
     if (m) { cur = by[m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
   }
   const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
-  return { ...pts, left, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
+  const logged = (r.text.match(/\n\nLogged tonight:\n((?:- .*(?:\n|$))+)/)?.[1] || "").trim().split("\n").filter(Boolean).map((x) => x.slice(2));
+  return { ...pts, left, logged, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
 }
 // Prep to par: how much of each thing the morning sets up, more on Friday and Saturday. Starting amounts, for the
 // manager to correct.
@@ -2710,6 +2721,7 @@ function morningHtml() {
     : `${stale ? `<p class="note warnline" id="ho-stale"><b>Last night's handover hasn't arrived.</b> Ask whoever closed to open Bar Book with signal: it may be waiting on their phone. This one is from ${esc(dayName(reportDay(r)))}.</p>` : ""}
       <article class="notice" id="handover"><div class="meta">${stale ? "Latest handover" : "Last night's handover"} · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
       ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
+      ${h.logged.length ? `<div class="hopt"><b>Logged</b><span>${h.logged.map(ut).join("<br>")}</span></div>` : ""}
       ${h.left.length ? `<p class="note">Left from that shift:<br>${h.left.map(esc).join("<br>")}</p>` : ""}
       ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
       ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}
@@ -3160,7 +3172,7 @@ function renderTally() {
   $("#shift-title").textContent = `${sideName(mode)} shift`;
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
   // Clear everything is for a fresh start, so it sits at the foot of the page, away from the thumb; Undo stays on top.
-  const tabs = `${canUndoClear() ? `<div class="actions"><button class="btn pri" id="undo-clear">\u21a9 Undo clear</button></div>` : ""}<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
+  const tabs = `${canUndoClear() ? `<div class="actions"><button class="btn pri" id="undo-clear">\u21a9 Undo clear</button></div>` : ""}<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>${logBarHtml()}`;
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
@@ -3189,6 +3201,7 @@ function renderTally() {
       <div class="hopt"><b>1. Cleaning completed</b><span>${(() => { const p = progress(closeList()); return p.n === p.of ? "\u2705 Closing all ticked" : `${p.n} of ${p.of} closing items ticked`; })()}</span></div>
       ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
       <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
+      ${logHoHtml()}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
       <div class="draftbar"><span>${LIVE.me ? "Shared live with everyone closing this side" : "Saved on this phone as you type"}</span><button class="btn" data-ho-save>Save draft</button><button class="btn" data-ho-clear>Discard</button></div>
       <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done` : "Hand over and send on WhatsApp"}</button>
@@ -4764,7 +4777,7 @@ function renderInfo() {
     </div>
     <div class="sec">Help</div>
     <div class="hub">
-      ${hubRow("features", "data-intro-open", "How Bar Book works", "What it does, tips and tricks, and every feature")}
+      ${hubRow("features", "data-guide", "Guide: how Bar Book works", "Your shift step by step, every section, and a search for anything")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
     </div>
     <div class="sec">Bar reference</div>
@@ -4775,13 +4788,7 @@ function renderInfo() {
       <li>No drinking games, no “drink as much as you can” deals, free tap water on request. Shot trays and pitchers are fine as fixed amounts.</li>
       <li>ID check on bombs and shots under the venue's Challenge policy.</li>
     </ul>`)}
-    ${fold("tech", "Technique key", `<dl class="kv">
-      <dt>Dry shake</dt><dd>Shake without ice to whip the foam, then add ice and shake again.</dd>
-      <dt>Double strain</dt><dd>Hawthorne strainer plus a fine strainer, so no ice chips or pulp.</dd>
-      <dt>Foamer</dt><dd>2 drops, as on the house cards. Used for foam instead of egg white.</dd>
-      <dt>Build</dt><dd>Pour straight into the glass over ice. No shaker.</dd>
-      <dt>Float</dt><dd>Pour slowly over the back of a bar spoon so it sits on top.</dd>
-    </dl>`)}
+    ${fold("tech", "Technique key and words we use", glossHtml())}
     ${fold("prep", "Prep and batches", prep)}
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
     <div class="sec">This phone</div>
@@ -4946,7 +4953,7 @@ function openAt(where) {
 }
 document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-open]")) openFeatures(); });
 // One tap to any page: from the drinks search, the Send card and More.
-document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) closeSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
+document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
 const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge",
@@ -5548,7 +5555,7 @@ SHARE.tonight = () => {
       const x = taskOf(k, i); return `${sideName(sd)}: ${itemText(k, i)}${x?.status === "blocked" && x.note ? ` (blocked: ${x.note})` : ""}`; });
     return r?.status === "finished" ? [...(r.note ? [`${sideName(sd)} reason: ${r.note}`] : []), ...left] : left.filter((l) => l.includes("(blocked"));
   });
-  const ho = (id) => ["bar", "floor"].flatMap((sd) => { const v = (draftOf(sd)?.[id] || "").trim(); return v ? v.split("\n").map((l) => `${sideName(sd)}: ${l.trim()}`).filter((l) => !l.endsWith(": ")) : []; });
+  const ho = (id) => ["bar", "floor"].flatMap((sd) => { const v = (draftOf(sd)?.[id] || "").trim(); return [...(v ? v.split("\n").map((l) => `${sideName(sd)}: ${l.trim()}`).filter((l) => !l.endsWith(": ")) : []), ...logLines(id, sd).map((l) => `${sideName(sd)}: ${l}`)]; });
   const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `${n}, since ${shortAt(x.at)}${x.name ? ` (${x.name})` : ""}`);
   const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status)).map((x) => `${amtOf(x.qty, x.unit, x.item)} for the ${lower(DEST[x.dest] || "")}: ${RS_SAY[x.status]}`);
   const iss = openIssues().sort((a, b) => b.urgent - a.urgent);
@@ -5560,6 +5567,7 @@ SHARE.tonight = () => {
     { id: "issues", label: "Issues and faults", lines: iss.flatMap((x) => (x.urgent ? [`URGENT: ${issueLines(x)[0]}`, ...issueLines(x).slice(1)] : issueLines(x))) },
     { id: "outstanding", label: "Outstanding", lines: ho("issues") },
     { id: "next", label: "For tomorrow", lines: ho("next") },
+    { id: "logged", label: "Logged tonight", lines: ["bar", "floor"].flatMap((sd) => loggedLines(sd).map((l) => `${sideName(sd)}: ${l}`)) },
     { id: "team", label: "On the team", one: true, lines: [plural(LIVE.staff.length, "phone")], off: true },
   );
   return { what: "Tonight's report", title: `Black Tap Soho · tonight · ${dayName(shiftDay())} ${hhmm(new Date())}`,
@@ -5576,6 +5584,7 @@ function glanceHtml() {
     ${glanceSide("bar")}${glanceSide("floor")}
     <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
     <div class="mini">Open issues and faults</div><ul class="live">${iss.join("") || "<li>None</li>"}</ul>
+    <div class="mini">Logged tonight</div>${logsOf().length ? `<ul class="lg-list">${logsOf().slice().reverse().map((e) => `<li><div><span class="pill">${esc(sideName(e.area))} \u00b7 ${esc(LOG_NAME[e.what])}</span><p>${ut(e.label)}</p><small><span translate="no">${esc(e.name)}</span> \u00b7 ${shortAt(e.at)}</small></div></li>`).join("")}</ul>` : `<ul class="live"><li>Nothing</li></ul>`}
     <div class="mini">Restocks waiting</div><ul class="live">${rs.join("") || "<li>None</li>"}</ul>
     <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Managers unlocked: ${seniors.map(esc).join(", ")}` : ""}</p>
     <div class="actions">${sendBtn("tonight", "Send tonight's report")}</div></div>`;
@@ -5622,7 +5631,7 @@ const CARDS = () => [
 // Everything that goes out on WhatsApp in one place: tonight's, then your own.
 function quickHtml() {
   const last = LIVE.me && LIVE.reports.find((x) => x.side === mode && !x.pending);
-  return `${LIVE.me ? `<div class="mini">Tonight</div><div class="actions">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-goto="send">Hand over ›</button>${last ? sendBtn("report", `Last ${sideName(mode).toLowerCase()} handover`, last.id) : ""}${sendBtn("out", "The 86 list")}${sendBtn("issues", "Open issues")}</div>` : `<div class="actions">${sendBtn("out", "The 86 list")}</div>`}
+  return `${LIVE.me ? `<div class="mini">Tonight</div><div class="actions">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-goto="send">Hand over ›</button>${last ? sendBtn("report", `Last ${sideName(mode).toLowerCase()} handover`, last.id) : ""}${sendBtn("out", "The 86 list")}${sendBtn("issues", "Open issues")}${logsOf().length ? sendBtn("logs", "Tonight's log") : ""}<button class="btn" data-log>\uff0b Log it</button></div>` : `<div class="actions">${sendBtn("out", "The 86 list")}</div>`}
     <div class="mini">From you</div><div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}</div>
     <p class="note">Each message ends with a link that opens the right page in Bar Book, never the team code. Off sick goes on WhatsApp only: Bar Book keeps no copy.</p>`;
 }
@@ -5910,6 +5919,7 @@ function eventToast(e) {
     const before = LIVE.events.find((x) => x.kind === "task" && x.list === e.list && x.item === e.item && x.v === e.v - 1);
     return e.from === "done" && e.to === "todo" && e.note !== CLEARED && before?.uid === LIVE.uid ? `${e.name} took back your item: ${e.label}${e.note ? `: ${e.note}` : ""}` : "";
   }
+  if (e.kind === "log") return side && e.uid !== LIVE.uid ? `\ud83d\udcdd ${e.name} logged: ${e.label}` : "";
   if (!side) return "";
   return e.to === "finished" ? `${e.label} finished by ${e.name}${e.done < e.required ? `, with ${e.required - e.done} not done` : ""}` : e.from === "finished" ? `${e.label} reopened by ${e.name}` : "";
 }
@@ -5957,6 +5967,7 @@ function liveChanged(what) {
   if (what === "lists") applyLists();
   if (cur === "station") stationLive(what);
   if (what === "drafts" || what === "me") pullDraft();
+  if (what === "events") logLive();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of Object.values(LIVE[what])) {
@@ -6032,8 +6043,16 @@ const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun
 let stationOn = store.get("station", false);
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
 let cur = "drinks";
-function show(tab) {
+// Each page change goes in the browser's history, so the phone's own back (a swipe on an iPhone) goes back a page.
+// An open drink's place in the history is taken over by the page instead.
+let pageShown = false;
+function show(tab, fromBack = false) {
   if (!TABS.includes(tab) || (tab === "pay" && sharedDev)) tab = "drinks";
+  if (!fromBack) {
+    if (!pageShown || history.state?.sheet) history.replaceState({ tab }, "");
+    else if (tab !== cur) history.pushState({ tab }, "");
+  }
+  pageShown = true;
   // Leaving the Team page counts as having seen what was on it; the next visit shows what's changed since.
   if (tab !== "notices" && cur === "notices") { seenBefore = seenAt = Date.now(); store.set("seenAt", seenAt); }
   if (tab === "notices" && !seenAt) { seenAt = Date.now(); store.set("seenAt", seenAt); }
@@ -6054,7 +6073,7 @@ function show(tab) {
   if (tab === "sheets") renderSheets();
   if (tab === "fun") renderFun();
   if (tab === "station") { renderStation(); keepAwake(); }
-  if (tab === "tally") renderTally();
+  if (tab === "tally") { renderTally(); walkMaybe(mode); }
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();
   if (tab === "notices") renderNotices();
@@ -6108,7 +6127,7 @@ else {
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);
     if (linkAt && openLink(linkAt)) { linkAt = ""; history.replaceState(null, "", location.pathname); return; }
-    if (stationOn && !b.dataset.rapid) show("station");
+    if (b.dataset.ipad || (stationOn && !b.dataset.rapid)) show("station");
     else if (b.dataset.rapid) show("rapid");
     else if (b.dataset.drinks) show("drinks");
     else if (mode !== "bar") show("tally");

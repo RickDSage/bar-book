@@ -502,6 +502,7 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
+.wquick #w-ipad { grid-column: 1 / -1; }
 .bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
 .utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
@@ -936,14 +937,14 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
   <div id="w-name"></div>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
-  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button></div>
+  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button><button class="btn wrapid" id="w-ipad" data-start="bar" data-ipad="1">📲 iPad bar station</button></div>
   <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
-  <p class="wip"><button class="linkbtn" data-intro-open>How Bar Book works: what it does, tips and tricks ›</button></p>
+  <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
   <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Guide: find anything in Bar Book">?</button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <header class="gut" id="hdr">
@@ -969,6 +970,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <section class="view" id="v-practice" hidden>
     <button class="back" data-back>‹ More</button>
     <h2 style="font-size:28px">Practise specs</h2>
+    <div class="gd-ask"><div class="mini">Ask Bar Book</div><div class="search gd-search"><input id="gd-q-p" class="gd-in" type="search" placeholder="How do I make…? What's a…?" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div></div>
     <div class="seg" id="pmode" role="group" aria-label="How to practise"><button data-pmode="cards">Cards</button><button data-pmode="quiz">Quiz</button><button data-pmode="starter">New starter</button></div>
     <p class="lead" id="plead"></p>
     <div class="chips" id="ppool" style="margin-left:0;margin-right:0;padding-left:0;padding-right:0"></div>
@@ -1174,7 +1176,7 @@ const appUrl = (h) => `${location.origin}${location.pathname}${h}`;
 const LINKS = {
   drink: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`, swap: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`,
   specs: (o) => { const ids = String(o || "").split(",").filter((i) => D[+i]).slice(0, 15); return ids.length ? `#list=~${ids.map((i) => plSlug(D[+i].name)).join(".")}` : ""; },
-  out: () => "#at=stock", restock: () => "#at=stock", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
+  out: () => "#at=stock", restock: () => "#at=stock", log: () => "#at=send", logs: () => "#at=send", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
   tonight: () => "#at=tab:notices", morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
   contacts: () => "#at=call", games: () => "#at=football", lineup: () => "#at=tab:make", sheet: () => "#at=tab:sheets", allergen: () => "#at=tab:allergens",
 };
@@ -1687,7 +1689,12 @@ function showSheet(keepScroll) {
   const sh = $("#sheet"); sh.classList.remove("closing"); sh.hidden = false; document.body.style.overflow = "hidden";
   if (!keepScroll && !history.state?.sheet) history.pushState({ sheet: 1 }, "");
 }
-window.addEventListener("popstate", () => { if (!$("#sheet").hidden) hideSheet(); });
+window.addEventListener("popstate", (e) => {
+  if (!$("#sheet").hidden) return hideSheet();
+  if (!$("#help").hidden) helpClose();
+  if (!$("#logit").hidden) logClose();
+  if (e.state?.tab && e.state.tab !== cur) show(e.state.tab, true);
+});
 let lock = null;
 async function keepAwake() { try { if (!lock && navigator.wakeLock) { lock = await navigator.wakeLock.request("screen"); lock.addEventListener("release", () => (lock = null)); } } catch {} }
 /* ---------- House photos and how-to videos ----------
@@ -2162,7 +2169,7 @@ const SIDE_NAME = { bar: "Bar", floor: "Floor" };
 const sideName = (s) => SIDE_NAME[s] || "Bar";
 let mode = MODE_LISTS[store.get("mode")] ? store.get("mode") : "bar";
 if (!MODE_LISTS[mode]) mode = "bar";
-function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); pullDraft(); renderTally(); }
+function setMode(m) { mode = m; store.set("mode", m); pane = defaultPane(); pullDraft(); renderTally(); if (cur === "tally") walkMaybe(m); }
 // Things that run out besides cocktails. Drinks come from the full list.
 const STOCK = {
   "Beer lines": ["Corona", "Guinness", "Stella", "Goose Island", "Bud", "Signature Roadie"],
@@ -2220,7 +2227,9 @@ let ho = { low: "", issues: "", next: "", ...store.get("ho", {}) };
 // Why there are no closing photos, when there really can't be any. It goes in the handover.
 let noPhotos = store.get("noPhotos", "");
 const hoLines = (id) => ho[id].split("\n").map((x) => x.trim()).filter(Boolean);
-const hoNote = () => HO.filter((f) => hoLines(f.id).length).map((f) => `${f.short}: ${hoLines(f.id).join("\n")}`).join("\n");
+// What was typed in the box, then what the team logged for that point tonight (Log it), with who and when.
+const hoAll = (id) => [...hoLines(id), ...logLines(id)];
+const hoNote = () => HO.filter((f) => hoAll(f.id).length).map((f) => `${f.short}: ${hoAll(f.id).join("\n")}`).join("\n");
 // The handover note and closing manager are for one night: at 6am they start empty again.
 // Tonight's unsent closing photos for this side, whoever took them. Old drafts with no side count for the taker's side.
 const draftPhotos = () => LIVE.draftPhotos.filter((p) => (p.side || (p.uid === LIVE.uid ? mode : "")) === mode);
@@ -2257,7 +2266,7 @@ function tallyText() {
     const c = closeClock(k);
     return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
   };
-  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}`;
+  return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}${loggedLines().length ? `\n\nLogged tonight:\n${loggedLines().map((l) => `- ${l}`).join("\n")}` : ""}`;
 }
 // The shift for the managers' WhatsApp group or email, so nobody needs the app to know where it stands: how each list
 // ended, then everything still open (not done, blocked, 86'd, labels, restocks, issues, guest issues), the handover
@@ -2292,7 +2301,7 @@ SHARE.shift = () => {
   if (draftPhotos().length) bg.push(`\ud83d\udcf7 ${draftPhotos().length} closing photo${draftPhotos().length > 1 ? "s" : ""}, sent next`);
   else if (noPhotos) bg.push(`\ud83d\udcf7 No closing photos: ${noPhotos}`);
   // The four handover points always show, so "nothing" is said, not left out.
-  const point = (id, label, none) => ({ id, label, one: true, lines: hoLines(id).length ? hoLines(id) : [none] });
+  const point = (id, label, none) => ({ id, label, one: true, lines: hoAll(id).length ? hoAll(id) : [none] });
   return { what: `${sideName(mode)} shift`, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
     { id: "sit", label: "S \u00b7 Situation", one: true, lines: head },
     { id: "bg", label: "B \u00b7 Background", one: true, lines: bg },
@@ -2306,6 +2315,7 @@ SHARE.shift = () => {
     point("issues", "A \u00b7 3. Outstanding issues", "None"),
     { id: "blocked", label: "A \u00b7 Blocked", raw: true, lines: items(lists, ["blocked"]) },
     { id: "open-issues", label: "Reported issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
+    { id: "logged", label: "A \u00b7 Logged tonight", lines: loggedLines() },
     ...LB_SIDES.map((side) => ({ id: `labels-${side}`, label: `A \u00b7 Date labels to change, ${lower(sideName(side))}`, lines: lbs(side).map(lbLine) })),
     point("next", "R \u00b7 4. For tomorrow (what the morning does first)", "Nothing extra"),
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
@@ -2726,7 +2736,8 @@ function handoverOf(r) {
     if (m) { cur = by[m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
   }
   const left = [...r.text.matchAll(/(?<=\n)(Not done|Blocked):\n((?:- .*(?:\n|$))+)/g)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
-  return { ...pts, left, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
+  const logged = (r.text.match(/\n\nLogged tonight:\n((?:- .*(?:\n|$))+)/)?.[1] || "").trim().split("\n").filter(Boolean).map((x) => x.slice(2));
+  return { ...pts, left, logged, nop: r.text.match(/\nNo closing photos: (.*)/)?.[1] || "", by: r.text.match(/\nClosed by: (?!\(not picked\))(.*)/)?.[1] || r.name };
 }
 // Prep to par: how much of each thing the morning sets up, more on Friday and Saturday. Starting amounts, for the
 // manager to correct.
@@ -2750,6 +2761,7 @@ function morningHtml() {
     : `${stale ? `<p class="note warnline" id="ho-stale"><b>Last night's handover hasn't arrived.</b> Ask whoever closed to open Bar Book with signal: it may be waiting on their phone. This one is from ${esc(dayName(reportDay(r)))}.</p>` : ""}
       <article class="notice" id="handover"><div class="meta">${stale ? "Latest handover" : "Last night's handover"} · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
       ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
+      ${h.logged.length ? `<div class="hopt"><b>Logged</b><span>${h.logged.map(ut).join("<br>")}</span></div>` : ""}
       ${h.left.length ? `<p class="note">Left from that shift:<br>${h.left.map(esc).join("<br>")}</p>` : ""}
       ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
       ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}
@@ -3200,7 +3212,7 @@ function renderTally() {
   $("#shift-title").textContent = `${sideName(mode)} shift`;
   const P = PANES[mode]; if (!P.some(([k]) => k === pane)) pane = defaultPane();
   // Clear everything is for a fresh start, so it sits at the foot of the page, away from the thumb; Undo stays on top.
-  const tabs = `${canUndoClear() ? `<div class="actions"><button class="btn pri" id="undo-clear">\u21a9 Undo clear</button></div>` : ""}<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>`;
+  const tabs = `${canUndoClear() ? `<div class="actions"><button class="btn pri" id="undo-clear">\u21a9 Undo clear</button></div>` : ""}<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>${logBarHtml()}`;
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
@@ -3229,6 +3241,7 @@ function renderTally() {
       <div class="hopt"><b>1. Cleaning completed</b><span>${(() => { const p = progress(closeList()); return p.n === p.of ? "\u2705 Closing all ticked" : `${p.n} of ${p.of} closing items ticked`; })()}</span></div>
       ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
       <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
+      ${logHoHtml()}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
       <div class="draftbar"><span>${LIVE.me ? "Shared live with everyone closing this side" : "Saved on this phone as you type"}</span><button class="btn" data-ho-save>Save draft</button><button class="btn" data-ho-clear>Discard</button></div>
       <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done` : "Hand over and send on WhatsApp"}</button>
@@ -4804,7 +4817,7 @@ function renderInfo() {
     </div>
     <div class="sec">Help</div>
     <div class="hub">
-      ${hubRow("features", "data-intro-open", "How Bar Book works", "What it does, tips and tricks, and every feature")}
+      ${hubRow("features", "data-guide", "Guide: how Bar Book works", "Your shift step by step, every section, and a search for anything")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
     </div>
     <div class="sec">Bar reference</div>
@@ -4815,13 +4828,7 @@ function renderInfo() {
       <li>No drinking games, no “drink as much as you can” deals, free tap water on request. Shot trays and pitchers are fine as fixed amounts.</li>
       <li>ID check on bombs and shots under the venue's Challenge policy.</li>
     </ul>`)}
-    ${fold("tech", "Technique key", `<dl class="kv">
-      <dt>Dry shake</dt><dd>Shake without ice to whip the foam, then add ice and shake again.</dd>
-      <dt>Double strain</dt><dd>Hawthorne strainer plus a fine strainer, so no ice chips or pulp.</dd>
-      <dt>Foamer</dt><dd>2 drops, as on the house cards. Used for foam instead of egg white.</dd>
-      <dt>Build</dt><dd>Pour straight into the glass over ice. No shaker.</dd>
-      <dt>Float</dt><dd>Pour slowly over the back of a bar spoon so it sits on top.</dd>
-    </dl>`)}
+    ${fold("tech", "Technique key and words we use", glossHtml())}
     ${fold("prep", "Prep and batches", prep)}
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
     <div class="sec">This phone</div>
@@ -4986,7 +4993,7 @@ function openAt(where) {
 }
 document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-open]")) openFeatures(); });
 // One tap to any page: from the drinks search, the Send card and More.
-document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) closeSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
+document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
 const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge",
@@ -5588,7 +5595,7 @@ SHARE.tonight = () => {
       const x = taskOf(k, i); return `${sideName(sd)}: ${itemText(k, i)}${x?.status === "blocked" && x.note ? ` (blocked: ${x.note})` : ""}`; });
     return r?.status === "finished" ? [...(r.note ? [`${sideName(sd)} reason: ${r.note}`] : []), ...left] : left.filter((l) => l.includes("(blocked"));
   });
-  const ho = (id) => ["bar", "floor"].flatMap((sd) => { const v = (draftOf(sd)?.[id] || "").trim(); return v ? v.split("\n").map((l) => `${sideName(sd)}: ${l.trim()}`).filter((l) => !l.endsWith(": ")) : []; });
+  const ho = (id) => ["bar", "floor"].flatMap((sd) => { const v = (draftOf(sd)?.[id] || "").trim(); return [...(v ? v.split("\n").map((l) => `${sideName(sd)}: ${l.trim()}`).filter((l) => !l.endsWith(": ")) : []), ...logLines(id, sd).map((l) => `${sideName(sd)}: ${l}`)]; });
   const out = [...LIVE.outInfo].sort((a, b) => ms(a[1].at) - ms(b[1].at)).map(([n, x]) => `${n}, since ${shortAt(x.at)}${x.name ? ` (${x.name})` : ""}`);
   const rs = LIVE.restock.filter((x) => RS_OPEN.includes(x.status)).map((x) => `${amtOf(x.qty, x.unit, x.item)} for the ${lower(DEST[x.dest] || "")}: ${RS_SAY[x.status]}`);
   const iss = openIssues().sort((a, b) => b.urgent - a.urgent);
@@ -5600,6 +5607,7 @@ SHARE.tonight = () => {
     { id: "issues", label: "Issues and faults", lines: iss.flatMap((x) => (x.urgent ? [`URGENT: ${issueLines(x)[0]}`, ...issueLines(x).slice(1)] : issueLines(x))) },
     { id: "outstanding", label: "Outstanding", lines: ho("issues") },
     { id: "next", label: "For tomorrow", lines: ho("next") },
+    { id: "logged", label: "Logged tonight", lines: ["bar", "floor"].flatMap((sd) => loggedLines(sd).map((l) => `${sideName(sd)}: ${l}`)) },
     { id: "team", label: "On the team", one: true, lines: [plural(LIVE.staff.length, "phone")], off: true },
   );
   return { what: "Tonight's report", title: `Black Tap Soho · tonight · ${dayName(shiftDay())} ${hhmm(new Date())}`,
@@ -5616,6 +5624,7 @@ function glanceHtml() {
     ${glanceSide("bar")}${glanceSide("floor")}
     <div class="mini">86'd now</div><ul class="live">${out.join("") || "<li>Nothing</li>"}</ul>
     <div class="mini">Open issues and faults</div><ul class="live">${iss.join("") || "<li>None</li>"}</ul>
+    <div class="mini">Logged tonight</div>${logsOf().length ? `<ul class="lg-list">${logsOf().slice().reverse().map((e) => `<li><div><span class="pill">${esc(sideName(e.area))} \u00b7 ${esc(LOG_NAME[e.what])}</span><p>${ut(e.label)}</p><small><span translate="no">${esc(e.name)}</span> \u00b7 ${shortAt(e.at)}</small></div></li>`).join("")}</ul>` : `<ul class="live"><li>Nothing</li></ul>`}
     <div class="mini">Restocks waiting</div><ul class="live">${rs.join("") || "<li>None</li>"}</ul>
     <div class="mini">On the team</div><p class="note">${plural(LIVE.staff.length, "phone")}${seniors.length ? `. Managers unlocked: ${seniors.map(esc).join(", ")}` : ""}</p>
     <div class="actions">${sendBtn("tonight", "Send tonight's report")}</div></div>`;
@@ -5660,7 +5669,7 @@ const CARDS = () => [
 // Everything that goes out on WhatsApp in one place: tonight's, then your own.
 function quickHtml() {
   const last = LIVE.me && LIVE.reports.find((x) => x.side === mode && !x.pending);
-  return `${LIVE.me ? `<div class="mini">Tonight</div><div class="actions">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-goto="send">Hand over ›</button>${last ? sendBtn("report", `Last ${sideName(mode).toLowerCase()} handover`, last.id) : ""}${sendBtn("out", "The 86 list")}${sendBtn("issues", "Open issues")}</div>` : `<div class="actions">${sendBtn("out", "The 86 list")}</div>`}
+  return `${LIVE.me ? `<div class="mini">Tonight</div><div class="actions">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-goto="send">Hand over ›</button>${last ? sendBtn("report", `Last ${sideName(mode).toLowerCase()} handover`, last.id) : ""}${sendBtn("out", "The 86 list")}${sendBtn("issues", "Open issues")}${logsOf().length ? sendBtn("logs", "Tonight's log") : ""}<button class="btn" data-log>\uff0b Log it</button></div>` : `<div class="actions">${sendBtn("out", "The 86 list")}</div>`}
     <div class="mini">From you</div><div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}</div>
     <p class="note">Each message ends with a link that opens the right page in Bar Book, never the team code. Off sick goes on WhatsApp only: Bar Book keeps no copy.</p>`;
 }
@@ -5948,6 +5957,7 @@ function eventToast(e) {
     const before = LIVE.events.find((x) => x.kind === "task" && x.list === e.list && x.item === e.item && x.v === e.v - 1);
     return e.from === "done" && e.to === "todo" && e.note !== CLEARED && before?.uid === LIVE.uid ? `${e.name} took back your item: ${e.label}${e.note ? `: ${e.note}` : ""}` : "";
   }
+  if (e.kind === "log") return side && e.uid !== LIVE.uid ? `\ud83d\udcdd ${e.name} logged: ${e.label}` : "";
   if (!side) return "";
   return e.to === "finished" ? `${e.label} finished by ${e.name}${e.done < e.required ? `, with ${e.required - e.done} not done` : ""}` : e.from === "finished" ? `${e.label} reopened by ${e.name}` : "";
 }
@@ -5995,6 +6005,7 @@ function liveChanged(what) {
   if (what === "lists") applyLists();
   if (cur === "station") stationLive(what);
   if (what === "drafts" || what === "me") pullDraft();
+  if (what === "events") logLive();
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of Object.values(LIVE[what])) {
@@ -6180,8 +6191,16 @@ const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun
 let stationOn = store.get("station", false);
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
 let cur = "drinks";
-function show(tab) {
+// Each page change goes in the browser's history, so the phone's own back (a swipe on an iPhone) goes back a page.
+// An open drink's place in the history is taken over by the page instead.
+let pageShown = false;
+function show(tab, fromBack = false) {
   if (!TABS.includes(tab) || (tab === "pay" && sharedDev)) tab = "drinks";
+  if (!fromBack) {
+    if (!pageShown || history.state?.sheet) history.replaceState({ tab }, "");
+    else if (tab !== cur) history.pushState({ tab }, "");
+  }
+  pageShown = true;
   // Leaving the Team page counts as having seen what was on it; the next visit shows what's changed since.
   if (tab !== "notices" && cur === "notices") { seenBefore = seenAt = Date.now(); store.set("seenAt", seenAt); }
   if (tab === "notices" && !seenAt) { seenAt = Date.now(); store.set("seenAt", seenAt); }
@@ -6202,7 +6221,7 @@ function show(tab) {
   if (tab === "sheets") renderSheets();
   if (tab === "fun") renderFun();
   if (tab === "station") { renderStation(); keepAwake(); }
-  if (tab === "tally") renderTally();
+  if (tab === "tally") { renderTally(); walkMaybe(mode); }
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();
   if (tab === "notices") renderNotices();
@@ -7517,7 +7536,7 @@ function sxTonight() {
       <button class="linkbtn" data-st-go="stock">Open the 86 board \u203a</button></div>
     ${side("bar")}${side("floor")}
     <div class="st-tile sx-send"><span class="st-k">Send on WhatsApp</span>
-      <div class="sx-phb">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-st-go="send">Hand over ›</button>${out.length ? sendBtn("out", "The 86 list") : ""}</div>
+      <div class="sx-phb">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-st-go="send">Hand over ›</button>${out.length ? sendBtn("out", "The 86 list") : ""}${logsOf().length ? sendBtn("logs", "Tonight's log") : ""}</div>
       <span class="st-s">Each message ends with a link back into Bar Book, never the team code.</span></div>
     <div class="st-tile sx-ph"><span class="st-k">Tonight's photos \u00b7 ${esc(sideName(mode))}${ph.length ? ` \u00b7 ${ph.length}` : ""}</span>
       ${ph.length ? `<div class="sx-thumbs">${ph.slice(-6).map((x) => `<img src="${x.data}" alt="${esc(x.note || "Closing photo")}">`).join("")}</div>` : ""}
@@ -7528,7 +7547,7 @@ function sxTonight() {
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">?</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
     <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}">${t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
     <div class="sx-tms" id="sx-tms" hidden></div>
     <div class="sx-86s" id="sx-86s" role="status" hidden></div>
@@ -7792,6 +7811,7 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .st-bar { display: block; width: 100%; height: 10px; border-radius: 999px; background: var(--line); overflow: hidden; }
 .st-bar i { display: block; height: 100%; background: var(--brass); }
 .sx-tb { display: flex; gap: 8px; }
+@media (max-width: 559px) { .sx-top { flex-wrap: wrap; } .sx-tb { flex-wrap: wrap; } }
 .sx-tb [data-sx-big] { min-width: 52px; font-size: 18px; }
 .sx-tb [data-sx-big][aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .sx-live { display: contents; }
@@ -9162,6 +9182,9 @@ const HELP = {
   pay: { t: "My pay", what: "An estimate of your take-home, not a payslip.",
     how: ["Tap Add payslips and pick your payslips (photos, screenshots or PDFs, a year's at once). Every month fills in by itself: hours, rate, tronc an hour, tax, NI and take-home.", "This month shows how the month adds up, step by step. Every month puts them side by side; Holiday and More hold the rest.", "Months without a payslip are predicted from your average hours and tronc an hour. Type the hours you expect under the summary to see what it would pay."],
     behind: ["It stays on this phone: nobody else sees it and it never goes online. Payslips are read on the phone.", "Tronc is paid on the hours worked the month before, so its rate an hour is each payslip's tronc over the month before's hours. With no payslips yet it's a suggested £6.", "Tax uses the 2026 to 2027 GOV.UK rates, month by month. Your payslip is always the final word."] },
+  logit: { t: "Log it", what: "Anything you see, find, do, are told or tell a manager, saved in one line with your name and the time.",
+    how: ["Tap \uff0b Log it: on Shift above every page, on the Handover, on Team, Send on WhatsApp, or on the bar station.", "Pick what it is, write one line, and pick Bar or Floor.", "Log it saves it. Log it and send on WhatsApp also opens WhatsApp with it, so the team chat sees it now."],
+    behind: ["86 goes on the 86 board and Broken goes on Issues and faults, so nothing is kept twice.", "Running low, Not finished and For tomorrow go in the handover under their points. Running low is on the morning's order too. The rest goes under Logged tonight.", "Tonight's report for the managers has all of it, and the morning sees it in last night's handover.", "Whoever wrote one, or a manager, can take it off with \u00d7. The log starts empty at 6am; sent handovers keep it.", "Someone hurt or an accident goes to the duty manager and the accident book, not here."] },
   reset: { t: "Reset this phone", what: "Wipes what Bar Book keeps on this phone and starts it again as new.",
     how: ["Type CLEAR, then tap Reset this phone."],
     behind: ["Goes: favourites, My bar, My pay, drafts, settings, and this phone's place on the team. Type the team code again to rejoin.", "Nobody else's phone and nothing shared changes. It can't be undone.", "Not the same as Clear everything on Shift, which resets tonight's lists for the whole team."] },
@@ -9176,12 +9199,13 @@ const INTRO = [
   { t: "The cocktail maker", how: ["Make: tap what you've got and see what you can make, closest first, with swaps.", "My bar keeps your own bottles. Specs puts every spec on one line for busy moments.", "Black Tap shows our line-up: draught, bottles, softs and the house serves."], tip: "A guest names two bottles? Tap them and offer the top match.", more: ["make"] },
   { t: "Run the shift together", how: ["Shift is shared live with everyone on your side: the 86 board, restocks from the cellar and date labels.", "Restock: ask for it, someone brings it up, whoever's there confirms it arrived. Late ones flag after 15 minutes.", "Date labels tell you what to write on the label and what's due today or tomorrow."], tip: "No signal? It keeps working and sends everything when you're back. A banner says what's waiting.", more: ["shift", "labels"] },
   { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. Starting time, time taken and who ticked what are kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
-  { t: "Hand over in one tap", how: ["On Send: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
+  { t: "Log anything, in one line", how: ["Saw it, found it, did it, told a manager or someone told you: tap \uff0b Log it on Shift or the bar station.", "86 goes on the 86 board, Broken on Issues, and the rest straight into tonight's handover with your name and the time.", "Log it and send on WhatsApp puts it in the team chat from your phone."], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away.", more: ["logit"] },
+  { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift, Who to call and Spin the wheel."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "On an iPhone with photos: Copy the words, then Send with photos, then paste the words as the caption.", more: ["send"] },
   { t: "For the managers", how: ["Inbox, Everything sent, Closing reports with their photos, and the 86 log, all on Team.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink.", "Not needed tonight, give a job to someone, or finish a list with a reason on record."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["inbox", "sent"] },
   { t: "Learn it, and look after yourself", how: ["More, Practise: flashcards, tonight's quiz (the same 10 for everyone) and the new starter path.", "More, Cheat sheets: a page per kind of drink, to print or send.", "My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
-  { t: "Tips and tricks", how: ["Tap any ? for how that part works and what happens behind the scenes.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "This tour is in More whenever you want it again. Hide the ? buttons there too.", more: ["drafts"] },
+  { t: "Tips and tricks", how: ["The ? at the top right opens the Guide: every section, and a search for anything (\u201chow do I make a mojito\u201d). \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Tap any small ? for how that part works and what happens behind the scenes.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "This tour is in More whenever you want it again. Hide the ? buttons there too.", more: ["drafts"] },
 ];
 // The tour card the last help panel was opened from, so Back returns to it.
 let introAt = -1;
@@ -9192,12 +9216,13 @@ function introOpen(i = 0, from = helpFrom) {
     <div class="cprog"><b>${i + 1} of ${INTRO.length}</b><span class="dots" aria-hidden="true">${INTRO.map((_, j) => `<i class="${j === i ? "on" : j < i ? "ok" : ""}"></i>`).join("")}</span></div>
     <ul>${c.how.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><p class="note"><b>Tip:</b> ${esc(c.tip)}</p>
     ${c.more ? `<div class="recent">${c.more.map((k) => `<button class="chip" data-help-topic="${k}">How ${esc(HELP[k].t.replace(/^The /, "the "))} works</button>`).join("")}</div>` : ""}
-    <div class="help-f">${i ? `<button class="btn" data-intro="${i - 1}">Back</button>` : `<button class="btn" data-help-x>Skip</button>`}${last ? `<button class="btn" data-intro-all>Every feature</button>` : ""}<button class="btn pri" ${last ? "data-help-x" : `data-intro="${i + 1}"`}>${last ? "Done" : "Next"}</button></div>`;
+    <div class="help-f">${i ? `<button class="btn" data-intro="${i - 1}">Back</button>` : `<button class="btn" data-help-x>Skip</button>`}${last ? `<button class="btn" data-intro-all>Open the Guide</button>` : ""}<button class="btn pri" ${last ? "data-help-x" : `data-intro="${i + 1}"`}>${last ? "Done" : "Next"}</button></div>`;
   $("#help").hidden = false; $("#help .help-in").scrollTop = 0; $("#help .btn.pri").focus();
   store.set("introSeen", true);
 }
-// First open on this phone: after Bar or Floor is picked.
-document.addEventListener("click", (e) => { if (e.target.closest("#welcome [data-start]") && !store.get("introSeen", false)) setTimeout(() => introOpen(0), 350); });
+// After Bar, Floor or iPad on the start screen: that side's walkthrough, once per person (guide.js). Rapid fire and
+// Drinks go straight to the drinks; the walkthrough waits until Shift is first opened.
+document.addEventListener("click", (e) => { const b = e.target.closest("#welcome [data-start]"); if (b && !b.dataset.rapid && !b.dataset.drinks) walkMaybe(b.dataset.start, 450); });
 // Where the ? buttons go: next to a heading or a control. A function picks the topic from what's on screen.
 const HELP_AT = [
   ["#shift-title", () => (!LIVE.me ? "join" : { morning: "morning", labels: "labels", stock: "stock", close: "closing", fclose: "closing", send: "handover" }[pane] || "shift")],
@@ -9250,7 +9275,7 @@ $("#help").addEventListener("click", (e) => {
   if (e.target.id === "help" || e.target.closest("[data-help-x]")) return helpClose();
   const n = e.target.closest("[data-intro]"); if (n) { haptic(); return introOpen(+n.dataset.intro, helpFrom); }
   const tp = e.target.closest("[data-help-topic]"); if (tp) return helpOpen(tp.dataset.helpTopic, helpFrom, introAt);
-  if (e.target.closest("[data-intro-all]")) { helpClose(); return openFeatures(); }
+  if (e.target.closest("[data-intro-all]")) return guideOpen();
   if (e.target.closest("[data-help-hide]")) { store.set("help", false); applyHelp(); helpClose(); toast("? buttons hidden. Turn them back on in More, This phone"); }
 });
 $("#help").addEventListener("toggle", (e) => { if (e.target.matches(".help-b")) store.set("helpBehind", e.target.open); }, true);
@@ -9273,6 +9298,372 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .help-b summary{color:var(--brass);font-weight:700;min-height:40px;display:flex;align-items:center}
 .help-f{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px;flex-wrap:wrap}.help-f .btn.pri{margin-left:auto}
 @media (prefers-reduced-motion:no-preference){.help-in{animation:up .2s ease-out}}
+</style>`);
+/* ---------- Log it ----------
+   One button, on every phone and the bar iPad, for anything someone sees, finds, does, is told or tells a manager. Each
+   kind goes where it already belongs, so nothing is kept twice: an 86 goes on the 86 board, something broken goes on
+   Issues, and the rest is saved with the name and the time in tonight's events (the same day log as the closing ticks).
+   The handover, tonight's report and the morning read it from there by themselves, and Log it and send on WhatsApp
+   opens the usual Send page so the team chat sees it straight away. */
+const LOG_KINDS = [
+  ["note", "Saw, found or did", "Goes in tonight's handover under Logged tonight."],
+  ["told", "Told a manager", "Goes in tonight's handover under Logged tonight, with who you told."],
+  ["low", "Running low", "Goes in the handover under 2. Stock running low, and on tomorrow's order."],
+  ["out", "86: ran out", "Goes on the 86 board for everyone, and drinks that use it show the swap."],
+  ["fix", "Broken or needs fixing", "Goes on Issues and faults until someone fixes it, and in the handover."],
+  ["open", "Not finished", "Goes in the handover under 3. Outstanding issues."],
+  ["next", "For tomorrow", "Goes in the handover under 4. For tomorrow."],
+];
+const LOG_NAME = Object.fromEntries(LOG_KINDS.map(([k, t]) => [k, t]));
+// The kinds kept in the day log. 86 and broken live on the 86 board and Issues.
+const LOG_SAVED = ["note", "told", "low", "open", "next"];
+const LOG_MAX = 200;
+// Tonight's log (the events listener only holds today's shift day), oldest first.
+const logsOf = (side) => LIVE.events.filter((e) => e.kind === "log" && (!side || e.area === side)).sort((a, b) => ms(a.at) - ms(b.at));
+const logLine = (e) => `${e.label} (${e.name} ${hhmm(new Date(ms(e.at)))})`;
+const logLines = (id, side = mode) => logsOf(side).filter((e) => e.what === id).map(logLine);
+// Logged tonight: what has no handover point of its own.
+const loggedLines = (side = mode) => logsOf(side).filter((e) => ["note", "told"].includes(e.what)).map(logLine);
+const canDropLog = (e) => e.uid === LIVE.uid || LIVE.admin;
+let lg = { what: "note", side: "", text: store.get("logDraft", ""), told: "" }, lgLast = null, lgFrom = null;
+document.body.insertAdjacentHTML("beforeend", `<div id="logit" class="help" hidden><div class="help-in" role="dialog" aria-modal="true" aria-labelledby="lg-t"></div></div>`);
+function logOpen(what) {
+  lgFrom = document.activeElement;
+  lg.side = mode;
+  if (what && LOG_NAME[what]) lg.what = what;
+  logRender(); $("#logit").hidden = false; $("#logit .help-in").scrollTop = 0;
+  $("#lg-text")?.focus();
+}
+function logClose() { if ($("#logit").hidden) return; $("#logit").hidden = true; lgFrom?.focus?.(); lgFrom = null; }
+function logRender() {
+  const head = `<div class="help-h"><h3 id="lg-t">Log it</h3><button class="hq-x" data-lg-x aria-label="Close">×</button></div>`;
+  if (!LIVE.me) {
+    $("#logit .help-in").innerHTML = `${head}<p class="lead">Join the team first, so what you log is saved with your name and every phone sees it.</p>
+      <div class="help-f"><button class="btn" data-lg-x>Not now</button><button class="btn pri" data-lg-join>Join the team</button></div>`;
+    return;
+  }
+  const k = LOG_KINDS.find((x) => x[0] === lg.what), mine = logsOf(lg.side).slice(-5).reverse();
+  const ph = { note: "The ice machine is leaking under the bar", told: "Two lemons left, ordered more", low: "Limes", out: "Prosecco", fix: "Glass washer leaking", open: "Back bar fridge not restocked", next: "Change the CO2 first thing" }[lg.what];
+  $("#logit .help-in").innerHTML = `${head}
+    <p class="lead">Anything you see, find, do, are told or tell a manager. One line is enough: it saves with your name and the time.</p>
+    <div class="lg-kinds" role="group" aria-label="What is it?">${LOG_KINDS.map(([id, t]) => `<button class="chip" data-lg-kind="${id}" aria-pressed="${id === lg.what}">${t}</button>`).join("")}</div>
+    ${lg.what === "told" ? `<div class="mini">Who did you tell?</div><div class="recent" translate="no">${STAFF.mgr.map((n) => `<button class="chip" data-lg-told="${esc(n)}" aria-pressed="${lg.told === n}">${esc(n)}</button>`).join("")}</div>` : ""}
+    <label class="fld">${lg.what === "out" ? "What ran out?" : lg.what === "low" ? "What's running low?" : "What happened?"}<textarea id="lg-text" rows="2" maxlength="${LOG_MAX - 30}" placeholder="${esc(ph)}">${esc(lg.text)}</textarea></label>
+    <div class="lg-side"><span>For</span><div class="seg" role="group" aria-label="Bar or floor">${Object.keys(MODE_LISTS).map((m) => `<button data-lg-side="${m}" aria-pressed="${m === lg.side}">${sideName(m)}</button>`).join("")}</div></div>
+    <p class="note lg-where">${k[2]}</p>
+    <div class="lg-go"><button class="btn pri" data-lg-go>Log it</button><button class="btn" data-lg-go="send">Log it and send on WhatsApp</button></div>
+    <p class="note lg-acc"><b>Someone hurt or an accident?</b> Tell the duty manager now and write it in the accident book. <button class="linkbtn" data-goto="incident">Incident or accident ›</button></p>
+    ${mine.length ? `<div class="mini">Logged tonight, ${esc(lower(sideName(lg.side)))}</div><ul class="lg-list">${mine.map(logRow).join("")}</ul>` : ""}`;
+}
+const logRow = (e) => `<li><div><span class="pill">${esc(LOG_NAME[e.what] || "Logged")}</span><p>${ut(e.label)}</p><small><span translate="no">${esc(e.name)}</span> \u00b7 ${hhmm(new Date(ms(e.at)))}</small></div>${canDropLog(e) ? `<button class="lg-drop" data-lg-drop="${e.id}" aria-label="Take it off">\u00d7</button>` : ""}</li>`;
+function logSave(send) {
+  const raw = ($("#lg-text")?.value || "").trim().replace(/\s+/g, " ");
+  if (!raw) { toast(lg.what === "out" ? "Say what ran out" : "Write what happened first"); $("#lg-text")?.focus(); return; }
+  if (rude(raw)) return toast(RUDE);
+  const side = lg.side, what = lg.what;
+  if (what === "out") {
+    const n = sx86Name(raw.slice(0, 80));
+    if (outNow().has(n)) toast(`${n} is already 86'd`); else { setOut(n, true); toast(`${n} 86'd for everyone`); }
+    renderList();
+  } else if (what === "fix") {
+    track(LIVE.api.raise({ title: raw.slice(0, 120), detail: raw.length > 120 ? raw : "", area: side, urgent: false }), "On Issues and faults", "Not saved. Try again");
+  } else {
+    const label = (what === "told" && lg.told ? `Told ${lg.told}: ${raw}` : raw).slice(0, LOG_MAX);
+    lgLast = { what, side, label, name: LIVE.me, at: Date.now() };
+    track(LIVE.api.logIt(side, what, label), send ? null : "Logged. It's in tonight's handover", "Not saved. Try again");
+  }
+  haptic();
+  lg.text = ""; lg.told = ""; store.set("logDraft", "");
+  logClose();
+  if (send) openSend(what === "out" ? "out" : what === "fix" ? "issues" : "log");
+}
+$("#logit").addEventListener("input", (e) => { if (e.target.id === "lg-text") { lg.text = e.target.value; store.set("logDraft", lg.text); } });
+$("#logit").addEventListener("click", (e) => {
+  const t = e.target;
+  if (t.id === "logit" || t.closest("[data-lg-x]")) return logClose();
+  if (t.closest("[data-goto]")) return logClose(); // the page-wide handler then opens it
+  if (t.closest("[data-lg-join]")) { logClose(); return openAt("people"); }
+  const kd = t.closest("[data-lg-kind]"); if (kd) { haptic(); lg.what = kd.dataset.lgKind; logRender(); $("#lg-text")?.focus(); return; }
+  const tl = t.closest("[data-lg-told]"); if (tl) { haptic(); lg.told = lg.told === tl.dataset.lgTold ? "" : tl.dataset.lgTold; logRender(); return; }
+  const sd = t.closest("[data-lg-side]"); if (sd) { haptic(); lg.side = sd.dataset.lgSide; logRender(); return; }
+  const go = t.closest("[data-lg-go]"); if (go) return logSave(go.dataset.lgGo === "send");
+  const dr = t.closest("[data-lg-drop]"); if (dr) return logDrop(dr.dataset.lgDrop);
+});
+function logDrop(id) { haptic(); track(LIVE.api.dropLog(id), "Taken off tonight's log", "Not taken off. Try again"); }
+$("#logit").addEventListener("keydown", (e) => { if (e.key === "Escape") logClose(); });
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-log]"); if (b) { haptic(); if (!$("#sheet").hidden) hideSheet(); return logOpen(b.dataset.log || ""); }
+  const d = e.target.closest("[data-lg-drop]"); if (d && !e.target.closest("#logit")) logDrop(d.dataset.lgDrop);
+});
+// Redrawn when someone else logs, unless this person is typing.
+const logLive = () => { if (!$("#logit").hidden && document.activeElement?.id !== "lg-text") logRender(); };
+// On the Shift tab, above every pane: one tap from anywhere in the night.
+const logBarHtml = () => `<div class="logbar"><button class="btn pri" data-log>＋ Log it</button><span>Saw, found, did, told a manager or ran out: one line, with your name</span></div>`;
+// On the Handover: what the team logged tonight, already in the handover.
+function logHoHtml() {
+  const xs = logsOf(mode);
+  return `<div class="sec">Logged tonight${xs.length ? ` (${xs.length})` : ""}</div>
+    ${xs.length ? `<p class="note">Already in the handover: running low, not finished and for tomorrow under their points, the rest under Logged tonight.</p><ul class="lg-list">${xs.map(logRow).join("")}</ul>`
+      : `<p class="note">Nothing logged on the ${esc(lower(sideName(mode)))} yet. Anything the team logs tonight goes in the handover by itself.</p>`}
+    <div class="actions"><button class="btn" data-log>＋ Log it</button>${xs.length ? sendBtn("logs", "Send tonight's log") : ""}</div>`;
+}
+// One entry, straight after Log it and send.
+SHARE.log = () => {
+  const e = lgLast; if (!e) return null;
+  return { what: "Logged", title: `Black Tap Soho · ${sideName(e.side)} · ${LOG_NAME[e.what]}`, head: [`Logged by ${e.name} at ${hhmm(new Date(e.at))}`],
+    parts: [{ id: "log", label: LOG_NAME[e.what], one: true, lines: [e.label] }] };
+};
+// Everything logged tonight, both sides, by kind.
+SHARE.logs = () => {
+  const xs = logsOf(); if (!xs.length) return null;
+  return { what: "Tonight's log", title: `Black Tap Soho · tonight's log · ${dayName(shiftDay())}`, head: [plural(xs.length, "thing") + " logged"],
+    parts: LOG_KINDS.filter(([k]) => LOG_SAVED.includes(k)).map(([id, label]) => ({ id, label, lines: xs.filter((e) => e.what === id).map((e) => `${sideName(e.area)}: ${logLine(e)}`) })).filter((p) => p.lines.length) };
+};
+document.head.insertAdjacentHTML("beforeend", `<style>
+.logbar{display:flex;align-items:center;gap:12px;margin:12px 0 4px;padding:10px 12px;border:1px solid var(--line);border-radius:14px;background:var(--surface)}
+.logbar .btn{flex:none;margin:0}.logbar span{color:var(--muted);font-size:14px;line-height:1.3}
+.lg-kinds{display:flex;flex-wrap:wrap;gap:8px;margin:10px 0 4px}.lg-kinds .chip,#logit .recent .chip{margin:0}
+.lg-side{display:flex;align-items:center;gap:10px;margin:8px 0}.lg-side>span{color:var(--muted);font-weight:700}.lg-side .seg{flex:1;grid-template-columns:1fr 1fr;margin:0}
+.lg-go{display:grid;grid-template-columns:1fr;gap:8px;margin:10px 0 6px}.lg-go .btn{width:100%;margin:0}
+@media (min-width:520px){.lg-go{grid-template-columns:1fr 1.4fr}}
+.lg-acc{border-left:3px solid var(--warn);padding-left:10px}
+.lg-list{list-style:none;padding:0;margin:6px 0}.lg-list li{display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.lg-list li>div{flex:1;min-width:0}.lg-list p{margin:6px 0 2px;line-height:1.35}.lg-list small,.lg-list .s{color:var(--muted);font-size:13px}
+.lg-list li:last-child{border-bottom:0}
+.lg-drop{flex:none;background:none;border:0;color:var(--muted);font-size:24px;line-height:1;min-height:0;padding:4px 8px}
+</style>`);
+/* ---------- Your shift, and the Guide ----------
+   Bar or Floor on the start screen (or the first time someone opens Shift, after going straight to the drinks) shows a
+   short walkthrough of that side's night: opening, Log it, closing and the handover. Once per person on each side: on a
+   shared iPad, once per name. When the walkthrough changes, WALK_V goes up and everyone sees it once more.
+   The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
+   answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
+   Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
+const WALK_V = 1;
+const WALK_NAV = { t: "Getting around", how: [
+  "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
+  "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
+  "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
+  "? at the top right opens the Guide: every part of Bar Book by section, and a search for anything, like “how do I make a mojito” or “what's a dry shake”.",
+], tip: "× closes this at any time. It's always in the Guide under Start here." };
+const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
+  `Saw something, found something, did something, told a manager or someone told you? Tap ＋ Log it on Shift${side === "bar" ? " or on the bar station" : ""}. One line is enough.`,
+  "Pick what it is. 86 goes on the 86 board for everyone and Broken goes on Issues. Running low, Not finished and For tomorrow go straight into tonight's handover. The rest goes under Logged tonight.",
+  "Log it and send on WhatsApp puts it in the team chat from your phone, so everyone knows now.",
+], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
+const WALK_SEND = { t: "Hand over and send", how: [
+  "Shift, Handover: tap who closed, then check Running low, Outstanding and For tomorrow. Whatever the team logged is already in.",
+  "Tap Hand over and send on WhatsApp. It saves for the morning team and opens WhatsApp with the whole close in tick boxes: pick the team chat and send.",
+  "Bar Book never sends anything by itself. If it isn't sent from a phone, the chat doesn't see it.",
+  "Closed on the iPad? Send it from your own phone: Team, Send on WhatsApp, then the last handover.",
+], tip: "On an iPhone with photos: Copy the words, tap Send with photos, then paste the words as the caption." };
+const WALK = {
+  bar: [
+    { t: "Your bar shift", how: [
+      "Shift, Bar has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
+      "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
+      "Drinks has every spec, with Rapid fire for the rush. The bar iPad has both on the bar station, with tonight's 86s across the top.",
+    ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
+    WALK_NAV,
+    { t: "Opening", how: [
+      "Shift, Morning: read last night's handover and tap Mark as read.",
+      "Sort what's outstanding. Anything you can't, tell the duty manager, then tap Checked: send on WhatsApp.",
+      "Send today's order and prep to par. Date labels due today show at the top: change those first.",
+    ], tip: "No handover from last night? Ask whoever closed to open Bar Book with signal: it may be waiting on their phone." },
+    WALK_LOG("bar"),
+    { t: "Closing the bar", how: [
+      "Shift, Closing: tick each job as you do it, or Tick all under a heading.",
+      "Two of you? Tap I'll do this on a heading, so the other person takes a different part.",
+      "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
+      "Take the closing photos (they're required) and change any date label marked URGENT.",
+    ], tip: "Only what's left is on, so the next job is always at the top." },
+    WALK_SEND,
+  ],
+  floor: [
+    { t: "Your floor shift", how: [
+      "Shift, Floor has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
+      "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
+      "86 anything, food too: type it, like a burger or a dessert, and every phone knows.",
+    ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
+    WALK_NAV,
+    { t: "Opening", how: [
+      "Shift, Morning: read last night's floor handover and tap Mark as read.",
+      "Sort what's outstanding. Anything you can't, tell the duty manager, then tap Checked: send on WhatsApp.",
+      "Send today's order and prep to par (napkins, cutlery, desserts). Date labels due today show at the top.",
+    ], tip: "No handover from last night? Ask whoever closed to open Bar Book with signal: it may be waiting on their phone." },
+    WALK_LOG("floor"),
+    { t: "Closing the floor", how: [
+      "Shift, Closing: the floor close heading by heading, shake station included. Tick as you go, or Tick all under a heading.",
+      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part.",
+      "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
+      "Take the closing photos (they're required) and change any date label marked URGENT.",
+    ], tip: "Only what's left is on, so the next job is always at the top." },
+    WALK_SEND,
+  ],
+};
+const walkKey = (side) => (sharedDev ? `${side}:${myName}` : side);
+const walkSeen = (side) => (store.get("walk", {})[walkKey(side)] || 0) >= WALK_V;
+function walkMark(side) { const w = store.get("walk", {}); w[walkKey(side)] = WALK_V; store.set("walk", w); }
+// Once per person and side, when nothing else is open over the app.
+function walkMaybe(side, wait = 0) {
+  if (!WALK[side]) return;
+  setTimeout(() => { if (walkSeen(side) || !$("#help").hidden || !$("#logit").hidden || $("#welcome")) return; walkOpen(side, 0); }, wait);
+}
+function walkOpen(side, i = 0) {
+  const xs = WALK[side], c = xs[i], last = i === xs.length - 1;
+  walkMark(side); introAt = -1;
+  $("#help .help-in").innerHTML = `<div class="help-h"><h3 id="help-t">${esc(c.t)}</h3><button class="hq-x" data-help-x aria-label="Close">×</button></div>
+    <div class="cprog"><b>${i + 1} of ${xs.length}</b><span class="dots" aria-hidden="true">${xs.map((_, j) => `<i class="${j === i ? "on" : j < i ? "ok" : ""}"></i>`).join("")}</span></div>
+    <ul>${c.how.map((x) => `<li>${esc(x)}</li>`).join("")}</ul><p class="note"><b>Tip:</b> ${esc(c.tip)}</p>
+    <div class="help-f">${i ? `<button class="btn" data-walk="${side}:${i - 1}">Back</button>` : `<button class="btn" data-help-x>Skip</button>`}${last ? `<button class="btn" data-guide>Open the Guide</button>` : ""}<button class="btn pri" ${last ? "data-help-x" : `data-walk="${side}:${i + 1}"`}>${last ? "Done" : "Next"}</button></div>`;
+  $("#help").hidden = false; $("#help .help-in").scrollTop = 0; $("#help .btn.pri").focus();
+}
+// Meanings, for "what's a…". The Technique key in More is drawn from the same list.
+const GLOSSARY = [
+  ["Dry shake", "Shake without ice to whip the foam, then add ice and shake again."],
+  ["Reverse dry shake", "Shake with ice, strain out the ice, then shake again without it for a thicker foam."],
+  ["Double strain", "Hawthorne strainer plus a fine strainer, so no ice chips or pulp."],
+  ["Foamer", "2 drops, as on the house cards. Used for foam instead of egg white."],
+  ["Build", "Pour straight into the glass over ice. No shaker."],
+  ["Stir", "Stir with ice in a mixing glass to chill and dilute without bubbles, then strain. For drinks that are all spirit."],
+  ["Muddle", "Press fruit, herbs or sugar in the tin or glass to release the juice and oils. Press mint gently: it goes bitter if it's shredded."],
+  ["Float", "Pour slowly over the back of a bar spoon so it sits on top."],
+  ["Top", "Fill the rest of the glass with the mixer or fizz, last."],
+  ["Rim", "Salt or sugar round the outside edge of the glass. Wet the edge with a citrus wedge first."],
+  ["Twist", "A strip of citrus peel squeezed over the drink to spray its oils, then dropped in or on the rim."],
+  ["Jigger", "The measure. Every pour is jiggered: no free pouring."],
+  ["86", "Ran out, or not available tonight. Put it on the 86 board once and every phone knows."],
+  ["Par", "How much of something to have ready at the start of the shift. Prep to par is on Morning."],
+  ["Handover", "The end of the night for the next shift: what's done, what's low, what's outstanding and what tomorrow needs, with photos."],
+  ["Tronc", "The team's share of service charge and tips, paid through payroll on last month's hours."],
+  ["Date label", "The sticker on anything opened: what it is, the day it was opened and the day to use it by."],
+];
+const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
+// Where each part of the app is explained in a ? panel.
+const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", sent: "sent", logit: "logit", station: "station" };
+// Everything the Guide lists: the app's features plus Log it and the bar station.
+const gdItems = () => [
+  ...FEATURES.filter((f) => !(f.k === "tell" && LIVE.owner)),
+  { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
+  { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: any drink in big type, rounds, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
+];
+const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", drinks: "spec recipe cocktail drink menu glass", make: "cocktail maker ingredients what can i make" };
+const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
+const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
+// What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.
+function gdSearch(q) {
+  const all = gdWords(q), ws = all.filter((w) => !GD_STOP.has(w));
+  if (!ws.length) return null;
+  const words = (s) => plNorm(s).split(/[^a-z0-9]+/).filter(Boolean);
+  const hit = (s) => { const xs = words(s); return ws.every((w) => mkWordHit(w, xs)); };
+  const pq = plQuery(ws.join(" "));
+  const drinks = plRank(D.filter((d) => plHits(d, pq.words)), pq.words).slice(0, 4);
+  const pages = gdItems().filter((f) => hit(`${f.n} ${f.what} ${f.staff || ""} ${GD_KW[f.k] || ""} ${HELP[GD_HELP[f.k]]?.how.join(" ") || ""}`)).slice(0, 4);
+  const terms = GLOSSARY.filter(([t, d]) => hit(t) || (ws.length > 1 && hit(`${t} ${d}`))).slice(0, 3);
+  const asksHow = /\b(how|make|recipe|spec)\b/.test(all.join(" ")), asksWhat = /^(what|whats)\b/.test(all.join(" "));
+  return { q, words: ws, drinks, pages, terms, fixed: pq.fixed, order: asksWhat ? ["terms", "drinks", "pages"] : asksHow ? ["drinks", "pages", "terms"] : ["pages", "drinks", "terms"] };
+}
+let gdQ = "", gdAsked = "";
+function gdResultsHtml() {
+  const r = gdSearch(gdQ);
+  if (!r) return gdHomeHtml();
+  const drinkRow = (d) => `<button class="gd-row" data-gd-drink="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><span><b translate="no">${esc(d.name)}</b><small>${esc(d.glass)} · spec and step by step</small></span><i>›</i></button>`;
+  const pageRow = (f) => `<button class="gd-row" data-gd-go="${f.k}"><span><b>${esc(f.n)}</b><small>${esc(f.what)}</small></span><i>›</i></button>`;
+  const termRow = ([t, d]) => `<div class="gd-term"><b>${esc(t)}</b><span>${esc(d)}</span></div>`;
+  const parts = { drinks: r.drinks.length && `<div class="mini">Drinks</div>${r.drinks.map(drinkRow).join("")}`, pages: r.pages.length && `<div class="mini">In Bar Book</div>${r.pages.map(pageRow).join("")}`,
+    terms: r.terms.length && `<div class="mini">What it means</div>${r.terms.map(termRow).join("")}` };
+  const body = r.order.map((k) => parts[k]).filter(Boolean).join("");
+  const asked = gdAsked === gdQ.trim().toLowerCase();
+  const miss = `<div class="gd-miss${body ? " soft" : ""}"><b>${body ? "Not what you meant?" : "That isn't in Bar Book yet."}</b><span>${asked ? "Sent to maintenance to add. Thanks." : "Send it to maintenance to add. They check it first, so nothing goes in until it's right."}</span>
+    ${asked ? "" : `<button class="btn${body ? "" : " pri"}" data-gd-add>Add it</button>`}${body ? "" : `<button class="linkbtn" data-gd-new>A new bottle or ingredient? Add something new ›</button>`}</div>`;
+  return `${r.fixed.length ? `<p class="note">Showing results for <b>${esc(r.fixed.join(", "))}</b>.</p>` : ""}${body}${miss}`;
+}
+function gdHomeHtml() {
+  const groups = [...new Set(gdItems().map((f) => f.g))];
+  return `<div class="mini">Start here</div><div class="gd-start">
+      <button class="gd-tile" data-walk="bar:0"><b>A bar shift</b><small>Opening to handover</small></button>
+      <button class="gd-tile" data-walk="floor:0"><b>A floor shift</b><small>Opening to handover</small></button>
+      <button class="gd-tile" data-walk="bar:1"><b>Getting around</b><small>Back, home and this Guide</small></button>
+      <button class="gd-tile" data-intro="0"><b>Everything Bar Book does</b><small>The full tour, ${INTRO.length} cards</small></button></div>
+    ${groups.map((g) => `<details class="gd-sec"><summary>${esc(g)}<span>${gdItems().filter((f) => f.g === g).length}</span></summary>${gdItems().filter((f) => f.g === g).map((f) => `<div class="gd-item"><button class="gd-row" data-gd-go="${f.k}"><span><b>${esc(f.n)}</b><small>${esc(f.what)}</small></span><i>›</i></button>${GD_HELP[f.k] && HELP[GD_HELP[f.k]] ? `<button class="linkbtn" data-gd-help="${GD_HELP[f.k]}">How it works</button>` : ""}</div>`).join("")}</details>`).join("")}
+    <details class="gd-sec"><summary>Words we use<span>${GLOSSARY.length}</span></summary>${GLOSSARY.map(([t, d]) => `<div class="gd-term"><b>${esc(t)}</b><span>${esc(d)}</span></div>`).join("")}</details>`;
+}
+// The search box itself, for the Guide, Practise and the bar station.
+const gdBoxHtml = (id, ph = "Ask: how do I make a mojito?") => `<div class="search gd-search"><input id="${id}" class="gd-in" type="search" placeholder="${esc(ph)}" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="search" aria-label="Ask Bar Book"></div>`;
+function guideOpen(q = "") {
+  if (!$("#help").hidden && $("#gd-q")) { $("#gd-q").focus(); return; }
+  helpFrom = helpFrom || document.activeElement; introAt = -1; gdQ = q;
+  $("#help .help-in").innerHTML = `<div class="help-h"><h3 id="help-t">Guide</h3><button class="hq-x" data-help-x aria-label="Close">×</button></div>
+    <p class="lead">Ask anything, or pick a section. A tap takes you straight there.</p>${gdBoxHtml("gd-q")}<div id="gd-out">${gdResultsHtml()}</div>
+    <p class="note gd-foot">‹ Back or your phone's back goes back a step. ⌂ goes home. This Guide is always on the ? at the top.</p>`;
+  $("#gd-q").value = q; $("#help").hidden = false; $("#help .help-in").scrollTop = 0;
+  if (!matchMedia("(pointer: coarse)").matches || q) $("#gd-q").focus();
+}
+let gdT = 0;
+document.addEventListener("input", (e) => {
+  if (!e.target.matches?.(".gd-in")) return;
+  // Practise or the bar station: the answers open in the Guide, which takes over the typing.
+  if (e.target.id !== "gd-q") { const v = e.target.value; e.target.value = ""; return guideOpen(v); }
+  clearTimeout(gdT); gdT = setTimeout(() => { gdQ = e.target.value; $("#gd-out").innerHTML = gdResultsHtml(); }, 120);
+});
+document.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.matches?.(".gd-in")) { e.preventDefault(); e.target.blur(); } });
+// Asked for, and not in Bar Book: to maintenance as App feedback (Something missing), with what Wikipedia says it is.
+async function gdAdd(btn) {
+  const q = gdQ.trim().slice(0, 200); if (!q) return;
+  if (!LIVE.me) { helpClose(); return openAt("people"); }
+  await busy(btn, "Looking it up…", (async () => {
+    let wiki = "";
+    try { const t = gdSearch(q).words.join(" "); const p = (await itLookup(t))[0]; if (p) wiki = `\nWikipedia: ${p.title}${p.desc ? `, ${p.desc}` : ""}`; } catch {}
+    track(LIVE.api.tell("missing", `Searched Bar Book for: “${q}”. Nothing found. Please add it.${wiki}`), "Sent to maintenance to add", "Not sent. Try again");
+    gdAsked = q.toLowerCase(); haptic();
+  })());
+  $("#gd-out").innerHTML = gdResultsHtml();
+}
+$("#help").addEventListener("click", (e) => {
+  const t = e.target;
+  const w = t.closest("[data-walk]"); if (w) { haptic(); const [s, i] = w.dataset.walk.split(":"); return walkOpen(s, +i); }
+  const go = t.closest("[data-gd-go]"); if (go) {
+    const f = gdItems().find((x) => x.k === go.dataset.gdGo); haptic(); helpClose();
+    if (!$("#sheet").hidden) hideSheet();
+    if (f.go === "log") return logOpen(); openAt(f.go); scrollTo(0, 0); return;
+  }
+  const dk = t.closest("[data-gd-drink]"); if (dk) { haptic(); helpClose(); view = "steps"; store.set("view", view); return openSheet(+dk.dataset.gdDrink); }
+  const hp = t.closest("[data-gd-help]"); if (hp) { helpOpen(hp.dataset.gdHelp, helpFrom); $("#help .help-f").firstElementChild.outerHTML = `<button class="btn" data-guide>‹ Back to the Guide</button>`; return; }
+  if (t.closest("[data-gd-add]")) return gdAdd(t.closest("[data-gd-add]"));
+  if (t.closest("[data-gd-new]")) { helpClose(); pane = "stock"; show("tally"); return; }
+});
+// Home: the drinks, or the bar station while it's on. Anything open over the page shuts first.
+function goHome() {
+  haptic(); helpClose(); logClose();
+  if (!$("#sheet").hidden) hideSheet();
+  show(stationOn ? "station" : "drinks"); scrollTo(0, 0);
+}
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-guide]")) { e.preventDefault(); haptic(); const was = !$("#help").hidden; if (was) $("#help").hidden = true; return guideOpen(); }
+  if (e.target.closest("[data-home]")) { e.preventDefault(); return goHome(); }
+  const wo = e.target.closest("[data-walk-open]"); if (wo) { haptic(); return walkOpen(wo.dataset.walkOpen || mode, 0); }
+});
+document.head.insertAdjacentHTML("beforeend", `<style>
+.hbtn{font-size:22px;font-weight:800;color:var(--brass);border:1px solid var(--line);border-radius:50%;width:40px;height:40px;background:none;padding:0;min-height:0}
+.hbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.gd-search{margin:10px 0 6px}.gd-search input{width:100%}
+.gd-row{display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:12px 4px;border:0;border-bottom:1px solid var(--line);background:none;color:var(--fg);min-height:56px;font:inherit}
+.gd-row>span:not(.g){flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}.gd-row small{color:var(--muted);font-size:13px;line-height:1.35}
+.gd-row .g{flex:none;width:34px;height:34px;display:grid;place-items:center;color:var(--brass)}.gd-row .g svg{width:30px;height:30px}
+.gd-row i{flex:none;font-style:normal;color:var(--brass);font-size:22px}
+.gd-item{border-bottom:1px solid var(--line)}.gd-item .gd-row{border-bottom:0;padding-bottom:4px}.gd-item .linkbtn{margin:0 0 10px 4px;font-size:14px}
+.gd-term{display:flex;flex-direction:column;gap:2px;padding:10px 4px;border-bottom:1px solid var(--line)}.gd-term span{color:var(--muted);font-size:14px;line-height:1.4}
+.gd-start{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:6px 0 10px}
+.gd-tile{display:flex;flex-direction:column;align-items:flex-start;gap:3px;padding:12px;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--fg);text-align:left;min-height:68px;font:inherit}
+.gd-tile b{font-size:15px}.gd-tile small{color:var(--muted);font-size:12.5px;line-height:1.3}
+.gd-sec{border-top:1px solid var(--line)}.gd-sec>summary{display:flex;align-items:center;justify-content:space-between;min-height:50px;font-weight:800;font-size:17px;cursor:pointer;list-style:none}
+.gd-sec>summary::-webkit-details-marker{display:none}.gd-sec>summary span{color:var(--muted);font-weight:600;font-size:14px}
+.gd-sec>summary::after{content:"▾";color:var(--brass);margin-left:8px}.gd-sec[open]>summary::after{content:"▴"}.gd-sec>summary span{margin-left:auto}
+.gd-miss{display:flex;flex-direction:column;align-items:flex-start;gap:8px;margin:14px 0 4px;padding:12px;border:1px dashed var(--line);border-radius:14px}
+.gd-miss span{color:var(--muted);font-size:14px;line-height:1.4}.gd-miss .btn{margin:0}.gd-miss .linkbtn{text-align:left;padding:0;font-size:14px}
+.gd-miss.soft{display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:12px;border-style:solid;padding:10px 12px}.gd-miss.soft b{font-size:15px}.gd-miss.soft span{grid-column:1}.gd-miss.soft .btn{grid-column:2;grid-row:1/3}
+.gd-foot{margin-top:14px}
+.gd-ask{margin:4px 0 14px}.gd-ask .mini{margin-bottom:4px}
 </style>`);
 
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
@@ -9305,7 +9696,7 @@ else {
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);
     if (linkAt && openLink(linkAt)) { linkAt = ""; history.replaceState(null, "", location.pathname); return; }
-    if (stationOn && !b.dataset.rapid) show("station");
+    if (b.dataset.ipad || (stationOn && !b.dataset.rapid)) show("station");
     else if (b.dataset.rapid) show("rapid");
     else if (b.dataset.drinks) show("drinks");
     else if (mode !== "bar") show("tally");

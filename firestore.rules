@@ -565,7 +565,15 @@ service cloud.firestore {
       allow read: if isMember();
       allow create: if isMember() && stamped() && nearNow(incoming().day) && reqText(incoming().label, 200) && optText(incoming().note, 300)
         && (incoming().kind == 'task' ? taskEvent(id) : incoming().kind == 'run' ? runEvent(id) : incoming().kind == 'restock' ? restockEvent(id)
-          : incoming().kind == 'label' && labelEvent(id));
+          : incoming().kind == 'label' ? labelEvent(id) : incoming().kind == 'log' && logEvent(id));
+      // Log it: only a log line comes off, by whoever wrote it or a manager. The closing history stays.
+      allow delete: if isMember() && resource.data.kind == 'log' && (resource.data.uid == request.auth.uid || isManager());
+    }
+    // Log it: one line of what someone saw, did, was told or told a manager, for tonight's handover.
+    function logEvent(id) {
+      let e = incoming();
+      return exactly(['kind', 'day', 'area', 'what', 'label', 'note', 'uid', 'name', 'at'])
+        && id.matches('g-[A-Za-z0-9]{20}') && e.area in ['bar', 'floor'] && e.what in ['note', 'told', 'low', 'open', 'next'] && e.note == '';
     }
     function taskEvent(id) {
       let e = incoming();
