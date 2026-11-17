@@ -229,10 +229,14 @@ async function clearOldPhotos() {
 const logDef = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, status: x.status });
 // Are the rules published in the Firebase console the ones this version of the app was built with? Only a refusal
 // says no; no signal says nothing.
+// Asked again each time the app is opened and every 10 minutes, so the warning goes by itself once they're published.
 async function checkRules() {
   const old = await getDoc(doc(db, "rulesv", __RULES__)).then(() => false, (e) => (e.code === "permission-denied" ? true : null));
   if (old !== null && old !== LIVE.rulesOld) { LIVE.rulesOld = old; liveChanged("rules"); }
 }
+const recheckRules = () => { if (LIVE.owner && !document.hidden) checkRules(); };
+setInterval(recheckRules, 10 * 6e4);
+document.addEventListener("visibilitychange", recheckRules);
 
 const STALE_DAYS = 2, binning = new Set();
 function binStalePhotos(snap) {
