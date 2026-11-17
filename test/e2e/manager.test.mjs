@@ -247,6 +247,9 @@ test("pilot results: counted week by week from what the team did, no names; pict
   // Staff don't get it, and can't read everyone's scores.
   await S.evaluate(() => show("notices"));
   assert.equal(await S.locator('[data-card="pilot"]').count(), 0);
+  // The Guide lists it for staff too, marked for managers, with no Open it.
+  assert.match(await S.evaluate(() => { const d = document.createElement("div"); d.innerHTML = featHtml(); return d.querySelector('[data-feat="pilot"]').innerText; }), /Managers only/i);
+  assert.equal(await S.evaluate(() => { const d = document.createElement("div"); d.innerHTML = featHtml(); return d.querySelector('[data-feat="pilot"] [data-feat-go]'); }), null);
 
   const box = await card(M, "pilot");
   await waitText(M, box, /People using it/);

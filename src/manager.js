@@ -667,12 +667,15 @@ function mgCards() {
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
-  { g: "Team", k: "week", n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
-  { g: "Team", k: "pilot", n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
-  { g: "Team", k: "lblog", n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp or save it as a spreadsheet." },
-  { g: "Team", k: "training", n: "Training", go: "training", team: 1, what: "Quiz and speed drill scores for everyone, leaderboards, and sign-off on the house cocktails by a manager.", mgr: "Sign off each house cocktail once you've watched it made to spec." },
+  { g: "Team", k: "week", adm: 1, n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
+  { g: "Team", k: "pilot", adm: 1, n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
+  { g: "Team", k: "lblog", adm: 1, n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp or save it as a spreadsheet." },
+  { g: "Team", k: "training", adm: 1, n: "Training", go: "training", team: 1, what: "Quiz and speed drill scores for everyone, leaderboards, and sign-off on the house cocktails by a manager.", mgr: "Sign off each house cocktail once you've watched it made to spec." },
+  { g: "Team", k: "history", adm: 1, n: "Change history", go: "history", team: 1, what: "The latest changes to date labels and added items, with who and when.", mgr: "Undo a label change, or put back a label or item removed by mistake." },
+  { g: "Team", k: "setup", own: 1, n: "Set up codes", go: "setup", team: 1, what: "For Maintenance: your code, each manager's code and the team code on one screen, then a check that each one works.", mgr: "Do it once at the start, and again whenever someone leaves." },
+  { g: "Team", k: "backup", adm: 1, n: "Backup and restore", go: "backup", team: 1, what: "Everything Bar Book keeps for the team, saved as one file.", mgr: "Save one now and then. Restore shows what's different and only adds or changes, never deletes." },
   { g: "Team", k: "health", n: "Health check", go: "health", what: "Whether this phone is online, saving, up to date and ready with no signal.", staff: "Something not syncing? Check here, then send it to maintenance." });
-Object.assign(PLACE_KW, { week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off", health: "health sync version not working broken offline" });
+Object.assign(PLACE_KW, { week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline" });
 
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;

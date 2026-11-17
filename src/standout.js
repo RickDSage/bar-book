@@ -509,9 +509,9 @@ function sdCards() {
   return [["replay", "Shift replay", replayHtml], ["order", "Order draft", orderHtml], ["season", "Seasonal menu", seasonHtml, s ? { t: s.name } : ""], ["venue", "Last orders and day or night", venueHtml, sdVenue().lastOrders ? { t: sdVenue().lastOrders } : ""]];
 }
 FEATURES.push(
-  { g: "Team", k: "replay", n: "Shift replay", go: "replay", team: 1, what: "One night start to finish for the managers: every 86, Log it, label, closing tick, restock, fault, send and the handover, in time order with who.", mgr: "Pick a night and send it on WhatsApp." },
-  { g: "Team", k: "order", n: "Order draft", go: "order", team: 1, what: "What to order, worked out from the last stock counts, the deliveries and each item's par.", mgr: "Set a par on anything you always want on the shelf, then send the list." },
-  { g: "Team", k: "season", n: "Seasonal menu", go: "season", team: 1, what: "A Christmas or summer menu for the whole team in one tap, and back again.", mgr: "Make the menu once, then switch it on and off." },
+  { g: "Team", k: "replay", n: "Shift replay", go: "replay", team: 1, adm: 1, what: "One night start to finish for the managers: every 86, Log it, label, closing tick, restock, fault, send and the handover, in time order with who.", mgr: "Pick a night and send it on WhatsApp." },
+  { g: "Team", k: "order", n: "Order draft", go: "order", team: 1, adm: 1, what: "What to order, worked out from the last stock counts, the deliveries and each item's par.", mgr: "Set a par on anything you always want on the shelf, then send the list." },
+  { g: "Team", k: "season", n: "Seasonal menu", go: "season", team: 1, adm: 1, what: "A Christmas or summer menu for the whole team in one tap, and back again.", mgr: "Make the menu once, then switch it on and off." },
   { g: "Drinks", k: "voice", n: "Voice", go: "tab:drinks", what: "Tap 🎤 and say \"86 limes\", \"log it ...\" or \"how do I make a Negroni\". It asks before it changes anything." });
 Object.assign(PLACE_KW, { replay: "replay timeline night history what happened", order: "order par reorder supplier", season: "season christmas summer seasonal menu switch", venue: "last orders time day night theme" });
 
