@@ -116,6 +116,11 @@ test("no signal: it's worked out from the name; no days means it waits on Black 
   await M.selectOption('[data-it="kind"]', "dessert");
   assert.deepEqual(await M.evaluate(() => [itF.side, itF.life, itF.close]), ["floor", "2", "cover"]);
   await M.selectOption('[data-it="kind"]', "puree");
+  // Funkin's typical days come in, marked as typical; clearing them leaves it for whoever has the pack.
+  assert.equal(await M.inputValue('[data-it="life"]'), "8");
+  assert.match(await text(M, ".itf"), /Shelf life · Fridge once opened Funkin purées: fridge once opened, 8 to 10 days \(the pack says which\)\. Typical only: the date on the pack always wins\./);
+  assert.match(await text(M, ".itf"), /Filled in from the typical shelf life above\. Change it to what the pack says\./);
+  await M.fill('[data-it="life"]', "");
   await M.click("#it-save");
   await M.waitForFunction(() => LIVE.items.length === 1 && !LIVE.items[0].pending);
   // A manager's waits too. Maintenance approves it with no days: it goes on Black Tap's label list for them.
@@ -141,5 +146,105 @@ test("no signal: it's worked out from the name; no days means it waits on Black 
   await S.click(`[data-it-drop="${mango}"]`);
   await S.waitForFunction(() => !LIVE.items.some((x) => x.item === "Mango"));
   assert.equal(await attempt(S, (i) => LIVE.api.dropItem(i), id), "permission-denied");
+  for (const p of [O, M, S]) assert.deepEqual(p.errs, []);
+});
+
+test("typos and other languages: lymes 86s Limes, strawbery is Strawberries, Hindi finds the English name, and shelf life shows for what we stock", async () => {
+  await resetEmulators();
+  const { O, S } = await team(browser, site, people.slice(1));
+  await O.route("https://*.wikipedia.org/**", (r) => {
+    const u = new URL(r.request().url()), q = u.searchParams.get("gsrsearch"), t = u.searchParams.get("titles");
+    if (u.hostname.startsWith("hi.")) return r.fulfill({ json: { query: { pages: q === "स्ट्रॉबेरी" ? [{ title: "स्ट्रॉबेरी", index: 1, langlinks: [{ lang: "en", title: "Strawberry" }] }, { title: "हिल", index: 2, langlinks: [{ lang: "en", title: "Hill" }] }] : [] } } });
+    if (t) return r.fulfill({ json: { query: { pages: t.split("|").map((x) => ({ title: x, description: x === "Strawberry" ? "Edible fruit" : "" })) } } });
+    // A typo Wikipedia can't place finds a film: it doesn't share a word with what was typed, so it's ignored.
+    r.fulfill({ json: { query: { pages: [{ title: "Dr. No (film)", description: "1962 film", index: 1 }, { title: "Tootsie Roll", description: "Chocolate flavored chewy candy", index: 2 }] } } });
+  });
+  // The 86 box takes a typo and 86s the stock list's own name, so the drinks see it.
+  await pane(S, "stock");
+  await S.fill("#s-86-own", "lymes"); await S.click("#s-86-go");
+  await O.waitForFunction(() => LIVE.out.has("Limes"));
+  assert.equal(await toastOf(S), "Limes 86'd (you typed “lymes”)");
+  // A typo of something we stock is the stock list's item.
+  await pane(O, "stock");
+  await look(O, "strawbery");
+  assert.match(await text(O, ".itf"), /You typed “strawbery”: it's Strawberries\./);
+  assert.match(await text(O, ".itf"), /Nothing found online/, "the film and the sweets don't count");
+  assert.match(await text(O, ".itf"), /Shelf life · Fridge once opened Cut fruit and garnish: use it the same day\. Whole: fridge\./);
+  await O.click("#it-cancel");
+  // Nothing known and nothing found: the closest things it knows, one tap away, and it can still be added.
+  await look(O, "limez wedges");
+  assert.ok((await O.$$eval("[data-it-pick]", (b) => b.map((x) => x.dataset.itPick))).includes("Limes"));
+  await O.click('[data-it-pick="Limes"]');
+  await O.waitForFunction(() => itF?.item === "Limes" && itF.kind);
+  await O.click("#it-cancel");
+  // In Hindi: looked up on Hindi Wikipedia, linked to the English page, and named as the stock list names it.
+  await O.evaluate(() => { lang = "hi"; });
+  await look(O, "स्ट्रॉबेरी");
+  assert.equal(await O.evaluate(() => itF.item), "Strawberries");
+  assert.match(await text(O, ".itf"), /Found online: Strawberry: Edible fruit/);
+  await O.click("#it-cancel");
+  await O.evaluate(() => { lang = ""; });
+  // Typical shelf lives: oat milk from Oatly's pack, vermouth about a month, Baileys no fridge; a label's own days show.
+  await O.evaluate(() => LIVE.api.label(null, "added", { item: "Oat milk", side: "bar", life: 4, on: true }));
+  await O.waitForFunction(() => LIVE.labels.some((x) => x.item === "Oat milk" && !x.pending));
+  await look(O, "oat milk");
+  assert.equal(await O.inputValue('[data-it="life"]'), "5");
+  assert.match(await text(O, ".it-keep"), /Oatly: keep in the fridge, use within 5 days once opened.*Bar: keeps 4 days once opened \(set on Labels\)/);
+  await O.click("#it-cancel");
+  assert.deepEqual(await O.evaluate(() => [itKeep("Martini Rosso").days, itKeep("Baileys").fridge, itKeep("Vanilla ice cream", "icecream").say]), [30, false, "Freezer, lid on"]);
+  // Black Tap's label list shows what's typical, without filling it in.
+  await pane(O, "labels");
+  assert.equal(await O.getAttribute('[data-lbs-life="Whole milk"]', "placeholder"), "typ. 3");
+  assert.equal(await O.inputValue('[data-lbs-life="Whole milk"]'), "");
+  for (const p of [O, S]) assert.deepEqual(p.errs, []);
+});
+
+test("labels by station; found open: staff are told to discard it, a manager dates it with a note; a photo of the pack; a barcode", async () => {
+  await resetEmulators();
+  const { O, M, S } = await team(browser, site, people);
+  const add = (p, a) => p.evaluate((a) => LIVE.api.label(null, "added", a), a);
+  await add(M, { item: "Oat milk", side: "floor", life: 5, on: true, station: "Shake station" });
+  await add(M, { item: "Brownies", side: "floor", life: 2, on: true });
+  await add(M, { item: "Mystery tub", side: "floor", life: 3, on: true });
+  await S.waitForFunction(() => LIVE.labels.length === 3 && LIVE.labels.every((x) => !x.pending));
+  await pane(S, "labels", "floor");
+  // Under their stations: its own, the one Black Tap's list gives its name, or Other.
+  assert.deepEqual(await S.$$eval("#tally .lbst", (xs) => xs.map((x) => x.textContent.trim())), ["Shake station", "Cake fridge", "Other"]);
+  // Staff who find one open with no label are told to discard it.
+  const id = await S.evaluate(() => LIVE.labels.find((x) => x.item === "Oat milk").id);
+  await S.click(`[data-lb="${id}"][data-lb-act=found]`);
+  assert.match(await text(S, ".lbo"), /^Don't know when it was opened\? Discard it\. With no label nobody can say it's safe\./);
+  await S.click("[data-lb-cancel]");
+  // A manager who knows dates it, with a note; the use-by counts from that day.
+  await pane(M, "labels", "floor");
+  await M.click(`[data-lb="${id}"][data-lb-act=found]`);
+  const yday = await M.evaluate(() => addDays(shiftDay(), -1));
+  await M.fill("[data-lb-found]", yday); await M.dispatchEvent("[data-lb-found]", "change");
+  await M.click(`[data-lb-save="${id}"]`);
+  assert.equal(await toastOf(M), "Say how you know when it was opened");
+  await M.fill("[data-lb-why]", "I opened it at yesterday's close");
+  await M.click(`[data-lb-save="${id}"]`);
+  await S.waitForFunction((id) => LIVE.labels.find((x) => x.id === id).act === "found" && !LIVE.labels.find((x) => x.id === id).pending, id);
+  const l = await S.evaluate((id) => LIVE.labels.find((x) => x.id === id), id);
+  assert.deepEqual([l.state, l.openedOn, l.useBy, l.openedBy], ["open", yday, await M.evaluate((d) => addDays(d, 5), yday), "Mia Manager"]);
+  // A photo of the pack, kept with the label.
+  await S.click(`[data-lb-more="${id}"]`);
+  await S.waitForSelector("#lb-ph-in", { state: "attached" });
+  await S.setInputFiles("#lb-ph-in", { name: "p.png", mimeType: "image/png", buffer: Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8DwHwAFBQIAX8jx0gAAAABJRU5ErkJggg==", "base64") });
+  await waitToast(S, /^Photo kept with the label$/);
+  await M.evaluate(() => { lbm = ""; });
+  await M.click(`[data-lb-more="${id}"]`);
+  await M.waitForSelector(".tmore .photo img");
+  assert.match(await text(M, ".tmore"), /Taken by Sam Staff/);
+  assert.match(await text(M, ".tmore"), /found one open with no label and dated it: use by .*I opened it at yesterday's close/);
+
+  // A barcode typed in: Open Food Facts says what it is, then the usual lookup.
+  await O.route("https://world.openfoodfacts.org/**", (r) => r.fulfill({ json: { status: 1, product: { product_name: "Mango", brands: "Rubicon", categories_tags: ["en:beverages", "en:carbonated-drinks", "en:sodas"] } } }));
+  await O.route("https://*.wikipedia.org/**", (r) => r.fulfill({ json: { query: { pages: [] } } }));
+  await pane(O, "stock");
+  await look(O, "5000382036333");
+  assert.equal(await O.evaluate(() => itF.item), "Rubicon Mango");
+  assert.match(await text(O, ".itf"), /Found online: Rubicon Mango: beverages, carbonated drinks, sodas \(Open Food Facts\)/);
+  assert.equal(await O.evaluate(() => itF.kind), "soft");
   for (const p of [O, M, S]) assert.deepEqual(p.errs, []);
 });

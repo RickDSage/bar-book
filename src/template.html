@@ -688,6 +688,10 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .it-found { margin: 0; overflow-wrap: anywhere; }
 .it-pa { padding: 4px 0; }
 #it-add summary .pill { margin-left: 6px; }
+#it-scan { position: fixed; inset: 0; z-index: 90; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; background: #000; color: #fff; padding: 16px; }
+#it-scan video { width: 100%; max-width: 520px; border-radius: 12px; }
+.lbst { margin-top: 14px; }
+.it-keep { margin: 8px 0 0; padding: 8px 10px; border-left: 3px solid var(--brass); background: var(--bg); border-radius: 6px; }
 .lbpick { display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--line); }
 .lbpick .check { flex: 1; min-height: 44px; margin-top: 0; }
 .lbpick input[data-lbs-life] { width: 76px; flex: none; font: inherit; font-size: 17px; text-align: center; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 6px; }
@@ -2817,24 +2821,31 @@ function moveRs(r, to) {
 // Black Tap's own list of what each side dates once it's opened, by where it lives. Days are filled in only where the
 // venue's closing procedure already gives them (desserts opened today plus 2 days, cherries 4 weeks) or Bar Book's lists
 // had them (fruit sauces 14). Names are the team's own, so they match the labels on the boxes. Everything else waits for a manager to read "once opened, use within" on the pack.
+// Grouped by station: where on each side it lives, so the labels page reads like a walk round the bar or the floor.
+// A label's station is set when it's added from here and can be changed by a manager; one with none goes under the
+// station this list gives its name, or Other.
 const LABEL_IDEAS = {
   bar: [
-    ["Milk, cream and eggs", [["Whole milk"], ["Oat milk"], ["Double cream"], ["Egg whites"], ["Aquafaba"]]],
-    ["Fruit, herbs and garnishes", [["Limes"], ["Lemons"], ["Oranges"], ["Apples"], ["Strawberries"], ["Mint"], ["Cocktail pickles"], ["Olives"], ["Maraschino cherries", 28]]],
-    ["Juices", [["Apple juice"], ["Cranberry juice"], ["Orange juice"], ["Pineapple juice"], ["Tomato juice"], ["Lime juice"], ["Lemon juice"]]],
-    ["Syrups and purées", [["Sugar syrup"], ["Honey syrup"], ["Funkin purées"]]],
-    ["Opened bottles and coffee", [["Prosecco, opened bottle"], ["Vermouth, opened bottle"], ["Coffee beans, opened bag"]]],
+    ["Bar fridge", [["Whole milk"], ["Oat milk"], ["Double cream"], ["Egg whites"], ["Aquafaba"], ["Apple juice"], ["Cranberry juice"], ["Orange juice"], ["Pineapple juice"],
+      ["Tomato juice"], ["Grapefruit juice"], ["Funkin purées"], ["Coco Real"], ["Opened soft drink bottles"]]],
+    ["Garnish station", [["Limes"], ["Lemons"], ["Oranges"], ["Apples"], ["Grapefruit"], ["Strawberries"], ["Pineapple"], ["Passion fruit"], ["Cucumber"], ["Mint"], ["Basil"],
+      ["Chillies"], ["Jalapeños"], ["Cocktail pickles"], ["Olives"], ["Maraschino cherries", 28]]],
+    ["Prep and syrups", [["Lime juice"], ["Lemon juice"], ["Sugar syrup"], ["Honey syrup"], ["Pickle brine"], ["Batched espresso"]]],
+    ["Back bar", [["Prosecco, opened bottle"], ["Vermouth, opened bottle"], ["Coffee beans, opened bag"]]],
   ],
   floor: [
-    ["Cakes and desserts", [["Sprinkle cake", 2], ["Black velvet cake", 2], ["Guinness stout cake", 2], ["Brownies", 2], ["Victoria sponge", 2], ["New York cheesecake", 2],
+    ["Shake station", [["Whole milk"], ["Oat milk"], ["Whipped cream"], ["Vegan whipped cream"], ["Ice cream, opened tub"], ["Vegan ice cream, opened tub"], ["Maraschino cherries", 28],
+      ["Strawberries"], ["Raspberries"], ["Strawberry sauce", 14], ["Raspberry sauce", 14], ["Chocolate sauce"], ["Salted caramel sauce"], ["Vanilla frosting"], ["Chocolate frosting"],
+      ["Philadelphia cheese"], ["Graham crackers"], ["Oreo crumb"], ["Cookies"], ["Jammie Dodgers, big"], ["Jammie Dodgers, regular"], ["Lotus biscuits"], ["Ice cream cones"], ["Sprinkles"],
+      ["White chocolate pieces"], ["Chocolate pieces"], ["Cotton candy"], ["Cotton candy beads"]]],
+    ["Cake fridge", [["Sprinkle cake", 2], ["Black velvet cake", 2], ["Guinness stout cake", 2], ["Brownies", 2], ["Victoria sponge", 2], ["New York cheesecake", 2],
       ["Oreo sandwiches", 2], ["Cookie sandwiches", 2]]],
-    ["Milk, cream and ice cream", [["Whole milk"], ["Oat milk"], ["Whipped cream"], ["Vegan whipped cream"], ["Ice cream, opened tub"], ["Vegan ice cream, opened tub"]]],
-    ["Sauces, frosting and cheese", [["Strawberry sauce", 14], ["Raspberry sauce", 14], ["Chocolate sauce"], ["Salted caramel sauce"], ["Vanilla frosting"], ["Chocolate frosting"], ["Philadelphia cheese"]]],
-    ["Shake toppings", [["Graham crackers"], ["Oreo crumb"], ["Cookies"], ["Jammie Dodgers, big"], ["Jammie Dodgers, regular"], ["Lotus biscuits"], ["Ice cream cones"], ["Sprinkles"], ["White chocolate pieces"], ["Chocolate pieces"], ["Cotton candy"], ["Cotton candy beads"]]],
-    ["Fruit", [["Strawberries"], ["Raspberries"], ["Maraschino cherries", 28]]],
-    ["Table sauces in the fridge", [["Mayonnaise"], ["Ketchup"], ["Mustard"]]],
+    ["Floor fridge", [["Mayonnaise"], ["Ketchup"], ["Mustard"]]],
   ],
 };
+// Where a label lives: its own station, else where Black Tap's list puts its name, else Other.
+const stationOf = (x) => x.station || (LABEL_IDEAS[x.side] || []).find(([, xs]) => xs.some(([n]) => n.toLowerCase() === x.item.toLowerCase()))?.[0] || "Other";
+const stationsOf = (side) => [...new Set([...(LABEL_IDEAS[side] || []).map(([g]) => g), ...LIVE.labels.filter((x) => x.side === side && x.station).map((x) => x.station)])];
 const LB_SIDES = Object.keys(MODE_LISTS);
 // Sums on YYYY-MM-DD dates, done in UTC so the clocks changing never moves a date.
 const ISO_DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -2873,7 +2884,8 @@ function labelText(e, prev, mine) {
   if (e.act === "added") return `added ${mine ? "it" : `${e.label} to the date labels`}: keeps ${nDays(e.life)}${e.on ? "" : ", no label needed"}`;
   if (e.act === "opened") return `opened ${mine ? "one" : e.label}, use by ${dayName(e.useBy)}`;
   if (e.act === "changed") return `changed ${it}${late}. New one, use by ${dayName(e.useBy)}`;
-  if (e.act === "binned") return `binned ${it}${late}`;
+  if (e.act === "binned") return `discarded ${it}${late}`;
+  if (e.act === "found") return `found ${mine ? "one" : e.label} open with no label and dated it: use by ${dayName(e.useBy)}. ${e.note}`;
   if (e.act === "removed") return `took ${mine ? "it" : e.label} off the date labels`;
   const what = prev ? [prev.label !== e.label && `renamed from ${prev.label}`, prev.life !== e.life && `keeps ${nDays(e.life)}`, prev.area !== e.area && `moved to the ${lower(sideName(e.area))}`,
     prev.on !== e.on && (e.on ? "needs a label again" : "no label needed")] : [`keeps ${nDays(e.life)}`, !e.on && "no label needed"];
@@ -2882,11 +2894,12 @@ function labelText(e, prev, mine) {
 // The label being opened or changed ({id, act, v, date}), the one whose ⋯ is open, a manager's changes to it, its
 // history and the add form, kept apart from the page so a teammate's change redrawing it loses nothing.
 let lbo = null, lbm = "", lbe = null, lbh = null;
-const lbF = { item: "", life: "", on: true, open: false };
+const lbF = { item: "", life: "", on: true, open: false, station: "" };
+const stationField = (side, v, attr) => `<label class="fld">Station<input ${attr} maxlength="30" list="lb-stations" value="${esc(v)}" placeholder="Like Shake station or Garnish station"></label><datalist id="lb-stations">${stationsOf(side).map((k) => `<option value="${esc(k)}">`).join("")}</datalist>`;
 function labelRow(x) {
   const due = labelDue(x), [tag, cls] = x.on ? LB_DUE[due] : ["No label needed", ""];
   const b = (act, t, c = "") => `<button class="btn${c}" data-lb="${x.id}" data-lb-act="${act}">${t}</button>`;
-  const btns = !x.on ? "" : x.state === "open" ? b("changed", "Changed it", ["overdue", "today"].includes(due) ? " pri" : "") + b("binned", "Binned…") : b("opened", "Opened one", " pri");
+  const btns = !x.on ? "" : (x.state === "open" ? b("changed", "Changed it", ["overdue", "today"].includes(due) ? " pri" : "") + b("binned", "Discarded…") : b("opened", "Opened one", " pri") + b("found", "Found open"));
   return `<div class="lb${flashed("lb-" + x.id, x) ? " flash" : ""}"><div class="le-row"><div><b>${esc(x.item)}</b> <span class="pill ${cls}">${tag}</span>
       <div class="s">${x.pending ? "Saving… · " : ""}${esc(labelLine(x))}</div></div>
     <button class="more" data-lb-more="${x.id}" aria-expanded="${lbm === x.id}" aria-label="History${LIVE.admin ? " and changes" : ""}: ${esc(x.item)}">⋯</button></div>
@@ -2894,23 +2907,45 @@ function labelRow(x) {
 }
 // Opening or changing one: the date to write on the label, which can be brought forward to the pack's own date.
 function openHtml(x) {
+  if (lbo.act === "found") return foundHtml(x);
   return `<div class="lbo"><p class="s">${lbo.act === "changed" ? "Bin the old one, open a new one and write this on its label:" : "Write this on its label:"}</p>
     <p class="lbdate">Use by <b>${dayName(lbo.date)}</b></p>
     <label class="fld">Its own use-by date is sooner? Pick that instead<input type="date" data-lb-date min="${shiftDay()}" max="${addDays(shiftDay(), x.life)}" value="${lbo.date}"></label>
     <div class="actions"><button class="btn pri" data-lb-save="${x.id}">Save</button><button class="btn" data-lb-cancel>Cancel</button></div></div>`;
 }
-const LB_PAST = { added: "added", edited: "changed the details of", opened: "opened", changed: "changed", binned: "binned" };
+// Found one open with no label. Nobody can say when it was opened, so staff are told to discard it (the safe call). A
+// manager who knows (they opened it, or saw it opened) dates it to that day with a note saying how they know.
+function foundHtml(x) {
+  const min = addDays(shiftDay(), -x.life);
+  if (!LIVE.admin) return `<div class="lbo"><p><b>Don't know when it was opened? Discard it.</b> With no label nobody can say it's safe.</p>
+    <p class="s">Opening a new one? Tap Opened one. Someone knows the day it was opened? A manager can date it.</p>
+    <div class="actions"><button class="btn" data-lb-cancel>OK</button></div></div>`;
+  return `<div class="lbo"><p class="s">No label and nobody knows when it was opened? Discard it. Know the day? Date it, and say how you know:</p>
+    <label class="fld">Opened on<input type="date" data-lb-found min="${min}" max="${shiftDay()}" value="${lbo.date}"></label>
+    <p class="lbdate">Use by <b>${dayName(addDays(lbo.date, x.life))}</b></p>
+    <label class="fld">How you know<input data-lb-why maxlength="300" value="${esc(lbo.why || "")}" placeholder="I opened it at Sunday's close"></label>
+    <div class="actions"><button class="btn pri" data-lb-save="${x.id}">Date it</button><button class="btn" data-lb-cancel>Cancel</button></div></div>`;
+}
+const LB_PAST = { added: "added", edited: "changed the details of", opened: "opened", changed: "changed", binned: "discarded", found: "dated" };
 function saveOpen(x) {
   const max = addDays(shiftDay(), x.life), d = lbo.date, act = lbo.act;
   if (x.v !== lbo.v) { lbo = null; renderTally(); return toast(`${x.name} has just ${LB_PAST[x.act]} it. Check it and try again`); }
+  if (act === "found") {
+    const why = (lbo.why || "").trim().slice(0, 300);
+    if (!ISO_DAY.test(d) || d > shiftDay() || d < addDays(shiftDay(), -x.life)) return toast(`Pick a day from ${dayName(addDays(shiftDay(), -x.life))} to today. Older than that: discard it`);
+    if (!why) return toast("Say how you know when it was opened");
+    lbo = null;
+    track(LIVE.api.label(x, "found", { openedOn: d, useBy: addDays(d, x.life), note: why }), `Dated. Use by ${dayName(addDays(d, x.life))}`, "Not saved. Someone may have just changed it");
+    haptic(); renderTally(); return;
+  }
   if (!ISO_DAY.test(d) || d < shiftDay() || d > max) return toast(`Pick a date from today to ${dayName(max)}`);
   lbo = null;
   track(LIVE.api.label(x, act, { useBy: d }), `Saved. Use by ${dayName(d)}`, "Not saved. Someone may have just changed it");
   haptic(); renderTally();
 }
 function binLabel(x) {
-  if (!confirm(`Bin ${x.item}? Only if it's used up or thrown away, with no new one opened. Opened a new one? Tap Changed it instead.`)) return;
-  track(LIVE.api.label(x, "binned"), `${x.item} binned`, "Not saved. Someone may have just changed it");
+  if (!confirm(`Discard ${x.item}? Only if it's used up or thrown away, with no new one opened. Its days stay set for the next one. Opened a new one? Tap Changed it instead.`)) return;
+  track(LIVE.api.label(x, "binned"), `${x.item} discarded. Its days stay set for the next one`, "Not saved. Someone may have just changed it");
   haptic();
 }
 // ⋯: the label's history for everyone, and for managers, a form to change it or take it off the list.
@@ -2919,20 +2954,35 @@ function labelMore(x) {
     <label class="fld">What it is<input data-lbe="item" maxlength="60" value="${esc(lbe.item)}"></label>
     <div class="two"><label class="fld">Days it keeps<input data-lbe="life" inputmode="numeric" maxlength="3" value="${esc(lbe.life)}"></label>
       <label class="fld">Side<select data-lbe="side">${LB_SIDES.map((s) => `<option value="${s}"${s === lbe.side ? " selected" : ""}>${sideName(s)}</option>`).join("")}</select></label></div>
+    ${stationField(lbe.side, lbe.station, 'data-lbe="station"')}
     <label class="check"><input type="checkbox" data-lbe="on"${lbe.on ? " checked" : ""}> Needs a date label</label>
     <div class="actions"><button class="btn pri" data-lb-edit="${x.id}">Save changes</button><button class="btn danger" data-lb-del="${x.id}">Take it off the list</button></div>` : "";
-  return `<div class="tmore">${edit}<div class="mini">History</div>${labelHist(x)}</div>`;
+  return `<div class="tmore">${edit}${labelPhotoHtml(x)}<div class="mini">History</div>${labelHist(x)}</div>`;
+}
+// A photo of the pack or the label, as a record: the latest one, read when ⋯ is opened. Anyone can take one.
+let lbPh = null;
+function labelPhotoHtml(x) {
+  const p = lbPh?.id === x.id ? lbPh : null;
+  return `<div class="mini">Photo of the pack or label</div>
+    ${p?.busy ? `<p class="note">Reading…</p>` : p?.data ? `<div class="photo"><img src="${p.data}" alt="Photo of ${esc(x.item)}"><p class="s">Taken by ${esc(p.name)}${p.at ? `, ${when(p.at)}` : ""}</p></div>` : ""}
+    <div class="actions"><label class="btn" for="lb-ph-in">${p?.data ? "Take a new one" : "Take a photo"}</label><input type="file" accept="image/*" capture="environment" id="lb-ph-in" data-lb-ph="${x.id}" hidden></div>`;
+}
+async function loadLabelPhoto(id) {
+  lbPh = { id, busy: true }; renderTally();
+  const d = await LIVE.api.loadLabelPhoto(id).catch(() => null);
+  if (lbPh?.id === id) { lbPh = { id, ...(d || {}) }; renderTally(); }
 }
 function openMore(x) {
+  if (lbm !== x.id) loadLabelPhoto(x.id);
   lbm = lbm === x.id ? "" : x.id;
-  lbe = lbm && LIVE.admin ? { id: x.id, item: x.item, life: String(x.life), side: x.side, on: x.on } : null;
+  lbe = lbm && LIVE.admin ? { id: x.id, item: x.item, life: String(x.life), side: x.side, on: x.on, station: stationOf(x) === "Other" ? "" : stationOf(x) } : null;
   if (lbm) loadLabelHist(x.id); else renderTally();
 }
 function editLabel(x) {
-  const item = lbe.item.trim().slice(0, 60), life = Number(lbe.life), f = { item, life, side: lbe.side, on: lbe.on };
+  const item = lbe.item.trim().slice(0, 60), life = Number(lbe.life), f = { item, life, side: lbe.side, on: lbe.on, station: lbe.station.trim().slice(0, 30) };
   if (!item) return toast("Say what it is");
   if (!Number.isInteger(life) || life < 1 || life > 365) return toast("Days it keeps: a whole number from 1 to 365");
-  if (item === x.item && life === x.life && f.side === x.side && f.on === x.on) return toast("Nothing changed");
+  if (item === x.item && life === x.life && f.side === x.side && f.on === x.on && f.station === (stationOf(x) === "Other" ? "" : stationOf(x))) return toast("Nothing changed");
   if (dupLabel(item, f.side, x.id)) return toast(`${item} is on the ${lower(sideName(f.side))}'s list already`);
   track(LIVE.api.label(x, "edited", f), f.side === x.side ? "Saved. Every phone has it now" : `Saved. It's on the ${lower(sideName(f.side))}'s labels now`, "Not saved. Someone may have just changed it");
   if (f.side !== x.side) { lbm = ""; lbe = null; }
@@ -2966,10 +3016,10 @@ function labelListHtml(side) {
   const left = ideasLeft(side); if (!left.length) return "";
   const n = left.reduce((k, [, xs]) => k + xs.length, 0), open = lbS.open ?? !sideLabels(side).length;
   return `<details class="setup" id="lb-list"${open ? " open" : ""}><summary>Black Tap's list: ${n} not added yet</summary>
-    <p class="note">Everything the ${lower(sideName(side))} dates once it's opened. Days are filled in only where our closing procedure gives them. Fill in the rest from each pack ("once opened, use within…") or the kitchen's food safety sheet, untick anything this side doesn't keep, then add them.</p>
+    <p class="note">Everything the ${lower(sideName(side))} dates once it's opened. Days are filled in only where our closing procedure gives them. Fill in the rest from each pack ("once opened, use within…") or the kitchen's food safety sheet, untick anything this side doesn't keep, then add them. "typ." is what it typically keeps: the pack always wins.</p>
     ${left.map(([g, xs]) => `<div class="mini">${esc(g)}</div>${xs.map(([it, d]) => {
       const k = lbKey(side, it);
-      return `<div class="lbpick"><label class="check"><input type="checkbox" data-lbs-on="${esc(it)}"${lbS.off[k] ? "" : " checked"}> ${esc(it)}</label><input data-lbs-life="${esc(it)}" inputmode="numeric" maxlength="3" placeholder="Days" aria-label="Days ${esc(it)} keeps once opened" value="${esc(ideaLife(side, it, d))}"></div>`;
+      return `<div class="lbpick"><label class="check"><input type="checkbox" data-lbs-on="${esc(it)}"${lbS.off[k] ? "" : " checked"}> ${esc(it)}</label><input data-lbs-life="${esc(it)}" inputmode="numeric" maxlength="3" placeholder="${itKeep(it)?.days ? `typ. ${itKeep(it).days}` : "Days"}" aria-label="Days ${esc(it)} keeps once opened" value="${esc(ideaLife(side, it, d))}"></div>`;
     }).join("")}`).join("")}
     <div class="actions"><button class="btn pri" id="lbs-go">Add the ticked ones</button></div></details>`;
 }
@@ -2982,13 +3032,15 @@ function addIdeas(side) {
   if (!go.length) { $(`[data-lbs-life="${CSS.escape(wait[0][0])}"]`)?.focus(); return toast("Fill in the days it keeps once opened: a whole number from 1 to 365"); }
   let left = go.length, failed = 0;
   const done = () => { if (--left) return; toast(failed ? `${failed} not saved. Try again` : `${go.length} added${wait.length ? `. ${wait.length} still need their days` : ". Everyone on the " + lower(sideName(side)) + " can see them"}`); };
-  for (const [n, d] of go) track(LIVE.api.label(null, "added", { item: n, side, life: life(n, d), on: true }).catch((e) => { failed++; throw e; }).finally(done), null, null);
+  const st = (n) => ideasLeft(side).find(([, ys]) => ys.some(([m]) => m === n))?.[0] || "";
+  for (const [n, d] of go) track(LIVE.api.label(null, "added", { item: n, side, life: life(n, d), on: true, station: st(n) === "Added by the team" ? "" : st(n) }).catch((e) => { failed++; throw e; }).finally(done), null, null);
   haptic(); renderTally();
 }
 function labelAddHtml(side) {
   return `${labelListHtml(side)}<details class="setup" id="lb-add"${lbF.open ? " open" : ""}><summary>Add something else to date</summary>
     <label class="fld">What it is<input id="lb-item" maxlength="60" value="${esc(lbF.item)}" placeholder="Anything opened that goes off"></label>
     <label class="fld">Days it keeps once opened<input id="lb-life" inputmode="numeric" maxlength="3" value="${esc(lbF.life)}"></label>
+    ${stationField(side, lbF.station, 'id="lb-station"')}
     <label class="check"><input type="checkbox" id="lb-on"${lbF.on ? " checked" : ""}> Needs a date label</label>
     ${draftBar("label")}<div class="actions"><button class="btn pri" id="lb-go">Add it</button></div></details>`;
 }
@@ -2997,14 +3049,22 @@ function addLabel(side) {
   if (!item) return toast("Say what it is");
   if (!Number.isInteger(life) || life < 1 || life > 365) return toast("Days it keeps once opened: a whole number from 1 to 365");
   if (dupLabel(item, side)) return toast(`${item} is on the list already`);
-  track(LIVE.api.label(null, "added", { item, side, life, on: lbF.on }), `${item} added. Everyone on the ${lower(sideName(side))} can see it`, "Not saved. Try again");
-  Object.assign(lbF, { item: "", life: "", on: true }); haptic(); renderTally();
+  track(LIVE.api.label(null, "added", { item, side, life, on: lbF.on, station: lbF.station.trim().slice(0, 30) }), `${item} added. Everyone on the ${lower(sideName(side))} can see it`, "Not saved. Try again");
+  Object.assign(lbF, { item: "", life: "", on: true, station: "" }); haptic(); renderTally();
+}
+// The side's labels under their stations, the stations in the order of Black Tap's list, each with how many to change.
+function labelsByStation(side) {
+  const xs = sideLabels(side); if (!xs.length) return "";
+  const order = [...stationsOf(side), "Other"], by = new Map(order.map((k) => [k, []]));
+  for (const x of xs) { const k = stationOf(x); if (!by.has(k)) by.set(k, []); by.get(k).push(x); }
+  return [...by].filter(([, ys]) => ys.length).map(([k, ys]) => { const n = ys.filter((x) => x.on && ["overdue", "today"].includes(labelDue(x))).length;
+    return `<div class="mini lbst">${esc(k)}${n ? ` <span class="pill no">${n} to change</span>` : ""}</div>${ys.map(labelRow).join("")}`; }).join("");
 }
 function labelsHtml(side) {
   const head = `<div class="sec">Date labels</div>`;
   if (!LIVE.loaded.has("labels")) return `${head}<p class="note">Loading. It needs signal the first time.</p>`;
-  return `${head}<p class="note">Opened one? Tap Opened one and write the date it gives you on the label. Binned the old one and opened a new one? Tap Changed it. Each tap is saved with your name and the time.</p>
-    ${sideLabels(side).map(labelRow).join("") || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
+  return `${head}<p class="note">Opened one? Tap Opened one and write the date it gives you on the label. Binned the old one and opened a new one? Tap Changed it. Found one open with no label? Tap Found open. Each tap is saved with your name and the time.</p>
+    ${labelsByStation(side) || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
     ${sideLabels(side).some((x) => x.on) ? `<div class="actions">${sendBtn("labels", "Send the date labels", side)}</div>` : ""}
     ${LIVE.admin ? labelAddHtml(side) : ""}`;
 }
@@ -3150,6 +3210,14 @@ $("#tally").addEventListener("change", async (e) => {
     haptic(); return;
   }
   if (t.dataset.phNote) { track(LIVE.api.notePhoto(t.dataset.phNote, t.value.trim()), null, "Note not saved"); return; }
+  if (t.id === "lb-ph-in" && t.files[0]) {
+    const x = LIVE.labels.find((y) => y.id === t.dataset.lbPh); if (!x) return;
+    const data = await shrink(t.files[0]).catch(() => null); t.value = "";
+    if (!data) return toast("Couldn't read that photo");
+    lbPh = { id: x.id, data, name: LIVE.me };
+    track(LIVE.api.labelPhoto(x, data), "Photo kept with the label", "Photo not saved. Try again"); renderTally(); return;
+  }
+  if (t.dataset.lbFound != null && lbo) { if (ISO_DAY.test(t.value)) { lbo.date = t.value; renderTally(); } return; }
   if (t.dataset.lbDate != null && lbo) { if (ISO_DAY.test(t.value)) { lbo.date = t.value; t.closest(".lbo").querySelector(".lbdate b").textContent = dayName(t.value); } return; }
   if (t.id === "lb-on") { lbF.on = t.checked; return; }
   if (t.dataset.lbsOn != null) { lbS.off[lbKey(mode, t.dataset.lbsOn)] = !t.checked; return; }
@@ -3167,6 +3235,8 @@ $("#tally").addEventListener("input", (e) => {
   if (e.target.id === "rs-detail") { rsF.detail = e.target.value; return; }
   if (e.target.id === "lb-item") { lbF.item = e.target.value; return; }
   if (e.target.id === "lb-life") { lbF.life = e.target.value; return; }
+  if (e.target.id === "lb-station") { lbF.station = e.target.value; return; }
+  if (e.target.dataset.lbWhy != null && lbo) { lbo.why = e.target.value; return; }
   if (e.target.dataset.lbsLife != null) { lbS.life[lbKey(mode, e.target.dataset.lbsLife)] = e.target.value; return; }
   if (lbe && e.target.dataset.lbe && e.target.type !== "checkbox") { lbe[e.target.dataset.lbe] = e.target.value; return; }
   if (e.target.dataset.hoF) { ho[e.target.dataset.hoF] = e.target.value; keepDraft(); }
@@ -3255,7 +3325,7 @@ $("#tally").addEventListener("click", async (e) => {
   const la = e.target.closest("[data-lb]"); if (la) {
     const x = lbOf(la, "lb"); if (!x) return;
     if (la.dataset.lbAct === "binned") return binLabel(x);
-    lbo = { id: x.id, act: la.dataset.lbAct, v: x.v, date: addDays(shiftDay(), x.life) }; renderTally(); return;
+    lbo = { id: x.id, act: la.dataset.lbAct, v: x.v, date: la.dataset.lbAct === "found" ? shiftDay() : addDays(shiftDay(), x.life) }; renderTally(); return;
   }
   const ls = e.target.closest("[data-lb-save]"); if (ls) { const x = lbOf(ls, "lbSave"); if (x) saveOpen(x); return; }
   if (e.target.closest("[data-lb-cancel]")) { lbo = null; renderTally(); return; }
@@ -3276,10 +3346,10 @@ $("#tally").addEventListener("click", async (e) => {
   const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
   const oq = e.target.closest("[data-out-quick]"); if (oq) { const n = oq.dataset.outQuick; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return; }
   if (e.target.closest("#s-86-go")) {
-    const n = $("#s-86-own").value.trim().replace(/\s+/g, " ").slice(0, 80);
+    const typed = $("#s-86-own").value.trim().replace(/\s+/g, " ").slice(0, 80), n = typed && itFix86(typed);
     if (!n) return toast("Type what ran out");
     if (outNow().has(n)) return toast(`${n} is already 86'd`);
-    setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return;
+    setOut(n, true); haptic(); toast(n === typed ? `${n} 86'd` : `${n} 86'd (you typed “${typed}”)`); renderList(); renderTally(); return;
   }
   if (e.target.closest("[data-out-clear]")) {
     const xs = [...outNow()];

@@ -907,6 +907,53 @@ describe("date labels: managers keep the list, anyone opens, changes or bins one
   });
 });
 
+describe("date labels: stations, found open with no label, and photos", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  test("a station is optional, managers set or change it, and only as a change of details", async () => {
+    const { b, id } = await labelBatch(db("mgr1"), "mgr1", "added", { l: { station: "Shake station" } });
+    await assertSucceeds(b.commit());
+    await fails((await labelBatch(db("mgr1"), "mgr1", "added", { l: { station: "x".repeat(31) } })).b.commit(), "station too long");
+    await assertSucceeds((await labelBatch(db("mgr1"), "mgr1", "edited", { id, l: { station: "Cake fridge" } })).b.commit());
+    await fails((await labelBatch(db("staff1"), "staff1", "opened", { id, l: { station: "Garnish station" } })).b.commit(), "staff moving it while opening");
+    await assertSucceeds((await labelBatch(db("staff1"), "staff1", "opened", { id, l: { station: "Cake fridge" } })).b.commit());
+  });
+  // A label found open: dated back to the day it was opened, with a note, in the manager's name.
+  async function found(uid, id, openedOn, { useBy, note = "Opened at Sunday's close, Hassan saw it", l = {} } = {}) {
+    const d = db(uid), cur = await current(`labels/${id}`), v = cur.v + 1, b = writeBatch(d);
+    const x = { item: cur.item, side: cur.side, life: cur.life, on: cur.on, state: "open", openedOn, useBy: useBy ?? plusDays(openedOn, cur.life), openedBy: TEAM[uid].name, openedUid: uid, act: "found", v, ...by(uid), ...l };
+    b.set(doc(d, "labels", id), x);
+    b.set(doc(d, "events", `l-${id}-${v}`), { kind: "label", day: today(), ref: id, label: cur.item, area: cur.side, act: "found", life: cur.life, on: cur.on, useBy: x.useBy, was: cur.useBy, note, v, ...by(uid) });
+    return b.commit();
+  }
+  test("only managers date one found open, back to its life at most, with a note", async () => {
+    const { b, id } = await labelBatch(db("mgr1"), "mgr1", "added", { def: { life: 3 } });
+    await b.commit();
+    await fails(found("staff1", id, plusDays(today(), -1)), "staff");
+    await fails(found("mgr1", id, plusDays(today(), -1), { note: "" }), "no note");
+    await fails(found("mgr1", id, plusDays(today(), 2)), "opened in the future");
+    await fails(found("mgr1", id, plusDays(today(), -6)), "older than its life");
+    await fails(found("mgr1", id, plusDays(today(), -1), { useBy: plusDays(today(), 5) }), "use-by past its life");
+    await assertSucceeds(found("mgr1", id, plusDays(today(), -1)));
+    const now = await current(`labels/${id}`);
+    assert.equal(now.openedOn, plusDays(today(), -1)); assert.equal(now.useBy, plusDays(today(), 2)); assert.equal(now.openedBy, "Mia Manager");
+    // A newer one found open on top of it: a manager dates that one too.
+    await assertSucceeds(found("owner1", id, today()));
+  });
+  test("anyone on the team keeps a photo of a label's pack; managers remove it", async () => {
+    const { b, id } = await labelBatch(db("mgr1"), "mgr1", "added");
+    await b.commit();
+    const ph = (uid, extra = {}) => ({ data: JPEG, label: "Apple juice", ...by(uid), ...extra });
+    await assertSucceeds(setDoc(doc(db("staff1"), "labelPhotos", id), ph("staff1")));
+    await assertSucceeds(setDoc(doc(db("staff2"), "labelPhotos", id), ph("staff2")));
+    await assertSucceeds(getDoc(doc(db("staff1"), "labelPhotos", id)));
+    await fails(setDoc(doc(db("staff1"), "labelPhotos", "nolabel123"), ph("staff1")), "no such label");
+    await fails(setDoc(doc(db("staff1"), "labelPhotos", id), ph("staff1", { data: "data:image/png;base64,AAAA" })), "not a JPEG");
+    await fails(setDoc(doc(db("staff1"), "labelPhotos", id), ph("staff1", { name: "Mia Manager" })), "someone else's name");
+    await fails(deleteDoc(doc(db("staff1"), "labelPhotos", id)), "staff removing");
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "labelPhotos", id)));
+  });
+});
+
 describe("items the team adds: anyone suggests one, the owner approves it", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const item = (uid, extra = {}) => ({ item: "Rubicon Mango", kind: "soft", group: "Soft drinks and mixers", side: "bar", store: "bottle", label: false, life: 0,

@@ -413,7 +413,9 @@ service cloud.firestore {
     }
     function validLabel() {
       let l = incoming();
-      return exactly(['item', 'side', 'life', 'on', 'state', 'openedOn', 'useBy', 'openedBy', 'openedUid', 'act', 'v', 'uid', 'name', 'at'])
+      let keys = ['item', 'side', 'life', 'on', 'state', 'openedOn', 'useBy', 'openedBy', 'openedUid', 'act', 'v', 'uid', 'name', 'at'];
+      // station (where on the side it lives) came later, so older labels have none.
+      return l.keys().hasAll(keys) && l.keys().hasOnly(keys.concat(['station'])) && optText(l.get('station', ''), 30)
         && reqText(l.item, 60) && l.side in ['bar', 'floor'] && l.life is int && l.life >= 1 && l.life <= 365 && l.on is bool;
     }
     function notOpen(l) { return l.state == 'none' && l.openedOn == null && l.useBy == null && l.openedBy == null && l.openedUid == null; }
@@ -423,15 +425,35 @@ service cloud.firestore {
         && dayOf(l.useBy) >= dayOf(l.openedOn) && dayOf(l.useBy) <= dayOf(l.openedOn) + duration.value(l.life, 'd')
         && l.openedBy == profile().data.name && l.openedUid == request.auth.uid;
     }
+    // Found open with no label: a manager dates it to the day it was opened, no later than today and no further back
+    // than its life (any older is past its use-by anyway), with the use-by its life gives it from then. Staff are told to
+    // discard one when nobody knows when it was opened.
+    function foundOpen(l) {
+      return l.state == 'open' && isDay(l.openedOn) && dayOf(l.openedOn) < request.time + duration.value(1, 'd')
+        && dayOf(l.openedOn) > request.time - duration.value(l.life + 2, 'd') && isDay(l.useBy)
+        && dayOf(l.useBy) >= dayOf(l.openedOn) && dayOf(l.useBy) <= dayOf(l.openedOn) + duration.value(l.life, 'd')
+        && l.openedBy == profile().data.name && l.openedUid == request.auth.uid;
+    }
     function labelMove() {
       let l = incoming();
       let old = resource.data;
       let same = l.state == old.state && l.openedOn == old.openedOn && l.useBy == old.useBy && l.openedBy == old.openedBy && l.openedUid == old.openedUid;
-      let def = l.item == old.item && l.side == old.side && l.life == old.life && l.on == old.on;
+      let def = l.item == old.item && l.side == old.side && l.life == old.life && l.on == old.on && l.get('station', '') == old.get('station', '');
       return (l.act == 'edited' && isManager() && same && !def)
         || (l.act == 'opened' && def && old.state == 'none' && openedNow(l))
         || (l.act == 'changed' && def && old.state == 'open' && openedNow(l))
-        || (l.act == 'binned' && def && old.state == 'open' && notOpen(l));
+        || (l.act == 'binned' && def && old.state == 'open' && notOpen(l))
+        || (l.act == 'found' && def && isManager() && foundOpen(l));
+    }
+
+    // ---------- A photo of a date label's pack or label ----------
+    // labelPhotos/{label id}: the latest photo anyone on the team took of it (a JPEG, like the closing photos), as a record.
+    match /labelPhotos/{id} {
+      allow read: if isMember();
+      allow create, update: if isMember() && exists(labelDoc(id)) && exactly(['data', 'label', 'uid', 'name', 'at']) && stamped()
+        && reqText(incoming().label, 60) && incoming().data is string && incoming().data.size() <= 700000
+        && incoming().data.matches('data:image/jpeg;base64,[A-Za-z0-9+/=]+');
+      allow delete: if isManager();
     }
 
     // ---------- Items the team adds: anything new behind the bar or on the floor ----------
@@ -574,7 +596,7 @@ service cloud.firestore {
       let after = getAfter(labelDoc(e.ref));
       let l = after == null ? before.data : after.data;
       return exactly(['kind', 'day', 'ref', 'label', 'area', 'act', 'life', 'on', 'useBy', 'was', 'note', 'v', 'uid', 'name', 'at'])
-        && autoId(e.ref) && id == 'l-' + e.ref + '-' + string(e.v) && e.note == ''
+        && autoId(e.ref) && id == 'l-' + e.ref + '-' + string(e.v) && (e.act == 'found' ? reqText(e.note, 300) : e.note == '')
         && (after == null
           ? before != null && e.act == 'removed' && e.v == before.data.v + 1 && e.useBy == null
           : after.data.at == request.time && after.data.v == e.v && after.data.act == e.act && e.useBy == after.data.useBy
