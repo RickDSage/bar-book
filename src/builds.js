@@ -81,6 +81,9 @@ const FIX = {
   "Moscow Mule": { ml: { "lime juice": 15 }, add: ["3 dashes Angostura"] },
   "Old Fashioned": { rename: { "rich sugar syrup (2:1)": "sugar syrup", "rich sugar syrup": "sugar syrup" }, ml: { "sugar syrup": 10 } },
   "Sex on the Beach": { ml: { "Smirnoff": 35 } },
+  // Buffalo Trace is the bourbon on this card and on site, Bulleit is the swap (owner, 17 Nov 2026). The Paddington stays
+  // as it is in the app (owner, same day).
+  "Marshmallow Boulevard": { rename: { "Buffalo Trace": "Buffalo Trace" } },
   "Tom Collins": { ml: { "sugar syrup": 15 } },
 };
 // One name for each ingredient in every drink, and one choice where a spec offered two.
@@ -107,7 +110,8 @@ function fixSpec(name, spec) {
   const out = spec.flatMap((l) => {
     const t = l.match(/^Top (.*)$/);
     const m = l.match(/^(Top )?([\d.]+) ml (.*)$/); if (!m) return [t ? `Top ${word(t[1])}` : word(l)];
-    const item = word((f.rename || {})[m[3]] || m[3]);
+    // A rename is the drink's own word, so the house-wide WORDS don't change it back.
+    const item = (f.rename || {})[m[3]] || word(m[3]);
     if ((f.drop || []).includes(item)) return [];
     if (item === "aquafaba") return [FOAMER];
     return [`${m[1] || ""}${(f.ml || {})[item] ?? m[2]} ml ${item}`];
@@ -122,7 +126,7 @@ const asItem = (l) => { const m = l.match(/^([\d.]+) ml (.*)$/); return m ? { ml
 function fixSteps(name, steps) {
   const f = FIX[name] || {};
   const out = steps.map((s) => {
-    const items = s.items && s.items.map((i) => ({ ...i, item: word((f.rename || {})[i.item] || i.item) })).filter((i) => !(f.drop || []).includes(i.item))
+    const items = s.items && s.items.map((i) => ({ ...i, item: (f.rename || {})[i.item] || word(i.item) })).filter((i) => !(f.drop || []).includes(i.item))
       .map((i) => (i.item === "aquafaba" ? { ...i, ml: null, item: FOAMER, hint: null } : i))
       .map((i) => (f.ml || {})[i.item] != null && i.ml != null ? { ...i, ml: f.ml[i.item], hint: HINT[f.ml[i.item]] || null } : i);
     return { ...s, items, text: wordText((f.text || {})[s.scene] || s.text) };
@@ -316,6 +320,7 @@ const SUBS = [
   [/El Jimador Blanco/, "No El Jimador Blanco? Use El Jimador Reposado."],
   [/El Jimador Reposado/, "No El Jimador Reposado? Use El Jimador Blanco."],
   [/Amarás Mezcal/, "No mezcal? Use El Jimador Blanco (it loses the smoke)."],
+  [/Buffalo Trace/, "No Buffalo Trace? Use Bulleit."],
   [/Bulleit Bourbon/, "No Bulleit? Use Buffalo Trace."],
   [/Jack Daniel's/, "No Jack Daniel's? Use Buffalo Trace."],
   [/Jameson/, "No Jameson? Use Johnnie Walker Black Label."],

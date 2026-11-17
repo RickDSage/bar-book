@@ -57,7 +57,7 @@ const names = drinks.map((d) => d.name);
 if (new Set(names).size !== names.length) throw new Error("Duplicate drink name");
 // UK law: gin, rum, vodka and whisky sold on the premises go in 25 ml or 35 ml steps (this bar: 25 ml), unless mixed
 // with two or more other liquids (Weights and Measures (Intoxicating Liquor) Order 1988, article 3).
-const LAW_SPIRIT = /\b(gin|vodka|rum|whiske?y|bourbon|scotch|rye|tanqueray|smirnoff|grey goose|ciroc|captain morgan|kraken|bacardi|wray|jameson|jack daniel|bulleit|jw black|aviation)\b/i;
+const LAW_SPIRIT = /\b(gin|vodka|rum|whiske?y|bourbon|scotch|rye|tanqueray|smirnoff|grey goose|ciroc|captain morgan|kraken|bacardi|wray|jameson|jack daniel|bulleit|buffalo trace|jw black|aviation)\b/i;
 const NOT_SPIRIT = /liqueur|syrup|juice|cordial|vermouth|cream|beer|ginger|tonic|sloe|schnapps|bitters|falernum|pur[ée]e|cola|soda|lemonade|brine/i;
 for (const d of drinks) {
   const liquids = d.spec.filter((l) => /\bml\b|^top\b/i.test(l));
