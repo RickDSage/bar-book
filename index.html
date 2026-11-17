@@ -1236,15 +1236,29 @@ const hhmm = (d) => d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-
 const stamp = (d) => `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: UK })}, ${hhmm(d)}`;
 /* Saving state. Firestore keeps a change on the phone until the server takes it, so nothing is called sent until then.
    After a moment, or with no signal, a banner says what's still waiting. */
-let unsent = 0, slow = 0;
+let unsent = 0, slow = 0, earlier = false;
 function renderNet() {
   const n = $("#net"), off = !navigator.onLine, many = (k) => `${k} change${k > 1 ? "s" : ""}`;
-  n.hidden = !LIVE.me || (!off && !slow);
+  n.hidden = !LIVE.me || (!off && !slow && !earlier);
   document.body.classList.toggle("neton", !n.hidden);
   n.classList.toggle("off", off);
-  n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : "No signal. Showing what this phone last saw")
-    : `Sending ${many(unsent)}…`;
+  n.textContent = off ? (unsent ? `No signal. ${many(unsent)} saved on this phone, sending when you're back online` : earlier ? "No signal. Changes saved on this phone, sending when you're back online" : "No signal. Showing what this phone last saw")
+    : slow ? `Sending ${many(unsent)}…` : "Sending changes saved on this phone earlier…";
 }
+// Changes made with no signal are kept on the phone (even if the app is closed) and sent in order once it's back.
+// When the app opens or the signal comes back, show that some are still going, and say when they've all arrived.
+let wasOff = !navigator.onLine, queueCheck = null;
+function checkQueued() {
+  if (!LIVE.api?.queued || !LIVE.me || queueCheck) return;
+  const t = setTimeout(() => { earlier = true; renderNet(); }, 1500), after = wasOff;
+  queueCheck = LIVE.api.queued().then(() => {
+    clearTimeout(t); queueCheck = null;
+    if (earlier || after) toast("Back online. Everything's sent");
+    earlier = false; wasOff = false; renderNet();
+  }, () => { clearTimeout(t); queueCheck = null; earlier = false; renderNet(); });
+}
+addEventListener("offline", () => { wasOff = true; });
+addEventListener("online", () => setTimeout(checkQueued, 300));
 function track(p, ok, fail = "Not saved. Try again") {
   unsent++; let late = false;
   const t = setTimeout(() => { late = true; slow++; renderNet(); }, 1200);
@@ -2418,7 +2432,8 @@ function tallyText() {
       return xs.length ? `\n${title}:\n${xs.join("\n")}` : "";
     };
     const c = closeClock(k);
-    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}`;
+    const who = groupsOf(k).filter(([g]) => g).map(([g, xs]) => { const w = secWho(k, xs.map(([i]) => i)); return !w.first ? "" : `- ${g}: ${!w.last || w.last === w.first ? `${openOf(k, xs.map(([i]) => i)).length ? "started" : "done"} by ${w.first}` : `started by ${w.first}, finished by ${w.last}`}`; }).filter(Boolean);
+    return `${LISTS[k].title}: ${p.n} of ${p.of} done${p.skipped ? `, ${p.skipped} not needed tonight` : ""}${c ? `\nStarted ${hhmm(new Date(c.start))}, ${c.done ? "took" : "so far"} ${minsText(c.mins)}` : ""}${r ? `\n${runText(k)}` : ""}${items("Not done", ["todo", "doing"])}${items("Blocked", ["blocked"])}${items("Not needed tonight", ["cancelled"])}${who.length ? `\nWho did each part:\n${who.join("\n")}` : ""}`;
   };
   return `Black Tap Soho ${mode} shift, ${day}\nRun by: ${LIVE.me}\n\n${MODE_LISTS[mode].map(list).join("\n\n")}\n\n${labelsReport()}\n\n86'd: ${outNow().size ? [...outNow()].join(", ") : "nothing"}\n\nNote for handover:\n${hoNote() || "None"}\n\nClosed by: ${closer || "(not picked)"}${noPhotos && !draftPhotos().length ? `\nNo closing photos: ${noPhotos}` : ""}${loggedLines().length ? `\n\nLogged tonight:\n${loggedLines().map((l) => `- ${l}`).join("\n")}` : ""}`;
 }
@@ -2597,7 +2612,7 @@ function checklistHtml(k) {
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
     const on = g && left ? onIt(k, xs) : [];
-    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${on.length || !LIVE.me ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">I'll do this</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${on.length ? `<p class="lon"><b translate="no">${esc(on.join(", "))}</b> on it</p>` : ""}` : "";
+    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${!LIVE.me || on.includes(LIVE.me) ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">${on.length ? "Take over" : "I'll do this"}</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${secWhoHtml(k, xs, left, on)}` : "";
     // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
     const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
@@ -2610,11 +2625,26 @@ function checklistHtml(k) {
 // Splitting the close: "I'll do this" on a heading starts everything not yet started under it in your name, so the
 // others see who has that part and pick another. It is the same Start as on each item (no new data), so Stop on an
 // item, Done or Tick all carry on as usual. The heading names whoever has started something under it.
+// Who started a heading's part and who finished it, from tonight's record of every tick: someone who leaves early is
+// still named for what they did, and whoever takes over is named for finishing it.
+function secWho(k, ids) {
+  const ev = LIVE.events.filter((e) => e.kind === "task" && e.list === k && ids.includes(e.item) && (e.to === "doing" || e.to === "done")).sort((a, b) => ms(a.at) - ms(b.at));
+  const done = ev.filter((e) => e.to === "done");
+  return { first: ev[0]?.name || "", last: done.at(-1)?.name || "" };
+}
+function secWhoHtml(k, xs, left, on) {
+  const w = secWho(k, xs.map(([i]) => i)), now = on.filter((n) => n !== w.first);
+  const t = !w.first ? (on.length ? `<b translate="no">${esc(on.join(", "))}</b> on it` : "")
+    : !left ? (w.first === w.last ? `Done by <b translate="no">${esc(w.first)}</b>` : `Started by <b translate="no">${esc(w.first)}</b> · finished by <b translate="no">${esc(w.last)}</b>`)
+    : `Started by <b translate="no">${esc(w.first)}</b>${now.length ? ` · now <b translate="no">${esc(now.join(", "))}</b>` : on.includes(w.first) ? "" : " · nobody on it now"}`;
+  return t ? `<p class="lon">${t}</p>` : "";
+}
 const onIt = (k, xs) => [...new Set(xs.filter(([i]) => statusOf(k, i) === "doing").map(([i]) => { const x = taskOf(k, i); return x && lastMove(k, i, x).name; }).filter(Boolean))];
 function claimGroup(k, g) {
   if (isLocked(k)) return toast(`${LISTS[k].title} is finished. Reopen it to change anything`);
   const ids = shown(k).filter(([i]) => groupOf(k, i) === g && statusOf(k, i) === "todo").map(([i]) => i);
-  if (!ids.length) return toast("Nothing left to start there");
+  // Taking over from someone who left: what they started stays in their name, and each tick from here is in yours.
+  if (!ids.length) return toast(openOf(k, shown(k).filter(([i]) => groupOf(k, i) === g).map(([i]) => i)).length ? `${g}: it's yours. Tick each one as you finish it` : "Nothing left to start there");
   haptic();
   const p = Promise.all(ids.map((i) => LIVE.api.setTask(k, i, itemText(k, i), "doing")))
     .then(() => { if (!runOf(k)) { const q = progress(k); return LIVE.api.setRun(k, LISTS[k].title, "started", q.n, q.of); } });
@@ -2963,9 +2993,6 @@ function stillToDoHtml() {
     ${open.map(([k, i, t]) => `<button class="todo" data-jump="${k}" data-jump-i="${i}">${st(k, i)}${esc(t)} <span class="s">· ${esc(LISTS[k].short)}</span></button>`).join("")}</details>`;
 }
 const nextBtn = (to, label) => `<button class="btn wide next" data-pane="${to}">${label} \u203a</button>`;
-const OTHER = "Other (write it in)";
-// The stock list plus what the team has added (items.js), each in its group.
-const stockOptions = (skip, pick = "") => Object.entries(stockGroups()).map(([g, xs]) => `<optgroup label="${g}">${xs.filter((x) => !skip(x)).map((x) => `<option${x === pick ? " selected" : ""}>${esc(x)}</option>`).join("")}</optgroup>`).join("");
 /* ---------- Restocking from the cellar (logged in) ----------
    Ask for something, how much and where it's going. Anyone can take it on (or a manager gives it to someone), bring it
    up saying how much they moved, and whoever is there confirms how much arrived, so a request is never taken as proof
@@ -2983,7 +3010,7 @@ const rsWait = (r) => (r.pending ? 0 : ["asked", "given"].includes(r.status) ? m
 const rsLate = (r) => rsWait(r) >= RS_LATE;
 const rsLateText = (r) => (r.status === "delivered" ? `Not confirmed after ${rsWait(r)} min` : `Waiting ${rsWait(r)} min`);
 // Kept outside the form so live updates don't wipe a half-filled ask.
-const rsF = { item: "", other: "", qty: "1", unit: "each", dest: "", detail: "" };
+const rsF = { item: "", qty: "1", unit: "each", dest: "", detail: "" };
 const rsDest = () => rsF.dest || { bar: "up", floor: "floor" }[mode];
 function rsCard(r) {
   const A = LIVE.admin, mine = r.whoUid === LIVE.uid, asker = r.askedUid === LIVE.uid, st = r.status;
@@ -3012,8 +3039,7 @@ function restockHtml() {
   const head = `<div class="sec">Restock from the cellar</div>`;
   const open = rsOpen().sort((a, b) => ms(a.askedAt) - ms(b.askedAt)), done = LIVE.restock.filter((r) => !RS_OPEN.includes(r.status) && bday(r.at) === shiftDay());
   return `${head}
-    <label class="fld">What's needed<select id="rs-item"><option value="">Choose…</option><option${rsF.item === OTHER ? " selected" : ""}>${OTHER}</option>${stockOptions(() => false, rsF.item)}</select></label>
-    ${rsF.item === OTHER ? `<label class="fld">What is it<input id="rs-other" maxlength="80" value="${esc(rsF.other)}"></label>` : ""}
+    <div class="fld">What's needed${pkBtn(rsF.item ? `<b class="pk-chosen" translate="no">${esc(rsF.item)}</b> <small>Change</small>` : "Search or pick what's needed", 'id="rs-item"')}</div>
     <div class="two"><label class="fld">How many<input id="rs-qty" inputmode="decimal" value="${esc(rsF.qty)}"></label><label class="fld">Unit<select id="rs-unit">${Object.keys(UNIT).map((u) => `<option value="${u}"${u === rsF.unit ? " selected" : ""}>${u === "each" ? "Each" : UNIT[u][1][0].toUpperCase() + UNIT[u][1].slice(1)}</option>`).join("")}</select></label></div>
     <div class="fld">Where it's going<div class="recent" style="margin-top:6px">${Object.entries(DEST).map(([k, t]) => `<button class="chip" data-rs-dest="${k}" aria-pressed="${k === rsDest()}">${t}</button>`).join("")}</div></div>
     <label class="fld">Detail (optional)<input id="rs-detail" maxlength="200" value="${esc(rsF.detail)}" placeholder="Running low, the big bottles, for the weekend…"></label>
@@ -3272,6 +3298,7 @@ function addIdeas(side) {
 function labelAddHtml(side) {
   return `${labelListHtml(side)}<details class="setup" id="lb-add"${lbF.open ? " open" : ""}><summary>Add something else to date</summary>
     <label class="fld">What it is<input id="lb-item" maxlength="60" value="${esc(lbF.item)}" placeholder="Anything opened that goes off"></label>
+    ${pkBtn("Or pick it from the list", 'data-lb-pick')}
     <label class="fld">Days it keeps once opened<input id="lb-life" inputmode="numeric" maxlength="3" value="${esc(lbF.life)}"></label>
     ${stationField(side, lbF.station, 'id="lb-station"')}
     <label class="check"><input type="checkbox" id="lb-on"${lbF.on ? " checked" : ""}> Needs a date label</label>
@@ -3323,13 +3350,28 @@ function labelsReport() {
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
-    <p class="note">The close, or anything you worked on. Take them here or choose from your photos: they go with your report.</p>
-    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div>`).join("")}
+    <p class="note">Any time of the shift, from a phone or the iPad. Each one is saved for tonight straight away (with no signal it waits on the phone, even if the app is closed) and goes with the handover. Send now shares one on WhatsApp as well.</p>
+    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div></div>`).join("")}
     ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
       : photoBusy ? `<p class="note" role="status">Adding…</p>`
       : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
 }
 let photoBusy = false;
+// A saved photo as a file, made straight away (no waiting), because the share sheet only opens from the tap itself.
+function dataFile(url, name) {
+  const bin = atob(url.slice(url.indexOf(",") + 1)), u = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) u[i] = bin.charCodeAt(i);
+  return new File([u], name, { type: "image/jpeg" });
+}
+// Send now: the photo on its own to the share sheet (WhatsApp and the rest). It stays saved for tonight either way.
+function sendPhotoNow(id) {
+  const p = LIVE.draftPhotos.find((x) => x.id === id); if (!p) return;
+  const f = dataFile(p.data, `${(p.note || "closing-photo").replace(/[^\w ]+/g, "").trim().slice(0, 40).replace(/ +/g, "-") || "closing-photo"}.jpg`);
+  if (navigator.canShare?.({ files: [f] })) return navigator.share({ files: [f] }).catch(() => {});
+  const u = URL.createObjectURL(f), a = document.createElement("a"); a.href = u; a.download = f.name; a.target = "_blank"; a.rel = "noopener";
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000);
+  toast("This phone can't share photos straight to apps: it's opened to save instead");
+}
 // Phone photos are several MB; shrink to a JPEG under about 450 KB (600,000 characters of text) so each fits in one
 // database record and a month of them stays well inside the free storage. The rules refuse anything over 700,000.
 async function shrink(file) {
@@ -3373,11 +3415,10 @@ function renderTally() {
     fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${putAwayHtml("floor")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
-      ${outList.length ? outList.map((n) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) ? `<div class="s">86'd by ${outBy(n)}</div>` : ""}</div><button class="btn" data-back="${esc(n)}">Back in stock</button></div>`).join("") : `<p class="note">Nothing 86'd.</p>`}
+      ${outList.length ? outList.map((n) => { const sw = pkSwap(n), u = pkUses(n); return `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) || u ? `<div class="s">${outBy(n) ? `86'd by ${outBy(n)}` : ""}${u ? `${outBy(n) ? " · " : ""}${plural(u, "drink")} use it` : ""}</div>` : ""}${sw ? `<div class="s pk-sw">${esc(sw)}</div>` : ""}</div><button class="btn" data-out-back="${esc(n)}">Back in stock</button></div>`; }).join("") : `<p class="note">Nothing 86'd.</p>`}
       ${outList.length ? `<div class="actions">${sendBtn("out", "Send the 86 list")}<button class="btn" data-out-clear>All back in stock</button></div>` : ""}
-      <div class="mini">Quick 86</div><div class="recent" translate="no">${QUICK86[mode].filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-      <label class="fld">Something else ran out?<select id="s-86"><option value="">Choose what to 86…</option>${stockOptions((x) => outNow().has(x))}<optgroup label="Drinks">${D.map((d) => d.name).filter((n) => !outNow().has(n)).sort().map((n) => `<option>${esc(n)}</option>`).join("")}</optgroup></select></label>
-      <div class="ltools"><input id="s-86-own" maxlength="80" placeholder="Not on the list? Type it, like a burger" aria-label="86 something not on the list"><button class="btn" id="s-86-go">86 it</button></div>
+      ${pkBtn("Search everything to 86: drinks, bottles, cakes, boxes", `data-pk86="${mode}"`)}
+      <div class="mini">Quick 86: recent and most 86'd</div><div class="recent" translate="no">${pkTop(mode).filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
       ${restockHtml()}${itemsHtml(mode)}${ctCardHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
     close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
@@ -3394,7 +3435,7 @@ function renderTally() {
       <p class="note">Every night: what's cleaned, what's running low, what's outstanding and what tomorrow needs, with photos.</p>
       <div class="hopt"><b>1. Cleaning completed</b><span>${(() => { const p = progress(closeList()); return p.n === p.of ? "\u2705 Closing all ticked" : `${p.n} of ${p.of} closing items ticked`; })()}</span></div>
       ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
-      <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
+      <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${f.id === "low" ? `<button class="chip pk-chip" data-ho-pick>⌕ Pick from the list</button>` : ""}${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
       ${logHoHtml()}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
       <div class="draftbar"><span>${LIVE.me ? "Shared live with everyone closing this side" : "Saved on this phone as you type"}</span><button class="btn" data-ho-save>Save draft</button><button class="btn" data-ho-clear>Discard</button></div>
@@ -3430,7 +3471,6 @@ $("#ph-pick").addEventListener("change", addClosingPhotos);
 const taskKey = (id) => { const j = id.lastIndexOf("-"); return [id.slice(0, j), +id.slice(j + 1)]; };
 $("#tally").addEventListener("change", async (e) => {
   const t = e.target;
-  if (t.id === "rs-item") { const was = rsF.item; rsF.item = t.value; if ((was === OTHER) !== (t.value === OTHER)) renderTally(); return; }
   if (t.id === "rs-unit") { rsF.unit = t.value; return; }
   if (t.dataset.giveTask && t.value) {
     const [k, i] = taskKey(t.dataset.giveTask), p = t.value === "-" ? null : LIVE.staff.find((x) => x.uid === t.value);
@@ -3455,15 +3495,11 @@ $("#tally").addEventListener("change", async (e) => {
   if (t.id === "lb-on") { lbF.on = t.checked; return; }
   if (t.dataset.lbsOn != null) { lbS.off[lbKey(mode, t.dataset.lbsOn)] = !t.checked; return; }
   if (t.dataset.lbe && lbe) { lbe[t.dataset.lbe] = t.type === "checkbox" ? t.checked : t.value; return; }
-  if (t.id !== "s-86" || !t.value) return;
-  const n = t.value; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally();
 });
 keepOpen($("#tally"), (e) => { if (e.target.id === "lb-add") lbF.open = e.target.open; if (e.target.id === "lb-list") lbS.open = e.target.open; });
-$("#tally").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "s-86-own") { e.preventDefault(); $("#s-86-go")?.click(); } });
 $("#tally").addEventListener("input", (e) => {
   if (le && e.target.dataset.leT != null) { le.items[+e.target.dataset.leT].t = e.target.value; return; }
   if (le && e.target.dataset.leG != null) { le.items[+e.target.dataset.leG].g = e.target.value; return; }
-  if (e.target.id === "rs-other") { rsF.other = e.target.value; return; }
   if (e.target.id === "rs-qty") { rsF.qty = e.target.value; return; }
   if (e.target.id === "rs-detail") { rsF.detail = e.target.value; return; }
   if (e.target.id === "lb-item") { lbF.item = e.target.value; return; }
@@ -3569,26 +3605,30 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#lbs-go")) { addIdeas(mode); return; }
   if (e.target.closest("#lb-go")) { addLabel(mode); return; }
   if (e.target.closest("#rs-go")) {
-    const item = (rsF.item === OTHER ? rsF.other : rsF.item).trim(), qty = Number(rsF.qty.replace(",", "."));
-    if (!item) return toast(rsF.item === OTHER ? "Write what's needed in the box" : "Pick what's needed");
+    const item = rsF.item.trim(), qty = Number(rsF.qty.replace(",", "."));
+    if (!item) return toast("Pick what's needed");
     if (!(qty > 0 && qty <= 1000)) return toast("Enter how many, over 0 and up to 1,000");
     track(LIVE.api.askRestock({ item, qty, unit: rsF.unit, dest: rsDest(), detail: rsF.detail.trim() }), "Asked. The team can see it now", "Not sent. Try again");
-    haptic(); Object.assign(rsF, { item: "", other: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
+    haptic(); Object.assign(rsF, { item: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
   }
+  const ps = e.target.closest("[data-ph-send]"); if (ps) { sendPhotoNow(ps.dataset.phSend); return; }
   const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
-  const bk = e.target.closest("[data-back]"); if (bk) { setOut(bk.dataset.back, false); renderTally(); renderList(); return; }
-  const oq = e.target.closest("[data-out-quick]"); if (oq) { const n = oq.dataset.outQuick; setOut(n, true); haptic(); toast(`${n} 86'd`); renderList(); renderTally(); return; }
-  if (e.target.closest("#s-86-go")) {
-    const typed = $("#s-86-own").value.trim().replace(/\s+/g, " ").slice(0, 80), n = typed && itFix86(typed);
-    if (!n) return toast("Type what ran out");
-    if (outNow().has(n)) return toast(`${n} is already 86'd`);
-    setOut(n, true); haptic(); toast(n === typed ? `${n} 86'd` : `${n} 86'd (you typed “${typed}”)`); renderList(); renderTally(); return;
-  }
+  const bk = e.target.closest("[data-out-back]"); if (bk) { pk86([bk.dataset.outBack], false); renderTally(); renderList(); return; }
+  const oq = e.target.closest("[data-out-quick]"); if (oq) { pk86([oq.dataset.outQuick], true); renderList(); renderTally(); return; }
   if (e.target.closest("[data-out-clear]")) {
     const xs = [...outNow()];
     if (!xs.length || !confirm(`Put all ${xs.length} back in stock? It clears the 86 board on every phone.`)) return;
     track(Promise.all(xs.map((n) => LIVE.api.set86(n, false))), "The 86 board is clear", "Not all cleared. Check your signal and try again");
     haptic(); return;
+  }
+  if (e.target.closest("#rs-item")) { haptic(); return pkOpen({ mode: "one", title: "What's needed from the cellar?", other: true, onPick: ([n]) => { rsF.item = n.slice(0, 80); renderTally(); } }); }
+  if (e.target.closest("[data-lb-pick]")) {
+    haptic();
+    return pkOpen({ mode: "one", title: "What needs a date label?", other: true, onPick: ([n]) => { lbF.item = n.slice(0, 60); if (!lbF.life && itKeep(n)?.days) lbF.life = String(itKeep(n).days); lbF.open = true; renderTally(); } });
+  }
+  if (e.target.closest("[data-ho-pick]")) {
+    haptic();
+    return pkOpen({ mode: "many", title: "What's running low?", onPick: (ns) => { const v = ho.low.trim(); ho.low = [v, ...ns].filter(Boolean).join(", "); keepDraft(); renderTally(); } });
   }
   // A chip adds to its box: running low is a list, the others start a new line.
   const hc = e.target.closest("[data-ho-add]"); if (hc) {
@@ -5865,7 +5905,7 @@ function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc
    loses nothing. Save draft puts it away to finish later (its card says Draft, and the app says so when it opens);
    Discard wipes it. Clear everything wipes them all. Nothing here leaves the phone until it's sent. */
 const DRAFTS = {
-  restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", other: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "other", "detail"] },
+  restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "detail"] },
   label: { n: "Date label", get: () => lbF, blank: () => ({ item: "", life: "", on: true, open: false }), fs: ["item", "life"] },
   ask: { n: "To the managers", get: () => askF, blank: () => ({ kind: askF.kind, text: "", when: "", anon: false }), card: "ask", fs: ["text", "when"] },
   issue: { n: "Issue", get: () => isF, blank: () => ({ title: "", detail: "", area: "", urgent: false, again: null }), card: "issues", fs: ["title", "detail"] },
@@ -6184,7 +6224,7 @@ function liveChanged(what) {
   // next), so it doesn't join straight back. The link from the staff group brings it back.
   if (what === "left" && idleOut) return;
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
-  if (what === "me") { autoJoin(); sharedLock(); }
+  if (what === "me") { autoJoin(); sharedLock(); checkQueued(); }
   if (what === "names" && LIVE.names) { Object.assign(STAFF, LIVE.names); store.set("names", LIVE.names); }
   if (what === "seniors") { store.set("codeNames", LIVE.seniors.map((x) => x.name)); tryPendingPin(); }
   if (what === "me" || what === "seniors") renderWelcomeName();
@@ -6194,6 +6234,7 @@ function liveChanged(what) {
   funLive(what);
   if (what === "drafts" || what === "me") pullDraft();
   if (what === "events") logLive();
+  pkLive(what);
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
     for (const x of Object.values(LIVE[what])) {
@@ -7750,9 +7791,8 @@ function renderStation() {
     <div class="sx-lbs" id="sx-lbs" hidden></div>
     <div class="sx" id="sx">
       <aside class="sx-tonight" id="sx-tonight" aria-label="Tonight"><button class="sx-tsum" id="sx-tsum" aria-controls="sx-tgrid"></button><div class="sx-tgrid" id="sx-tgrid"><div class="sx-live" id="sx-live"></div>
-        <div class="st-tile sx-tools" id="sx-tools" hidden><label class="st-k" for="sx-86q">Ran out of something?</label>
-          <div class="sx-86in"><input id="sx-86q" list="sx-86l" maxlength="80" autocomplete="off" autocorrect="off" placeholder="Any ingredient, bottle or drink" enterkeyhint="done"><button class="btn pri" data-sx-86go>86 it</button></div>
-          <datalist id="sx-86l"></datalist><span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></div></aside>
+        <div class="st-tile sx-tools" id="sx-tools" hidden><span class="st-k">Ran out of something?</span>
+          ${pkBtn("Search or pick: any ingredient, bottle or drink", 'data-pk86="bar" id="sx-86q"')}<span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></div></aside>
       <section class="sx-drinks" aria-label="Drinks">
         <div class="search sx-search"><input id="sx-q" type="search" placeholder="Search any drink, spirit or glass" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Search drinks"></div>
         <div class="sx-gbar"><button class="sx-gbtn" id="sx-gbtn" aria-expanded="false" aria-controls="sx-grp"></button></div>
@@ -7762,7 +7802,6 @@ function renderStation() {
       </section>
       <section class="sx-spec" id="sx-spec" aria-label="Spec"></section>
     </div>`;
-  if (!$("#sx-86l").children.length) $("#sx-86l").innerHTML = sx86Names().map((n) => `<option value="${esc(n)}">`).join("");
   document.body.classList.toggle("sxbig", SX.big);
   sxBars(); sxList(); sxSpec(); sxTonight(); sxTimers(); sxFit();
 }
@@ -7774,12 +7813,6 @@ function sx86Name(t) {
   if (OUT_DRINKS.has(hit) || STOCK_FLAT.includes(hit)) return hit;
   // An ingredient goes on under the stock list's own name, so the board and the drinks agree.
   const it = MK.byKey.get(mkNorm(hit)); return it ? plOutName(it) : hit;
-}
-function sx86Go() {
-  const inp = $("#sx-86q"), t = inp.value.trim().replace(/\s+/g, " "); if (!t) return inp.focus();
-  const n = sx86Name(t);
-  if (isOut(n)) return toast(`${n} is already 86'd`);
-  setOut(n, true); haptic(); inp.value = ""; inp.blur(); toast(`${n} 86'd for everyone`);
 }
 // On an iPad the columns scroll on their own and fill the screen to the bottom.
 function sxFit() {
@@ -7835,7 +7868,6 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-sx-qznext]")) { haptic(); const z = SX.qz; z.i++; z.pick = null; if (z.i >= z.qs.length) sxQuizNew(); sxList(); sxSpec(); return; }
   if (e.target.closest("[data-sx-big]")) { SX.big = !SX.big; store.set("sx.big", SX.big); haptic(); document.body.classList.toggle("sxbig", SX.big); e.target.closest("[data-sx-big]").setAttribute("aria-pressed", SX.big); sxFit(); return; }
   const dm = e.target.closest("[data-sx-dm]"); if (dm) { curId = +dm.dataset.sxDm; return; }
-  if (e.target.closest("[data-sx-86go]")) return sx86Go();
   const bk = e.target.closest("[data-sx-back]"); if (bk) { const n = bk.dataset.sxBack; haptic(); setOut(n, false); toast(`${n} back in stock`); return; }
   const lbg = e.target.closest("[data-sx-labels]"); if (lbg) { haptic(); if (lbg.dataset.sxLabels !== mode) setMode(lbg.dataset.sxLabels); pane = labelPane(mode); show("tally"); return; }
   if (e.target.closest("[data-sx-exit]")) { haptic(); stationSet(false); show("info"); toast("Bar station off. Turn it on again in More"); return; }
@@ -7866,7 +7898,6 @@ document.addEventListener("input", (e) => { if (e.target.id !== "sx-q") return; 
 function sxOpenQuiet(id) { if (!sxWide()) return; SX.id = id; $$("#sx-list [data-sx-id]").forEach((b) => b.setAttribute("aria-current", +b.dataset.sxId === id)); sxSpec(); }
 document.addEventListener("keydown", (e) => {
   if (cur !== "station" || !$("#sheet").hidden) return;
-  if (e.target.id === "sx-86q" && e.key === "Enter") { e.preventDefault(); return sx86Go(); }
   if (e.target.id === "sx-q" && e.key === "Enter") { e.preventDefault(); if (SX.ids.length) { e.target.blur(); sxOpen(SX.ids[0]); } return; }
   if (e.target.closest("input, textarea, select")) return;
   if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); sxStep(1); }
@@ -8012,8 +8043,6 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .sx-tb [data-sx-big][aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .sx-live { display: contents; }
 .sx-tools[hidden] { display: none; }
-.sx-86in { display: flex; gap: 8px; width: 100%; }
-.sx-86in input { flex: 1; min-width: 0; font: inherit; font-size: 17px; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
 .sx-outl { list-style: none; margin: 0; padding: 0; width: 100%; max-height: 14em; overflow-y: auto; }
 .sx-outl li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--line); }
 .sx-outl .chip { min-height: 34px; padding: 4px 12px; font-size: 14px; }
@@ -8813,7 +8842,7 @@ function plOutKeys() {
   if (sig === OUT_SIG) return OUT_KEYS;
   const ks = new Set();
   for (const n of names) {
-    const it = MK.byKey.get(mkNorm(n)) || mkFind(n); if (it) ks.add(it.k);
+    const it = pkIt(n); if (it) ks.add(it.k);
     for (const x of OUT_ALSO[n] || []) { const j = MK.byKey.get(mkNorm(x)) || mkFind(x); if (j) ks.add(j.k); }
   }
   OUT_SIG = sig; OUT_KEYS = ks; PL_OUTD.clear();
@@ -8821,7 +8850,7 @@ function plOutKeys() {
 }
 // The name to put on the 86 board for an ingredient: the stock list's own name when it has one, so it matches.
 const STOCK_FLAT = Object.values(STOCK).flat();
-const plOutName = (it) => STOCK_FLAT.find((s) => (MK.byKey.get(mkNorm(s)) || mkFind(s)) === it) || it.n;
+const plOutName = (it) => STOCK_FLAT.find((s) => pkIt(s) === it) || it.n;
 // The swap for one missing ingredient: the drink's own "Out of something?" line, else another bottle of the same kind
 // from the line-up, else one from the same family (a change of flavour), else nothing close.
 const plStocked = new Set(typeof BT_KEYS !== "undefined" ? BT_KEYS : []);
@@ -9172,7 +9201,7 @@ function itemsHtml(side) {
     <div class="actions">${LIVE.owner ? `<button class="btn pri" data-it-edit="${x.id}">Check it</button>` : `<button class="btn" data-it-drop="${x.id}">Take it back</button>`}</div></div>`;
   const liveRow = (x) => `<div class="it-row"><div><b>${esc(x.item)}</b> <span class="pill">${esc(x.group)}</span><div class="s">${esc(itLine(x))}</div>${x.note ? `<div class="s">${esc(x.note)}</div>` : ""}</div>
     ${LIVE.owner ? `<div class="actions"><button class="btn" data-it-edit="${x.id}">Change</button></div>` : ""}</div>`;
-  const form = itF?.kind && !itF.id ? itFormHtml() : `<div class="ltools"><input id="it-name" maxlength="60" placeholder="A name, or a barcode's numbers" aria-label="What it is" value="${esc(itF?.item || "")}"><button class="btn pri" id="it-look"${itBusy ? " disabled" : ""}>${itBusy ? "Looking…" : "Look it up"}</button></div>${navigator.mediaDevices?.getUserMedia ? `<div class="actions"><button class="btn" id="it-scan-go">Scan a barcode</button></div>` : ""}`;
+  const form = itF?.kind && !itF.id ? itFormHtml() : `<div class="ltools"><input id="it-name" maxlength="60" placeholder="A name, or a barcode's numbers" aria-label="What it is" value="${esc(itF?.item || "")}"><button class="btn pri" id="it-look"${itBusy ? " disabled" : ""}>${itBusy ? "Looking…" : "Look it up"}</button></div><div class="s it-have" id="it-have" aria-live="polite"></div>${navigator.mediaDevices?.getUserMedia ? `<div class="actions"><button class="btn" id="it-scan-go">Scan a barcode</button></div>` : ""}`;
   return `<details class="setup" id="it-add"${itOpen || wait.length && LIVE.owner ? " open" : ""}><summary>Add something new${wait.length ? ` <span class="pill wait">${wait.length} waiting</span>` : ""}</summary>
     <p class="note">An ingredient, a drink we sell, a garnish, a dessert. Type what it is: the app looks it up and works out where it's kept, if it needs a date label and what happens to it at close. ${LIVE.owner ? "Yours go on straight away." : "Maintenance checks it, then it's on every phone."}</p>
     ${form}
@@ -9277,6 +9306,13 @@ $("#tally").addEventListener("click", (e) => {
   }
 });
 $("#tally").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "it-name") { e.preventDefault(); itLook(); } });
+// While typing a new item: what's on the list already with a name like it (the same search as everywhere), so nothing
+// goes on twice.
+$("#tally").addEventListener("input", (e) => {
+  if (e.target.id !== "it-name") return;
+  const q = e.target.value.trim(), xs = q.length >= 3 ? pkSearch(q, pkPool().filter((x) => x.c !== "drinks")).slice(0, 4) : [];
+  $("#it-have").innerHTML = xs.length ? `Already on the list: ${xs.map((x) => `<b translate="no">${esc(x.n)}</b> <span class="pill">${esc(PK_CAT[x.c])}</span>`).join(" ")}. Only add it if it's something else.` : "";
+});
 $("#tally").addEventListener("input", (e) => { const k = e.target.dataset.it; if (itF && (k === "life" || k === "note" || k === "item")) itF[k] = e.target.value; });
 $("#tally").addEventListener("change", (e) => {
   const k = e.target.dataset.it; if (!itF || !k || k === "life" || k === "note") return;
@@ -9286,6 +9322,259 @@ $("#tally").addEventListener("change", (e) => {
   renderTally();
 });
 keepOpen($("#tally"), (e) => { if (e.target.id === "it-add") itOpen = e.target.open; if (e.target.id === "it-list") itShow = e.target.open ? mode : ""; });
+/* ---------- Pick an item: one picker for the whole app ----------
+   The 86 board, the bar station, Log it, restocking, running low, date labels and the stock count all choose items the
+   same way: type a few letters (typos are fine), tap a kind, or scroll. Recent and the team's most 86'd sit on top.
+   It reads the one item list the app already has (the stock list plus what the team has added, the bar's own line-up
+   and the drinks), and the 86 board is still the one source: an 86 here is the same 86 everywhere.
+   Modes: "86" picks several and 86s or brings them back (or one tap on a row), "one" picks one and closes,
+   "many" picks several and hands them back. */
+const PK_CATS = [["all", "Everything"], ["spirits", "Spirits"], ["liqueurs", "Liqueurs"], ["mixers", "Mixers"], ["beer", "Beer and cider"], ["wine", "Wine"],
+  ["juice", "Juice"], ["syrups", "Syrups and bitters"], ["garnish", "Fruit and garnish"], ["dairy", "Dairy"], ["shake", "Shake station"], ["cakes", "Cakes"],
+  ["frozen", "Frozen"], ["supplies", "Supplies"], ["drinks", "Drinks"], ["other", "Other"]];
+const PK_CAT = Object.fromEntries(PK_CATS);
+// The stock list's groups, as the kinds people look under.
+const PK_GROUP = { Vodka: "spirits", Gin: "spirits", "Rum and cachaça": "spirits", "Tequila and mezcal": "spirits", Whiskey: "spirits", Brandy: "spirits",
+  "Liqueurs and vermouth": "liqueurs", "Soft drinks and mixers": "mixers", Water: "mixers", "Beer lines": "beer", "Bottled beer": "beer", Cider: "beer", Wine: "wine",
+  Juices: "juice", "Syrups, bitters and prep": "syrups", "Fruit and garnish": "garnish", "Dairy and purées": "dairy", "Bar supplies": "supplies", "Floor supplies": "supplies" };
+// The bar line-up's groups (Make tab), for its bottles that aren't on the stock list by name.
+const PK_BT = { Spirits: "spirits", Liqueurs: "liqueurs", "Aperitifs, vermouth and wine": "liqueurs", "Bar basics": "syrups", "Fresh and garnish": "garnish", Foam: "syrups",
+  Draught: "beer", "Bottles and cans": "mixers", "Juices, syrups and purées": "syrups", Postmix: "mixers" };
+function pkCatOf(group, n) {
+  if (group === "Desserts and shakes") return /ice cream(?! cone)|frozen|sorbet/i.test(n) ? "frozen" : /cake|sponge|brownie/i.test(n) ? "cakes" : "shake";
+  if (PK_GROUP[group]) return PK_GROUP[group];
+  if (/juice/i.test(n)) return "juice";
+  if (/prosecco|champagne|\bwine\b/i.test(n)) return "wine";
+  if (/\b(beer|lager|ipa|hells|cider|kopparberg|corona|stella|guinness|san miguel)\b/i.test(n) && !/ginger beer/i.test(n)) return "beer";
+  if (/\b(sprite|fanta|lemonade|soda|cola|tonic|ginger)\b/i.test(n)) return "mixers";
+  return PK_BT[group] || "other";
+}
+function pkWords(s) { return String(s).toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[^\p{L}\p{N}]+/gu, " ").trim().split(" ").filter(Boolean).map((w) => (w.length > 3 && w.endsWith("s") && !w.endsWith("ss") ? w.slice(0, -1) : w)); }
+// The spec ingredient an item stands for. Cakes, frozen, shake station and supplies only by their exact name, so a
+// Guinness cake 86'd never takes the Guinness drinks with it.
+const PK_NOT_ING = new Set(["cakes", "frozen", "shake", "supplies", "drinks"]);
+function pkMatch(n, c) { return MK.byKey.get(mkNorm(n)) || (PK_NOT_ING.has(c) ? null : mkFind(n)); }
+function pkIt(n) { const x = pkPool().find((y) => y.n === n); return x ? x.it : pkMatch(n); }
+// Every item once: [{ n, c (kind), g (group), w (name words), a (other words it answers to), d (drink id) }].
+var PK_POOL = null, PK_SIG = "";
+function pkPool() {
+  const sig = (LIVE.items || []).map((x) => x.item + x.status + x.group).join("|");
+  if (PK_POOL && sig === PK_SIG) return PK_POOL;
+  const seen = new Set(), keys = new Set(), out = [];
+  const add = (n, g, c, d) => {
+    const low = n.toLowerCase(); if (seen.has(low)) return; seen.add(low);
+    const it = d == null ? pkMatch(n, c) : null; if (it) keys.add(it.k);
+    // What it answers to: its own other names, and its kind's ("triple sec" finds Cointreau, "vodka" finds Smirnoff).
+    const gen = it && MK.byKey.get(mkNorm(it.kind)), al = it ? [...it.al, it.kind, ...(gen ? gen.al : [])] : [];
+    out.push({ n, g, c, d, it, w: pkWords(n), a: [...new Set([...al.flatMap(pkWords), ...pkWords(g), ...pkWords(PK_CAT[c])])] });
+  };
+  for (const [g, xs] of Object.entries(stockGroups())) for (const n of xs) add(n, g, pkCatOf(g, n));
+  // The bar's line-up has bottles the stock list doesn't name (Monin syrups, Funkin flavours): they matter for swaps.
+  for (const x of BT) { const it = MK.byKey.get(x.k); if (it && !keys.has(it.k)) { keys.add(it.k); add(it.n, x.grp, pkCatOf(x.grp, it.n)); } }
+  for (const d of D) add(d.name, d.section, "drinks", d.id);
+  PK_POOL = out; PK_SIG = sig;
+  return out;
+}
+// How well one typed word fits a list of words: whole word, start of a word, inside one, or a letter or two off.
+function pkFit(q, ws) {
+  let best = 0;
+  for (const w of ws) {
+    const s = w === q ? 4 : w.startsWith(q) ? 3 : q.length >= 3 && w.includes(q) ? 1.5
+      : q.length >= 4 && (mkLev(q, w) <= (q.length >= 7 ? 2 : 1) || mkLev(q, w.slice(0, q.length)) <= 1) ? 1.2 : 0;
+    if (s > best) best = s;
+    if (best === 4) break;
+  }
+  return best;
+}
+// Best first. Every word typed has to fit somewhere: the name counts most, then what it's also called and its kind.
+function pkSearch(q, pool = pkPool()) {
+  const qs = pkWords(q); if (!qs.length) return pool;
+  const whole = qs.join(" ");
+  return pool.map((x) => {
+    let s = 0;
+    for (const w of qs) { const f = Math.max(pkFit(w, x.w), pkFit(w, x.a) * 0.6); if (!f) return null; s += f; }
+    if (x.w.join(" ").startsWith(whole)) s += 2;
+    return [x, s - x.w.length * 0.05 - (x.c === "drinks" ? 0.3 : 0)];
+  }).filter(Boolean).sort((a, b) => b[1] - a[1] || a[0].n.localeCompare(b[0].n)).map(([x]) => x);
+}
+// The name the board knows for what was typed: an exact or near match, else it goes on as typed (a burger, a glass).
+function pkName(typed) {
+  const t = typed.trim().replace(/\s+/g, " "); if (!t) return "";
+  const hit = pkSearch(t)[0];
+  if (hit && (hit.n.toLowerCase() === t.toLowerCase() || itNorm(hit.n) === itNorm(t))) return hit.n;
+  return itFix86(t);
+}
+// How many drinks use it, and the closest stocked swap when it's out. Drinks show their own swap on their card.
+var PK_USES = null;
+function pkUses(n) {
+  const it = typeof n === "string" ? pkIt(n) : n.it; if (!it) return 0;
+  PK_USES = PK_USES || new Map();
+  if (!PK_USES.has(it.k)) PK_USES.set(it.k, D.filter((d) => (MK.reqs.get(d.id) || []).some((r) => r.it.k === it.k)).length);
+  return PK_USES.get(it.k);
+}
+function pkSwap(n) {
+  const it = pkIt(n); if (!it) return "";
+  const out = plOutKeys(), ok = (x) => x !== it && plStocked.has(x.k) && !out.has(x.k) && plBoozy(x) === plBoozy(it);
+  const same = MK.items.find((x) => ok(x) && x.kind === it.kind);
+  if (same) return `Swap: ${same.n}`;
+  const fam = it.fam && MK.items.find((x) => ok(x) && x.fam === it.fam);
+  return fam ? `Swap: ${fam.n} (a little different, tell the guest)` : "";
+}
+// On top: what this phone picked lately, then what the team 86s most (the last 100 86s), then each side's usual.
+function pkRecent() { return store.get("pk.recent", []); }
+function pkRemember(ns) { store.set("pk.recent", [...new Set([...ns, ...pkRecent()])].slice(0, 8)); }
+function pkTop(side = mode, n = 12) {
+  const c = new Map();
+  for (const x of LIVE.outlog || []) if (x.action === "out") c.set(x.itemName, (c.get(x.itemName) || 0) + 1);
+  const most = [...c].sort((a, b) => b[1] - a[1]).map(([k]) => k);
+  return [...new Set([...pkRecent(), ...most, ...(QUICK86[side] || [])])].slice(0, n);
+}
+function pkByName(n) { return pkPool().find((x) => x.n === n) || { n, c: "other", g: "", w: pkWords(n), a: [] }; }
+
+var PK = null;
+document.body.insertAdjacentHTML("beforeend", `<div id="pick" class="help pk" hidden><div class="help-in pk-in" role="dialog" aria-modal="true" aria-labelledby="pk-t">
+  <div class="help-h"><h3 id="pk-t"></h3><button class="hq-x" data-pk-x aria-label="Close">×</button></div>
+  <div class="search pk-search"><input id="pk-q" type="search" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="done" aria-label="Search everything"></div>
+  <div class="pk-scroll" id="pk-scroll"><div id="pk-top"></div><div class="pk-cats" id="pk-cats" role="group" aria-label="Kind"></div><div class="pk-list" id="pk-list"></div></div><div class="pk-foot" id="pk-foot"></div></div></div>`);
+// opt: { mode, title, side, drinks (list drinks too), only (just these names), other (allow what's typed), onPick(names) }
+function pkOpen(opt) {
+  if (opt.mode === "86" && !LIVE.me) return toast("Join the team on the Team page to 86 something");
+  PK = { mode: "one", side: mode, drinks: opt.mode === "86", other: opt.mode !== "one" || !opt.only, ...opt, q: "", cat: "all", sel: new Set(), from: document.activeElement };
+  $("#pk-t").textContent = PK.title || (PK.mode === "86" ? "86 something" : "Pick from the list");
+  const q = $("#pk-q"); q.value = "";
+  q.placeholder = PK.mode === "86" ? "Type anything: lymes, tanq, oat milk…" : "Type a few letters, typos are fine";
+  $("#pick").hidden = false; document.body.classList.add("pk-on");
+  pkRender(); $("#pk-scroll").scrollTop = 0;
+  q.focus();
+}
+function pkClose() {
+  if (!PK) return;
+  const from = PK.from, gone = PK.onClose; PK = null; gone?.(); $("#pick").hidden = true; document.body.classList.remove("pk-on");
+  from?.focus?.();
+}
+const pkBase = () => { let xs = pkPool(); if (PK.only) { const o = new Set(PK.only); xs = xs.filter((x) => o.has(x.n)); } if (!PK.drinks) xs = xs.filter((x) => x.c !== "drinks"); return xs; };
+function pkRender() { pkCats(); pkList(); pkFoot(); }
+function pkCats() {
+  const hits = pkSearch(PK.q, pkBase()), n = (c) => (c === "all" ? hits.length : hits.filter((x) => x.c === c).length);
+  // While typing, only the kinds with something in them.
+  $("#pk-cats").innerHTML = PK_CATS.filter(([c]) => c === "all" || c === PK.cat || n(c)).map(([c, t]) => `<button class="chip" data-pk-cat="${c}" aria-pressed="${c === PK.cat}">${t} <span class="cn">${n(c)}</span></button>`).join("");
+}
+function pkSub(x) {
+  if (x.d != null) { const o = plOutOf(D[x.d]); return isOut(x.n) ? `86'd${outByText(x.n) ? ` by ${esc(outByText(x.n))}` : ""}` : o.miss.length ? `${o.ok ? "Swap" : "Can't make"}: no ${esc(o.miss.map((m) => m.it.n).join(", "))}` : `Drink · ${esc(x.g)}`; }
+  const u = pkUses(x), uses = u ? ` · ${plural(u, "drink")} use it` : "";
+  if (isOut(x.n) || (!LIVE.me && OUT_LOCAL.has(x.n))) { const sw = pkSwap(x.n); return `86'd${outByText(x.n) ? ` by ${esc(outByText(x.n))}` : ""}${uses}${sw ? `<br><b class="pk-sw">${esc(sw)}</b>` : ""}`; }
+  return `${esc(PK_CAT[x.c])}${uses}`;
+}
+function pkRow(x) {
+  const out = isOut(x.n), on = PK.sel.has(x.n), multi = PK.mode !== "one";
+  return `<div class="pk-row${on ? " sel" : ""}${out && PK.mode === "86" ? " out" : ""}"><button class="pk-tap" data-pk-tog="${esc(x.n)}"${multi ? ` aria-pressed="${on}"` : ""}>${multi ? `<span class="pk-box" aria-hidden="true">${on ? "✓" : ""}</span>` : ""}<span class="pk-t"><b translate="no">${esc(x.n)}</b><small>${pkSub(x)}</small></span></button>${PK.mode === "86" ? `<button class="btn pk-one${out ? "" : " pri"}" data-pk-one="${esc(x.n)}">${out ? "Back in" : "86"}</button>` : ""}</div>`;
+}
+function pkList() {
+  const base = pkBase(), hits = pkSearch(PK.q, base).filter((x) => PK.cat === "all" || x.c === PK.cat), q = PK.q.trim();
+  let html = "", top = "";
+  if (!q && PK.cat === "all") {
+    // Nothing typed: what's 86'd now, then the usual ones, then everything by kind, to scroll.
+    const have = new Set(base.map((x) => x.n));
+    const now = PK.mode === "86" ? [...outNow()].sort() : [], usual = pkTop(PK.side, 6).filter((n) => have.has(n) && !now.includes(n));
+    if (now.length) top += `<div class="mini pk-h">86'd now (${now.length})</div>${now.map((n) => pkRow(pkByName(n))).join("")}`;
+    if (usual.length) top += `<div class="mini pk-h">${pkRecent().length ? "Recent and most 86'd" : "Most 86'd"}</div>${usual.map((n) => pkRow(pkByName(n))).join("")}`;
+    if (top) top += `<div class="mini pk-h">Or pick a kind</div>`;
+    for (const [c, t] of PK_CATS) { const xs = base.filter((x) => x.c === c); if (xs.length) html += `<div class="mini pk-h">${t}</div>${xs.map(pkRow).join("")}`; }
+  } else {
+    const shown = hits.slice(0, 80);
+    html = shown.map(pkRow).join("") + (hits.length > 80 ? `<p class="note">${hits.length - 80} more: type a little more.</p>` : "");
+    const exact = q && hits.some((x) => x.n.toLowerCase() === q.toLowerCase());
+    if (q && PK.other && !exact) html += `<button class="pk-typed" data-pk-typed>${PK.mode === "86" ? "86" : "Use"} “${esc(q)}” as typed${hits.length ? "" : `<small>Nothing on the list is close. It goes on as you typed it.</small>`}</button>`;
+    else if (!hits.length) html += `<p class="note">Nothing here matches “${esc(q)}”.</p>`;
+  }
+  $("#pk-top").innerHTML = top;
+  $("#pk-list").innerHTML = html || `<p class="note">Nothing to pick here.</p>`;
+}
+function pkFoot() {
+  const xs = [...PK.sel], out = xs.filter(isOut), inn = xs.filter((n) => !isOut(n));
+  $("#pk-foot").innerHTML = !xs.length ? (PK.mode === "86" ? `<p class="s">Tap 86 on a row, or tick several and 86 them together.</p>` : PK.mode === "many" ? `<p class="s">Tick everything, then add them.</p>` : "")
+    : PK.mode === "86" ? `<button class="btn" data-pk-none>Untick</button>${out.length ? `<button class="btn" data-pk-go="back">Back in (${out.length})</button>` : ""}${inn.length ? `<button class="btn pri" data-pk-go="out">86 ${inn.length === 1 ? esc(inn[0]) : `these ${inn.length}`}</button>` : ""}`
+    : `<button class="btn" data-pk-none>Untick</button><button class="btn pri" data-pk-go="add">Add ${xs.length === 1 ? esc(xs[0]) : `these ${xs.length}`}</button>`;
+  $("#pk-foot").hidden = !$("#pk-foot").innerHTML;
+}
+// 86 or bring back, on the one board. Each goes as its own write, so a lost signal only holds up that one.
+function pk86(ns, on) {
+  const xs = ns.filter((n) => isOut(n) !== on); if (!xs.length) return;
+  track(Promise.all(xs.map((n) => LIVE.api.set86(n, on))), null, "Not all saved. Check your signal and try again");
+  if (on) pkRemember(xs);
+  haptic();
+  const what = xs.length === 1 ? xs[0] : `${xs.length} items`;
+  toast(on ? `${what} 86'd for everyone${xs.some((n) => pkUses(n)) ? ". Drinks that use it show the swap" : ""}` : `${what} back in stock`);
+}
+function pkDone(ns) { const cb = PK.onPick; PK.onClose = null; pkRemember(ns); pkClose(); cb?.(ns); }
+$("#pk-q").addEventListener("input", (e) => { if (!PK) return; PK.q = e.target.value; pkCats(); pkList(); $("#pk-scroll").scrollTop = 0; });
+$("#pk-q").addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || !PK) return;
+  e.preventDefault();
+  // Enter takes the best match, or what was typed.
+  const q = PK.q.trim(), top = pkSearch(q, pkBase()).filter((x) => PK.cat === "all" || x.c === PK.cat)[0];
+  if (!q) return e.target.blur();
+  const n = top && (pkFit(pkWords(q)[0], top.w) >= 1.2) ? top.n : PK.other ? (PK.mode === "86" ? pkName(q) : q.slice(0, 80)) : "";
+  if (!n) return;
+  if (PK.mode === "86") { pk86([n], !isOut(n)); PK.q = ""; e.target.value = ""; pkRender(); }
+  else if (PK.mode === "one") pkDone([n]);
+  else { PK.sel.add(n); PK.q = ""; e.target.value = ""; pkRender(); }
+});
+// Scrolling the list puts the keyboard away, so the whole list shows. The kinds scroll with it, so the list starts high.
+$("#pk-scroll").addEventListener("touchmove", () => { if (document.activeElement?.id === "pk-q") $("#pk-q").blur(); }, { passive: true });
+$("#pick").addEventListener("click", (e) => {
+  const t = e.target; if (!PK) return;
+  if (t.id === "pick" || t.closest("[data-pk-x]")) return pkClose();
+  const c = t.closest("[data-pk-cat]"); if (c) { haptic(); PK.cat = PK.cat === c.dataset.pkCat ? "all" : c.dataset.pkCat; pkCats(); pkList(); return; }
+  const one = t.closest("[data-pk-one]"); if (one) { const n = one.dataset.pkOne; pk86([n], !isOut(n)); PK.sel.delete(n); return pkRender(); }
+  const tg = t.closest("[data-pk-tog]"); if (tg) {
+    const n = tg.dataset.pkTog; haptic();
+    if (PK.mode === "one") return pkDone([n]);
+    PK.sel.has(n) ? PK.sel.delete(n) : PK.sel.add(n); pkList(); pkFoot(); return;
+  }
+  if (t.closest("[data-pk-typed]")) {
+    const q = PK.q.trim().replace(/\s+/g, " ").slice(0, 80);
+    if (PK.mode === "86") { const n = pkName(q); if (isOut(n)) toast(`${n} is already 86'd`); else pk86([n], true); PK.q = ""; $("#pk-q").value = ""; return pkRender(); }
+    if (PK.mode === "one") return pkDone([q]);
+    PK.sel.add(q); PK.q = ""; $("#pk-q").value = ""; return pkRender();
+  }
+  if (t.closest("[data-pk-none]")) { PK.sel.clear(); return pkRender(); }
+  const go = t.closest("[data-pk-go]"); if (go) {
+    const xs = [...PK.sel];
+    if (go.dataset.pkGo === "add") return pkDone(xs);
+    pk86(xs.filter((n) => isOut(n) === (go.dataset.pkGo === "back")), go.dataset.pkGo === "out");
+    PK.sel.clear(); return pkRender();
+  }
+});
+$("#pick").addEventListener("keydown", (e) => { if (e.key === "Escape") pkClose(); });
+// Someone else's 86 shows straight away, without losing what's typed or ticked.
+function pkLive(what) { if (PK && ["out", "outlog", "items", "me"].includes(what)) { if (what === "items") PK_POOL = null; pkList(); pkFoot(); pkCats(); } }
+// Opens the picker from any button: data-pk86 (86 mode), on every page and the bar station.
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-pk86]"); if (b) { haptic(); pkOpen({ mode: "86", side: b.dataset.pk86 || mode }); } });
+// A button that looks like the search box, so it's plain where to tap.
+function pkBtn(label, attr = "data-pk86") { return `<button class="pk-open" ${attr}><span aria-hidden="true">⌕</span>${label}</button>`; }
+document.head.insertAdjacentHTML("beforeend", `<style>
+.pk .pk-in{display:flex;flex-direction:column;height:92vh;max-height:92vh;overflow:hidden;padding-bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
+@media (min-width:700px){.pk{align-items:center}.pk .pk-in{max-width:720px;height:86vh;border-radius:18px;border:2px solid var(--brass)}}
+.pk-search{margin:6px 0 8px}.pk-search input{font-size:18px;padding:12px 14px}
+.pk-cats{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px;flex:none}.pk-cats .chip{min-height:34px;padding:5px 11px;font-size:14px;color:var(--fg);margin:0}.pk-cats .chip[aria-pressed="true"]{color:var(--brass-ink)}
+.pk-scroll{flex:1;min-height:0;overflow-y:auto;-webkit-overflow-scrolling:touch;overscroll-behavior:contain;margin:0 -4px;padding:0 4px}
+.pk-h{margin:14px 0 2px;color:var(--brass)}.pk-h:first-child{margin-top:4px}
+.pk-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
+.pk-tap{flex:1;min-width:0;display:flex;align-items:center;gap:12px;text-align:left;background:none;border:0;color:inherit;font:inherit;padding:10px 2px;min-height:52px}
+.pk-box{flex:none;width:26px;height:26px;border:2px solid var(--line);border-radius:7px;display:flex;align-items:center;justify-content:center;font-weight:800;color:var(--brass-ink)}
+.pk-row.sel .pk-box{background:var(--brass);border-color:var(--brass)}.pk-row.sel{background:var(--surface)}
+.pk-t{min-width:0}.pk-t b{display:block;font-size:17px;line-height:1.25}.pk-t small{display:block;color:var(--muted);font-size:13px;line-height:1.3;margin-top:2px}
+.pk-row.out .pk-t b{color:var(--warn)}.pk-sw{color:var(--brass);font-weight:700}
+.pk-one{flex:none;margin:0;min-width:84px;min-height:44px}
+.pk-typed{display:block;width:100%;text-align:left;background:none;border:1px dashed var(--brass);border-radius:12px;color:var(--brass);font:inherit;font-weight:700;padding:12px;margin:12px 0;min-height:48px}
+.pk-typed small{display:block;color:var(--muted);font-weight:400;font-size:13px;margin-top:2px}
+.pk-foot{flex:none;display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px;padding-top:10px;border-top:1px solid var(--line);margin-top:6px}.pk-foot[hidden]{display:none}
+.pk-foot .btn{margin:0}.pk-foot .btn.pri{flex:1 1 auto;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.pk-foot .s{margin:0;color:var(--muted);font-size:13px;flex:1}
+.pk-open{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;font-size:17px;color:var(--muted);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:8px 0;min-height:48px}
+.pk-open span{font-size:20px;color:var(--brass);line-height:1}
+body.sxbig .pk-t b{font-size:21px}
+</style>`);
 /* ---------- Stock count: the notebook, on the phone ----------
    Everything the bar and floor hold, from the one stock list (the stock list plus anything added with Add something
    new), walked in shelf order: each place (speed rail, back bar, fridges, freezer, store room) and what's on it. Tap a
@@ -9484,6 +9773,7 @@ function ctHtml() {
     <div class="recent ct-mode"><button class="chip" data-ct-mode="tap" aria-pressed="${ctMode === "tap"}">Tap the level</button><button class="chip" data-ct-mode="weigh" aria-pressed="${ctMode === "weigh"}">Weigh on the scale</button></div>
     <div class="ltools ct-say"><input id="ct-say" maxlength="80" autocomplete="off" placeholder="Say or type: Smirnoff 2 and a half" aria-label="Say or type a count">${speech ? `<button class="btn" id="ct-mic" aria-label="Say it">${ctRx ? "Listening…" : "🎤"}</button>` : ""}<button class="btn" id="ct-say-go">Add</button></div>
     ${ctHeardHtml()}
+    ${pkBtn("Find an item: type a few letters or pick a kind", "data-ct-find")}
     <div class="recent ct-jump">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip" data-ct-jump="${esc(a)}">${esc(a)} <small>${n}/${rs.length}</small></button>`; }).join("")}</div>
     ${areas.map((a) => `<i class="anc" id="ct-a-${ctSlug(a)}"></i><div class="sec">${esc(a)}</div>${rows.filter((r) => r.area === a).map(ctRowHtml).join("")}`).join("")}
     <div class="sec">Totals</div>
@@ -9706,6 +9996,12 @@ $("#sheet").addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s);
   const md = t("[data-ct-mode]"); if (md) { ctMode = md.dataset.ctMode; store.set("ctMode", ctMode); return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
+  if (t("[data-ct-find]")) {
+    haptic();
+    return pkOpen({ mode: "one", title: "Find an item to count", only: [...new Set(ctRows().map((r) => r.item))], other: false, onPick: ([n]) => {
+      const rs = ctRows().filter((r) => r.item === n), r = rs.find((x) => !ctLine(x)) || rs[0]; if (r) ctGo(r.key);
+    } });
+  }
   const jp = t("[data-ct-jump]"); if (jp) return document.getElementById(`ct-a-${ctSlug(jp.dataset.ctJump)}`)?.scrollIntoView({ block: "start" });
   const r = ctOpen && ctRow(ctOpen), x = r && ctLine(r);
   const ad = t("[data-ct-add]"); if (ad && r) { haptic(); const d = +ad.dataset.ctAdd.split(":")[1]; ctPut(r, Math.max(0, (x?.full || 0) + d), x?.open || 0); return; }
@@ -10126,7 +10422,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T17:59";
+const BUILD = "2026-11-17T18:05";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -11365,7 +11661,7 @@ const HELP = {
   station: { t: "Bar station", what: "The iPad on the bar for express service: any drink in big type, rounds made in one go, tonight's 86s, photos, date labels, the close on both sides and the handover.",
     how: ["Search or tap a drink: on an iPad its spec shows next to the list. Swipe the spec, or use the arrows, for the next one. \u00d72 to \u00d78 scales it; for a jug it gives the total liquid.", "Anything 86'd is struck through on the spec with the swap beside it, and Alcohol-free? jumps to the no-alcohol version.",
       "+ adds a drink to the round (tap again for two). The round puts drinks made the same way together (stir, build, shake, fizz last) and lists the glasses, ice, garnish and tins to get ready.",
-      "Aa makes everything bigger, to read from a step back.", "Ran out of something? Type any ingredient, bottle or drink and tap 86 it. Take a photo or Upload adds it to tonight's handover.",
+      "Aa makes everything bigger, to read from a step back.", "Ran out of something? Tap the search box under Tonight, type a few letters or pick a kind, and tap 86. Tick several to 86 them together. Take a photo or Upload adds it to tonight's handover.",
       "The bar along the top switches between Drinks, Round, Batches, Quiz and Set up. Everything \u25be picks which drinks the list shows.",
       "Across the top: tonight's 86s, then date labels for bar and floor, URGENT when one needs changing now and a reminder the day before. Tap one to change it.",
       "Upright and on a phone, Tonight is one line: tap Show for the boxes. Tap a box to open that page; the \u2039 Bar station button at the bottom brings you back. Exit (top right) turns the mode off. While it's on, Bar Book opens on it.",
@@ -11387,19 +11683,20 @@ const HELP = {
     behind: ["Each tap is saved with your name and the time, so a label that wasn't changed can be traced.", "Due today, tomorrow and overdue show at the top of Morning and Closing, and go in the handover.", "Only managers add, change or remove items. They set each side up from Black Tap's list in one go, with the days from each pack."] },
   count: { t: "Stock count", what: "The count book: everything the bar and floor hold, place by place, in the order you walk it.",
     how: ["Shift, Stock, Count stock. Tap a line: + and − for full ones, then tap how full the open bottle is (in tenths). Next goes to the one after.",
+      "Looking for one thing? Find an item: type a few letters and its line opens.",
       "Faster: say it or type it in the box at the top, like “Smirnoff two and a half” or “Tanqueray 3 point 4”. Check what it heard, then Save it.",
       "Got the scale? Pick Weigh on the scale and type the open bottle's grams: it shows the fraction, ml and cl. Saying “Kraken 845 grams” works too.",
       "Delivery in: log what came in so usage between counts comes out right.",
       "Done: Send on WhatsApp sends the totals as a table, or Spreadsheet gives a file for Numbers or Excel to type into Nory."],
     behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Weighing uses each bottle's own empty and unopened weights, set once by a manager: a liqueur weighs more than a spirit, so grams are never taken as ml.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory."] },
   stock: { t: "86 board and restock", what: "What's run out tonight, and getting stock up from the cellar.",
-    how: ["Tap a Quick 86 chip, pick from the list, or type anything else.", "Back in stock takes it off for everyone.", "Restock: say what, how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it."],
+    how: ["Tap Search everything to 86: type a few letters (typos are fine) or pick a kind, like Spirits, Cakes or Frozen.", "Tap 86 on a row, or tick several and 86 them together. Each row says how many drinks use it, and the swap once it's out.", "Quick 86 has this phone's recent ones and the team's most 86'd: one tap. Not on the list? Type it and it goes on as you typed it.", "Back in stock takes it off for everyone.", "Restock: pick what's needed from the same list, then how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it."],
     behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere, and an 86'd ingredient shows the swap on every drink that uses it.", "Restocks waiting over 15 minutes show as late. The weekly count is Stock count, at the foot of this page: its totals go into Nory.", "Clear everything puts every 86 back in stock."] },
   closing: { t: "Closing checklist", what: "The close, ticked off live on every phone.",
-    how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started."],
-    behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks wait on the phone and send when it's back. A banner says how many are waiting."] },
+    how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part. Someone left before finishing theirs? Tap Take over and carry on: the heading and the report say who started it and who finished it.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started."],
+    behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks and photos wait on the phone, even if the app is closed, and go in order when it's back. A banner says they're waiting, and Back online. Everything's sent says they've arrived."] },
   handover: { t: "Handover", what: "The end of the night: what's done, what's low, what's outstanding and what tomorrow needs.",
-    how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos.", "Tap Hand over. It saves for the morning team, then opens WhatsApp with it ready to send."],
+    how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos. Photos can go in any time of the shift: each is saved for tonight straight away, and Send now shares one on WhatsApp too.", "Tap Hand over. It saves for the morning team, then opens WhatsApp with it ready to send."],
     behind: ["The boxes are shared live with everyone closing your side, so two people can fill them in.", "Photos are required. With none, you're asked why, and the reason goes in the handover.", "Sent handovers are kept. Photos are cleared after 30 days to stay on the free plan. The boxes start empty again at 6am."] },
   clearall: { t: "Clear everything", what: "A fresh start for the shift, on every phone.",
     how: ["Tap it, then confirm."],
@@ -11450,7 +11747,7 @@ const HELP = {
     how: ["Tap Add payslips and pick your payslips (photos, screenshots or PDFs, a year's at once). Every month fills in by itself: hours, rate, tronc an hour, tax, NI and take-home.", "This month shows how the month adds up, step by step. Every month puts them side by side; Holiday and More hold the rest.", "Months without a payslip are predicted from your average hours and tronc an hour. Type the hours you expect under the summary to see what it would pay."],
     behind: ["It stays on this phone: nobody else sees it and it never goes online. Payslips are read on the phone.", "Tronc is paid on the hours worked the month before, so its rate an hour is each payslip's tronc over the month before's hours. With no payslips yet it's a suggested £6.", "Tax uses the 2026 to 2027 GOV.UK rates, month by month. Your payslip is always the final word."] },
   logit: { t: "Log it", what: "Anything you see, find, do, are told or tell a manager, saved in one line with your name and the time.",
-    how: ["Tap \uff0b Log it: on Shift above every page, on the Handover, on Team, Send on WhatsApp, or on the bar station.", "Pick what it is, write one line, and pick Bar or Floor.", "Log it saves it. Log it and send on WhatsApp also opens WhatsApp with it, so the team chat sees it now."],
+    how: ["Tap \uff0b Log it: on Shift above every page, on the Handover, on Team, Send on WhatsApp, or on the bar station.", "Pick what it is, write one line, and pick Bar or Floor. Ran out or running low? Pick from the list, several at once.", "Log it saves it. Log it and send on WhatsApp also opens WhatsApp with it, so the team chat sees it now."],
     behind: ["86 goes on the 86 board and Broken goes on Issues and faults, so nothing is kept twice.", "Running low, Not finished and For tomorrow go in the handover under their points. Running low is on the morning's order too. The rest goes under Logged tonight.", "Tonight's report for the managers has all of it, and the morning sees it in last night's handover.", "Whoever wrote one, or a manager, can take it off with \u00d7. The log starts empty at 6am; sent handovers keep it.", "Someone hurt or an accident goes to the duty manager and the accident book, not here."] },
   reset: { t: "Reset this phone", what: "Wipes what Bar Book keeps on this phone and starts it again as new.",
     how: ["Type CLEAR, then tap Reset this phone."],
@@ -11462,11 +11759,11 @@ const INTRO = [
   { t: "Welcome to Bar Book", how: ["Every drink we make, the shift, the close and the handover, in one app built for Black Tap Soho.", "Specs and guides work with no signal. The team side syncs live between every phone on shift.", "Tap Next to see what it does. Skip any time: it's always in More."], tip: "Two minutes now saves you that every shift." },
   { t: "Find any drink in seconds", how: ["Rapid fire: the house drinks as big buttons, one tap from the start page. Show specs on the page and most questions need no tap at all.", "Menu: search by drink, spirit, glass or flavour. It forgives typos, so “espreso martni” still finds it.", "Under the search: Jump to lists every section, Filters narrows by kind of drink, spirit or what the guest fancies, and ★ shows your favourites."], tip: "Tap the empty search box to see the drinks you opened last. Tap the Drinks tab again at the top of the Menu to jump straight into search.", more: ["rapid"] },
   { t: "Every spec, done right", how: ["Each drink has the spec, glass, ice, garnish and method, plus a picture guide for every step.", "Tap a line or step to tick it off as you build. − and + scale the spec for up to 12 drinks, with how to batch them. ml or oz switches units.", "Swipe sideways for the next drink. ☆ keeps your favourites one tap away."], tip: "Send this drink, Picture card or Print card turns any spec into a WhatsApp message or a card for the well.", more: ["drink"] },
-  { t: "Out of something? It adjusts", how: ["Put it on the 86 board once and every phone knows.", "Every drink that uses it shows the closest swap, on the spec, the menu, Rapid fire and the cheat sheets.", "Make stops counting on it, so it never suggests a drink you can't make tonight."], tip: "Back in stock takes it off everywhere at once.", more: ["stock"] },
+  { t: "Out of something? It adjusts", how: ["Shift, Stock, Search everything to 86: a few letters, typos and all, or pick a kind. Tick several to 86 them together. Every phone knows straight away.", "Every drink that uses it shows the closest swap, on the spec, the menu, Rapid fire and the cheat sheets.", "Make stops counting on it, so it never suggests a drink you can't make tonight."], tip: "Back in stock takes it off everywhere at once.", more: ["stock"] },
   { t: "The cocktail maker", how: ["Make: tap what you've got and see what you can make, closest first, with swaps.", "My bar keeps your own bottles. Specs puts every spec on one line for busy moments.", "Black Tap shows our line-up: draught, bottles, softs and the house serves."], tip: "A guest names two bottles? Tap them and offer the top match.", more: ["make"] },
   { t: "Run the shift together", how: ["Shift is shared live with everyone on your side: the 86 board, restocks from the cellar and date labels.", "Restock: ask for it, someone brings it up, whoever's there confirms it arrived. Late ones flag after 15 minutes.", "Date labels tell you what to write on the label and what's due today or tomorrow."], tip: "No signal? It keeps working and sends everything when you're back. A banner says what's waiting.", more: ["shift", "labels"] },
   { t: "Count stock without the notebook", how: ["Shift, Stock, Count stock: every place in shelf order, every product on it.", "Tap a line: + and − for full bottles, tap how full the open one is. Or say it: “Smirnoff two and a half”. Or weigh it on the scale.", "Send the totals on WhatsApp as a table, or as a spreadsheet for Nory."], tip: "It saves as you go, so two of you can count different places at once.", more: ["count"] },
-  { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. Starting time, time taken and who ticked what are kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
+  { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and Take over picks up a part someone left. Ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. Starting time, time taken and who ticked what are kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
   { t: "Log anything, in one line", how: ["Saw it, found it, did it, told a manager or someone told you: tap \uff0b Log it on Shift or the bar station.", "86 goes on the 86 board, Broken on Issues, and the rest straight into tonight's handover with your name and the time.", "Log it and send on WhatsApp puts it in the team chat from your phone."], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away.", more: ["logit"] },
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift, Who to call and Spin the wheel."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
@@ -11616,7 +11913,8 @@ function logRender() {
     <p class="lead">Anything you see, find, do, are told or tell a manager. One line is enough: it saves with your name and the time.</p>
     <div class="lg-kinds" role="group" aria-label="What is it?">${LOG_KINDS.map(([id, t]) => `<button class="chip" data-lg-kind="${id}" aria-pressed="${id === lg.what}">${t}</button>`).join("")}</div>
     ${lg.what === "told" ? `<div class="mini">Who did you tell?</div><div class="recent" translate="no">${STAFF.mgr.map((n) => `<button class="chip" data-lg-told="${esc(n)}" aria-pressed="${lg.told === n}">${esc(n)}</button>`).join("")}</div>` : ""}
-    <label class="fld">${lg.what === "out" ? "What ran out?" : lg.what === "low" ? "What's running low?" : "What happened?"}<textarea id="lg-text" rows="2" maxlength="${LOG_MAX - 30}" placeholder="${esc(ph)}">${esc(lg.text)}</textarea></label>
+    ${lg.what === "out" ? pkBtn("Search or pick what ran out (several at once is fine)", "data-lg-pk86") : lg.what === "low" ? pkBtn("Pick from the list", "data-lg-pklow") : ""}
+    <label class="fld">${lg.what === "out" ? "Or type what ran out" : lg.what === "low" ? "What's running low?" : "What happened?"}<textarea id="lg-text" rows="2" maxlength="${LOG_MAX - 30}" placeholder="${esc(ph)}">${esc(lg.text)}</textarea></label>
     <div class="lg-side"><span>For</span><div class="seg" role="group" aria-label="Bar or floor">${Object.keys(MODE_LISTS).map((m) => `<button data-lg-side="${m}" aria-pressed="${m === lg.side}">${sideName(m)}</button>`).join("")}</div></div>
     <p class="note lg-where">${k[2]}</p>
     <div class="lg-go"><button class="btn pri" data-lg-go>Log it</button><button class="btn" data-lg-go="send">Log it and send on WhatsApp</button></div>
@@ -11656,6 +11954,11 @@ $("#logit").addEventListener("click", (e) => {
   const sd = t.closest("[data-lg-side]"); if (sd) { haptic(); lg.side = sd.dataset.lgSide; logRender(); return; }
   const go = t.closest("[data-lg-go]"); if (go) return logSave(go.dataset.lgGo === "send");
   const dr = t.closest("[data-lg-drop]"); if (dr) return logDrop(dr.dataset.lgDrop);
+  if (t.closest("[data-lg-pk86]")) { const side = lg.side; logClose(); return pkOpen({ mode: "86", side }); }
+  if (t.closest("[data-lg-pklow]")) {
+    $("#logit").hidden = true;
+    return pkOpen({ mode: "many", title: "What's running low?", side: lg.side, onClose: () => { $("#logit").hidden = false; }, onPick: (ns) => { const v = lg.text.trim(); lg.text = [v, ...ns].filter(Boolean).join(", "); store.set("logDraft", lg.text); $("#logit").hidden = false; logRender(); } });
+  }
 });
 function logDrop(id) { haptic(); track(LIVE.api.dropLog(id), "Taken off tonight's log", "Not taken off. Try again"); }
 $("#logit").addEventListener("keydown", (e) => { if (e.key === "Escape") logClose(); });
@@ -11707,7 +12010,7 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 2;
+const WALK_V = 3;
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -11731,6 +12034,7 @@ const WALK = {
       "Shift, Bar has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
       "Drinks has every spec, with Rapid fire for the rush. The bar iPad has both on the bar station, with tonight's 86s across the top.",
+      "Ran out? Stock, Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
     ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
     WALK_NAV,
     { t: "Opening", how: [
@@ -11741,9 +12045,9 @@ const WALK = {
     WALK_LOG("bar"),
     { t: "Closing the bar", how: [
       "Shift, Closing: tick each job as you do it, or Tick all under a heading.",
-      "Two of you? Tap I'll do this on a heading, so the other person takes a different part.",
+      "Two of you? Tap I'll do this on a heading, so the other person takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required) and change any date label marked URGENT.",
+      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
     { t: "Stock count", how: [
       "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
@@ -11756,7 +12060,7 @@ const WALK = {
     { t: "Your floor shift", how: [
       "Shift, Floor has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "86 anything, food too: type it, like a burger or a dessert, and every phone knows.",
+      "86 anything, food too: Stock, Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
     ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
     WALK_NAV,
     { t: "Opening", how: [
@@ -11767,9 +12071,9 @@ const WALK = {
     WALK_LOG("floor"),
     { t: "Closing the floor", how: [
       "Shift, Closing: the floor close heading by heading, shake station included. Tick as you go, or Tick all under a heading.",
-      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part.",
+      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
       "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required) and change any date label marked URGENT.",
+      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
     { t: "Stock count", how: [
       "Shift, Stock, Count stock: the count book on your phone, every place in the order you walk it.",
