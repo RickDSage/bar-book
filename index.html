@@ -10562,7 +10562,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T21:24";
+const BUILD = "2026-11-17T22:37";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -10921,7 +10921,7 @@ Object.assign(TC_SUB, { week: "Most 86'd, closes not fully done, late labels", p
   history: "Undo changes to date labels and added items", setup: "Your code, the managers' codes, the team code, then check they work", ready: "Rules, codes, backups and this phone, ticked off by themselves", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
 function mgCards() {
   if (!MG_READY) return [];
-  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["export", "Export to Excel or CSV", exportHtml], ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml], ["ready", "Ready for Friday", readyHtml, (() => { const [n, of] = readyCount(); return n === of ? { t: "✓ ready" } : { t: `${n} of ${of}`, hot: 1 }; })()]] : [];
+  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["export", "Export and import", exportHtml], ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml], ["ready", "Ready for Friday", readyHtml, (() => { const [n, of] = readyCount(); return n === of ? { t: "✓ ready" } : { t: `${n} of ${of}`, hot: 1 }; })()]] : [];
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
@@ -10982,7 +10982,7 @@ MG_READY = true;
    manager can run it on their own phone, the bar iPad or a laptop, whoever logged it and wherever. Nothing is written.
    No library: the workbook is a few XML files in a plain zip, built here. */
 const EX_MAX = 92;
-const EX = { from: "", to: "", side: "all", who: "", off: new Set(store.get("exOff", [])), D: null, busy: false, err: false, key: "" };
+const EX = { tab: "out", from: "", to: "", side: "all", who: "", off: new Set(store.get("exOff", [])), D: null, busy: false, err: false, key: "" };
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const exDays = (a, b) => { const xs = []; for (let d = b; d >= a && xs.length < EX_MAX; d = addDays(d, -1)) xs.push(d); return xs; };
 const exList = (k) => LISTS[k]?.title || k || "";
@@ -11058,7 +11058,7 @@ const exAbout = () => [["Exported", mgShort({ toMillis: () => Date.now() })], ["
   ["Side", EX.side === "all" ? "Bar and floor" : sideName(EX.side)], ["Person", EX.who || "Everyone"], ["Logs", exPicked().map((x) => x.L.n).join(", ")],
   ["Shift date", "The business day. Anything after midnight counts for the night before, as it does in Bar Book."], ["Photos", "Closing photos stay in Bar Book: Team, Closing reports."]];
 
-function exportHtml() {
+function exOutHtml() {
   if (!EX.to) { EX.to = shiftDay(); EX.from = addDays(EX.to, -6); }
   if (!EX.busy && EX.key !== `${EX.from}|${EX.to}`) setTimeout(exLoad);
   const quick = [["Tonight", 0, 0], ["Last night", 1, 1], ["Last 7 nights", 6, 0], ["Last 31 nights", 30, 0]].map(([t, a, b]) => {
@@ -11075,11 +11075,15 @@ function exportHtml() {
     <div class="ex-logs">${T.map((x) => `<label class="check"><input type="checkbox" data-ex-log="${x.L.k}"${EX.off.has(x.L.k) ? "" : " checked"}> <span><b>${x.L.n}</b> <span class="s">${x.rows.length ? plural(x.rows.length, "line") : "nothing"} · ${x.L.what}</span></span></label>`).join("")}</div>`;
   const none = T.some((x) => x.rows.length) ? "Tick a log with lines in it." : "Nothing logged for these filters. Try more nights, both sides or everyone.";
   return `${filters}
-    ${n ? `<div class="actions"><button class="btn pri" data-ex-go="xlsx">Excel workbook</button><button class="btn" data-ex-go="csv">CSV files</button><button class="btn" data-ex-go="print">Print</button><button class="btn" data-ex-go="copy">Copy</button></div>
-      <p class="note">${plural(n, "line")} from ${plural(picked.length, "log")}. <b>Excel workbook</b>: one file, a tab for each log, opens in Excel, Numbers and Google Sheets. <b>CSV files</b>: one for each log, for Nory or any system that imports a spreadsheet. <b>Copy</b> pastes into a spreadsheet as columns. On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp.</p>` : `<p class="note">${none}</p>`}
+    ${n ? `<div class="actions"><button class="btn pri" data-ex-go="xlsx">Excel workbook</button><button class="btn" data-ex-go="csv">CSV files</button><button class="btn" data-ex-go="docx">Word document</button><button class="btn" data-ex-go="print">Print</button><button class="btn" data-ex-go="copy">Copy</button></div>
+      <p class="note">${plural(n, "line")} from ${plural(picked.length, "log")}. <b>Excel workbook</b>: one file, a tab for each log, opens in Excel, Numbers and Google Sheets. <b>CSV files</b>: one for each log, for Nory or any system that imports a spreadsheet. <b>Word document</b>: the tables, ready for a report, opens in Word, Pages and Google Docs. <b>Copy</b> pastes as a table into Word or Docs, and as columns into a spreadsheet. On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp.</p>` : `<p class="note">${none}</p>`}
     ${logs}
     ${n ? `<div class="mini">See it here</div>${picked.map((x) => `<details class="ex-prev"><summary>${x.L.n} <span class="s">${plural(x.rows.length, "line")}</span></summary><div class="ex-scroll">${exTableHtml(x, 60)}</div>${x.rows.length > 60 ? `<p class="note">First 60 lines here. The file has all ${x.rows.length}.</p>` : ""}</details>`).join("")}` : ""}
     <p class="note">Bar Book can't send to Nory by itself: Nory doesn't offer a link for other apps to send to. Import the CSV in Nory, if your account takes a spreadsheet import, or attach it to an email.</p>`;
+}
+// One card, both ways: Export (what the team logged, out to a file) and Import (a spreadsheet in, src/import.js).
+function exportHtml() {
+  return `<div class="seg ex-tabs"><button data-ex-tab="out" aria-pressed="${EX.tab === "out"}">Export</button><button data-ex-tab="in" aria-pressed="${EX.tab === "in"}">Import</button></div>${EX.tab === "in" ? importHtml() : exOutHtml()}`;
 }
 const exTableHtml = (x, max = Infinity) => `<table class="ex-t"><thead><tr>${x.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${x.rows.slice(0, max).map((r) => `<tr>${r.map((v, i) => `<td${i === 0 ? ' class="nw"' : ""}>${esc(i === 0 ? dayName(v) : v)}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
 
@@ -11094,10 +11098,15 @@ function exGo(how) {
   haptic();
   if (how === "xlsx") return mgSaveFile(exName("xlsx"), XLSX_TYPE, exXlsx([...xs.map((x) => [x.L.n, x.head, x.rows]), ["About this export", ["About", "Detail"], exAbout()]]));
   if (how === "csv") return exSaveFiles(xs.map((x) => new File([toCsv(x.head, x.rows)], exName(`${x.L.k}.csv`).replace(/\.(\w+)\.csv$/, "-$1.csv"), { type: "text/csv" })));
+  if (how === "docx") return mgSaveFile(exName("docx"), DOCX_TYPE, exDocx(xs));
   if (how === "copy") {
+    // Both at once: a table for Word, Pages or Docs, and tab-separated columns for a spreadsheet or a message.
     const cell = (v) => String(v ?? "").replace(/[\t\r\n]+/g, " ");
     const text = xs.map((x) => [x.L.n, x.head.join("\t"), ...x.rows.map((r) => r.map(cell).join("\t"))].join("\n")).join("\n\n");
-    return navigator.clipboard?.writeText(text).then(() => toast("Copied. Paste it into a spreadsheet or a message"), () => toast("Couldn't copy. Use Excel workbook instead"));
+    const html = `<meta charset="utf-8">${xs.map((x) => `<h3>${esc(x.L.n)}</h3><table border="1" cellpadding="4" style="border-collapse:collapse;font:10pt Calibri,Arial,sans-serif"><tr>${x.head.map((h) => `<th style="background:#eee;text-align:left">${esc(h)}</th>`).join("")}</tr>${x.rows.map((r) => `<tr>${r.map((v, i) => `<td>${esc(i === 0 ? dayName(v) : v)}</td>`).join("")}</tr>`).join("")}</table>`).join("")}`;
+    const done = () => toast("Copied. Paste it into Word, Docs, a spreadsheet or a message"), fail = () => toast("Couldn't copy. Use Word document or Excel workbook instead");
+    try { if (window.ClipboardItem) return navigator.clipboard.write([new ClipboardItem({ "text/html": new Blob([html], { type: "text/html" }), "text/plain": new Blob([text], { type: "text/plain" }) })]).then(done, () => navigator.clipboard.writeText(text).then(done, fail)); } catch {}
+    return navigator.clipboard?.writeText(text).then(done, fail);
   }
   if (how === "print") {
     const st = document.createElement("style");
@@ -11137,6 +11146,24 @@ function exXlsx(sheets) {
   ];
   return exZip(files);
 }
+// A Word file (.docx): a title, then each log as a table with its headings repeated on every page, landscape A4.
+const DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+function exDocx(xs) {
+  const W = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"', run = (t, b, sz = 18) => `<w:r><w:rPr>${b ? "<w:b/>" : ""}<w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve">${exXml(t)}</w:t></w:r>`;
+  const para = (t, b, sz) => `<w:p>${String(t).split("\n").map((l, i) => (i ? "<w:r><w:br/></w:r>" : "") + run(l, b, sz)).join("")}</w:p>`;
+  const cell = (t, b) => `<w:tc><w:tcPr>${b ? '<w:shd w:val="clear" w:color="auto" w:fill="EEEEEE"/>' : ""}</w:tcPr>${para(t, b, 16)}</w:tc>`;
+  const B = ["top", "left", "bottom", "right", "insideH", "insideV"].map((k) => `<w:${k} w:val="single" w:sz="4" w:space="0" w:color="999999"/>`).join("");
+  const table = (x) => `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders>${B}</w:tblBorders><w:tblCellMar><w:left w:w="60" w:type="dxa"/><w:right w:w="60" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${x.head.map(() => `<w:gridCol w:w="${Math.floor(15398 / x.head.length)}"/>`).join("")}</w:tblGrid>`
+    + `<w:tr><w:trPr><w:tblHeader/></w:trPr>${x.head.map((h) => cell(h, true)).join("")}</w:tr>${x.rows.map((r) => `<w:tr><w:trPr><w:cantSplit/></w:trPr>${r.map((v, i) => cell(i === 0 ? dayName(v) : v ?? "")).join("")}</w:tr>`).join("")}</w:tbl>`;
+  const body = para("Black Tap Soho · Bar Book export", true, 32) + para(exAbout().slice(0, 5).map(([k, v]) => `${k}: ${v}`).join(" · "), false, 18)
+    + xs.map((x) => para(x.L.n, true, 26) + table(x) + para("", false, 10)).join("")
+    + '<w:sectPr><w:pgSz w:w="16838" w:h="11906" w:orient="landscape"/><w:pgMar w:top="720" w:right="720" w:bottom="720" w:left="720" w:header="0" w:footer="0" w:gutter="0"/></w:sectPr>';
+  return new Blob([exZip([
+    ["[Content_Types].xml", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>'],
+    ["_rels/.rels", '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>'],
+    ["word/document.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<w:document ${W}><w:body>${body}</w:body></w:document>`],
+  ])], { type: DOCX_TYPE });
+}
 // A plain zip with nothing compressed, which is all an .xlsx needs.
 const EX_CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const exCrc = (b) => { let c = 0xffffffff; for (let i = 0; i < b.length; i++) c = EX_CRC[(c ^ b[i]) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
@@ -11165,6 +11192,7 @@ document.addEventListener("click", (e) => {
   if ((x = t("[data-ex-all]"))) { EX.off = x.dataset.exAll === "1" ? new Set() : new Set(EX_LOGS.map((L) => L.k)); store.set("exOff", [...EX.off]); renderCard("export"); return; }
   // From another card (the date label record): the same nights and side, that log only.
   if ((x = t("[data-ex-only]"))) { const [k, n, side] = x.dataset.exOnly.split("|"); EX.to = shiftDay(); EX.from = addDays(EX.to, 1 - n); EX.side = side || "all"; EX.who = ""; EX.off = new Set(EX_LOGS.map((L) => L.k).filter((j) => j !== k)); haptic(); openAt("export"); return; }
+  if ((x = t("[data-ex-tab]"))) { EX.tab = x.dataset.exTab; haptic(); renderCard("export"); return; }
   if ((x = t("[data-ex-go]"))) { exGo(x.dataset.exGo); return; }
   if (t("[data-ex-again]")) { EX.key = ""; renderCard("export"); }
 });
@@ -11181,17 +11209,311 @@ document.addEventListener("change", (e) => {
 });
 document.head.insertAdjacentHTML("beforeend", `<style>
 .ex-dates{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}.ex-dates label,.ex-who{display:flex;align-items:center;gap:8px;font-weight:700}.ex-dates input,.ex-who select{min-height:44px;font-size:16px}
-.seg.ex-seg{grid-template-columns:1fr 1fr 1fr;margin-top:6px}.ex-who select{flex:1;min-width:0}.ex-who{margin:10px 0}.ex-logs .check b{margin-right:4px}.ex-logs .check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}.ex-logs .check input{flex:none;width:22px;height:22px;margin-top:2px}
+.seg.ex-tabs{margin-top:0;margin-bottom:10px}.seg.ex-seg{grid-template-columns:1fr 1fr 1fr;margin-top:6px}.ex-who select{flex:1;min-width:0}.ex-who{margin:10px 0}.ex-logs .check b{margin-right:4px}.ex-logs .check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}.ex-logs .check input{flex:none;width:22px;height:22px;margin-top:2px}
 .ex-logs .s{display:block;font-weight:400}.ex-prev{margin-top:8px;border:1px solid var(--line);border-radius:12px;padding:0 10px}.ex-prev summary{min-height:44px;display:flex;align-items:center;gap:8px;font-weight:700;cursor:pointer}
 .ex-scroll{overflow-x:auto;margin:0 -10px 10px;padding:0 10px}.ex-t{border-collapse:collapse;font-size:13px;min-width:100%;width:max-content}.ex-t th,.ex-t td{border-bottom:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top;max-width:260px;min-width:64px}
 .ex-t th{position:sticky;top:0;background:var(--surface);white-space:nowrap}.ex-t td.nw{white-space:nowrap}
 </style>`);
 
 /* ---- Where it goes ---- */
-TC_SUB.export = "Every log as Excel, CSV, print or copy, filtered by dates, side and person";
-FEATURES.push({ g: "Team", k: "export", adm: 1, n: "Export", go: "export", team: 1, what: "Every log in Bar Book in one place: closing ticks and who did each section, take overs, handovers, 86s, Log it, date labels, restock, stock counts, deliveries, issues, training and everything sent.",
-  mgr: "Pick the nights, the side, a person and the logs, then Excel workbook, CSV files (for Nory or any import), Print or Copy. It works on any manager's phone, the iPad or a laptop." });
-PLACE_KW.export = "export excel spreadsheet csv xlsx download nory laptop print copy file data logs records numbers sheets";
+TC_SUB.export = "Every log out as Excel, CSV, Word, print or copy, and spreadsheets in";
+FEATURES.push({ g: "Team", k: "export", adm: 1, n: "Export and import", go: "export", team: 1, what: "Every log in Bar Book out to a file: closing ticks and who did each section, take overs, handovers, 86s, Log it, date labels, restock, stock counts, deliveries, issues, training and everything sent. And spreadsheets in: date labels, items, names, the stock setup with bottle sizes and weights, a past count and deliveries.",
+  mgr: "Export: pick the nights, side, person and logs, then Excel, CSV (for Nory or any import), Word, Print or Copy. Import: get the template, fill it in, choose the file, check every line, then save. Nothing is ever deleted." });
+PLACE_KW.export = "export import upload word docx template excel spreadsheet csv xlsx download nory laptop print copy file data logs records numbers sheets";
+/* ---------- Import ----------
+   The other way from Export: a manager brings a spreadsheet in (CSV, or an Excel workbook from Excel, Numbers or
+   Google Sheets) to add or update what Bar Book keeps: date labels, items, names, the stock setup with bottle sizes and
+   weights, a past stock count from the notebook, or deliveries. Each kind has a template made from what's in Bar Book
+   now, so the columns are right. Nothing saves until the manager has seen every line marked New, Change, Same or Skip,
+   with the reason, and a change to something already there asks once more. Every line is saved through the same
+   writes as the app itself, so the server's rules check each one, and nothing is ever deleted. */
+const IM = { kind: "labels", file: "", plan: null, busy: false, done: null, err: "" };
+const imNorm = (s) => String(s ?? "").normalize("NFKD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "");
+const imKey = (s) => String(s ?? "").trim().toLowerCase();
+const imYes = (v, def) => { const s = imNorm(v); return !s ? def : ["yes", "y", "true", "1", "on", "x", "ticked"].includes(s); };
+const imNum = (v) => { if (typeof v === "number") return v; const s = String(v ?? "").trim().replace(",", "."); return s === "" || isNaN(+s) ? null : +s; };
+// A day from a cell: 2026-11-17, 17/11/2026 (UK order), or an Excel date number.
+function imDay(v) {
+  if (typeof v === "number" && v > 30000 && v < 80000) return new Date((v - 25569) * 864e5).toISOString().slice(0, 10);
+  const s = String(v ?? "").trim(); let m;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/))) return `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`;
+  if ((m = s.match(/^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2,4})$/))) return `${m[3].length === 2 ? "20" + m[3] : m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  return "";
+}
+const imSide = (v) => { const s = imNorm(v); return s.startsWith("bar") ? "bar" : s.startsWith("floor") ? "floor" : ""; };
+// A value given as the app's own word or its plain name (Fridge, "Dry store or shelf").
+const imPick = (map, v, get = (x) => x) => { const s = imNorm(v); if (!s) return ""; return Object.keys(map).find((k) => imNorm(k) === s || imNorm(get(map[k])) === s) || null; };
+
+/* ---- Reading the file ---- */
+function imCsv(text) {
+  text = text.replace(/^﻿/, "");
+  const first = text.split(/\r?\n/, 1)[0], d = [",", ";", "\t"].sort((a, b) => first.split(b).length - first.split(a).length)[0];
+  const rows = [[]]; let cell = "", q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) { if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; } else cell += c; continue; }
+    if (c === '"' && cell === "") q = true;
+    else if (c === d) { rows.at(-1).push(cell); cell = ""; }
+    else if (c === "\n" || c === "\r") { if (c === "\r" && text[i + 1] === "\n") i++; rows.at(-1).push(cell); cell = ""; rows.push([]); }
+    else cell += c;
+  }
+  rows.at(-1).push(cell);
+  // Export guards cells that look like a formula with a leading '; take it off again.
+  return rows.map((r) => r.map((x) => (/^'[=+\-@]/.test(x) ? x.slice(1) : x)));
+}
+async function imUnzip(buf) {
+  const u = new Uint8Array(buf), v = new DataView(buf), out = {};
+  let e = u.length - 22; while (e >= 0 && v.getUint32(e, true) !== 0x06054b50) e--;
+  if (e < 0) throw new Error("That file isn't a spreadsheet Bar Book can read. Save it as CSV and try again");
+  let p = v.getUint32(e + 16, true);
+  for (let i = 0, n = v.getUint16(e + 10, true); i < n; i++) {
+    const method = v.getUint16(p + 10, true), size = v.getUint32(p + 20, true), nl = v.getUint16(p + 28, true), xl = v.getUint16(p + 30, true), cl = v.getUint16(p + 32, true), off = v.getUint32(p + 42, true);
+    const name = new TextDecoder().decode(u.subarray(p + 46, p + 46 + nl)), start = off + 30 + v.getUint16(off + 26, true) + v.getUint16(off + 28, true), data = u.subarray(start, start + size);
+    out[name] = { method, data };
+    p += 46 + nl + xl + cl;
+  }
+  return async (name) => {
+    const f = out[name]; if (!f) return null;
+    if (f.method === 0) return new TextDecoder().decode(f.data);
+    if (typeof DecompressionStream === "undefined") throw new Error("This phone can't open Excel files. Save it as CSV, or open it on a newer phone or a laptop");
+    return new Response(new Blob([f.data]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).text();
+  };
+}
+// The first sheet of an .xlsx, as rows of cells. Numbers stay numbers (dates come through as Excel date numbers).
+async function imXlsx(buf) {
+  const get = await imUnzip(buf), xml = (s) => new DOMParser().parseFromString(s, "application/xml");
+  const wb = xml((await get("xl/workbook.xml")) || ""), rels = xml((await get("xl/_rels/workbook.xml.rels")) || "");
+  const sh = wb.getElementsByTagName("sheet")[0], rid = sh?.getAttribute("r:id") || sh?.getAttributeNS("http://schemas.openxmlformats.org/officeDocument/2006/relationships", "id");
+  const tgt = [...rels.getElementsByTagName("Relationship")].find((r) => r.getAttribute("Id") === rid)?.getAttribute("Target") || "worksheets/sheet1.xml";
+  const path = tgt.startsWith("/") ? tgt.slice(1) : "xl/" + tgt.replace(/^\.\//, "");
+  const ss = await get("xl/sharedStrings.xml"), strings = ss ? [...xml(ss).getElementsByTagName("si")].map((si) => [...si.getElementsByTagName("t")].map((t) => t.textContent).join("")) : [];
+  const s = await get(path); if (!s) throw new Error("No sheet found in that file");
+  const col = (ref) => { let n = 0; for (const ch of ref.replace(/\d+$/, "")) n = n * 26 + ch.charCodeAt(0) - 64; return n - 1; };
+  return [...xml(s).getElementsByTagName("row")].map((row) => {
+    const r = [];
+    for (const c of row.getElementsByTagName("c")) {
+      const t = c.getAttribute("t"), vv = c.getElementsByTagName("v")[0]?.textContent ?? "";
+      r[col(c.getAttribute("r") || "A1")] = t === "s" ? strings[+vv] ?? "" : t === "inlineStr" ? [...c.getElementsByTagName("t")].map((x) => x.textContent).join("") : t === "b" ? (vv === "1" ? "Yes" : "No") : t === "str" || t === "e" ? vv : vv === "" ? "" : +vv;
+    }
+    return Array.from(r, (x) => x ?? "");
+  });
+}
+async function imRead(file) {
+  const buf = await file.arrayBuffer(), u = new Uint8Array(buf);
+  if (u[0] === 0x50 && u[1] === 0x4b) return imXlsx(buf);
+  if (/\.(xls|numbers)$/i.test(file.name)) throw new Error("Save it as CSV or Excel (.xlsx) and try again");
+  return imCsv(new TextDecoder().decode(buf));
+}
+// Rows to objects by column name. The heading row is the first one with a known column in it, so a title line above
+// the headings is fine. Blank lines go.
+function imObjects(rows, K) {
+  const hi = rows.findIndex((r) => r.some((h) => imCol(K, h))); if (hi < 0) return { err: `No ${K.cols[0]} column. Get the template and fill that in` };
+  const cols = rows[hi].map((h) => imCol(K, h));
+  if (!cols.includes(K.must)) return { err: `No ${K.cols.find((c) => imNorm(c) === K.must) || K.cols[0]} column. Get the template and fill that in` };
+  return { xs: rows.slice(hi + 1).map((r, i) => ({ n: hi + i + 2, ...Object.fromEntries(cols.map((c, j) => [c, r[j]]).filter(([c]) => c)) })).filter((o) => Object.keys(o).some((k) => k !== "n" && String(o[k] ?? "").trim())) };
+}
+const imCol = (K, h) => { const s = imNorm(h); return s ? Object.keys(K.alias).find((k) => K.alias[k].includes(s)) || null : null; };
+
+/* ---- What each kind is, its template, and what each line would do ---- */
+const IM_BOOL = (b) => (b ? "Yes" : "No");
+const IM_KINDS = {
+  labels: { n: "Date labels", what: "Items that get a date label, how long they keep once opened, and where they live.", must: "item",
+    cols: ["Item", "Side", "Keeps (days)", "On the list", "Station"],
+    alias: { item: ["item", "name", "product"], side: ["side"], life: ["keepsdays", "keeps", "days", "life", "shelflife"], on: ["onthelist", "on", "active", "show"], station: ["station", "where", "lives"] },
+    tpl: () => LIVE.labels.slice().sort((a, b) => a.side.localeCompare(b.side) || a.item.localeCompare(b.item)).map((x) => [x.item, sideName(x.side), x.life, IM_BOOL(x.on), x.station || ""]),
+    plan: (xs) => xs.map((o) => {
+      const item = String(o.item ?? "").trim(), side = imSide(o.side), life = imNum(o.life), on = imYes(o.on, true), station = String(o.station ?? "").trim();
+      if (!item) return { o, st: "skip", why: "No item" };
+      if (item.length > 60) return { o, st: "skip", why: "Item name over 60 letters" };
+      if (!side) return { o, st: "skip", why: "Side must be Bar or Floor" };
+      if (!Number.isInteger(life) || life < 1 || life > 365) return { o, st: "skip", why: "Keeps (days) must be a whole number, 1 to 365" };
+      if (station.length > 30) return { o, st: "skip", why: "Station over 30 letters" };
+      const x = LIVE.labels.find((l) => l.side === side && imKey(l.item) === imKey(item)), line = `${item} · ${sideName(side)} · keeps ${nDays(life)}${on ? "" : " · off the list"}${station ? ` · ${station}` : ""}`;
+      if (!x) return { o, st: "new", line, go: () => A_().label(null, "added", { item, side, life, on, station }) };
+      if (x.life === life && x.on === on && (x.station || "") === station) return { o, st: "same", line };
+      return { o, st: "change", line, was: `keeps ${nDays(x.life)}${x.on ? "" : ", off the list"}${x.station ? `, ${x.station}` : ""}`, go: () => A_().label(x, "edited", { item: x.item, side, life, on, station }) };
+    }) },
+  items: { n: "Items", what: "Things the bar and floor keep that aren't in Bar Book yet. From a manager they wait for Maintenance to approve.", must: "item",
+    cols: ["Item", "Side", "Group", "Kind", "Kept in", "Date label", "Keeps (days)", "At close", "Note"],
+    alias: { item: ["item", "name", "product"], side: ["side"], group: ["group", "section", "category"], kind: ["kind", "type"], store: ["keptin", "store", "where", "kept"], label: ["datelabel", "label"], life: ["keepsdays", "keeps", "days", "life"], close: ["atclose", "close", "closing"], note: ["note", "notes"] },
+    tpl: () => (LIVE.items || []).filter((x) => x.status === "live").map((x) => [x.item, sideName(x.side), x.group, IT_KINDS[x.kind]?.t || x.kind, IT_STORE[x.store] || x.store, IM_BOOL(x.label), x.life || "", IT_CLOSE[x.close] || x.close, x.note || ""]),
+    plan: (xs) => xs.map((o) => {
+      const item = String(o.item ?? "").trim(), side = imSide(o.side) || "bar", kind = imPick(IT_KINDS, o.kind, (k) => k.t) ?? null;
+      if (!item) return { o, st: "skip", why: "No item" };
+      if (item.length > 60) return { o, st: "skip", why: "Item name over 60 letters" };
+      if (kind === null) return { o, st: "skip", why: `Kind "${o.kind}" isn't one Bar Book knows. Use one from the template` };
+      const k = kind || "other", K = IT_KINDS[k], store = imPick(IT_STORE, o.store) ?? null, close = imPick(IT_CLOSE, o.close) ?? null, life = imNum(o.life) ?? 0, group = String(o.group ?? "").trim() || "Other";
+      if (store === null) return { o, st: "skip", why: `Kept in "${o.store}" isn't one Bar Book knows` };
+      if (close === null) return { o, st: "skip", why: `At close "${o.close}" isn't one Bar Book knows` };
+      if (!Number.isInteger(life) || life < 0 || life > 365) return { o, st: "skip", why: "Keeps (days) must be a whole number, 0 to 365" };
+      if (group.length > 40 || String(o.note ?? "").length > 200) return { o, st: "skip", why: "Group over 40 or note over 200 letters" };
+      if (itStock(item)) return { o, st: "skip", why: "Already in Bar Book's own list" };
+      const def = { item, kind: k, group, side, store: store || K.store, label: o.label === undefined || String(o.label).trim() === "" ? K.label : imYes(o.label, K.label), life, close: close || K.close, note: String(o.note ?? "").trim(), found: "" };
+      const line = `${item} · ${sideName(side)} · ${group} · ${IT_STORE[def.store]}`, x = (LIVE.items || []).find((y) => y.side === side && imKey(y.item) === imKey(item));
+      if (!x) return { o, st: "new", line: line + (LIVE.owner ? "" : " · waits for Maintenance"), go: () => A_().addItem(def, LIVE.owner) };
+      if (["kind", "group", "store", "label", "life", "close", "note"].every((f) => x[f] === def[f])) return { o, st: "same", line };
+      if (!LIVE.owner) return { o, st: "skip", line, why: "It's in Bar Book already. Only Maintenance changes an item" };
+      return { o, st: "change", line, was: `${IT_STORE[x.store]}, ${x.group}`, go: () => A_().saveItem(x, { ...def, found: x.found || "" }) };
+    }) },
+  names: { n: "Names", what: "The first names people pick from when they join: managers, bar and floor. Names not in the file stay.", must: "name",
+    cols: ["Name", "Role"], alias: { name: ["name", "firstname", "person", "staff"], role: ["role", "team", "side", "job"] },
+    tpl: () => [...STAFF.mgr.map((n) => [n, "Manager"]), ...STAFF.bar.map((n) => [n, "Bar"]), ...STAFF.floor.map((n) => [n, "Floor"])],
+    plan(xs) {
+      const role = (v) => { const s = imNorm(v); return /^(mgr|manager|senior|supervisor|gm|am)/.test(s) ? "mgr" : s.startsWith("bar") ? "bar" : s.startsWith("floor") || s.startsWith("server") || s.startsWith("waiter") ? "floor" : ""; };
+      const now = (n) => ["mgr", "bar", "floor"].find((r) => STAFF[r].some((x) => imKey(x) === imKey(n)));
+      const RN = { mgr: "Manager", bar: "Bar", floor: "Floor" }, seen = new Set();
+      return xs.map((o) => {
+        const name = String(o.name ?? "").trim().split(/\s+/)[0] || "", r = role(o.role);
+        if (!name) return { o, st: "skip", why: "No name" };
+        if (!r) return { o, st: "skip", why: "Role must be Manager, Bar or Floor" };
+        if (seen.has(imKey(name))) return { o, st: "skip", why: "In the file twice" }; seen.add(imKey(name));
+        const w = now(name), line = `${name} · ${RN[r]}`;
+        if (w === r) return { o, st: "same", line };
+        const go = { names: true, name, r, was: w };
+        return w ? { o, st: "change", line, was: RN[w], go } : { o, st: "new", line, go };
+      });
+    } },
+  setup: { n: "Stock setup", what: "For each product: where it's counted, in what, and its bottle size and weights for weighing the open one.", must: "item",
+    cols: ["Item", "Places", "Unit", "Bottle size (ml)", "Empty bottle (g)", "Full bottle (g)", "One portion (g)", "Count it"],
+    alias: { item: ["item", "product", "name"], places: ["places", "place", "where", "area", "areas"], unit: ["unit", "countedin"], ml: ["bottlesizeml", "bottlesize", "sizeml", "size", "ml"], e: ["emptybottleg", "emptyg", "empty", "emptyweight", "container", "containerg"], f: ["fullbottleg", "fullg", "full", "fullweight"], pw: ["oneportiong", "portiong", "portion", "portionweight"], count: ["countit", "count", "counted"] },
+    tpl() { const seen = new Set(); return ctRows(true).filter((r) => !seen.has(r.item) && seen.add(r.item)).map((r) => [r.item, r.a.join("; "), r.u, r.ml || "", r.e || "", r.f || "", r.pw || "", IM_BOOL(!r.off)]); },
+    plan(xs) {
+      const rows = new Map(); for (const r of ctRows(true)) if (!rows.has(imKey(r.item))) rows.set(imKey(r.item), r);
+      const areas = ctAreas(), seen = new Set();
+      return xs.map((o) => {
+        const r = rows.get(imKey(o.item)); if (!r) return { o, st: "skip", why: String(o.item ?? "").trim() ? "Not in Bar Book. Import it under Items first" : "No item" };
+        if (seen.has(r.item)) return { o, st: "skip", why: "In the file twice" }; seen.add(r.item);
+        const u = String(o.unit ?? "").trim() ? CT_UNITS.find((x) => imNorm(x) === imNorm(o.unit)) : r.u;
+        if (!u) return { o, st: "skip", why: `Unit must be one of: ${CT_UNITS.join(", ")}` };
+        const a = String(o.places ?? "").trim() ? String(o.places).split(/[;,/]/).map((x) => x.trim()).filter(Boolean).map((x) => areas.find((y) => imKey(y) === imKey(x)) || x) : r.a;
+        if (a.length > 4 || a.some((x) => x.length > 40)) return { o, st: "skip", why: "Up to 4 places, each under 40 letters" };
+        const num = (k, d) => (o[k] === undefined || String(o[k]).trim() === "" ? d : imNum(o[k]));
+        const ml = num("ml", r.ml), e = num("e", r.e), f = num("f", r.f), pw = num("pw", r.pw), off = !imYes(o.count, !r.off);
+        if ([ml, e, f, pw].some((v) => v === null || v < 0 || v > 20000)) return { o, st: "skip", why: "Sizes and weights must be numbers, 0 to 20000" };
+        if (u === "bottle" && e && f && f <= e) return { o, st: "skip", why: "Full bottle must weigh more than empty" };
+        const next = { u, a, ml, e, f, pw, off }, same = next.u === r.u && next.a.join("|") === r.a.join("|") && +next.ml === +r.ml && +next.e === +r.e && +next.f === +r.f && +next.pw === +r.pw && next.off === r.off;
+        const line = `${r.item} · ${a.join(", ")} · ${u}${u === "bottle" && ml ? ` · ${ml} ml` : ""}${e && f ? ` · ${e} to ${f} g` : ""}${off ? " · not counted" : ""}`;
+        return same ? { o, st: "same", line } : { o, st: "change", line, was: `${r.a.join(", ")}, ${r.u}${r.e && r.f ? `, ${r.e} to ${r.f} g` : ""}`, go: { setup: true, item: r.item, next } };
+      });
+    } },
+  count: { n: "Stock count", what: "A count from the notebook or another sheet, for the day it was done. Same columns as Export's stock counts.", must: "item", days: true,
+    cols: ["Count date", "Place", "Item", "Full", "Open", "Unit"],
+    alias: { day: ["countdate", "shiftdate", "date", "day"], area: ["place", "where", "area"], item: ["item", "product", "name"], full: ["full", "fullones", "sealed", "whole"], open: ["open", "openone", "part"], total: ["total", "count", "qty", "quantity"], unit: ["unit"] },
+    tpl: () => ctRows().map((r) => [shiftDay(), r.area, r.item, "", "", r.u]),
+    plan(xs, have) {
+      const rows = new Map(ctRows(true).map((r) => [`${imKey(r.area)}|${imKey(r.item)}`, r])), seen = new Set();
+      return xs.map((o) => {
+        const day = imDay(o.day), item = String(o.item ?? "").trim(), area = String(o.area ?? "").trim(), r = rows.get(`${imKey(area)}|${imKey(item)}`);
+        if (!day) return { o, st: "skip", why: "Count date missing or not a date" };
+        if (day > shiftDay()) return { o, st: "skip", why: "Count date is in the future" };
+        if (!item || !area) return { o, st: "skip", why: "Needs a place and an item" };
+        let full = imNum(o.full), open = imNum(o.open); const tot = imNum(o.total);
+        if (full === null && open === null && tot !== null) { full = Math.floor(tot); open = tot - full; }
+        if (full === null && open === null) return { o, st: "skip", why: "Not counted (no Full, Open or Total)" };
+        full ??= 0; open ??= 0; if (open >= 1) open /= 100; // 45 means 0.45
+        const o100 = Math.round(open * 100);
+        if (!Number.isInteger(full) || full < 0 || full > 9999 || o100 < 0 || o100 > 99) return { o, st: "skip", why: "Full must be a whole number and Open a part, like 0.45" };
+        const I = r?.item || item, A = r?.area || area, id = ctId(day, A, I);
+        if (seen.has(id)) return { o, st: "skip", why: "In the file twice" }; seen.add(id);
+        const unit = String(o.unit ?? "").trim() || r?.u || "each", x = have.find((y) => y.id === id), line = `${dayName(day)} · ${A} · ${I}: ${ctSay(unit, full + o100 / 100)}${r ? "" : " · not on the count list"}`;
+        const go = () => A_().countLine(id, { day, area: A, item: I, unit, full, open: o100 });
+        if (!x) return { o, st: "new", line, go };
+        if (x.full === full && x.open === o100 && x.unit === unit) return { o, st: "same", line };
+        return { o, st: "change", line, was: ctSay(x.unit, x.full + x.open / 100), go };
+      });
+    } },
+  received: { n: "Deliveries in", what: "Deliveries between counts, so usage works out right. A line already logged is skipped.", must: "item", days: true,
+    cols: ["Date", "Item", "Amount", "Unit"],
+    alias: { day: ["date", "shiftdate", "day", "delivered"], item: ["item", "product", "name"], qty: ["amount", "qty", "quantity", "count"], unit: ["unit"] },
+    tpl: () => [[shiftDay(), "", "", ""]],
+    plan(xs, have) {
+      const units = new Map(ctRows(true).map((r) => [imKey(r.item), r]));
+      return xs.map((o) => {
+        const day = imDay(o.day), item = String(o.item ?? "").trim(), qty = imNum(o.qty), r = units.get(imKey(item));
+        if (!day) return { o, st: "skip", why: "Date missing or not a date" };
+        if (day > shiftDay()) return { o, st: "skip", why: "Date is in the future" };
+        if (!item) return { o, st: "skip", why: "No item" };
+        if (qty === null || qty <= 0) return { o, st: "skip", why: "Amount must be more than 0" };
+        const I = r?.item || item, unit = String(o.unit ?? "").trim() || r?.u || "each", q = Math.round(qty * 100), line = `${dayName(day)} · ${I}: ${ctSay(unit, q / 100)}`;
+        if (have.some((y) => y.day === day && imKey(y.item) === imKey(I) && y.qty === q)) return { o, st: "same", line, why: "Already logged" };
+        return { o, st: "new", line, go: () => A_().addReceived({ day, item: I, unit, qty: q }) };
+      });
+    } },
+};
+const IM_ST = { new: "New", change: "Change", same: "Same", skip: "Skip" };
+
+async function imFile(f) {
+  const K = IM_KINDS[IM.kind]; IM.file = f.name; IM.plan = null; IM.done = null; IM.err = ""; IM.busy = true; renderCard("export");
+  try {
+    const { xs, err } = imObjects(await imRead(f), K);
+    if (err) throw new Error(err);
+    if (!xs.length) throw new Error("No lines under the headings");
+    if (xs.length > 2000) throw new Error("Over 2000 lines. Split it into smaller files");
+    let have = [];
+    if (K.days) { const ds = xs.map((o) => imDay(o.day)).filter(Boolean).sort(); if (ds.length) have = await A_().daysOf(IM.kind === "count" ? "counts" : "received", ds[0], ds.at(-1), 6000); }
+    IM.plan = K.plan(xs, have);
+  } catch (e) { IM.err = e.message || "Couldn't read that file"; console.warn(e); }
+  IM.busy = false; renderCard("export");
+}
+async function imSave() {
+  const P = IM.plan, go = P.filter((p) => p.go), ch = go.filter((p) => p.st === "change").length;
+  if (!go.length) return toast("Nothing to save");
+  if (ch && !confirm(`${plural(ch, "line changes something", "lines change things")} already in Bar Book. Save?`)) return;
+  IM.busy = true; renderCard("export"); haptic();
+  let ok = 0, bad = 0;
+  // Names and the stock setup are one record each, so their lines go in one save; the rest a line at a time.
+  const one = go.filter((p) => typeof p.go === "function"), names = go.filter((p) => p.go.names), setup = go.filter((p) => p.go.setup);
+  for (const p of one) { try { await p.go(); ok++; p.res = "ok"; } catch (e) { bad++; p.res = e.code || e.message; } if ((ok + bad) % 10 === 0) { IM.prog = ok + bad; renderCard("export"); } }
+  if (names.length) {
+    const n = { mgr: [...STAFF.mgr], bar: [...STAFF.bar], floor: [...STAFF.floor] };
+    for (const { go: g } of names) { if (g.was) n[g.was] = n[g.was].filter((x) => imKey(x) !== imKey(g.name)); n[g.r].push(g.name); }
+    try { await A_().saveNames(n); ok += names.length; names.forEach((p) => (p.res = "ok")); } catch (e) { bad += names.length; names.forEach((p) => (p.res = e.code || e.message)); }
+  }
+  if (setup.length) {
+    const s = JSON.parse(JSON.stringify(ctSetup()));
+    for (const { go: g } of setup) s.items[g.item] = { ...(s.items[g.item] || {}), ...g.next };
+    try { await A_().saveCountSetup(s); ok += setup.length; setup.forEach((p) => (p.res = "ok")); } catch (e) { bad += setup.length; setup.forEach((p) => (p.res = e.code || e.message)); }
+  }
+  IM.busy = false; IM.prog = 0; IM.done = { ok, bad }; renderCard("export");
+  toast(bad ? `${ok} saved, ${bad} not saved` : `${plural(ok, "line")} saved. Every phone has it now`);
+}
+function imTemplate() {
+  const K = IM_KINDS[IM.kind]; haptic();
+  const help = [["What this is", K.what], ["How", "Fill in or change the lines, keep the headings as they are, then Import it in Bar Book: Team, Export and import, Import."], ["Columns", K.cols.join(", ")], ["Nothing is deleted", "A line you take out of the file stays in Bar Book."]];
+  mgSaveFile(`bar-book-${slugName(K.n)}-template.xlsx`, XLSX_TYPE, exXlsx([[K.n, K.cols, K.tpl()], ["How to fill it in", ["About", "Detail"], help]]));
+}
+
+function importHtml() {
+  const K = IM_KINDS[IM.kind], P = IM.plan;
+  const kinds = `<div class="recent">${Object.entries(IM_KINDS).map(([k, x]) => `<button class="chip" data-im-kind="${k}" aria-pressed="${k === IM.kind}">${x.n}</button>`).join("")}</div>`;
+  const head = `<p class="note">${esc(K.what)}</p>
+    <div class="mini">1. Get the template</div><p class="note">A spreadsheet with the right columns and what's in Bar Book now: ${K.cols.map(esc).join(", ")}. Fill it in on a laptop or phone. A CSV or Excel file with the same headings works too, and so does a file from Export.</p>
+    <div class="actions"><button class="btn" data-im-tpl>Template</button></div>
+    <div class="mini">2. Choose the file</div><label class="btn im-pick">Choose a CSV or Excel file<input type="file" data-im-file accept=".csv,.xlsx,.txt,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden></label>`;
+  if (IM.busy) return `${kinds}${head}<p class="note">${IM.prog ? `Saving… ${IM.prog} so far` : "Reading…"}</p>`;
+  if (IM.err) return `${kinds}${head}<p class="note im-err">${esc(IM.file)}: ${esc(IM.err)}</p>`;
+  if (!P) return `${kinds}${head}`;
+  const n = (s) => P.filter((p) => p.st === s).length, go = P.filter((p) => p.go).length;
+  const tbl = `<div class="ex-scroll"><table class="ex-t im-t"><thead><tr><th>Line</th><th></th><th>What it does</th></tr></thead><tbody>${P.slice(0, 300).map((p) => `<tr class="im-${p.st}"><td>${p.o.n}</td><td><span class="pill">${p.res === "ok" ? "✓ Saved" : p.res ? "Not saved" : IM_ST[p.st]}</span></td><td>${esc(p.line || Object.values(p.o).slice(1).join(" · "))}${p.was ? `<br><span class="s">Now: ${esc(p.was)}</span>` : ""}${p.why ? `<br><span class="s">${esc(p.why)}</span>` : ""}${p.res && p.res !== "ok" ? `<br><span class="s">${esc(p.res === "permission-denied" ? "Refused by the server: check it's a manager's phone" : p.res)}</span>` : ""}</td></tr>`).join("")}</tbody></table></div>${P.length > 300 ? `<p class="note">First 300 lines shown.</p>` : ""}`;
+  return `${kinds}${head}
+    <div class="mini">3. Check it, then save</div>
+    <p class="note"><b>${esc(IM.file)}</b>: ${n("new")} new, ${n("change")} to change, ${n("same")} the same, ${n("skip")} skipped.${IM.done ? ` <b>Saved ${IM.done.ok}${IM.done.bad ? `, ${IM.done.bad} not saved` : ""}.</b>` : ""}</p>
+    ${!IM.done && go ? `<div class="actions"><button class="btn pri" data-im-save>Save ${go === 1 ? "this line" : `these ${go} lines`}</button><button class="btn" data-im-x>Cancel</button></div>` : `<div class="actions"><button class="btn" data-im-x>${IM.done ? "Done" : "Cancel"}</button></div>`}
+    ${tbl}`;
+}
+
+document.addEventListener("click", (e) => {
+  const t = (s) => e.target.closest(s); let x;
+  if ((x = t("[data-im-kind]"))) { IM.kind = x.dataset.imKind; IM.plan = null; IM.err = ""; IM.done = null; haptic(); renderCard("export"); return; }
+  if (t("[data-im-tpl]")) { imTemplate(); return; }
+  if (t("[data-im-save]")) { imSave(); return; }
+  if (t("[data-im-x]")) { IM.plan = null; IM.err = ""; IM.done = null; IM.file = ""; renderCard("export"); }
+});
+document.addEventListener("change", (e) => { const f = e.target.closest("[data-im-file]"); if (f?.files?.[0]) imFile(f.files[0]); });
+document.head.insertAdjacentHTML("beforeend", `<style>
+.im-pick{display:inline-flex;align-items:center;cursor:pointer}.im-err{color:var(--warn);font-weight:700}
+.im-t td:first-child{color:var(--muted);white-space:nowrap}.im-t .pill{white-space:nowrap}.im-new .pill{background:var(--ok);color:#fff}.im-change .pill{background:var(--brass);color:var(--brass-ink)}.im-skip td{color:var(--muted)}
+</style>`);
 /* ---------- Bar 101: what to say when a guest asks ----------
    Short cards for training only (Practise > Bar 101): why one bottle costs more and what it changes in a drink, the
    differences between styles, picking a whisky for someone, beer basics, and how to suggest something better. Only
@@ -12115,9 +12437,14 @@ const HELP = {
   ready: { t: "Ready for Friday", what: "One checklist before the team starts using Bar Book. Each line goes green by itself once it's done.",
     how: ["Work down the lines marked To do. Set up codes › goes straight to the codes.", "Rules: if they're older than the app, Open the rules, copy all of it and publish it in the Firebase console.", "Backups: switch on daily backups in the Firebase console, then tap It's on.", "Check again after fixing anything."],
     behind: ["Rules and codes are read from the server. Home Screen, sending and version are checked on this phone only, so each manager opens it on theirs.", "Bar Book can't see the Firebase console, so backups is the one line ticked by hand, on Maintenance's phone."] },
-  export: { t: "Export to Excel or CSV", what: "Every log in Bar Book as a spreadsheet, a printout or a copy, for a laptop, Nory or a file to keep.",
-    how: ["Pick the nights (Tonight, Last 7 nights, or any dates up to 92 nights), the side and a person, or leave them on Everyone.", "Tick the logs you want. Each one says how many lines it has, and opens to show them as a table.", "Excel workbook: one file with a tab for each log. CSV files: one for each log, for Nory or anything that imports a spreadsheet. Print: a table for the printer. Copy: paste into a spreadsheet.", "On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp. On a laptop it downloads."],
-    behind: ["It reads the shared database, so any manager can export from their own phone, the bar iPad or a laptop, whoever logged it.", "Shift date is the business day: a close after midnight counts for the night before.", "Nothing is changed or saved by exporting. Photos stay in Closing reports.", "The stock count's own Spreadsheet button gives one night's totals. Export gives every line counted, on any nights.", "Bar Book can't send to Nory by itself, because Nory has no link for other apps. Import or attach the CSV instead.", "Managers only."] },
+  export: { t: "Export and import", what: "Both ways: every log in Bar Book out to a file for a laptop, Nory, an email or a report, and a spreadsheet in to add or update what Bar Book keeps.",
+    how: ["Export: pick the nights (up to 92), the side and a person, tick the logs, then Excel workbook (a tab for each log), CSV files (for Nory or any import), Word document (the tables, for a report), Print or Copy (a table in Word or Docs, columns in a spreadsheet).",
+      "Import: pick what it is (date labels, items, names, stock setup with bottle sizes and weights, a past stock count, or deliveries), get the Template, fill it in, then Choose the file. CSV or Excel, from Excel, Numbers or Google Sheets.",
+      "Every line shows as New, Change, Same or Skip with the reason. Save only saves New and Change, and asks once more before changing anything already there.",
+      "On a phone or the iPad a file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp. On a laptop it downloads."],
+    behind: ["It reads and writes the shared database, so any manager can do it from their own phone, the bar iPad or a laptop, whoever logged it.", "Import never deletes: a line taken out of the file stays in Bar Book. Each line saves through the same checks as the app, so the server refuses anything it wouldn't take from a tap.",
+      "Items from a manager wait for Maintenance to approve, the same as adding one by hand. Only Maintenance changes an item already there.", "Shift date is the business day: a close after midnight counts for the night before.", "A stock count file from Export imports straight back in.",
+      "Photos stay in Closing reports.", "Bar Book can't send to Nory by itself, because Nory has no link for other apps. Import or attach the CSV instead.", "Managers only."] },
   sent: { t: "Everything sent", what: "A copy of everything the team sends from Bar Book.",
     how: ["Tap one to read it again."],
     behind: ["Copied when someone sends from the Send page: WhatsApp, email, the share sheet, a picture or print.", "Rate the shift comes with no name. My pay, payslips, hours, off sick, incidents and the Bar Book link are never copied.", "Only the managers see this."] },
@@ -12188,7 +12515,7 @@ const INTRO = [
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift and Who to call."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "On an iPhone with photos: Copy the words, then Send with photos, then paste the words as the caption.", more: ["send"] },
-  { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Export, Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Export: every log as an Excel workbook, CSV files, a printout or a copy, filtered by nights, side and person.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, and Backup and restore.", "Safety net, Ready for Friday: rules, codes, backups and this phone, each going green by itself once it's done."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["export", "inbox", "replay", "order", "season", "ready"] },
+  { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Export and import, Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Export and import: every log out as Excel, CSV, Word, a printout or a copy, and spreadsheets in for date labels, items, names, the stock setup and past counts.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, and Backup and restore.", "Safety net, Ready for Friday: rules, codes, backups and this phone, each going green by itself once it's done."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["export", "inbox", "replay", "order", "season", "ready"] },
   { t: "Learn it, and look after yourself", how: ["More, Training, Practise specs: flashcards, tonight's quiz (the same 10 for everyone), speed drills against the clock, and the new starter path.", "Bar 101: what to say when a guest asks, from our own back bar. It remembers what you know and quizzes you on the rest.", "More, Training, Games and drills: the daily drill, quiz night and Bar phrases. More, Cheat sheets: a page per kind of drink, to print or send.", "My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
   { t: "Tips and tricks", how: ["The ? at the top right opens the Guide: every section, and a search for anything (\u201chow do I make a mojito\u201d). \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Hands full? Tap 🎤 and say it how you like: “can you 86 the Corona”, “Negroni spec” or “count tonic 12”. It picks out the key words and asks before it changes anything.", "More, This phone: one-hand mode, accessible mode, sounds and light or dark.", "Tap any small ? for how that part works and what happens behind the scenes.", "Needs you now: a banner at the top when you open the app, for a label due, last night's handover and more. Tap it to go there, × to hide it.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "More, under Help, has Replay the tour and Replay the walkthrough whenever you want them. Hide the ? buttons there too.", more: ["voice", "phone", "drafts"] },
 ];
