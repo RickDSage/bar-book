@@ -465,16 +465,37 @@ service cloud.firestore {
     // and addedBy always stays the person who added it. Whoever added one can take it back while it's still waiting.
     match /items/{id} {
       allow read: if isMember();
-      allow create: if isMember() && autoId(id) && stamped() && validItem()
+      allow create: if isMember() && autoId(id) && stamped() && validItem() && logged(id)
         && incoming().addedBy == profile().data.name && incoming().addedUid == request.auth.uid
         && (incoming().status == 'waiting' || isOwner());
-      allow update: if isOwner() && stamped() && validItem()
+      allow update: if isOwner() && stamped() && validItem() && logged(id)
         && incoming().addedBy == resource.data.addedBy && incoming().addedUid == resource.data.addedUid;
-      allow delete: if isOwner() || (isMember() && resource.data.addedUid == request.auth.uid && resource.data.status == 'waiting');
+      allow delete: if (isOwner() || (isMember() && resource.data.addedUid == request.auth.uid && resource.data.status == 'waiting'))
+        && existsAfter(itemLogDoc(id + '-gone'));
+    }
+    // Every add, change, approval and removal of an item writes its entry in itemlog in the same write (log is that
+    // entry's id; a removal writes {id}-gone), so an item's history can't be skipped and the owner can put any earlier
+    // version back. Only the managers and the owner read it, and nobody edits or deletes it.
+    function itemDoc(id) { return /databases/$(database)/documents/items/$(id); }
+    function itemLogDoc(id) { return /databases/$(database)/documents/itemlog/$(id); }
+    function logged(id) { return autoId(incoming().log) && getAfter(itemLogDoc(incoming().log)).data.ref == id; }
+    function itemDefOf(x) {
+      return {'item': x.item, 'kind': x.kind, 'group': x.group, 'side': x.side, 'store': x.store, 'label': x.label, 'life': x.life, 'close': x.close, 'note': x.note, 'status': x.status};
+    }
+    match /itemlog/{id} {
+      allow read: if isManager();
+      allow create: if isMember() && stamped() && exactly(['ref', 'act', 'def', 'uid', 'name', 'at']) && autoId(incoming().ref)
+        && ((incoming().act == 'removed' && id == incoming().ref + '-gone' && exists(itemDoc(incoming().ref)) && !existsAfter(itemDoc(incoming().ref))
+              && incoming().def == itemDefOf(get(itemDoc(incoming().ref)).data))
+          || (autoId(id) && getAfter(itemDoc(incoming().ref)).data.log == id && getAfter(itemDoc(incoming().ref)).data.at == request.time
+              && incoming().def == itemDefOf(getAfter(itemDoc(incoming().ref)).data)
+              && ((incoming().act == 'added' && !exists(itemDoc(incoming().ref)))
+                || (incoming().act in ['changed', 'approved'] && exists(itemDoc(incoming().ref)))
+                || incoming().act == 'restored')));
     }
     function validItem() {
       let x = incoming();
-      return exactly(['item', 'kind', 'group', 'side', 'store', 'label', 'life', 'close', 'note', 'found', 'status', 'addedBy', 'addedUid', 'uid', 'name', 'at'])
+      return exactly(['item', 'kind', 'group', 'side', 'store', 'label', 'life', 'close', 'note', 'found', 'status', 'addedBy', 'addedUid', 'log', 'uid', 'name', 'at'])
         && reqText(x.item, 60) && reqText(x.group, 40) && optText(x.note, 200) && optText(x.found, 200)
         && x.kind in ['fresh', 'dairy', 'juice', 'puree', 'prep', 'syrup', 'soft', 'beer', 'cider', 'wine', 'vermouth', 'spirit', 'liqueur', 'coffee', 'dessert', 'sauce', 'topping', 'icecream', 'supplies', 'other']
         && x.side in ['bar', 'floor'] && x.store in ['fridge', 'bottle', 'backbar', 'ambient', 'freezer', 'cellar']
@@ -672,6 +693,29 @@ service cloud.firestore {
               && reqText(incoming().fix, 500) && signedAs('fixedBy', 'fixedByUid', 'fixedAt')));
       // Whoever raised it can withdraw it before anyone takes it on. The owner and the manager can take any one down.
       allow delete: if (isMember() && resource.data.uid == request.auth.uid && resource.data.status == 'open') || isManager();
+    }
+
+    // ---------- Training ----------
+    // scores: one quiz result each. Tonight's quiz counts once a night per phone (its id is night-{day}-{uid}, made once,
+    // never changed); a speed drill (with the seconds it took) and the new starter test can be taken any number of
+    // times. Each person reads back their own; the managers and the owner read everyone's. The owner can remove one.
+    match /scores/{id} {
+      allow read: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
+      allow create: if isMember() && stamped() && exactly(['kind', 'day', 'score', 'of', 'secs', 'uid', 'name', 'at'])
+        && incoming().kind in ['night', 'speed', 'starter'] && nearNow(incoming().day)
+        && incoming().of is int && incoming().of >= 1 && incoming().of <= 20
+        && incoming().score is int && incoming().score >= 0 && incoming().score <= incoming().of
+        && (incoming().kind == 'speed' ? incoming().secs is int && incoming().secs >= 5 && incoming().secs <= 3600 : incoming().secs == null)
+        && (incoming().kind == 'night' ? id == 'night-' + incoming().day + '-' + request.auth.uid : autoId(id));
+      allow delete: if isOwner();
+    }
+    // signoffs/{person--drink}: a manager watched this person make this house cocktail to spec and signed it off.
+    // Everyone on the team sees them (staff see their own progress). A manager takes one back if it was a mis-tap.
+    match /signoffs/{id} {
+      allow read: if isMember();
+      allow create: if isManager() && stamped() && exactly(['person', 'drink', 'uid', 'name', 'at'])
+        && reqText(incoming().person, 30) && reqText(incoming().drink, 80) && id == slug(incoming().person) + '--' + slug(incoming().drink);
+      allow delete: if isManager();
     }
 
     // ---------- Football on the screens ----------

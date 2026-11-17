@@ -1,0 +1,389 @@
+/* ---------- Manager tools ----------
+   For the managers and maintenance on the Team page: the weekly summary, the date label record (for an EHO visit),
+   training (quiz scores, speed drills, the new starter test and sign-off on the house cocktails), change history with
+   undo, and backup and restore. For everyone: the health check, and the pre-shift brief at the top of Morning. All of it
+   is read from what the team already does in the app; nothing here is typed in by hand. */
+var MG_READY = false;
+const MG = { week: null, lb: { days: 7, side: "all", xs: null, busy: false }, tr: { xs: null, busy: false, open: "" }, hist: null, bk: null, health: null };
+const A_ = () => LIVE.api;
+// The last n business days, tonight first.
+const mgDays = (n) => Array.from({ length: n }, (_, i) => addDays(shiftDay(), -i));
+const mgSince = (n) => Date.now() - n * 864e5;
+const mgShort = (t) => { const d = new Date(ms(t)); return `${d.toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: UK })} ${hhmm(d)}`; };
+const mgLoad = async (key, fn, card) => {
+  MG[key] = { ...(MG[key] || {}), busy: true, err: false }; renderCard(card);
+  try { MG[key] = { ...MG[key], ...(await fn()), busy: false, at: Date.now() }; } catch (e) { MG[key] = { ...MG[key], busy: false, err: true }; console.warn(e); }
+  renderCard(card);
+};
+const mgBusy = (x, what) => (!x || x.busy ? `<p class="note">Reading ${what}…</p>` : x.err ? `<p class="note">Couldn't read ${what}. Check your signal.</p>` : "");
+const mgRefresh = (k) => `<button class="linkbtn" data-mg-reload="${k}">Refresh</button>`;
+// Business-day items on a list that night (some only show on certain days).
+const mgShownOn = (k, day) => { const wd = new Date(day).getUTCDay(); return LISTS[k].items.filter((x) => !x.days || x.days.includes(wd)).map((x) => [x.id, x.t]); };
+const LB_ACT = { added: "Added to the list", edited: "Details changed", opened: "Opened", changed: "Changed (new one opened)", binned: "Discarded", found: "Found open, dated", removed: "Taken off the list" };
+
+/* ---------- Weekly summary ---------- */
+async function mgWeekData() {
+  const days = mgDays(7), A = A_();
+  const [outlog, lev, runs, scores] = await Promise.all([A.outlogSince(mgSince(7)), A.labelDays(days), Promise.all(days.map((d) => A.runsOn(d).then((r) => [d, r]))), A.scores(mgSince(7)).catch(() => [])]);
+  const counts = new Map();
+  for (const x of outlog) if (x.action === "out") counts.set(x.itemName, (counts.get(x.itemName) || 0) + 1);
+  const top86 = [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  // Closing: each side each night. Tonight's isn't over yet, so it only counts once it's finished.
+  const missed = [], none = [];
+  for (const [d, rs] of runs) for (const side of LB_SIDES) {
+    const k = MODE_LISTS[side].at(-1), r = rs[k];
+    if (d === shiftDay() && r?.status !== "finished") continue;
+    if (!r) { none.push(`${dayName(d)} ${lower(sideName(side))}`); continue; }
+    if (r.status !== "finished") { missed.push({ d, side, line: `left unfinished at ${r.done ?? "?"} of ${r.required ?? "?"}` }); continue; }
+    if (r.done >= r.required) continue;
+    const ts = await A.tasksOn(d).catch(() => ({}));
+    const left = mgShownOn(k, d).filter(([i]) => !["done", "cancelled"].includes(ts[`${k}-${i}`]?.status)).map(([, t]) => t);
+    missed.push({ d, side, line: `finished with ${r.required - r.done} not done${r.note ? ` (${r.note})` : ""} by ${r.name}`, left });
+  }
+  const late = lev.filter((e) => lateBy(e) > 0).sort((a, b) => ms(b.at) - ms(a.at));
+  const found = lev.filter((e) => e.act === "found");
+  const night = scores.filter((x) => x.kind === "night");
+  return { top86, outs: outlog.filter((x) => x.action === "out").length, missed, none, late, found, quiz: night.length ? { n: night.length, avg: night.reduce((t, x) => t + x.score / x.of, 0) / night.length } : null };
+}
+function weekHtml() {
+  const w = MG.week; if (!w) { mgLoad("week", mgWeekData, "week"); return mgBusy(null, "the week"); }
+  const busy = mgBusy(w, "the week"); if (busy) return busy;
+  const overdue = labelsDue(LB_SIDES).filter((x) => labelDue(x) === "overdue");
+  const li = (xs, none) => `<ul class="live">${xs.join("") || `<li>${none}</li>`}</ul>`;
+  return `<p class="note">The last 7 nights, from what the team ticked, 86'd and dated in Bar Book. ${mgRefresh("week")}</p>
+    <div class="sumcard"><div><span>86s</span><b>${w.outs}</b></div><div><span>Closes short</span><b>${w.missed.length}</b></div><div><span>Labels late</span><b>${w.late.length + overdue.length}</b></div>${w.quiz ? `<div><span>Quiz avg</span><b>${Math.round(w.quiz.avg * 10)}/10</b></div>` : ""}</div>
+    <div class="mini">Most 86'd</div>${li(w.top86.slice(0, 8).map(([n, c]) => `<li><span translate="no">${esc(n)}</span> <b>× ${c}</b></li>`), "Nothing 86'd")}
+    <div class="mini">Closing not fully done</div>${li(w.missed.map((m) => `<li><b>${esc(dayName(m.d))}, ${esc(lower(sideName(m.side)))}</b>: ${esc(m.line)}${m.left?.length ? `<br><span class="s">${m.left.map(esc).join(" · ")}</span>` : ""}</li>`), "Every close ticked in Bar Book finished in full")}
+    ${w.none.length ? `<p class="note">No closing ticked in Bar Book: ${w.none.map(esc).join(", ")}.</p>` : ""}
+    <div class="mini">Date labels overdue or changed late</div>${li([...overdue.map((x) => `<li><b>Overdue now:</b> ${esc(x.item)}, use by ${esc(dayName(x.useBy))}</li>`),
+      ...w.late.map((e) => `<li>${esc(e.label)}: ${e.act === "binned" ? "discarded" : "changed"} ${nDays(lateBy(e))} late ${byAt(e.name, e.at)}</li>`)], "None late")}
+    ${w.found.length ? `<div class="mini">Found open with no label</div>${li(w.found.map((e) => `<li>${esc(e.label)} ${byAt(e.name, e.at)}${e.note ? `<br><span class="s">${esc(e.note)}</span>` : ""}</li>`), "")}` : ""}
+    <div class="actions">${sendBtn("week", "Send the week on WhatsApp")}</div>`;
+}
+SHARE.week = () => {
+  const w = MG.week; if (!w || w.busy || w.err) return null;
+  const overdue = labelsDue(LB_SIDES).filter((x) => labelDue(x) === "overdue");
+  return { what: "Weekly summary", title: `Black Tap Soho · week to ${dayName(shiftDay())}`,
+    head: [`🚫 ${w.outs} 86s · ${w.missed.length ? `⚠️ ${plural(w.missed.length, "close")} not fully done` : "✅ every close done"} · 🏷️ ${plural(w.late.length + overdue.length, "label")} late${w.quiz ? ` · 🧠 quiz ${Math.round(w.quiz.avg * 10)}/10` : ""}`],
+    parts: [
+      { id: "top86", label: "Most 86'd", lines: w.top86.slice(0, 10).map(([n, c]) => `${n} × ${c}`) },
+      { id: "missed", label: "Closing not fully done", lines: w.missed.flatMap((m) => [`${dayName(m.d)}, ${lower(sideName(m.side))}: ${m.line}`, ...(m.left || []).map(subLine)]) },
+      { id: "none", label: "No closing ticked in Bar Book", lines: w.none, off: true },
+      { id: "late", label: "Date labels overdue or changed late", lines: [...overdue.map((x) => `Overdue now: ${x.item}, use by ${dayName(x.useBy)}`), ...w.late.map((e) => `${e.label}: ${e.act === "binned" ? "discarded" : "changed"} ${nDays(lateBy(e))} late (${e.name}, ${dayName(e.day)})`)] },
+      { id: "found", label: "Found open with no label", lines: w.found.map((e) => `${e.label} (${e.name}, ${dayName(e.day)})`) },
+    ] };
+};
+
+/* ---------- Date label record ----------
+   Every tap on a date label (opened, changed, discarded, found open, and a manager's changes), by first name and time,
+   written by the server with the tap and never editable. For an environmental health visit: send it, or save it as a
+   spreadsheet. */
+async function mgLbData() {
+  const xs = await A_().labelDays(mgDays(MG.lb.days));
+  return { xs: xs.sort((a, b) => ms(b.at) - ms(a.at)) };
+}
+const mgLbRows = () => (MG.lb.xs || []).filter((e) => MG.lb.side === "all" || e.area === MG.lb.side);
+function lbLogHtml() {
+  const L = MG.lb;
+  if (!L.xs && !L.busy && !L.err) { mgLoad("lb", mgLbData, "lblog"); return mgBusy(null, "the label record"); }
+  const seg = (k, opts) => `<div class="seg">${opts.map(([v, t]) => `<button data-mg-lb="${k}:${v}" aria-pressed="${String(L[k]) === String(v)}">${t}</button>`).join("")}</div>`;
+  const busy = mgBusy(L, "the label record"), xs = mgLbRows();
+  const byDay = [...new Set(xs.map((e) => e.day))];
+  return `<p class="note">Every date label tap, with who and when. Saved by the server as it happens: nobody can change or delete it.</p>
+    ${seg("days", [[7, "7 days"], [14, "14 days"], [30, "30 days"]])}${seg("side", [["all", "Both"], ["bar", "Bar"], ["floor", "Floor"]])}
+    ${busy || `${xs.length ? `<div class="actions">${sendBtn("lblog", "Send on WhatsApp")}<button class="btn" data-mg-csv="lblog">Save as a spreadsheet</button></div>` : ""}
+      ${byDay.map((d) => `<div class="mini">${esc(dayName(d, { weekday: "long", day: "numeric", month: "short" }))}</div><div class="hist">${xs.filter((e) => e.day === d).map((e) => `<div class="s">${at(e)} · <b>${esc(e.name)}</b> ${esc(labelText(e, null, false))}${e.area ? ` <span class="pill">${esc(lower(sideName(e.area)))}</span>` : ""}</div>`).join("")}</div>`).join("") || `<p class="note">No date label taps in the last ${MG.lb.days} days.</p>`}`}`;
+}
+const mgCsvRows = () => mgLbRows().map((e) => { const d = new Date(ms(e.at)); return [d.toLocaleDateString("en-GB", { timeZone: UK }), hhmm(d), e.name, sideName(e.area), e.label, LB_ACT[e.act] || e.act, e.useBy || "", e.was || "", lateBy(e) || "", e.note || ""]; });
+const csvCell = (v) => { const s = String(v ?? ""); return /[",\n]/.test(s) || /^[=+\-@]/.test(s) ? `"${(/^[=+\-@]/.test(s) ? "'" : "") + s.replace(/"/g, '""')}"` : s; };
+const toCsv = (head, rows) => "﻿" + [head, ...rows].map((r) => r.map(csvCell).join(",")).join("\r\n");
+SHARE.lblog = () => {
+  const xs = mgLbRows(); if (!xs.length) return null;
+  const days = [...new Set(xs.map((e) => e.day))];
+  return { what: "Date label record", title: `Black Tap Soho · date label record · last ${MG.lb.days} days${MG.lb.side === "all" ? "" : `, ${lower(sideName(MG.lb.side))}`}`,
+    head: [`${plural(xs.length, "entry", "entries")}, each saved with the name and time`],
+    parts: days.map((d) => ({ id: d, label: dayName(d), one: true, lines: xs.filter((e) => e.day === d).map((e) => `${hhmm(new Date(ms(e.at)))} ${e.name}: ${labelText(e, null, false)}`) })) };
+};
+// A file to keep or send: the share sheet on a phone (Files, WhatsApp, email), else a download.
+async function mgSaveFile(name, type, text) {
+  const blob = new Blob([text], { type }), file = new File([blob], name, { type });
+  const save = () => { const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000); };
+  try { if (navigator.canShare?.({ files: [file] })) { await navigator.share({ files: [file] }); return; } } catch (e) { if (e?.name === "AbortError") return; }
+  save();
+}
+
+/* ---------- Training ----------
+   Everyone's quiz results over the last 30 days, speed drill bests, the new starter test, and the house cocktails a
+   manager has watched them make and signed off. Fun at the top: this month's leaders. */
+const TR_DAYS = 30;
+const trPeople = () => {
+  const xs = MG.tr.xs || [], names = new Set([...STAFF.bar, ...STAFF.floor, ...xs.map((x) => x.name), ...LIVE.signoffs.map((x) => x.person)]);
+  for (const n of [...STAFF.mgr]) if (!xs.some((x) => x.name === n) && !LIVE.signoffs.some((x) => x.person === n)) names.delete(n);
+  return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b));
+};
+function trOf(name) {
+  const xs = (MG.tr.xs || []).filter((x) => x.name === name), night = xs.filter((x) => x.kind === "night"), speed = xs.filter((x) => x.kind === "speed");
+  const best = speed.filter((x) => x.score === x.of).sort((a, b) => a.secs - b.secs)[0] || speed.sort((a, b) => b.score - a.score || a.secs - b.secs)[0];
+  const starter = xs.filter((x) => x.kind === "starter").sort((a, b) => b.score - a.score)[0];
+  const signed = LIVE.signoffs.filter((x) => x.person === name);
+  return { night, avg: night.length ? night.reduce((t, x) => t + x.score / x.of, 0) / night.length : null, best, starter, signed };
+}
+const trSig = () => stDrinks();
+function trainingHtml() {
+  const T = MG.tr;
+  if (!T.xs && !T.busy && !T.err) { mgLoad("tr", async () => ({ xs: await A_().scores(mgSince(TR_DAYS)) }), "training"); return mgBusy(null, "training"); }
+  const busy = mgBusy(T, "training"); if (busy) return busy;
+  const ppl = trPeople().map((n) => [n, trOf(n)]), sig = trSig();
+  const quizTop = ppl.filter(([, t]) => t.night.length >= 3).sort((a, b) => b[1].avg - a[1].avg).slice(0, 3);
+  const fast = ppl.filter(([, t]) => t.best && t.best.score === t.best.of).sort((a, b) => a[1].best.secs - b[1].best.secs).slice(0, 3);
+  const medal = ["🥇", "🥈", "🥉"];
+  return `<p class="note">Last ${TR_DAYS} days. Tonight's quiz counts the first go each night; speed drills count every go. ${mgRefresh("tr")}</p>
+    <div class="mini">Quiz leaders (3 nights or more)</div><ul class="live">${quizTop.map(([n, t], i) => `<li>${medal[i]} <b translate="no">${esc(n)}</b> ${Math.round(t.avg * 100)}% over ${plural(t.night.length, "night")}</li>`).join("") || "<li>Nobody's done 3 nights yet</li>"}</ul>
+    <div class="mini">Fastest perfect speed drill</div><ul class="live">${fast.map(([n, t], i) => `<li>${medal[i]} <b translate="no">${esc(n)}</b> ${t.best.secs} s</li>`).join("") || "<li>No perfect drill yet</li>"}</ul>
+    <div class="mini">Everyone</div>
+    ${ppl.map(([n, t]) => { const on = T.open === n, ok = t.signed.length >= sig.length;
+      return `<article class="notice trrow${on ? " on" : ""}"><button class="trh" data-tr-open="${esc(n)}" aria-expanded="${on}"><b translate="no">${esc(n)}</b>
+          <span class="s">${t.avg == null ? "No quiz yet" : `Quiz ${Math.round(t.avg * 100)}% (${t.night.length})`} · ${t.best ? `Speed ${t.best.score}/${t.best.of} in ${t.best.secs} s` : "No speed drill"} · ${t.starter ? `Test ${t.starter.score}/${t.starter.of}` : "No test yet"}</span>
+          <span class="pill${ok ? " ok" : ""}">${ok ? "Signed off" : `${t.signed.length} of ${sig.length} signed off`}</span></button>
+        ${on ? `<p class="note">Watch them make each one to spec, then sign it off. It shows on their phone too.</p>${sig.map((d) => { const s = t.signed.find((x) => x.drink === d.name);
+          return `<div class="st-row"><span translate="no">${esc(d.name)}</span>${s ? `<span class="s">✅ ${esc(s.name)}, ${esc(dayName(bday(s.at)))} <button class="linkbtn" data-tr-undo="${esc(n)}|${esc(d.name)}">Undo</button></span>` : `<button class="btn" data-tr-sign="${esc(n)}|${esc(d.name)}">Sign off</button>`}</div>`; }).join("")}` : ""}</article>`; }).join("") || `<p class="note">Nobody on the names list yet.</p>`}
+    <div class="actions">${sendBtn("training", "Send the leaderboard")}</div>`;
+}
+SHARE.training = () => {
+  if (!MG.tr.xs) return null;
+  const ppl = trPeople().map((n) => [n, trOf(n)]), sig = trSig().length;
+  const quizTop = ppl.filter(([, t]) => t.night.length >= 3).sort((a, b) => b[1].avg - a[1].avg).slice(0, 5);
+  const fast = ppl.filter(([, t]) => t.best && t.best.score === t.best.of).sort((a, b) => a[1].best.secs - b[1].best.secs).slice(0, 5);
+  return { what: "Training leaderboard", title: "🏆 Black Tap Soho · training leaderboard", head: [`Last ${TR_DAYS} days. Practise > Quiz, Speed and Bar 101 in Bar Book`],
+    parts: [
+      { id: "quiz", label: "Tonight's quiz", lines: quizTop.map(([n, t], i) => `${i + 1}. ${n}: ${Math.round(t.avg * 100)}% over ${t.night.length} nights`) },
+      { id: "speed", label: "Fastest perfect speed drill", lines: fast.map(([n, t], i) => `${i + 1}. ${n}: ${t.best.secs} s`) },
+      { id: "signed", label: "Signed off on all house cocktails", lines: ppl.filter(([, t]) => t.signed.length >= sig).map(([n]) => `✅ ${n}`) },
+    ] };
+};
+// On someone's own phone (Practise > New starter): what the managers have signed off.
+function stSignHtml(n = 3) {
+  if (!LIVE.me) return "";
+  const mine = LIVE.signoffs.filter((x) => x.person === LIVE.me), ds = stDrinks();
+  return `<div class="sec">${n}. Signed off by a manager</div><p class="note">Make each one for a manager. They sign it off on their phone. ${mine.length} of ${ds.length} so far.</p>
+    <div class="recent" translate="no">${ds.map((d) => `<span class="chip"${mine.some((x) => x.drink === d.name) ? ' aria-pressed="true"' : ""}>${mine.some((x) => x.drink === d.name) ? "✅ " : ""}${esc(d.name)}</span>`).join("")}</div>`;
+}
+
+/* ---------- Change history, with undo ----------
+   Checklists keep every version already (open a list on Shift, then History). Here: date labels and the items the team
+   added. Undo is a new change with its own record, so nothing is ever lost. Drink specs are built into the app. */
+async function mgHistData() {
+  const [lev, items] = await Promise.all([A_().labelDays(mgDays(30)), A_().itemLog().catch(() => [])]);
+  return { labels: lev.filter((e) => ["added", "edited", "removed"].includes(e.act)).sort((a, b) => ms(b.at) - ms(a.at)), items };
+}
+const IT_ACT = { added: "added", changed: "changed", approved: "approved", removed: "took off", restored: "put back" };
+function historyHtml() {
+  const H = MG.hist; if (!H) { mgLoad("hist", mgHistData, "history"); return mgBusy(null, "the history"); }
+  const busy = mgBusy(H, "the history"); if (busy) return busy;
+  const lb = H.labels.map((e) => {
+    const now = LIVE.labels.find((x) => x.id === e.ref), back = e.act === "removed" && !dupLabel(e.label, e.area), undo = e.act === "edited" && now;
+    return `<div class="s">${esc(mgShort(e.at))} · <b>${esc(e.name)}</b> ${esc(labelText(e, null, false))}${back ? ` <button class="linkbtn" data-hi-lb-back="${e.id}">Put it back</button>` : undo ? ` <button class="linkbtn" data-hi-lb-undo="${e.id}">Undo</button>` : ""}</div>`;
+  });
+  const it = H.items.map((e) => {
+    const now = LIVE.items.find((x) => x.id === e.ref), same = now && Object.keys(e.def).every((k) => now[k] === e.def[k]);
+    const can = LIVE.owner && !same && (now || !LIVE.items.some((x) => x.item.toLowerCase() === e.def.item.toLowerCase() && x.side === e.def.side));
+    return `<div class="s">${esc(mgShort(e.at))} · <b>${esc(e.name)}</b> ${IT_ACT[e.act] || e.act} ${esc(e.def.item)} <span class="s">(${esc(e.def.group)}, ${esc(lower(sideName(e.def.side)))}${e.def.label ? `, label ${e.def.life || "?"} d` : ""})</span>${can ? ` <button class="linkbtn" data-hi-it="${e.id}">${now ? "Put this version back" : "Put it back"}</button>` : ""}</div>`;
+  });
+  return `<p class="note">Last 30 days. Undo makes a new change, so the record keeps both. Checklist versions are on Shift: open the list, then History. ${mgRefresh("hist")}</p>
+    <div class="mini">Date labels</div><div class="hist">${lb.join("") || `<div class="s">No changes</div>`}</div>
+    <div class="mini">Items added by the team</div><div class="hist">${it.join("") || `<div class="s">No changes</div>`}</div>
+    ${LIVE.owner ? "" : `<p class="note">Only maintenance puts back an item. Managers undo date label changes.</p>`}
+    <p class="note">Drink specs are built into Bar Book, so they change only with a new version of the app, and every change is kept in its release history.</p>`;
+}
+async function mgLbUndo(id) {
+  const e = MG.hist.labels.find((x) => x.id === id), x = LIVE.labels.find((l) => l.id === e?.ref); if (!x) return toast("That label isn't on the list now");
+  const xs = await A_().eventsOf(x.id, "label").catch(() => null); if (!xs) return toast("Couldn't read its history. Check your signal");
+  const prev = xs.filter((p) => p.v < e.v).at(-1); if (!prev) return toast("Nothing before this change");
+  if (dupLabel(prev.label, prev.area, x.id)) return toast(`${prev.label} is on the ${lower(sideName(prev.area))}'s list already`);
+  track(A_().label(x, "edited", { item: prev.label, side: prev.area, life: prev.life, on: prev.on, station: x.station || "" }).then(() => { MG.hist = null; renderCard("history"); }), "Undone. Every phone has it now", "Not saved. Someone may have just changed it");
+}
+function mgLbBack(id) {
+  const e = MG.hist.labels.find((x) => x.id === id); if (!e) return;
+  track(A_().label(null, "added", { item: e.label, side: e.area, life: e.life, on: e.on, station: "" }).then(() => { MG.hist = null; renderCard("history"); }), `${e.label} is back on the labels`, "Not saved. Try again");
+}
+function mgItBack(id) {
+  const e = MG.hist.items.find((x) => x.id === id), now = e && LIVE.items.find((x) => x.id === e.ref); if (!e) return;
+  const p = now ? A_().saveItem(now, { ...now, ...e.def, found: now.found }, "restored") : A_().addItem({ ...e.def, found: "" }, e.def.status === "live", "restored");
+  track(p.then(() => { MG.hist = null; renderCard("history"); }), `${e.def.item} put back`, "Not saved. Try again");
+}
+
+/* ---------- Backup and restore ----------
+   A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
+   Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
+   never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
+const BUILD = "__BUILD_VERSION__";
+// Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
+const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
+async function mgBackup(btn) {
+  btn.disabled = true; const was = btn.textContent; btn.textContent = "Reading everything…";
+  try {
+    const data = await A_().backup(), day = shiftDay();
+    await mgSaveFile(`bar-book-backup-${day}.json`, "application/json", mgJson({ app: "Black Tap Bar Book", kind: "backup", version: BUILD, made: new Date().toISOString(), by: LIVE.me, data }));
+    store.set("lastBackup", Date.now()); toast("Backup ready");
+  } catch { toast("Couldn't read everything. Check your signal"); }
+  btn.disabled = false; btn.textContent = was; renderCard("backup");
+}
+// What in a backup differs from now, section by section.
+function mgDiff(d) {
+  const lists = Object.entries(Object.fromEntries((d.lists || []).map((l) => [l.id, l]))).filter(([k, l]) => isListKey(k) && Array.isArray(l.items) && JSON.stringify(l.items) !== JSON.stringify(LIVE.lists[k]?.items || STANDARD[k]));
+  const lbs = (d.labels || []).filter((l) => l.item && LB_SIDES.includes(l.side) && Number.isInteger(l.life) && l.life >= 1 && l.life <= 365);
+  const lbNew = lbs.filter((l) => !dupLabel(l.item, l.side)), lbEdit = lbs.filter((l) => { const x = LIVE.labels.find((y) => y.side === l.side && y.item.trim().toLowerCase() === l.item.trim().toLowerCase()); return x && (x.life !== l.life || x.on !== l.on || (x.station || "") !== (l.station || "")); });
+  const items = (d.items || []).filter((x) => x.item && x.status === "live" && !LIVE.items.some((y) => y.item.toLowerCase() === x.item.toLowerCase() && y.side === x.side));
+  const names = d.names && JSON.stringify([d.names.mgr, d.names.bar, d.names.floor]) !== JSON.stringify([STAFF.mgr, STAFF.bar, STAFF.floor]) ? d.names : null;
+  const contacts = d.contacts && JSON.stringify(d.contacts.list) !== JSON.stringify(LIVE.contacts) ? d.contacts.list : null;
+  return { lists, lbNew, lbEdit, items, names, contacts };
+}
+const isListKey = (k) => Object.keys(STANDARD).includes(k);
+function backupHtml() {
+  const last = store.get("lastBackup", 0), B = MG.bk;
+  const diff = B?.diff, n = diff ? diff.lists.length + diff.lbNew.length + diff.lbEdit.length + diff.items.length + !!diff.names + !!diff.contacts : 0;
+  const line = (k, t, c) => (c ? `<label class="check"><input type="checkbox" data-bk="${k}"${B.off?.[k] ? "" : " checked"}> ${t}</label>` : "");
+  return `<p class="note">One file with the checklists, date labels and their record, added items, names, numbers, closing reports, the 86 log, issues and training. Photos aren't in it. Keep it in Files or send it to yourself.${last ? ` Last saved on this phone ${esc(mgShort({ toMillis: () => last }))}.` : ""}</p>
+    <div class="actions"><button class="btn pri" data-mg-backup>Save a backup</button></div>
+    ${LIVE.owner ? `<div class="mini">Restore</div><p class="note">Pick a backup file. You see what's different first; nothing changes until you tap Put back. It only adds and changes, never deletes, and history stays as it is.</p>
+      <label class="btn" style="display:inline-flex">Pick a backup file<input type="file" accept=".json,application/json" data-bk-file hidden></label>
+      ${B?.err ? `<p class="note warnline">${esc(B.err)}</p>` : ""}
+      ${diff ? `<p class="note">From <b>${esc(B.made)}</b>${B.by ? ` by ${esc(B.by)}` : ""}: ${n ? `${plural(n, "difference")}.` : "everything matches now. Nothing to put back."}</p>
+        ${line("lists", `Checklists: ${diff.lists.map(([k]) => LISTS[k]?.title || k).join(", ")}`, diff.lists.length)}
+        ${line("lbNew", `Date labels missing now: ${diff.lbNew.map((l) => l.item).join(", ")}`, diff.lbNew.length)}
+        ${line("lbEdit", `Date labels with other days or stations: ${diff.lbEdit.map((l) => l.item).join(", ")}`, diff.lbEdit.length)}
+        ${line("items", `Added items missing now: ${diff.items.map((x) => x.item).join(", ")}`, diff.items.length)}
+        ${line("names", "Names to pick from", !!diff.names)}${line("contacts", "Who to call numbers", !!diff.contacts)}
+        ${n ? `<div class="actions"><button class="btn pri" data-bk-go>Put back the ticked ones</button></div>` : ""}` : ""}` : `<p class="note">Maintenance can restore from a backup.</p>`}`;
+}
+async function mgReadBackup(f) {
+  try {
+    const j = JSON.parse(await f.text());
+    if (j?.kind !== "backup" || !j.data) throw new Error("That isn't a Bar Book backup file");
+    MG.bk = { made: stamp(new Date(j.made)), by: j.by || "", data: j.data, diff: mgDiff(j.data), off: {} };
+  } catch (e) { MG.bk = { err: e.message?.startsWith("That") ? e.message : "Couldn't read that file. Pick a Bar Book backup" }; }
+  renderCard("backup");
+}
+function mgRestore() {
+  const B = MG.bk, d = B.diff, A = A_(), ps = [], on = (k) => !B.off[k];
+  if (!confirm("Put back the ticked ones? Each goes on every phone as a new change, with your name.")) return;
+  if (on("lists")) for (const [k, l] of d.lists) ps.push(A.saveList(k, l.items, Math.max(l.next || 0, LIVE.lists[k]?.next || 0, ...l.items.map((x) => x.id + 1))));
+  if (on("lbNew")) for (const l of d.lbNew) ps.push(A.label(null, "added", { item: l.item, side: l.side, life: l.life, on: l.on !== false, station: l.station || "" }));
+  if (on("lbEdit")) for (const l of d.lbEdit) { const x = LIVE.labels.find((y) => y.side === l.side && y.item.trim().toLowerCase() === l.item.trim().toLowerCase()); if (x) ps.push(A.label(x, "edited", { item: x.item, side: x.side, life: l.life, on: l.on, station: l.station || "" })); }
+  if (on("items")) for (const x of d.items) ps.push(A.addItem({ ...x, found: x.found || "" }, true, "restored"));
+  if (on("names") && d.names) ps.push(A.saveNames(d.names));
+  if (on("contacts") && d.contacts) ps.push(A.saveContacts(d.contacts));
+  let bad = 0;
+  track(Promise.all(ps.map((p) => p.catch(() => bad++))).then(() => { if (bad) throw new Error(); MG.bk = null; renderCard("backup"); }), `${plural(ps.length, "change")} put back`, `${bad || "Some"} not saved. Try again`);
+}
+
+/* ---------- Health check: is this phone working properly? ---------- */
+async function mgHealth() {
+  const A = A_(), standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const est = await navigator.storage?.estimate?.().catch(() => null), kept = await navigator.storage?.persisted?.().catch(() => null);
+  let ping = null, synced = null;
+  if (A && LIVE.me && navigator.onLine) { ping = await A.ping().catch(() => -1); synced = await A.synced(); }
+  return { standalone, est, kept, ping, synced, sw: !!navigator.serviceWorker?.controller };
+}
+function healthHtml() {
+  const H = MG.health; if (!H) { mgLoad("health", mgHealth, "health"); return `<p class="note">Checking…</p>`; }
+  if (H.busy) return `<p class="note">Checking…</p>`;
+  const row = (ok, t, s) => `<div class="hrow"><span class="pill ${ok === true ? "ok" : ok === false ? "no" : ""}">${ok === true ? "OK" : ok === false ? "Check" : "·"}</span><div><b>${t}</b><div class="s">${s}</div></div></div>`;
+  const mb = (b) => `${(b / 1048576).toFixed(1)} MB`;
+  return `${row(navigator.onLine, "Signal", navigator.onLine ? "Online" : "No signal: changes wait on the phone")}
+    ${LIVE.me ? row(H.ping == null ? null : H.ping >= 0, "Bar Book's server", H.ping == null ? "Not checked (no signal)" : H.ping >= 0 ? `Answered in ${H.ping} ms` : "Didn't answer. Try again in a minute") : ""}
+    ${LIVE.me ? row(H.synced === null ? null : H.synced && !unsent, "Saved changes", unsent ? `${plural(unsent, "change")} still sending` : H.synced ? "Everything on this phone has reached the server" : H.synced === false ? "Some changes are still waiting to send" : "Not checked") : ""}
+    ${row(!!LIVE.me, "Team", LIVE.me ? `Joined as ${esc(LIVE.me)}${LIVE.role && ROLE[LIVE.role] ? `, ${ROLE[LIVE.role]}` : ""}` : "Not joined: drinks only")}
+    ${row($("#upd").hidden, "App version", `${esc(BUILD)}${$("#upd").hidden ? ", up to date" : ". A newer version is ready: tap the banner"}`)}
+    ${row(H.sw && offlineReady ? true : location.hostname.endsWith("github.io") ? false : null, "Works with no signal", H.sw && offlineReady ? "Saved on the phone" : "Not saved yet: open it once with signal")}
+    ${row(H.standalone, "On the home screen", H.standalone ? "Opened from the home screen icon" : "Open in Safari. Add it to the home screen so iPhone keeps its data (Share, then Add to Home Screen)")}
+    ${H.est ? row(null, "Space used on this phone", `${mb(H.est.usage || 0)}${H.kept ? ", kept by the phone" : ""}`) : ""}
+    <div class="actions"><button class="btn pri" data-mg-reload="health">Check again</button>${sendBtn("health", "Send to maintenance")}<button class="btn" data-mg-reboot>Reload Bar Book</button></div>`;
+}
+SHARE.health = () => {
+  const H = MG.health || {};
+  return { what: "Health check", title: `Bar Book health check · ${LIVE.me || "a phone"} · ${stamp(new Date())}`, head: [], parts: [{ id: "h", label: "This phone", one: true, lines: [
+    `Signal: ${navigator.onLine ? "online" : "none"}`, `Server: ${H.ping == null ? "not checked" : H.ping >= 0 ? `${H.ping} ms` : "no answer"}`,
+    `Waiting to send: ${unsent}${H.synced === false ? " (some still waiting)" : ""}`, `Team: ${LIVE.me ? `${LIVE.me}${LIVE.role ? ` (${LIVE.role})` : ""}` : "not joined"}`,
+    `Version: ${BUILD}${$("#upd").hidden ? "" : " (update waiting)"}`, `Offline copy: ${offlineReady ? "yes" : "no"}`, `Home screen: ${H.standalone ? "yes" : "no"}`,
+    `Phone: ${navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || "unknown"}`] }] };
+};
+
+/* ---------- Pre-shift brief ----------
+   At the top of Morning: one look before the doors open, made from what's already in Bar Book. Nobody writes it. */
+function briefParts(side = mode) {
+  const r = lastReport(), h = r && reportDay(r) === lastNight() ? handoverOf(r) : null, now = toChange([side]), soon = labelsDue([side]).filter((x) => !now.includes(x));
+  const games = LIVE.fixtures.filter((x) => x.day === ukDay(Date.now())).sort((a, b) => a.ko.localeCompare(b.ko));
+  const iss = openIssues().filter((x) => [side, "other", "cellar", "toilets", "terrace"].includes(x.area) || x.urgent).sort((a, b) => b.urgent - a.urgent);
+  return [
+    // Another part of the app can add what changed since this person was last in (same shape).
+    ...(typeof sinceLast === "function" ? sinceLast(side) : []),
+    { id: "out", k: "stock", label: "86'd", lines: [...outNow()].sort() },
+    { id: "now", k: "labels", label: "Date labels to change now", lines: now.map((x) => `${x.item} (use by ${dayName(x.useBy)})`), hot: true },
+    { id: "soon", k: "labels", label: "Date labels due tomorrow", lines: soon.map((x) => x.item) },
+    { id: "next", k: "morning", label: "Last night said, for today", lines: h ? hoSplit(h.next) : [] },
+    { id: "issues", k: "issues", label: "Open faults", lines: iss.map((x) => `${x.urgent ? "URGENT: " : ""}${x.title}`), hot: iss.some((x) => x.urgent) },
+    { id: "restock", k: "stock", label: "Restocks waiting", lines: rsOpen().filter((x) => DEST_SIDE[x.dest] === side).map((x) => amtOf(x.qty, x.unit, x.item)) },
+    { id: "games", k: "football", label: "Games on today", lines: games.map((x) => `${x.ko} ${x.home} v ${x.away}`) },
+  ];
+}
+function briefHtml() {
+  if (!LIVE.me) return "";
+  const ps = briefParts(), any = ps.filter((p) => p.lines.length);
+  return `<div class="brief"><div class="sec">Before you open</div>
+    ${any.length ? any.map((p) => `<button class="bline${p.hot ? " hot" : ""}" data-goto="${p.k}"><b>${p.label}</b><span translate="no">${p.lines.slice(0, 4).map(esc).join(" · ")}${p.lines.length > 4 ? ` +${p.lines.length - 4}` : ""}</span></button>`).join("")
+      : `<p class="note">✅ Nothing 86'd, no labels due, no open faults.</p>`}
+    <p class="note">Tonight's quiz is ready in Practise: same 10 for everyone.</p>
+    <div class="actions">${sendBtn("brief", "Send the brief on WhatsApp")}</div></div>`;
+}
+SHARE.brief = () => {
+  const ps = briefParts().filter((p) => p.lines.length);
+  return { what: "Pre-shift brief", title: `Black Tap Soho · ${sideName(mode)} pre-shift · ${dayName(shiftDay())}`, head: [ps.length ? "" : "✅ Nothing 86'd, no labels due, no open faults"].filter(Boolean),
+    parts: [...ps.map((p) => ({ id: p.id, label: p.label, lines: p.lines })), { id: "quiz", label: "Tonight's quiz", one: true, lines: ["Practise > Quiz in Bar Book: 10 questions, first go counts"] }] };
+};
+LINKS.brief = () => "#at=morning"; LINKS.week = () => "#at=week"; LINKS.lblog = () => "#at=lblog"; LINKS.training = () => "#at=tab:practice";
+
+/* ---------- Where it goes on the Team page ---------- */
+Object.assign(TC_SUB, { week: "Most 86'd, closes not fully done, late labels", lblog: "Every date label tap, for an EHO visit", training: "Quiz scores, speed drills, sign-off on the house cocktails",
+  history: "Undo changes to date labels and added items", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
+function mgCards() {
+  if (!MG_READY) return [];
+  return LIVE.admin ? [["week", "Weekly summary", weekHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml]] : [];
+}
+const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
+FEATURES.push(
+  { g: "Team", k: "week", n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
+  { g: "Team", k: "lblog", n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp or save it as a spreadsheet." },
+  { g: "Team", k: "training", n: "Training", go: "training", team: 1, what: "Quiz and speed drill scores for everyone, leaderboards, and sign-off on the house cocktails by a manager.", mgr: "Sign off each house cocktail once you've watched it made to spec." },
+  { g: "Team", k: "health", n: "Health check", go: "health", what: "Whether this phone is online, saving, up to date and ready with no signal.", staff: "Something not syncing? Check here, then send it to maintenance." });
+Object.assign(PLACE_KW, { week: "weekly summary report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off", health: "health sync version not working broken offline" });
+
+document.addEventListener("click", (e) => {
+  const t = (s) => e.target.closest(s); let x;
+  if ((x = t("[data-mg-reload]"))) { const k = x.dataset.mgReload, card = { week: "week", tr: "training", hist: "history", health: "health" }[k]; MG[k] = k === "tr" ? { xs: null } : null; renderCard(card); return; }
+  if ((x = t("[data-mg-lb]"))) { const [k, v] = x.dataset.mgLb.split(":"); MG.lb[k] = k === "days" ? +v : v; if (k === "days") MG.lb.xs = null; haptic(); renderCard("lblog"); return; }
+  if (t("[data-mg-csv]")) { mgSaveFile(`date-label-record-${shiftDay()}.csv`, "text/csv", toCsv(["Date", "Time", "Who", "Side", "Item", "What", "Use by", "Use by before", "Days late", "Note"], mgCsvRows())); return; }
+  if ((x = t("[data-tr-open]"))) { MG.tr.open = MG.tr.open === x.dataset.trOpen ? "" : x.dataset.trOpen; haptic(); renderCard("training"); return; }
+  if ((x = t("[data-tr-sign]"))) { const [p, d] = x.dataset.trSign.split("|"); haptic(); track(A_().signOff(p, d), `${d}: signed off for ${p}`, "Not saved. Try again"); return; }
+  if ((x = t("[data-tr-undo]"))) { const [p, d] = x.dataset.trUndo.split("|"); track(A_().unSign(p, d), "Sign-off taken back", "Not saved. Try again"); return; }
+  if ((x = t("[data-hi-lb-undo]"))) { mgLbUndo(x.dataset.hiLbUndo); return; }
+  if ((x = t("[data-hi-lb-back]"))) { mgLbBack(x.dataset.hiLbBack); return; }
+  if ((x = t("[data-hi-it]"))) { mgItBack(x.dataset.hiIt); return; }
+  if ((x = t("[data-mg-backup]"))) { mgBackup(x); return; }
+  if (t("[data-bk-go]")) { mgRestore(); return; }
+  if (t("[data-mg-reboot]")) { location.reload(); }
+});
+document.addEventListener("change", (e) => {
+  const f = e.target.closest("[data-bk-file]"); if (f?.files?.[0]) { mgReadBackup(f.files[0]); return; }
+  const c = e.target.closest("[data-bk]"); if (c && MG.bk) MG.bk.off[c.dataset.bk] = !c.checked;
+});
+document.head.insertAdjacentHTML("beforeend", `<style>
+.trrow{padding:0;overflow:hidden}.trh{display:block;width:100%;text-align:left;padding:12px 14px;color:var(--fg)}.trh b{display:block;font-size:18px}
+.trh .s{display:block;margin-top:2px}.trh .pill{margin-top:6px;display:inline-block}.trrow.on{border-color:var(--brass)}.trrow .st-row,.trrow .note{margin-inline:14px}
+.trrow .st-row:last-child{margin-bottom:10px}.trrow .st-row .s{font-size:13px}
+.hrow{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid var(--line)}.hrow .pill{flex:none;min-width:48px;text-align:center}
+.brief{margin-bottom:6px}.bline{display:block;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-left:4px solid var(--brass);border-radius:12px;padding:10px 12px;margin-top:8px;color:var(--fg)}
+.bline b{display:block;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--brass)}.bline span{display:block;font-size:16px;margin-top:2px;line-height:1.35}
+.bline.hot{border-left-color:var(--warn)}.bline.hot b{color:var(--warn)}
+</style>`);
+MG_READY = true;

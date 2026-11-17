@@ -16,7 +16,7 @@ import {
 import {
   initializeFirestore, persistentLocalCache, connectFirestoreEmulator, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc,
   collection, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
-  terminate, clearIndexedDbPersistence, deleteField, runTransaction,
+  terminate, clearIndexedDbPersistence, deleteField, runTransaction, getDocFromServer, waitForPendingWrites,
 } from "firebase/firestore";
 
 const app = initializeApp(__CONFIG__);
@@ -119,6 +119,8 @@ function listen(uid) {
     // Items the team has added (Rubicon Mango, fresh strawberries): live ones join the 86 list, restocking, date labels
     // and closing; waiting ones wait for the owner. There are only ever a few dozen.
     sub("items", collection(db, "items"), (snap) => { LIVE.items = rows(snap); liveChanged("items"); });
+    // New starter sign-offs: a manager watched someone make a house cocktail to spec. Only ever a few dozen.
+    sub("signoffs", collection(db, "signoffs"), (snap) => { LIVE.signoffs = rows(snap); liveChanged("signoffs"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
     // same record a moment apart, so the newer version wins.
     const rs = { open: [], recent: [] };
@@ -197,6 +199,7 @@ async function clearOldPhotos() {
   }
 }
 
+const logDef = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, status: x.status });
 const itemDef = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, found: x.found });
 // Listeners tied to the business day start again with the new query when it rolls over at 6am.
 const dayKeys = {};
@@ -455,9 +458,68 @@ LIVE.api = {
   },
   // An item the team adds: the owner's go live, everyone else's wait for the owner. Approving or changing one keeps who
   // added it.
-  addItem: (x, live) => addDoc(collection(db, "items"), { ...itemDef(x), status: live ? "live" : "waiting", addedBy: LIVE.me, addedUid: auth.currentUser.uid, ...me() }),
-  saveItem: (x, f) => setDoc(doc(db, "items", x.id), { ...itemDef(f), status: "live", addedBy: x.addedBy, addedUid: x.addedUid, ...me() }),
-  dropItem: (id) => deleteDoc(doc(db, "items", id)),
+  // Every add, change, approval or removal writes its entry in itemlog in the same write, so each item keeps its history
+  // and an earlier version can be put back (restore: the owner, from Change history).
+  addItem: (x, live, act = "added") => {
+    const ref = doc(collection(db, "items")), log = doc(collection(db, "itemlog")), b = writeBatch(db), status = live ? "live" : "waiting";
+    b.set(ref, { ...itemDef(x), status, addedBy: LIVE.me, addedUid: auth.currentUser.uid, log: log.id, ...me() });
+    b.set(log, { ref: ref.id, act, def: logDef({ ...x, status }), ...me() });
+    return b.commit();
+  },
+  saveItem: (x, f, act) => {
+    const log = doc(collection(db, "itemlog")), b = writeBatch(db);
+    b.set(doc(db, "items", x.id), { ...itemDef(f), status: "live", addedBy: x.addedBy, addedUid: x.addedUid, log: log.id, ...me() });
+    b.set(log, { ref: x.id, act: act || (x.status === "waiting" ? "approved" : "changed"), def: logDef({ ...f, status: "live" }), ...me() });
+    return b.commit();
+  },
+  dropItem: (id) => {
+    const x = LIVE.items.find((i) => i.id === id), b = writeBatch(db);
+    if (!x) return Promise.reject(new Error("It isn't on the list"));
+    b.delete(doc(db, "items", id));
+    b.set(doc(db, "itemlog", `${id}-gone`), { ref: id, act: "removed", def: logDef(x), ...me() });
+    return b.commit();
+  },
+  // The latest changes to the items the team added, newest first (managers and the owner).
+  itemLog: () => getDocs(query(collection(db, "itemlog"), orderBy("at", "desc"), limit(100))).then(rows),
+  // Training. Tonight's quiz counts once a night on each phone (a second write is refused), so its id is fixed.
+  score(kind, score, of, secs = null) {
+    const day = shiftDay(), x = { kind, day, score, of, secs, ...me() };
+    return kind === "night" ? setDoc(doc(db, "scores", `night-${day}-${auth.currentUser.uid}`), x) : addDoc(collection(db, "scores"), x);
+  },
+  // Everyone's scores since a time (managers), or this phone's own.
+  scores: (since) => getDocs(query(collection(db, "scores"), where("at", ">=", Timestamp.fromMillis(since)), limit(2000))).then(rows),
+  myScores: () => getDocs(query(collection(db, "scores"), where("uid", "==", auth.currentUser.uid))).then(rows),
+  signOff: (person, drink) => setDoc(doc(db, "signoffs", `${slug(person)}--${slug(drink)}`), { person, drink, ...me() }),
+  unSign: (person, drink) => deleteDoc(doc(db, "signoffs", `${slug(person)}--${slug(drink)}`)),
+  // What happened to every date label on these business days, read a day at a time.
+  labelDays: (days) => Promise.all(days.map((d) => getDocs(query(collection(db, "events"), where("day", "==", d), where("kind", "==", "label"))).then(rows))).then((xs) => xs.flat()),
+  // A night's procedures, and its tasks, for the weekly summary.
+  runsOn: (day) => getDocs(collection(db, "shift", day, "runs")).then(byId),
+  tasksOn: (day) => getDocs(collection(db, "shift", day, "tasks")).then(byId),
+  outlogSince: (since) => getDocs(query(collection(db, "outlog"), where("at", ">=", Timestamp.fromMillis(since)), limit(1000))).then(rows),
+  // Backup: everything Bar Book keeps for the team, read once. Photos stay out (they are big, and kept 30 days).
+  async backup() {
+    const all = (c, q) => getDocs(q || collection(db, c)).then((s) => s.docs.filter(plain).map((x) => ({ id: x.id, ...x.data() }))).catch(() => []);
+    const one = (c, id) => getDoc(doc(db, c, id)).then((d) => (d.exists() ? d.data() : null)).catch(() => null);
+    const since = Timestamp.fromMillis(Date.now() - 31 * 864e5);
+    const media = await all("drinkMedia");
+    return {
+      lists: await all("lists"), listlog: await all("listlog"), labels: await all("labels"), items: await all("items"), itemlog: await all("itemlog"),
+      names: await one("settings", "names"), contacts: await one("settings", "contacts"), fixtures: await all("fixtures"),
+      drinkMedia: media.map(({ photo, ...m }) => ({ ...m, photo: photo ? "yes" : "" })), signoffs: await all("signoffs"),
+      scores: await all("scores", query(collection(db, "scores"), where("at", ">=", since), limit(2000))),
+      reports: await all("reports", query(collection(db, "reports"), orderBy("at", "desc"), limit(200))),
+      outlog: await all("outlog", query(collection(db, "outlog"), where("at", ">=", since), limit(2000))),
+      issues: await all("issues", query(collection(db, "issues"), orderBy("at", "desc"), limit(300))),
+    };
+  },
+  // Health check: how long the server takes to answer, and whether everything this phone saved has reached it.
+  async ping() {
+    const t = performance.now();
+    await getDocFromServer(doc(db, "staff", auth.currentUser.uid));
+    return Math.round(performance.now() - t);
+  },
+  synced: (ms = 4000) => Promise.race([waitForPendingWrites(db).then(() => true), new Promise((ok) => setTimeout(() => ok(false), ms))]),
   addFixture: (x) => addDoc(collection(db, "fixtures"), { day: x.day, ko: x.ko, home: x.home, away: x.away, comp: x.comp, channel: x.channel, screen: x.screen, ...me() }),
   dropFixture: (id) => deleteDoc(doc(db, "fixtures", id)),
   // Issues: raise, take on (or give to someone), mark fixed. "Still broken" raises a new one linked back.
@@ -474,7 +536,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
+  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }
