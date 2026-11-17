@@ -118,7 +118,18 @@ test("light, dark or the phone's own setting, remembered on this phone", async (
   await p.click("[data-tab=info]"); await p.click("[data-theme-pick=light]");
   assert.equal(await p.evaluate(() => document.documentElement.dataset.theme), "light");
   assert.notEqual(await bg(p), dark);
-  assert.equal(await p.$eval('meta[name="theme-color"]', (m) => m.content), "#f6f1e6");
+  assert.equal(await p.$eval('meta[name="theme-color"]', (m) => m.content), "#f3ecdf");
+  // Every light text colour keeps WCAG AA (4.5:1) on both the paper page and the white cards.
+  const low = await p.evaluate(() => {
+    const css = getComputedStyle(document.documentElement), hex = (v) => css.getPropertyValue(v).trim();
+    const lum = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((c) => (c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)).reduce((a, c, i) => a + c * [0.2126, 0.7152, 0.0722][i], 0);
+    const ratio = (a, b) => { const [x, y] = [lum(hex(a)), lum(hex(b))].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
+    const out = [];
+    for (const fg of ["--fg", "--muted", "--brass", "--warn", "--ok", "--cool", "--game"]) for (const bg of ["--bg", "--surface"]) if (ratio(fg, bg) < 4.5) out.push(`${fg} on ${bg}`);
+    if (ratio("--brass-ink", "--brass") < 4.5) out.push("--brass-ink on --brass");
+    return out;
+  });
+  assert.deepEqual(low, [], "light colours below 4.5:1");
   await p.reload(); await p.click("#w-ok").catch(() => {});
   assert.equal(await p.evaluate(() => document.documentElement.dataset.theme), "light", "kept after a reload");
   // Auto follows the phone: switch the phone to light and back.
