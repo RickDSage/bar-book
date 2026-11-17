@@ -1,17 +1,20 @@
 /* ---------- Your shift, and the Guide ----------
    Bar or Floor on the start screen (or the first time someone opens Shift, after going straight to the drinks) shows a
    short walkthrough of that side's night: opening, Log it, closing and the handover. Once per person on each side: on a
-   shared iPad, once per name. When the walkthrough changes, WALK_V goes up and everyone sees it once more.
+   shared iPad, once per name. When the walkthrough changes, WALK_V goes up and WALK_NEW says what changed: anyone who
+   saw an older one gets one small "New in the walkthrough" note instead of the whole thing again. More, Help has Replay
+   the walkthrough and Replay the tour any time.
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
 const WALK_V = 3;
+const WALK_NEW = "Search everything to 86 finds anything in a few letters, and Take over picks up a part of the close someone left.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
   "? at the top right opens the Guide: every part of Bar Book by section, and a search for anything, like “how do I make a mojito” or “what's a dry shake”.",
-], tip: "× closes this at any time. It's always in the Guide under Start here." };
+], tip: "× closes this at any time. More, Replay the walkthrough brings it back." };
 const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
   `Saw something, found something, did something, told a manager or someone told you? Tap ＋ Log it on Shift${side === "bar" ? " or on the bar station" : ""}. One line is enough.`,
   "Pick what it is. 86 goes on the 86 board for everyone and Broken goes on Issues. Running low, Not finished and For tomorrow go straight into tonight's handover. The rest goes under Logged tonight.",
@@ -30,7 +33,7 @@ const WALK = {
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
       "Drinks has every spec, with Rapid fire for the rush. The bar iPad has both on the bar station, with tonight's 86s across the top.",
       "Ran out? Stock, Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
-    ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
+    ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
     WALK_NAV,
     { t: "Opening", how: [
       "Shift, Morning: read last night's handover and tap Mark as read.",
@@ -56,7 +59,7 @@ const WALK = {
       "Shift, Floor has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
       "86 anything, food too: Stock, Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
-    ], tip: "Seen it before? × closes it. It's always in the Guide: tap ? at the top." },
+    ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
     WALK_NAV,
     { t: "Opening", how: [
       "Shift, Morning: read last night's floor handover and tap Mark as read.",
@@ -79,12 +82,23 @@ const WALK = {
   ],
 };
 const walkKey = (side) => (sharedDev ? `${side}:${myName}` : side);
-const walkSeen = (side) => (store.get("walk", {})[walkKey(side)] || 0) >= WALK_V;
+const walkVer = (side) => store.get("walk", {})[walkKey(side)] || 0;
+const walkSeen = (side) => walkVer(side) >= WALK_V;
 function walkMark(side) { const w = store.get("walk", {}); w[walkKey(side)] = WALK_V; store.set("walk", w); }
-// Once per person and side, when nothing else is open over the app.
+// Once per person and side, when nothing else is open over the app. Seen an older one: just the note on what's new.
 function walkMaybe(side, wait = 0) {
   if (!WALK[side]) return;
-  setTimeout(() => { if (walkSeen(side) || !$("#help").hidden || !$("#logit").hidden || $("#welcome")) return; walkOpen(side, 0); }, wait);
+  setTimeout(() => {
+    if (walkSeen(side) || !$("#help").hidden || !$("#logit").hidden || $("#welcome")) return;
+    if (walkVer(side)) { walkMark(side); return walkNudge(side); }
+    walkOpen(side, 0);
+  }, wait);
+}
+function walkNudge(side) {
+  $("#walk-new")?.remove();
+  document.body.insertAdjacentHTML("beforeend", `<div id="walk-new" class="walknew" role="status"><p><b>New in the walkthrough.</b> ${esc(WALK_NEW)}</p>
+    <div class="walknew-f"><button class="btn pri" data-walk-new="${side}">Show me</button><button class="btn" data-walk-new-x>Got it</button></div></div>`);
+  setTimeout(() => $("#walk-new")?.remove(), 20000);
 }
 function walkOpen(side, i = 0) {
   const xs = WALK[side], c = xs[i], last = i === xs.length - 1;
@@ -218,9 +232,13 @@ function goHome() {
 document.addEventListener("click", (e) => {
   if (e.target.closest("[data-guide]")) { e.preventDefault(); haptic(); const was = !$("#help").hidden; if (was) $("#help").hidden = true; return guideOpen(); }
   if (e.target.closest("[data-home]")) { e.preventDefault(); return goHome(); }
-  const wo = e.target.closest("[data-walk-open]"); if (wo) { haptic(); return walkOpen(wo.dataset.walkOpen || mode, 0); }
+  const wo = e.target.closest("[data-walk-open]"); if (wo) { haptic(); return walkOpen(WALK[wo.dataset.walkOpen] ? wo.dataset.walkOpen : "bar", 0); }
+  const wn = e.target.closest("[data-walk-new]"); if (wn) { haptic(); $("#walk-new").remove(); return walkOpen(wn.dataset.walkNew, 0); }
+  if (e.target.closest("[data-walk-new-x]")) { haptic(); $("#walk-new").remove(); }
 });
 document.head.insertAdjacentHTML("beforeend", `<style>
+.walknew{position:fixed;left:12px;right:12px;bottom:calc(var(--tabh) + 14px + env(safe-area-inset-bottom,0px));z-index:25;max-width:520px;margin:0 auto;background:var(--surface);border:2px solid var(--brass);border-radius:16px;padding:12px 14px;box-shadow:0 10px 30px rgb(0 0 0 / .25)}
+.walknew p{margin:0}.walknew-f{display:flex;gap:8px;margin-top:10px}
 .hbtn{font-size:22px;font-weight:800;color:var(--brass);border:1px solid var(--line);border-radius:50%;width:40px;height:40px;background:none;padding:0;min-height:0}
 .hbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .gd-search{margin:10px 0 6px}.gd-search input{width:100%}

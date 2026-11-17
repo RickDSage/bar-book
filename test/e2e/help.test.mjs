@@ -36,6 +36,31 @@ test("Bar on the start screen shows the bar walkthrough once, × closes it, and 
   await c.close();
 });
 
+test("More replays the walkthrough and the tour any time; an older walkthrough gets one small what's new note, not the whole thing", async () => {
+  const c = await browser.newContext({ viewport: { width: 375, height: 667 }, isMobile: true });
+  await c.addInitScript(() => { if (localStorage.getItem("btbar.walk") == null) { localStorage.setItem("btbar.introSeen", "true"); localStorage.setItem("btbar.walk", JSON.stringify({ bar: 1 })); } });
+  const p = await c.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.goto(site.url); await p.click("#w-ok");
+  await p.waitForSelector("#walk-new"); assert.equal(await p.isHidden("#help"), true);
+  assert.match(await p.textContent("#walk-new"), /New in the walkthrough/);
+  await p.click("#walk-new [data-walk-new]"); assert.match(await p.textContent("#help-t"), /Your bar shift/);
+  assert.equal(await p.$("#walk-new"), null);
+  await p.click("#help .hq-x");
+  // Once only: the next open is quiet.
+  await p.reload(); await p.click("#w-ok"); await p.waitForTimeout(700);
+  assert.equal(await p.$("#walk-new"), null); assert.equal(await p.isHidden("#help"), true);
+  // More, Help: both replays, on the side you're on.
+  await p.click("nav.tabs [data-tab=info]");
+  await p.click("#v-info [data-walk-open]"); assert.match(await p.textContent("#help-t"), /Your bar shift/);
+  await p.click("#help .hq-x");
+  await p.evaluate(() => { setMode("floor"); renderInfo(); });
+  await p.click("#v-info [data-walk-open]"); assert.match(await p.textContent("#help-t"), /Your floor shift/);
+  await p.click("#help .hq-x");
+  await p.click("#v-info [data-intro-open]"); assert.match(await p.textContent("#help-t"), /Welcome to Bar Book/);
+  assert.deepEqual(errs, []);
+  await c.close();
+});
+
 test("? buttons open the right panel for what's on screen, don't fold a card, and can all be hidden and shown again", async () => {
   await resetEmulators();
   const { S } = await team(browser, site, [["S", "Sam"]]);
