@@ -1,11 +1,14 @@
 rules_version = '2';
 // Black Tap Bar Book: Firestore security rules, version 3 (staff app, 15 November 2026).
 //
-// Everyone joins the same way, and a senior unlocks more with their own code (16 November 2026):
-// - Every phone signs in anonymously (Firebase gives it an id, nothing is typed) and joins with the team code, which
-//   arrives inside the team link shared in the staff WhatsApp group: staff/{uid} = {name, role: 'staff', code, at},
-//   where code must equal config/team.code. Only the Firebase console can read or change config/team; changing the code
-//   there takes every phone off the team at once (seniors included), and they join again with the new link.
+// Everyone joins the same way, then a manager or maintenance picks their name and types their own code (17 November 2026):
+// - Every phone signs in anonymously (Firebase gives it an id, nothing is typed) and joins by typing the team code (4 to
+//   8 digits): staff/{uid} = {name, role: 'staff', code, at}, where code must equal config/team.code. Nobody can read
+//   config/team; the owner can change it from the app (or the Firebase console), which takes every phone off the team at
+//   once, and they join again with the new code. Guesses at the team code are counted by the server for the whole team,
+//   because a stranger can make as many anonymous phones as they like: each guess is first saved to joins/{uid} with a +1
+//   on gate/team.tries, and a join is only allowed for the latest counted guess. 10 wrong guesses since the last join
+//   are free, then one every 5 minutes, then none from 30 until the owner unlocks joining.
 // - Up to three seniors (role 'manager'). The owner adds each one by name with their own 4 digit code: seniors/{id} =
 //   {name, tries, lastTry} for the team to pick from, and pins/{id} = {salt, hash}, which only the owner can read. A
 //   senior unlocks on any joined phone by picking their name and typing their code. Guesses are counted by the server:
@@ -13,8 +16,11 @@ rules_version = '2';
 //   minutes, then none after 10 until the owner resets it), and only then checked against the hash. A right code turns
 //   the phone's record into staff/{uid} = {name, role: 'manager', code, at, pin} and sets tries back to 0. Taking the
 //   senior off (deleting seniors/{id}) takes every phone they unlocked back to staff powers at once.
-// - The owner signs in with a username and password (made at first-time setup, 25 October 2026):
-//   staff/{uid} = {name, username, role: 'owner'}, with usernames/{username} pointing the login screen at it.
+// - The owner (maintenance) unlocks the same way with their own 4 digit code, kept under the fixed id 'owner'
+//   (seniors/owner and pins/owner, counted and locked like the seniors'): the phone becomes
+//   staff/{uid} = {name, role: 'owner', code, at, pin: 'owner'}. The owner's username and password login (made at
+//   first-time setup, 25 October 2026) stays only as the way back in if the owner's code is locked:
+//   staff/{uid} = {name, username, role: 'owner'} with no pin, with usernames/{username} pointing the login at it.
 //
 // Team only: rate the shift is copied to sent/ with no uid and no name when it's sent, like everything sent from the
 // app. Anything written here can be read by the seniors and the owner, except Tell Derek (tells/), which only the
@@ -34,16 +40,23 @@ service cloud.firestore {
     function seniorDoc(id) { return /databases/$(database)/documents/seniors/$(id); }
     function pinDoc(id) { return /databases/$(database)/documents/pins/$(id); }
     function unlockDoc(uid) { return /databases/$(database)/documents/unlocks/$(uid); }
-    // On the team: the owner, or a phone that joined with the team code that is current now.
+    function gateDoc() { return /databases/$(database)/documents/gate/team; }
+    function joinDoc(uid) { return /databases/$(database)/documents/joins/$(uid); }
+    // The owner's password login: role 'owner' with no pin. It is the only record that needs no team code.
+    function passwordOwner(p) { return p.data.role == 'owner' && !('pin' in p.data); }
+    // On the team: the owner's password login, or a phone that joined with the team code that is current now.
     function isMember() {
-      return signedIn() && profile() != null && (profile().data.role == 'owner' || profile().data.code == teamCode());
+      return signedIn() && profile() != null && (passwordOwner(profile()) || profile().data.code == teamCode());
+    }
+    // The owner: the password login, or a phone unlocked with the owner's code while that code is set.
+    function isOwner() {
+      return isMember() && profile().data.role == 'owner' && (passwordOwner(profile()) || (profile().data.pin == 'owner' && exists(seniorDoc('owner'))));
     }
     // The owner, or a phone unlocked with a senior's code while that senior is still on the team. Old password logins for
     // seniors (before 16 November 2026) hold no team code, so they no longer count.
     function isManager() {
-      return isMember() && (profile().data.role == 'owner' || (profile().data.role == 'manager' && exists(seniorDoc(profile().data.get('pin', '-')))));
+      return isOwner() || (isMember() && profile().data.role == 'manager' && profile().data.get('pin', 'owner') != 'owner' && exists(seniorDoc(profile().data.get('pin', '-'))));
     }
-    function isOwner() { return isMember() && profile().data.role == 'owner'; }
 
     // ---------- Field checks ----------
     function incoming() { return request.resource.data; }
@@ -69,9 +82,37 @@ service cloud.firestore {
     function autoId(s) { return s is string && s.matches('[A-Za-z0-9]{20}'); }
 
     // ---------- Joining the team ----------
-    // config/team {code} is made by hand in the Firebase console. No phone can read it; the rules compare against it.
+    // config/team {code}: no phone can read it; the rules compare against it. The owner can set a new one from the app.
     match /config/{id} {
-      allow read, write: if false;
+      allow read: if false;
+      allow create, update: if id == 'team' && isOwner() && exactly(['code']) && incoming().code is string && incoming().code.matches('[0-9]{4,8}');
+    }
+    // The team's count of guesses at the team code. Anyone signed in reads it, so the join screen can say when the next
+    // try is allowed. A guess adds 1 (with this phone's guess saved in joins/{uid} in the same write), a right join sets
+    // it back to 0, and the owner can set it back to 0.
+    function guessAtTeam() {
+      let t = resource == null ? 0 : resource.data.tries;
+      return incoming().tries == t + 1 && (t < 10 || (t < 30 && request.time > resource.data.lastTry + duration.value(5, 'm')))
+        && getAfter(joinDoc(request.auth.uid)).data.n == t + 1;
+    }
+    // Only a phone that wasn't on the team a moment ago and is now: a member rewriting its own record can't reset it.
+    function joinedNow() {
+      let uid = request.auth.uid;
+      return incoming().tries == 0 && existsAfter(staffDoc(uid)) && getAfter(staffDoc(uid)).data.role == 'staff'
+        && getAfter(staffDoc(uid)).data.code == teamCode() && (!exists(staffDoc(uid)) || get(staffDoc(uid)).data.get('code', '') != teamCode());
+    }
+    match /gate/{id} {
+      allow get: if signedIn() && id == 'team';
+      allow create: if id == 'team' && signedIn() && exactly(['tries', 'lastTry']) && incoming().lastTry == request.time && guessAtTeam();
+      allow update: if id == 'team' && signedIn() && exactly(['tries', 'lastTry']) && incoming().lastTry == request.time
+        && (guessAtTeam() || joinedNow() || (isOwner() && incoming().tries == 0));
+    }
+    // A phone's latest guess at the team code, saved with its number so a join can be checked against it. Nobody reads it back.
+    match /joins/{uid} {
+      allow create, update: if signedIn() && request.auth.uid == uid && exactly(['guess', 'n', 'at'])
+        && incoming().guess is string && incoming().guess.matches('[0-9]{4,8}') && incoming().n is int && incoming().n > 0
+        && incoming().at == request.time && getAfter(gateDoc()).data.tries == incoming().n && getAfter(gateDoc()).data.lastTry == request.time;
+      allow delete: if signedIn() && request.auth.uid == uid;
     }
     // A phone joins with the team code and a first name. It can change its own name (a shared bar phone passed to the
     // next person), lock itself back to staff powers, and leave. Everyone on the team can see who has joined. A senior or
@@ -79,25 +120,33 @@ service cloud.firestore {
     // senior unlocked. Nobody can change or remove the owner's record.
     function validJoin(uid) {
       return exactly(['name', 'role', 'code', 'at']) && reqText(incoming().name, 30) && incoming().role == 'staff'
-        && incoming().code is string && incoming().code.size() >= 8 && incoming().code == teamCode()
-        && incoming().at == request.time && request.auth.uid == uid;
+        && incoming().code is string && incoming().code == teamCode() && incoming().at == request.time && request.auth.uid == uid;
     }
+    // Joining (or coming back after a new team code) needs this phone's guess to be the latest one counted at the gate.
+    // get() reads both as they were before this write.
+    function countedJoin(uid) {
+      let j = get(joinDoc(uid)).data;
+      return j.guess == incoming().code && j.n == get(gateDoc()).data.tries;
+    }
+    // Staying on the team (a new name, or locking back to staff powers) keeps the code the phone already joined with.
+    function sameCode() { return resource.data.get('code', '') == incoming().code; }
     // A joined phone becomes a senior's: the guess was already saved and counted (unlocks/{uid}, see pins below), it is
     // the latest guess at that senior's code, and it matches. get() reads the guess as it was saved, before this write.
     function validUnlock(uid) {
       let u = get(unlockDoc(uid)).data;
       let p = get(pinDoc(u.id)).data;
       return request.auth.uid == uid && resource.data.role == 'staff' && resource.data.code == teamCode()
-        && exactly(['name', 'role', 'code', 'at', 'pin']) && incoming().role == 'manager' && incoming().pin == u.id
+        && exactly(['name', 'role', 'code', 'at', 'pin']) && incoming().pin == u.id
+        && ((u.id == 'owner' && incoming().role == 'owner') || (u.id != 'owner' && incoming().role == 'manager'))
         && incoming().code == resource.data.code && incoming().at == request.time && incoming().name == get(seniorDoc(u.id)).data.name
         && u.n == get(seniorDoc(u.id)).data.tries && hashing.sha256(u.guess + ':' + p.salt).toHexString().lower() == p.hash;
     }
     match /staff/{uid} {
       allow get: if signedIn() && request.auth.uid == uid;
       allow list: if isMember();
-      allow create: if validJoin(uid);
-      allow update: if (validJoin(uid) && resource.data.role in ['staff', 'manager']) || validUnlock(uid);
-      allow delete: if resource.data.role != 'owner'
+      allow create: if validJoin(uid) && countedJoin(uid);
+      allow update: if (validJoin(uid) && !passwordOwner(resource) && (sameCode() || countedJoin(uid))) || validUnlock(uid);
+      allow delete: if !passwordOwner(resource)
         && ((signedIn() && request.auth.uid == uid) || (resource.data.role == 'staff' && isManager()) || isOwner());
     }
     // The login screen looks up the owner's username before signing in, so a single lookup is public. Listing them is
@@ -105,7 +154,7 @@ service cloud.firestore {
     // old senior logins from before 16 November 2026.
     match /usernames/{username} {
       allow get: if true;
-      allow delete: if isOwner() && get(staffDoc(resource.data.uid)).data.role != 'owner';
+      allow delete: if isOwner() && !passwordOwner(get(staffDoc(resource.data.uid)));
     }
 
     // ---------- Seniors and their codes ----------
@@ -128,7 +177,7 @@ service cloud.firestore {
     // A right code sets the count back to 0, in the same write as the phone becoming the senior's.
     function rightCode(id) {
       return isMember() && profile().data.role == 'staff' && changesOnly(['tries', 'lastTry']) && incoming().tries == 0 && incoming().lastTry == request.time
-        && getAfter(staffDoc(request.auth.uid)).data.role == 'manager' && getAfter(staffDoc(request.auth.uid)).data.pin == id;
+        && getAfter(staffDoc(request.auth.uid)).data.role == (id == 'owner' ? 'owner' : 'manager') && getAfter(staffDoc(request.auth.uid)).data.pin == id;
     }
     match /seniors/{id} {
       allow read: if isMember();
