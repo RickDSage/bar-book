@@ -217,23 +217,21 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .seg.dseg button { line-height: 1.15; white-space: nowrap; padding-inline: 4px; }
 #hdr #hdr-drinks[hidden] { display: none; }
 #hdr .search { margin-top: 10px; }
-/* Menu: one row under the search, always all on screen. Jump to a section (it names the one you're in), Filters,
-   Favourites. Each opens a panel under the row, so the menu itself is just drinks. */
+/* Menu: one row under the search, always all on screen. A to Z or Sections (on Sections it names the one you're in and
+   opens the list of them), Filters, Favourites. Each opens a panel under the row, so the menu itself is just drinks. */
 .dbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; padding-top: 10px; }
 .dbar .chip { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--fg); font-weight: 600; min-width: 48px; }
 .dbar .chip b { color: var(--brass); }
-.dbar .dj { justify-content: space-between; text-align: start; }
+.dbar .dview { margin: 0; padding: 3px; gap: 3px; min-width: 0; }
+.dbar .dview button { display: flex; align-items: center; justify-content: center; gap: 3px; min-width: 0; min-height: 38px; padding: 4px 6px; font-size: 15px; }
 .dbar .dj span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dbar .dj::after { content: "▾"; color: var(--brass); flex: none; }
-.dbar .dj:disabled { opacity: 1; color: var(--muted); }
-.dbar .dj:disabled::after { content: none; }
+.dbar .dj[aria-expanded]::after { content: "▾"; flex: none; }
+.az-all { margin: 18px 0 0; color: var(--muted); }
 .dbar .chip[aria-expanded="true"], .dbar .chip[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
 .dpanel { max-height: 60vh; max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 8px; }
 .dpanel .pl-panel { margin-top: 8px; }
 .djump { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: 8px; }
-.djump.az { grid-template-columns: repeat(6, 1fr); }
 .djump button { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 44px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-weight: 600; font-size: 15px; text-align: start; line-height: 1.2; }
-.djump.az button { justify-content: center; color: var(--brass); }
 .djump button .cn { color: var(--muted); font-weight: 400; font-size: 13px; }
 .djump button[aria-current="true"] { border-color: var(--brass); color: var(--brass); }
 .dpanel .recent { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: 8px; }
@@ -723,6 +721,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-how li { margin: 6px 0; line-height: 1.4; }
 .ct-show { margin-top: 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .ct-show .chip { padding: 8px 12px; }
+.ct-order { margin-top: 8px; }
 .ct-show .chip, .ct-jump .chip { color: var(--fg); }
 .ct-show .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .ct-jump small, .ct-show small { opacity: .75; margin-left: 4px; font-variant-numeric: tabular-nums; }
@@ -994,17 +993,9 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .pl-panel .chips { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
 .pl-bar .pl-off::after { content: " ✕"; }
 .chip .cn { font-weight: 400; opacity: .7; margin-left: 2px; }
-.azbar { --jh: 46px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px)); z-index: 4; height: var(--jh); display: flex; gap: 4px; align-items: center; overflow-x: auto; scrollbar-width: none; background: var(--bg); margin: 6px 0 2px; }
-.azbar::-webkit-scrollbar { display: none; }
-.azbar button { flex: none; min-width: 34px; min-height: 36px; padding: 0 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--brass); font-weight: 700; white-space: nowrap; }
-.secbar button { font-size: 14px; }
-#list, #rp-out { --jb: 0px; }
-#list.jb, #rp-out.jb { --jb: 46px; }
-.azbar button[aria-current="true"] { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
 #list .sec { margin: 0; padding: 18px 0 4px; }
-#rp-out .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
-#list .anc, #rp-out .anc { display: block; scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); }
-.azsec { scroll-margin-top: 190px; }
+#rp-out .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
+#list .anc, #rp-out .anc { display: block; scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px)); }
 .pl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .pl-list { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; padding: 8px 10px; margin-top: 10px; }
 .pl-list > span { flex: 1 1 100%; }
@@ -1472,7 +1463,8 @@ const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.de
 const issueLines = (x) => [`${x.title} · ${AREA[x.area] || "Other"}${x.status === "taken" && x.who ? `, ${x.who} is on it` : ", nobody on it yet"}`, ...(x.detail ? [subLine(x.detail)] : [])];
 
 /* ---------- Drinks list ---------- */
-// One row under the search: Jump to (the section you're in), Filters and Favourites. Each opens a panel under it.
+// One row under the search: A to Z or Sections, Filters and Favourites. A to Z has the letter strip down the side
+// (az.js); on Sections, the Sections button names the section you're in and opens the list of them.
 let favOnly = store.get("favOnly", false);
 let fav = new Set(store.get("fav", []));
 const favOk = (d) => !favOnly || fav.has(d.name);
@@ -1482,17 +1474,15 @@ const secName = (x) => SEC_SHORT[x] || x;
 // The panel that's open under the row: "jump", "filters", "recent" (search box tapped with nothing in it) or null.
 let dp = null, jumpParts = [], jumpLabel = "";
 function renderBar() {
-  const on = plOn().length + (PL.sort !== "menu" ? 1 : 0), n = fav.size;
-  const jump = jumpParts.length ? `<button class="chip dj" data-dp="jump" aria-expanded="${dp === "jump"}" aria-label="Jump to a section"><span>${esc(jumpLabel || secName(jumpParts[0][1]))}</span></button>`
-    : `<button class="chip dj" disabled><span>${listIds.length} ${listIds.length === 1 ? "drink" : "drinks"}</span></button>`;
-  $("#dbar").innerHTML = jump
+  const on = plOn().length + (PL.sort ? 1 : 0), n = fav.size, sec = PL.view === "menu" && !PL.sort, jump = sec && jumpParts.length;
+  $("#dbar").innerHTML = `<div class="seg dview" role="group" aria-label="How the drinks are listed"><button data-dview="az" aria-pressed="${PL.view === "az" && !PL.sort}">A to Z</button>`
+    + `<button class="dj" data-dview="menu" aria-pressed="${sec}"${jump ? ` aria-expanded="${dp === "jump"}" aria-label="Sections: jump to one"` : ""}><span>${jump ? esc(jumpLabel) : "Sections"}</span></button></div>`
     + `<button class="chip" data-dp="filters" aria-expanded="${dp === "filters"}">Filters${on ? ` <b>${on}</b>` : ""}</button>`
     + `<button class="chip" data-fav aria-pressed="${favOnly}" aria-label="Favourites only">\u2605${n ? ` ${n}` : ""}</button>`;
   const box = $("#dpanel");
   box.hidden = !dp;
   if (dp === "jump") {
-    const az = jumpParts.length && jumpParts[0][0].startsWith("az-");
-    box.innerHTML = `<div class="djump${az ? " az" : ""}">${jumpParts.map(([id, t, c]) => `<button data-jump="${id}" aria-current="${secName(t) === jumpLabel}">${esc(secName(t))}${c ? ` <span class="cn">${c}</span>` : ""}</button>`).join("")}</div>`;
+    box.innerHTML = `<div class="djump">${jumpParts.map(([id, t, c]) => `<button data-jump="${id}" aria-current="${secName(t) === jumpLabel}">${esc(secName(t))} <span class="cn">${c}</span></button>`).join("")}</div>`;
   } else if (dp === "filters") box.innerHTML = plPanel();
   else if (dp === "recent") box.innerHTML = `<div class="recent"><div class="mini">Opened recently</div>${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>`;
   else box.innerHTML = "";
@@ -1502,6 +1492,9 @@ $("#dbar").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b || b.disabled) return;
   haptic();
   if ("fav" in b.dataset) { favOnly = !favOnly; store.set("favOnly", favOnly); dp = null; renderList(); return scrollTo(0, 0); }
+  const v = b.dataset.dview;
+  if (v === "menu" && PL.view === "menu" && !PL.sort && jumpParts.length) return dpSet(dp === "jump" ? null : "jump");
+  if (v) { PL.view = v; PL.sort = null; store.set("dview", v); dp = null; renderList(); return scrollTo(0, 0); }
   dpSet(dp === b.dataset.dp ? null : b.dataset.dp);
 });
 $("#dpanel").addEventListener("click", (e) => {
@@ -1553,28 +1546,29 @@ function renderList() {
   renderQuick(!q, q);
   if (q && dp === "recent") dp = null;
   let rows = D.filter((d) => plHits(d, words) && flavHit(d) && plOk(d) && favOk(d) && sdSeasonOk(d, q));
-  const flat = !!q || PL.sort !== "menu";
-  // The menu keeps each section together, in menu order, so nothing hides under a repeated heading further down.
-  rows = q && PL.sort === "menu" ? plRank(rows, words) : flat ? plSort(rows) : rows.slice().sort((a, b) => SEC_ORDER.indexOf(a.section) - SEC_ORDER.indexOf(b.section) || a.id - b.id);
+  // A search ranks best first and a sort (Filters) goes its own way; otherwise A to Z, or the menu's sections in order.
+  const secs = !q && !PL.sort && PL.view === "menu", az = !q && !PL.sort && !secs;
+  rows = PL.sort ? plSort(rows) : q ? plRank(rows, words) : secs ? rows.slice().sort((a, b) => SEC_ORDER.indexOf(a.section) - SEC_ORDER.indexOf(b.section) || a.id - b.id) : azSort(rows, (d) => d.name);
   const narrowed = !!(favOnly || q || flav || PL.list || plOn().length);
   $("#count").textContent = narrowed ? `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}` : "";
   listIds = rows.map((d) => d.id);
-  // Every drink shows. The menu puts a heading over each section, A to Z over each letter; Jump to lists them all.
-  const az = PL.sort === "az" && rows.length > 12, L = (d) => (/[a-z]/i.test(plNorm(d.name)[0]) ? plNorm(d.name)[0].toUpperCase() : "#");
   const sid = (x) => `sec-${SEC_ORDER.indexOf(x)}`;
   const groups = new Map();
-  if (az || !flat) for (const d of rows) { const k = az ? L(d) : d.section; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(d); }
-  jumpParts = groups.size > 1 ? [...groups].map(([k, ds]) => [az ? `az-${k}` : sid(k), k, az ? 0 : ds.length]) : [];
+  if (secs) for (const d of rows) { if (!groups.has(d.section)) groups.set(d.section, []); groups.get(d.section).push(d); }
+  jumpParts = groups.size > 1 ? [...groups].map(([k, ds]) => [sid(k), k, ds.length]) : [];
   jumpLabel = jumpParts.length ? secName(jumpParts[0][1]) : "";
   renderPlf(); renderBar();
   if (!rows.length && favOnly && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here. Tap \u2605 again to see every drink.</p>`; return; }
   if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
+  // Each section can go out as one WhatsApp message of its specs, straight from its heading.
+  const head = (k, ds, attr = "") => `<div class="sec"${attr}>${esc(k)}<span class="cnt">${ds.length}</span><button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button></div>`;
   let html = q ? "" : sdSeasonBanner();
-  if (groups.size) for (const [k, ds] of groups) {
-    // Each section can go out as one WhatsApp message of its specs, straight from its heading.
-    html += az ? `<i class="anc" id="az-${k}"></i><div class="sec azsec">${k}</div>`
-      : `<i class="anc" id="${sid(k)}"></i><div class="sec">${esc(k)}<span class="cnt">${ds.length}</span><button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button></div>`;
-    html += ds.map(rowHtml).join("");
+  if (groups.size) for (const [k, ds] of groups) html += `<i class="anc" id="${sid(k)}"></i>${head(k, ds)}${ds.map(rowHtml).join("")}`;
+  else if (az) {
+    // The signatures first (★ on the letter strip), then every drink under its letter, signatures too.
+    const sig = narrowed ? [] : rows.filter((d) => d.section === "Black Tap Signatures");
+    if (sig.length) html += head("Black Tap Signatures", sig, ' data-az="★"') + sig.map(rowHtml).join("") + `<div class="mini az-all">Every drink, A to Z</div>`;
+    html += azHtml(rows, (d) => d.name, rowHtml, 13);
   } else html += rows.map(rowHtml).join("");
   // A narrowed list (favourites, a filter or a search) can go out as one WhatsApp message of specs.
   if (narrowed) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
@@ -1582,38 +1576,28 @@ function renderList() {
   jumpSync();
 }
 $("#q").addEventListener("input", renderList);
-/* Jump bars (Menu and Rapid fire): a tap goes to that part, the part you're in lights up in the bar, and a sideways
-   swipe on the page goes to the next or the previous part. */
+/* Jumping to a part (the Menu's Sections and Rapid fire): a tap goes to that part, and a sideways swipe on the page goes
+   to the next or the previous part. A to Z lists have the letter strip instead (az.js). */
 const jumpBox = () => (cur === "drinks" ? $("#list") : cur === "rapid" ? $("#rp-out") : null);
 const jumpGo = (a) => { haptic(); hdhSet(); a.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }); };
-document.addEventListener("click", (e) => { const b = e.target.closest(".azbar [data-jump], .rpjump [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
+document.addEventListener("click", (e) => { const b = e.target.closest(".rpjump [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
 function jumpAt(box) {
   const line = $("#hdr").getBoundingClientRect().bottom + 60, ancs = [...box.querySelectorAll(".anc")];
   let i = 0; ancs.forEach((a, j) => { if (a.getBoundingClientRect().top <= line) i = j; });
   return [ancs, i];
 }
+// Sections: the Sections button names the section you're scrolled to.
 function jumpSync() {
-  const box = jumpBox();
-  // Menu: the Jump to button names the section (or letter) you're scrolled to.
-  if (cur === "drinks") {
-    if (!jumpParts.length) return;
-    const [ancs, i] = jumpAt(box), p = ancs[i] && jumpParts.find((x) => x[0] === ancs[i].id), t = p ? secName(p[1]) : jumpLabel;
-    if (t !== jumpLabel) { jumpLabel = t; const l = $("#dbar .dj span"); if (l) l.textContent = t; }
-    return;
-  }
-  const bar = box?.querySelector(".azbar"); if (!bar) return;
-  const [ancs, i] = jumpAt(box), on = ancs[i] && bar.querySelector(`[data-jump="${ancs[i].id}"]`);
-  if (!on || on.getAttribute("aria-current") === "true") return;
-  bar.querySelectorAll("[aria-current]").forEach((x) => x.removeAttribute("aria-current"));
-  on.setAttribute("aria-current", "true");
-  bar.scrollTo({ left: on.offsetLeft - bar.clientWidth / 2 + on.offsetWidth / 2, behavior: "auto" });
+  if (cur !== "drinks" || !jumpParts.length) return;
+  const [ancs, i] = jumpAt($("#list")), p = ancs[i] && jumpParts.find((x) => x[0] === ancs[i].id), t = p ? secName(p[1]) : jumpLabel;
+  if (t !== jumpLabel) { jumpLabel = t; const l = $("#dbar .dj span"); if (l) l.textContent = t; }
 }
 let jumpRaf = 0;
 addEventListener("scroll", () => { if (!jumpRaf) jumpRaf = requestAnimationFrame(() => { jumpRaf = 0; jumpSync(); }); }, { passive: true });
 let swStart = null;
 document.addEventListener("touchstart", (e) => {
   const t = e.touches[0];
-  swStart = e.touches.length > 1 || !jumpBox() || !$("#sheet").hidden || e.target.closest(".hrow,.azbar,.chips,.dbar,.dpanel,input,textarea,.rush") ? null : [t.clientX, t.clientY];
+  swStart = e.touches.length > 1 || !jumpBox() || !$("#sheet").hidden || e.target.closest(".hrow,.az-rail,.chips,.dbar,.dpanel,input,textarea,.rush") ? null : [t.clientX, t.clientY];
 }, { passive: true });
 document.addEventListener("touchend", (e) => {
   if (!swStart) return;
@@ -1931,7 +1915,7 @@ function renderAllergens() {
   if (!alSel) { $("#allist").innerHTML = `<p class="note" style="margin-top:14px">Foam on the house cards is foamer drops, never egg white. Check the foamer label for its own allergens.</p>`; return; }
   const re = ALLERGENS.find((a) => a[0] === alSel)[1];
   const rows = D.filter((d) => alHit(d, re));
-  $("#allist").innerHTML = `<div class="sec" translate="no">${esc(alSel)}: ${rows.length}</div>` + rows.map(rowHtml).join("") + `<div class="actions">${sendBtn("allergen", "Send this list", alSel)}</div>`;
+  $("#allist").innerHTML = `<div class="sec" translate="no">${esc(alSel)}: ${rows.length}</div>` + azHtml(rows, (d) => d.name, rowHtml) + `<div class="actions">${sendBtn("allergen", "Send this list", alSel)}</div>`;
 }
 $("#algrid").addEventListener("click", (e) => { const b = e.target.closest("[data-al]"); if (!b) return; alSel = alSel === b.dataset.al ? null : b.dataset.al; renderAllergens(); });
 
@@ -5083,7 +5067,7 @@ $("#v-info").addEventListener("click", (e) => {
 const FEATURES = [
   { g: "Drinks", k: "drinks", n: "Drinks", go: "tab:drinks", tour: 1,
     what: "Every drink with its spec, glass, ice, garnish and method, and a picture guide for each step.",
-    staff: "Search and filter, star favourites, scale a spec for up to 4 drinks, swipe to the next drink, see the house photo and how-to video, and 86 a drink that's run out." },
+    staff: "Scroll A to Z with the letter strip down the side (signatures first), or by section. Search and filter, star favourites, scale a spec for up to 4 drinks, swipe to the next drink, see the house photo and how-to video, and 86 a drink that's run out." },
   { g: "Drinks", k: "make", n: "Cocktail maker", go: "tab:make", tour: 1,
     what: "Pick or type what you've got and see every drink you can make, closest first, with swaps. Also every spec on one line, and your own recipes in My drinks.",
     staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, and open any match for the full spec. Spin for a drink is under More, Games and drills." },

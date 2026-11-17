@@ -20,9 +20,16 @@ test("86 from the picker: typos, kinds, several at once, swaps, and recent on to
   for (const [q, n] of [["tanq", "Tanqueray"], ["jamesn", "Jameson"], ["triple sec", "Cointreau"], ["oat", "Oat milk"], ["chesecake", "Cheesecake"]]) {
     await S.fill("#pk-q", q); assert.equal((await rows(S))[0], n, q);
   }
-  // A kind narrows it: Frozen is the ice creams, Cakes the cakes.
-  await S.fill("#pk-q", ""); await S.click("[data-pk-cat=frozen]");
-  assert.deepEqual(await rows(S), ["Ice cream", "Vegan ice cream", "Oreo ice cream sandwich", "Jammie Dodger ice cream sandwich"]);
+  // Nothing typed: everything A to Z under its letter, with the letter strip down the side.
+  await S.fill("#pk-q", ""); await S.evaluate(() => $("#pk-q").blur());
+  const all = await rows(S);
+  assert.ok(all.length > 100 && (await S.evaluate((n) => n.every((x, i) => !i || azCmp(n[i - 1], x) <= 0), all)));
+  await S.waitForFunction(() => !$("#az-rail").hidden && $("#az-rail").textContent.startsWith("AB"));
+  await S.click('#az-rail [data-azk="S"]');
+  await S.waitForFunction(() => Math.abs(document.querySelector('#pk-list [data-az="S"]').getBoundingClientRect().top - $("#pk-scroll").getBoundingClientRect().top) < 10);
+  // A kind narrows it, A to Z: Frozen is the ice creams, Cakes the cakes.
+  await S.click("[data-pk-cat=frozen]");
+  assert.deepEqual(await rows(S), ["Ice cream", "Jammie Dodger ice cream sandwich", "Oreo ice cream sandwich", "Vegan ice cream"]);
   await S.click("[data-pk-cat=cakes]");
   assert.ok((await rows(S)).includes("Guinness cake"));
   // Several at once: tick, then one 86 for all of them.

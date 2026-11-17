@@ -217,23 +217,21 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .seg.dseg button { line-height: 1.15; white-space: nowrap; padding-inline: 4px; }
 #hdr #hdr-drinks[hidden] { display: none; }
 #hdr .search { margin-top: 10px; }
-/* Menu: one row under the search, always all on screen. Jump to a section (it names the one you're in), Filters,
-   Favourites. Each opens a panel under the row, so the menu itself is just drinks. */
+/* Menu: one row under the search, always all on screen. A to Z or Sections (on Sections it names the one you're in and
+   opens the list of them), Filters, Favourites. Each opens a panel under the row, so the menu itself is just drinks. */
 .dbar { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 8px; padding-top: 10px; }
 .dbar .chip { display: flex; align-items: center; justify-content: center; gap: 4px; color: var(--fg); font-weight: 600; min-width: 48px; }
 .dbar .chip b { color: var(--brass); }
-.dbar .dj { justify-content: space-between; text-align: start; }
+.dbar .dview { margin: 0; padding: 3px; gap: 3px; min-width: 0; }
+.dbar .dview button { display: flex; align-items: center; justify-content: center; gap: 3px; min-width: 0; min-height: 38px; padding: 4px 6px; font-size: 15px; }
 .dbar .dj span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dbar .dj::after { content: "▾"; color: var(--brass); flex: none; }
-.dbar .dj:disabled { opacity: 1; color: var(--muted); }
-.dbar .dj:disabled::after { content: none; }
+.dbar .dj[aria-expanded]::after { content: "▾"; flex: none; }
+.az-all { margin: 18px 0 0; color: var(--muted); }
 .dbar .chip[aria-expanded="true"], .dbar .chip[aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
 .dpanel { max-height: 60vh; max-height: 60dvh; overflow-y: auto; overscroll-behavior: contain; padding-bottom: 8px; }
 .dpanel .pl-panel { margin-top: 8px; }
 .djump { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: 8px; }
-.djump.az { grid-template-columns: repeat(6, 1fr); }
 .djump button { display: flex; justify-content: space-between; align-items: center; gap: 6px; min-height: 44px; padding: 6px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); font-weight: 600; font-size: 15px; text-align: start; line-height: 1.2; }
-.djump.az button { justify-content: center; color: var(--brass); }
 .djump button .cn { color: var(--muted); font-weight: 400; font-size: 13px; }
 .djump button[aria-current="true"] { border-color: var(--brass); color: var(--brass); }
 .dpanel .recent { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: 8px; }
@@ -723,6 +721,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-how li { margin: 6px 0; line-height: 1.4; }
 .ct-show { margin-top: 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .ct-show .chip { padding: 8px 12px; }
+.ct-order { margin-top: 8px; }
 .ct-show .chip, .ct-jump .chip { color: var(--fg); }
 .ct-show .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .ct-jump small, .ct-show small { opacity: .75; margin-left: 4px; font-variant-numeric: tabular-nums; }
@@ -994,17 +993,9 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .pl-panel .chips { flex-wrap: wrap; overflow: visible; margin-inline: 0; padding-inline: 0; }
 .pl-bar .pl-off::after { content: " ✕"; }
 .chip .cn { font-weight: 400; opacity: .7; margin-left: 2px; }
-.azbar { --jh: 46px; position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px)); z-index: 4; height: var(--jh); display: flex; gap: 4px; align-items: center; overflow-x: auto; scrollbar-width: none; background: var(--bg); margin: 6px 0 2px; }
-.azbar::-webkit-scrollbar { display: none; }
-.azbar button { flex: none; min-width: 34px; min-height: 36px; padding: 0 8px; border-radius: 8px; background: var(--surface); border: 1px solid var(--line); color: var(--brass); font-weight: 700; white-space: nowrap; }
-.secbar button { font-size: 14px; }
-#list, #rp-out { --jb: 0px; }
-#list.jb, #rp-out.jb { --jb: 46px; }
-.azbar button[aria-current="true"] { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
 #list .sec { margin: 0; padding: 18px 0 4px; }
-#rp-out .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
-#list .anc, #rp-out .anc { display: block; scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px) + var(--jb)); }
-.azsec { scroll-margin-top: 190px; }
+#rp-out .sec { position: sticky; top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px)); z-index: 3; background: var(--bg); margin: 0; padding: 14px 0 4px; }
+#list .anc, #rp-out .anc { display: block; scroll-margin-top: calc(env(safe-area-inset-top, 0px) + var(--hdh, 0px)); }
 .pl-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 12px; }
 .pl-list { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; padding: 8px 10px; margin-top: 10px; }
 .pl-list > span { flex: 1 1 100%; }
@@ -1550,7 +1541,8 @@ const rsLine = (r) => `${amtOf(r.qty, r.unit, r.item)} for the ${lower(DEST[r.de
 const issueLines = (x) => [`${x.title} · ${AREA[x.area] || "Other"}${x.status === "taken" && x.who ? `, ${x.who} is on it` : ", nobody on it yet"}`, ...(x.detail ? [subLine(x.detail)] : [])];
 
 /* ---------- Drinks list ---------- */
-// One row under the search: Jump to (the section you're in), Filters and Favourites. Each opens a panel under it.
+// One row under the search: A to Z or Sections, Filters and Favourites. A to Z has the letter strip down the side
+// (az.js); on Sections, the Sections button names the section you're in and opens the list of them.
 let favOnly = store.get("favOnly", false);
 let fav = new Set(store.get("fav", []));
 const favOk = (d) => !favOnly || fav.has(d.name);
@@ -1560,17 +1552,15 @@ const secName = (x) => SEC_SHORT[x] || x;
 // The panel that's open under the row: "jump", "filters", "recent" (search box tapped with nothing in it) or null.
 let dp = null, jumpParts = [], jumpLabel = "";
 function renderBar() {
-  const on = plOn().length + (PL.sort !== "menu" ? 1 : 0), n = fav.size;
-  const jump = jumpParts.length ? `<button class="chip dj" data-dp="jump" aria-expanded="${dp === "jump"}" aria-label="Jump to a section"><span>${esc(jumpLabel || secName(jumpParts[0][1]))}</span></button>`
-    : `<button class="chip dj" disabled><span>${listIds.length} ${listIds.length === 1 ? "drink" : "drinks"}</span></button>`;
-  $("#dbar").innerHTML = jump
+  const on = plOn().length + (PL.sort ? 1 : 0), n = fav.size, sec = PL.view === "menu" && !PL.sort, jump = sec && jumpParts.length;
+  $("#dbar").innerHTML = `<div class="seg dview" role="group" aria-label="How the drinks are listed"><button data-dview="az" aria-pressed="${PL.view === "az" && !PL.sort}">A to Z</button>`
+    + `<button class="dj" data-dview="menu" aria-pressed="${sec}"${jump ? ` aria-expanded="${dp === "jump"}" aria-label="Sections: jump to one"` : ""}><span>${jump ? esc(jumpLabel) : "Sections"}</span></button></div>`
     + `<button class="chip" data-dp="filters" aria-expanded="${dp === "filters"}">Filters${on ? ` <b>${on}</b>` : ""}</button>`
     + `<button class="chip" data-fav aria-pressed="${favOnly}" aria-label="Favourites only">\u2605${n ? ` ${n}` : ""}</button>`;
   const box = $("#dpanel");
   box.hidden = !dp;
   if (dp === "jump") {
-    const az = jumpParts.length && jumpParts[0][0].startsWith("az-");
-    box.innerHTML = `<div class="djump${az ? " az" : ""}">${jumpParts.map(([id, t, c]) => `<button data-jump="${id}" aria-current="${secName(t) === jumpLabel}">${esc(secName(t))}${c ? ` <span class="cn">${c}</span>` : ""}</button>`).join("")}</div>`;
+    box.innerHTML = `<div class="djump">${jumpParts.map(([id, t, c]) => `<button data-jump="${id}" aria-current="${secName(t) === jumpLabel}">${esc(secName(t))} <span class="cn">${c}</span></button>`).join("")}</div>`;
   } else if (dp === "filters") box.innerHTML = plPanel();
   else if (dp === "recent") box.innerHTML = `<div class="recent"><div class="mini">Opened recently</div>${recent.map((id) => `<button class="chip" data-open="${id}">${esc(D[id].name)}</button>`).join("")}</div>`;
   else box.innerHTML = "";
@@ -1580,6 +1570,9 @@ $("#dbar").addEventListener("click", (e) => {
   const b = e.target.closest("button"); if (!b || b.disabled) return;
   haptic();
   if ("fav" in b.dataset) { favOnly = !favOnly; store.set("favOnly", favOnly); dp = null; renderList(); return scrollTo(0, 0); }
+  const v = b.dataset.dview;
+  if (v === "menu" && PL.view === "menu" && !PL.sort && jumpParts.length) return dpSet(dp === "jump" ? null : "jump");
+  if (v) { PL.view = v; PL.sort = null; store.set("dview", v); dp = null; renderList(); return scrollTo(0, 0); }
   dpSet(dp === b.dataset.dp ? null : b.dataset.dp);
 });
 $("#dpanel").addEventListener("click", (e) => {
@@ -1631,28 +1624,29 @@ function renderList() {
   renderQuick(!q, q);
   if (q && dp === "recent") dp = null;
   let rows = D.filter((d) => plHits(d, words) && flavHit(d) && plOk(d) && favOk(d) && sdSeasonOk(d, q));
-  const flat = !!q || PL.sort !== "menu";
-  // The menu keeps each section together, in menu order, so nothing hides under a repeated heading further down.
-  rows = q && PL.sort === "menu" ? plRank(rows, words) : flat ? plSort(rows) : rows.slice().sort((a, b) => SEC_ORDER.indexOf(a.section) - SEC_ORDER.indexOf(b.section) || a.id - b.id);
+  // A search ranks best first and a sort (Filters) goes its own way; otherwise A to Z, or the menu's sections in order.
+  const secs = !q && !PL.sort && PL.view === "menu", az = !q && !PL.sort && !secs;
+  rows = PL.sort ? plSort(rows) : q ? plRank(rows, words) : secs ? rows.slice().sort((a, b) => SEC_ORDER.indexOf(a.section) - SEC_ORDER.indexOf(b.section) || a.id - b.id) : azSort(rows, (d) => d.name);
   const narrowed = !!(favOnly || q || flav || PL.list || plOn().length);
   $("#count").textContent = narrowed ? `${rows.length} ${rows.length === 1 ? "drink" : "drinks"}` : "";
   listIds = rows.map((d) => d.id);
-  // Every drink shows. The menu puts a heading over each section, A to Z over each letter; Jump to lists them all.
-  const az = PL.sort === "az" && rows.length > 12, L = (d) => (/[a-z]/i.test(plNorm(d.name)[0]) ? plNorm(d.name)[0].toUpperCase() : "#");
   const sid = (x) => `sec-${SEC_ORDER.indexOf(x)}`;
   const groups = new Map();
-  if (az || !flat) for (const d of rows) { const k = az ? L(d) : d.section; if (!groups.has(k)) groups.set(k, []); groups.get(k).push(d); }
-  jumpParts = groups.size > 1 ? [...groups].map(([k, ds]) => [az ? `az-${k}` : sid(k), k, az ? 0 : ds.length]) : [];
+  if (secs) for (const d of rows) { if (!groups.has(d.section)) groups.set(d.section, []); groups.get(d.section).push(d); }
+  jumpParts = groups.size > 1 ? [...groups].map(([k, ds]) => [sid(k), k, ds.length]) : [];
   jumpLabel = jumpParts.length ? secName(jumpParts[0][1]) : "";
   renderPlf(); renderBar();
   if (!rows.length && favOnly && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here. Tap \u2605 again to see every drink.</p>`; return; }
   if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
+  // Each section can go out as one WhatsApp message of its specs, straight from its heading.
+  const head = (k, ds, attr = "") => `<div class="sec"${attr}>${esc(k)}<span class="cnt">${ds.length}</span><button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button></div>`;
   let html = q ? "" : sdSeasonBanner();
-  if (groups.size) for (const [k, ds] of groups) {
-    // Each section can go out as one WhatsApp message of its specs, straight from its heading.
-    html += az ? `<i class="anc" id="az-${k}"></i><div class="sec azsec">${k}</div>`
-      : `<i class="anc" id="${sid(k)}"></i><div class="sec">${esc(k)}<span class="cnt">${ds.length}</span><button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button></div>`;
-    html += ds.map(rowHtml).join("");
+  if (groups.size) for (const [k, ds] of groups) html += `<i class="anc" id="${sid(k)}"></i>${head(k, ds)}${ds.map(rowHtml).join("")}`;
+  else if (az) {
+    // The signatures first (★ on the letter strip), then every drink under its letter, signatures too.
+    const sig = narrowed ? [] : rows.filter((d) => d.section === "Black Tap Signatures");
+    if (sig.length) html += head("Black Tap Signatures", sig, ' data-az="★"') + sig.map(rowHtml).join("") + `<div class="mini az-all">Every drink, A to Z</div>`;
+    html += azHtml(rows, (d) => d.name, rowHtml, 13);
   } else html += rows.map(rowHtml).join("");
   // A narrowed list (favourites, a filter or a search) can go out as one WhatsApp message of specs.
   if (narrowed) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
@@ -1660,38 +1654,28 @@ function renderList() {
   jumpSync();
 }
 $("#q").addEventListener("input", renderList);
-/* Jump bars (Menu and Rapid fire): a tap goes to that part, the part you're in lights up in the bar, and a sideways
-   swipe on the page goes to the next or the previous part. */
+/* Jumping to a part (the Menu's Sections and Rapid fire): a tap goes to that part, and a sideways swipe on the page goes
+   to the next or the previous part. A to Z lists have the letter strip instead (az.js). */
 const jumpBox = () => (cur === "drinks" ? $("#list") : cur === "rapid" ? $("#rp-out") : null);
 const jumpGo = (a) => { haptic(); hdhSet(); a.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }); };
-document.addEventListener("click", (e) => { const b = e.target.closest(".azbar [data-jump], .rpjump [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
+document.addEventListener("click", (e) => { const b = e.target.closest(".rpjump [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
 function jumpAt(box) {
   const line = $("#hdr").getBoundingClientRect().bottom + 60, ancs = [...box.querySelectorAll(".anc")];
   let i = 0; ancs.forEach((a, j) => { if (a.getBoundingClientRect().top <= line) i = j; });
   return [ancs, i];
 }
+// Sections: the Sections button names the section you're scrolled to.
 function jumpSync() {
-  const box = jumpBox();
-  // Menu: the Jump to button names the section (or letter) you're scrolled to.
-  if (cur === "drinks") {
-    if (!jumpParts.length) return;
-    const [ancs, i] = jumpAt(box), p = ancs[i] && jumpParts.find((x) => x[0] === ancs[i].id), t = p ? secName(p[1]) : jumpLabel;
-    if (t !== jumpLabel) { jumpLabel = t; const l = $("#dbar .dj span"); if (l) l.textContent = t; }
-    return;
-  }
-  const bar = box?.querySelector(".azbar"); if (!bar) return;
-  const [ancs, i] = jumpAt(box), on = ancs[i] && bar.querySelector(`[data-jump="${ancs[i].id}"]`);
-  if (!on || on.getAttribute("aria-current") === "true") return;
-  bar.querySelectorAll("[aria-current]").forEach((x) => x.removeAttribute("aria-current"));
-  on.setAttribute("aria-current", "true");
-  bar.scrollTo({ left: on.offsetLeft - bar.clientWidth / 2 + on.offsetWidth / 2, behavior: "auto" });
+  if (cur !== "drinks" || !jumpParts.length) return;
+  const [ancs, i] = jumpAt($("#list")), p = ancs[i] && jumpParts.find((x) => x[0] === ancs[i].id), t = p ? secName(p[1]) : jumpLabel;
+  if (t !== jumpLabel) { jumpLabel = t; const l = $("#dbar .dj span"); if (l) l.textContent = t; }
 }
 let jumpRaf = 0;
 addEventListener("scroll", () => { if (!jumpRaf) jumpRaf = requestAnimationFrame(() => { jumpRaf = 0; jumpSync(); }); }, { passive: true });
 let swStart = null;
 document.addEventListener("touchstart", (e) => {
   const t = e.touches[0];
-  swStart = e.touches.length > 1 || !jumpBox() || !$("#sheet").hidden || e.target.closest(".hrow,.azbar,.chips,.dbar,.dpanel,input,textarea,.rush") ? null : [t.clientX, t.clientY];
+  swStart = e.touches.length > 1 || !jumpBox() || !$("#sheet").hidden || e.target.closest(".hrow,.az-rail,.chips,.dbar,.dpanel,input,textarea,.rush") ? null : [t.clientX, t.clientY];
 }, { passive: true });
 document.addEventListener("touchend", (e) => {
   if (!swStart) return;
@@ -2009,7 +1993,7 @@ function renderAllergens() {
   if (!alSel) { $("#allist").innerHTML = `<p class="note" style="margin-top:14px">Foam on the house cards is foamer drops, never egg white. Check the foamer label for its own allergens.</p>`; return; }
   const re = ALLERGENS.find((a) => a[0] === alSel)[1];
   const rows = D.filter((d) => alHit(d, re));
-  $("#allist").innerHTML = `<div class="sec" translate="no">${esc(alSel)}: ${rows.length}</div>` + rows.map(rowHtml).join("") + `<div class="actions">${sendBtn("allergen", "Send this list", alSel)}</div>`;
+  $("#allist").innerHTML = `<div class="sec" translate="no">${esc(alSel)}: ${rows.length}</div>` + azHtml(rows, (d) => d.name, rowHtml) + `<div class="actions">${sendBtn("allergen", "Send this list", alSel)}</div>`;
 }
 $("#algrid").addEventListener("click", (e) => { const b = e.target.closest("[data-al]"); if (!b) return; alSel = alSel === b.dataset.al ? null : b.dataset.al; renderAllergens(); });
 
@@ -5161,7 +5145,7 @@ $("#v-info").addEventListener("click", (e) => {
 const FEATURES = [
   { g: "Drinks", k: "drinks", n: "Drinks", go: "tab:drinks", tour: 1,
     what: "Every drink with its spec, glass, ice, garnish and method, and a picture guide for each step.",
-    staff: "Search and filter, star favourites, scale a spec for up to 4 drinks, swipe to the next drink, see the house photo and how-to video, and 86 a drink that's run out." },
+    staff: "Scroll A to Z with the letter strip down the side (signatures first), or by section. Search and filter, star favourites, scale a spec for up to 4 drinks, swipe to the next drink, see the house photo and how-to video, and 86 a drink that's run out." },
   { g: "Drinks", k: "make", n: "Cocktail maker", go: "tab:make", tour: 1,
     what: "Pick or type what you've got and see every drink you can make, closest first, with swaps. Also every spec on one line, and your own recipes in My drinks.",
     staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, and open any match for the full spec. Spin for a drink is under More, Games and drills." },
@@ -7348,9 +7332,12 @@ $("#v-fun").addEventListener("click", (e) => {
 });
 function mkQsList() {
   const words = mk.qs.q.trim() ? plQuery(mk.qs.q.trim()).words : [];
-  const rows = D.filter((d) => mkKindOk(d, mk.qs.kind) && plHits(d, words) && (!mk.qs.mine || mkCanMake(d)));
+  // A to Z with the letter strip; a search keeps the best matches first.
+  const hits = D.filter((d) => mkKindOk(d, mk.qs.kind) && plHits(d, words) && (!mk.qs.mine || mkCanMake(d)));
+  const rows = words.length ? plRank(hits, words) : azSort(hits, (d) => d.name);
   MK.ids = rows.map((d) => d.id);
-  return `<p class="count">${rows.length} ${rows.length === 1 ? "drink" : "drinks"}</p>${rows.map((d) => `<button class="mk-q" data-mk-open="${d.id}"><div class="n">${esc(d.name)}<span>${esc(d.glass)}</span></div><div class="s">${esc(mkShort(d))}</div><div class="m">${esc(d.method)} · ${esc(d.garnish)}</div></button>`).join("") || `<p class="empty">Nothing matches.</p>`}`;
+  const row = (d) => `<button class="mk-q" data-mk-open="${d.id}"><div class="n">${esc(d.name)}<span>${esc(d.glass)}</span></div><div class="s">${esc(mkShort(d))}</div><div class="m">${esc(d.method)} · ${esc(d.garnish)}</div></button>`;
+  return `<p class="count">${rows.length} ${rows.length === 1 ? "drink" : "drinks"}</p>${(words.length ? rows.map(row).join("") : azHtml(rows, (d) => d.name, row)) || `<p class="empty">Nothing matches.</p>`}`;
 }
 function mkQsPane() {
   return `<p class="lead">Every spec on one line, for when it's busy. Tap one for the full card.</p>
@@ -7601,7 +7588,8 @@ function sxList() {
   if (SX.view !== "drink" && !sxWide()) { el.innerHTML = SX_PANELS[SX.view](); sxMark(el); return; }
   const parts = sxParts(), y = el.scrollTop;
   SX.ids = parts.flatMap(([, ds]) => ds.map((d) => d.id));
-  el.innerHTML = parts.length ? parts.map(([t, ds]) => `<div class="sx-h">${esc(t)} <small>${ds.length}</small></div>${ds.map(sxRow).join("")}`).join("")
+  // Every other drink goes under its letter, with the letter strip down the side of the list.
+  el.innerHTML = parts.length ? parts.map(([t, ds]) => `<div class="sx-h">${esc(t)} <small>${ds.length}</small></div>${!SX.q.trim() && ds.length > 30 ? azHtml(ds, (d) => d.name, sxRow) : ds.map(sxRow).join("")}`).join("")
     : `<p class="note">Nothing matches “${esc(SX.q)}”. Try the spirit, the glass or one word of the name.</p>`;
   el.scrollTop = y;
 }
@@ -8257,6 +8245,137 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
 </style>`);
 $("#sx-back").addEventListener("click", () => { haptic(); show("station"); });
 
+/* ---------- A to Z: one way to scroll any long list ----------
+   A list that puts azHead() over each letter (azHtml does it for you) gets a strip of letters down its right edge, like
+   a phone's contacts: tap a letter or slide a finger down the strip and the list goes there, with the letter big in the
+   middle while you slide. A heading with data-az="★" (Black Tap signatures on the Menu) puts ★ at the top of the strip.
+   The strip finds the list on screen by itself, whichever page, the item picker or the iPad station's own scrolling
+   list, so a new list only needs the headings. Searching draws a list without headings, so the strip goes away. */
+function azL(s) {
+  const c = String(s).normalize("NFD").replace(/[̀-ͯ]/g, "").trim().charAt(0).toUpperCase();
+  return c >= "A" && c <= "Z" ? c : "#";
+}
+// A to Z by name, ignoring case and accents, with numbers in number order and anything not starting with a letter last.
+function azCmp(a, b) {
+  const x = azL(a), y = azL(b);
+  if (x !== y) return x === "#" ? 1 : y === "#" ? -1 : x < y ? -1 : 1;
+  return a.localeCompare(b, "en", { sensitivity: "base", numeric: true });
+}
+function azSort(xs, name) { return xs.slice().sort((a, b) => azCmp(name(a), name(b))); }
+function azHead(L) { return `<div class="az-h" data-az="${L}">${L}</div>`; }
+// The rows A to Z with a heading over each letter. Short lists (under min) are just the rows, A to Z.
+function azHtml(xs, name, row, min = 15) {
+  const s = azSort(xs, name);
+  if (s.length < min) return s.map(row).join("");
+  let out = "", cur = null;
+  for (const x of s) { const L = azL(name(x)); if (L !== cur) { cur = L; out += azHead(L); } out += row(x); }
+  return out;
+}
+
+const AZ = { heads: [], keys: [], sig: "", sc: null, box: null, raf: 0, drag: false, cur: "", bubT: 0 };
+document.body.insertAdjacentHTML("beforeend", `<nav class="az-rail" id="az-rail" aria-label="A to Z" hidden></nav><div class="az-bub" id="az-bub" aria-hidden="true" hidden></div>`);
+// What's on top: the item picker or another box over the page, else the page itself.
+function azRoot() {
+  const ov = [...document.querySelectorAll("#pick, #sheet, .help, .welcome")].filter((x) => !x.hidden && x.getClientRects().length);
+  return ov.length ? ov[ov.length - 1] : document.querySelector("main");
+}
+// The box that scrolls the list: the picker's, the iPad station's, or (null) the page.
+function azScroller(el) {
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const o = getComputedStyle(p).overflowY;
+    if ((o === "auto" || o === "scroll") && p.scrollHeight > p.clientHeight + 1) return p;
+  }
+  return null;
+}
+// The bars that stick at the top of what scrolls: the search bar, the Shift places, the top of a full-screen sheet, the
+// bar station's part headings.
+const AZ_STICKY = "#hdr, #placebar, .sheet-top, .sx-h";
+const azStickies = () => [...(AZ.sc || document).querySelectorAll(AZ_STICKY)].filter((s) => s.getClientRects().length && getComputedStyle(s).position === "sticky");
+// How far down they reach once they've stuck, so a letter lands just under them.
+function azStick() { return Math.max(0, ...azStickies().map((s) => (parseFloat(getComputedStyle(s).top) || 0) + s.offsetHeight)); }
+// The part of the screen the list shows in: under the sticky bars, above the tab bar.
+function azFrame() {
+  const r = AZ.sc ? AZ.sc.getBoundingClientRect() : { top: 0, bottom: innerHeight };
+  let top = Math.max(r.top, 0), bottom = Math.min(r.bottom, innerHeight);
+  for (const s of azStickies()) if (!AZ.box.contains(s)) top = Math.max(top, s.getBoundingClientRect().bottom);
+  const tabs = document.querySelector("nav.tabs");
+  if (!AZ.sc && tabs && tabs.getClientRects().length) bottom = Math.min(bottom, tabs.getBoundingClientRect().top);
+  // Stop above the buttons that float in the bottom corner (🎤 Say it, a timer, one-hand mode), where they'd cover it.
+  const right = AZ.box.getBoundingClientRect().right;
+  for (const f of document.querySelectorAll("#sd-mic, #sd-timer, #sd-1h")) {
+    const r = f.getClientRects().length && !f.hidden && f.getBoundingClientRect();
+    if (r && r.left < right && r.right > right - 30 && r.top < bottom && r.bottom > top) bottom = Math.min(bottom, r.top - 4);
+  }
+  return [top, bottom];
+}
+function azRefresh() {
+  AZ.raf = 0;
+  const rail = document.getElementById("az-rail");
+  const heads = [...azRoot().querySelectorAll("[data-az]")].filter((h) => h.getClientRects().length);
+  const keys = [...new Set(heads.map((h) => h.dataset.az))];
+  const box = heads[0] && (heads[0].closest(".az-list") || heads[0].parentElement);
+  if (AZ.box && AZ.box !== box) AZ.box.classList.remove("az-room");
+  if (keys.length < 4) { AZ.heads = []; AZ.box = null; rail.hidden = true; return; }
+  AZ.heads = heads; AZ.keys = keys; AZ.box = box; AZ.sc = azScroller(heads[0]);
+  box.classList.add("az-room");
+  const sig = keys.join("");
+  if (sig !== AZ.sig) { AZ.sig = sig; AZ.cur = ""; rail.innerHTML = keys.map((k) => `<button type="button" data-azk="${k}" aria-label="${k === "★" ? "Black Tap signatures" : k === "#" ? "Numbers" : k}">${k}</button>`).join(""); }
+  const [top, bottom] = azFrame(), r = box.getBoundingClientRect(), h = Math.max(0, bottom - top - 12);
+  rail.hidden = h < 120;
+  if (rail.hidden) return;
+  // Over the box it's in (the picker sits above the page), under anything that opens over that.
+  const root = azRoot(), z = root.tagName === "MAIN" ? 9 : (parseInt(getComputedStyle(root).zIndex) || 20) + 1;
+  rail.style.zIndex = z; document.getElementById("az-bub").style.zIndex = z + 1;
+  rail.style.top = `${top + 6}px`; rail.style.height = `${h}px`;
+  rail.style.left = `${Math.min(r.right, innerWidth) - rail.offsetWidth}px`;
+  rail.style.fontSize = `${Math.max(9, Math.min(13, (h / keys.length) * 0.75))}px`;
+  // The letter you're in lights up.
+  const line = (AZ.sc ? AZ.sc.getBoundingClientRect().top : 0) + azStick() + 8;
+  let cur = keys[0];
+  for (const x of heads) { if (x.getBoundingClientRect().top <= line) cur = x.dataset.az; else break; }
+  if (cur !== AZ.cur) { AZ.cur = cur; rail.querySelectorAll("button").forEach((b) => b.setAttribute("aria-current", b.dataset.azk === cur)); }
+}
+const azSoon = () => { if (!AZ.raf) AZ.raf = requestAnimationFrame(azRefresh); };
+function azGo(k) {
+  const h = AZ.heads.find((x) => x.dataset.az === k); if (!h) return;
+  if (AZ.sc) AZ.sc.scrollTop += h.getBoundingClientRect().top - AZ.sc.getBoundingClientRect().top - azStick();
+  else scrollTo(0, scrollY + h.getBoundingClientRect().top - azStick());
+  const b = document.getElementById("az-bub"), r = AZ.box.getBoundingClientRect(), [top, bottom] = azFrame();
+  b.textContent = k; b.hidden = false;
+  b.style.left = `${Math.max(r.left, 0) + Math.min(r.width, innerWidth) / 2}px`; b.style.top = `${(top + bottom) / 2}px`;
+  clearTimeout(AZ.bubT); AZ.bubT = setTimeout(() => { if (!AZ.drag) b.hidden = true; }, 700);
+  azSoon();
+}
+// The letter under a finger: by where it is down the strip, so sliding past the ends still lands on the first or last.
+function azAt(y) {
+  const r = document.getElementById("az-rail").getBoundingClientRect();
+  return AZ.keys[Math.max(0, Math.min(AZ.keys.length - 1, Math.floor(((y - r.top) / r.height) * AZ.keys.length)))];
+}
+{
+  const rail = document.getElementById("az-rail");
+  let last = "";
+  const at = (e) => { const k = azAt(e.clientY); if (k && k !== last) { last = k; if (typeof haptic === "function") haptic(); azGo(k); } };
+  rail.addEventListener("pointerdown", (e) => { e.preventDefault(); AZ.drag = true; last = ""; rail.setPointerCapture(e.pointerId); rail.classList.add("on"); at(e); });
+  rail.addEventListener("pointermove", (e) => { if (AZ.drag) at(e); });
+  const end = () => { if (!AZ.drag) return; AZ.drag = false; rail.classList.remove("on"); clearTimeout(AZ.bubT); AZ.bubT = setTimeout(() => (document.getElementById("az-bub").hidden = true), 500); };
+  rail.addEventListener("pointerup", end); rail.addEventListener("pointercancel", end);
+  // A keyboard or a screen reader presses the letter itself.
+  rail.addEventListener("click", (e) => { const b = e.target.closest("[data-azk]"); if (b && e.detail === 0) azGo(b.dataset.azk); });
+  new MutationObserver(azSoon).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+  addEventListener("scroll", azSoon, { passive: true, capture: true });
+  addEventListener("resize", azSoon);
+}
+document.head.insertAdjacentHTML("beforeend", `<style>
+.az-h{font-family:var(--display);font-size:20px;line-height:1.2;color:var(--brass);padding:16px 0 4px;border-bottom:1px solid var(--line)}
+.az-room{padding-right:30px}
+.az-rail{position:fixed;z-index:9;width:28px;display:flex;flex-direction:column;justify-content:space-evenly;align-items:stretch;touch-action:none;user-select:none;-webkit-user-select:none;border-radius:14px}
+.az-rail[hidden]{display:none}
+.az-rail.on{background:color-mix(in srgb,var(--surface) 85%,transparent)}
+.az-rail button{flex:1 1 0;min-height:0;padding:0;border:0;background:none;color:var(--brass);font:inherit;font-weight:800;line-height:1;display:flex;align-items:center;justify-content:center}
+.az-rail button[aria-current="true"]{color:var(--fg)}
+.az-bub{position:fixed;z-index:30;transform:translate(-50%,-50%);width:84px;height:84px;border-radius:20px;background:var(--brass);color:var(--brass-ink);font-family:var(--display);font-size:52px;line-height:84px;text-align:center;pointer-events:none;box-shadow:0 8px 24px rgba(0,0,0,.35)}
+.az-bub[hidden]{display:none}
+</style>`);
 /* ---------- Bar Book plus: strength, units, calories, smarter search, filters, spec of the day, picture cards, lists ----------
    Reads the drinks as they are (DATA.drinks) and the Make tab's ingredient matching (MK.reqs). Never changes a spec.
    Everything here is worked out on the phone: nothing is sent anywhere. */
@@ -8372,7 +8491,7 @@ function plStatsHtml(d, n = 1) {
 }
 
 /* ---------- Serves, batching and ml or oz ---------- */
-const PL = { oz: store.get("oz", false), ticks: { id: null, spec: new Set(), steps: new Set() }, base: null, how: null, fam: null, sort: store.get("sort", "menu"), list: null, sq: null, can: false };
+const PL = { oz: store.get("oz", false), ticks: { id: null, spec: new Set(), steps: new Set() }, base: null, how: null, fam: null, view: store.get("dview", "az"), sort: null, list: null, sq: null, can: false };
 const PL_SERVES = [1, 2, 3, 4, 6, 8, 10, 12];
 function plServesHtml() {
   const i = Math.max(0, PL_SERVES.indexOf(mult)), pv = PL_SERVES[Math.max(0, i - 1)], nx = PL_SERVES[Math.min(PL_SERVES.length - 1, i + 1)];
@@ -8475,7 +8594,8 @@ function plRank(rows, words) {
 /* ---------- Filters and sort ---------- */
 const PL_SPIRITS = [["vodka", "Vodka"], ["gin", "Gin"], ["rum", "Rum"], ["tequila", "Tequila & mezcal"], ["whisky", "Whisky"], ["brandy", "Brandy"], ["zero", "No alcohol"]];
 const PL_HOW = [["Shaken", /shake/], ["Stirred", /\bstir(?!.*short)/], ["Built", null], ["Blended", /blend/], ["Layered", /layer|float/]];
-const PL_SORTS = [["menu", "Menu order"], ["az", "A to Z"], ["quick", "Fewest ingredients"], ["light", "Lightest"], ["strong", "Strongest"], ["kcal", "Fewest calories"]];
+// A to Z or Sections is the switch under the search (PL.view); these sort the list another way until taken off.
+const PL_SORTS = [["quick", "Fewest ingredients"], ["light", "Lightest"], ["strong", "Strongest"], ["kcal", "Fewest calories"]];
 const plHowOf = (d) => { const m = d.method.toLowerCase(); for (const [k, re] of PL_HOW) if (re && re.test(m)) return k; return "Built"; };
 const plBaseOk = (d) => !PL.base || (PL.base === "zero" ? d._k === "zero" || d.tags.includes("No alcohol") : d._b === PL.base || (PL.base === "brandy" && /cognac|brandy|calvados|pisco|hennessy|martell|courvoisier/i.test(d.spec.join(" "))));
 // Families: the kinds of drink the team asks for by name, the same groups as the cheat sheets but taking in every
@@ -8498,17 +8618,17 @@ const PL_FAMS = [
 const plFamOk = (d) => !PL.fam || PL_FAMS.find((f) => f[0] === PL.fam)[2](d);
 const plOk = (d) => plFamOk(d) && (!PL.can || plOutOf(d).ok) && plBaseOk(d) && (!PL.how || plHowOf(d) === PL.how) && (!PL.list || PL.list.names.has(d.name));
 function plSort(rows) {
-  const by = { az: (a, b) => a.name.localeCompare(b.name), quick: (a, b) => a.spec.length - b.spec.length, light: (a, b) => plFacts(a).units - plFacts(b).units,
+  const by = { quick: (a, b) => a.spec.length - b.spec.length, light: (a, b) => plFacts(a).units - plFacts(b).units,
     strong: (a, b) => plFacts(b).abv - plFacts(a).abv, kcal: (a, b) => plFacts(a).kcal - plFacts(b).kcal }[PL.sort];
   return by ? rows.slice().sort((a, b) => by(a, b) || a.id - b.id) : rows;
 }
 // The filters that are on, each with how to take it off. Sort isn't a filter: it shows on its own button.
 const plOn = () => [PL.fam && ["fam", PL_FAMS.find((f) => f[0] === PL.fam)[1]], PL.can && ["can", "What we can make"], PL.base && ["base", PL_SPIRITS.find((x) => x[0] === PL.base)[1]], flav && ["flav", flav], PL.how && ["how", PL.how]].filter(Boolean);
-const plActive = () => [...plOn().map((x) => x[1]), PL.sort !== "menu" && PL_SORTS.find((x) => x[0] === PL.sort)[1]].filter(Boolean);
+const plActive = () => [...plOn().map((x) => x[1]), PL.sort && PL_SORTS.find((x) => x[0] === PL.sort)[1]].filter(Boolean);
 // Above the menu: the shared list you're looking at, and each filter that's on (a tap takes it off). Nothing otherwise.
 function renderPlf() {
   const box = $("#plf"); if (!box) return;
-  const on = [...plOn(), ...(PL.sort !== "menu" ? [["sort", `Sort: ${PL_SORTS.find((x) => x[0] === PL.sort)[1]}`]] : [])];
+  const on = [...plOn(), ...(PL.sort ? [["sort", `Sort: ${PL_SORTS.find((x) => x[0] === PL.sort)[1]}`]] : [])];
   box.innerHTML = (PL.list ? `<div class="pl-list"><span>📋 <b translate="no">${esc(PL.list.name)}</b> · ${PL.list.names.size} ${PL.list.names.size === 1 ? "drink" : "drinks"}</span>${PL.list.saved ? `<button class="chip" data-pl="droplist">Delete list</button>` : `<button class="chip" data-pl="savelist">☆ Save to favourites</button>`}<button class="chip" data-pl="endlist" aria-label="Close the list">✕</button></div>` : "")
     + (on.length ? `<div class="pl-bar">${on.map(([k, l]) => `<button class="chip pl-on pl-off" data-pl-off="${k}" aria-label="Take off ${esc(l)}">${esc(l)}</button>`).join("")}${on.length > 1 ? `<button class="chip" data-pl="clear">Clear all</button>` : ""}</div>` : "");
 }
@@ -8522,7 +8642,7 @@ function plPanel() {
       <div class="mini">Spirit</div><div class="chips">${chips(PL_SPIRITS, "base", PL.base)}</div>
       <div class="mini">What does the guest fancy?</div><div class="chips">${chips(tastes, "flav", flav)}</div>
       <div class="mini">How it's made</div><div class="chips">${chips(PL_HOW.map(([k]) => [k, k]), "how", PL.how)}</div>
-      <div class="mini">Sort</div><div class="chips">${chips(PL_SORTS, "sort", PL.sort)}</div>
+      <div class="mini">Sort by</div><div class="chips">${chips(PL_SORTS, "sort", PL.sort)}</div>
       <div class="pl-row"><button class="btn" data-pl="clear">Clear all</button><button class="btn pri" data-pl="done">Show ${listIds.length} ${listIds.length === 1 ? "drink" : "drinks"}</button></div></div>`;
 }
 document.addEventListener("click", (e) => {
@@ -8534,10 +8654,10 @@ document.addEventListener("click", (e) => {
   else if (ds.plFam) PL.fam = PL.fam === ds.plFam ? null : ds.plFam;
   else if (ds.pl === "droplist") { if (!confirm(`Delete the list "${PL.list.name}" from this phone?`)) return; plSaveLists(plLists().filter((x) => x.name !== PL.list.name)); PL.list = null; toast("List deleted"); }
   else if (ds.plFlav) flav = flav === ds.plFlav ? null : ds.plFlav;
-  else if (ds.plOff) { if (ds.plOff === "can") PL.can = false; else if (ds.plOff === "flav") flav = null; else if (ds.plOff === "sort") { PL.sort = "menu"; store.set("sort", "menu"); } else PL[ds.plOff] = null; }
-  else if (ds.plSort) { PL.sort = ds.plSort; store.set("sort", PL.sort); }
+  else if (ds.plOff) { if (ds.plOff === "can") PL.can = false; else if (ds.plOff === "flav") flav = null; else if (ds.plOff === "sort") PL.sort = null; else PL[ds.plOff] = null; }
+  else if (ds.plSort) PL.sort = PL.sort === ds.plSort ? null : ds.plSort;
   else if (ds.pl === "done") { dp = null; scrollTo(0, 0); }
-  else if (ds.pl === "clear") { PL.base = PL.how = PL.fam = flav = null; PL.can = false; PL.sort = "menu"; store.set("sort", "menu"); }
+  else if (ds.pl === "clear") { PL.base = PL.how = PL.fam = flav = null; PL.can = false; PL.sort = null; }
   else if (ds.pl === "endlist") { PL.list = null; if (location.hash.startsWith("#list=")) history.replaceState(null, "", location.pathname + location.search); }
   else if (ds.pl === "savelist") { for (const n of PL.list.names) fav.add(n); store.set("fav", [...fav]); renderBar(); toast(`${PL.list.names.size} drinks in your favourites`); return; }
   haptic(); renderList();
@@ -9397,7 +9517,8 @@ $("#tally").addEventListener("change", (e) => {
 keepOpen($("#tally"), (e) => { if (e.target.id === "it-add") itOpen = e.target.open; if (e.target.id === "it-list") itShow = e.target.open ? mode : ""; });
 /* ---------- Pick an item: one picker for the whole app ----------
    The 86 board, the bar station, Log it, restocking, running low and date labels all choose items the
-   same way: type a few letters (typos are fine), tap a kind, or scroll. Recent and the team's most 86'd sit on top.
+   same way: type a few letters (typos are fine), tap a kind, or scroll it A to Z with the letter strip down the side.
+   What's 86'd now, recent and the team's most 86'd sit on top.
    It reads the one item list the app already has (the stock list plus what the team has added, the bar's own line-up
    and the drinks), and the 86 board is still the one source: an 86 here is the same 86 everywhere.
    Modes: "86" picks several and 86s or brings them back (or one tap on a row), "one" picks one and closes,
@@ -9546,14 +9667,15 @@ function pkList() {
   const base = pkBase(), hits = pkSearch(PK.q, base).filter((x) => PK.cat === "all" || x.c === PK.cat), q = PK.q.trim();
   let html = "", top = "";
   if (!q && PK.cat === "all") {
-    // Nothing typed: what's 86'd now, then the usual ones, then everything by kind, to scroll.
+    // Nothing typed: what's 86'd now, then the usual ones, then everything A to Z (the kinds are the chips above).
     const have = new Set(base.map((x) => x.n));
     const now = PK.mode === "86" ? [...outNow()].sort() : [], usual = pkTop(PK.side, 6).filter((n) => have.has(n) && !now.includes(n));
     if (now.length) top += `<div class="mini pk-h">86'd now (${now.length})</div>${now.map((n) => pkRow(pkByName(n))).join("")}`;
     if (usual.length) top += `<div class="mini pk-h">${pkRecent().length ? "Recent and most 86'd" : "Most 86'd"}</div>${usual.map((n) => pkRow(pkByName(n))).join("")}`;
-    if (top) top += `<div class="mini pk-h">Or pick a kind</div>`;
-    for (const [c, t] of PK_CATS) { const xs = base.filter((x) => x.c === c); if (xs.length) html += `<div class="mini pk-h">${t}</div>${xs.map(pkRow).join("")}`; }
-  } else {
+    if (top) top += `<div class="mini pk-h">Everything, A to Z</div>`;
+    html = azHtml(base, (x) => x.n, pkRow);
+  } else if (!q) html = azHtml(hits, (x) => x.n, pkRow);
+  else {
     const shown = hits.slice(0, 80);
     html = shown.map(pkRow).join("") + (hits.length > 80 ? `<p class="note">${hits.length - 80} more: type a little more.</p>` : "");
     const exact = q && hits.some((x) => x.n.toLowerCase() === q.toLowerCase());
@@ -9906,7 +10028,7 @@ function ctCardHtml() {
 // version (one row of places that scrolls sideways, the totals folded away, the bottle level behind one tap when the
 // scale can do it); the iPad gets everything open side by side.
 const ctWide = () => matchMedia("(min-width: 700px)").matches;
-var ctQ = "", ctShow = store.get("ctShow", "todo"), ctLvl = store.get("ctLvl", false), ctTotOpen = null;
+var ctQ = "", ctShow = store.get("ctShow", "todo"), ctAz = store.get("ctAz", false), ctLvl = store.get("ctLvl", false), ctTotOpen = null;
 function ctPage() {
   ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null; ctQ = ""; ctIntro = store.get("ctHow", false) ? -1 : 0;
   lastFocus = document.activeElement;
@@ -9966,18 +10088,19 @@ function ctHtml() {
     ${ctInHtml()}${ctUseHtml()}
     ${LIVE.admin ? `<div class="actions"><button class="btn" id="ct-setup">Set up the count</button></div>` : ""}`;
 }
-// Not counted yet, everything, or what's been counted; the places to jump to; and the lines. A search looks in every
-// place whatever is picked.
+// Not counted yet, everything, or what's been counted; By place (the order you walk it, with the places to jump to) or
+// A to Z (the letter strip down the side, for finding one thing); and the lines. A search looks in every place.
 function ctListHtml() {
   const rows = ctRows(), areas = [...new Set(rows.map((r) => r.area))], found = ctQ.trim() ? ctFind(ctQ, rows) : null;
   const todo = rows.filter((r) => !ctLine(r)).length;
   const show = (r) => r.key === ctOpen || ctShow === "all" || (ctShow === "todo" ? !ctLine(r) : !!ctLine(r));
   const chip = (k, label, n) => `<button class="chip" data-ct-show="${k}" aria-pressed="${!found && ctShow === k}">${label}${n != null ? ` <small>${n}</small>` : ""}</button>`;
   const head = `<div class="recent ct-show">${chip("todo", "Not counted yet", todo)}${chip("all", "All", rows.length)}${chip("done", "Counted", rows.length - todo)}</div>
-    <div class="recent ct-jump" role="group" aria-label="Go to a place">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`;
+    <div class="seg ct-order" role="group" aria-label="Order"><button data-ct-az="0" aria-pressed="${!ctAz}">By place</button><button data-ct-az="1" aria-pressed="${ctAz}">A to Z</button></div>
+    ${ctAz ? "" : `<div class="recent ct-jump" role="group" aria-label="Go to a place">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`}`;
   if (found) return `${head}<div class="sec">${found.length ? `Found in ${[...new Set(found.map((r) => r.area))].length === 1 ? esc(found[0].area) : "every place"}` : "Nothing found"}</div>
     ${found.map((r) => ctRowHtml(r, true)).join("") || `<p class="note">Nothing called “${esc(ctQ.trim())}”. Try fewer letters.${LIVE.admin ? " Not on the count at all? Add it with Add something new." : ""}</p>`}`;
-  const body = areas.map((a) => { const rs = rows.filter((r) => r.area === a && show(r)); return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec">${esc(a)}</div>${rs.map((r) => ctRowHtml(r)).join("")}` : ""}`; }).join("");
+  const body = ctAz ? azHtml(rows.filter(show), (r) => r.item, (r) => ctRowHtml(r, true)) : areas.map((a) => { const rs = rows.filter((r) => r.area === a && show(r)); return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec">${esc(a)}</div>${rs.map((r) => ctRowHtml(r)).join("")}` : ""}`; }).join("");
   const none = !rows.some(show);
   return `${head}${none ? `<p class="note ct-all">${ctShow === "todo" ? "✓ Everything's counted. Check the totals, then send them." : "Nothing counted yet."}</p>` : ""}${body}`;
 }
@@ -10256,6 +10379,7 @@ $("#sheet").addEventListener("click", (e) => {
     if (v === "go") { ctIntro = -1; store.set("ctHow", true); } else ctIntro = +v;
     ctRender(true); $("#sheet").scrollTop = 0; return;
   }
+  const az = t("[data-ct-az]"); if (az) { haptic(); ctAz = az.dataset.ctAz === "1"; store.set("ctAz", ctAz); ctClearFind(); return ctRender(true); }
   const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
   const lb = t("[data-ct-lvl]"); if (lb) { ctLvl = lb.dataset.ctLvl === "1"; store.set("ctLvl", ctLvl); return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
@@ -10270,9 +10394,9 @@ $("#sheet").addEventListener("click", (e) => {
   const lv = t("[data-ct-lv]"); if (lv && r) { haptic(); ctPut(r, x?.full || 0, +lv.dataset.ctLv * 10); return; }
   const st = t("[data-ct-set]"); if (st && r) { haptic(); const [f, o] = st.dataset.ctSet.split(":").map(Number); ctPut(r, f, o); return; }
   const dr = t("[data-ct-drop]"); if (dr && r) { track(LIVE.api.dropCountLine(ctId(ctDay, r.area, r.item)), null, "Not cleared. Try again"); return; }
-  // Next: down the shelf from this one, past anything counted already when only what's left is showing.
+  // Next: down the list as it shows (the shelf, or A to Z), past anything counted already when only what's left is showing.
   const nx = t("[data-ct-next]"); if (nx) {
-    const rs = ctRows(), i = rs.findIndex((y) => y.key === nx.dataset.ctNext); if (i >= 0 && !ctLine(rs[i])) ctPut(rs[i], 0, 0);
+    const rs = ctAz ? azSort(ctRows(), (r) => r.item) : ctRows(), i = rs.findIndex((y) => y.key === nx.dataset.ctNext); if (i >= 0 && !ctLine(rs[i])) ctPut(rs[i], 0, 0);
     const n = rs.slice(i + 1).find((y) => ctShow !== "todo" || !ctLine(y)); ctClearFind();
     if (n) ctGo(n.key); else { ctOpen = ""; ctRender(); toast(rs.every(ctLine) ? "Everything's counted" : "That's the last one"); } return;
   }
@@ -10719,7 +10843,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T23:14";
+const BUILD = "2026-11-17T23:57";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -12563,14 +12687,14 @@ const HELP = {
     how: ["Shift, Stock, Count stock. First time? It walks you through it with pictures: the scale, full bottles, the open one, and what to do if something isn't listed. How to count, at the top, shows it again.", "Walk it in order and tap each item. Each line says what to do with it.",
       "A bottle, one way through: + for each full, sealed one, then the open one. Take the pourer off, stand it on the scale and type the grams: every bottle comes with its size and weights filled in. No scale? Tap how full it is, and it stays that way until Use the scale. Next › saves it and opens the one after (nothing there saves it as none).",
       "Anything else (cans, cakes, packs): + and −, or type it. Half is .5.",
-      "Not in shelf order? Type a few letters in Find at the top: it looks in every place and says where each one is. The place buttons jump to a place.",
+      "Not in shelf order? Type a few letters in Find at the top: it looks in every place and says where each one is. The place buttons jump to a place. A to Z lists everything by name with the letter strip down the side, and Next › then goes down it A to Z.",
       "Not counted yet shows only what's left, so the list gets shorter as you go. Counted shows what's done and who did it. All shows the lot.",
       "Hands full? 🎤 Say it, or type in the same box, the name then how many: “Smirnoff two and a half”, “Kraken 845 grams”. Check what it heard, then Save it.",
       "Delivery in: log what came in so usage between counts comes out right.",
       "Done: Send on WhatsApp sends the totals as a table, or Spreadsheet gives a file for Numbers or Excel to type into Nory."],
     behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Every bottle and pack comes filled in: its size from the label (70 cl, Monkey 47's 50 cl, Martini's 75 cl, a 200 ml Fever-Tree, a 1 kg Funkin pouch) and estimated empty and full weights. A liqueur weighs more than a spirit, so grams are never taken as ml.", "Estimates are near enough to count with, and say so. A manager makes one exact by weighing a sealed bottle once (Check it, on the line): the empty weight follows. Weighed ones are locked, with who and when, so nobody changes them by accident: re-weighing takes Unlock to re-weigh first, and a spreadsheet import can't change them. Set up the count changes any size or weight. A sealed bottle goes on Full with +, so it's never counted twice.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory."] },
   stock: { t: "86 board and restock", what: "What's run out tonight, and getting stock up from the cellar.",
-    how: ["Tap Search everything to 86: type a few letters (typos are fine) or pick a kind, like Spirits, Cakes or Frozen.", "Tap 86 on a row, or tick several and 86 them together. Each row says how many drinks use it, and the swap once it's out.", "Quick 86 has this phone's recent ones and the team's most 86'd: one tap. Not on the list? Type it and it goes on as you typed it.", "Back in stock takes it off for everyone.", "Restock: pick what's needed from the same list, then how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it."],
+    how: ["Tap Search everything to 86: type a few letters (typos are fine), pick a kind, like Spirits, Cakes or Frozen, or scroll it A to Z with the letter strip down the side.", "Tap 86 on a row, or tick several and 86 them together. Each row says how many drinks use it, and the swap once it's out.", "Quick 86 has this phone's recent ones and the team's most 86'd: one tap. Not on the list? Type it and it goes on as you typed it.", "Back in stock takes it off for everyone.", "Restock: pick what's needed from the same list, then how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it."],
     behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere. An 86'd ingredient turns every drink that uses it to Can make with a swap, or Can't make tonight if nothing close is in.", "Missing on a drink's own ingredient goes on this same board, so one tap does both.", "Restocks waiting over 15 minutes show as late. The weekly count is Stock count, at the foot of this page: its totals go into Nory.", "Clear everything puts every 86 back in stock."] },
   closing: { t: "Closing checklist", what: "The close, ticked off live on every phone.",
     how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part. Someone left before finishing theirs? Tap Take over and carry on: the heading and the report say who started it and who finished it.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started.", "The timer at the top shows how long the close has taken against the team's best. A new best gets a cheer."],
@@ -12666,7 +12790,7 @@ const HELP = {
    More. Skip ends it. The last card leads to the full feature list and its tour. */
 const INTRO = [
   { t: "Welcome to Bar Book", how: ["Every drink we make, the shift, the close and the handover, in one app built for Black Tap Soho.", "Specs and guides work with no signal. The team side syncs live between every phone on shift.", "Tap Next to see what it does. Skip any time: More, Replay the tour brings it back."], tip: "Two minutes now saves you that every shift." },
-  { t: "Find any drink in seconds", how: ["Rapid fire: the house drinks as big buttons, one tap from the start page. Show specs on the page and most questions need no tap at all.", "Menu: search by drink, spirit, glass or flavour. It forgives typos, so “espreso martni” still finds it.", "Under the search: Jump to lists every section, Filters narrows by kind of drink, spirit or what the guest fancies, and ★ shows your favourites."], tip: "Tap the empty search box to see the drinks you opened last. Tap the Drinks tab again at the top of the Menu to jump straight into search.", more: ["rapid"] },
+  { t: "Find any drink in seconds", how: ["Rapid fire: the house drinks as big buttons, one tap from the start page. Show specs on the page and most questions need no tap at all.", "Menu: search by drink, spirit, glass or flavour. It forgives typos, so “espreso martni” still finds it.", "Or just scroll: A to Z shows the Black Tap signatures first, then every drink under its letter. Tap a letter on the strip down the right, or slide your finger down it, to go straight there. Sections shows the menu's sections instead: tap it again to jump to one.", "Filters narrows by kind of drink, spirit or what the guest fancies, or sorts by strength or fewest ingredients. ★ shows your favourites."], tip: "Tap the empty search box to see the drinks you opened last. Tap the Drinks tab again at the top of the Menu to jump straight into search.", more: ["rapid"] },
   { t: "Every spec, done right", how: ["Each drink has the spec, glass, ice, garnish and method, plus a picture guide for every step.", "Tap a line or step to tick it off as you build. − and + scale it for up to 12 drinks. ml or oz switches units.", "Batch it turns any drink into a bottle or jug: every amount, the water and how many it makes."], tip: "Send this drink, Picture card or Print card turns any spec into a WhatsApp message or a card for the well.", more: ["drink"] },
   { t: "Out of something? It adjusts", how: ["Shift, Stock, Search everything to 86: a few letters, typos and all, or pick a kind. Tick several to 86 them together. Every phone knows straight away.", "Every drink, on the menu, the spec and the iPad, then says ✓ Can make, ⚠ Can make with a swap, or ✕ Can't make tonight. The swap is worked out by sugar and acid, so it tastes like the spec.", "Missing something mid-drink? Tap it on the drink. Can't make it and the guest doesn't mind? Go with the flow uses the closest thing you have, or offers the nearest drink."], tip: "A house cocktail made another way says Adjusted, so nobody takes it for the house spec. Back in stock takes it off everywhere at once.", more: ["drink", "stock"] },
   { t: "The cocktail maker", how: ["Make: tap what you've got and see what you can make, closest first, with swaps.", "My bar keeps your own bottles. Specs puts every spec on one line for busy moments.", "Black Tap shows our line-up: draught, bottles, softs and the house serves."], tip: "A guest names two bottles? Tap them and offer the top match.", more: ["make"] },
@@ -12922,12 +13046,13 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 5;
-const WALK_NEW = "Stock count: every bottle comes with its size and weights filled in, each line says what to do, and the first time it walks you through it with pictures.";
+const WALK_V = 6;
+const WALK_NEW = "Long lists scroll A to Z: the drinks (signatures first), the 86 picker and the stock count have a letter strip down the right. Tap a letter or slide your finger down it.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
+  "Long lists scroll A to Z, like your phone's contacts: the drinks, the 86 picker, the stock count. Tap a letter on the strip down the right, or slide your finger down it.",
   "Hands full? Tap 🎤 and say it how you like, like “can you 86 the Corona” or “Negroni spec”: it picks out the key words. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
   "? at the top right opens the Guide: every part of Bar Book by section, and a search for anything, like “how do I make a mojito” or “what's a dry shake”.",
 ], tip: "× closes this at any time. More, Replay the walkthrough brings it back." };
@@ -12939,7 +13064,7 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
 const WALK_COUNT = { t: "Stock count", how: [
   "Shift, Stock, Count stock: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left.",
   "Tap an item: + for each full, sealed bottle, then the open one on the scale in grams (or tap how full it is). Next › opens the one after.",
-  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or tap A to Z and use the letter strip. Or 🎤 Say it: “Smirnoff two and a half”.",
   "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
 ], tip: "No signal in the cellar? It saves anyway and sends when you're back." };
 const WALK_SEND = { t: "Hand over and send", how: [

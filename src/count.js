@@ -183,7 +183,7 @@ function ctCardHtml() {
 // version (one row of places that scrolls sideways, the totals folded away, the bottle level behind one tap when the
 // scale can do it); the iPad gets everything open side by side.
 const ctWide = () => matchMedia("(min-width: 700px)").matches;
-var ctQ = "", ctShow = store.get("ctShow", "todo"), ctLvl = store.get("ctLvl", false), ctTotOpen = null;
+var ctQ = "", ctShow = store.get("ctShow", "todo"), ctAz = store.get("ctAz", false), ctLvl = store.get("ctLvl", false), ctTotOpen = null;
 function ctPage() {
   ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null; ctQ = ""; ctIntro = store.get("ctHow", false) ? -1 : 0;
   lastFocus = document.activeElement;
@@ -243,18 +243,19 @@ function ctHtml() {
     ${ctInHtml()}${ctUseHtml()}
     ${LIVE.admin ? `<div class="actions"><button class="btn" id="ct-setup">Set up the count</button></div>` : ""}`;
 }
-// Not counted yet, everything, or what's been counted; the places to jump to; and the lines. A search looks in every
-// place whatever is picked.
+// Not counted yet, everything, or what's been counted; By place (the order you walk it, with the places to jump to) or
+// A to Z (the letter strip down the side, for finding one thing); and the lines. A search looks in every place.
 function ctListHtml() {
   const rows = ctRows(), areas = [...new Set(rows.map((r) => r.area))], found = ctQ.trim() ? ctFind(ctQ, rows) : null;
   const todo = rows.filter((r) => !ctLine(r)).length;
   const show = (r) => r.key === ctOpen || ctShow === "all" || (ctShow === "todo" ? !ctLine(r) : !!ctLine(r));
   const chip = (k, label, n) => `<button class="chip" data-ct-show="${k}" aria-pressed="${!found && ctShow === k}">${label}${n != null ? ` <small>${n}</small>` : ""}</button>`;
   const head = `<div class="recent ct-show">${chip("todo", "Not counted yet", todo)}${chip("all", "All", rows.length)}${chip("done", "Counted", rows.length - todo)}</div>
-    <div class="recent ct-jump" role="group" aria-label="Go to a place">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`;
+    <div class="seg ct-order" role="group" aria-label="Order"><button data-ct-az="0" aria-pressed="${!ctAz}">By place</button><button data-ct-az="1" aria-pressed="${ctAz}">A to Z</button></div>
+    ${ctAz ? "" : `<div class="recent ct-jump" role="group" aria-label="Go to a place">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`}`;
   if (found) return `${head}<div class="sec">${found.length ? `Found in ${[...new Set(found.map((r) => r.area))].length === 1 ? esc(found[0].area) : "every place"}` : "Nothing found"}</div>
     ${found.map((r) => ctRowHtml(r, true)).join("") || `<p class="note">Nothing called “${esc(ctQ.trim())}”. Try fewer letters.${LIVE.admin ? " Not on the count at all? Add it with Add something new." : ""}</p>`}`;
-  const body = areas.map((a) => { const rs = rows.filter((r) => r.area === a && show(r)); return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec">${esc(a)}</div>${rs.map((r) => ctRowHtml(r)).join("")}` : ""}`; }).join("");
+  const body = ctAz ? azHtml(rows.filter(show), (r) => r.item, (r) => ctRowHtml(r, true)) : areas.map((a) => { const rs = rows.filter((r) => r.area === a && show(r)); return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec">${esc(a)}</div>${rs.map((r) => ctRowHtml(r)).join("")}` : ""}`; }).join("");
   const none = !rows.some(show);
   return `${head}${none ? `<p class="note ct-all">${ctShow === "todo" ? "✓ Everything's counted. Check the totals, then send them." : "Nothing counted yet."}</p>` : ""}${body}`;
 }
@@ -533,6 +534,7 @@ $("#sheet").addEventListener("click", (e) => {
     if (v === "go") { ctIntro = -1; store.set("ctHow", true); } else ctIntro = +v;
     ctRender(true); $("#sheet").scrollTop = 0; return;
   }
+  const az = t("[data-ct-az]"); if (az) { haptic(); ctAz = az.dataset.ctAz === "1"; store.set("ctAz", ctAz); ctClearFind(); return ctRender(true); }
   const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
   const lb = t("[data-ct-lvl]"); if (lb) { ctLvl = lb.dataset.ctLvl === "1"; store.set("ctLvl", ctLvl); return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
@@ -547,9 +549,9 @@ $("#sheet").addEventListener("click", (e) => {
   const lv = t("[data-ct-lv]"); if (lv && r) { haptic(); ctPut(r, x?.full || 0, +lv.dataset.ctLv * 10); return; }
   const st = t("[data-ct-set]"); if (st && r) { haptic(); const [f, o] = st.dataset.ctSet.split(":").map(Number); ctPut(r, f, o); return; }
   const dr = t("[data-ct-drop]"); if (dr && r) { track(LIVE.api.dropCountLine(ctId(ctDay, r.area, r.item)), null, "Not cleared. Try again"); return; }
-  // Next: down the shelf from this one, past anything counted already when only what's left is showing.
+  // Next: down the list as it shows (the shelf, or A to Z), past anything counted already when only what's left is showing.
   const nx = t("[data-ct-next]"); if (nx) {
-    const rs = ctRows(), i = rs.findIndex((y) => y.key === nx.dataset.ctNext); if (i >= 0 && !ctLine(rs[i])) ctPut(rs[i], 0, 0);
+    const rs = ctAz ? azSort(ctRows(), (r) => r.item) : ctRows(), i = rs.findIndex((y) => y.key === nx.dataset.ctNext); if (i >= 0 && !ctLine(rs[i])) ctPut(rs[i], 0, 0);
     const n = rs.slice(i + 1).find((y) => ctShow !== "todo" || !ctLine(y)); ctClearFind();
     if (n) ctGo(n.key); else { ctOpen = ""; ctRender(); toast(rs.every(ctLine) ? "Everything's counted" : "That's the last one"); } return;
   }

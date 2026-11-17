@@ -55,7 +55,8 @@ function sxList() {
   if (SX.view !== "drink" && !sxWide()) { el.innerHTML = SX_PANELS[SX.view](); sxMark(el); return; }
   const parts = sxParts(), y = el.scrollTop;
   SX.ids = parts.flatMap(([, ds]) => ds.map((d) => d.id));
-  el.innerHTML = parts.length ? parts.map(([t, ds]) => `<div class="sx-h">${esc(t)} <small>${ds.length}</small></div>${ds.map(sxRow).join("")}`).join("")
+  // Every other drink goes under its letter, with the letter strip down the side of the list.
+  el.innerHTML = parts.length ? parts.map(([t, ds]) => `<div class="sx-h">${esc(t)} <small>${ds.length}</small></div>${!SX.q.trim() && ds.length > 30 ? azHtml(ds, (d) => d.name, sxRow) : ds.map(sxRow).join("")}`).join("")
     : `<p class="note">Nothing matches “${esc(SX.q)}”. Try the spirit, the glass or one word of the name.</p>`;
   el.scrollTop = y;
 }

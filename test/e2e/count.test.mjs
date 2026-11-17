@@ -73,6 +73,14 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
   assert.equal(await M.$(row("Back bar", "Grey Goose")), null);
   assert.match(await text(M, row("Speed rail", "Smirnoff")), /3\.4 bottles Sam Staff/);
   await M.click('[data-ct-show="todo"]');
+  // A to Z: every line by name under its letter, with the letter strip, and no place buttons; By place goes back.
+  await M.click('[data-ct-az="1"]');
+  assert.equal(await M.$(".ct-jump"), null);
+  const names = await M.$$eval("#ct-list .ct-line > span", (xs) => xs.map((x) => x.firstChild.textContent));
+  assert.ok(names.length > 20 && (await M.evaluate((n) => n.every((x, i) => !i || azCmp(n[i - 1], x) <= 0), names)));
+  await M.waitForFunction(() => !$("#az-rail").hidden);
+  await M.click('[data-ct-az="0"]');
+  await M.waitForSelector(".ct-jump");
   assert.match(await text(M, ".ct-head"), /lines counted by Sam Staff/);
 
   // Sending: totals as words and a picture table; the spreadsheet has a row per product.
