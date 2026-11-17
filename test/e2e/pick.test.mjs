@@ -78,11 +78,10 @@ test("the same picker picks for restocking, running low, Log it, date labels and
   await pickRows(O, "oat", "[data-lb-pick]"); await O.click('#pk-list [data-pk-tog="Oat milk"]');
   assert.equal(await O.inputValue("#lb-item"), "Oat milk");
   assert.notEqual(await O.inputValue("#lb-life"), "");
-  // The stock count: find an item and its line opens.
+  // The stock count finds in its own list, in every place: a few letters, typos too, and Go opens the line.
   await S.click(".ptabs [data-pane=stock]"); await S.click("[data-ct-open]");
-  await S.waitForSelector("[data-ct-find]");
-  await pickRows(S, "tanquery", "[data-ct-find]");
-  await S.click('#pk-list [data-pk-tog="Tanqueray"]');
+  await S.waitForSelector("#ct .ct-row");
+  await S.fill("#ct-say", "tanquery"); await S.press("#ct-say", "Enter");
   await S.waitForSelector(".ct-row.on");
   assert.match(await S.$eval(".ct-row.on", (e) => e.innerText), /Tanqueray/);
   for (const p of [O, S]) assert.deepEqual(p.errs, []);
