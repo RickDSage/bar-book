@@ -82,7 +82,7 @@ test("bar station mode: big search and spec side by side on an iPad, rounds, and
   const [a, b] = await p.evaluate(() => [SX.ids[0], SX.ids[3]]);
   await p.click(`#sx-list [data-sx-add="${a}"]`); await p.click(`#sx-list [data-sx-add="${a}"]`); await p.click(`#sx-list [data-sx-add="${b}"]`);
   await p.click("[data-sx-round=show]");
-  assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /ROUND OF 3[\s\S]*Pull: /i);
+  assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /ROUND OF 3[\s\S]*Glasses[\s\S]*Tins/i);
   // Away from the station there's a way back; it reopens on the station; Exit turns it off.
   await p.evaluate(() => show("tally"));
   assert.equal(await p.isVisible("#sx-back"), true);
@@ -106,5 +106,42 @@ test("bar station on a phone: one column, a tap opens the drink page, nothing wi
   assert.equal(await p.isVisible("#sheet"), true);
   assert.equal(await p.evaluate(() => ctx.length), await p.evaluate(() => SX.ids.length));
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 390);
+  assert.deepEqual(p.errs, []);
+});
+
+test("bar station for express service: jugs, alcohol-free swaps, rounds by build, big text, dim and wake, self-refresh", async () => {
+  const p = await open(false);
+  await p.setViewportSize({ width: 1180, height: 820 });
+  await p.click("#w-ok");
+  await p.evaluate(() => show("station"));
+  // A jug: x8 and the total liquid.
+  await p.fill("#sx-q", "margarita"); await p.keyboard.press("Enter");
+  await p.click('[data-sx-x="8"]');
+  assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /About \d+ ml of liquid before ice: batch it in a jug/);
+  // The alcohol-free version is one tap away.
+  await p.click(".sx-zero [data-sx-id]");
+  assert.match(await p.textContent("#sx-spec h3"), /Virgin Margarita/);
+  assert.equal(await p.evaluate(() => sxZero(D.find((d) => d.name === "Pornstar Martini")).name), "No-Star Martini");
+  assert.equal(await p.evaluate(() => sxZero(D.find((d) => d.name === "Mojito")).name), "Virgin Mojito");
+  // A round: grouped by how it's made, with what to get ready.
+  for (const n of ["Negroni", "Margarita", "Daiquiri", "Aperol Spritz"]) await p.evaluate((n) => sxRound(D.find((d) => d.name === n).id, 1), n);
+  await p.click("[data-sx-round=show]");
+  const r = await p.$eval("#sx-spec", (e) => e.innerText);
+  assert.match(r, /GLASSES[\s\S]*ICE[\s\S]*GARNISH[\s\S]*TINS\s+2 to shake: 1 tin/i);
+  assert.match(r, /STIR · 1[\s\S]*SHAKE TOGETHER · 2[\s\S]*TOP WITH FIZZ LAST · 1/i);
+  // Big text, kept on the iPad.
+  await p.click("[data-sx-big]");
+  assert.ok(await p.$eval("body", (b) => b.classList.contains("sxbig")));
+  assert.equal(await p.evaluate(() => localStorage.getItem("btbar.sx.big")), "true");
+  // Ten quiet minutes: dark but for the time; a tap only wakes it.
+  await p.evaluate(() => { lastTap = Date.now() - 11 * 6e4; sxCare(); });
+  assert.match(await p.textContent("#sx-dim"), /\d\d:\d\d[\s\S]*Tap to wake/);
+  await p.click("#sx-dim");
+  await p.waitForFunction(() => !document.querySelector("#sx-dim"));
+  assert.equal(await p.evaluate(() => cur), "station");
+  // A refresh it makes itself (a new release, the morning) goes straight back to the station, with no start screen.
+  await p.evaluate(() => { sessionStorage.setItem("sx.auto", "1"); location.reload(); });
+  await p.waitForFunction(() => typeof cur !== "undefined" && cur === "station");
+  assert.equal(await p.locator("#welcome").count(), 0);
   assert.deepEqual(p.errs, []);
 });

@@ -4,13 +4,16 @@
    One setting in More (This phone) hides every ? once the team knows the app. Text only: nothing is saved or sent. */
 let helpFrom = null;
 const HELP = {
-  station: { t: "Bar station", what: "The iPad on the bar for express service: any drink in big type, rounds, tonight's 86s, the close on both sides and the handover.",
-    how: ["Search or tap a drink: on an iPad its spec shows next to the list. Swipe the spec, or use the arrows, for the next one. \u00d72 to \u00d74 scales it.", "+ adds a drink to the round (tap again for two). The round shows every spec scaled, in making order, and the glasses to pull.",
-      "Tap a Tonight box to open that page; the \u2039 Bar station button at the bottom brings you back. Exit bar station (top right) turns the mode off. While it's on, Bar Book opens on it.",
+  station: { t: "Bar station", what: "The iPad on the bar for express service: any drink in big type, rounds made in one go, tonight's 86s, photos, date labels, the close on both sides and the handover.",
+    how: ["Search or tap a drink: on an iPad its spec shows next to the list. Swipe the spec, or use the arrows, for the next one. \u00d72 to \u00d78 scales it; for a jug it gives the total liquid.", "Anything 86'd is struck through on the spec with the swap beside it, and Alcohol-free? jumps to the no-alcohol version.",
+      "+ adds a drink to the round (tap again for two). The round puts drinks made the same way together (stir, build, shake, fizz last) and lists the glasses, ice, garnish and tins to get ready.",
+      "Aa makes everything bigger, to read from a step back.", "Ran out of something? Type any ingredient, bottle or drink and tap 86 it. Take a photo or Upload adds it to tonight's handover.",
+      "Tap a Tonight box to open that page; the \u2039 Bar station button at the bottom brings you back. Exit (top right) turns the mode off. While it's on, Bar Book opens on it.",
       "Turn on Shared in More, This phone, so it asks who's using it and never stays unlocked.",
       "Keep it on Bar Book: in the iPad's Settings, Accessibility, Guided Access, turn it on and set a passcode. Open Bar Book, press the top button (or the Home button) three times, tap Start. Three presses and the passcode end it.",
       "Stop the screen going off: Settings, Display & Brightness, Auto-Lock, Never. Keep the iPad on charge."],
-    behind: ["It's the same live data as every phone: nothing extra is saved to the team. The round is kept on this iPad.", "It redraws as soon as anything changes, and every minute for the clock.", "Left alone for 2 minutes it clears the search and the open drink, so the next person starts clean."] },
+    behind: ["It's the same live data as every phone: nothing extra is saved to the team. The round and the Aa setting are kept on this iPad.", "Left alone for 2 minutes it clears the search and the open drink, so the next person starts clean. After 10 minutes the screen goes dark but for the time; a tap wakes it.",
+      "It looks after itself: when nobody has touched it for 5 minutes it loads a new version of Bar Book if there is one, and starts fresh once a day after 6am, straight back onto the station. The round empties at 6am."] },
   shift: { t: "The Shift tab", what: "Tonight's work for your side, in the order it happens.",
     how: ["Pick Bar or Floor at the top. Each phone remembers its side.", "Go left to right: Morning, Labels, Stock, Closing, Send.", "The small number on each tab shows what's left there."],
     behind: ["Everything here is shared live: every phone on your side sees the same ticks, 86s and handover.", "The shift day runs 6am to 6am UK time, so a close after midnight still counts as tonight."] },
