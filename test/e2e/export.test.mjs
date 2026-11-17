@@ -89,8 +89,74 @@ test("a manager exports every log, filtered, as a workbook, CSV files and a tabl
   assert.match(s, /<sheet name="About this export"/);
   assert.match(s, /formatCode="dd\/mm\/yyyy"/);
 
+  // Word: a real .docx with each log as a table.
+  const d64 = await M.evaluate(async () => { const u = new Uint8Array(await exDocx(exPicked()).arrayBuffer()); let s = ""; for (const c of u) s += String.fromCharCode(c); return btoa(s); });
+  const dbuf = Buffer.from(d64, "base64");
+  if (process.env.DOCX_OUT) fs.writeFileSync(process.env.DOCX_OUT, dbuf);
+  assert.equal(dbuf.readUInt32LE(0), 0x04034b50);
+  assert.match(dbuf.toString("utf8"), /<w:tbl>.*Closing ticks|Closing ticks.*<w:tbl>/s);
+
   // The table to read or print: nothing wider than the phone.
   await M.locator("#tc-export .ex-prev summary").first().click();
+  assert.ok(await M.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
+  assert.deepEqual([...M.errs, ...S.errs, ...O.errs], []);
+});
+
+const tab = (p) => p.click('#tc-export [data-ex-tab="in"]');
+const upload = async (p, kind, name, text) => {
+  await p.click(`#tc-export [data-im-kind="${kind}"]`);
+  await p.setInputFiles("#tc-export [data-im-file]", { name, mimeType: name.endsWith(".xlsx") ? "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" : "text/csv", buffer: Buffer.from(text) });
+  await waitText(p, "#tc-export", /3\. Check it, then save|im-err|: /);
+  await p.waitForFunction(() => IM.plan || IM.err);
+  return p.evaluate(() => IM.err || IM.plan.map((x) => `${x.st}${x.why ? ": " + x.why : ""}`));
+};
+
+test("a manager imports a spreadsheet: preview first, saves new and changed lines, never deletes", async () => {
+  await resetEmulators();
+  const { M, S, O } = await team(browser, site, people);
+  await M.evaluate(() => LIVE.api.label(null, "added", { item: "Apple juice", side: "bar", life: 3, on: true }));
+  await M.waitForFunction(() => LIVE.labels.some((x) => x.item === "Apple juice" && !x.pending));
+  await part(M, "export");
+  await tab(M);
+  await waitText(M, "#tc-export", /1\. Get the template/);
+
+  // Date labels from Numbers or Excel saved as CSV with semicolons: a new one, a change, one the same, two that can't go in.
+  const plan = await upload(M, "labels", "labels.csv", "Item;Side;Keeps (days);On the list;Station\r\nApple juice;Bar;5;Yes;\r\nMint;bar;2;yes;Garnish station\r\nCream;Kitchen;2;Yes;\r\nLime juice;Floor;0;Yes;\r\n");
+  assert.deepEqual(plan, ["change", "new", "skip: Side must be Bar or Floor", "skip: Keeps (days) must be a whole number, 1 to 365"]);
+  assert.equal(await M.evaluate(() => LIVE.labels.length), 1, "nothing saved before Save");
+  await M.click("#tc-export [data-im-save]");
+  await waitText(M, "#tc-export", /Saved 2/);
+  await S.waitForFunction(() => LIVE.labels.find((x) => x.item === "Apple juice")?.life === 5 && LIVE.labels.some((x) => x.item === "Mint" && x.station === "Garnish station"));
+
+  // Names: adds and moves, keeps everyone not in the file.
+  assert.deepEqual(await upload(M, "names", "names.csv", "Name,Role\nZoe,Bar\nEmily,Floor\nKadir,Bar\nBob,Chef"), ["new", "change", "same", "skip: Role must be Manager, Bar or Floor"]);
+  await M.click("#tc-export [data-im-save]");
+  await S.waitForFunction(() => STAFF.bar.includes("Zoe") && STAFF.floor.includes("Emily") && !STAFF.bar.includes("Emily") && STAFF.mgr.includes("Hassan"));
+
+  // A stock count file straight from Export goes back in; the Open column is a part (0.45).
+  const day = await M.evaluate(() => shiftDay());
+  assert.deepEqual(await upload(M, "count", "stock-counts.csv", `\uFEFFShift date,Time,Place,Item,Full,Open,Total,Unit,Counted by\r\n${day},21:00,Speed rail,Smirnoff,2,0.45,2.45,bottle,Sam\r\n2999-01-01,21:00,Speed rail,Smirnoff,1,0,1,bottle,Sam\r\n`), ["new", "skip: Count date is in the future"]);
+  await M.click("#tc-export [data-im-save]");
+  await waitText(M, "#tc-export", /Saved 1/);
+  assert.equal(await M.evaluate(async () => (await LIVE.api.daysOf("counts", shiftDay(), shiftDay(), 10)).map((x) => `${x.item} ${x.full} ${x.open}`).join()), "Smirnoff 2 45");
+
+  // Stock setup from the Excel template: change Smirnoff's weights, round trip through a real .xlsx.
+  const x64 = await M.evaluate(async () => { const K = IM_KINDS.setup, rows = K.tpl().map((r) => (r[0] === "Smirnoff" ? [r[0], r[1], "bottle", 700, 520, 1180, "", "Yes"] : r));
+    const u = new Uint8Array(await exXlsx([[K.n, K.cols, rows]]).arrayBuffer()); let s = ""; for (const c of u) s += String.fromCharCode(c); return btoa(s); });
+  await M.click('#tc-export [data-im-kind="setup"]');
+  await M.setInputFiles("#tc-export [data-im-file]", { name: "setup.xlsx", mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", buffer: Buffer.from(x64, "base64") });
+  await M.waitForFunction(() => IM.plan || IM.err);
+  assert.deepEqual(await M.evaluate(() => IM.err || IM.plan.filter((x) => x.st !== "same").map((x) => x.line)), ["Smirnoff · Speed rail · bottle · 700 ml · 520 to 1180 g"]);
+  await M.click("#tc-export [data-im-save]");
+  await S.waitForFunction(() => LIVE.countSetup?.items?.Smirnoff?.f === 1180);
+
+  // A manager's new item waits for Maintenance; one in Bar Book's own list is skipped.
+  assert.deepEqual(await upload(M, "items", "items.csv", "Item,Side,Group,Kind,Kept in,Date label,Keeps (days),At close,Note\nYuzu purée,Bar,Fruit,Purée,Fridge,Yes,7,,\nSmirnoff,Bar,Spirits,Spirit,Back bar,No,0,,"), ["new", "skip: Already in Bar Book's own list"]);
+  await M.click("#tc-export [data-im-save]");
+  await O.waitForFunction(() => LIVE.items.some((x) => x.item === "Yuzu purée" && x.status === "waiting"));
+
+  // Nothing is deleted: Apple juice is still there after files without it.
+  assert.ok(await M.evaluate(() => LIVE.labels.some((x) => x.item === "Apple juice")));
   assert.ok(await M.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1));
   assert.deepEqual([...M.errs, ...S.errs, ...O.errs], []);
 });
