@@ -1165,6 +1165,36 @@ describe("tonight's handover draft, one per side, shared live", () => {
   });
 });
 
+describe("Log it: one line for tonight's handover, in the day's events", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const day = today();
+  const line = (uid, extra = {}) => ({ kind: "log", day, area: "bar", what: "note", label: "Ice machine leaking", note: "", ...by(uid), ...extra });
+  const id = () => `g-${autoId()}`;
+  test("anyone on the team logs, everyone on the team reads it, and only its writer or a manager takes it off", async () => {
+    const a = id(), b = id();
+    await assertSucceeds(setDoc(doc(db("staff1"), "events", a), line("staff1")));
+    await assertSucceeds(setDoc(doc(db("staff1"), "events", b), line("staff1", { what: "told", label: "Told Mia: two kegs left" })));
+    for (const uid of ["staff2", "mgr1", "owner1"]) assert.equal((await getDoc(doc(db(uid), "events", a))).data().label, "Ice machine leaking");
+    await assertFails(getDoc(doc(db("stranger"), "events", a)));
+    await fails(deleteDoc(doc(db("staff2"), "events", a)), "someone else took it off");
+    await assertFails(updateDoc(doc(db("staff1"), "events", a), { label: "changed" }));
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "events", a)));
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "events", b)));
+  });
+  test("a closing tick's history can't be deleted, even by a manager", async () => {
+    await seed((s) => setDoc(doc(s, "events", "t-x"), { kind: "task", day }));
+    await assertFails(deleteDoc(doc(db("owner1"), "events", "t-x")));
+  });
+  test("the shape is fixed: a real kind, side and id, the writer's own name and the server's time", async () => {
+    await fails(setDoc(doc(db("stranger"), "events", id()), line("stranger")), "not on the team");
+    await fails(setDoc(doc(db("staff1"), "events", "g-short"), line("staff1")), "bad id");
+    await fails(setDoc(doc(db("staff1"), "events", `t-${autoId()}`), line("staff1")), "a log under a task id");
+    for (const bad of [{ what: "gossip" }, { what: "out" }, { area: "kitchen" }, { label: "" }, { label: "x".repeat(201) }, { note: "x" }, { name: "Mia Manager" }, { at: daysAgo(1) }, { day: "2020-01-01" }, { extra: 1 }]) {
+      await fails(setDoc(doc(db("staff1"), "events", id()), line("staff1", bad)), JSON.stringify(bad).slice(0, 40));
+    }
+  });
+});
+
 describe("who to call: the venue's own numbers", () => {
   beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
   const ref = (uid) => doc(db(uid), "settings", "contacts");

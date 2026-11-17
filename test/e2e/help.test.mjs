@@ -7,26 +7,31 @@ let site, browser;
 before(async () => { site = await serve(".emusite"); browser = await launch(); });
 after(async () => { await browser.close(); site.close(); });
 
-test("a new phone gets the tour once after Bar or Floor, it can be skipped, and it opens again from More", async () => {
+test("Bar on the start screen shows the bar walkthrough once, × closes it, and the Guide has it and the full tour", async () => {
   const c = await browser.newContext({ viewport: { width: 375, height: 667 }, isMobile: true });
   const p = await c.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   await p.goto(site.url); await p.click("#w-ok");
   await p.waitForSelector("#help:not([hidden])");
-  assert.match(await p.textContent("#help-t"), /Welcome to Bar Book/);
-  // Every card, Next to the end, each with a tip.
-  const n = await p.evaluate(() => INTRO.length);
+  assert.match(await p.textContent("#help-t"), /Your bar shift/);
+  const n = await p.evaluate(() => WALK.bar.length);
   for (let i = 1; i < n; i++) { await p.click("#help .btn.pri"); assert.match(await p.textContent("#help .cprog b"), new RegExp(`^${i + 1} of ${n}$`)); }
+  assert.match(await p.textContent("#help-t"), /Hand over/);
   await p.click("#help .btn.pri"); assert.equal(await p.isHidden("#help"), true);
-  // Not again on the next open.
-  await p.reload(); await p.click("#w-ok"); await p.waitForTimeout(600);
+  // Not again on the next open; Floor is its own walkthrough, the first time Shift opens on that side.
+  await p.reload(); await p.click("#w-ok"); await p.waitForTimeout(700);
   assert.equal(await p.isHidden("#help"), true);
-  // From More, and a card's "How ... works" chip opens the ? panel with a way back.
-  await p.click("nav.tabs [data-tab=info]"); await p.click("#v-info [data-intro-open]");
+  await p.evaluate(() => setMode("floor")); await p.click("nav.tabs [data-tab=tally]");
+  await p.waitForSelector("#help:not([hidden])"); assert.match(await p.textContent("#help-t"), /Your floor shift/);
+  await p.click("#help .hq-x"); assert.equal(await p.isHidden("#help"), true);
+  // The ? at the top: Start here has the walkthroughs and the full tour, whose chips open a ? panel with a way back.
+  await p.click(".brandr [data-guide]"); assert.match(await p.textContent("#help-t"), /Guide/);
+  await p.click("#help [data-walk='bar:1']"); assert.match(await p.textContent("#help-t"), /Getting around/);
+  await p.click("#help .hq-x"); await p.click(".brandr [data-guide]"); await p.click("#help .gd-tile[data-intro='0']");
+  assert.match(await p.textContent("#help-t"), /Welcome to Bar Book/);
   await p.click("#help [data-intro='1']"); await p.click("#help [data-help-topic]");
   assert.match(await p.textContent("#help-t"), /Rapid fire/);
   await p.click("#help [data-intro='1']"); assert.match(await p.textContent("#help .cprog b"), /^2 of/);
   await p.click("#help .hq-x"); assert.equal(await p.isHidden("#help"), true);
-  // No card is wider than the phone.
   assert.deepEqual(errs, []);
   await c.close();
 });

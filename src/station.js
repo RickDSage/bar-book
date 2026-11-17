@@ -289,7 +289,7 @@ function sxTonight() {
       <button class="linkbtn" data-st-go="stock">Open the 86 board \u203a</button></div>
     ${side("bar")}${side("floor")}
     <div class="st-tile sx-send"><span class="st-k">Send on WhatsApp</span>
-      <div class="sx-phb">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-st-go="send">Hand over ›</button>${out.length ? sendBtn("out", "The 86 list") : ""}</div>
+      <div class="sx-phb">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-st-go="send">Hand over ›</button>${out.length ? sendBtn("out", "The 86 list") : ""}${logsOf().length ? sendBtn("logs", "Tonight's log") : ""}</div>
       <span class="st-s">Each message ends with a link back into Bar Book, never the team code.</span></div>
     <div class="st-tile sx-ph"><span class="st-k">Tonight's photos \u00b7 ${esc(sideName(mode))}${ph.length ? ` \u00b7 ${ph.length}` : ""}</span>
       ${ph.length ? `<div class="sx-thumbs">${ph.slice(-6).map((x) => `<img src="${x.data}" alt="${esc(x.note || "Closing photo")}">`).join("")}</div>` : ""}
@@ -300,7 +300,7 @@ function sxTonight() {
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">?</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
     <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}">${t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
     <div class="sx-tms" id="sx-tms" hidden></div>
     <div class="sx-86s" id="sx-86s" role="status" hidden></div>
