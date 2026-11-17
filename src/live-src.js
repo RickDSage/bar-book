@@ -121,6 +121,11 @@ function listen(uid) {
     sub("items", collection(db, "items"), (snap) => { LIVE.items = rows(snap); liveChanged("items"); });
     // New starter sign-offs: a manager watched someone make a house cocktail to spec. Only ever a few dozen.
     sub("signoffs", collection(db, "signoffs"), (snap) => { LIVE.signoffs = rows(snap); liveChanged("signoffs"); });
+    // The stock count's setup (the places in walking order, units, bottle weights: one record a manager changes) and the
+    // deliveries logged lately. The count itself is read a day at a time, while the count is open (watchCount).
+    sub("countSetup", doc(db, "countSetup", "main"), (d) => { LIVE.countSetup = d.exists() ? d.data() : null; LIVE.countErr = false; liveChanged("countSetup"); },
+      (e) => { if (e?.code === "permission-denied") { LIVE.countErr = true; liveChanged("countSetup"); } });
+    sub("received", query(collection(db, "received"), orderBy("at", "desc"), limit(300)), (snap) => { LIVE.received = rows(snap); liveChanged("received"); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
     // same record a moment apart, so the newer version wins.
     const rs = { open: [], recent: [] };
@@ -132,8 +137,11 @@ function listen(uid) {
     sub("restock", query(collection(db, "restock"), where("status", "in", RS_OPEN)), (snap) => { rs.open = rows(snap); mergeRestock(); });
     sub("restock-recent", query(collection(db, "restock"), orderBy("at", "desc"), limit(30)), (snap) => { rs.recent = rows(snap); mergeRestock(); });
     // Tonight's closing photos that aren't on a sent report yet, whoever took them: the phone shows its side's.
+    // Unsent ones from a close that was never sent are binned after two days (any phone on the team may), because every
+    // phone downloads every unsent photo each time it opens, and that would use up the free plan's monthly download.
     sub("photos", query(collection(db, "photos"), where("report", "==", null)), (snap) => {
       LIVE.draftPhotos = rows(snap).sort((a, b) => ms(a.at) - ms(b.at)); liveChanged("photos");
+      if (!snap.metadata.fromCache) binStalePhotos(snap);
     });
     // Tonight's handover drafts, one per side, shared by everyone closing it.
     sub("drafts", query(collection(db, "drafts"), orderBy("at", "desc"), limit(6)), (snap) => {
@@ -163,6 +171,7 @@ function listen(uid) {
     // The count of wrong team codes, so the owner can see it and unlock joining.
     if (LIVE.owner) sub("gate", doc(db, "gate", "team"), (x) => { LIVE.gate = x.exists() ? x.data({ serverTimestamps: "estimate" }) : { tries: 0 }; liveChanged("gate"); });
     if (LIVE.admin) clearOldPhotos();
+    if (LIVE.owner) checkRules();
   }, () => {});
 }
 
@@ -218,6 +227,23 @@ async function clearOldPhotos() {
 }
 
 const logDef = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, status: x.status });
+// Are the rules published in the Firebase console the ones this version of the app was built with? Only a refusal
+// says no; no signal says nothing.
+async function checkRules() {
+  const old = await getDoc(doc(db, "rulesv", __RULES__)).then(() => false, (e) => (e.code === "permission-denied" ? true : null));
+  if (old !== null && old !== LIVE.rulesOld) { LIVE.rulesOld = old; liveChanged("rules"); }
+}
+
+const STALE_DAYS = 2, binning = new Set();
+function binStalePhotos(snap) {
+  const cutoff = Date.now() - STALE_DAYS * 864e5;
+  for (const d of snap.docs) {
+    const at = d.data().at;
+    if (!at || at.toMillis() >= cutoff || binning.has(d.id)) continue;
+    binning.add(d.id); deleteDoc(d.ref).catch(() => binning.delete(d.id));
+  }
+}
+
 const itemDef = (x) => ({ item: x.item, kind: x.kind, group: x.group, side: x.side, store: x.store, label: x.label, life: x.life, close: x.close, note: x.note, found: x.found });
 // Listeners tied to the business day start again with the new query when it rolls over at 6am.
 const dayKeys = {};
@@ -551,6 +577,23 @@ LIVE.api = {
     return Math.round(performance.now() - t);
   },
   synced: (ms = 4000) => Promise.race([waitForPendingWrites(db).then(() => true), new Promise((ok) => setTimeout(() => ok(false), ms))]),
+  // Stock count: one record per product and place for the day, saved on every tap under who counted it.
+  watchCount(day) {
+    if (!LIVE.me) return;
+    subDay("counts", () => query(collection(db, "counts"), where("day", "==", day), limit(2000)), (snap) => { LIVE.counts = rows(snap); LIVE.countDay = day; liveChanged("count"); }, day);
+  },
+  countLine: (id, x) => setDoc(doc(db, "counts", id), { day: x.day, area: x.area, item: x.item, unit: x.unit, full: x.full, open: x.open, ...me() }),
+  dropCountLine: (id) => deleteDoc(doc(db, "counts", id)),
+  saveCountSetup: (x) => setDoc(doc(db, "countSetup", "main"), { areas: x.areas, items: x.items, order: x.order, ...me() }),
+  addReceived: (x) => addDoc(collection(db, "received"), { day: x.day, item: x.item, unit: x.unit, qty: x.qty, ...me() }),
+  dropReceived: (id) => deleteDoc(doc(db, "received", id)),
+  // The counts and deliveries of the last 90 days up to a day, for usage between counts. Read once, when asked for.
+  async countHistory(day) {
+    const from = new Date(Date.parse(day) - 90 * 864e5).toISOString().slice(0, 10), plainDocs = (snap) => snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id }));
+    const [c, r] = await Promise.all([getDocs(query(collection(db, "counts"), where("day", ">=", from), where("day", "<=", day), limit(6000))),
+      getDocs(query(collection(db, "received"), where("day", ">=", from), where("day", "<=", day), limit(2000)))]);
+    return { lines: plainDocs(c), received: plainDocs(r) };
+  },
   addFixture: (x) => addDoc(collection(db, "fixtures"), { day: x.day, ko: x.ko, home: x.home, away: x.away, comp: x.comp, channel: x.channel, screen: x.screen, ...me() }),
   dropFixture: (id) => deleteDoc(doc(db, "fixtures", id)),
   // Issues: raise, take on (or give to someone), mark fixed. "Still broken" raises a new one linked back.
@@ -573,7 +616,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] });
+  outlog: [], reports: [], contacts: [], names: null, draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

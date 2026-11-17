@@ -81,6 +81,13 @@ service cloud.firestore {
     function slug(s) { return s.lower().replace('[^a-z0-9]+', '-'); }
     function autoId(s) { return s is string && s.matches('[A-Za-z0-9]{20}'); }
 
+    // ---------- Which rules these are ----------
+    // The build writes a fingerprint of this file here (src/site.js). Maintenance's phone asks for rulesv/{its build's
+    // fingerprint}: refused means the rules published in the console are older than the app. Nothing is stored here.
+    match /rulesv/{v} {
+      allow get: if signedIn() && v == '039544dd5a7b'; // RULES-FINGERPRINT
+    }
+
     // ---------- Joining the team ----------
     // config/team {code}: no phone can read it; the rules compare against it. The owner can set a new one from the app.
     match /config/{id} {
@@ -501,6 +508,40 @@ service cloud.firestore {
         && x.side in ['bar', 'floor'] && x.store in ['fridge', 'bottle', 'backbar', 'ambient', 'freezer', 'cellar']
         && x.close in ['keep', 'fridge', 'cover', 'bin'] && x.label is bool && x.life is int && x.life >= 0 && x.life <= 365
         && x.status in ['waiting', 'live'] && x.addedBy is string && x.addedUid is string;
+    }
+
+    // ---------- Stock count ----------
+    // counts/{day--place--product}: one line of the count book, a product in one place on one day: whole ones (full)
+    // and the open one in hundredths (open, 0 to 99), in the product's unit. Anyone on the team counts, changes or clears
+    // a line; each save stamps who and when. The id starts with the day, so a line can't be filed under another day.
+    match /counts/{id} {
+      allow read: if isMember();
+      allow create, update: if isMember() && stamped() && validCount(id);
+      allow delete: if isMember();
+    }
+    function validCount(id) {
+      let x = incoming();
+      return exactly(['day', 'area', 'item', 'unit', 'full', 'open', 'uid', 'name', 'at'])
+        && isDay(x.day) && id.matches(x.day + '--[a-z0-9-]+') && id.size() <= 200
+        && reqText(x.area, 40) && reqText(x.item, 80) && reqText(x.unit, 12)
+        && x.full is int && x.full >= 0 && x.full <= 9999 && x.open is int && x.open >= 0 && x.open <= 99;
+    }
+    // received/{auto id}: a delivery logged in between counts (qty in hundredths of the product's unit), so usage comes
+    // out right. Whoever logged it or a manager takes it off.
+    match /received/{id} {
+      allow read: if isMember();
+      allow create: if isMember() && autoId(id) && stamped()
+        && exactly(['day', 'item', 'unit', 'qty', 'uid', 'name', 'at']) && isDay(incoming().day)
+        && reqText(incoming().item, 80) && reqText(incoming().unit, 12) && incoming().qty is int && incoming().qty > 0 && incoming().qty <= 10000000;
+      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
+    }
+    // countSetup/main: the places in walking order, and per product where it's counted, in what and its bottle weights.
+    // Only a manager changes it.
+    match /countSetup/{id} {
+      allow read: if isMember();
+      allow create, update: if id == 'main' && isManager() && stamped() && exactly(['areas', 'items', 'order', 'uid', 'name', 'at'])
+        && incoming().areas is list && incoming().areas.size() <= 40 && incoming().items is map && incoming().items.size() <= 800
+        && incoming().order is map && incoming().order.size() <= 40;
     }
 
     // ---------- Restocking from the cellar ----------
