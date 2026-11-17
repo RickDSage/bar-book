@@ -10,8 +10,13 @@
      with the glasses to pull.
    - Tonight: the 86 board, the close on both sides and the handover, live.
    - Left alone for 2 minutes, it clears the search and the open drink, so the next person starts clean. The round stays.
+   - Batches: the house batch recipes, scaled, each with one tap to date its label, and every bar date label after them.
+   - Quiz: a question at a time from our own specs, for the quiet moments.
+   - Set up: how to make the iPad a station (Shared, Guided Access, Auto-Lock), with what's done ticked.
+   - Away from it for 2 minutes on any other page, it goes back to the station. On a shared iPad, leaving the station,
+     turning Shared off and resetting the iPad need a manager's code first.
    Everything is the same live data every phone sees; nothing extra is saved to the team. The screen stays on. */
-const SX = { big: store.get("sx.big", false), q: "", grp: "all", id: store.get("sx.id", null), view: "drink", x: 1, ids: [], round: new Map(store.get("sx.round", [])) };
+const SX = { big: store.get("sx.big", false), q: "", grp: "all", id: store.get("sx.id", null), view: "drink", x: 1, bx: 1, qz: null, lbDone: null, ids: [], round: new Map(store.get("sx.round", [])) };
 if (SX.id != null && !D[SX.id]) SX.id = null;
 const SX_GROUPS = [["all", "Everything"], ["sig", "Signatures"], ["top", "Top 10"], ["ask", "Guests ask for"], ["shots", "Shots"], ["zero", "No alcohol"], ["serves", "Serves"]];
 // The Menu's kinds of drink too (Martinis, Margaritas, Sours…), signatures first, then A to Z.
@@ -47,7 +52,7 @@ function sxRow(d) {
 }
 function sxList() {
   const el = $("#sx-list"); if (!el) return;
-  if (SX.view === "round" && !sxWide()) { el.innerHTML = sxRoundHtml(); sxMark(el); return; }
+  if (SX.view !== "drink" && !sxWide()) { el.innerHTML = SX_PANELS[SX.view](); sxMark(el); return; }
   const parts = sxParts(), y = el.scrollTop;
   SX.ids = parts.flatMap(([, ds]) => ds.map((d) => d.id));
   el.innerHTML = parts.length ? parts.map(([t, ds]) => `<div class="sx-h">${esc(t)} <small>${ds.length}</small></div>${ds.map(sxRow).join("")}`).join("")
@@ -56,6 +61,7 @@ function sxList() {
 }
 function sxBars() {
   $$("#sx-grp [data-sx-grp]").forEach((b) => b.setAttribute("aria-pressed", !SX.q.trim() && b.dataset.sxGrp === SX.grp));
+  $$(".sx-tb [data-sx-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.sxView === SX.view));
   const rec = recent.slice(0, 6).map((id) => D[id]).filter(Boolean), n = sxRoundN();
   $("#sx-recent").innerHTML = rec.length ? `<span class="sx-lab">Recent</span>${rec.map((d) => `<button class="chip" data-sx-id="${d.id}" translate="no">${esc(d.name)}</button>`).join("")}` : "";
   $("#sx-roundbar").hidden = !n;
@@ -83,7 +89,8 @@ function sxSpecHtml(d) {
     ${out ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span>${LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">Back in stock</button>` : ""}</div>
       ${alts.length ? `<div class="pl-alts">Offer instead: ${alts.map((x) => `<button class="chip" data-sx-id="${x.id}" translate="no">${esc(x.name)}</button>`).join("")}</div>` : ""}` : plOutBanner(d)}
     ${al ? `<div class="allergy"><b>Allergens:</b> <span translate="no">${esc(al)}</span></div>` : ""}
-    <div class="sx-gig" translate="no"><div><span>Glass</span><b>${esc(d.glass)}</b></div><div><span>Ice</span><b>${esc(d.ice)}</b></div><div><span>Garnish</span><b>${esc(d.garnish)}</b></div></div>
+    <div class="sx-gig" translate="no"><div><i class="pic" aria-hidden="true">${glass(d)}</i><p><span>Glass</span><b>${esc(d.glass)}</b></p></div><div><p><span>Ice</span><b>${esc(d.ice)}</b></p></div>
+      <div>${ART.garnish(d.garnish) ? `<i class="pic gar" aria-hidden="true">${ART.garnish(d.garnish)}</i>` : ""}<p><span>Garnish</span><b>${esc(d.garnish)}</b></p></div></div>
     <div class="sx-k">Spec${SX.x > 1 ? ` for ${SX.x}` : ""}<span class="sx-x" role="group" aria-label="How many">${SX_XS.map((n) => `<button data-sx-x="${n}" aria-pressed="${n === SX.x}">×${n}</button>`).join("")}</span></div>
     <ul class="spec sx-specl" data-d="${d.id}" translate="no">${spec}</ul>
     ${SX.x > 1 && sxMl(d) ? `<p class="sx-tot">About ${sxMl(d) * SX.x} ml of liquid before ice${SX.x >= 6 ? ": batch it in a jug, then shake or pour a glass at a time" : ""}.</p>` : ""}
@@ -99,7 +106,7 @@ const sxOrder = (d) => (/^top/i.test(d.spec.at(-1) || "") || d.tags.includes("Fi
 const SX_BUILDS = ["Stir", "Build in the glass", "Shake together", "Top with fizz last"];
 function sxRoundHtml() {
   const ds = [...SX.round].map(([id, n]) => [D[id], n]).filter(([d]) => d).sort((a, b) => sxOrder(a[0]) - sxOrder(b[0]));
-  const back = `<button class="back" data-sx-round="back">‹ Drinks</button>`;
+  const back = SX_BACK;
   if (!ds.length) return `${back}<p class="note">The round is empty. Tap + next to a drink to add it.</p>`;
   const tally = (f) => { const m = new Map(); ds.forEach(([d, n]) => { const k = f(d); if (k && !/^none/i.test(k)) m.set(k, (m.get(k) || 0) + n); }); return [...m].map(([k, n]) => `${n} \u00d7 ${esc(k)}`).join(", "); };
   const shaken = ds.filter(([d]) => sxOrder(d) === 2).reduce((a, [, n]) => a + n, 0);
@@ -116,6 +123,84 @@ function sxRoundHtml() {
       ${shaken ? `<dt>Tins</dt><dd>${shaken} to shake: ${Math.ceil(shaken / 2)} tin${shaken > 2 ? "s" : ""}, up to 2 drinks a tin</dd>` : ""}</dl>
     <p class="note" style="margin-top:0">In making order: stirred, then built, then shaken so the foam is fresh, fizz last so it stays lively.</p>${cards}`;
 }
+const SX_BACK = `<button class="back" data-sx-view="drink">‹ Drinks</button>`;
+/* Batches: what the bar makes ahead, from its own cards (Bar Book's Prep and batches), plus sugar syrup, which every
+   sour needs. Each one scales and has one tap to date its label, when the bar's date labels list has it. Then every
+   other bar date label, so the iPad can do the lot. The use-by is today plus the days the label's set up with. */
+const SX_BATCH = () => [
+  { n: "Sugar syrup", lines: ["1 kg white caster sugar", "1 L hot water"], how: ["Stir until it's clear, leave it to cool, then bottle it."], note: "The standard 1:1 recipe, not from a Black Tap card. If the bar's bottle says otherwise, follow the bottle." },
+  ...DATA.prep.filter((p) => /^\d/.test(p.spec[0])).map((p) => ({ n: p.name, lines: p.spec.filter((l) => /^\d/.test(l)), how: p.spec.filter((l) => !/^\d/.test(l)), note: "From the bar's own card." })),
+  { n: "Funkin purées", lines: [], how: ["Ready made. Shake the pouch, open it and date it."] },
+];
+const sxNum = (n) => String(Math.round(n * 100) / 100);
+const sxScale = (l, k) => l.replace(/^(\d+(?:\.\d+)?)/, (m) => sxNum(+m * k));
+const sxLabelOf = (n) => LIVE.labels.find((x) => x.side === "bar" && x.on && x.item.trim().toLowerCase() === n.toLowerCase()) || null;
+function sxLabelHtml(x, batch) {
+  if (!LIVE.me) return "";
+  if (!x) return `<p class="st-s">No date label for this yet. A manager adds it in Shift, Labels, with the days it keeps.</p>`;
+  const due = labelDue(x), [tag, cls] = LB_DUE[due], done = SX.lbDone?.id === x.id;
+  const t = x.state === "open" ? (batch ? "Made a fresh one: change the label" : "Changed it") : batch ? "Made one: date the label" : "Opened one";
+  return `<div class="sx-lbr"><span class="pill ${cls}">${tag}</span><span class="st-s">${x.pending ? "Saving… · " : ""}${esc(labelLine(x))}</span>
+    ${done ? `<p class="sx-lbw">Write on the label: <b>Use by ${esc(dayName(SX.lbDone.useBy))}</b></p>` : `<button class="btn${["overdue", "today", "none"].includes(due) ? " pri" : ""}" data-sx-lb="${x.id}">${t}</button>`}</div>`;
+}
+function sxBatchHtml() {
+  const bs = SX_BATCH(), used = new Set(), xs = [0.5, 1, 2];
+  const cards = bs.map((b) => {
+    const x = sxLabelOf(b.n); if (x) used.add(x.id);
+    return `<div class="sx-rc"><div class="sx-rh"><b translate="no">${esc(b.n)}</b></div>
+      ${b.lines.length ? `<ul class="sx-bl" translate="no">${b.lines.map((l) => `<li>${esc(sxScale(l, SX.bx))}</li>`).join("")}</ul>` : ""}
+      ${b.how.map((h) => `<p class="sx-rmeth" translate="no">${esc(h)}</p>`).join("")}${b.note ? `<p class="st-s">${esc(b.note)}</p>` : ""}${sxLabelHtml(x, true)}</div>`;
+  }).join("");
+  const rest = LIVE.me ? sideLabels("bar").filter((x) => x.on && !used.has(x.id)) : [];
+  return `${SX_BACK}<div class="sx-k">House batches<span class="sx-x" role="group" aria-label="How much">${xs.map((n) => `<button data-sx-bx="${n}" aria-pressed="${n === SX.bx}">${n === 0.5 ? "½" : `×${n}`}</button>`).join("")}</span></div>
+    ${cards}
+    ${LIVE.me ? `<div class="sx-k">Every bar date label${rest.length ? ` · ${rest.length}` : ""}</div>
+      ${rest.map((x) => `<div class="sx-rc sx-lbrow"><b translate="no">${esc(x.item)}</b>${sxLabelHtml(x, false)}</div>`).join("") || `<p class="note">Nothing else on the bar's date labels. A manager sets them up in Shift, Labels.</p>`}
+      <p class="note">The pack's own use-by is sooner? Write that instead, and change the date in Shift, Labels.</p>`
+    : `<p class="note">Join the team on this iPad to date labels from here.</p>`}`;
+}
+function sxLabelGo(id) {
+  const x = LIVE.labels.find((l) => l.id === id); if (!x) return;
+  if (x.pending) return toast("Still saving the last change");
+  const act = x.state === "open" ? "changed" : "opened", useBy = addDays(shiftDay(), x.life);
+  haptic(); SX.lbDone = { id, useBy };
+  track(LIVE.api.label(x, act, { useBy }), `${x.item}: use by ${dayName(useBy)}`, "Not saved. Someone may have just changed it");
+  sxList(); sxSpec();
+}
+/* Quiz: Bar Book's own quiz questions (glass, ice, garnish, how it's made, how much, what goes in), one at a time.
+   The score is just for this go, on the screen: on a shared iPad it isn't anyone's. */
+const sxQuizNew = () => { SX.qz = { qs: quizMake(D, Math.random), i: 0, pick: null, right: SX.qz?.right || 0, done: SX.qz?.done || 0 }; };
+function sxQuizHtml() {
+  if (!SX.qz) sxQuizNew();
+  const z = SX.qz, q = z.qs[z.i], ok = z.pick === q.answer, picked = z.pick != null;
+  const opt = (o) => `<button class="btn wide${picked && o === q.answer ? " right" : picked && o === z.pick ? " wrong" : ""}" data-sx-qz="${esc(o)}"${picked ? " disabled" : ""}>${picked && o === q.answer ? "✓ " : picked && o === z.pick ? "✗ " : ""}${esc(o)}</button>`;
+  return `${SX_BACK}<div class="sx-k">Quick quiz<span class="sx-qs">${z.done ? `${z.right} of ${z.done} right` : "From our own specs"}</span></div>
+    <h3 class="sx-qn" translate="no">${esc(q.name)}</h3><p class="sx-qa">${esc(q.ask)}</p>${q.of ? `<p class="qz-of" translate="no">${esc(q.of)}</p>` : ""}
+    <div class="qz-opts"${q.app ? "" : ' translate="no"'}>${q.opts.map(opt).join("")}</div>
+    ${picked ? `<p class="qz-said" role="status"><b>${ok ? "Right." : "Not quite."}</b></p><div class="sx-acts"><button class="btn pri" data-sx-qznext>Next question</button><button class="btn" data-sx-id="${q.id}">Open the drink</button></div>` : ""}`;
+}
+/* Set up: the steps that make the iPad a station that stays on Bar Book, with what this iPad has done already ticked. */
+const sxStandalone = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+function sxSetupHtml() {
+  const row = (ok, t, s, act = "") => `<li class="${ok ? "ok" : ""}"><span class="sx-tick" aria-hidden="true">${ok ? "✓" : ""}</span><div><b>${t}</b><span class="st-s">${s}</span>${ok ? "" : act}</div></li>`;
+  return `${SX_BACK}<div class="sx-k">Set up this iPad</div>
+    <ul class="sx-set">
+      ${row(sxStandalone(), "On the Home Screen", "Open Bar Book in Safari, tap Share, then Add to Home Screen. Always open it from that icon.")}
+      ${row(!!LIVE.me, "Joined the team", "Open the team link from the staff group and pick a name. 86s, labels and photos then save to the team.", `<button class="btn" data-st-go="notices">Join the team</button>`)}
+      ${row(sharedDev, "Shared iPad on", "Asks who's using it, hides My pay, and a manager's code locks again after 5 minutes. Leaving the station, turning Shared off and Reset this phone need a manager's code.", `<button class="btn" data-shared-pick="on">Turn Shared on</button>`)}
+      ${row(!!lock, "Screen kept on", lock ? "Bar Book is keeping the screen on." : navigator.wakeLock ? "Tap anywhere and Bar Book keeps the screen on while it's open." : "This iPad doesn't let Bar Book keep the screen on, so the Auto-Lock step below matters.")}
+    </ul>
+    <div class="sx-k">In the iPad's Settings</div>
+    <ol class="sx-steps">
+      <li><b>Auto-Lock:</b> Settings, Display &amp; Brightness, Auto-Lock, Never. Some iPadOS versions let the screen sleep anyway, so do this even when the tick above shows.</li>
+      <li><b>Guided Access:</b> Settings, Accessibility, Guided Access, turn it on. In Passcode Settings, set a Guided Access passcode that only managers know. Set Display Auto-Lock to Never.</li>
+      <li><b>Lock it to Bar Book:</b> open Bar Book, press the top button three times (the Home button on an iPad that has one) and tap Start. Nobody can leave the app or open another one.</li>
+      <li><b>To get out:</b> press three times again, type the passcode and tap End.</li>
+      <li><b>Power:</b> keep it on charge at the bar.</li>
+    </ol>
+    <p class="note">After 10 quiet minutes the station goes dark but for the time and the 86 count, and a tap wakes it. It loads new versions of Bar Book by itself when nobody's using it.</p>`;
+}
+const SX_PANELS = { round: () => sxRoundHtml(), batch: sxBatchHtml, quiz: sxQuizHtml, setup: sxSetupHtml };
 // What's 86'd tonight, on the spec line itself: struck through, with the swap beside it.
 function sxMark(root) {
   for (const ul of root.querySelectorAll("ul.spec[data-d]")) for (const m of plOutOf(D[+ul.dataset.d]).miss) {
@@ -126,7 +211,7 @@ function sxMark(root) {
 }
 function sxSpec() {
   const el = $("#sx-spec"); if (!el || !sxWide()) return;
-  if (SX.view === "round") { el.innerHTML = sxRoundHtml(); el.dataset.id = "round"; sxMark(el); return; }
+  if (SX.view !== "drink") { const y = el.scrollTop, same = el.dataset.id === SX.view; el.innerHTML = SX_PANELS[SX.view](); el.dataset.id = SX.view; sxMark(el); el.scrollTop = same ? y : 0; return; }
   const d = D[SX.id] ?? D[SX.ids[0]]; if (!d) { el.innerHTML = ""; return; }
   const same = el.dataset.id === String(d.id), y = el.scrollTop;
   SX.id = d.id; el.dataset.id = d.id; el.innerHTML = sxSpecHtml(d); sxMark(el);
@@ -137,8 +222,11 @@ function sxSpec() {
 function sxTonight() {
   const el = $("#sx-live"); if (!el) return;
   $("#sx-tools").hidden = !LIVE.me;
-  if (!LIVE.me) { el.innerHTML = `<div class="st-tile st-join"><span class="st-k">Tonight</span><span class="st-s">Join the team on this iPad to see tonight's 86s, the close and the handover here, live.</span><button class="btn pri" data-st-go="notices">Join the team</button></div>`; return; }
-  const out = [...outNow()].sort(), today = shiftDay();
+  if (!LIVE.me) { $("#sx-86s").hidden = true; el.innerHTML = `<div class="st-tile st-join"><span class="st-k">Tonight</span><span class="st-s">Join the team on this iPad to see tonight's 86s, the close and the handover here, live.</span><button class="btn pri" data-st-go="notices">Join the team</button></div>`; return; }
+  const out = [...outNow()].sort(), today = shiftDay(), strip = $("#sx-86s");
+  // Across the top, so it's seen from anywhere behind the bar.
+  strip.hidden = !out.length;
+  strip.innerHTML = out.length ? `<b>86'd</b>${out.map((n) => `<span translate="no">${esc(n)}</span>`).join("")}` : "";
   const side = (m) => {
     const p = progress(MODE_LISTS[m].at(-1)), r = LIVE.reports.find((x) => x.side === m && reportDay(x) === today);
     const last = LIVE.reports.find((x) => x.side === m && !x.pending && reportDay(x) !== today);
@@ -160,10 +248,12 @@ function sxTonight() {
       ${ph.length >= LIVE.api.MAX_PHOTOS ? `<span class="st-s">${LIVE.api.MAX_PHOTOS} photos is the most for one handover.</span>`
         : `<div class="sx-phb"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Upload</label></div><span class="st-s">They go with tonight's handover. Notes and deleting: Shift, Closing.</span>`}</div>
     ${sharedDev ? "" : `<button class="st-hint" data-shared-pick="on">Shared iPad is off. Tap to turn it on: My pay hidden, codes lock after 5 minutes</button>`}`;
+  sxFit();
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn" data-sx-view="batch">Batches</button><button class="btn" data-sx-view="quiz">Quiz</button><button class="btn" data-sx-view="setup">Set up</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+    <div class="sx-86s" id="sx-86s" role="status" hidden></div>
     <div class="sx" id="sx">
       <aside class="sx-tonight" id="sx-tonight" aria-label="Tonight"><div class="sx-live" id="sx-live"></div>
         <div class="st-tile sx-tools" id="sx-tools" hidden><label class="st-k" for="sx-86q">Ran out of something?</label>
@@ -198,7 +288,11 @@ function sx86Go() {
   setOut(n, true); haptic(); inp.value = ""; inp.blur(); toast(`${n} 86'd for everyone`);
 }
 // On an iPad the columns scroll on their own and fill the screen to the bottom.
-function sxFit() { const el = $("#sx"); if (el && cur === "station") el.style.setProperty("--sxh", `${Math.max(320, innerHeight - el.getBoundingClientRect().top - 12)}px`); }
+function sxFit() {
+  const el = $("#sx"), net = document.body.classList.contains("neton") ? $("#net").offsetHeight : 0;
+  if (el && cur === "station") el.style.setProperty("--sxh", `${Math.max(320, innerHeight - el.getBoundingClientRect().top - 12 - net)}px`);
+}
+addEventListener("online", () => setTimeout(sxFit)); addEventListener("offline", () => setTimeout(sxFit));
 addEventListener("resize", () => { if (cur === "station") { sxFit(); sxList(); sxSpec(); } });
 function sxOpen(id) {
   SX.id = id; SX.view = "drink"; store.set("sx.id", id);
@@ -215,9 +309,26 @@ function sxRound(id, n) {
   sxBars(); sxList(); sxSpec();
 }
 function stationSet(on) { stationOn = on; store.set("station", on); }
+/* On a shared iPad, the things that take it out of being the station need a manager's code first: Exit bar station,
+   Shared off, and Reset this phone. Without it, the tap goes to where a manager unlocks it. A phone not on the team has
+   nobody to check a code, so it isn't held back. */
+const sxNeedsMgr = () => sharedDev && !!LIVE.me && !LIVE.admin;
+addEventListener("click", (e) => {
+  const t = e.target.closest?.('[data-sx-exit], [data-shared-pick="off"], #cp-go'); if (!t || !sxNeedsMgr()) return;
+  e.preventDefault(); e.stopImmediatePropagation(); haptic();
+  toast("Shared iPad: a manager unlocks it with their code first");
+  openAt("unlock");
+}, true);
 document.addEventListener("click", (e) => {
   if (cur !== "station") return;
-  if (e.target.closest("[data-shared-pick]")) return sxTonight();
+  if (e.target.closest("[data-shared-pick]")) { sxTonight(); sxList(); sxSpec(); return; }
+  const vw = e.target.closest("[data-sx-view]");
+  if (vw) { haptic(); SX.view = vw.dataset.sxView; sxBars(); sxList(); sxSpec(); if (!sxWide()) window.scrollTo(0, $("#sx-list").offsetTop - 80); return; }
+  const lb = e.target.closest("[data-sx-lb]"); if (lb) return sxLabelGo(lb.dataset.sxLb);
+  const bx = e.target.closest("[data-sx-bx]"); if (bx) { haptic(); SX.bx = +bx.dataset.sxBx; sxList(); sxSpec(); return; }
+  const qp = e.target.closest("[data-sx-qz]");
+  if (qp) { const z = SX.qz; if (z.pick == null) { z.pick = qp.dataset.sxQz; z.done++; if (z.pick === z.qs[z.i].answer) z.right++; haptic(); sxList(); sxSpec(); } return; }
+  if (e.target.closest("[data-sx-qznext]")) { haptic(); const z = SX.qz; z.i++; z.pick = null; if (z.i >= z.qs.length) sxQuizNew(); sxList(); sxSpec(); return; }
   if (e.target.closest("[data-sx-big]")) { SX.big = !SX.big; store.set("sx.big", SX.big); haptic(); document.body.classList.toggle("sxbig", SX.big); e.target.closest("[data-sx-big]").setAttribute("aria-pressed", SX.big); sxFit(); return; }
   const dm = e.target.closest("[data-sx-dm]"); if (dm) { curId = +dm.dataset.sxDm; return; }
   if (e.target.closest("[data-sx-86go]")) return sx86Go();
@@ -266,12 +377,17 @@ document.addEventListener("touchend", (e) => {
 // The 86s change everything on the station; anything else only the Tonight panel.
 function stationLive(what) {
   if (!$("#sx-list")) return renderStation();
-  if (what === "out" || what === "me" || what === "media") { sxList(); sxSpec(); }
+  if (what === "out" || what === "me" || what === "media" || SX.view === "batch" || SX.view === "setup") { sxList(); sxSpec(); }
   sxTonight();
 }
 // Left alone for 2 minutes: clear the search and the open drink and go back to the top, ready for the next person.
+const sxBusy = () => !$("#sheet").hidden || $("#help")?.hidden === false || $("#welcome")?.hidden === false || document.activeElement?.matches?.("input, textarea, select");
 setInterval(() => {
-  if (cur !== "station" || document.hidden) return;
+  if (document.hidden) return;
+  // Left on another page (Shift, Team, More) for 2 minutes: back to the station, unless something's open or being typed.
+  if (stationOn && cur !== "station" && sxIdle(2) && !sxBusy()) return show("station");
+  if (cur !== "station") return;
+  sxFit();
   sxTonight();
   if (Date.now() - lastTap < 2 * 6e4 || (!SX.q && SX.grp === "all" && SX.view === "drink" && $("#sheet").hidden && !$("#sx-list").scrollTop)) return;
   if (!$("#sheet").hidden) closeSheet();
@@ -288,7 +404,7 @@ store.set("sx.roundDay", sxBootDay);
 const sxIdle = (min) => Date.now() - lastTap >= min * 6e4;
 function sxCare() {
   if (!stationOn || document.hidden) return;
-  if (cur === "station" && !lock) keepAwake();
+  if (!lock) keepAwake();
   // After 10 quiet minutes the screen goes dark but for the time and tonight's 86 count; a tap wakes it.
   if (cur === "station" && sxIdle(10) && $("#sheet").hidden) sxDim(true);
   if (!sxIdle(5) || !$("#sheet").hidden || document.activeElement?.matches?.("input, textarea, select") || !navigator.onLine || !["station", "drinks"].includes(cur)) return;
@@ -310,7 +426,48 @@ document.addEventListener("visibilitychange", () => { if (!document.hidden && cu
 document.head.insertAdjacentHTML("beforeend", `<style>
 body.stmode .brandbar, body.stmode nav.tabs { display: none; }
 body.stmode main { padding-top: 0; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
-.sx-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0 8px; }
+.sx-top { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 12px; padding: 10px 0 8px; }
+.sx-tb { flex-wrap: wrap; justify-content: flex-end; }
+.sx-tb [data-sx-view][aria-pressed="true"] { border-color: var(--brass); color: var(--brass); }
+/* The 86 strip: tonight's 86s across the top, big enough to read from the well. */
+.sx-86s { display: flex; align-items: center; gap: 8px; overflow-x: auto; scrollbar-width: none; margin: 0 0 10px; padding: 8px 12px; border: 2px solid var(--warn); border-radius: 12px; background: var(--surface); font-size: 19px; font-weight: 700; white-space: nowrap; }
+.sx-86s::-webkit-scrollbar { display: none; }
+.sx-86s[hidden] { display: none; }
+.sx-86s b { color: var(--warn); text-transform: uppercase; letter-spacing: .06em; font-size: 15px; }
+.sx-86s span { padding: 2px 10px; border-radius: 999px; background: var(--bg); border: 1px solid var(--line); }
+body.sxbig .sx-86s { font-size: 24px; }
+/* Glass and garnish pictures on the spec. */
+.sx-gig div { display: flex; align-items: center; gap: 10px; }
+.sx-gig p { margin: 0; min-width: 0; }
+.sx-gig .pic { flex: none; width: 42px; height: 52px; color: var(--fg); }
+.sx-gig .pic.gar { width: 40px; height: 40px; }
+.sx-gig .pic svg { width: 100%; height: 100%; }
+@media (max-width: 1099px), (min-width: 1100px) and (max-width: 1250px) { .sx-gig div { flex-direction: column; align-items: flex-start; gap: 6px; } }
+body.sxbig .sx-gig .pic { width: 54px; height: 66px; } body.sxbig .sx-gig .pic.gar { width: 52px; height: 52px; }
+/* Batches, labels, quiz and set up. */
+.sx-bl { margin: 8px 0 0; padding-left: 20px; font-size: 20px; font-weight: 700; }
+.sx-bl li { padding: 2px 0; }
+.sx-lbr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 10px; }
+.sx-lbr .st-s { margin: 0; flex: 1 1 200px; }
+.sx-lbw { flex-basis: 100%; margin: 4px 0 0; font-size: 20px; }
+.sx-lbw b { color: var(--brass); }
+.sx-lbrow > b { font-size: 19px; }
+.sx-qs { font-size: 14px; letter-spacing: 0; text-transform: none; color: var(--muted); font-weight: 400; }
+.sx-qn { font-size: clamp(30px, 4vw, 44px); margin-top: 10px; }
+.sx-qa { font-size: 21px; margin: 6px 0 0; }
+.sx-spec .qz-opts .btn, #sx-list .qz-opts .btn { font-size: 19px; min-height: 56px; }
+.sx-set { list-style: none; margin: 8px 0 0; padding: 0; }
+.sx-set li { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.sx-set li b { display: block; font-size: 18px; }
+.sx-set li .st-s { display: block; margin-top: 2px; }
+.sx-set li .btn { margin-top: 8px; }
+.sx-tick { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 2px solid var(--line); display: grid; place-items: center; font-weight: 800; }
+.sx-set li.ok .sx-tick { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+.sx-steps { margin: 8px 0 0; padding-left: 22px; font-size: 17px; }
+.sx-steps li { padding: 6px 0; }
+/* No signal: the banner sits at the very bottom, as there's no tab bar here. */
+body.stmode .net { bottom: 0; padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px)); font-size: 17px; }
+body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-area-inset-bottom, 0px)); }
 .sx-top h2 { font-size: 28px; white-space: nowrap; }
 @media (max-width: 699px) { .sx-wide { display: none; } }
 .sx-exit { min-height: 44px; padding: 8px 14px; }
@@ -425,7 +582,8 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
 @media (min-width: 700px) {
   body.stmode main.gut { max-width: none; }
   .sx { grid-template-columns: minmax(300px, 360px) minmax(0, 1fr); grid-template-areas: "tonight tonight" "drinks spec"; grid-template-rows: auto minmax(0, 1fr); height: var(--sxh, 80vh); }
-  .sx-tonight { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  /* Three across, the rest a swipe away. Fixed columns here squashed the first three on top of each other. */
+  .sx-tonight { grid-template-columns: none; grid-auto-columns: minmax(230px, calc((100% - 20px) / 3)); }
   .sx-tonight .st-86 { grid-column: auto; }
   .sx-tonight .st-join { flex-direction: row; align-items: center; flex-wrap: wrap; }
   .sx-tonight .st-join .st-s { margin: 0; flex: 1; }
