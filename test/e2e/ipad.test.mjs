@@ -145,3 +145,58 @@ test("bar station for express service: jugs, alcohol-free swaps, rounds by build
   assert.equal(await p.locator("#welcome").count(), 0);
   assert.deepEqual(p.errs, []);
 });
+
+test("bar station extras: 86 strip, glass and garnish pictures, batches with one-tap labels, quiz, set up, manager lock, back after 2 minutes", async () => {
+  const p = await open(true);
+  await p.setViewportSize({ width: 1180, height: 820 });
+  await p.click("#w-ok");
+  await p.evaluate(() => show("station"));
+  // Glass and garnish pictures next to the words.
+  await p.fill("#sx-q", "mojito"); await p.keyboard.press("Enter");
+  assert.equal(await p.locator("#sx-spec .sx-gig .pic svg").count(), 2);
+  // On the team (stubbed): the 86 strip across the top, and a batch's label dated in one tap.
+  const calls = await p.evaluate(() => {
+    const calls = window.__calls = [];
+    Object.assign(LIVE, { me: { name: "Angel" }, ready: true, admin: false, labels: [{ id: "l1", item: "Sugar syrup", side: "bar", on: true, life: 7, state: "none", v: 1 }, { id: "l2", item: "Egg whites", side: "bar", on: true, life: 2, state: "open", useBy: shiftDay(), openedOn: shiftDay(), openedBy: "Emily", v: 3 }],
+      api: { ...LIVE.api, label: async (x, act, o) => { calls.push([x.id, act, o.useBy]); }, MAX_PHOTOS: 10 } });
+    LIVE.loaded.add("labels");
+    LIVE.out = new Set(["Lime juice"]); stationLive("out");
+    return calls;
+  });
+  assert.deepEqual(calls, []);
+  assert.match(await p.textContent("#sx-86s"), /86'd\s*Lime juice/);
+  await p.click('[data-sx-view="batch"]');
+  const t = await p.$eval("#sx-spec", (e) => e.innerText);
+  assert.match(t, /Sugar syrup[\s\S]*1 kg white caster sugar/);
+  assert.match(t, /Lemon Iced Tea[\s\S]*1200 ml black tea batch/);
+  assert.match(t, /EVERY BAR DATE LABEL[\s\S]*Egg whites/i);
+  await p.click('[data-sx-bx="2"]');
+  assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /2 kg white caster sugar/);
+  // Not opened yet: Opened. Open: Changed. Use-by is today plus the label's days.
+  await p.click('[data-sx-lb="l1"]');
+  assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /Write on the label: Use by/);
+  await p.click('[data-sx-lb="l2"]');
+  assert.deepEqual(await p.evaluate(() => window.__calls), await p.evaluate(() => [["l1", "opened", addDays(shiftDay(), 7)], ["l2", "changed", addDays(shiftDay(), 2)]]));
+  // Quiz: one question, a pick shows right or wrong, then the next.
+  await p.click('[data-sx-view="quiz"]');
+  await p.click("#sx-spec [data-sx-qz] >> nth=0");
+  assert.match(await p.textContent("#sx-spec .qz-said"), /Right\.|Not quite\./);
+  assert.match(await p.textContent("#sx-spec .sx-qs"), /of 1 right/);
+  await p.click("[data-sx-qznext]");
+  assert.equal(await p.locator("#sx-spec .qz-said").count(), 0);
+  // Set up: the Guided Access steps, with Shared ticked.
+  await p.click('[data-sx-view="setup"]');
+  assert.match(await p.$eval("#sx-spec", (e) => e.innerText), /Guided Access[\s\S]*three times/);
+  assert.equal(await p.locator("#sx-spec .sx-set li.ok b", { hasText: "Shared iPad on" }).count(), 1);
+  // Shared and on the team, not a manager: Exit needs a manager's code first.
+  await p.click("[data-sx-exit]");
+  assert.equal(await p.evaluate(() => [cur, stationOn].join()), "notices,true");
+  // Left on another page for 2 minutes: back to the station.
+  await p.evaluate(() => { lastTap = Date.now() - 3 * 6e4; });
+  await p.waitForFunction(() => cur === "station", null, { timeout: 20000 });
+  // A manager unlocked it: Exit works.
+  await p.evaluate(() => { LIVE.admin = true; });
+  await p.click("[data-sx-exit]");
+  assert.equal(await p.evaluate(() => stationOn), false);
+  assert.deepEqual(p.errs, []);
+});
