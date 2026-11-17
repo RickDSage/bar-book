@@ -33,22 +33,30 @@
   --paper: #f6f1e7;     /* pictures sit on a light card, like the printed guides */
   --shadow: rgba(0,0,0,.5);
 }
-/* Daylight: the same brass and wood, darkened so text keeps at least 4.5:1 contrast on paper. */
+/* Daylight: as punchy as dark. Near-black ink on warm paper, pure white cards that lift off it with a soft shadow,
+   and a deeper, richer amber. Every text colour here keeps at least 4.5:1 on both paper and white (WCAG AA). */
 :root[data-theme="light"] {
   color-scheme: light;
-  --bg: #f6f1e6;
-  --surface: #fffdf8;
-  --line: #d8cdb9;
-  --fg: #1f1b16;
-  --muted: #665c4e;
-  --brass: #8a5a0b;
-  --brass-ink: #fffaf0;
-  --warn: #b0361b;
-  --ok: #2d7a3a;
-  --cool: #2a5f9e;
-  --game: #6a3fb0;
-  --shadow: rgba(60,40,10,.18);
+  --bg: #f3ecdf;
+  --surface: #ffffff;
+  --line: #d6c8ae;
+  --fg: #14110d;
+  --muted: #5a4f40;
+  --brass: #a14f00;     /* 4.9:1 on paper, 5.8:1 on white, and white on it is 5.8:1 */
+  --brass-ink: #ffffff;
+  --warn: #b42318;
+  --ok: #17772f;
+  --cool: #1d4ed8;
+  --game: #6d28d9;
+  --shadow: rgba(70,40,5,.16);
+  --lift: 0 1px 2px rgba(70,40,5,.08), 0 3px 10px rgba(70,40,5,.07);
 }
+/* Depth: cards, tiles, groups and buttons sit on the page instead of melting into it. Dark mode has no --lift. */
+:root[data-theme="light"] :is(.card, .tile, .hub, .seg, .how, .sendsum, .sendpre, .search input) { box-shadow: var(--lift); }
+:root[data-theme="light"] :is(.chip, .btn, .round, .hbtn, .mult button):not([aria-pressed="true"]):not(.pri):not(:disabled) { background-color: var(--surface); box-shadow: 0 1px 2px rgba(70,40,5,.08); }
+:root[data-theme="light"] :is(.btn.pri, .chip[aria-pressed="true"], .seg button[aria-pressed="true"], .mult button[aria-pressed="true"]) { box-shadow: 0 2px 6px rgba(161,79,0,.28), inset 0 1px 0 rgba(255,255,255,.18); }
+:root[data-theme="light"] .chip { color: var(--fg); }
+:root[data-theme="light"] nav.tabs { box-shadow: 0 -2px 12px rgba(70,40,5,.08); }
 /* Black and gold: the owner's pick. Black, with gold for headings, tabs and buttons (gold on black is 9:1). */
 :root[data-theme="gold"] {
   --bg: #0a0a0a;
@@ -1032,7 +1040,7 @@ function applyTheme() {
   let t = "auto"; try { t = JSON.parse(localStorage.getItem("btbar.theme")) || "auto"; } catch {}
   const light = t === "light" || (t === "auto" && LIGHT.matches), theme = t === "gold" ? "gold" : light ? "light" : "dark";
   document.documentElement.dataset.theme = theme;
-  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", { light: "#f6f1e6", dark: "#15130f", gold: "#0a0a0a" }[theme]);
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", { light: "#f3ecdf", dark: "#15130f", gold: "#0a0a0a" }[theme]);
 }
 applyTheme(); LIGHT.addEventListener("change", applyTheme);
 </script>
@@ -4915,6 +4923,7 @@ const IC = {
   features: '<path d="M12 3l2.6 5.6L20 9.3l-4 4 1 5.7-5-2.8-5 2.8 1-5.7-4-4 5.4-.7z"/>',
   siri: '<path d="M12 3a3 3 0 0 1 3 3v6a3 3 0 0 1-6 0V6a3 3 0 0 1 3-3z"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   fun: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
+  replay: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/><path d="M10.5 9.5l4 2.5-4 2.5z"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
@@ -4935,6 +4944,8 @@ function renderInfo() {
     <div class="sec">Help</div>
     <div class="hub">
       ${hubRow("features", "data-guide", "Guide: how Bar Book works", "Your shift step by step, every section, and a search for anything")}
+      ${hubRow("replay", `data-walk-open="${mode}"`, "Replay the walkthrough", `Your ${mode} shift step by step, opening to handover`)}
+      ${hubRow("replay", "data-intro-open", "Replay the tour", `Everything Bar Book does, ${INTRO.length} short cards`)}
       ${hubRow("siri", "data-sc-open", "Siri and shortcuts", "\u201cHey Siri, Bar Book 86\u201d: open any page by voice or a tap on the back of the phone")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
     </div>
