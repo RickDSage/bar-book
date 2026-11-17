@@ -120,8 +120,9 @@ header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; backg
 .search { margin-top: 8px; display: flex; gap: 8px; }
 .search input { flex: 1; min-width: 0; font: inherit; font-size: 17px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; -webkit-appearance: none; appearance: none; }
 .search input::placeholder { color: var(--muted); }
-.chips { display: flex; gap: 8px; overflow-x: auto; padding-block: 10px 2px; scrollbar-width: none; margin-left: calc(-1 * max(16px, env(safe-area-inset-left, 0px))); margin-right: calc(-1 * max(16px, env(safe-area-inset-right, 0px))); padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-.chips::-webkit-scrollbar { display: none; }
+/* Chip rows wrap onto a second line instead of scrolling sideways, so no chip is ever cut off at the screen edge. */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 10px 2px; }
+.chips .chip { max-width: 100%; white-space: normal; text-align: start; }
 .chip { flex: none; min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 15px; white-space: nowrap; }
 .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); font-weight: 700; }
 
@@ -139,7 +140,7 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .row .g { width: 40px; height: 46px; color: var(--fg); }
 .row .g svg { width: 100%; height: 100%; }
 .row .n { font-weight: 700; font-size: 17px; }
-.row .s { color: var(--muted); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.row .s { color: var(--muted); font-size: 14px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .row > div { min-width: 0; }
 .price { font-weight: 700; text-align: right; white-space: nowrap; }
 .price i { display: block; font-style: normal; font-weight: 400; font-size: 11px; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
@@ -300,8 +301,6 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .calday[aria-pressed="true"].has::after { background: var(--brass-ink); }
 .calday:disabled { opacity: .3; }
 .payrt { float: right; font-weight: 600; font-variant-numeric: tabular-nums; }
-.recent.paytabs { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; margin-top: 10px; overflow: visible; }
-.recent.paytabs .chip { padding: 8px 2px; font-size: 14px; text-align: center; white-space: normal; line-height: 1.15; }
 .paysteps { margin: 8px 0 4px; padding-left: 22px; line-height: 1.5; }
 .paysteps li { margin: 4px 0; }
 .paysteps li:last-child { font-size: 18px; }
@@ -627,7 +626,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .cat > summary::-webkit-details-marker { display: none; }
 .cat > summary > span:first-child { flex: 1; min-width: 0; }
 .cat > summary b { display: block; font-size: 18px; }
-.cat > summary small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cat > summary small { display: block; margin-top: 2px; font-size: 13px; color: var(--muted); }
 .cat > summary::after { content: "›"; flex: none; font-size: 22px; color: var(--muted); transition: transform .15s; }
 .cat[open] > summary::after { transform: rotate(90deg); }
 .cat[open] > summary small { display: none; }
@@ -876,7 +875,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .pl-daily .k { font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--brass); font-weight: 700; }
 .pl-daily b { font-size: 18px; } .pl-daily small { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-daily .go { font-size: 28px; color: var(--brass); }
-.pl-bar { display: flex; gap: 6px; overflow-x: auto; padding: 8px 0 2px; scrollbar-width: none; }
+.pl-bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 2px; }
 .pl-bar .pl-fbtn { color: var(--fg); } .pl-bar .pl-fbtn span { color: var(--brass); font-weight: 700; }
 .pl-on { color: var(--brass); border-color: var(--brass); }
 .pl-panel { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 12px 12px; margin-top: 8px; }
@@ -1388,7 +1387,7 @@ $("#q").addEventListener("input", renderList);
    swipe on the page goes to the next or the previous part. */
 const jumpBox = () => (cur === "drinks" ? $("#list") : cur === "rapid" ? $("#rp-out") : null);
 const jumpGo = (a) => { haptic(); hdhSet(); a.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }); };
-document.addEventListener("click", (e) => { const b = e.target.closest(".azbar [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
+document.addEventListener("click", (e) => { const b = e.target.closest(".azbar [data-jump], .rpjump [data-jump]"); if (b) jumpGo(document.getElementById(b.dataset.jump)); });
 function jumpAt(box) {
   const line = $("#hdr").getBoundingClientRect().bottom + 60, ancs = [...box.querySelectorAll(".anc")];
   let i = 0; ancs.forEach((a, j) => { if (a.getBoundingClientRect().top <= line) i = j; });
@@ -4392,7 +4391,8 @@ function payInner() {
   const f = (k, label, hint = "", mode = "decimal") => `<label class="fld">${label}<input data-pay="${k}" inputmode="${mode}" value="${esc(pay[k])}"${hint ? ` placeholder="${hint}"` : ""}></label>`;
   const M = monthPay(pm), H = M.H, open = (k) => (paySec.has(k) ? " open" : ""), ns = Object.keys(pay.slips).length, xs = inM(pm);
   const panel = hf.open ? hfHtml() : slip.open ? slipPanelHtml() : slipTy.open ? slipTyHtml() : "";
-  const tabs = `<div class="recent paytabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button class="chip" role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}" aria-pressed="${payTab === k}">${t}</button>`).join("")}</div>`;
+  // The same tabs as Shift, under the same kind of page title.
+  const tabs = `<h2 class="pgt">My pay</h2><div class="ptabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}">${t}</button>`).join("")}</div>`;
   if (payTab === "months") return `${tabs}
     <div id="pay-months">${monthsHtml()}</div>
     <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-ty-open>Type it in</button><button class="btn" data-hf-open>Add hours</button></div>`;
