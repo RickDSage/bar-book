@@ -238,7 +238,8 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .djump button[aria-current="true"] { border-color: var(--brass); color: var(--brass); }
 .dpanel .recent { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 10px; margin-top: 8px; }
 .dpanel .recent .mini { flex: 1 1 100%; margin: 0; }
-#list .sec .ssend { float: right; font-family: var(--body); font-size: 13px; text-transform: none; color: var(--brass); font-weight: 600; padding: 6px 0 6px 12px; margin-top: -4px; }
+#list .sec .ssend { position: relative; float: right; font-family: var(--body); font-size: 13px; text-transform: none; color: var(--brass); font-weight: 600; padding: 6px 0 6px 12px; margin-top: -4px; }
+#list .sec .ssend::after { content: ""; position: absolute; inset: -8px -4px; }
 /* More: rows that open a page, like a phone's own settings. */
 .pgt { font-size: 28px; margin-top: 12px; }
 .hub { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
@@ -828,7 +829,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .prep .who { display: inline-block; width: 100%; font-size: 12.5px; color: var(--muted); }
 .issue .tags, .notice .tags { margin-top: 4px; display: flex; gap: 6px; flex-wrap: wrap; }
 .issue select { font: inherit; font-size: 16px; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; min-height: 40px; }
-.check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 16px; }
+.check { display: flex; align-items: center; gap: 10px; margin-top: 12px; font-size: 16px; min-height: 44px; } /* Apple's 44 pt tap size, for a thumb in a rush */
 .check input { width: 22px; height: 22px; accent-color: var(--brass); }
 /* Swipe between drinks: the page follows your finger */
 .sw { touch-action: pan-y; will-change: transform; }
@@ -1588,7 +1589,8 @@ function scaleQ(q) {
 function specRow(line) {
   const m = line.replace(/^batch:\s*/i, "").match(QTY) || line.match(/^(top(?: about)?(?: \d+ ml)?|half pint|half a|splash of|1 handful|side: \d+ ml|rim:|add to a|\d+(?: to \d+)? (?:mint |cucumber )?(?:leaves|slices)|1 bar spoon)\s+(.*)$/i);
   const [q, rest] = m ? [m[1], m[2]] : ["", line];
-  return `<li><span class="q">${esc(plOz(scaleQ(q)))}</span><span>${esc(rest)}</span></li>`;
+  // "Dash of lemonade" reads as Dash, lemonade: the "of" goes from the amount column.
+  return `<li><span class="q">${esc(plOz(scaleQ(q)).replace(/\s+of$/i, ""))}</span><span>${esc(rest)}</span></li>`;
 }
 // The method a step a line, as on the drink.
 const methodLines = (method) => method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i)
@@ -2538,7 +2540,7 @@ function groupsOf(k) {
 const openOf = (k, ids) => ids.filter((i) => ["todo", "doing", "blocked"].includes(statusOf(k, i)));
 function checklistHtml(k) {
   const p = progress(k), locked = isLocked(k), any = shown(k).some(([i]) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
-  const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn pri" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>
+  const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>
     <div class="ltools"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button><span></span></div>
     ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {

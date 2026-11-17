@@ -503,7 +503,9 @@ body.sxbig .sx-86s { font-size: 24px; }
 .sx-gig .pic { flex: none; width: 42px; height: 52px; color: var(--fg); }
 .sx-gig .pic.gar { width: 40px; height: 40px; }
 .sx-gig .pic svg { width: 100%; height: 100%; }
-@media (max-width: 1099px), (min-width: 1100px) and (max-width: 1250px) { .sx-gig div { flex-direction: column; align-items: flex-start; gap: 6px; } }
+/* Up to 1250 px (any iPad) the glass is already drawn big in the header, so the tiles drop their pictures and stay one
+   short row: the spec starts higher up the screen. */
+@media (max-width: 1250px) { .sx-gig .pic { display: none; } .sx-gig { margin-top: 12px; } }
 body.sxbig .sx-gig .pic { width: 54px; height: 66px; } body.sxbig .sx-gig .pic.gar { width: 52px; height: 52px; }
 /* Batches, labels, quiz and set up. */
 .sx-bl { margin: 8px 0 0; padding-left: 20px; font-size: 20px; font-weight: 700; }
