@@ -313,3 +313,23 @@ test("Bar 101 remembers what you know, asks the rest first, has its own speed dr
   assert.match((await M.evaluate(() => SHARE.training())).parts.find((p) => p.id === "b101").lines[0], /Sam Staff: 3 goes/);
   assert.deepEqual([...M.errs, ...S.errs], []);
 });
+
+test("Ready for Friday ticks itself off", async () => {
+  await resetEmulators();
+  const { O, M, S } = await team(browser, site, people);
+  const box = await card(O, "ready");
+  await waitText(O, box, /Firebase rules published.*match this version/);
+  assert.match(await text(O, box), /Maintenance's code To do|To do Maintenance's code/);
+  assert.match(await text(O, box), /This phone on the Home Screen/);
+  await O.click(`${box} [data-ready-bk]`);
+  await waitText(O, box, /Daily backups switched on Ticked/);
+  await waitText(O, box, /Nothing waiting to send Everything on this phone has reached the server/);
+  // A manager sees the same card; the rules and backups lines say they're for Maintenance's phone.
+  const mb = await card(M, "ready");
+  await waitText(M, mb, /Checked on Maintenance's phone/);
+  assert.equal(await M.$$eval(`${mb} [data-ready-bk]`, (x) => x.length), 0);
+  // Staff never see it.
+  assert.equal(await S.evaluate(() => CARDS().some((c) => c[0] === "ready")), false);
+
+  assert.deepEqual(O.errs, []); assert.deepEqual(M.errs, []); assert.deepEqual(S.errs, []);
+});

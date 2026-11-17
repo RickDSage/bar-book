@@ -5866,7 +5866,7 @@ const MGR_GROUPS = [
   ["Stock and the menu", ["order", "season", "venue"]],
   ["Training", ["training"]],
   ["People and codes", ["people", "names", "seniors", "mgr"]],
-  ["Safety net", ["history", "backup", "health"]],
+  ["Safety net", ["ready", "history", "backup", "health"]],
 ];
 function mgrGrouped(cards) {
   const left = new Map(cards.map((c) => [c[0], c])), out = [];
@@ -10439,7 +10439,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T18:43";
+const BUILD = "2026-11-17T19:34";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -10502,7 +10502,7 @@ function mgRestore() {
 
 /* ---------- Health check: is this phone working properly? ---------- */
 async function mgHealth() {
-  const A = A_(), standalone = matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const A = A_(), standalone = onHomeScreen();
   const est = await navigator.storage?.estimate?.().catch(() => null), kept = await navigator.storage?.persisted?.().catch(() => null);
   let ping = null, synced = null;
   if (A && LIVE.me && navigator.onLine) { ping = await A.ping().catch(() => -1); synced = await A.synced(); }
@@ -10523,6 +10523,7 @@ function healthHtml() {
     ${H.est ? row(null, "Space used on this phone", `${mb(H.est.usage || 0)}${H.kept ? ", kept by the phone" : ""}`) : ""}
     <div class="actions"><button class="btn pri" data-mg-reload="health">Check again</button>${sendBtn("health", "Send to maintenance")}<button class="btn" data-mg-reboot>Reload Bar Book</button></div>`;
 }
+const onHomeScreen = () => matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
 SHARE.health = () => {
   const H = MG.health || {};
   return { what: "Health check", title: `Bar Book health check · ${LIVE.me || "a phone"} · ${stamp(new Date())}`, head: [], parts: [{ id: "h", label: "This phone", one: true, lines: [
@@ -10532,6 +10533,41 @@ SHARE.health = () => {
     `Phone: ${navigator.userAgent.match(/\(([^)]+)\)/)?.[1] || "unknown"}`] }] };
 };
 
+/* ---------- Ready for Friday ----------
+   One look for the managers before the team starts using Bar Book: each line goes green by itself once it's done.
+   Backups is the one ticked by hand, because the app can't see the Firebase console. The rules and backups lines are
+   for maintenance, so a manager's phone says so instead of guessing. */
+async function mgReady() { const A = A_(); return { synced: A && LIVE.me && navigator.onLine ? await A.synced(3000) : null }; }
+function readySteps() {
+  const R = MG.ready || {}, own = LIVE.owner, mine = managersOnly().map((x) => x.name), miss = STAFF.mgr.filter((n) => !mine.includes(n));
+  const bk = store.get("readyBackup", "");
+  return [
+    { k: "rules", na: !own, t: "Firebase rules published", ok: own ? (LIVE.rulesOld === true ? false : LIVE.rulesOld === false ? true : null) : null,
+      s: !own ? "Checked on Maintenance's phone" : LIVE.rulesOld === true ? "The rules in the Firebase console are older than this version: some things will be refused. Open the rules, copy all of it, then in the Firebase console: Firestore Database, Rules, paste, Publish." : LIVE.rulesOld === false ? "The rules in the console match this version" : "Checking… (needs signal)",
+      act: own && LIVE.rulesOld === true ? `<a class="btn" href="firestore.rules.txt" target="_blank" rel="noopener">Open the rules</a>` : "" },
+    { k: "you", t: "Maintenance's code", ok: !!ownerEntry(), s: ownerEntry() ? "Set" : "Not set yet", act: own && !ownerEntry() ? `<button class="btn" data-goto="setup">Set up codes ›</button>` : "" },
+    { k: "mgr", t: "Every manager's code", ok: STAFF.mgr.length > 0 && !miss.length,
+      s: !STAFF.mgr.length ? "No managers in Names to pick from yet" : miss.length ? `Still to set: ${miss.map(esc).join(", ")}` : `All set: ${mine.map(esc).join(", ")}`, act: own && (miss.length || !STAFF.mgr.length) ? `<button class="btn" data-goto="setup">Set up codes ›</button>` : "" },
+    { k: "team", t: "Team code", ok: suSteps()[2][2], s: suSteps()[2][2] ? "Set. Give it out in person, never in a message" : "Not set from Bar Book yet", act: own && !suSteps()[2][2] ? `<button class="btn" data-goto="setup">Set up codes ›</button>` : "" },
+    { k: "backup", na: !own, t: "Daily backups switched on", ok: own ? !!bk : null,
+      s: !own ? "Ticked on Maintenance's phone" : bk ? `Ticked ${esc(bk)}` : "Firebase console: Firestore Database, Disaster recovery, daily backups kept 7 days. Bar Book can't see the console, so tick it once it's on.",
+      act: own ? `<button class="btn" data-ready-bk>${bk ? "Untick" : "✓ It's on"}</button><button class="btn" data-goto="backup">Save a backup file too ›</button>` : "" },
+    { k: "home", t: "This phone on the Home Screen", ok: onHomeScreen(), s: onHomeScreen() ? "Opened from the icon, so the phone keeps its data" : "Open Bar Book in Safari, tap Share, then Add to Home Screen, and open it from the icon from now on" },
+    { k: "queue", t: "Nothing waiting to send", ok: unsent ? false : R.synced == null ? null : R.synced,
+      s: unsent ? `${plural(unsent, "change")} still sending` : R.synced === true ? "Everything on this phone has reached the server" : R.synced === false ? "Some changes are still waiting. Find signal, then Check again" : "Checking… (needs signal)" },
+    { k: "update", t: "Bar Book up to date", ok: $("#upd").hidden, s: $("#upd").hidden ? `Version ${esc(BUILD)}` : "A newer version is ready: tap the banner at the top to load it" },
+  ];
+}
+const readyCount = () => { const st = readySteps().filter((x) => !x.na); return [st.filter((x) => x.ok === true).length, st.length]; };
+function readyHtml() {
+  if (!MG.ready) mgLoad("ready", mgReady, "ready");
+  const st = readySteps(), [n, of] = readyCount();
+  return `<div class="cprog"><b>${n} of ${of} ready</b><span class="dots" aria-hidden="true">${st.filter((x) => !x.na).map((x) => `<i class="${x.ok ? "ok" : ""}"></i>`).join("")}</span></div>
+    ${st.map((x) => `<div class="hrow" data-ready="${x.k}"><span class="pill ${x.ok === true ? "ok" : x.ok === false ? "no" : ""}">${x.ok === true ? "✓ Done" : x.ok === false ? "To do" : "·"}</span><div><b>${x.t}</b><div class="s">${x.s}</div>${x.act ? `<div class="actions">${x.act}</div>` : ""}</div></div>`).join("")}
+    ${n === of ? `<p class="qz-got">✅ Ready. Every line on this phone is green.</p>` : ""}
+    <div class="actions"><button class="btn pri" data-mg-reload="ready">Check again</button></div>
+    <p class="note">Each phone checks itself: the Home Screen, sending and version lines are for this phone. Ask each manager to open this card on theirs.</p>`;
+}
 /* ---------- Pre-shift brief ----------
    At the top of Morning: one look before the doors open, made from what's already in Bar Book. Nobody writes it. */
 function briefParts(side = mode) {
@@ -10759,10 +10795,10 @@ body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background
 
 /* ---------- Where it goes on the Team page ---------- */
 Object.assign(TC_SUB, { week: "Most 86'd, closes not fully done, late labels", pilot: "Week by week since launch, to show your manager", lblog: "Every date label tap, for an EHO visit", training: "Quiz scores, speed drills, sign-off on the house cocktails",
-  history: "Undo changes to date labels and added items", setup: "Your code, the managers' codes, the team code, then check they work", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
+  history: "Undo changes to date labels and added items", setup: "Your code, the managers' codes, the team code, then check they work", ready: "Rules, codes, backups and this phone, ticked off by themselves", backup: "Save everything to a file, and put it back", health: "Signal, saving, version: is this phone OK?" });
 function mgCards() {
   if (!MG_READY) return [];
-  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml]] : [];
+  return LIVE.admin ? [...(LIVE.owner ? [["setup", "Set up codes", setupHtml, (() => { const st = suSteps(), n = st.filter((x) => x[2]).length; return n === st.length ? { t: "✓ all set" } : { t: `${n} of ${st.length}`, hot: 1 }; })()]] : []), ["week", "Weekly summary", weekHtml], ["pilot", "Pilot results", pilotHtml], ["lblog", "Date label record", lbLogHtml], ["training", "Training", trainingHtml], ["history", "Change history", historyHtml], ["backup", "Backup and restore", backupHtml], ["ready", "Ready for Friday", readyHtml, (() => { const [n, of] = readyCount(); return n === of ? { t: "✓ ready" } : { t: `${n} of ${of}`, hot: 1 }; })()]] : [];
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
@@ -10772,13 +10808,14 @@ FEATURES.push(
   { g: "Team", k: "training", adm: 1, n: "Training", go: "training", team: 1, what: "Quiz and speed drill scores for everyone, leaderboards, and sign-off on the house cocktails by a manager.", mgr: "Sign off each house cocktail once you've watched it made to spec." },
   { g: "Team", k: "history", adm: 1, n: "Change history", go: "history", team: 1, what: "The latest changes to date labels and added items, with who and when.", mgr: "Undo a label change, or put back a label or item removed by mistake." },
   { g: "Team", k: "setup", own: 1, n: "Set up codes", go: "setup", team: 1, what: "For Maintenance: your code, each manager's code and the team code on one screen, then a check that each one works.", mgr: "Do it once at the start, and again whenever someone leaves." },
+  { g: "Team", k: "ready", adm: 1, n: "Ready for Friday", go: "ready", team: 1, what: "One checklist before the team starts: rules published, every code set, backups on, this phone on the Home Screen, nothing waiting to send and the app up to date.", mgr: "Each line goes green by itself. Tick backups once they're on in the Firebase console." },
   { g: "Team", k: "backup", adm: 1, n: "Backup and restore", go: "backup", team: 1, what: "Everything Bar Book keeps for the team, saved as one file.", mgr: "Save one now and then. Restore shows what's different and only adds or changes, never deletes." },
   { g: "Team", k: "health", n: "Health check", go: "health", what: "Whether this phone is online, saving, up to date and ready with no signal.", staff: "Something not syncing? Check here, then send it to maintenance." });
-Object.assign(PLACE_KW, { week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline" });
+Object.assign(PLACE_KW, { week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline", ready: "ready friday launch checklist go live rules backup" });
 
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
-  if ((x = t("[data-mg-reload]"))) { const k = x.dataset.mgReload, card = { week: "week", pilot: "pilot", tr: "training", hist: "history", health: "health" }[k]; MG[k] = k === "tr" ? { xs: null } : null; renderCard(card); return; }
+  if ((x = t("[data-mg-reload]"))) { const k = x.dataset.mgReload, card = { week: "week", pilot: "pilot", tr: "training", hist: "history", health: "health", ready: "ready" }[k]; MG[k] = k === "tr" ? { xs: null } : null; renderCard(card); return; }
   if ((x = t("[data-mg-lb]"))) { const [k, v] = x.dataset.mgLb.split(":"); MG.lb[k] = k === "days" ? +v : v; if (k === "days") MG.lb.xs = null; haptic(); renderCard("lblog"); return; }
   if (t("[data-mg-csv]")) { mgSaveFile(`date-label-record-${shiftDay()}.csv`, "text/csv", toCsv(["Date", "Time", "Who", "Side", "Item", "What", "Use by", "Use by before", "Days late", "Note"], mgCsvRows())); return; }
   if (t("[data-mg-pilot-img]")) { haptic(); mgPilotImage().then((b) => mgSaveFile(`bar-book-pilot-${shiftDay()}.jpg`, "image/jpeg", b)); return; }
@@ -10789,6 +10826,7 @@ document.addEventListener("click", (e) => {
   if ((x = t("[data-hi-lb-undo]"))) { mgLbUndo(x.dataset.hiLbUndo); return; }
   if ((x = t("[data-hi-lb-back]"))) { mgLbBack(x.dataset.hiLbBack); return; }
   if ((x = t("[data-hi-it]"))) { mgItBack(x.dataset.hiIt); return; }
+  if (t("[data-ready-bk]")) { haptic(); store.set("readyBackup", store.get("readyBackup", "") ? "" : dayName(shiftDay())); renderCard("ready"); return; }
   if ((x = t("[data-mg-backup]"))) { mgBackup(x); return; }
   if (t("[data-bk-go]")) { mgRestore(); return; }
   if (t("[data-mg-reboot]")) { location.reload(); }
@@ -11733,6 +11771,9 @@ const HELP = {
   tell: { t: "App feedback", what: "What's missing from Bar Book, what to add, or what's wrong in it.",
     how: ["Pick one, say what it is, and send."],
     behind: ["Only maintenance reads these. You see yours again, marked Done when it's sorted."] },
+  ready: { t: "Ready for Friday", what: "One checklist before the team starts using Bar Book. Each line goes green by itself once it's done.",
+    how: ["Work down the lines marked To do. Set up codes › goes straight to the codes.", "Rules: if they're older than the app, Open the rules, copy all of it and publish it in the Firebase console.", "Backups: switch on daily backups in the Firebase console, then tap It's on.", "Check again after fixing anything."],
+    behind: ["Rules and codes are read from the server. Home Screen, sending and version are checked on this phone only, so each manager opens it on theirs.", "Bar Book can't see the Firebase console, so backups is the one line ticked by hand, on Maintenance's phone."] },
   sent: { t: "Everything sent", what: "A copy of everything the team sends from Bar Book.",
     how: ["Tap one to read it again."],
     behind: ["Copied when someone sends from the Send page: WhatsApp, email, the share sheet, a picture or print.", "Rate the shift comes with no name. My pay, payslips, hours, off sick, incidents and the Bar Book link are never copied.", "Only the managers see this."] },
@@ -11803,7 +11844,7 @@ const INTRO = [
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Hand over saves it for the morning team and opens WhatsApp with the whole close in tick boxes.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift and Who to call."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "On an iPhone with photos: Copy the words, then Send with photos, then paste the words as the caption.", more: ["send"] },
-  { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, and Backup and restore."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["inbox", "replay", "order", "season"] },
+  { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, and Backup and restore.", "Safety net, Ready for Friday: rules, codes, backups and this phone, each going green by itself once it's done."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["inbox", "replay", "order", "season", "ready"] },
   { t: "Learn it, and look after yourself", how: ["More, Training, Practise specs: flashcards, tonight's quiz (the same 10 for everyone), speed drills against the clock, and the new starter path.", "Bar 101: what to say when a guest asks, from our own back bar. It remembers what you know and quizzes you on the rest.", "More, Training, Games and drills: the daily drill, quiz night and Bar phrases. More, Cheat sheets: a page per kind of drink, to print or send.", "My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
   { t: "Tips and tricks", how: ["The ? at the top right opens the Guide: every section, and a search for anything (\u201chow do I make a mojito\u201d). \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Hands full? Tap 🎤 and say it: “86 limes” or “how do I make a Negroni”. It asks before it changes anything.", "More, This phone: one-hand mode, accessible mode, sounds and light or dark.", "Tap any small ? for how that part works and what happens behind the scenes.", "Needs you now: a banner at the top when you open the app, for a label due, last night's handover and more. Tap it to go there, × to hide it.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "More, under Help, has Replay the tour and Replay the walkthrough whenever you want them. Hide the ? buttons there too.", more: ["voice", "phone", "drafts"] },
 ];
@@ -11828,7 +11869,7 @@ const HELP_AT = [
   ["#shift-title", () => (!LIVE.me ? "join" : { morning: "morning", labels: "labels", stock: "stock", close: "closing", fclose: "closing", send: "handover" }[pane] || "shift")],
   ["#clear-all", "clearall", "after"],
   ["#v-notices .fbbox > h2", "join"],
-  ...["ask", "rate", "issues", "tell", "sent", "inbox", "people", "incident", "replay", "order", "season", "venue"].map((k) => [`#v-notices [data-card="${k}"] > summary`, k]),
+  ...["ask", "rate", "issues", "tell", "sent", "inbox", "people", "incident", "replay", "order", "season", "venue", "ready"].map((k) => [`#v-notices [data-card="${k}"] > summary`, k]),
   [".draftbar > span", "drafts"],
   ["#send > h2", "send"],
   ["#sheet .pl-spech", "drink"],
@@ -12178,7 +12219,7 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", sent: "sent", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
+const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", ready: "ready", sent: "sent", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [
@@ -12188,7 +12229,7 @@ const FEAT_SECS = [
   ["Stock", ["count", "order"]],
   ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
   ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "sent", "tell"]],
-  ["Managers", ["week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
+  ["Managers", ["ready", "week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
   ["More", ["pay", "info", "siri", "health"]],
 ];
 const SEC_OF = Object.fromEntries(FEAT_SECS.flatMap(([g, ks]) => ks.map((k) => [k, g])));
