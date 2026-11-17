@@ -136,9 +136,9 @@ function pkCats() {
   $("#pk-cats").innerHTML = PK_CATS.filter(([c]) => c === "all" || c === PK.cat || n(c)).map(([c, t]) => `<button class="chip" data-pk-cat="${c}" aria-pressed="${c === PK.cat}">${t} <span class="cn">${n(c)}</span></button>`).join("");
 }
 function pkSub(x) {
-  if (x.d != null) { const o = plOutOf(D[x.d]); return isOut(x.n) ? `86'd${outBy(x.n) ? ` by ${outBy(x.n)}` : ""}` : o.miss.length ? `${o.ok ? "Swap" : "Can't make"}: no ${esc(o.miss.map((m) => m.it.n).join(", "))}` : `Drink · ${esc(x.g)}`; }
+  if (x.d != null) { const o = plOutOf(D[x.d]); return isOut(x.n) ? `86'd${outByText(x.n) ? ` by ${esc(outByText(x.n))}` : ""}` : o.miss.length ? `${o.ok ? "Swap" : "Can't make"}: no ${esc(o.miss.map((m) => m.it.n).join(", "))}` : `Drink · ${esc(x.g)}`; }
   const u = pkUses(x), uses = u ? ` · ${plural(u, "drink")} use it` : "";
-  if (isOut(x.n) || (!LIVE.me && OUT_LOCAL.has(x.n))) { const sw = pkSwap(x.n); return `86'd${outBy(x.n) ? ` by ${outBy(x.n)}` : ""}${uses}${sw ? `<br><b class="pk-sw">${esc(sw)}</b>` : ""}`; }
+  if (isOut(x.n) || (!LIVE.me && OUT_LOCAL.has(x.n))) { const sw = pkSwap(x.n); return `86'd${outByText(x.n) ? ` by ${esc(outByText(x.n))}` : ""}${uses}${sw ? `<br><b class="pk-sw">${esc(sw)}</b>` : ""}`; }
   return `${esc(PK_CAT[x.c])}${uses}`;
 }
 function pkRow(x) {

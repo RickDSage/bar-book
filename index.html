@@ -9413,9 +9413,9 @@ function pkCats() {
   $("#pk-cats").innerHTML = PK_CATS.filter(([c]) => c === "all" || c === PK.cat || n(c)).map(([c, t]) => `<button class="chip" data-pk-cat="${c}" aria-pressed="${c === PK.cat}">${t} <span class="cn">${n(c)}</span></button>`).join("");
 }
 function pkSub(x) {
-  if (x.d != null) { const o = plOutOf(D[x.d]); return isOut(x.n) ? `86'd${outBy(x.n) ? ` by ${outBy(x.n)}` : ""}` : o.miss.length ? `${o.ok ? "Swap" : "Can't make"}: no ${esc(o.miss.map((m) => m.it.n).join(", "))}` : `Drink · ${esc(x.g)}`; }
+  if (x.d != null) { const o = plOutOf(D[x.d]); return isOut(x.n) ? `86'd${outByText(x.n) ? ` by ${esc(outByText(x.n))}` : ""}` : o.miss.length ? `${o.ok ? "Swap" : "Can't make"}: no ${esc(o.miss.map((m) => m.it.n).join(", "))}` : `Drink · ${esc(x.g)}`; }
   const u = pkUses(x), uses = u ? ` · ${plural(u, "drink")} use it` : "";
-  if (isOut(x.n) || (!LIVE.me && OUT_LOCAL.has(x.n))) { const sw = pkSwap(x.n); return `86'd${outBy(x.n) ? ` by ${outBy(x.n)}` : ""}${uses}${sw ? `<br><b class="pk-sw">${esc(sw)}</b>` : ""}`; }
+  if (isOut(x.n) || (!LIVE.me && OUT_LOCAL.has(x.n))) { const sw = pkSwap(x.n); return `86'd${outByText(x.n) ? ` by ${esc(outByText(x.n))}` : ""}${uses}${sw ? `<br><b class="pk-sw">${esc(sw)}</b>` : ""}`; }
   return `${esc(PK_CAT[x.c])}${uses}`;
 }
 function pkRow(x) {
@@ -10375,7 +10375,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-17T17:59";
+const BUILD = "2026-11-17T18:02";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
