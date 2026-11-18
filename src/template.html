@@ -5993,6 +5993,42 @@ function namesHtml() {
 function saveNames(next, ok) {
   return track(LIVE.api.saveNames(next).then(() => { Object.assign(STAFF, next); store.set("names", next); renderCard("names"); }), ok, "Not saved. Check the signal");
 }
+/* Start again (Maintenance only): after testing, wipe everything the team has logged so Bar Book starts fresh on every
+   phone. Two taps: 1. save a full backup file; 2. within SA_MINS, type START AGAIN. No undo: the backup is the record.
+   What goes and stays is START_WIPE in live-src.js, and firestore.rules lets only the owner delete those. */
+const SA_MINS = 15;
+let saBackupAt = 0;
+const saReady = () => Date.now() - saBackupAt < SA_MINS * 6e4;
+const SA_GOES = "every 86 and the 86 log, closing ticks and procedures, handovers and drafts, closing reports and every photo, Log it lines, restocks, stock counts and deliveries, issues, the inbox and Tell Derek, everything sent, closing times, Seen by, quiz and drill scores and sign-offs. Open date labels go back to not opened";
+const SA_STAYS = "the team and everyone's codes, the drinks, the closing lists, date labels and their shelf lives, added items, barcodes, the stock count setup and reference photos, drink photos and videos, names, numbers, venue times and the football";
+function startAgainHtml() {
+  return `<div class="h3" id="sa-h">Start again</div><p class="note">After testing: wipes everything the team has logged, on every phone, so Bar Book starts fresh. <b>Goes for good:</b> ${SA_GOES}. <b>Stays:</b> ${SA_STAYS}.</p>
+    <div class="actions">${saReady() ? `<button class="btn danger" id="sa-go">2. Wipe it all and start again</button>` : `<button class="btn" id="sa-backup">1. Save a backup first</button>`}</div>
+    ${saReady() ? `<p class="note">Backup saved. Step 2 is open for ${SA_MINS} minutes.</p>` : ""}`;
+}
+async function saBackup(btn) {
+  if (!navigator.onLine) return toast("Needs signal. Try again on Wi-Fi or 5G");
+  btn.disabled = true; btn.textContent = "Reading everything…";
+  try {
+    const data = await LIVE.api.backupAll();
+    await mgSaveFile(`bar-book-before-start-again-${shiftDay()}.json`, "application/json", mgJson({ app: "Black Tap Bar Book", kind: "backup", version: BUILD, made: new Date().toISOString(), by: LIVE.me, data }));
+    saBackupAt = Date.now(); store.set("lastBackup", saBackupAt); toast("Backup saved. Now step 2");
+  } catch { toast("Couldn't read everything. Check your signal and try again"); }
+  renderCard("mgr");
+}
+async function saGo(btn) {
+  if (!navigator.onLine) return toast("Needs signal. Try again on Wi-Fi or 5G");
+  const t = prompt(`This wipes it on every phone and can't be undone (your backup file is the copy).\n\nGoes: ${SA_GOES}.\n\nType START AGAIN to wipe it.`);
+  if (t == null) return;
+  if (t.trim().toUpperCase() !== "START AGAIN") return toast("Nothing wiped. Type START AGAIN to go ahead");
+  btn.disabled = true; btn.textContent = "Wiping…";
+  try {
+    const n = await LIVE.api.startAgain((k) => { btn.textContent = `Wiping… ${k}`; });
+    saBackupAt = 0; undoClear = null;
+    toast(`Done: ${plural(n, "record")} wiped. Bar Book is ready to start again`);
+  } catch { toast("Stopped part way, maybe the signal. Tap it again to finish"); }
+  renderCard("mgr"); renderTally();
+}
 function mgrHtml() {
   const g = LIVE.gate || { tries: 0 }, gw = LIVE.api.gateWait(g);
   return `${LIVE.rulesOld ? `<p class="note"><b>The Firebase rules are older than this version of the app</b>, so some things will be refused. Open firestore.rules.txt on the Bar Book site, copy all of it, and paste it into the Firebase console: Firestore Database, Rules, Publish.</p>` : ""}<div class="h3">Team code</div>
@@ -6003,7 +6039,7 @@ function mgrHtml() {
     <p class="note">${g.tries ? `${plural(g.tries, "wrong team code")} since the last phone joined. ${gw === Infinity ? "<b>Joining is locked</b>: no phone can join until you unlock it." : gw ? `Next try allowed in ${gw} min.` : ""}` : "No wrong team codes since the last phone joined."} 10 wrong codes slow joining to one try every 5 minutes for everyone; ${LIVE.api.GATE_MAX} lock it until you unlock it here.</p>
     ${g.tries ? `<div class="actions"><button class="btn pri" id="gate-reset">Unlock joining</button></div>` : ""}
     ${LIVE.owner ? `<div class="h3">Master clear</div><p class="note">Clears both closing lists, the 86 board and restock requests for everyone, and marks the inbox done. Open issues, the inbox's messages and sent handovers stay. Undo clear on Shift puts it back for 15 minutes.</p>
-      <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>` : ""}${LIVE.username ? `<div class="h3">Maintenance password</div><p class="note">Only for getting back in if your code gets locked.</p><label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
+      <div class="actions"><button class="btn danger" id="master-clear">Master clear</button></div>${startAgainHtml()}` : ""}${LIVE.username ? `<div class="h3">Maintenance password</div><p class="note">Only for getting back in if your code gets locked.</p><label class="fld">New password (6 or more characters)<input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
     <div class="actions"><button class="btn" id="pw-go">Change my password</button></div>` : ""}`;
 }
 // The top of the Manager section: tonight at a glance, for someone who isn't on the bar or the floor. Everything comes
@@ -6414,6 +6450,8 @@ $("#v-notices").addEventListener("click", async (e) => {
     return;
   }
   if (b("#master-clear")) { if (LIVE.owner) clearAll(true); return; }
+  if ((x = b("#sa-backup"))) { if (LIVE.owner) saBackup(x); return; }
+  if ((x = b("#sa-go"))) { if (LIVE.owner) saGo(x); return; }
   if (b("#pw-go")) {
     const pw = $("#pw-new").value; if (pw.length < A.PASSWORD_MIN) return toast(`At least ${A.PASSWORD_MIN} characters`);
     return track(A.changePassword(pw).then(() => ($("#pw-new").value = "")), "Password changed", "Not changed. Log out and in again, then try again");

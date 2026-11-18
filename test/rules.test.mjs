@@ -8,7 +8,7 @@ import fs from "node:fs";
 import { initializeTestEnvironment, assertSucceeds, assertFails } from "@firebase/rules-unit-testing";
 import {
   doc, getDoc, getDocs, setDoc, updateDoc, deleteDoc, addDoc, collection, query, where, orderBy, limit,
-  writeBatch, serverTimestamp, Timestamp, deleteField, getCountFromServer, FieldPath,
+  writeBatch, serverTimestamp, Timestamp, deleteField, getCountFromServer, FieldPath, collectionGroup,
 } from "firebase/firestore";
 
 const [host, port] = (process.env.FIRESTORE_EMULATOR_HOST || "127.0.0.1:8080").split(":");
@@ -685,14 +685,16 @@ describe("tonight's tasks: statuses, with an event for every change", () => {
     await fails(task(db("staff2"), "staff2", "close", 12, "doing", { task: { v: 9 }, event: { v: 9 }, eventId: `t-${today()}-close-12-9` }), "jumping a version");
     assert.deepEqual((await eventsOf("close-12")).map((e) => e.to), ["doing", "done", "todo"]);
   });
-  test("nobody deletes a task, procedure or event, or edits an event, the owner included", async () => {
+  test("nobody edits an event, the owner included; only the owner's Start again deletes a task, procedure or event", async () => {
     await assertSucceeds(task(db("staff1"), "staff1", "open", 2, "done"));
     await assertSucceeds((await runBatch(db("staff1"), "staff1", "open", "started")).commit());
     for (const who of ["staff1", "mgr1", "owner1"]) {
       const d = db(who);
-      await fails(deleteDoc(doc(d, "shift", today(), "tasks", "open-2")), `${who} deletes a task`);
-      await fails(deleteDoc(doc(d, "shift", today(), "runs", "open")), `${who} deletes a procedure`);
-      await fails(deleteDoc(doc(d, "events", `t-${today()}-open-2-1`)), `${who} deletes an event`);
+      if (who !== "owner1") {
+        await fails(deleteDoc(doc(d, "shift", today(), "tasks", "open-2")), `${who} deletes a task`);
+        await fails(deleteDoc(doc(d, "shift", today(), "runs", "open")), `${who} deletes a procedure`);
+        await fails(deleteDoc(doc(d, "events", `t-${today()}-open-2-1`)), `${who} deletes an event`);
+      }
       await fails(updateDoc(doc(d, "events", `t-${today()}-open-2-1`), { note: "Changed" }), `${who} edits an event`);
     }
   });
@@ -905,11 +907,11 @@ describe("date labels: managers keep the list, anyone opens, changes or bins one
     await fails((await labelBatch(db("mgr1"), "mgr1", "added", { id, l: { v: 2 }, event: { v: 2 }, eventId: `l-${id}-2` })).b.commit(), "starting at version 2");
     await assertSucceeds(act("mgr1", "added", { def: { item: "Philly cheese", side: "floor", life: 365, on: false } }));
   });
-  test("nobody edits or deletes a label's history, the owner included", async () => {
+  test("nobody edits a label's history, the owner included; only Start again deletes it", async () => {
     const id = await added();
     for (const uid of ["staff1", "mgr1", "owner1"]) {
       await fails(updateDoc(doc(db(uid), "events", `l-${id}-1`), { name: "Someone Else" }), `${uid} editing an event`);
-      await fails(deleteDoc(doc(db(uid), "events", `l-${id}-1`)), `${uid} deleting an event`);
+      if (uid !== "owner1") await fails(deleteDoc(doc(db(uid), "events", `l-${id}-1`)), `${uid} deleting an event`);
     }
   });
 });
@@ -1172,7 +1174,7 @@ describe("restocking from the cellar", () => {
     for (const r of [{ item: "Lemons" }, { qty: 5 }, { dest: "down" }, { unit: "box" }, { detail: "Changed" }, { askedBy: "Tia Staff" }, { day: dayFromNow(-30) }]) {
       await fails(move(db("staff1"), "staff1", id, "delivered", { moved: 2, r }), JSON.stringify(r));
     }
-    for (const who of ["staff1", "mgr1", "owner1"]) await fails(deleteDoc(doc(db(who), "restock", id)), `${who} deletes`);
+    for (const who of ["staff1", "mgr1"]) await fails(deleteDoc(doc(db(who), "restock", id)), `${who} deletes`);
   });
 });
 
@@ -1210,11 +1212,11 @@ describe("86 board and its history", () => {
     b2.set(log2, { item: "gin", itemName: "Gin", action: "out", uid: "staff1", name: "Mia Manager", at: now() });
     await assertFails(b2.commit());
   });
-  test("nobody, the owner included, can edit or delete the log; everyone on the team reads it", async () => {
+  test("nobody, the owner included, can edit the log; only Start again deletes it; everyone on the team reads it", async () => {
     const { b, log } = out86(db("staff1"), "staff1", "Mint"); await b.commit();
     for (const who of ["staff1", "mgr1", "owner1"]) {
       await assertFails(updateDoc(doc(db(who), "outlog", log), { action: "back" }));
-      await assertFails(deleteDoc(doc(db(who), "outlog", log)));
+      if (who !== "owner1") await assertFails(deleteDoc(doc(db(who), "outlog", log)));
     }
     await assertSucceeds(getDocs(collection(db("staff1"), "outlog")));
     await assertSucceeds(getDocs(collection(db("staff1"), "out")));
@@ -1350,7 +1352,7 @@ describe("Log it: one line for tonight's handover, in the day's events", () => {
   });
   test("a closing tick's history can't be deleted, even by a manager", async () => {
     await seed((s) => setDoc(doc(s, "events", "t-x"), { kind: "task", day }));
-    await assertFails(deleteDoc(doc(db("owner1"), "events", "t-x")));
+    await assertFails(deleteDoc(doc(db("mgr1"), "events", "t-x")));
   });
   test("the shape is fixed: a real kind, side and id, the writer's own name and the server's time", async () => {
     await fails(setDoc(doc(db("stranger"), "events", id()), line("stranger")), "not on the team");
@@ -1690,5 +1692,32 @@ describe("seen by: who has watched tonight's brief", () => {
     await assertSucceeds(getDocs(query(collection(db("mgr1"), "briefSeen"), where("day", "==", today()))));
     await assertFails(getDocs(query(collection(db("staff1"), "briefSeen"), where("day", "==", today()))));
     await assertFails(deleteDoc(doc(db("mgr1"), "briefSeen", `${today()}--staff1`)));
+  });
+});
+
+describe("start again: the owner wipes what the team logged", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const WIPE = ["events", "outlog", "out", "restock", "counts", "received", "reports", "photos", "labelPhotos", "drafts", "closes", "issues", "asks", "tells", "sent", "briefSeen", "scores", "signoffs"];
+  // Records the owner can't otherwise delete stay out of reach (staff, codes and media have their own rules).
+  const KEEP = ["config", "lists", "listlog", "labels", "items", "itemlog", "countSetup", "settings"];
+  test("only the owner deletes them, and only the team's records: the team, codes, lists, labels and items stay", async () => {
+    await seed(async (s) => {
+      for (const c of [...WIPE, ...KEEP]) await setDoc(doc(s, c, "x1"), { a: 1 });
+      for (const g of ["tasks", "runs", "ticks"]) await setDoc(doc(s, "shift", today(), g, "x1"), { a: 1 });
+    });
+    for (const c of WIPE) {
+      // A manager already removes some of these one at a time (an issue, a count line); the rest only go with Start again.
+      if (["events", "outlog", "out", "restock", "closes", "briefSeen", "tells", "sent", "scores"].includes(c)) await assertFails(deleteDoc(doc(db("mgr1"), c, "x1")));
+      await assertSucceeds(deleteDoc(doc(db("owner1"), c, "x1")));
+    }
+    for (const c of KEEP) await assertFails(deleteDoc(doc(db("owner1"), c, "x1")));
+    for (const g of ["tasks", "runs", "ticks"]) {
+      await assertFails(getDocs(collectionGroup(db("mgr1"), g)));
+      await assertFails(deleteDoc(doc(db("mgr1"), "shift", today(), g, "x1")));
+      const s = await assertSucceeds(getDocs(collectionGroup(db("owner1"), g)));
+      assert.equal(s.size, 1);
+      await assertSucceeds(deleteDoc(s.docs[0].ref));
+    }
+    await assertFails(deleteDoc(doc(db("owner1"), "shift", today(), "other", "x1")));
   });
 });
