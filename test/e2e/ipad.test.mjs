@@ -10,7 +10,7 @@ after(async () => { await browser.close(); site.close(); });
 
 async function open(shared) {
   const c = await browser.newContext({ viewport: { width: 820, height: 1180 }, hasTouch: true, timezoneId: "Europe/London" });
-  await c.addInitScript((sh) => { (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))); localStorage.setItem("btbar.me", JSON.stringify("Angel")); if (sh) localStorage.setItem("btbar.shared", "true"); }, shared);
+  await c.addInitScript((sh) => { (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))); localStorage.setItem("btbar.me", JSON.stringify("Angel")); if (localStorage.getItem("btbar.sx.mk") == null) localStorage.setItem("btbar.sx.mk", "false"); if (sh) localStorage.setItem("btbar.shared", "true"); }, shared);
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = [];
@@ -224,5 +224,72 @@ test("bar station extras: 86 strip, glass and garnish pictures, batches with one
   await p.evaluate(() => { LIVE.admin = true; });
   await p.click("[data-sx-exit]");
   assert.equal(await p.evaluate(() => stationOn), false);
+  assert.deepEqual(p.errs, []);
+});
+
+test("Make it now: a tap on the iPad opens big step cards with the jigger side, Done goes back, the round a drink at a time", async () => {
+  const p = await open(false);
+  await p.setViewportSize({ width: 1180, height: 820 });
+  await p.click("#w-ok");
+  await p.evaluate(() => { show("station"); SX.mk = true; });
+  // Signatures first: the top drink opens straight into Get ready.
+  await p.fill("#sx-q", "london cosmo"); await p.keyboard.press("Enter");
+  assert.equal(await p.isVisible("#sxm"), true);
+  assert.match(await p.textContent("#sxm h2"), /London Cosmo/);
+  assert.match(await p.$eval("#sxm .sxm-card", (e) => e.innerText), /BEFORE YOU START[\s\S]*Chilled coupe[\s\S]*You need[\s\S]*35 ml\s+Cîroc Red Berry/i);
+  const n = await p.evaluate(() => DATA.guides["London Cosmo"].steps.length);
+  assert.equal(await p.locator("#sxm .sxm-rail li").count(), n + 1);
+  // A tap on the card ticks it and the next comes up; the pour has each ml and the jigger side.
+  await p.click("#sxm .sxm-card"); await p.click("#sxm .sxm-card");
+  assert.match(await p.textContent("#sxm .sxm-of"), /Step 2 of/);
+  assert.match(await p.$eval("#sxm .sxm-card", (e) => e.innerText), /25\s*ml\s*lime juice\s*the 25 side/);
+  assert.equal(await p.locator("#sxm .sxm-rail .ok").count(), 2);
+  // ×2 scales the card: 50 ml of lime is the 50 side.
+  await p.click('#sxm [data-sxm-n="2"]');
+  assert.match(await p.$eval("#sxm .sxm-card", (e) => e.innerText), /70\s*ml\s*Cîroc Red Berry[\s\S]*50\s*ml\s*lime juice\s*the 50 side/);
+  assert.deepEqual(await p.evaluate(() => [sxmJig(75), sxmJig(37.5), sxmJig(35), sxmJig(12.5)]), ["50 + 25", "25 + half a 25", "", "half a 25"]);
+  // The last card is Done: back to the list, search cleared, the spec still next to it.
+  await p.evaluate(() => sxmGo(99));
+  assert.match(await p.textContent('#sxm [data-sxm-step="1"]'), /Done/);
+  await p.click("#sxm .sxm-card");
+  assert.equal(await p.locator("#sxm").count(), 0);
+  assert.equal(await p.inputValue("#sx-q"), "");
+  assert.match(await p.textContent("#sx-spec h3"), /London Cosmo/);
+  // Spec only is one tap: ▶ Make it now on the spec brings the cards back; Esc closes.
+  await p.click("#sx-spec [data-sxm]");
+  assert.equal(await p.isVisible("#sxm"), true);
+  await p.keyboard.press("ArrowRight");
+  assert.equal(await p.evaluate(() => SXM.i), 1);
+  await p.keyboard.press("Escape");
+  assert.equal(await p.locator("#sxm").count(), 0);
+  // The round: in making order (stirred first), scaled, each one marked Made, then Round made.
+  await p.evaluate(() => { for (const n of ["Daiquiri", "Negroni", "Negroni"]) sxRound(D.find((d) => d.name === n).id, 1); });
+  await p.click("[data-sx-view=round]");
+  await p.click("#sx-spec [data-sxm-round]");
+  assert.match(await p.textContent("#sxm h2"), /2 × Negroni/);
+  assert.match(await p.textContent("#sxm .sxm-t span"), /Round: drink 1 of 2/);
+  await p.evaluate(() => sxmGo(99));
+  assert.match(await p.textContent('#sxm [data-sxm-step="1"]'), /next Daiquiri/);
+  await p.click('#sxm [data-sxm-step="1"]');
+  assert.match(await p.textContent("#sxm h2"), /^Daiquiri$/);
+  await p.evaluate(() => sxmGo(99)); await p.click('#sxm [data-sxm-step="1"]');
+  assert.equal(await p.locator("#sxm").count(), 0);
+  assert.match(await p.textContent("#sx-spec .sx-done"), /Round made/);
+  // Left alone for 2 minutes it closes with the rest, ready for the next person.
+  await p.evaluate(() => { sxTap(SX.ids[0]); lastTap = Date.now() - 3 * 6e4; });
+  await p.waitForFunction(() => !document.querySelector("#sxm"), null, { timeout: 20000 });
+  // Set up switches a tap to the spec only, kept on this iPad.
+  await p.click("[data-sx-view=setup]");
+  await p.click("#sx-spec [data-sxm-pref]");
+  assert.equal(await p.evaluate(() => localStorage.getItem("btbar.sx.mk")), "false");
+  await p.click("[data-sx-view=drink]");
+  await p.click("#sx-list .sx-open >> nth=0");
+  assert.equal(await p.locator("#sxm").count(), 0);
+  // A phone keeps the drink page (its own Step by step).
+  await p.evaluate(() => { SX.mk = true; });
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.click("#sx-list .sx-open >> nth=0");
+  assert.equal(await p.isVisible("#sheet"), true);
+  assert.equal(await p.locator("#sxm").count(), 0);
   assert.deepEqual(p.errs, []);
 });

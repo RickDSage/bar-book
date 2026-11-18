@@ -7659,8 +7659,9 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    has a "‹ Bar station" button back. Exit bar station (top right) turns it off.
    - Drinks: one big search across the whole book (typos fine, Enter opens the top match), groups one tap away, the
      signatures and the Top 10 first, then every drink A to Z. 86'd drinks are greyed with the swap.
-   - On an iPad the spec sits next to the list in big type: glass, ice and garnish, the spec, numbered steps, ×2 to ×4,
-     the next drink by swipe or arrow. On a phone a tap opens the usual drink page.
+   - On an iPad a tap opens Make it now (makenow.js): big step cards, one at a time. The spec sits next to the list in
+     big type: glass, ice and garnish, the spec, numbered steps, ×2 to ×8, the next drink by swipe or arrow. On a phone
+     a tap opens the usual drink page.
    - A round: + adds a drink (again for two), and the round shows every spec scaled, shaken drinks first and fizz last,
      with the glasses to pull.
    - Tonight: the 86 board, the close on both sides and the handover, live.
@@ -7747,6 +7748,7 @@ function sxSpecHtml(d) {
     ${out ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span>${LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">Back in stock</button>` : ""}</div>
       ${alts.length ? `<div class="pl-alts">Offer instead: ${alts.map((x) => `<button class="chip" data-sx-id="${x.id}" translate="no">${esc(x.name)}</button>`).join("")}</div>` : ""}` : plOutBanner(d)}
     ${al ? `<div class="allergy"><b>Allergens:</b> <span translate="no">${esc(al)}</span></div>` : ""}
+    ${sxmOk(d) ? `<button class="btn pri sx-mkgo" data-sxm="${d.id}">\u25b6 Make it now${SX.x > 1 ? ` \u00d7${SX.x}` : ""}</button>` : ""}
     <div class="sx-gig" translate="no"><div><i class="pic" aria-hidden="true">${glass(d)}</i><p><span>Glass</span><b>${esc(d.glass)}</b></p></div><div><p><span>Ice</span><b>${esc(d.ice)}</b></p></div>
       <div>${ART.garnish(d.garnish) ? `<i class="pic gar" aria-hidden="true">${ART.garnish(d.garnish)}</i>` : ""}<p><span>Garnish</span><b>${esc(d.garnish)}</b></p></div></div>
     <div class="sx-k">Spec${SX.x > 1 ? ` for ${SX.x}` : ""}<span class="sx-x" role="group" aria-label="How many">${SX_XS.map((n) => `<button data-sx-x="${n}" aria-pressed="${n === SX.x}">×${n}</button>`).join("")}</span></div>
@@ -7756,7 +7758,7 @@ function sxSpecHtml(d) {
     ${sxZero(d) ? `<div class="sx-zero"><span>Alcohol-free?</span><button class="chip" data-sx-id="${sxZero(d).id}" translate="no">${esc(sxZero(d).name)} \u203a</button></div>` : ""}
     <div class="sx-k">Method</div>${steps(d.method)}
     ${!out && d.subs ? `<details class="subs"><summary>Out of something?<span class="cnt">${d.subs.length}</span></summary><ul translate="no">${d.subs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
-    <div class="sx-acts"><button class="btn pri" data-sx-add="${d.id}">+ Add to round${SX.round.get(d.id) ? ` (${SX.round.get(d.id)})` : ""}</button><button class="btn" data-sx-sheet="steps:${d.id}">Step by step</button>${sayBtn(d)}<button class="btn" data-sx-sheet="spec:${d.id}">Full card and send</button>${LIVE.admin ? `<label class="btn" for="dm-in" data-sx-dm="${d.id}">${mediaOf(d)?.photo ? "Change house photo" : "Add house photo"}</label>` : ""}${!out && LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">86 it</button>` : ""}</div>
+    <div class="sx-acts"><button class="btn pri" data-sx-add="${d.id}">+ Add to round${SX.round.get(d.id) ? ` (${SX.round.get(d.id)})` : ""}</button>${sayBtn(d)}<button class="btn" data-sx-sheet="spec:${d.id}">Full card and send</button>${LIVE.admin ? `<label class="btn" for="dm-in" data-sx-dm="${d.id}">${mediaOf(d)?.photo ? "Change house photo" : "Add house photo"}</label>` : ""}${!out && LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">86 it</button>` : ""}</div>
     ${nx ? `<div class="sx-pn"><button class="btn" data-sx-step="-1">‹ <span translate="no">${esc(pv.name)}</span></button><span>${i + 1} of ${SX.ids.length}</span><button class="btn" data-sx-step="1"><span translate="no">${esc(nx.name)}</span> ›</button></div>` : ""}`;
 }
 // The round: every drink scaled to how many, in the bar's making order: the ones that hold longest first (stirred, then
@@ -7773,13 +7775,14 @@ function sxRoundHtml() {
   const card = ([d, n]) => { mult = n; const s = d.spec.map(specRow).join(""); mult = was;
     const made = SX.made.has(d.id);
     return `<div class="sx-rc${isOut(d.name) ? " out" : ""}${made ? " made" : ""}"><div class="sx-rh"><b translate="no">${n} × ${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</b>
-      <span class="sx-x"><button data-sx-rn="${d.id}:-1" aria-label="One fewer">−</button><button data-sx-rn="${d.id}:1" aria-label="One more">+</button><button class="sx-made" data-sx-made="${d.id}" aria-pressed="${made}">${made ? "Made \u2713" : "Made"}</button></span></div>
+      <span class="sx-x"><button data-sx-rn="${d.id}:-1" aria-label="One fewer">−</button><button data-sx-rn="${d.id}:1" aria-label="One more">+</button>${made || !sxmOk(d) ? "" : `<button class="sx-made" data-sxm="${d.id}">\u25b6 Make</button>`}<button class="sx-made" data-sx-made="${d.id}" aria-pressed="${made}">${made ? "Made \u2713" : "Made"}</button></span></div>
       <div class="sx-rm" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.garnish)}</div>${plOutTag(d)}
       <ul class="spec sx-specl" data-d="${d.id}" translate="no">${s}</ul><p class="sx-rmeth" translate="no">${esc(d.method)}</p></div>`; };
   // Drinks made the same way sit together, so the shaken ones go in the tins in one go.
   const cards = SX_BUILDS.map((t, k) => { const g = ds.filter(([d]) => sxOrder(d) === k); return g.length ? `<div class="sx-bh">${t} \u00b7 ${g.reduce((a, [, n]) => a + n, 0)}</div>${g.map(card).join("")}` : ""; }).join("");
   const left = ds.filter(([d]) => !SX.made.has(d.id)).length;
   return `${back}<div class="sx-k">Round of ${sxRoundN()}${left ? ` \u00b7 ${left} to make` : ""}<button class="linkbtn" data-sx-round="clear">Clear the round</button></div>
+    ${ds.some(([d]) => !SX.made.has(d.id) && sxmOk(d)) ? `<button class="btn pri sx-mkgo" data-sxm-round>\u25b6 Make the round: a drink at a time, in this order</button>` : ""}
     ${left ? "" : `<div class="sx-done"><b>Round made.</b><button class="btn pri" data-sx-round="clear">Clear it for the next one</button></div>`}
     <dl class="sx-prep" translate="no"><dt>Glasses</dt><dd>${tally((d) => d.glass)}</dd><dt>Ice</dt><dd>${tally((d) => d.ice) || "None"}</dd><dt>Garnish</dt><dd>${tally((d) => d.garnish) || "None"}</dd>
       ${shaken ? `<dt>Tins</dt><dd>${shaken} to shake: ${Math.ceil(shaken / 2)} tin${shaken > 2 ? "s" : ""}, up to 2 drinks a tin</dd>` : ""}</dl>
@@ -7883,6 +7886,8 @@ function sxSetupHtml() {
       ${row(sharedDev, "Shared iPad on", "Asks who's using it, hides My pay, and a manager's code locks again after 5 minutes. Leaving the station, turning Shared off and Reset this phone need a manager's code.", `<button class="btn" data-shared-pick="on">Turn Shared on</button>`)}
       ${row(!!lock, "Screen kept on", lock ? "Bar Book is keeping the screen on." : navigator.wakeLock ? "Tap anywhere and Bar Book keeps the screen on while it's open." : "This iPad doesn't let Bar Book keep the screen on, so the Auto-Lock step below matters.")}
     </ul>
+    <div class="sx-k">Tap a drink</div>
+    <div class="sx-set1"><span class="st-s">${SX.mk ? "Opens Make it now: big step cards, one at a time, with Done back to the list. Spec next to the list is one tap away." : "Shows its spec next to the list. \u25b6 Make it now on the spec opens the step cards."}</span><button class="btn${SX.mk ? "" : " pri"}" data-sxm-pref>${SX.mk ? "Show just the spec instead" : "Open Make it now instead"}</button></div>
     <div class="sx-k">In the iPad's Settings</div>
     <ol class="sx-steps">
       <li><b>Auto-Lock:</b> Settings, Display &amp; Brightness, Auto-Lock, Never. Some iPadOS versions let the screen sleep anyway, so do this even when the tick above shows.</li>
@@ -8046,7 +8051,7 @@ document.addEventListener("click", (e) => {
   const bk = e.target.closest("[data-sx-back]"); if (bk) { const n = bk.dataset.sxBack; haptic(); setOut(n, false); toast(`${n} back in stock`); return; }
   const lbg = e.target.closest("[data-sx-labels]"); if (lbg) { haptic(); if (lbg.dataset.sxLabels !== mode) setMode(lbg.dataset.sxLabels); pane = labelPane(mode); show("tally"); return; }
   if (e.target.closest("[data-sx-exit]")) { haptic(); stationSet(false); show("info"); toast("Bar station off. Turn it on again in More"); return; }
-  const o = e.target.closest("[data-sx-id]"); if (o) { haptic(); SX.x = 1; return sxOpen(+o.dataset.sxId); }
+  const o = e.target.closest("[data-sx-id]"); if (o) { haptic(); SX.x = 1; return o.closest("#sx-list, #sx-recent") ? sxTap(+o.dataset.sxId) : sxOpen(+o.dataset.sxId); }
   const a = e.target.closest("[data-sx-add]"); if (a) return sxRound(+a.dataset.sxAdd, 1);
   const rn = e.target.closest("[data-sx-rn]"); if (rn) { const [id, n] = rn.dataset.sxRn.split(":"); return sxRound(+id, +n); }
   const rb = e.target.closest("[data-sx-round]");
@@ -8073,7 +8078,7 @@ document.addEventListener("input", (e) => { if (e.target.id !== "sx-q") return; 
 function sxOpenQuiet(id) { if (!sxWide()) return; SX.id = id; $$("#sx-list [data-sx-id]").forEach((b) => b.setAttribute("aria-current", +b.dataset.sxId === id)); sxSpec(); }
 document.addEventListener("keydown", (e) => {
   if (cur !== "station" || !$("#sheet").hidden) return;
-  if (e.target.id === "sx-q" && e.key === "Enter") { e.preventDefault(); if (SX.ids.length) { e.target.blur(); sxOpen(SX.ids[0]); } return; }
+  if (e.target.id === "sx-q" && e.key === "Enter") { e.preventDefault(); if (SX.ids.length) { e.target.blur(); sxTap(SX.ids[0]); } return; }
   if (e.target.closest("input, textarea, select")) return;
   if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); sxStep(1); }
   if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); sxStep(-1); }
@@ -8089,7 +8094,7 @@ document.addEventListener("touchend", (e) => {
 // The 86s change everything on the station; anything else only the Tonight panel.
 function stationLive(what) {
   if (!$("#sx-list")) return renderStation();
-  if (what === "out" || what === "me" || what === "media" || SX.view === "batch" || SX.view === "setup") { sxList(); sxSpec(); }
+  if (what === "out" || what === "me" || what === "media" || SX.view === "batch" || SX.view === "setup") { sxList(); sxSpec(); if (what === "out") sxmRender(); }
   sxTonight();
 }
 // Left alone for 2 minutes: clear the search and the open drink and go back to the top, ready for the next person.
@@ -8101,8 +8106,9 @@ setInterval(() => {
   if (cur !== "station") return;
   sxFit();
   sxTonight();
-  if (Date.now() - lastTap < 2 * 6e4 || (!SX.q && SX.grp === "all" && SX.view === "drink" && $("#sheet").hidden && !$("#sx-list").scrollTop)) return;
+  if (Date.now() - lastTap < 2 * 6e4 || (!SX.q && SX.grp === "all" && SX.view === "drink" && $("#sheet").hidden && !SXM && !$("#sx-list").scrollTop)) return;
   if (!$("#sheet").hidden) closeSheet();
+  sxmClose();
   SX.q = ""; SX.grp = "all"; SX.view = "drink"; SX.x = 1; $("#sx-q").value = ""; $("#sx-q").blur(); $("#sx-list").scrollTop = 0; window.scrollTo(0, 0);
   sxBars(); sxList(); sxSpec();
 }, 15e3);
@@ -8313,6 +8319,8 @@ body.sxbig .sx-rmeth { font-size: 20px; }
 .sx-made { min-width: 76px !important; }
 .sx-made[aria-pressed="true"] { background: var(--ok) !important; border-color: var(--ok) !important; color: var(--bg) !important; }
 .sx-rc.made { opacity: .5; }
+.sx-set1 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 4px; }
+.sx-set1 .st-s { flex: 1 1 260px; margin: 0; }
 .sx-done { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0; padding: 12px 14px; border: 2px solid var(--ok); border-radius: 14px; font-size: 19px; }
 .sx-tmb { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .sx-tmb .btn { min-height: 52px; min-width: 76px; font-size: 17px; }
@@ -8367,6 +8375,196 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
 }
 </style>`);
 $("#sx-back").addEventListener("click", () => { haptic(); show("station"); });
+/* ---------- Make it now: one drink at a time, big enough to read from the well ----------
+   On the bar iPad, a tap on a drink (or Enter in the search, or the voice) opens it as big step cards over the station:
+   Get ready (glass, ice, garnish, tools and the whole spec at a glance), then the drink's own picture guide a step a
+   card, each ingredient with its ml and which side of the 25/50 jigger. Tap the card when it's done and the next one
+   comes up; the last card's Done goes back to the list. From the round, Make the round walks every drink in making
+   order, scaled to how many, and marks each one Made. ×1 to ×4 scale it.
+   Set up has the switch for what a tap opens (Make it now, or just the spec next to the list). Phones keep the drink
+   page, whose Step by step is the same guide. Nothing here is saved to the team; the switch is kept on this iPad. */
+let SXM = null;
+SX.mk = store.get("sx.mk", true);
+const sxmOk = (d) => !!d && !!DATA.guides[d.name];
+// Which side of the 25/50 jigger, for amounts it measures (12.5 ml steps up to 150 ml). Anything else shows the ml alone.
+function sxmJig(ml) {
+  if (!ml || ml > 150 || ml % 12.5) return "";
+  if (ml === 25) return "the 25 side"; if (ml === 50) return "the 50 side"; if (ml === 12.5) return "half a 25";
+  const parts = Array(Math.floor(ml / 50)).fill("50"); let r = ml % 50;
+  if (r >= 25) { parts.push("25"); r -= 25; } if (r) parts.push("half a 25");
+  return parts.join(" + ");
+}
+// A tap on a drink in the station's list: the spec goes next to the list as ever, and on an iPad Make it now opens.
+function sxTap(id) { sxOpen(id); if (SX.mk && sxWide() && sxmOk(D[id])) sxmOpen([id], "tap"); }
+// ids: the drinks to make, in order. from: "tap" (one drink) or "round" (the round, scaled to how many of each).
+function sxmOpen(ids, from) {
+  ids = ids.filter((id) => sxmOk(D[id])); if (!ids.length) return;
+  SXM = { ids, k: 0, from, i: 0, done: new Set(), x: from === "round" ? SX.round.get(ids[0]) || 1 : SX.x || 1 };
+  haptic(); sxmRender();
+}
+function sxmClose() { SXM = null; $("#sxm")?.remove(); }
+const sxmD = () => D[SXM.ids[SXM.k]];
+// The cards: Get ready, then the guide's own steps. The last step is where Done sits.
+function sxmCards(d) { return [{ ready: true, title: "Get ready" }, ...DATA.guides[d.name].steps]; }
+function sxmItem(d, it, miss) {
+  const x = SXM.x, ml = it.ml != null ? it.ml * x : null;
+  const name = ml == null && x > 1 ? (/^\d/.test(it.item) ? sxScale(it.item, x) : `${it.item} ×${x}`) : it.item;
+  const hint = ml == null ? "" : x === 1 && it.hint ? it.hint : sxmJig(ml);
+  const low = it.item.toLowerCase(), m = miss.find((m) => (d.spec[m.i] || "").toLowerCase().includes(low) || low.includes(m.it.n.toLowerCase()));
+  return `<li class="${m ? "out" : ""}"><b class="ml">${ml != null ? `${sxNum(ml)}<small>ml</small>` : "•"}</b><span><span class="it" translate="no">${esc(name)}</span>${hint ? `<em>${esc(hint)}</em>` : ""}${m ? `<em class="sw" translate="no">Out tonight${m.swap ? `: ${esc(m.swap)}` : ""}</em>` : ""}</span></li>`;
+}
+function sxmCardHtml(d, c, n, last) {
+  if (c.ready) {
+    const g = DATA.guides[d.name], was = mult; mult = SXM.x; const spec = d.spec.map(specRow).join(""); mult = was;
+    const al = d.allergens && d.allergens !== "None" ? d.allergens : "", gar = ART.garnish(d.garnish);
+    return `<div class="sxm-ready">
+      ${isOut(d.name) ? `<div class="outbar on"><span><b>86'd tonight.</b> Check with the guest before you make it.</span></div>` : plOutBanner(d)}
+      ${al ? `<div class="allergy"><b>Allergens:</b> <span translate="no">${esc(al)}</span></div>` : ""}
+      <div class="sxm-gig" translate="no"><div><i class="pic" aria-hidden="true">${glass(d)}</i><p><span>Glass</span><b>${esc(d.glass)}</b></p></div>
+        <div><p><span>Ice</span><b>${esc(d.ice)}</b></p></div>
+        <div>${gar ? `<i class="pic gar" aria-hidden="true">${gar}</i>` : ""}<p><span>Garnish</span><b>${esc(d.garnish)}</b></p></div></div>
+      <p class="sxm-need"><span>You need</span> ${g.tools.map(esc).join(", ")}</p>
+      <div class="sxm-k">Spec${SXM.x > 1 ? ` for ${SXM.x}` : ""}</div><ul class="spec" data-d="${d.id}" translate="no">${spec}</ul></div>`;
+  }
+  const miss = plOutOf(d).miss, gar = last && /garnish|serve/i.test(c.title) ? ART.garnish(d.garnish) : "";
+  return `<div class="sxm-step"><div class="sxm-txt"><h3><span class="n">${n}</span><span translate="no">${esc(c.title)}</span></h3><p translate="no">${esc(c.text)}</p>
+      ${c.items.length ? `<ul class="sxm-ing">${c.items.map((it) => sxmItem(d, it, miss)).join("")}</ul>` : ""}
+      ${gar ? `<p class="sxm-gar"><i class="pic gar" aria-hidden="true">${gar}</i><b translate="no">${esc(d.garnish)}</b></p>` : ""}</div>
+    <div class="sxm-pic" aria-hidden="true">${DATA.scenes[c.sv]}</div></div>`;
+}
+function sxmRender() {
+  if (!SXM) return;
+  let el = $("#sxm");
+  if (!el) { el = document.createElement("div"); el.id = "sxm"; el.className = "sxm"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Make it now"); $("#v-station").append(el); }
+  const d = sxmD(), cs = sxmCards(d), i = SXM.i, last = i === cs.length - 1, round = SXM.from === "round";
+  const nextId = round ? SXM.ids.slice(SXM.k + 1).find((id) => !SX.made.has(id)) : null;
+  const doneLabel = nextId != null ? `Done: next <span translate="no">${esc(D[nextId].name)}</span> ›` : "Done ✓";
+  el.innerHTML = `<div class="sxm-top"><button class="btn" data-sxm-x aria-label="Close Make it now">✕</button>
+      <div class="sxm-t"><h2 translate="no">${SXM.x > 1 ? `${SXM.x} × ` : ""}${esc(d.name)}</h2><span>${round ? `Round: drink ${SXM.k + 1} of ${SXM.ids.length}` : esc(d.section)}</span></div>
+      <span class="sx-x" role="group" aria-label="How many">${[1, 2, 3, 4].map((n) => `<button data-sxm-n="${n}" aria-pressed="${n === SXM.x}">×${n}</button>`).join("")}</span>
+      ${sayBtn(d)}<button class="btn" data-sxm-spec>Spec</button></div>
+    <div class="sxm-body"><ol class="sxm-rail">${cs.map((c, k) => `<li><button data-sxm-go="${k}" class="${k === i ? "on" : SXM.done.has(k) ? "ok" : ""}"><span class="n">${SXM.done.has(k) && k !== i ? "✓" : k || "•"}</span><span translate="no">${esc(c.title)}</span></button></li>`).join("")}</ol>
+      <div class="sxm-card${SXM.done.has(i) ? " done" : ""}" data-sxm-tap role="button" tabindex="0"><span class="sxm-of">${i ? `Step ${i} of ${cs.length - 1}` : "Before you start"}<i>${last ? "Tap when it's done" : "Tap when done for the next step"}</i></span>${sxmCardHtml(d, cs[i], i, last)}</div></div>
+    <div class="sxm-nav"><button class="btn" data-sxm-step="-1"${i ? "" : " disabled"}>‹ Back</button><button class="btn pri" data-sxm-step="1">${last ? doneLabel : i ? "Next step ›" : "Start ›"}</button></div>`;
+  sxMark(el);
+  if (!calm()) { const c = el.querySelector(".sxm-card"); c.classList.add("in"); }
+}
+function sxmGo(i) { const n = sxmCards(sxmD()).length; SXM.i = Math.max(0, Math.min(n - 1, i)); haptic(); sxmRender(); }
+// Done: the drink is made. In a round it's marked Made and the next one comes up; otherwise back to the list, search cleared.
+function sxmDone() {
+  const id = SXM.ids[SXM.k]; haptic();
+  if (SX.round.has(id)) SX.made.add(id);
+  if (SXM.from === "round") {
+    const k = SXM.ids.findIndex((x, j) => j > SXM.k && !SX.made.has(x));
+    if (k >= 0) { Object.assign(SXM, { k, i: 0, done: new Set(), x: SX.round.get(SXM.ids[k]) || 1 }); sxList(); sxSpec(); return sxmRender(); }
+    sxmClose(); SX.view = "round"; sxBars(); sxList(); sxSpec(); return;
+  }
+  sxmClose();
+  if (SX.q) { SX.q = ""; $("#sx-q").value = ""; sxBars(); }
+  sxList(); sxSpec();
+}
+function sxmNext() {
+  const n = sxmCards(sxmD()).length; SXM.done.add(SXM.i);
+  if (SXM.i >= n - 1) return sxmDone();
+  sxmGo(SXM.i + 1);
+}
+// The round in making order (stirred, built, shaken, fizz last), only what's still to make.
+const sxmRoundIds = () => [...SX.round.keys()].filter((id) => D[id] && !SX.made.has(id)).sort((a, b) => sxOrder(D[a]) - sxOrder(D[b]));
+document.addEventListener("click", (e) => {
+  if (cur !== "station") return;
+  const one = e.target.closest("[data-sxm]"); if (one) { const id = +one.dataset.sxm; return sxmOpen([id], SX.round.has(id) && SX.view === "round" ? "round" : "tap"); }
+  if (e.target.closest("[data-sxm-round]")) return sxmOpen(sxmRoundIds(), "round");
+  if (e.target.closest("[data-sxm-pref]")) { SX.mk = !SX.mk; store.set("sx.mk", SX.mk); haptic(); toast(SX.mk ? "A tap on a drink opens Make it now" : "A tap on a drink shows its spec"); sxList(); sxSpec(); return; }
+  if (!SXM || !e.target.closest("#sxm")) return;
+  if (e.target.closest("[data-sxm-x]")) { haptic(); return sxmClose(); }
+  if (e.target.closest("[data-sxm-spec]")) { haptic(); const d = sxmD(); SX.x = SXM.x; sxmClose(); SX.view = "drink"; sxOpen(d.id); return; }
+  const n = e.target.closest("[data-sxm-n]"); if (n) { SXM.x = +n.dataset.sxmN; haptic(); return sxmRender(); }
+  const g = e.target.closest("[data-sxm-go]"); if (g) return sxmGo(+g.dataset.sxmGo);
+  const s = e.target.closest("[data-sxm-step]"); if (s) return +s.dataset.sxmStep > 0 ? sxmNext() : sxmGo(SXM.i - 1);
+  // A tap anywhere on the card ticks it, but not one on a button or link inside it (Offer instead).
+  if (e.target.closest("[data-sxm-tap]") && !e.target.closest("#sxm [data-sxm-tap] button, #sxm [data-sxm-tap] a")) sxmNext();
+});
+// Keys on an iPad keyboard: → or Enter for the next card, ← back, Esc closes. Nothing reaches the station underneath.
+addEventListener("keydown", (e) => {
+  if (!SXM || cur !== "station" || !$("#sheet").hidden || $("#help")?.hidden === false) return;
+  const k = e.key;
+  if (k === "ArrowRight" || k === "ArrowDown" || k === "Enter") sxmNext();
+  else if (k === "ArrowLeft" || k === "ArrowUp") sxmGo(SXM.i - 1);
+  else if (k === "Escape") sxmClose();
+  else return;
+  e.preventDefault(); e.stopImmediatePropagation();
+}, true);
+// A sideways swipe moves between cards.
+let sxmTouch = null, sxmSwiped = 0;
+document.addEventListener("touchstart", (e) => { const t = e.touches[0]; sxmTouch = SXM && e.touches.length === 1 && e.target.closest("#sxm .sxm-body") ? { x: t.clientX, y: t.clientY } : null; }, { passive: true });
+document.addEventListener("touchend", (e) => {
+  if (!sxmTouch || !SXM) return; const t = e.changedTouches[0], dx = t.clientX - sxmTouch.x, dy = t.clientY - sxmTouch.y; sxmTouch = null;
+  if (Math.abs(dx) > 70 && Math.abs(dx) > 2 * Math.abs(dy)) { sxmSwiped = Date.now(); dx < 0 ? sxmNext() : sxmGo(SXM.i - 1); }
+}, { passive: true });
+// The swipe's own click doesn't tick the card a second time.
+addEventListener("click", (e) => { if (Date.now() - sxmSwiped < 400 && e.target.closest?.("#sxm [data-sxm-tap]")) { e.preventDefault(); e.stopImmediatePropagation(); } }, true);
+document.head.insertAdjacentHTML("beforeend", `<style>
+.sxm { position: fixed; inset: 0; z-index: 19; display: grid; grid-template-rows: auto 1fr auto; gap: 10px; background: var(--bg); padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px calc(env(safe-area-inset-bottom, 0px) + 12px); }
+.sxm-top { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.sxm-top > .btn { min-height: 52px; min-width: 52px; font-size: 18px; }
+.sxm-t { flex: 1 1 260px; min-width: 0; }
+.sxm-t h2 { margin: 0; font-family: var(--display); font-size: clamp(30px, 4vw, 46px); line-height: 1; text-transform: uppercase; }
+.sxm-t span { color: var(--muted); font-size: 16px; }
+.sxm-top .sx-x button { min-height: 48px; min-width: 52px; font-size: 18px; }
+.sxm-body { display: grid; grid-template-columns: 1fr; grid-template-rows: auto minmax(0, 1fr); gap: 14px; min-height: 0; }
+.sxm-rail { display: flex; flex-wrap: wrap; gap: 6px; list-style: none; margin: 0; padding: 0; }
+.sxm-rail button { display: flex; align-items: center; gap: 8px; min-height: 40px; padding: 4px 12px 4px 4px; border: 1px solid var(--line); border-radius: 999px; background: var(--surface); color: var(--fg); font-size: 15px; text-align: left; }
+.sxm-rail button span:last-child { display: none; }
+.sxm-rail .n { display: inline-grid; place-items: center; min-width: 30px; height: 30px; border-radius: 50%; background: var(--line); font-weight: 700; }
+.sxm-rail .on { border-color: var(--brass); } .sxm-rail .on .n { background: var(--brass); color: var(--brass-ink); }
+.sxm-rail .ok .n { background: var(--ok); color: var(--bg); }
+@media (min-width: 1000px) {
+  .sxm-body { grid-template-columns: 250px 1fr; grid-template-rows: minmax(0, 1fr); }
+  .sxm-rail { flex-direction: column; flex-wrap: nowrap; overflow-y: auto; }
+  .sxm-rail button { width: 100%; border-radius: 12px; font-size: 17px; min-height: 52px; }
+  .sxm-rail button span:last-child { display: inline; }
+}
+.sxm-card { display: flex; flex-direction: column; gap: 12px; min-height: 0; overflow-y: auto; padding: 18px 22px; border: 2px solid var(--line); border-radius: 18px; background: var(--surface); color: var(--fg); text-align: left; font: inherit; cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.sxm-card.done { border-color: var(--ok); }
+.sxm-card.in { animation: sxmIn .18s ease-out; }
+@keyframes sxmIn { from { opacity: .3; transform: translateX(24px); } to { opacity: 1; transform: none; } }
+.sxm-of { display: flex; justify-content: space-between; gap: 10px; color: var(--brass); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; font-size: 15px; }
+.sxm-of i { font-style: normal; color: var(--muted); text-transform: none; letter-spacing: 0; font-weight: 400; }
+.sxm-step { display: grid; grid-template-columns: 1fr; gap: 16px; flex: 1; }
+@media (min-width: 900px) { .sxm-step { grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); align-items: start; } }
+.sxm-step h3 { display: flex; align-items: center; gap: 14px; margin: 0; font-family: var(--display); font-size: clamp(34px, 4.6vw, 58px); line-height: 1; text-transform: uppercase; }
+.sxm-step h3 .n { flex: none; display: inline-grid; place-items: center; width: 1.3em; height: 1.3em; border-radius: 50%; background: var(--brass); color: var(--brass-ink); font-size: .7em; }
+.sxm-card.done h3 .n { background: var(--ok); }
+.sxm-step p { margin: 12px 0 0; font-size: clamp(21px, 2.5vw, 30px); line-height: 1.35; }
+.sxm-ing { list-style: none; margin: 16px 0 0; padding: 0; display: grid; gap: 8px; }
+.sxm-ing li { display: grid; grid-template-columns: 5.2em 1fr; align-items: center; gap: 14px; padding: 8px 12px; border-radius: 12px; background: var(--bg); }
+.sxm-ing .ml { font-family: var(--display); font-size: clamp(34px, 4vw, 52px); line-height: 1; color: var(--brass); text-align: right; }
+.sxm-ing .ml small { font-size: .45em; margin-left: 3px; }
+.sxm-ing .it { display: block; font-size: clamp(22px, 2.6vw, 32px); font-weight: 700; }
+.sxm-ing em { display: block; font-style: normal; color: var(--muted); font-size: clamp(16px, 1.8vw, 20px); }
+.sxm-ing li.out .it { text-decoration: line-through; color: var(--muted); }
+.sxm-ing em.sw { color: var(--warn); font-weight: 700; }
+.sxm-pic { background: var(--paper); border-radius: 14px; padding: 8px; }
+.sxm-pic svg { display: block; width: 100%; height: auto; max-height: 42vh; }
+@media (max-width: 899px) { .sxm-pic { order: -1; } .sxm-pic svg { max-height: 26vh; } }
+.sxm-gar { display: flex; align-items: center; gap: 12px; margin-top: 16px !important; font-size: clamp(22px, 2.6vw, 30px); }
+.sxm .pic { flex: none; display: block; width: 56px; height: 70px; color: var(--fg); } .sxm .pic.gar { width: 52px; height: 52px; }
+.sxm .pic svg { width: 100%; height: 100%; }
+.sxm-gig { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.sxm-gig > div { display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 12px; background: var(--bg); }
+.sxm-gig p { margin: 0; min-width: 0; } .sxm-gig span, .sxm-need span, .sxm-k { display: block; color: var(--muted); font-size: 14px; text-transform: uppercase; letter-spacing: .06em; }
+.sxm-gig b { font-size: clamp(20px, 2.3vw, 28px); }
+.sxm-need { margin: 12px 0 0; font-size: clamp(19px, 2vw, 24px); }
+.sxm-k { margin-top: 14px; }
+.sxm-ready .spec { font-size: clamp(22px, 2.5vw, 30px); }
+.sxm-ready .outbar, .sxm-ready .pl-outbar, .sxm-ready .allergy { margin: 0 0 10px; }
+@media (max-width: 700px) { .sxm-gig { grid-template-columns: 1fr; } }
+.sxm-nav { display: grid; grid-template-columns: 1fr 2fr; gap: 10px; }
+.sxm-nav .btn { min-height: 64px; font-size: 22px; }
+.sxm-nav .btn[disabled] { opacity: .35; }
+body.sxbig .sxm-step p { font-size: clamp(26px, 3vw, 36px); } body.sxbig .sxm-ing .it { font-size: clamp(26px, 3vw, 38px); }
+.sx-mkgo { width: 100%; min-height: 60px; font-size: 22px; margin: 12px 0 2px; }
+</style>`);
 
 /* ---------- A to Z: one way to scroll any long list ----------
    A list that puts azHead() over each letter (azHtml does it for you) gets a strip of letters down its right edge, like
@@ -11011,7 +11209,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T01:06";
+const BUILD = "2026-11-18T01:18";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -12831,8 +13029,9 @@ document.addEventListener("change", (e) => {
 let helpFrom = null;
 const HELP = {
   station: { t: "Bar station", what: "The iPad on the bar for express service: any drink in big type, rounds made in one go, tonight's 86s, photos, date labels, the close on both sides and the handover.",
-    how: ["Search or tap a drink: on an iPad its spec shows next to the list. Swipe the spec, or use the arrows, for the next one. \u00d72 to \u00d78 scales it for a round, with the total liquid.", "Every drink says if it can be made tonight: ✓ Can make, ⚠ Can make with a swap (with the amounts that change), or ✕ Can't make tonight. Missing something? Tap it under the spec. Can't make it? Go with the flow picks the next best thing. Alcohol-free? jumps to the no-alcohol version.",
-      "+ adds a drink to the round (tap again for two). The round puts drinks made the same way together (stir, build, shake, fizz last) and lists the glasses, ice, garnish and tins to get ready.",
+    how: ["Tap a drink (or search and press Go): on an iPad Make it now opens it as big step cards. Get ready first (glass, ice, garnish, what you need and the whole spec), then one step a card, each amount with its side of the 25/50 jigger. Tap the card when it's done for the next one; Done goes back to the list. \u00d71 to \u00d74 scales it, Spec shows it next to the list instead, 🔊 reads it out.",
+      "The spec next to the list: swipe it, or use the arrows, for the next drink. \u00d72 to \u00d78 scales it for a round, with the total liquid. \u25b6 Make it now on it opens the step cards. Set up, Tap a drink chooses which one a tap opens.", "Every drink says if it can be made tonight: ✓ Can make, ⚠ Can make with a swap (with the amounts that change), or ✕ Can't make tonight. Missing something? Tap it under the spec. Can't make it? Go with the flow picks the next best thing. Alcohol-free? jumps to the no-alcohol version.",
+      "+ adds a drink to the round (tap again for two). The round puts drinks made the same way together (stir, build, shake, fizz last) and lists the glasses, ice, garnish and tins to get ready. \u25b6 Make the round walks it a drink at a time, scaled, and Done marks each one Made.",
       "Aa makes everything bigger, to read from a step back.", "Ran out of something? Tap the search box under Tonight, type a few letters or pick a kind, and tap 86. Tick several to 86 them together. Take a photo or Upload adds it to tonight's handover.",
       "The bar along the top switches between Drinks, Round, Batches, Quiz and Set up. Everything \u25be picks which drinks the list shows.",
       "Last orders shows big across the top from 15 minutes before the time a manager sets. Across the top: tonight's 86s, then date labels for bar and floor, URGENT when one needs changing now and a reminder the day before. Tap one to change it.",
@@ -12842,7 +13041,7 @@ const HELP = {
       "Quiz: a question at a time from our own specs, for a quiet moment.",
       "Set up: how to keep the iPad on Bar Book (Shared, Guided Access, Auto-Lock), with what's done ticked.",
       "On a shared iPad, Exit, turning Shared off and Reset this phone need a manager's code first."],
-    behind: ["It's the same live data as every phone: nothing extra is saved to the team. The round and the Aa setting are kept on this iPad.", "Left alone for 2 minutes it clears the search and the open drink, so the next person starts clean. Left on any other page for 2 minutes, it goes back to the station. After 10 minutes the screen goes dark but for the time; a tap wakes it.",
+    behind: ["It's the same live data as every phone: nothing extra is saved to the team. The round, the Aa setting and what a tap opens are kept on this iPad. Make it now uses the same picture guide as Step by step on a phone.", "Left alone for 2 minutes it clears the search and the open drink, so the next person starts clean. Left on any other page for 2 minutes, it goes back to the station. After 10 minutes the screen goes dark but for the time; a tap wakes it.",
       "It looks after itself: when nobody has touched it for 5 minutes it loads a new version of Bar Book if there is one, and starts fresh once a day after 6am, straight back onto the station. The round empties at 6am."] },
   shift: { t: "The Shift tab", what: "Tonight's work for your side, in the order it happens.",
     how: ["Pick Bar or Floor at the top. Each phone remembers its side.", "Go left to right: Morning, Labels, Stock, Closing, Handover.", "The small number on each tab shows what's left there."],
@@ -12962,7 +13161,7 @@ const HELP = {
 const INTRO = [
   { t: "Welcome to Bar Book", how: ["Every drink we make, the shift, the close and the handover, in one app built for Black Tap Soho.", "Specs and guides work with no signal. The team side syncs live between every phone on shift.", "Tap Next to see what it does. Skip any time: More, Replay the tour brings it back."], tip: "Two minutes now saves you that every shift." },
   { t: "Find any drink in seconds", how: ["Rapid fire: the house drinks as big buttons, one tap from the start page. Show specs on the page and most questions need no tap at all.", "Menu: search by drink, spirit, glass or flavour. It forgives typos, so “espreso martni” still finds it.", "Or just scroll: A to Z shows the Black Tap signatures first, then every drink under its letter. Tap a letter on the strip down the right, or slide your finger down it, to go straight there. Sections shows the menu's sections instead: tap it again to jump to one.", "Filters narrows by kind of drink, spirit or what the guest fancies, or sorts by strength or fewest ingredients. ★ shows your favourites."], tip: "Tap the empty search box to see the drinks you opened last. Tap the Drinks tab again at the top of the Menu to jump straight into search.", more: ["rapid"] },
-  { t: "Every spec, done right", how: ["Each drink has the spec, glass, ice, garnish and method, plus a picture guide for every step.", "Tap a line or step to tick it off as you build. − and + scale it for up to 12 drinks. ml or oz switches units.", "Batch it turns any drink into a prep bottle: every amount, the water and how many it makes."], tip: "Send this drink, Picture card or Print card turns any spec into a WhatsApp message or a card for the well.", more: ["drink"] },
+  { t: "Every spec, done right", how: ["Each drink has the spec, glass, ice, garnish and method, plus a picture guide for every step.", "Tap a line or step to tick it off as you build. − and + scale it for up to 12 drinks. ml or oz switches units. On the bar iPad, a tap on a drink opens Make it now: one big step card at a time, with the jigger side for each amount.", "Batch it turns any drink into a prep bottle: every amount, the water and how many it makes."], tip: "Send this drink, Picture card or Print card turns any spec into a WhatsApp message or a card for the well.", more: ["drink"] },
   { t: "Out of something? It adjusts", how: ["Shift, Stock, Search everything to 86: a few letters, typos and all, or pick a kind. Tick several to 86 them together. Every phone knows straight away.", "Every drink, on the menu, the spec and the iPad, then says ✓ Can make, ⚠ Can make with a swap, or ✕ Can't make tonight. The swap is worked out by sugar and acid, so it tastes like the spec.", "Missing something mid-drink? Tap it on the drink. Can't make it and the guest doesn't mind? Go with the flow uses the closest thing you have, or offers the nearest drink."], tip: "A house cocktail made another way says Adjusted, so nobody takes it for the house spec. Back in stock takes it off everywhere at once.", more: ["drink", "stock"] },
   { t: "The cocktail maker", how: ["Make: tap what you've got and see what you can make, closest first, with swaps.", "My bar keeps your own bottles. Specs puts every spec on one line for busy moments.", "Black Tap shows our line-up: draught, bottles, softs and the house serves."], tip: "A guest names two bottles? Tap them and offer the top match.", more: ["make"] },
   { t: "Run the shift together", how: ["Shift is shared live with everyone on your side: the 86 board, restocks from the cellar and date labels.", "Restock: ask for it, someone brings it up, whoever's there confirms it arrived. Late ones flag after 15 minutes.", "Date labels tell you what to write on the label and what's due today or tomorrow. Last orders flags on every phone 15 minutes before."], tip: "No signal? A badge says Working offline, all saved, and everything sends when you're back.", more: ["shift", "labels"] },
@@ -13217,8 +13416,8 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 7;
-const WALK_NEW = "Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out. 86 it from there when it does.";
+const WALK_V = 8;
+const WALK_NEW = "Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -13250,7 +13449,7 @@ const WALK = {
     { t: "Your bar shift", how: [
       "Shift, Bar has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top.",
+      "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top: tap a drink there and Make it now shows it one big step card at a time.",
       "Ran out? Stock, Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
     ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
     WALK_NAV,
@@ -13369,9 +13568,9 @@ const featSorted = (xs) => xs.map((f) => ({ ...f, g: SEC_OF[f.k] || f.g })).sort
 const gdItems = () => featSorted([
   ...FEATURES.filter((f) => !(f.k === "tell" && LIVE.owner)),
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
-  { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: any drink in big type, rounds, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
+  { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: tap a drink and Make it now shows it a big step card at a time, with the jigger side for each amount. Rounds a drink at a time, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
 ]);
-const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
+const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round jigger", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
 // What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.
@@ -14078,7 +14277,7 @@ function sdVoiceGo() {
     pk86(xs, on); renderList(); sdCue("ok"); return;
   }
   if (h.kind === "log") { if (!LIVE.me) return toast("Join the team to log it"); sdCue("ok"); return track(LIVE.api.logIt(mode, "note", h.n.slice(0, LOG_MAX)), "Logged. It's in tonight's handover", "Not saved. Try again"); }
-  if (h.kind === "drink") return cur === "station" ? sxOpen(h.d.id) : openSheet(h.d.id);
+  if (h.kind === "drink") return cur === "station" ? sxTap(h.d.id) : openSheet(h.d.id);
   if (h.kind === "make") { mk.pane = "bar"; mkSave(); return openAt("tab:make"); }
   if (h.kind === "count") { if (!LIVE.me) return toast("Join the team to count stock"); openAt("count"); ctHeard = { ...h.p }; ctRender(true); return; }
   if (h.kind === "go") { if (h.go === "pick86") return pkOpen({ mode: "86" }); if (h.go === "count" && !LIVE.me) return toast("Join the team to count stock"); openAt(h.go); scrollTo(0, 0); }

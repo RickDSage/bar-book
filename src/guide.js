@@ -7,8 +7,8 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 7;
-const WALK_NEW = "Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out. 86 it from there when it does.";
+const WALK_V = 8;
+const WALK_NEW = "Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -40,7 +40,7 @@ const WALK = {
     { t: "Your bar shift", how: [
       "Shift, Bar has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top.",
+      "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top: tap a drink there and Make it now shows it one big step card at a time.",
       "Ran out? Stock, Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
     ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
     WALK_NAV,
@@ -159,9 +159,9 @@ const featSorted = (xs) => xs.map((f) => ({ ...f, g: SEC_OF[f.k] || f.g })).sort
 const gdItems = () => featSorted([
   ...FEATURES.filter((f) => !(f.k === "tell" && LIVE.owner)),
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
-  { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: any drink in big type, rounds, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
+  { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: tap a drink and Make it now shows it a big step card at a time, with the jigger side for each amount. Rounds a drink at a time, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
 ]);
-const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
+const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round jigger", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
 // What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.
