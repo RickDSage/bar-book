@@ -371,7 +371,7 @@ function sxTonight() {
     </div>
     ${sharedDev ? "" : `<button class="st-hint" data-shared-pick="on">Shared iPad is off. Tap to turn it on: My pay hidden, codes lock after 5 minutes</button>`}
     <button class="linkbtn sx-choose" data-sx-view="setup">Choose what shows here \u203a</button>`;
-  sxFit();
+  sxTilesApply(); sxFit();
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
