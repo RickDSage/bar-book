@@ -38,7 +38,7 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   // More: rows that open Allergens, Practise and Cheat sheets, then the Guide, the bar's reference folded away, then this
   // phone's settings. The More tab stays lit on its pages, and the back button returns to it.
   await p.click("[data-tab=info]");
-  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["My pay", "Allergens", "Cheat sheets", "Bar station", "Practise specs", "Games and drills", "Guide: how Bar Book works", "Siri and shortcuts", "Send feedback"]);
+  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["My pay", "Allergens", "Cheat sheets", "Bar station", "Practise specs", "Games and drills", "Read text in a photo", "Guide: how Bar Book works", "Siri and shortcuts", "Send feedback"]);
   assert.deepEqual(await p.$$eval("#v-info .fold h2", (x) => x.map((h) => h.textContent)), ["Measures and the law", "Technique key and words we use", "Prep and batches",
     "Shot tray, step by step", "Put this app on your home screen", "Reset this phone"]);
   assert.equal(await p.locator("#v-info [data-fold=law][open]").count(), 0, "the reference starts folded");
@@ -151,5 +151,29 @@ test("allergen tiles include sulphites, and oat milk shows under gluten", async 
   await p.click("[data-al=Gluten]");
   const glu = await p.$eval("#allist", (e) => e.innerText);
   assert.match(glu, /The Paddington/); assert.match(glu, /The Boilermaker/);
+  assert.deepEqual(p.errs, []);
+});
+
+test("Read text in a photo: take or choose one, its words under it to search and copy", async () => {
+  const p = await open();
+  await p.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  // The reader is the payslips' one (Tesseract on this phone); here it's handed what a photo reads as.
+  await p.evaluate(() => { window.readFiles = async (fs, say) => { say("Reading the picture… 50%"); return ["ALLERGY: NO NUTS  \nTable 12, Sarah\n\n\n\nNo nuts in anything please"]; }; });
+  await p.click("[data-tab=info]"); await p.click("[data-rt-open]");
+  assert.match(await p.innerText("#rt"), /Read text[\s\S]*Take a photo[\s\S]*Choose a photo[\s\S]*read on this phone/);
+  await p.setInputFiles("#rt-pick", { name: "note.png", mimeType: "image/png", buffer: Buffer.from("x") });
+  await p.waitForSelector("#rt-text");
+  assert.equal(await p.$eval("#rt-text", (e) => e.innerText.replace(/\s+/g, " ").trim()), "ALLERGY: NO NUTS Table 12, Sarah No nuts in anything please");
+  assert.ok(await p.$("#rt .rt-img"), "the photo shows above what it read");
+  await p.fill("#rt-q", "nuts");
+  assert.match(await p.innerText("#rt"), /2 lines with “nuts”/);
+  assert.equal(await p.locator("#rt-text mark").count(), 2);
+  await p.click("[data-rt-copy]");
+  assert.match(await p.evaluate(() => navigator.clipboard.readText()), /^ALLERGY: NO NUTS\nTable 12/);
+  await p.click("[data-rt-x]");
+  assert.equal(await p.isHidden("#rt"), true);
+  // Find gets there too.
+  await p.evaluate(() => openAt("readtext"));
+  assert.equal(await p.isVisible("#rt"), true);
   assert.deepEqual(p.errs, []);
 });

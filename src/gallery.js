@@ -51,12 +51,51 @@ function galRender() {
 }
 function galBig(id) {
   const p = GAL.list.find((x) => x.id === id); if (!p) return;
-  let el = $("#gal-lb"); if (!el) { el = document.createElement("button"); el.id = "gal-lb"; el.className = "gal-lb"; el.setAttribute("aria-label", "Close the photo"); document.body.append(el); }
-  el.innerHTML = `<img src="${p.data}" alt="${esc(p.note || "Photo")}"><span>${esc(sideName(p.side))} · ${esc(p.name || "")} · ${p.at ? hhmm(new Date(ms(p.at))) : ""}${p.note ? ` · ${esc(p.note)}` : ""}</span>`;
+  let el = $("#gal-lb"); if (!el) { el = document.createElement("div"); el.id = "gal-lb"; el.className = "gal-lb"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "The photo"); document.body.append(el); }
+  el.innerHTML = `<img src="${p.data}" alt="${esc(p.note || "Photo")}"><span>${esc(sideName(p.side))} · ${esc(p.name || "")} · ${p.at ? hhmm(new Date(ms(p.at))) : ""}${p.note ? ` · ${esc(p.note)}` : ""}</span>
+    <div class="actions"><button class="btn" data-rt-photo="${p.id}">Read the text in it</button><button class="btn" data-gal-lb-x>Close</button></div>`;
   el.hidden = false; haptic();
 }
+
+/* ---------- Read text: the words in any photo ----------
+   Take or choose a photo (or open one from Photos) and the same free text reader as payslips and delivery notes reads
+   it on this phone: the photo on top, what it read underneath, to copy or search. The photo is never sent anywhere. */
+let RT = null;
+function rtShow(src) {
+  let el = $("#rt"); if (!el) { el = document.createElement("div"); el.id = "rt"; el.className = "rt"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Read text"); document.body.append(el); }
+  if (RT?.blob) URL.revokeObjectURL(RT.url);
+  RT = src ? { url: typeof src === "string" ? src : URL.createObjectURL(src), blob: typeof src !== "string", text: null, msg: "Reading the picture…", q: "" } : { url: "", text: null, msg: "", q: "" };
+  el.hidden = false; rtDraw();
+  if (src) rtRead(src, RT);
+}
+async function rtRead(src, me) {
+  try {
+    const f = typeof src === "string" ? new File([await (await fetch(src)).blob()], "photo.jpg", { type: "image/jpeg" }) : src;
+    const [t] = await readFiles([f], (m) => { if (RT === me) { me.msg = m; const s = $("#rt-msg"); if (s) s.textContent = m; } });
+    if (RT === me) { me.text = t.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(); rtDraw(); }
+  } catch { if (RT === me) { me.msg = "The text reader needs signal the first time. Try again with signal."; rtDraw(); } }
+}
+function rtDraw() {
+  const el = $("#rt"); if (!el || !RT) return;
+  const lines = (RT.text || "").split("\n"), q = RT.q.trim().toLowerCase(), hits = q ? lines.filter((l) => l.toLowerCase().includes(q)) : [];
+  const mark = (l) => (q ? esc(l).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/&/g, "&amp;").replace(/</g, "&lt;"), "gi"), (m) => `<mark>${m}</mark>`) : esc(l));
+  el.innerHTML = `<div class="bar1"><button class="back" data-rt-x>‹ Back</button><span class="t">Read text</span><span></span></div>
+    <div class="addph"><label class="btn${RT.url ? "" : " pri"}" for="rt-cam">📷 Take a photo</label><label class="btn" for="rt-pick">Choose a photo</label></div>
+    <input id="rt-cam" type="file" accept="image/*" capture="environment" hidden><input id="rt-pick" type="file" accept="image/*" hidden>
+    ${RT.url ? `<img class="rt-img" src="${RT.url}" alt="The photo">` : `<p class="note">A label, a note, a letter, a sign: take or choose a photo and its words come up here to copy or search. It's read on this phone.</p>`}
+    ${RT.text == null ? (RT.msg ? `<p class="note" id="rt-msg" role="status">${esc(RT.msg)}</p>` : "")
+      : RT.text ? `<div class="ltools"><input id="rt-q" type="search" placeholder="Search the text" aria-label="Search the text" value="${esc(RT.q)}"><button class="btn" data-rt-copy>Copy all</button></div>
+        ${q ? `<p class="s" role="status">${hits.length ? `${hits.length} line${hits.length === 1 ? "" : "s"} with “${esc(RT.q.trim())}”` : `No “${esc(RT.q.trim())}” in it`}</p>` : ""}
+        <div class="rt-text" id="rt-text">${(q ? hits : lines).map((l) => `<p>${mark(l) || "&nbsp;"}</p>`).join("")}</div>
+        <p class="s">The reader can slip on handwriting, curved bottles and small print: check it against the photo.</p>`
+      : `<p class="note">No words found. Try closer, flatter and in good light.</p>`}`;
+}
 document.addEventListener("click", (e) => {
-  if (e.target.closest("#gal-lb")) { $("#gal-lb").hidden = true; return; }
+  if (e.target.closest("[data-rt-open]")) { haptic(); return rtShow(null); }
+  const rp = e.target.closest("[data-rt-photo]"); if (rp) { const p = GAL.list.find((x) => x.id === rp.dataset.rtPhoto); $("#gal-lb").hidden = true; haptic(); return p && rtShow(p.data); }
+  if (e.target.closest("[data-rt-x]")) { $("#rt").hidden = true; if (RT?.blob) URL.revokeObjectURL(RT.url); RT = null; return; }
+  if (e.target.closest("[data-rt-copy]")) return navigator.clipboard?.writeText(RT.text).then(() => toast("Copied. Paste it anywhere"), () => toast("Couldn't copy. Press and hold the text to copy it"));
+  if (e.target.closest("[data-gal-lb-x]") || e.target.id === "gal-lb") { $("#gal-lb").hidden = true; return; }
   if (!$("#gal")) return;
   const d = e.target.closest("[data-gal-day]"); if (d) { haptic(); return openGallery(d.dataset.galDay, true); }
   const sd = e.target.closest("[data-gal-side]"); if (sd) { haptic(); GAL.side = sd.dataset.galSide; return galRender(); }
@@ -65,6 +104,8 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-gal-all]")) { const xs = galShown(), all = xs.every((p) => GAL.pick.has(p.id)); xs.forEach((p) => (all ? GAL.pick.delete(p.id) : GAL.pick.add(p.id))); haptic(); return galRender(); }
   if (e.target.closest("[data-gal-send]")) { haptic(); openSend("photos", GAL.day); }
 });
+document.addEventListener("change", (e) => { if ((e.target.id === "rt-cam" || e.target.id === "rt-pick") && e.target.files[0]) { rtShow(e.target.files[0]); } });
+document.addEventListener("input", (e) => { if (e.target.id === "rt-q" && RT) { RT.q = e.target.value; rtDraw(); const i = $("#rt-q"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); } });
 // The picked photos as a message: who took each and when, with the link back to this shift's photos.
 SHARE.photos = (day = GAL.day) => {
   const xs = GAL.list.filter((p) => GAL.pick.has(p.id)); if (!xs.length) return null;
@@ -93,5 +134,15 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .gal-bar .btn.pri { flex: 1; }
 .gal-lb { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; background: rgba(0,0,0,.92); color: #fff; }
 .gal-lb[hidden] { display: none; }
-.gal-lb img { max-width: 100%; max-height: 82vh; object-fit: contain; border-radius: 8px; }
+.gal-lb .actions { justify-content: center; }
+.gal-lb .btn { background: #222; color: #fff; border-color: #555; }
+.rt { position: fixed; inset: 0; z-index: 61; overflow-y: auto; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--bg); }
+.rt[hidden] { display: none; }
+.rt .bar1 { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rt .bar1 .t { text-align: center; font-weight: 800; }
+.rt-img { display: block; max-width: 100%; max-height: 40vh; margin: 10px auto; border-radius: 10px; object-fit: contain; }
+.rt-text { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 17px; line-height: 1.45; user-select: text; -webkit-user-select: text; }
+.rt-text p { margin: 0; }
+.rt-text mark { background: var(--brass); color: var(--brass-ink); border-radius: 3px; }
+.gal-lb img { max-width: 100%; max-height: 72vh; object-fit: contain; border-radius: 8px; }
 </style>`);

@@ -3902,49 +3902,44 @@ $("#tally").addEventListener("click", async (e) => {
 });
 
 /* ---------- Football on the screens ----------
-   Managers add the games the bar is showing; everyone sees today's at the top of the Shift tab, and what's coming up.
-   No free listing says which games are on TNT, so the manager picks the channel. */
-const COMPS = ["Premier League", "Championship", "Champions League", "Europa League", "Conference League", "FA Cup", "Carabao Cup",
-  "Women's Super League", "Scottish Premiership", "International", "La Liga", "Serie A", "Bundesliga"];
-const CHANNELS = ["Sky Sports Main Event", "Sky Sports Premier League", "Sky Sports Football", "Sky Sports+", "TNT Sports 1", "TNT Sports 2",
-  "TNT Sports 3", "TNT Sports 4", "Amazon Prime Video", "BBC One", "BBC Two", "ITV1", "ITV4", "Channel 4", "DAZN", "Premier Sports", "Netflix"];
-let fxForm = { day: "", ko: "20:00", home: "", away: "", comp: "", channel: "", screen: "" };
+   Kept to what the venue is showing tonight: a manager types one line ("Arsenal v Spurs 8pm, both screens") and
+   everyone sees it at the top of the Shift tab. With nothing set, ⚽ Football on TV today opens a Google search,
+   which lists the day's games and channels. No fixture feed: the venue decides what goes on the screens. */
+const FX_GOOGLE = "https://www.google.com/search?q=football+on+TV+today+UK";
+let fxLine = "";
+// "Arsenal v Spurs 8pm, both screens" → home, away, kick-off and screen. null when it isn't one.
+function fxParse(t) {
+  const m = String(t).trim().match(/^(.+?)\s+(?:v|vs\.?|versus)\s+(.+?)\s+(?:at\s+)?(\d{1,2})(?:[:.](\d{2}))?\s*(am|pm)?(?:\s*[,·-]\s*(.+))?$/i);
+  if (!m) return null;
+  let h = +m[3]; const mi = +(m[4] || 0), ap = (m[5] || "").toLowerCase();
+  if (ap === "pm" && h < 12) h += 12; if (ap === "am" && h === 12) h = 0;
+  if (!ap && h < 11) h += 12; // a game at "8" is 8pm
+  if (h > 23 || mi > 59) return null;
+  return { home: m[1].trim().slice(0, 40), away: m[2].trim().slice(0, 40), ko: `${String(h).padStart(2, "0")}:${String(mi).padStart(2, "0")}`, screen: (m[6] || "").trim().slice(0, 30) };
+}
 const fxRow = (x) => `<div class="staffrow fx"><div class="n"><b class="dt">${esc(x.ko)}</b> ${esc(x.home)} v ${esc(x.away)}</div>
-  <div class="s">${[x.comp, x.channel, x.screen && `Screen: ${x.screen}`].filter(Boolean).map(esc).join(" · ")}${LIVE.admin ? ` · <button class="linkbtn" data-fx-drop="${x.id}">Take down</button>` : ""}</div></div>`;
+  ${[x.comp, x.channel, x.screen].some(Boolean) || LIVE.admin ? `<div class="s">${[x.comp, x.channel, x.screen].filter(Boolean).map(esc).join(" · ")}${LIVE.admin ? ` <button class="linkbtn" data-fx-drop="${x.id}">Take down</button>` : ""}</div>` : ""}</div>`;
 function renderFootball() {
   const box = $("#football"); if (!box) return;
   if (!LIVE.me) { box.innerHTML = ""; return; }
-  const today = ukDay(Date.now()), games = LIVE.fixtures.filter((x) => !x.pending || x.uid === LIVE.uid).sort((a, b) => (a.day + a.ko).localeCompare(b.day + b.ko));
-  const now = games.filter((x) => x.day === today), soon = games.filter((x) => x.day > today);
-  if (!now.length && !soon.length && !LIVE.admin) { box.innerHTML = ""; return; }
-  const v = (k) => esc(fxForm[k]), list = (id, xs) => `<datalist id="${id}">${xs.map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`;
-  const none = !now.length && !soon.length;
-  const form = LIVE.admin ? `<details class="setup" id="fx-add"${fxForm.open ? " open" : ""}><summary>${none ? "\u26bd No football today · Add a game" : "Add a game"}</summary>
-      <div class="paygrid"><label class="fld">Day<input type="date" data-fx="day" value="${v("day") || today}"></label><label class="fld">Kick-off<input type="time" data-fx="ko" value="${v("ko")}"></label>
-      <label class="fld">Home<input data-fx="home" maxlength="40" value="${v("home")}"></label><label class="fld">Away<input data-fx="away" maxlength="40" value="${v("away")}"></label>
-      <label class="fld">Competition<input data-fx="comp" list="fx-comps" maxlength="40" value="${v("comp")}"></label><label class="fld">Channel<input data-fx="channel" list="fx-chans" maxlength="30" value="${v("channel")}"></label></div>
-      <label class="fld">Which screen<input data-fx="screen" maxlength="30" placeholder="All screens, upstairs bar…" value="${v("screen")}"></label>
-      ${list("fx-comps", COMPS)}${list("fx-chans", CHANNELS)}<button class="btn pri wide" id="fx-go">Add the game</button></details>` : "";
-  // No games: a manager gets one line to add one on Morning only, not on top of every Shift page.
-  if (none) { box.innerHTML = pane === "morning" ? `<div class="football fb-none">${form}</div>` : ""; return; }
-  box.innerHTML = `<div class="notice football"><div class="meta"><b>Football tonight</b></div>
-    ${now.length ? now.map(fxRow).join("") : `<p class="note">No games on our screens today.</p>`}
-    ${soon.length ? `<details><summary>Coming up (${soon.length})</summary>${soon.map((x) => `<div class="s" style="margin-top:8px"><b>${esc(dayName(x.day))}</b></div>${fxRow(x)}`).join("")}</details>` : ""}
-    ${now.length || soon.length ? `<div class="actions">${sendBtn("games", "Send the games")}</div>` : ""}
-    ${form}</div>`;
+  const today = ukDay(Date.now()), now = LIVE.fixtures.filter((x) => x.day === today && (!x.pending || x.uid === LIVE.uid)).sort((a, b) => a.ko.localeCompare(b.ko));
+  const tv = `<a class="linkbtn" href="${FX_GOOGLE}" target="_blank" rel="noopener">⚽ Football on TV today</a>`;
+  const add = LIVE.admin ? `<div class="ltools"><input id="fx-line" maxlength="100" autocomplete="off" enterkeyhint="done" placeholder="Arsenal v Spurs 8pm, both screens" aria-label="Tonight's game" value="${esc(fxLine)}"><button class="btn" id="fx-go">Add</button></div>` : "";
+  // Nothing set: one line on Morning only, not on top of every Shift page.
+  if (!now.length) { box.innerHTML = pane === "morning" ? `<div class="football fb-none"><p class="s">No game on our screens tonight · ${tv}</p>${add}</div>` : ""; return; }
+  box.innerHTML = `<div class="notice football"><div class="meta"><b>Football tonight</b></div>${now.map(fxRow).join("")}
+    <div class="actions">${sendBtn("games", "Send the games")}</div>${add}<p class="s">${tv}</p></div>`;
 }
-$("#football").addEventListener("input", (e) => { const k = e.target.dataset.fx; if (k) fxForm[k] = e.target.value; });
-keepOpen($("#football"), (e) => { if (e.target.id === "fx-add") fxForm.open = e.target.open; });
+$("#football").addEventListener("input", (e) => { if (e.target.id === "fx-line") fxLine = e.target.value; });
+$("#football").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "fx-line") { e.preventDefault(); $("#fx-go").click(); } });
 $("#football").addEventListener("click", (e) => {
   const d = e.target.closest("[data-fx-drop]");
-  if (d) { if (confirm("Take this game down?")) track(LIVE.api.dropFixture(d.dataset.fxDrop), "Taken down", "Not taken down. Try again"); return; }
+  if (d) { haptic(); return track(LIVE.api.dropFixture(d.dataset.fxDrop), "Taken down", "Not taken down. Try again"); }
   if (!e.target.closest("#fx-go")) return;
-  const x = { ...fxForm, day: fxForm.day || ukDay(Date.now()) };
-  for (const k of ["home", "away", "comp", "channel", "screen"]) x[k] = (x[k] || "").trim();
-  if (!x.home || !x.away) return toast("Add both teams");
-  if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(x.ko)) return toast("Add the kick-off time");
-  track(LIVE.api.addFixture(x), `${x.home} v ${x.away} added`, "Not added. Try again"); haptic();
-  fxForm = { ...fxForm, home: "", away: "", open: true }; renderFootball();
+  const x = fxParse(fxLine);
+  if (!x) return toast("Like this: Arsenal v Spurs 8pm, both screens");
+  track(LIVE.api.addFixture({ ...x, day: ukDay(Date.now()), comp: "", channel: "" }), `${x.home} v ${x.away} added`, "Not added. Try again"); haptic();
+  fxLine = ""; renderFootball();
 });
 
 /* ---------- Feedback (Google Form, responses go to the manager) ---------- */
@@ -5258,6 +5253,7 @@ const IC = {
   replay: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/><path d="M10.5 9.5l4 2.5-4 2.5z"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
   pay: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
+  read: '<path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3"/><path d="M8 10h8M8 13h8M8 16h5"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
 const hubRow = (k, attr, t, sub) => `<${attr.startsWith("href") ? "a" : "button"} class="hrow2" ${attr}><span class="hic">${icon(k)}</span><span><b>${t}</b><small>${sub}</small></span><span class="chev" aria-hidden="true">${attr.startsWith("href") ? "↗" : "›"}</span></${attr.startsWith("href") ? "a" : "button"}>`;
@@ -5280,6 +5276,7 @@ function renderInfo() {
     </div>
     <div class="sec">Help</div>
     <div class="hub">
+      ${hubRow("read", "data-rt-open", "Read text in a photo", "A label, note or sign: its words to copy or search, read on this phone")}
       ${hubRow("features", "data-guide", "Guide: how Bar Book works", "The walkthrough, the full tour, every section, and a search for anything")}
       ${hubRow("siri", "data-sc-open", "Siri and shortcuts", "\u201cHey Siri, Bar Book 86\u201d: open any page by voice or a tap on the back of the phone")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
@@ -5398,8 +5395,8 @@ const FEATURES = [
     what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",
     staff: "Hand over: send with photos (WhatsApp on a phone; Mail, AirDrop or Files on the iPad), or just save. Anyone can carry on what someone started.", mgr: "Open, send or delete any closing report with its photos on the Team page." },
   { g: "Shift", k: "football", n: "Football", go: "football", team: 1,
-    what: "Today's and coming games at the top of the Shift tab, so everyone knows what's on the screens.",
-    staff: "See the games, and add or remove one." },
+    what: "Tonight's game at the top of the Shift tab, so everyone knows what's on the screens. ⚽ Football on TV today opens a Google search of the day's games and channels.",
+    staff: "See tonight's game.", mgr: "On Morning, type one line: “Arsenal v Spurs 8pm, both screens”, then Add. Take down removes it." },
   { g: "Team", k: "ask", n: "To the managers", go: "ask", team: 1,
     what: "Days off, swaps, complaints, faults, things to fix, ideas or anything else, straight to the managers, with your name or anonymously.",
     staff: "Send one and see when it's seen or done.", mgr: "Read them all in the Inbox, mark each seen or done, and reply." },
@@ -5485,6 +5482,7 @@ function openAt(where) {
   if (where === "shift") return show("tally");
   if (where === "photos" || where.startsWith("gallery:")) return openGallery(where.slice(8) || shiftDay());
   if (where === "count") return show("count");
+  if (where === "readtext") return rtShow(null);
   if (where === "dnote") { ctInHtml.open = true; show("count"); return setTimeout(() => $("#ct-in-box")?.scrollIntoView({ block: "center" }), 120); }
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
