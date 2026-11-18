@@ -4,18 +4,18 @@
    shared iPad, once per name. When the walkthrough changes, WALK_V goes up and WALK_NEW says what changed: anyone who
    saw an older one gets one small "New in the walkthrough" note instead of the whole thing again. More, Help has Replay
    the walkthrough and Replay the tour any time.
-   The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
+   The 🔍 at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 12;
-const WALK_NEW = "Stock count: picking a level no longer jumps on: check the sum, then Confirm ›, with ‹ Back for the item before. Under Find: where you are and Next place, ↩ Undo, and Check it on a number far from last time. Photo check reads the level from three taps on your photo.";
+const WALK_V = 13;
+const WALK_NEW = "🔍 at the top finds any screen, drink or how-to: type it and tap to go there. 🎤 sits next to it now, never over the page: it shows the words as it hears them, says when it couldn't make them out, and a drink said opens straight away. On Closing, tap a heading to fold it.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
   "Long lists scroll A to Z, like your phone's contacts: the drinks, the 86 picker, the stock count. Tap a letter on the strip down the right, or slide your finger down it.",
   "Hands full? Tap 🎤 and say it how you like, like “can you 86 the Corona” or “Negroni spec”: it picks out the key words. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
-  "? at the top right opens the Guide: every part of Bar Book by section, and a search for anything, like “how do I make a mojito” or “what's a dry shake”.",
+  "🔍 at the top right finds anything: type a screen (“closing”, “labels”, “pay”) and tap to go straight there, or a drink, or “how do I make a mojito”. 🎤 next to it does the same by voice.",
 ], tip: "× closes this at any time. More, Replay the walkthrough brings it back." };
 const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
   `Saw something, found something, did something, told a manager or someone told you? Tap ＋ Log it on Shift${side === "bar" ? " or on the bar station" : ""}. One line is enough.`,
@@ -214,7 +214,7 @@ function guideOpen(q = "") {
   helpFrom = helpFrom || document.activeElement; introAt = -1; gdQ = q;
   $("#help .help-in").innerHTML = `<div class="help-h"><h3 id="help-t">Guide</h3><button class="hq-x" data-help-x aria-label="Close">×</button></div>
     <p class="lead">Ask anything, or pick a section. A tap takes you straight there.</p>${gdBoxHtml("gd-q")}<div id="gd-out">${gdResultsHtml()}</div>
-    <p class="note gd-foot">‹ Back or your phone's back goes back a step. ⌂ goes home. This Guide is always on the ? at the top.</p>`;
+    <p class="note gd-foot">‹ Back or your phone's back goes back a step. ⌂ goes home. This Guide is always on the 🔍 at the top, and 🎤 beside it takes it by voice.</p>`;
   $("#gd-q").value = q; $("#help").hidden = false; $("#help .help-in").scrollTop = 0;
   if (!matchMedia("(pointer: coarse)").matches || q) $("#gd-q").focus();
 }

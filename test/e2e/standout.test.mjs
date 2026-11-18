@@ -80,7 +80,7 @@ test("standout: last orders, seasonal menu, closing timer, replay, order draft, 
   await K.click("[data-sd-vgo]");
   await O.waitForFunction(() => LIVE.out.has("Limes"));
   await K.evaluate(() => sdVoiceOpen());
-  await K.fill("#sd-vtext", "how do I make a negroni"); await K.press("#sd-vtext", "Enter"); await K.click("[data-sd-vgo]");
+  await K.fill("#sd-vtext", "how do I make a negroni"); await K.press("#sd-vtext", "Enter");
   await K.waitForSelector("#sheet:not([hidden]) #sh-name");
   assert.equal(await K.textContent("#sh-name"), "Negroni");
   await K.click("#sh-close");

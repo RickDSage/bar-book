@@ -522,6 +522,8 @@ function sdParse(raw) {
   if (top && top.s >= (want ? 2.5 : 3.5)) return { kind: "drink", d: D[top.x.d], sc: 3 + top.s / 10, say: top.x.n, alts: hits.slice(1).filter((h) => h.s >= 2.5).slice(0, 3).map(dAlt) };
   const g = l.trim().split(" ").length <= 3 && SD_GO.find(([re]) => re.test(l));
   if (g) return { kind: "go", go: g[1], sc: 5, say: `Opening ${l.trim()}` };
+  // Not sure, but a drink is close: open the closest, with the next closest to tap if it's not the one.
+  if (top && top.s >= 2) return { kind: "drink", d: D[top.x.d], sc: 2.5, close: true, say: top.x.n, alts: hits.slice(1).filter((h) => h.s >= 1.6).slice(0, 3).map(dAlt) };
   const near = hits.filter((h) => h.s >= 2);
   return { kind: "none", sc: near.length ? 1 : 0, say: near.length ? `Not sure what “${t}” was. Is it one of these?` : `Didn't catch a command in “${t}”. Try “86 the Corona”, “Negroni spec” or “count tonic 12”.`, alts: near.slice(0, 3).map(dAlt) };
 }
@@ -541,12 +543,13 @@ function sdVoiceRender() {
   const h = SD.vc.heard, acts = h && ["86", "back", "log"].includes(h.kind), alts = h?.alts || [];
   const btn = !h ? "" : acts ? "Yes, do it" : h.kind === "count" ? "Open the count" : h.kind !== "none" && h.kind !== "info" ? "Go" : "";
   $("#sd-voice .help-in").innerHTML = `<div class="help-h"><h3 id="sd-vt">🎤 Say it</h3><button class="hq-x" data-sd-vx aria-label="Close">×</button></div>
-    ${SD.vc.on ? `<p class="sd-big sd-pulse">Listening…</p><p class="note">Say it how you like. It picks out the key words.</p>` : ""}
-    ${SD.vc.err ? `<p class="note warnline">${esc(SD.vc.err)}</p>` : ""}
-    ${h ? `<div class="sd-heard${h.kind === "none" ? " no" : ""}">${SD.vc.text && h.kind !== "none" ? `<p class="s">Heard “${esc(SD.vc.text)}”</p>` : ""}<b>${esc(h.say)}</b>${acts ? `<p class="note">${h.kind === "log" ? "It goes in tonight's handover with your name." : h.typed ? "It isn't on the list, so it goes on as said. Or tap the right one below." : "Every phone sees it straight away."}</p>` : ""}
+    ${SD.vc.on ? `<div class="sd-live" role="status"><span class="sd-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><b>${SD.vc.live ? "Hearing" : "Listening: speak now"}</b>
+      <p class="sd-livet">${SD.vc.live ? `“${esc(SD.vc.live)}”` : "Say it how you like: a drink, “86 the Corona”, “open closing”."}</p><button class="btn" data-sd-vstop>Done</button></div>` : ""}
+    ${SD.vc.err ? `<div class="sd-heard no" role="alert"><b>${esc(SD.vc.err)}</b><div class="actions"><button class="btn pri" data-sd-vagain>${SD_REC ? "\ud83c\udfa4 Try again" : "Try again"}</button></div></div>` : ""}
+    ${h ? `<div class="sd-heard${h.kind === "none" ? " no" : ""}">${SD.vc.text && h.kind !== "none" ? `<p class="s">Heard “${esc(SD.vc.text)}”</p>` : ""}${h.close ? `<p class="s">Not sure. The closest drink is:</p>` : ""}<b>${esc(h.say)}</b>${acts ? `<p class="note">${h.kind === "log" ? "It goes in tonight's handover with your name." : h.typed ? "It isn't on the list, so it goes on as said. Or tap the right one below." : "Every phone sees it straight away."}</p>` : ""}
       ${alts.length ? `<p class="mini" style="margin-top:10px">${h.kind === "none" || h.typed ? "Did you mean" : "Or"}</p><div class="recent">${alts.map((a, i) => `<button class="chip" data-sd-valt="${i}" translate="no">${esc(a.t)}</button>`).join("")}</div>` : ""}</div>
       <div class="actions">${btn ? `<button class="btn pri" data-sd-vgo>${btn}</button>` : ""}<button class="btn" data-sd-vagain>${SD_REC ? "Say it again" : "Try again"}</button></div>` : ""}
-    <form class="sd-vform" data-sd-vform><input id="sd-vtext" type="text" enterkeyhint="go" autocomplete="off" placeholder="${SD_REC ? "Or type it" : "Tap the 🎤 on your keyboard and speak"}" value="${esc(SD.vc.text)}" aria-label="Command"><button class="btn" type="submit">Go</button></form>
+    <form class="sd-vform" data-sd-vform><input id="sd-vtext" type="text" enterkeyhint="go" autocomplete="off" placeholder="${SD_REC ? "Or type it here" : "Type it, or tap the 🎤 on your keyboard"}" value="${esc(SD.vc.text)}" aria-label="Command"><button class="btn" type="submit">Go</button></form>
     <p class="note">Try: “86 the Corona”, “limes are back”, “Marshmallow Boulevard spec”, “count tonic 12”, “log it the glass washer is leaking”, “what's 86'd”, “open closing”. Nothing changes until you say yes.</p>`;
 }
 let sdRx = null;
@@ -554,24 +557,45 @@ function sdListen() {
   try {
     sdRx?.abort?.();
     SD.vc.err = "";
-    sdRx = new SD_REC(); sdRx.lang = "en-GB"; sdRx.interimResults = false; sdRx.continuous = false; sdRx.maxAlternatives = 5;
+    SD.vc.live = ""; SD.vc.got = false;
+    sdRx = new SD_REC(); sdRx.lang = "en-GB"; sdRx.interimResults = true; sdRx.continuous = false; sdRx.maxAlternatives = 5;
     sdRx.onresult = (e) => {
-      const r = e.results[0], b = vcBest(Array.from({ length: r.length }, (_, i) => r[i].transcript));
+      const r = e.results[e.results.length - 1];
+      // Still talking: show the words so far, so it's plain it's working.
+      if (r.isFinal === false) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing"; } return; }
+      const b = vcBest(Array.from({ length: r.length }, (_, i) => r[i].transcript));
       if (!b) return;
-      SD.vc.text = b.t; SD.vc.heard = b.h; SD.vc.on = false; sdVoiceRender(); sdSpeak(b.h.say);
+      SD.vc.got = true; SD.vc.text = b.t; SD.vc.on = false; sdHeard(b.h);
     };
     sdRx.onerror = (e) => {
       SD.vc.on = false;
       SD.vc.err = e.error === "not-allowed" || e.error === "service-not-allowed" ? "The microphone is off for Bar Book. Allow it in the phone's settings, or tap the 🎤 on the keyboard and speak into the box."
-        : e.error === "no-speech" ? "Didn't hear anything. Tap Say it again and speak close to the phone." : e.error === "network" ? "Speech needs signal on this phone. Type it, or use the keyboard's 🎤." : "";
-      sdVoiceRender(); if (e.error !== "no-speech") $("#sd-vtext")?.focus();
+        : e.error === "no-speech" ? "Didn't hear anything. Try again, close to the phone, or type it below." : e.error === "network" ? "Speech needs signal on this phone. Type it below, or use the keyboard's 🎤."
+        : e.error === "aborted" ? "" : "Couldn't make that out. Try again, or type it below.";
+      SD.vc.got = true; sdVoiceRender(); if (e.error !== "no-speech") $("#sd-vtext")?.focus();
     };
-    sdRx.onend = () => { if (SD.vc.on) { SD.vc.on = false; sdVoiceRender(); } };
-    SD.vc.on = true; sdVoiceRender(); sdRx.start();
+    // Stopped with nothing made out: say so, never just go quiet.
+    sdRx.onend = () => { document.body.classList.remove("sd-listening"); if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
+    SD.vc.on = true; document.body.classList.add("sd-listening"); sdVoiceRender(); sdRx.start();
   } catch { SD.vc.on = false; sdVoiceRender(); $("#sd-vtext")?.focus(); }
 }
 function sdSpeak(t) { if (!SD.set.sound) return; try { const u = new SpeechSynthesisUtterance(t); u.lang = "en-GB"; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} }
-function sdVoiceClose() { sdRx?.abort?.(); SD.vc.on = false; const el = $("#sd-voice"); if (el) el.hidden = true; }
+function sdVoiceClose() { sdRx?.abort?.(); SD.vc.on = false; document.body.classList.remove("sd-listening"); const el = $("#sd-voice"); if (el) el.hidden = true; }
+// What was said, worked out: a drink opens straight away (it changes nothing), with the closest others to tap if it's
+// not the one. Anything that changes something waits for Yes.
+function sdHeard(h) {
+  SD.vc.heard = h;
+  if (h.kind === "drink") { const t = SD.vc.text; sdVoiceGo(); sdNotIt(t, h); sdSpeak(h.say); return; }
+  sdVoiceRender(); sdSpeak(h.say);
+}
+// A strip along the bottom for 10 seconds: what it heard, what it opened, and the next closest to tap instead.
+function sdNotIt(t, h) {
+  let el = $("#sd-notit");
+  if (!el) { document.body.insertAdjacentHTML("beforeend", `<div id="sd-notit" class="sd-notit" role="status"></div>`); el = $("#sd-notit"); }
+  SD.vc.nit = h.alts || [];
+  el.innerHTML = `<span>\ud83c\udfa4 ${t ? `“${esc(t)}”: ` : ""}<b translate="no">${esc(h.d.name)}</b>${h.close ? " (closest)" : ""}</span>${SD.vc.nit.length ? `<span class="sd-nl">Not it?</span>${SD.vc.nit.map((a, i) => `<button class="chip" data-sd-nit="${i}" translate="no">${esc(a.t)}</button>`).join("")}` : ""}<button class="sd-nx" data-sd-nitx aria-label="Close">\u00d7</button>`;
+  el.hidden = false; clearTimeout(sdNotIt.t); sdNotIt.t = setTimeout(() => { el.hidden = true; }, 10000);
+}
 function sdVoiceGo() {
   const h = SD.vc.heard; if (!h) return;
   sdVoiceClose(); haptic();
@@ -583,7 +607,7 @@ function sdVoiceGo() {
     pk86(xs, on); renderList(); sdCue("ok"); return;
   }
   if (h.kind === "log") { if (!LIVE.me) return toast("Join the team to log it"); sdCue("ok"); return track(LIVE.api.logIt(mode, "note", h.n.slice(0, LOG_MAX)), "Logged. It's in tonight's handover", "Not saved. Try again"); }
-  if (h.kind === "drink") return cur === "station" ? sxTap(h.d.id) : openSheet(h.d.id);
+  if (h.kind === "drink") { if (cur === "station") { if (!$("#sheet").hidden) hideSheet(); return sxTap(h.d.id); } return openSheet(h.d.id); }
   if (h.kind === "make") { mk.pane = "bar"; mkSave(); return openAt("tab:make"); }
   if (h.kind === "count") { if (!LIVE.me) return toast("Join the team to count stock"); openAt("count"); ctHeard = { ...h.p }; ctRender(true); return; }
   if (h.kind === "go") { if (h.go === "pick86") return pkOpen({ mode: "86" }); if (h.go === "count" && !LIVE.me) return toast("Join the team to count stock"); openAt(h.go); scrollTo(0, 0); }
@@ -601,12 +625,15 @@ function sdApplyModes() {
   let bar = $("#sd-1h");
   if (!bar) {
     document.body.insertAdjacentHTML("beforeend", `<nav id="sd-1h" aria-label="Quick actions" hidden><button data-sd-1h="back" aria-label="Back">‹<span>Back</span></button><button data-sd-1h="find" aria-label="Search drinks">🔍<span>Search</span></button><button data-sd-1h="86" aria-label="86 something">🚫<span>86</span></button><button data-log aria-label="Log it">＋<span>Log it</span></button><button data-sd-1h="send" aria-label="Send">📤<span>Send</span></button><button data-sd-mic aria-label="Voice">🎤<span>Say it</span></button></nav>
-      <button id="sd-mic" data-sd-mic aria-label="Voice command" hidden>🎤</button>`);
+`);
     bar = $("#sd-1h");
   }
   bar.hidden = !SD.set.onehand;
-  $("#sd-mic").hidden = !SD.set.voice || !!SD.set.onehand;
+  sdMics();
 }
+// Every 🎤 button in a top bar: shown while Voice is on (More, This phone), and not twice in one-hand mode.
+function sdMics() { for (const b of document.querySelectorAll(".sd-micb")) b.hidden = !SD.set.voice || !!SD.set.onehand; }
+new MutationObserver(() => { if (document.querySelector(".sd-micb:not([data-sd-on])")) { for (const b of document.querySelectorAll(".sd-micb:not([data-sd-on])")) b.dataset.sdOn = "1"; sdMics(); } }).observe(document.body, { childList: true, subtree: true });
 function sdOneHand(k) {
   haptic();
   if (k === "back") { if (!$("#sd-voice")?.hidden) return sdVoiceClose(); if (!$("#logit").hidden) return logClose(); if (!$("#sheet").hidden) return hideSheet(); return history.length > 1 ? history.back() : show("drinks"); }
@@ -620,7 +647,7 @@ function sdPhoneHtml() {
   return row("a11y", "Accessible mode", "Easier to read: plain headings, bigger text and spacing, colour-blind-safe colours, bigger buttons.")
     + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and voice in a row above the tabs, in reach of your thumb.")
     + row("sound", "Sounds", "A short sound for urgent things, last orders and a new best close. Android phones buzz too; iPhones can't from a web app.")
-    + row("voice", "Voice button 🎤", "Say it how you like: \"86 the Corona\", \"Negroni spec\", \"count tonic 12\". It picks out the key words. Nothing changes until you say yes.");
+    + row("voice", "Voice button 🎤", "In the top bar. Say a drink and it opens, or \"86 the Corona\", \"count tonic 12\". It picks out the key words, shows them as it hears them, and nothing changes until you say yes.");
 }
 
 /* ---------- Where it all goes ---------- */
@@ -655,8 +682,9 @@ document.addEventListener("click", (e) => {
   if (t("#sd-voice")) {
     if (e.target.id === "sd-voice" || t("[data-sd-vx]")) return sdVoiceClose();
     if (t("[data-sd-vgo]")) return sdVoiceGo();
-    if ((x = t("[data-sd-valt]"))) { const a = SD.vc.heard?.alts?.[+x.dataset.sdValt]; if (a) { haptic(); SD.vc.heard = { ...a.h, alts: [] }; sdVoiceRender(); sdSpeak(a.h.say); } return; }
-    if (t("[data-sd-vagain]")) { SD.vc.heard = null; if (SD_REC) sdListen(); else { sdVoiceRender(); $("#sd-vtext")?.focus(); } return; }
+    if ((x = t("[data-sd-valt]"))) { const a = SD.vc.heard?.alts?.[+x.dataset.sdValt]; if (a) { haptic(); sdHeard({ ...a.h, alts: [] }); } return; }
+    if (t("[data-sd-vagain]")) { SD.vc.heard = null; SD.vc.err = ""; if (SD_REC) sdListen(); else { sdVoiceRender(); $("#sd-vtext")?.focus(); } return; }
+    if (t("[data-sd-vstop]")) { haptic(); sdRx?.stop?.(); return; }
   }
   if ((x = t("[data-sd-rp-day]"))) { SD.rp.day = x.dataset.sdRpDay; haptic(); sdReplayLoad(); return; }
   if ((x = t("[data-sd-rp-side]"))) { SD.rp.side = x.dataset.sdRpSide; haptic(); renderCard("replay"); return; }
@@ -692,7 +720,7 @@ document.addEventListener("submit", (e) => {
   if (!e.target.closest("[data-sd-vform]")) return;
   e.preventDefault();
   const v = $("#sd-vtext").value.trim(); if (!v) return;
-  sdRx?.abort?.(); SD.vc.on = false; SD.vc.text = v; SD.vc.heard = sdParse(v); sdVoiceRender();
+  sdRx?.abort?.(); SD.vc.on = false; SD.vc.err = ""; SD.vc.text = v; sdHeard(sdParse(v));
 });
 document.addEventListener("input", (e) => {
   if (e.target.id === "sd-ss-q") { SD.ss.q = e.target.value; const p = e.target.selectionStart; if (SD.ss.edit) SD.ss.edit.name = $("#sd-ss-name").value; renderCard("season"); const i = $("#sd-ss-q"); i.focus(); i.setSelectionRange(p, p); }
@@ -723,32 +751,36 @@ addEventListener("scroll", () => {
   document.body.classList.toggle("fab-away", d > 0 && y > 120 && !end); fabY = y;
 }, { passive: true });
 document.head.insertAdjacentHTML("beforeend", `<style>
-#sd-off[hidden],#sd-last[hidden],#sd-timer[hidden],#sd-1h[hidden],#sd-mic[hidden]{display:none}
+#sd-off[hidden],#sd-last[hidden],#sd-timer[hidden],#sd-1h[hidden],.sd-micb[hidden],#sd-notit[hidden]{display:none}
+/* Listening: the 🎤 in the top bar glows, and the box shows the words as they come. */
+body.sd-listening .sd-micb{background:var(--warn)!important;border-color:var(--warn)!important;color:#fff;animation:sdp 1.2s ease-in-out infinite}
+.sd-live{margin:10px 0;padding:14px;border:2px solid var(--brass);border-radius:14px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center}
+.sd-live b{font-size:19px}.sd-live .btn{margin:0;grid-row:span 2}.sd-livet{grid-column:1/3;margin:0;font-size:18px;min-height:1.4em;color:var(--fg)}
+.sd-wave{display:flex;align-items:center;gap:3px;height:26px}.sd-wave i{width:4px;height:8px;border-radius:2px;background:var(--brass);animation:sdw 1s ease-in-out infinite}
+.sd-wave i:nth-child(2){animation-delay:.15s}.sd-wave i:nth-child(3){animation-delay:.3s}.sd-wave i:nth-child(4){animation-delay:.45s}.sd-wave i:nth-child(5){animation-delay:.6s}
+@keyframes sdw{50%{height:24px}}@media (prefers-reduced-motion:reduce){.sd-wave i,body.sd-listening .sd-micb{animation:none}}
+.sd-notit{position:fixed;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 10px);z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:10px 40px 10px 14px;border:1.5px solid var(--brass);border-radius:14px;background:var(--surface);box-shadow:0 8px 24px #0006;font-size:15px}
+.sd-notit .chip{margin:0}.sd-nl{color:var(--muted)}.sd-nx{position:absolute;top:4px;right:4px;width:36px;height:36px;font-size:20px;color:var(--muted)}
+body.stmode .sd-notit,#sheet:not([hidden])~.sd-notit{bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
 .sd-state{margin:10px 0;padding:10px 12px;border:1.5px solid var(--ok);border-radius:12px;background:var(--surface);line-height:1.4}.sd-state>b{display:block;color:var(--ok);font-size:17px}
 .sd-state>span,.sd-state small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.sd-state.swap{border-color:var(--brass)}.sd-state.swap>b{color:var(--brass)}.sd-state.no{border-color:var(--warn)}.sd-state.no>b{color:var(--warn)}.sd-adj{display:inline-block;margin:2px 0 4px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);border:1px solid var(--warn);border-radius:999px;padding:1px 8px}
 .sd-in{padding:0 12px 12px}.sd-in .chips{flex-wrap:wrap;overflow:visible;margin:4px 0 0;padding:0}.sd-big{font-size:17px;margin:10px 0 4px}.sd-big b{font-size:28px;color:var(--brass);margin-right:4px}
 .sd-warn{border-left:3px solid var(--warn);padding-left:10px}
 .sd-tl{list-style:none;margin:8px 0;padding:0;border-left:2px solid var(--line);margin-left:46px}.sd-tl li{position:relative;display:flex;gap:8px;padding:7px 0 7px 12px}.sd-tl time{position:absolute;left:-50px;top:9px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sd-tl .ic{flex:none;width:22px;text-align:center}.sd-tl p{margin:0;line-height:1.35}.sd-tl small{color:var(--muted);font-size:13px}.sd-tl li.big p{font-weight:700;color:var(--brass)}
-/* One small pill beside the 🎤, so the two never stack over the list's buttons. */
-#sd-timer{position:fixed;right:76px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 22px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:999px;padding:6px 12px;box-shadow:0 6px 20px #0006;display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+/* The timer: one small pill in the corner. */
+#sd-timer{position:fixed;right:14px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 22px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:999px;padding:6px 12px;box-shadow:0 6px 20px #0006;display:flex;align-items:baseline;gap:6px;white-space:nowrap}
 #sd-timer b{font-size:16px;font-variant-numeric:tabular-nums}#sd-timer span{font-size:12px;color:var(--muted)}#sd-timer.slow{border-color:var(--warn)}
-body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}body.sd-1h #sd-mic{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 74px)}
+body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}
 #sd-last{margin-top:8px;display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px;border:2px solid var(--brass);border-radius:14px;background:var(--surface)}
 #sd-last b{font-size:22px}#sd-last span{color:var(--muted)}#sd-last.now{border-color:var(--warn)}#sd-last.now b{color:var(--warn)}
 #v-station~#sd-last,body.ipad #sd-last b{font-size:30px}
 #sd-off{margin-top:8px;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;background:#16351f;color:#e9f7ec;border:1.5px solid #4caf6a;border-radius:16px;padding:10px 14px;box-shadow:0 8px 24px #0007}
 #sd-off .dot{grid-row:span 2;width:14px;height:14px;border-radius:50%;background:#4caf6a;box-shadow:0 0 0 4px #4caf6a33}#sd-off b{font-size:17px}#sd-off span:last-child{font-size:13.5px;opacity:.9}
 body.sd-offon #net{display:none}
-/* Scrolling down to read, the 🎤 and the timer slide out of the way; scrolling back up, stopping at the end or any tap brings them back. */
-body.fab-away #sd-mic,body.fab-away #sd-timer{transform:translateY(calc(100% + 120px));opacity:0;pointer-events:none}
-#sd-mic,#sd-timer{transition:transform .25s ease,opacity .25s ease}
-#sd-mic{position:fixed;right:14px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 14px);z-index:7;width:52px;height:52px;border-radius:50%;background:var(--surface);border:1.5px solid var(--brass);font-size:22px;box-shadow:0 6px 18px #0006}
-/* The page ends clear of the 🎤, so the last row's buttons are never stuck under it. */
-body:has(#sd-mic:not([hidden])) main{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 84px)}
-body.stmode:has(#sd-mic:not([hidden])) main{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 84px)}
-/* The bar station: above the spec panel's Back and Next. */
-body.stmode #sd-mic{bottom:calc(env(safe-area-inset-bottom,0px) + 104px)}
+/* Scrolling down to read, the timer slides out of the way; scrolling back up, stopping at the end or any tap brings it back. */
+body.fab-away #sd-timer{transform:translateY(calc(100% + 120px));opacity:0;pointer-events:none}
+#sd-timer{transition:transform .25s ease,opacity .25s ease}
 #sd-1h{position:fixed;left:0;right:0;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px));z-index:9;display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px max(6px,env(safe-area-inset-left,0px))}
 #sd-1h button{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;color:var(--fg)}#sd-1h span{font-size:11px;color:var(--muted);margin-top:2px}
 body.sd-1h main{padding-bottom:64px}body.sd-1h #sheet{padding-bottom:calc(var(--tabh) + 70px)}
@@ -769,3 +801,9 @@ SD_READY = true;
 sdApplyModes(); sdTick();
 LINKS.replay = () => "#at=replay"; LINKS.orderdraft = () => "#at=order";
 { const sd0 = SHARE.drink; SHARE.drink = (id) => { const m = sd0(id), d = D[+id]; if (m && d && sdHouse(d) && plOutOf(d).miss.length) m.head = ["Adjusted tonight: not the house spec", ...m.head]; return m; }; }
+// The Not it? strip: a tap opens that drink instead; × puts it away.
+document.addEventListener("click", (e) => {
+  const n = e.target.closest?.("[data-sd-nit]");
+  if (n) { const a = SD.vc.nit?.[+n.dataset.sdNit]; if (a) { haptic(); $("#sd-notit").hidden = true; SD.vc.heard = a.h; sdVoiceGo(); } return; }
+  if (e.target.closest?.("[data-sd-nitx]")) $("#sd-notit").hidden = true;
+});
