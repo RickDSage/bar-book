@@ -341,7 +341,7 @@ function sxTonight() {
   const side = (m) => {
     const p = progress(MODE_LISTS[m].at(-1)), r = LIVE.reports.find((x) => x.side === m && reportDay(x) === today);
     const last = LIVE.reports.find((x) => x.side === m && !x.pending && reportDay(x) !== today);
-    return `<button class="sx-jm" data-st-side="${m}"><span class="sx-ji" aria-hidden="true">\u2705</span><span class="sx-jt"><b><span class="st-k">${esc(sideName(m))} closing</span> ${p.n}/${p.of}</b><span class="st-bar"><i style="width:${p.pct}%"></i></span>
+    return `<button class="sx-jm" data-st-side="${m}"><span class="sx-ji" aria-hidden="true">${r || p.n === p.of ? "\u2705" : "\ud83d\udccb"}</span><span class="sx-jt"><b><span class="st-k">${esc(sideName(m))} closing</span> ${p.n}/${p.of}</b><span class="st-bar"><i style="width:${p.pct}%"></i></span>
       <span class="st-s">${r ? (r.pending ? "Handover saved, waiting for signal" : `Handed over ${hhmm(new Date(ms(r.at)))} by ${esc(r.name)}`) : last ? `Last handover ${esc(dayName(reportDay(last)))}, ${esc(last.name)}` : "No handover yet"}</span></span><i aria-hidden="true">\u203a</i></button>`;
   };
   // Date labels, bar and floor: anything overdue or due today is URGENT, and tomorrow's show the day before as a

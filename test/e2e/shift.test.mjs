@@ -114,9 +114,9 @@ test("the handover covers the four closing points and needs photos or a reason",
   const msg = await S.evaluate(() => shareText("shift"));
   assert.match(msg, /📷 No closing photos: Phone camera broken/);
   // What's missing never stops it: it goes at the top of the message, and on the Send page.
-  assert.match(msg, /^\*Black Tap Soho · Bar shift · [^*]+\*\n⚠️ Missing: Closed by not picked\n/);
+  assert.match(msg, /^\*Black Tap Soho · Bar shift · [^*]+\*\n⚠️ Missing: Nobody picked under Closed by\n/);
   await S.evaluate(() => openSend("shift"));
-  assert.match(await S.innerText(".sendgap"), /Check before it goes\s*Closed by not picked[\s\S]*It still sends as it is/);
+  assert.match(await S.innerText(".sendgap"), /Check before it goes\s*Nobody picked under Closed by[\s\S]*It still sends as it is/);
   await S.evaluate(() => closeSheet());
   assert.match(msg, /\*A · 1\. Cleaning and closing done \(\d+\)\*\n⬜ Service \(0\/3\)/);
   assert.match(msg, /\*A · 2\. Stock running low\*\nGas \(CO2\), Garnishes/);

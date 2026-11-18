@@ -281,7 +281,7 @@ let fxQ = "", fxCur = "";
 function fxListHtml() {
   const q = fxNorm(fxQ).trim(), xs = fxAll().filter((x) => !q || fxNorm(`${x.n} ${factOf(x.n)?.n || ""} ${x.g || ""}`).includes(q));
   const row = (x) => { const f = factOf(x.n), d = fxDays(x.n);
-    return `<button class="gd-row" data-fx-open="${esc(x.n)}"><span><b translate="no">${esc(x.n)}</b><small>${esc([f?.contains && `Contains ${f.contains[0]}`, d?.d && `keeps ${nDays(d.d)} opened`, !f && "no maker facts yet"].filter(Boolean).join(" · ") || (x.g || ""))}</small></span><i>›</i></button>`; };
+    return `<button class="gd-row" data-fx-open="${esc(x.n)}"><span><b translate="no">${esc(x.n)}</b><small>${esc([f?.contains && `Contains ${f.contains[0]}`, d?.d && `keeps ${nDays(d.d)} opened`].filter(Boolean).join(" · ") || (x.g || ""))}</small></span><i>›</i></button>`; };
   return xs.length ? azHtml(xs, (x) => x.n, row, 15) : `<p class="note">Nothing called that. ${LIVE.me ? `<button class="linkbtn" data-fx-new="${esc(fxQ)}">Add it with Add something new ›</button>` : ""}</p>`;
 }
 // The page: a search over everything, or one product's card. Opening one from elsewhere (Find, the line-up, a label)

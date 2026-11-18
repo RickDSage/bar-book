@@ -289,8 +289,10 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .addph { display: grid; gap: 8px; margin-top: 8px; }
 .addph label { cursor: pointer; }
 .confirm { margin-top: 10px; padding: 12px; border: 1px solid var(--warn); border-radius: 10px; }
-.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 700; }
-.toast-undo { margin-left: 10px; min-height: 36px; padding: 0 6px; font: inherit; font-weight: 800; color: inherit; background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; }
+/* left:50% alone gives a fixed box only half the screen to wrap in, so a long toast became a tall blob over the page:
+   width max-content, capped at the screen less the 16px gutters. Taps go through it to the page, except on ↩ Undo. */
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 22px; font-weight: 700; width: max-content; max-width: min(520px, calc(100vw - 32px)); text-align: center; line-height: 1.35; pointer-events: none; }
+.toast-undo { pointer-events: auto; margin-left: 10px; min-height: 36px; padding: 0 6px; font: inherit; font-weight: 800; color: inherit; background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-top: 14px; text-align: center; }
 .card .g { display: block; width: 90px; height: 104px; margin: 0 auto; }
 .card .g svg { width: 100%; height: 100%; }
@@ -1366,10 +1368,12 @@ function track(p, ok, fail = "Not saved. Try again") {
   unsent++; let late = false;
   const t = setTimeout(() => { late = true; slow++; renderNet(); }, 1200);
   renderNet();
-  p.then(() => ok && toast(ok), () => fail && toast(fail)).finally(() => { clearTimeout(t); unsent--; if (late) slow--; renderNet(); });
+  // Refused while online is nearly always two phones changing the same thing at once (each change carries the version
+  // it was made from): a message blaming the signal there sent people looking for a fault that wasn't there.
+  p.then(() => ok && toast(ok), (e) => fail && toast(e?.code === "permission-denied" && navigator.onLine && /signal/.test(fail) ? "Someone else changed this at the same moment. Check it and try again" : fail)).finally(() => { clearTimeout(t); unsent--; if (late) slow--; renderNet(); });
 }
 addEventListener("online", () => renderNet()); addEventListener("offline", () => renderNet());
-function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 1800); }
+function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), Math.min(5000, 1800 + msg.length * 30)); }
 // A clear on this phone only (the round, the cocktail maker): done straight away, with ↩ Undo on the toast for 8 seconds.
 function undoToast(msg, undo) {
   const t = $("#toast"); t.innerHTML = `${esc(msg)} <button class="toast-undo" type="button">\u21a9 Undo</button>`; t.hidden = false;
@@ -2657,14 +2661,14 @@ SHARE.shift = () => {
   const sent = sentTonight(mode), dp = draftPhotos().length, shots = (PHOTO_SHOTS[mode] || PHOTO_SHOTS.bar).length;
   const notDone = lists.reduce((n, k) => n + (runOf(k) ? progress(k).of - progress(k).n : 0), 0), lbN = toChange([mode]).length;
   const gaps = [!sent?.photos && dp < shots && !noPhotos && `${dp} of ${shots} closing photos`, notDone && `${plural(notDone, "closing job")} not done`,
-    !closedBy().length && "Closed by not picked", lbN && `${plural(lbN, "date label")} not changed`].filter(Boolean);
+    !closedBy().length && "Nobody picked under Closed by", lbN && `${plural(lbN, "date label")} not changed`].filter(Boolean);
   return { gaps, what: `${sideName(mode)} shift`, link: appUrl(dp ? `#at=photos:${mode}` : sent ? `#at=rep:${sent.id}` : "#at=send"), photoN: dp || sent?.photos || 0, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
     { id: "sit", label: "S \u00b7 Situation", one: true, lines: head },
     { id: "bg", label: "B \u00b7 Background", one: true, lines: bg },
     // The closing list heading by heading, then what's left on each list. A list nobody started is left out unless
     // ticked: its summary line says enough.
     ...lists.map((k) => ({ id: `heads-${k}`, label: k === closeList() ? "A \u00b7 1. Cleaning and closing done" : `A \u00b7 ${LISTS[k].title}, by heading`, raw: true, lines: heads(k), off: k !== closeList() && !runOf(k) })),
-    ...lists.map((k) => ({ id: `todo-${k}`, label: `A \u00b7 ${LISTS[k].title}: not done`, raw: true, lines: left(k), off: !runOf(k) })),
+    ...lists.map((k) => ({ id: `todo-${k}`, label: `A \u00b7 ${LISTS[k].title}: left under part-done headings`, raw: true, lines: left(k), off: !runOf(k) })),
     point("low", "A \u00b7 2. Stock running low", "Nothing running low"),
     { id: "out", label: "A \u00b7 86'd", lines: out.map((n) => `${n}${outByText(n) ? `, by ${outByText(n)}` : ""}`) },
     { id: "restock", label: "A \u00b7 Restocks still open", lines: rsOpen().filter((r) => DEST_SIDE[r.dest] === mode).map(rsLine) },
@@ -3116,10 +3120,10 @@ function closeClock(k) {
 /* Nobody left alone: a close someone started, a handover draft or tonight's photos, while that side hasn't handed over,
    show on the Team page (and on the Shift tab for anyone not already on it) with who started it and Carry on, so
    anyone on the team picks it up where it was left, adds photos part-way, or hands over. Free, in the app only. */
-function carryRows(notMine) {
+function carryRows(notMine, here) {
   if (!LIVE.me) return [];
   return ["bar", "floor"].flatMap((sd) => {
-    if (sentTonight(sd)) return [];
+    if (sentTonight(sd) || sd === here) return [];
     const k = MODE_LISTS[sd].at(-1), r = runOf(k), p = progress(k), d = draftOf(sd), ph = tonightPhotos().filter((x) => x.side === sd);
     const ev = LIVE.events.filter((e) => e.kind === "task" && e.list === k).sort((a, b) => ms(a.at) - ms(b.at));
     if (!ev.length && !r && !d && !ph.length) return [];
@@ -3132,7 +3136,7 @@ function carryRows(notMine) {
     return [{ sd, by: first?.name || "", at: first?.at, bits, done: r?.status === "finished" }];
   });
 }
-const carryHtml = (notMine) => carryRows(notMine).map((x) => `<div class="hopt carry"><b>\ud83e\udd1d ${esc(sideName(x.sd))}: started by <span translate="no">${esc(x.by || "the team")}</span>${x.at ? ` at ${hhmm(new Date(ms(x.at)))}` : ""}</b>
+const carryHtml = (notMine, here) => carryRows(notMine, here).map((x) => `<div class="hopt carry"><b>\ud83e\udd1d ${esc(sideName(x.sd))}: started by <span translate="no">${esc(x.by || "the team")}</span>${x.at ? ` at ${hhmm(new Date(ms(x.at)))}` : ""}</b>
   <span>${esc(x.bits.join(" \u00b7 "))}. Not handed over yet: anyone can carry on, add photos or hand over.</span>
   <button class="btn" data-carry="${x.sd}">${x.done ? "Hand over" : "Carry on"}</button></div>`).join("");
 function carryOn(sd) {
@@ -3701,7 +3705,7 @@ function renderTally() {
       ${logHoHtml()}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
       <div class="draftbar"><span>${LIVE.me ? "Shared live with everyone closing this side" : "Saved on this phone as you type"}</span><button class="btn" data-ho-save>Save draft</button><button class="btn" data-ho-clear>Discard</button></div>
-      <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done: send with photos` : "Hand over: send with photos"}</button>
+      <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done: send` : "Hand over: send"}${draftPhotos().length ? " with photos" : ""}</button>
       <button class="btn wide" id="t-save">${left ? `Hand over with ${left} not done: just save` : "Hand over: just save"}</button>
       <p class="note">Both save the handover, photos included, for the morning team and every manager to open on any phone or the iPad. Send with photos then opens the share sheet: WhatsApp on a phone, Mail, Messages, AirDrop or Save to Files on the iPad. Just save sends nothing now: it can be sent later from here, or from the link anyone gets.</p>
       <p class="note">The handover and Closed by start empty again at 6am.</p>`;
@@ -3709,7 +3713,8 @@ function renderTally() {
   }[pane]();
   // The pane slides in when it's switched to, not each time a teammate's change redraws it.
   const enter = lastPane !== mode + pane; lastPane = mode + pane;
-  $("#tally").innerHTML = tabs + carryHtml(true) + `<div class="pane${enter ? " enter" : ""}">${body}</div><div class="actions fresh"><button class="btn" id="clear-all">Clear everything</button></div>`;
+  // Already on this side's close or handover: its own status box says who started it, so no Carry on card for it.
+  $("#tally").innerHTML = tabs + carryHtml(true, pane === closeList() || pane === "send" ? mode : "") + `<div class="pane${enter ? " enter" : ""}">${body}</div><div class="actions fresh"><button class="btn" id="clear-all">Clear everything</button></div>`;
 }
 // The photo inputs live outside #tally. A teammate's change re-draws the list, and if an input were redrawn while the
 // camera or the phone's photos were open, the photos would be lost without a word. Several chosen at once go in as far

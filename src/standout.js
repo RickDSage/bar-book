@@ -355,7 +355,7 @@ function seasonHtml() {
       <ul class="sd-ss">${list.map((d) => { const off = e.off.includes(d.name), st = e.star.includes(d.name); return `<li><span translate="no">${esc(d.name)}<small>${esc(d.section)}</small></span><button class="chip" data-sd-ss-star="${d.id}" aria-pressed="${st}">★ First</button><button class="chip" data-sd-ss-off="${d.id}" aria-pressed="${off}">${off ? "Off" : "On"}</button></li>`; }).join("")}</ul>
       <div class="actions"><button class="btn pri" data-sd-ss-save>Save this menu</button><button class="btn" data-sd-ss-cancel>Cancel</button>${sets.some((x) => x.id === e.id) ? `<button class="btn danger" data-sd-ss-drop="${e.id}">Delete it</button>` : ""}</div>`;
   }
-  return `<p class="note">Switch the whole team to a seasonal menu in one tap. Drinks taken off leave the menu list but stay in search. One tap puts the full menu back.</p>
+  return `<p class="note">Drinks taken off leave the menu list but stay in search. One tap puts the full menu back.</p>
     <div class="sd-ss-sets"><button class="btn${!s.on ? " pri" : ""}" data-sd-ss-on="">Full menu${!s.on ? " ✓" : ""}</button>${sets.map((x) => `<button class="btn${s.on === x.id ? " pri" : ""}" data-sd-ss-on="${x.id}">${esc(x.name)}${s.on === x.id ? " ✓" : ""}</button>`).join("")}</div>
     <div class="actions">${sets.length < 8 ? `<button class="btn" data-sd-ss-new>＋ New seasonal menu</button>` : ""}${sets.map((x) => `<button class="linkbtn" data-sd-ss-edit="${x.id}">Change ${esc(x.name)}</button>`).join("")}</div>`;
 }
@@ -874,7 +874,7 @@ body.fab-away #sd-timer{transform:translateY(calc(100% + 120px));opacity:0;point
 #sd-1h button{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;color:var(--fg)}#sd-1h span{font-size:11px;color:var(--muted);margin-top:2px}
 body.sd-1h main{padding-bottom:64px}body.sd-1h #sheet{padding-bottom:calc(var(--tabh) + 70px)}
 .sd-heard{margin:10px 0;padding:12px;border:1.5px solid var(--brass);border-radius:12px}.sd-heard b{font-size:19px}.sd-heard.no{border-color:var(--warn)}
-.sd-vform{display:flex;gap:8px;margin-top:12px}.sd-vform input{flex:1;min-width:0}.sd-vform .btn{margin:0}
+.sd-vform{display:flex;gap:8px;margin-top:12px}.sd-vform input{flex:1;min-width:0;font-size:16px;padding:10px 12px;border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--fg)}.sd-vform .btn{margin:0}
 .sd-pulse{animation:sdp 1.2s ease-in-out infinite}@keyframes sdp{50%{opacity:.4}}
 .sd-season{margin:8px 0;padding:10px 12px;border:1.5px solid var(--brass);border-radius:12px;background:var(--surface)}.sd-season small{display:block;color:var(--muted);margin-top:4px}
 .sd-ss{list-style:none;margin:6px 0;padding:0}.sd-ss li{display:flex;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}.sd-ss li>span{flex:1;min-width:0}.sd-ss small{display:block;color:var(--muted);font-size:12px}.sd-ss .chip{margin:0;flex:none}

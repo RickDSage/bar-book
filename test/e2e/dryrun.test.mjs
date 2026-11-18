@@ -243,6 +243,8 @@ test("the dry run: a whole night and the morning after, on every kind of screen"
   await look(E, "after Clear everything (staff)");
   const afterE = await E.evaluate(() => ({ open: rsOpen().map((r) => r.item), out: [...outNow()], ticked: Object.values(MODE_LISTS).flat().flatMap(touched).length, draft: rsF.detail, undo: !!document.querySelector("#undo-clear") }));
   if (JSON.stringify(afterE) !== JSON.stringify({ open: ["Tonic"], out: [], ticked: 0, draft: "", undo: true })) found.push(`iphone · Clear everything left: ${JSON.stringify(afterE)}`);
+  // Hassan clears once his phone has heard about Emily's clear, as he would see it: a clear made from an older view is refused.
+  await wait(H, () => !outNow().size && rsOpen().length === 1);
   H.answer = ""; await H.evaluate(() => { show("tally"); }); await tap(H, "#clear-all"); await H.waitForTimeout(3000);
   await look(H, "after Clear everything (manager)");
   const hl = await H.evaluate(() => ({ open: rsOpen().map((r) => [r.item, r.status, r.askedUid === LIVE.uid]), admin: LIVE.admin, toast: $("#toast").textContent, undo: !!document.querySelector("#undo-clear") })); if (hl.open.length) found.push(`android · a manager's Clear everything left: ${JSON.stringify(hl)}`);
