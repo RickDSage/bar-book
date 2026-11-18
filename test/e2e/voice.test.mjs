@@ -137,3 +137,4 @@ test("the 🎤 sits in the top bar, never over the page; it shows the words as i
   assert.deepEqual(errs, []);
   await c.close();
 });
+
