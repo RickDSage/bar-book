@@ -937,7 +937,8 @@ describe("date labels: stations, found open with no label, and photos", () => {
     await b.commit();
     await fails(found("staff1", id, plusDays(today(), -1)), "staff");
     await fails(found("mgr1", id, plusDays(today(), -1), { note: "" }), "no note");
-    await fails(found("mgr1", id, plusDays(today(), 2)), "opened in the future");
+    // today() is the shift day, which runs to 6am: +3 is in the future even just after midnight.
+    await fails(found("mgr1", id, plusDays(today(), 3)), "opened in the future");
     await fails(found("mgr1", id, plusDays(today(), -6)), "older than its life");
     await fails(found("mgr1", id, plusDays(today(), -1), { useBy: plusDays(today(), 5) }), "use-by past its life");
     await assertSucceeds(found("mgr1", id, plusDays(today(), -1)));
