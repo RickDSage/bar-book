@@ -7,8 +7,8 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 6;
-const WALK_NEW = "Long lists scroll A to Z: the drinks (signatures first), the 86 picker and the stock count have a letter strip down the right. Tap a letter or slide your finger down it.";
+const WALK_V = 7;
+const WALK_NEW = "Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out. 86 it from there when it does.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -26,6 +26,7 @@ const WALK_COUNT = { t: "Stock count", how: [
   "Shift, Stock, Count stock: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left.",
   "Tap an item: + for each full, sealed bottle, then the open one on the scale in grams (or tap how full it is). Next › opens the one after.",
   "Can't see it? Type a few letters in Find at the top: it looks in every place. Or tap A to Z and use the letter strip. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "Anything under its running-low level gets a Running low tag, then shows on the 86 board, the bar station and Needs you now as a heads-up before it's an 86.",
   "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
 ], tip: "No signal in the cellar? It saves anyway and sends when you're back." };
 const WALK_SEND = { t: "Hand over and send", how: [
@@ -126,9 +127,11 @@ const GLOSSARY = [
   ["Twist", "A strip of citrus peel squeezed over the drink to spray its oils, then dropped in or on the rim."],
   ["Jigger", "The measure. Every pour is jiggered: no free pouring."],
   ["86", "Ran out, or not available tonight. Put it on the 86 board once and every phone knows."],
+  ["Running low", "Under the level a manager set, from the last stock count. A heads-up to order or restock before it's an 86."],
+  ["Par", "What a product is ordered back up to. The order draft works it out from the last count."],
   ["Go with the flow", "The guest doesn't mind it being a little different: use the closest thing you have, and tell them what changed."],
   ["Adjusted", "A house cocktail made with a swap tonight. Not the house spec, so say so."],
-  ["Batch", "A drink made in bulk ahead, in a bottle or jug. Stirred drinks get 20% water in, as if stirred on ice."],
+  ["Batch", "A drink made in bulk ahead, in a bottle. Stirred drinks get 20% water in, as if stirred on ice."],
   ["Par", "How much of something to have ready at the start of the shift. Prep to par is on Morning."],
   ["Handover", "The end of the night for the next shift: what's done, what's low, what's outstanding and what tomorrow needs, with photos."],
   ["Tronc", "The team's share of service charge and tips, paid through payroll on last month's hours."],
@@ -158,7 +161,7 @@ const gdItems = () => featSorted([
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
   { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: any drink in big type, rounds, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
 ]);
-const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch jug bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap" };
+const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
 // What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.
