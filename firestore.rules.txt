@@ -85,7 +85,7 @@ service cloud.firestore {
     // The build writes a fingerprint of this file here (src/site.js). Maintenance's phone asks for rulesv/{its build's
     // fingerprint}: refused means the rules published in the console are older than the app. Nothing is stored here.
     match /rulesv/{v} {
-      allow get: if signedIn() && v == '0e5f723f0292'; // RULES-FINGERPRINT
+      allow get: if signedIn() && v == '3e64660432d3'; // RULES-FINGERPRINT
     }
 
     // ---------- Joining the team ----------
@@ -549,6 +549,18 @@ service cloud.firestore {
         && incoming().areas is list && incoming().areas.size() <= 40 && incoming().items is map && incoming().items.size() <= 800
         && incoming().order is map && incoming().order.size() <= 40;
     }
+
+    // barcodes/{code}: which product on the count a barcode is (the id is the barcode's 8 to 14 digits). Anyone on the
+    // team links one, and it waits for a manager to check it (ok false) while it works; a manager's own are checked.
+    // Anyone can correct one still waiting; only a manager changes a checked one. Whoever links or changes one is
+    // stamped. A manager, or anyone while it's still waiting, takes one off.
+    match /barcodes/{code} {
+      allow read: if isMember();
+      allow create: if isMember() && code.matches('[0-9]{8,14}') && stamped() && validCode() && (incoming().ok == false || isManager());
+      allow update: if isMember() && stamped() && validCode() && (isManager() || (resource.data.ok == false && incoming().ok == false));
+      allow delete: if isManager() || (isMember() && resource.data.ok == false);
+    }
+    function validCode() { return exactly(['item', 'ok', 'uid', 'name', 'at']) && reqText(incoming().item, 80) && incoming().ok is bool; }
 
     // ---------- Restocking from the cellar ----------
     // Someone asks for an item, an amount and where it's going, with any detail (which never changes). Someone takes it

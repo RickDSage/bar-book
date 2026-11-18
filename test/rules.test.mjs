@@ -1611,6 +1611,21 @@ describe("stock count: lines, deliveries and the setup", () => {
     await fails(setDoc(doc(db("mgr1"), "countSetup", "main"), s("mgr1", { areas: "Bar" })), "places are a list");
     await assertSucceeds(getDoc(doc(db("staff1"), "countSetup", "main")));
   });
+  test("barcodes: anyone links one to check, only managers check, change or take off a checked one", async () => {
+    const c = (uid, o = {}) => ({ item: "Smirnoff", ok: false, ...by(uid), ...o });
+    await assertSucceeds(setDoc(doc(db("staff1"), "barcodes", "5410316983044"), c("staff1")));
+    await assertSucceeds(setDoc(doc(db("staff2"), "barcodes", "5410316983044"), c("staff2", { item: "Smirnoff Vanilla" })));
+    await fails(setDoc(doc(db("staff1"), "barcodes", "5000000000001"), c("staff1", { ok: true })), "staff checking their own");
+    await fails(setDoc(doc(db("staff1"), "barcodes", "12ab"), c("staff1")), "not a barcode");
+    await fails(setDoc(doc(db("staff1"), "barcodes", "5000000000002"), c("staff1", { item: "" })), "no product");
+    await fails(setDoc(doc(db("staff1"), "barcodes", "5000000000003"), c("staff1", { note: "x" })), "anything else");
+    await fails(setDoc(doc(db(null), "barcodes", "5000000000004"), c("staff1")), "not on the team");
+    await assertSucceeds(setDoc(doc(db("mgr1"), "barcodes", "5410316983044"), c("mgr1", { ok: true })));
+    await fails(setDoc(doc(db("staff1"), "barcodes", "5410316983044"), c("staff1")), "changing a checked one");
+    await fails(deleteDoc(doc(db("staff1"), "barcodes", "5410316983044")), "taking off a checked one");
+    await assertSucceeds(getDoc(doc(db("staff1"), "barcodes", "5410316983044")));
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "barcodes", "5410316983044")));
+  });
 });
 
 describe("which rules these are", () => {

@@ -7,10 +7,10 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 7;
-const WALK_NEW = "Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out. 86 it from there when it does.";
+const WALK_V = 8;
+const WALK_NEW = "Stock has its own tab at the bottom: the count, a barcode scanner (scan a bottle to count it or see its date label), use-by dates due in the next 3 days, counting tips and Add something new. On Shift, the old Stock tab is now 86.";
 const WALK_NAV = { t: "Getting around", how: [
-  "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
+  "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
   "Long lists scroll A to Z, like your phone's contacts: the drinks, the 86 picker, the stock count. Tap a letter on the strip down the right, or slide your finger down it.",
@@ -23,9 +23,10 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
   "Log it and send on WhatsApp puts it in the team chat from your phone, so everyone knows now.",
 ], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
 const WALK_COUNT = { t: "Stock count", how: [
-  "Shift, Stock, Count stock: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left.",
+  "The Stock tab: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left. Counting tips are under How to count.",
   "Tap an item: + for each full, sealed bottle, then the open one on the scale in grams (or tap how full it is). Next › opens the one after.",
-  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or tap A to Z and use the letter strip. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 📷 Scan its barcode. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "Use-by, at the top of Stock: date labels due in the next 3 days. Changed it saves the new date in one tap.",
   "Anything under its running-low level gets a Running low tag, then shows on the 86 board, the bar station and Needs you now as a heads-up before it's an 86.",
   "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
 ], tip: "No signal in the cellar? It saves anyway and sends when you're back." };
@@ -38,10 +39,10 @@ const WALK_SEND = { t: "Hand over and send", how: [
 const WALK = {
   bar: [
     { t: "Your bar shift", how: [
-      "Shift, Bar has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
+      "Shift, Bar has the night in order, left to right: Morning, Labels, 86, Closing, Handover. Stock counts and use-by have their own tab.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
       "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top.",
-      "Ran out? Stock, Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
+      "Ran out? Shift, 86, then Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
     ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
     WALK_NAV,
     { t: "Opening", how: [
@@ -62,9 +63,9 @@ const WALK = {
   ],
   floor: [
     { t: "Your floor shift", how: [
-      "Shift, Floor has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
+      "Shift, Floor has the night in order, left to right: Morning, Labels, 86, Closing, Handover. Stock counts and use-by have their own tab.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "86 anything, food too: Stock, Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
+      "86 anything, food too: Shift, 86, then Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
     ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
     WALK_NAV,
     { t: "Opening", how: [
@@ -139,7 +140,7 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
+const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [

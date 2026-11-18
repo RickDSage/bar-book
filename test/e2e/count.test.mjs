@@ -12,7 +12,7 @@ const people = [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff", "sam"
 const flat = (s) => s.replace(/\s+/g, " ").trim();
 const text = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
-const openCount = async (p) => { await p.click("[data-tab=tally]"); await p.click(".ptabs [data-pane=stock]"); await p.click("[data-ct-open]"); await p.waitForSelector("#ct .ct-row"); };
+const openCount = async (p) => { await p.click("[data-tab=count]"); await p.waitForSelector("#ct .ct-row"); };
 const row = (area, item) => `[data-ct-row="${area}|${item}"].ct-line`;
 const line = (p, item, area) => p.evaluate(([i, a]) => { const x = LIVE.counts.find((y) => y.item === i && (!a || y.area === a)); return x && !x.pending ? [x.full, x.open, x.name] : null; }, [item, area]);
 const waitLine = (p, item, want, area) => p.waitForFunction(([i, w, a]) => { const x = LIVE.counts.find((y) => y.item === i && (!a || y.area === a)); return x && !x.pending && x.full === w[0] && x.open === w[1]; }, [item, want, area]);
@@ -29,19 +29,20 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
     assert.ok(await S.$(row(a, i)), `${i} in ${a}`);
   assert.equal(await S.$(row("Store room", "Ice")), null, "ice isn't counted");
 
-  // Tap: three full, the open one at four tenths.
+  // Tap: +6 and −, then +1 twice... three full; by eye is first, and the level is the last tap: it saves and opens the next.
   await S.click(row("Speed rail", "Smirnoff"));
-  for (let i = 0; i < 3; i++) await S.click('[data-ct-add="full:1"]');
-  // The scale comes first on a phone; no scale, the level is one tap away, and stays picked.
-  await S.click('[data-ct-lvl="1"]');
+  await S.click('[data-ct-add="full:6"]'); for (let i = 0; i < 3; i++) await S.click('[data-ct-add="full:-1"]');
+  await waitLine(S, "Smirnoff", [3, 0]);
+  assert.ok(await S.$('[data-ct-lvl="0"]'), "the scale is one tap away");
   await S.click('[data-ct-lv="4"]');
   await waitLine(S, "Smirnoff", [3, 40]);
   assert.deepEqual(await line(S, "Smirnoff"), [3, 40, "Sam Staff"]);
-  assert.match(await text(S, row("Speed rail", "Smirnoff")), /^Smirnoff 3\.4 bottles Sam Staff$/);
-  assert.match(await text(S, ".ct-open"), /Open bottle 0\.4 · 280 ml/);
-  // Next goes down the shelf; Next on a line not touched saves it as none.
-  await S.click('[data-ct-next="Speed rail|Smirnoff"]');
+  // It moves on by itself to the next on the shelf.
   await S.waitForSelector('.ct-row.on [data-ct-next="Speed rail|Smirnoff Vanilla"]');
+  await S.click('[data-ct-show="all"]');
+  assert.match(await text(S, row("Speed rail", "Smirnoff")), /^Smirnoff 3\.4 bottles Sam Staff$/);
+  await S.click('[data-ct-show="todo"]');
+  // Next on a line not touched saves it as none.
   await S.click('[data-ct-next="Speed rail|Smirnoff Vanilla"]');
   await waitLine(S, "Smirnoff Vanilla", [0, 0]);
 
@@ -59,6 +60,7 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
   // Typed for things that aren't bottles: halves too.
   await S.click(row("Cake fridge", "Victoria sponge")); await S.fill("#ct-type", "1.5"); await S.press("#ct-type", "Enter");
   await waitLine(S, "Victoria sponge", [1, 50]);
+  await S.waitForFunction(() => ctOpen && ctOpen !== "Cake fridge|Victoria sponge", null, { timeout: 3000 });
   await S.click("#ct-tot-box summary");
   assert.match(await text(S, ".ct-tot"), /Smirnoff 3\.4 bottles .*Whole milk 5\b/);
 
@@ -73,13 +75,17 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
   assert.equal(await M.$(row("Back bar", "Grey Goose")), null);
   assert.match(await text(M, row("Speed rail", "Smirnoff")), /3\.4 bottles Sam Staff/);
   await M.click('[data-ct-show="todo"]');
+  // By kind: all the vodkas together, wherever they're kept, each saying where.
+  await M.click('[data-ct-by="kind"]');
+  assert.ok((await M.$$eval("#ct .sec", (xs) => xs.map((x) => x.textContent))).includes("Vodka"));
+  assert.match(await text(M, "#ct-list"), /Vodka .*Grey Goose Back bar/i);
   // A to Z: every line by name under its letter, with the letter strip, and no place buttons; By place goes back.
-  await M.click('[data-ct-az="1"]');
+  await M.click('[data-ct-by="az"]');
   assert.equal(await M.$(".ct-jump"), null);
   const names = await M.$$eval("#ct-list .ct-line > span", (xs) => xs.map((x) => x.firstChild.textContent));
   assert.ok(names.length > 20 && (await M.evaluate((n) => n.every((x, i) => !i || azCmp(n[i - 1], x) <= 0), names)));
   await M.waitForFunction(() => !$("#az-rail").hidden);
-  await M.click('[data-ct-az="0"]');
+  await M.click('[data-ct-by="place"]');
   await M.waitForSelector(".ct-jump");
   assert.match(await text(M, ".ct-head"), /lines counted by Sam Staff/);
 
@@ -140,9 +146,11 @@ test("managers set it up; weighing, deliveries and usage between counts", async 
 
   // Weighing on the scale: grams to the open bottle, with ml and cl. An unopened one goes on the full count.
   await openCount(S);
-  // One flow for a bottle: full ones, then the open one on the scale. No mode to pick.
+  // One flow for a bottle: full ones, then the open one by eye; ⚖️ Weigh it instead puts the scale first, and it stays.
   await S.click(row("Back bar", "Kraken"));
-  assert.match(await text(S, ".ct-edit"), /1\. Full, sealed bottles .*2\. The open one On the scale, grams/);
+  assert.match(await text(S, ".ct-edit"), /1\. Full, sealed bottles .*2\. The open one Open bottle: tap its level/i);
+  await S.click('[data-ct-lvl="0"]');
+  assert.match(await text(S, ".ct-edit"), /2\. The open one On the scale, grams/i);
   await S.fill("#ct-g", "932.5");
   assert.equal(await text(S, "#ct-g-out"), "Open bottle 0.5 · 350 ml · 35 cl");
   await S.press("#ct-g", "Enter"); await waitLine(S, "Kraken", [0, 50]);
@@ -186,19 +194,19 @@ test("finding it when it isn't in shelf order: every place, not counted yet, Nex
   const { S } = await team(browser, site, people);
   await S.evaluate(() => store.set("ctHow", false));
   // The first time: a walkthrough in plain words with pictures, before the list. The scale, then bottles, then not listed.
-  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=stock]"); await S.click("[data-ct-open]");
+  await S.click("[data-tab=count]");
   await S.waitForSelector(".ct-intro");
   assert.match(await text(S, ".ct-intro"), /^1 of 8 Counting stock: how it works/i);
   assert.ok(await S.$(".ct-intro svg.ct-pic"));
   assert.equal(await S.$eval("#ct-find", (e) => e.hidden), true, "no find box while it's on");
   await S.click('[data-ct-intro="1"]'); assert.match(await text(S, ".ct-intro"), /Set up the scale .*flat, dry part of the bar top.*It should say 0 g\. If it doesn't, press Tare or Zero/i);
-  await S.click('[data-ct-intro="2"]'); await S.click('[data-ct-intro="3"]'); assert.match(await text(S, ".ct-intro"), /2\. The open bottle Take the pourer off/i);
+  await S.click('[data-ct-intro="2"]'); await S.click('[data-ct-intro="3"]'); assert.match(await text(S, ".ct-intro"), /2\. The open bottle Look at it level with your eye.*Photo check.*Weigh it: pourer off/i);
   for (const i of [4, 5, 6]) await S.click(`[data-ct-intro="${i}"]`);
-  assert.match(await text(S, ".ct-intro"), /Can't find it\? .*Still not there\? Tell the duty manager and put it in ＋ Log it/i);
+  assert.match(await text(S, ".ct-intro"), /Can't find it\? .*📷 and scan the bottle's barcode.*＋ Add it and count it/i);
   await S.click('[data-ct-intro="7"]'); await S.click('[data-ct-intro="go"]');
   await S.waitForSelector("#ct .ct-row"); assert.equal(await S.evaluate(() => store.get("ctHow")), true);
   // Each line says what to do with it; How to count brings the walkthrough back.
-  assert.match(await text(S, row("Speed rail", "Smirnoff")), /Smirnoff Full bottles, then weigh the open one/);
+  assert.match(await text(S, row("Speed rail", "Smirnoff")), /Smirnoff Full bottles, then tap the open one's level/);
   assert.match(await text(S, row("Bar fridge", "Tonic")), /Tonic Count them: one is a 200 ml Fever-Tree bottle/);
   assert.match(await text(S, row("Bar fridge", "Funkin purées")), /Count them or weigh them: one is a 1 kg pouch/);
   await S.click('.ct-head [data-ct-intro="0"]'); await S.waitForSelector(".ct-intro"); await S.click('[data-ct-intro="go"]'); await S.waitForSelector("#ct .ct-row");
@@ -245,6 +253,7 @@ test("every bottle and pack comes filled in: size, empty and full weights, marke
   assert.deepEqual(m["Funkin purées"].slice(2, 7), [30, 0, 1000, true, "1 kg pouch"]);
   assert.deepEqual(m.Foamer.slice(2, 4), [0, 0], "nothing made up where the product isn't known");
   // Weighing works straight away, and says the weights are estimates.
+  await S.evaluate(() => { ctLvl = false; });
   await S.click(row("Speed rail", "Smirnoff"));
   assert.match(await text(S, ".ct-edit"), /1\. Full, sealed bottles 70 cl/);
   assert.match(await text(S, ".ct-edit"), /70 cl: empty 420 g, full 1086 g\. A sealed one goes on Full\. Weights estimated\. A manager can check them\./);
@@ -253,7 +262,7 @@ test("every bottle and pack comes filled in: size, empty and full weights, marke
   await S.click(row("Bar fridge", "Tonic"));
   assert.match(await text(S, ".ct-edit"), /One is a 200 ml Fever-Tree bottle\./);
   // A manager weighs one sealed bottle: the empty weight follows, and it's checked for everyone.
-  await openCount(M); await M.click('[data-ct-show="all"]');
+  await openCount(M); await M.click('[data-ct-show="all"]'); await M.evaluate(() => { ctLvl = false; });
   await M.click(row("Speed rail", "Smirnoff"));
   await M.click(".ct-wbox summary"); await M.fill('[data-ct-chk="Smirnoff"]', "1100"); await M.click('[data-ct-chkgo="Smirnoff"]');
   await waitToast(M, /^Smirnoff checked: empty 434 g, full 1100 g\. Locked$/);
@@ -280,5 +289,91 @@ test("every bottle and pack comes filled in: size, empty and full weights, marke
   assert.deepEqual(await M.evaluate(() => { const o = LIVE.countSetup.items.Smirnoff; return [o.e, o.f, o.wb]; }), [430, 1096, "Mia Manager"]);
   // A spreadsheet can't change a locked one.
   assert.deepEqual(await M.evaluate(() => [[{ item: "Smirnoff", unit: "bottle", ml: 700, e: 500, f: 1200 }], [{ item: "Smirnoff", unit: "bottle", ml: 700, e: 430, f: 1096 }]].map((xs) => IM_KINDS.setup.plan(xs)[0]).map((x) => x.why || x.st)), ["Weighed and locked. Unlock it on the stock count to re-weigh", "same"]);
+  for (const p of [M, S]) assert.deepEqual(p.errs, []);
+});
+
+test("its own Stock tab: scan a barcode to find or link it, managers check it, use-by from the date labels, tips", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  const code = "5410316983044";
+  await S.route("https://world.openfoodfacts.org/**", (r) => r.fulfill({ json: { status: 1, product: { product_name: "Red Label Vodka", brands: "Smirnoff", categories_tags: ["en:vodkas"] } } }));
+  // Stock is its own tab; Shift keeps the 86 board, with a pointer across.
+  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=stock]");
+  assert.match(await text(S, ".ptabs [data-pane=stock]"), /^86/);
+  assert.match(await text(S, ".ct-move"), /own tab: Stock ›/);
+  await S.click(".ct-move [data-goto=count]"); await S.waitForSelector("#ct .ct-row");
+  assert.equal(await S.evaluate(() => cur), "count");
+  assert.match(await text(S, "#ct-tips summary"), /Counting tips/i);
+  await S.click("#ct-tips summary"); assert.match(await text(S, "#ct-tips"), /Top shelf to bottom, left to right, front to back.*Kegs and the postmix/);
+  assert.ok(await S.$("#it-add"), "Add something new is here");
+  // A barcode nobody has linked: what it is online, the closest lines, and picking one links it for everyone.
+  await S.fill("#ct-say", code); await S.press("#ct-say", "Enter");
+  await S.waitForSelector(".ct-scan [data-ct-link]");
+  assert.match(await text(S, ".ct-scan"), /Which one is it\? Online it's “Smirnoff Red Label Vodka”/i);
+  await S.click('.ct-scan [data-ct-link="Smirnoff"]');
+  await waitToast(S, /^Linked to Smirnoff\. A manager checks it$/);
+  assert.match(await text(S, ".ct-scan"), /Waiting for a manager to check Smirnoff Count it: Speed rail/i);
+  await M.waitForFunction((c) => LIVE.codes.some((x) => x.code === c && x.item === "Smirnoff" && !x.ok && !x.pending), code);
+  // Count it opens the line.
+  await S.click('.ct-scan [data-ct-row="Speed rail|Smirnoff"]'); await S.waitForSelector(".ct-row.on");
+  assert.match(await S.$eval(".ct-row.on", (e) => e.innerText), /Smirnoff/); assert.equal(await S.$(".ct-scan"), null);
+  // A manager checks it.
+  await openCount(M); await M.click("#ct-codes summary");
+  assert.match(await text(M, "#ct-codes"), /Smirnoff 5410316983044 · Sam Staff/);
+  await M.click(`#ct-codes [data-ct-code-ok="${code}"]`); await waitToast(M, /^Checked: Smirnoff$/);
+  await S.waitForFunction((c) => LIVE.codes.some((x) => x.code === c && x.ok && !x.pending), code);
+  // The rules: staff can't change a checked one or check their own; a manager can.
+  assert.equal(await attempt(S, (c) => LIVE.api.linkCode(c, "Kraken", false), code), "permission-denied");
+  assert.equal(await attempt(S, (c) => LIVE.api.linkCode(c, "Kraken", true), "5000000000001"), "permission-denied");
+  assert.equal(await attempt(S, (c) => LIVE.api.linkCode(c, "Kraken", false), "12ab"), "permission-denied");
+  assert.equal(await attempt(S, (c) => LIVE.api.dropCode(c), code), "permission-denied");
+  // Use-by: a label opened today that keeps 2 days is in the next 3; Changed it on the Stock tab saves it in one tap.
+  await M.evaluate(() => LIVE.api.label(null, "added", { item: "Lime juice", side: "bar", life: 2, on: true, station: "" }));
+  await S.waitForFunction(() => LIVE.labels.some((x) => x.item === "Lime juice" && !x.pending));
+  await S.evaluate(() => { const x = LIVE.labels.find((y) => y.item === "Lime juice"); return LIVE.api.label(x, "opened", { useBy: addDays(shiftDay(), 2) }); });
+  await S.waitForSelector("#ct-useby");
+  assert.match(await text(S, "#ct-useby summary"), /Use-by: 1 in the next 3 days/i);
+  // Scanning the Smirnoff again finds it straight away, with no date label; a manager can give it one.
+  await S.fill("#ct-say", code); await S.press("#ct-say", "Enter");
+  await S.waitForSelector(".ct-scan h3");
+  assert.match(await text(S, ".ct-scan"), /^Barcode 5410316983044 Smirnoff Count it: Speed rail.*No date label for Smirnoff\. If it goes off once it's opened, a manager adds one\./i);
+  assert.equal(await S.$(".ct-scan [data-ct-relink]"), null, "staff can't change a checked one");
+  await S.click(".ct-scan [data-ct-scan-x]");
+  await S.click("#ct-useby summary").catch(() => {});
+  if (!(await S.$eval("#ct-useby", (e) => e.open))) await S.click("#ct-useby summary");
+  await S.click('#ct-useby [data-ct-lb-act="changed"]');
+  await waitToast(S, /^Lime juice: use by /);
+  await S.waitForFunction(() => LIVE.labels.find((x) => x.item === "Lime juice").act === "changed");
+  // Same as last time: one tap does the line from the last count, and the next one opens.
+  await S.evaluate(() => { const d = addDays(shiftDay(), -1), r = ctRows().find((x) => x.item === "Tanqueray"); return LIVE.api.countLine(ctId(d, r.area, r.item), { day: d, area: r.area, item: r.item, unit: r.u, full: 2, open: 30 }); });
+  await S.evaluate(() => { ctPrevFor = ""; ctRender(true); });
+  await S.waitForFunction(() => ctPrev?.lines.some((x) => x.item === "Tanqueray"));
+  await S.click('[data-ct-show="all"]'); await S.click(row("Speed rail", "Tanqueray"));
+  assert.match(await text(S, ".ct-same"), /Same as last time: 2\.3 bottles/i);
+  await S.click(".ct-same"); await waitLine(S, "Tanqueray", [2, 30]);
+  await S.waitForFunction(() => ctOpen && ctOpen !== "Speed rail|Tanqueray");
+  // Photo check: their photo beside a sealed one; the first sealed one is kept for everyone.
+  const jpg = Buffer.from("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=", "base64");
+  await S.click(row("Back bar", "Kraken"));
+  await S.setInputFiles("#ct-ph-in", { name: "open.jpg", mimeType: "image/jpeg", buffer: jpg });
+  await S.waitForSelector(".ct-phc img");
+  await S.waitForFunction(() => ctPh?.ref === null);
+  assert.match(await text(S, ".ct-edit"), /Yours Sealed No photo of a sealed Kraken yet\. Compare the two, then tap the level/i);
+  await S.setInputFiles("#ct-ref-in", { name: "sealed.jpg", mimeType: "image/jpeg", buffer: jpg });
+  await waitToast(S, /^Sealed Kraken kept for everyone$/);
+  assert.equal(await S.locator(".ct-phc img").count(), 2);
+  assert.equal(await attempt(S, () => LIVE.api.countPhoto("kraken", "Kraken", "data:image/jpeg;base64,AAAA")), "permission-denied", "staff can't replace it");
+  // Not on the count at all: add it from Find and count it straight away, before Maintenance checks it.
+  await S.route("https://*.wikipedia.org/**", (r) => r.fulfill({ json: { query: { pages: [] } } }));
+  await S.fill("#ct-say", "Biscoff crumb topping"); await S.waitForSelector("#ct-list [data-ct-new]");
+  await S.click("#ct-list [data-ct-new]"); await S.waitForSelector(".itf");
+  await S.click("#it-save");
+  await waitToast(S, /^Biscoff crumb topping is on the count: count it now$/);
+  assert.match(await S.$eval(".ct-row.on", (e) => e.innerText), /Biscoff crumb topping/);
+  await S.click('.ct-row.on [data-ct-add="full:1"]'); await waitLine(S, "Biscoff crumb topping", [1, 0]);
+  // › goes to that side's date labels on Shift.
+  await S.click("[data-tab=count]"); if (!(await S.$eval("#ct-useby", (e) => e.open))) await S.click("#ct-useby summary");
+  await S.click("#ct-useby [data-ct-lbgo=bar]");
+  assert.equal(await S.evaluate(() => [cur, pane].join()), "tally,labels");
   for (const p of [M, S]) assert.deepEqual(p.errs, []);
 });

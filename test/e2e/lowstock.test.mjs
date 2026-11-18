@@ -11,7 +11,7 @@ after(async () => { await browser.close(); site.close(); });
 const people = [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff", "sam", "staff"]];
 const flat = (s) => s.replace(/\s+/g, " ").trim();
 const text = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
-const openCount = async (p) => { await p.click("[data-tab=tally]"); await p.click(".ptabs [data-pane=stock]"); await p.click("[data-ct-open]"); await p.waitForSelector("#ct .ct-row"); };
+const openCount = async (p) => { await p.click("[data-tab=count]"); await p.waitForSelector("#ct .ct-row"); };
 const lows = (p) => p.evaluate(() => lowNow().map((x) => `${x.item} ${x.n} ${x.low}`));
 
 test("running low: a level, a count under it, flagged everywhere until it's 86'd", async () => {
@@ -40,7 +40,7 @@ test("running low: a level, a count under it, flagged everywhere until it's 86'd
   await S.click("#ct-tot-box summary");
   assert.match(await text(S, ".ct-tot"), /Smirnoff Running low: below 3 bottles 2\.4 bottles/);
   assert.deepEqual(await S.evaluate(() => SHARE.count().parts.find((x) => x.id === "low").lines), ["Smirnoff: 2.4 bottles (low below 3 bottles)"]);
-  await S.click("#sh-close");
+  await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=stock]");
 
   // The 86 board: a heads-up under it, with a badge on the tab, and Needs you now.
   await S.waitForSelector(".low-row");

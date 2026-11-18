@@ -716,6 +716,28 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-find #ct-say { flex: 1; min-width: 0; font-size: 17px; padding-left: 36px; min-height: 48px; }
 .ct-find .btn { min-height: 48px; white-space: nowrap; }
 #ct-heard-slot:empty { display: none; }
+/* The Stock tab: the find bar stays at the top while the list scrolls. */
+#v-count .ct-find { position: sticky; top: 0; z-index: 4; background: var(--bg); margin: 8px calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0; padding: calc(env(safe-area-inset-top, 0px) + 8px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+#v-count .shift-top .s { color: var(--muted); font-size: 14px; }
+@media (max-width: 429px) { .ct-bl { display: none; } .ct-find #ct-scan, .ct-find #ct-mic { min-width: 48px; padding-inline: 10px; font-size: 20px; } }
+.ct-scan { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--brass); border-radius: 14px; background: var(--surface); }
+.ct-scan h3 { margin: 4px 0 8px; font-size: 22px; }
+.ct-scan .s { margin: 0; }
+.ct-scan .mini { margin-top: 10px; }
+.ct-lb { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ct-lb:last-child { border-bottom: 0; }
+.ct-lb .actions { margin: 0; flex-wrap: nowrap; }
+.ct-tips dl { margin: 6px 0 4px; }
+.ct-tips dt { font-weight: 700; margin-top: 10px; }
+.ct-tips dd { margin: 2px 0 0; line-height: 1.45; color: var(--fg); }
+.ct-move { margin-top: 18px; }
+.ct-six { font-size: 18px; }
+.ct-same { width: 100%; margin: 4px 0 10px; min-height: 48px; justify-content: space-between; }
+.ct-same small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.ct-phc { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 4px; }
+.ct-phc figure { margin: 0; }
+.ct-phc figcaption { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.ct-phc img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
 #ct-heard-slot .ct-heard, #ct-heard-slot .warnline { margin: 8px 0 0; }
 .ct-head .s { margin: 10px 0 6px; }
 .ct-bar { height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; }
@@ -767,7 +789,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-unlock { min-height: 40px; }
 .ct-edit { padding: 4px 10px 12px; }
 .ct-n { margin: 10px 0 0; font-weight: 700; color: var(--brass); font-size: 15px; }
-.ct-step { display: grid; grid-template-columns: 1fr 64px 64px 64px; gap: 8px; align-items: center; margin: 8px 0; }
+.ct-step { display: grid; grid-template-columns: minmax(0, 1fr) 56px 52px 56px 56px; gap: 8px; align-items: center; margin: 8px 0; }
 .ct-step b { text-align: center; font-size: 28px; font-variant-numeric: tabular-nums; }
 .ct-big { height: 64px; border-radius: 14px; font-size: 32px; font-weight: 700; background: var(--bg); border: 1px solid var(--line); color: inherit; }
 .ct-big:active { background: var(--brass); color: var(--brass-ink); }
@@ -1169,6 +1191,8 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <input id="send-cam" type="file" accept="image/*" capture="environment" hidden>
   </section>
 
+  <section class="view" id="v-count" hidden></section>
+
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <div id="tm-top"></div><div id="tm-cards"></div>
@@ -1180,6 +1204,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <nav class="tabs" aria-label="Sections of the app">
   <button data-tab="drinks" aria-current="page"><svg viewBox="0 0 24 24"><path d="M5 4h14l-6 8v6l3 2H8l3-2v-6z"/></svg>Drinks</button>
   <button data-tab="tally"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l2 2 4-4M8.5 16h7"/></svg>Shift</button>
+  <button data-tab="count" hidden><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V9l3-2V4h2v3l3 2v11"/><path d="M15 20v-7h5v7"/><path d="M8 13h4"/></svg>Stock</button>
   <button data-tab="notices"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><span class="dot" id="team-n" hidden></span>Team</button>
   <button data-tab="pay"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>My pay</button>
   <button data-tab="info"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>More</button>
@@ -2513,8 +2538,8 @@ SHARE.shift = () => {
 };
 // Each side: the morning (last night's handover, prep pars, the order), date labels, stock and 86s, the close, and the handover.
 const PANES = {
-  bar: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Handover"]],
-  floor: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["fclose", "Closing"], ["send", "Handover"]],
+  bar: [["morning", "Morning"], ["labels", "Labels"], ["stock", "86"], ["close", "Closing"], ["send", "Handover"]],
+  floor: [["morning", "Morning"], ["labels", "Labels"], ["stock", "86"], ["fclose", "Closing"], ["send", "Handover"]],
 };
 const labelPane = () => "labels";
 // Each side's last list is its close.
@@ -3456,7 +3481,7 @@ function renderTally() {
   const tabs = `${canUndoClear() ? `<div class="actions"><button class="btn pri" id="undo-clear">\u21a9 Undo clear</button></div>` : ""}<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>${logBarHtml()}`;
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
-    labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
+    labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: 86 and restock")}`,
     fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${putAwayHtml("floor")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
@@ -3465,7 +3490,7 @@ function renderTally() {
       ${lowHtml((n) => `<button class="btn" data-out-quick="${esc(n)}">86 it</button>`)}
       ${pkBtn("Search everything to 86: drinks, bottles, cakes, boxes", `data-pk86="${mode}"`)}
       <div class="mini">Quick 86: recent and most 86'd</div><div class="recent" translate="no">${pkTop(mode).filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-      ${restockHtml()}${itemsHtml(mode)}${ctCardHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
+      ${restockHtml()}<p class="note ct-move">The stock count, the barcode scanner, use-by dates and Add something new have their own tab: <button class="linkbtn" data-goto="count">Stock ›</button></p>${nextBtn(closeList(), "Next: closing checklist")}`,
     close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
@@ -5175,13 +5200,13 @@ const FEATURES = [
   { g: "Shift", k: "labels", n: "Date labels", go: "labels", team: 1,
     what: "Everything that gets dated once it's opened: when each one needs changing, and what's due tomorrow.",
     staff: "Tap Opened one or Changed it, and add items. Each tap is saved with your name and the time." },
-  { g: "Shift", k: "stock", n: "Restock and 86", go: "stock", team: 1, tour: 1,
+  { g: "Shift", k: "stock", n: "86 and restock", go: "stock", team: 1, tour: 1,
     what: "Asking for stock from the cellar and following it until it arrives, and what's 86'd tonight, on every phone.",
     staff: "Ask for something, take a request on, bring it up, confirm it arrived, and 86 a drink or bring it back." },
-  { g: "Shift", k: "count", n: "Stock count", go: "count", team: 1, tour: 1,
-    what: "The count book on your phone: everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
-    staff: "Tap an item: + for each full, sealed bottle, then weigh the open one on the scale (or tap how full it is), then Next. Find looks in every place, Not counted yet shows what's left, and 🎤 takes “Smirnoff two and a half”. Send the totals on WhatsApp or as a spreadsheet.",
-    mgr: "Every bottle and pack comes with its size and estimated weights. Make one exact by weighing a sealed bottle once (Check it): it's then locked until you choose Unlock to re-weigh. Set up the count: the places in walking order, what's counted where and in what, and any size or weight. Set a running-low level (and a par) on a line: under it after a count, it shows on the 86 board, the bar station and Needs you now." },
+  { g: "Stock", k: "count", n: "Stock", go: "count", team: 1, tour: 1,
+    what: "Its own tab: the count book on your phone, a barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
+    staff: "Tap an item: + for each full, sealed bottle, then weigh the open one on the scale (or tap how full it is), then Next. Can't find it? Find looks in every place, or 📷 Scan its barcode. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap. Counting tips are at the top.",
+    mgr: "Check barcodes the team has linked (they work straight away). Every bottle and pack comes with its size and estimated weights: weigh a sealed one once (Check it) and it's locked until you Unlock it. Set up the count: the places in walking order, what's counted where and in what, and a running-low level and par per line." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",
     staff: "Hand over: send with photos (WhatsApp on a phone; Mail, AirDrop or Files on the iPad), or just save. Anyone can carry on what someone started.", mgr: "Open, send or delete any closing report with its photos on the Team page." },
@@ -5266,7 +5291,7 @@ function openAt(where) {
     return setTimeout(() => $("#tally .photo, #tally .addph")?.scrollIntoView({ block: "center" }), 80);
   }
   if (where === "shift") return show("tally");
-  if (where === "count") { pane = "stock"; show("tally"); if (LIVE.me) ctPage(); return; }
+  if (where === "count") return show("count");
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
   if (["drill", "quiz", "wrap", "phrases"].includes(where)) return funGo(where === "wrap" ? "home" : where === "phrases" ? "phr" : where);
@@ -5281,7 +5306,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory",
+const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
@@ -6288,7 +6313,7 @@ const TOAST = {
   // Someone saving part-way: the team hears it once, so anyone can carry on or add photos.
   drafts: (x) => (x.day === shiftDay() && !sentTonight(x.side) ? `\ud83d\udcdd ${x.name} saved the ${lower(sideName(x.side))} handover so far: anyone can carry on` : ""),
   photos: (x) => (x.side && !x.report ? `\ud83d\udcf7 ${x.name} added a ${lower(sideName(x.side))} closing photo` : ""),
-  items: (x) => (LIVE.owner && x.status === "waiting" ? `🆕 ${x.addedBy} added ${x.item}: check it in Shift, Stock` : x.status === "live" && x.addedUid === LIVE.uid && x.uid !== LIVE.uid ? `✅ ${x.item} is on every phone now` : ""),
+  items: (x) => (LIVE.owner && x.status === "waiting" ? `🆕 ${x.addedBy} added ${x.item}: check it in Stock, Something new` : x.status === "live" && x.addedUid === LIVE.uid && x.uid !== LIVE.uid ? `✅ ${x.item} is on every phone now` : ""),
 };
 // Where a pop-up's records live, when it isn't under the same name.
 const TOAST_OF = { photos: "draftPhotos" };
@@ -6347,7 +6372,8 @@ function liveChanged(what) {
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
   if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports", "count", "low", "countSetup", "received"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
-  if (["count", "countSetup", "received", "items", "out"].includes(what) && typeof ctRender === "function") ctRender();
+  if (what === "me") { $('nav.tabs [data-tab="count"]').hidden = !LIVE.me; navCols(); if (cur === "count") renderStock(); }
+  if (["count", "countSetup", "received", "items", "out", "labels", "codes"].includes(what)) ctRender();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // Overdue times move on with no change to the data, and date labels fall due when the day rolls over at 6am, so the
@@ -6400,7 +6426,7 @@ addEventListener("resize", csFit);
    the top that never scrolls sideways (Rapid fire, Menu, Make). More holds everything used less often: Allergens,
    Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
    Tapping the tab you're on takes you back to its top. */
-const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station"];
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "count", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station"];
 // Bar station mode: this iPad opens on the bar station until Exit bar station turns it off.
 let stationOn = store.get("station", false);
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
@@ -6437,6 +6463,7 @@ function show(tab, fromBack = false) {
   if (tab === "fun") renderFun();
   if (tab === "station") { renderStation(); keepAwake(); }
   if (tab === "tally") { renderTally(); walkMaybe(mode); }
+  if (tab === "count") renderStock();
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();
   if (tab === "notices") renderNotices();

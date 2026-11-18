@@ -234,7 +234,7 @@ function orderHtml() {
   if (!SD.od.hist && !SD.od.busy) setTimeout(sdOrderLoad);
   const s = sdOrderRows();
   if (SD.od.busy || !s) return `<p class="note">Reading the counts…</p>`;
-  if (!s.days.length) return `<p class="note">No stock count yet. Do one in Shift, Stock count, and the order draft fills itself in.</p><div class="actions"><button class="btn pri" data-goto="count">Stock count ›</button></div>`;
+  if (!s.days.length) return `<p class="note">No stock count yet. Do one on the Stock tab, and the order draft fills itself in.</p><div class="actions"><button class="btn pri" data-goto="count">Stock count ›</button></div>`;
   const want = s.rows.filter((r) => r.order > 0), noData = s.rows.filter((r) => r.order == null);
   return `<p class="note">From the count on ${ctDate(s.last)}${s.days.length > 1 ? ` and usage since ${ctDate(s.days[0])}` : ""}. With a par it orders back up to the par; without one it covers the days below. A list to send, not an order.</p>
     <div class="seg" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Cover">${[3, 7, 14].map((n) => `<button data-sd-od-cover="${n}" aria-pressed="${n === SD.od.cover}">${n} days</button>`).join("")}</div>
@@ -416,7 +416,7 @@ if (typeof renderAlerts === "function") {
    does the listening, and the same key words work typed. Free: the phone's own speech to text, nothing paid. */
 const SD_REC = window.SpeechRecognition || window.webkitSpeechRecognition;
 SD.vc = { text: "", heard: null, on: false, err: "" };
-const SD_GO = [[/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"]];
+const SD_GO = [[/barcode|scan|use.?by|expir/, "count"], [/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"]];
 // Words said round a command that don't change it.
 const VC_FILL = /\b(?:please|pls|cheers|thanks|thank you|mate|guys|bro|babe|innit|yeah|yes|yep|yo|actually|basically|i think|i reckon|maybe|hey|hi|ok(?:ay)?|right|um+|uh+|erm+|er|so|just|quickly|real quick|now|for me|for us|can you|could you|would you|will you|can we|could we|i need you to|i need to|we need to|need to|i want to|i wanna|let'?s|go ahead and|bar book)\b/g;
 // Words round the thing named that aren't part of its name.
