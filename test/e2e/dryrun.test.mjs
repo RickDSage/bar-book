@@ -93,6 +93,8 @@ async function joinByTaps(p, name, { pin, start = "#w-ok" } = {}) {
   await p.waitForSelector("#w-name");
   const chip = p.locator(`#welcome [data-w-name="${name}"]`);
   if (await chip.count()) await chip.click(); else await p.fill("#w-other", name);
+  // Their language is asked as they pick their name.
+  if (await p.isVisible("#langask")) await p.click('#langask [data-la=""]');
   await p.waitForSelector("#w-code");
   await p.fill("#w-code", TEAM_CODE);
   if (pin) { await p.waitForSelector("#w-pin"); await p.fill("#w-pin", String(pin)); }

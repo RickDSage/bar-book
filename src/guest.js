@@ -7,7 +7,7 @@
    live when live translation is on (lang.js), and labelled so. Allergen names are never translated live: the guest
    language's hand-written names, or the English with a picture.
    Staff-only things (logs, pay, closing, codes) sit under this screen and nothing on it opens them. ✕ Staff returns. */
-var GUEST = { on: false, c: "", step: "pick", tab: "talk", msgs: [], q: "", mq: "", al: new Set(), open: null, menu: "drinks", sec: "start", at: 0 };
+var GUEST = { on: false, c: "", step: "pick", tab: "talk", msgs: [], q: "", mq: "", al: new Set(), open: null, want: {}, mine: false, menu: "drinks", sec: "start", at: 0 };
 // Hand-written words for a language: its own, else the main language's (Brazilian Portuguese uses Portuguese), but
 // never Simplified Chinese for Traditional.
 const gBase = (c) => (/^zh-(TW|HK|Hant)/i.test(c || "") ? c : (c || "").split("-")[0]);
@@ -115,7 +115,7 @@ const G_TOP = ["es", "fr", "it", "de", "pt-BR", "pt", "zh", "ar", "ja", "ko", "n
 // Opened from 🌍 in the top bar on every phone and iPad. Back within 20 minutes, it carries on with the same guest
 // (their language, the talk so far); after that, or with New guest, it starts fresh.
 const G_KEEP = 20 * 60 * 1000;
-function gReset() { GUEST.c = ""; GUEST.step = "pick"; GUEST.msgs = []; GUEST.q = ""; GUEST.mq = ""; GUEST.al = new Set(); GUEST.open = null; GUEST.tab = "talk"; GUEST.sec = "start"; GUEST.menu = "drinks"; }
+function gReset() { GUEST.c = ""; GUEST.step = "pick"; GUEST.msgs = []; GUEST.q = ""; GUEST.mq = ""; GUEST.al = new Set(); GUEST.open = null; GUEST.want = {}; GUEST.mine = false; GUEST.tab = "talk"; GUEST.sec = "start"; GUEST.menu = "drinks"; }
 function guestOpen() {
   haptic(); sayStop?.();
   if (!GUEST.c || Date.now() - GUEST.at > G_KEEP) gReset(); else { GUEST.step = "main"; GUEST.tab = "talk"; }
@@ -123,10 +123,11 @@ function guestOpen() {
   $("#guest").hidden = false; document.body.style.overflow = "hidden";
   history.pushState({ guest: 1 }, ""); gRender();
 }
-function guestClose() {
+// stay: going somewhere else straight away (openAt), so the guest's history step is swapped rather than gone back.
+function guestClose(stay) {
   listenStop(); if (SAY_OK) speechSynthesis.cancel();
   GUEST.on = false; GUEST.at = Date.now(); document.body.classList.remove("g-open"); $("#guest").hidden = true; document.body.style.overflow = "";
-  if (history.state?.guest) history.back();
+  if (history.state?.guest) stay ? history.replaceState(null, "") : history.back();
 }
 const gRecent = () => store.get("guest.recent", []);
 // The back gesture doesn't take a guest into the staff app: only ✕ Staff does.
@@ -282,15 +283,39 @@ function gAlHtml(d) {
 }
 function gMenuHtml() {
   const q = GUEST.mq.trim().toLowerCase(), hit = (s) => !q || s.toLowerCase().includes(q);
+  if (GUEST.mine) return gMineHtml();
   if (GUEST.open != null) return gDrinkHtml(D[GUEST.open]);
   const sw = `<div class="seg g-menu-sw" role="group"><button data-g-menu="drinks" aria-pressed="${GUEST.menu !== "food"}">🍸 ${gT_("Drinks")}</button><button data-g-menu="food" aria-pressed="${GUEST.menu === "food"}">🍔 ${gT_("Food")}</button></div>`;
-  if (GUEST.menu === "food") return sw + gFoodHtml(hit);
+  if (GUEST.menu === "food") return sw + gFoodHtml(hit) + gMineBar();
   const secs = SECTIONS.map((s) => [s, D.filter((d) => d.section === s && !outNow().has(d.name) && (hit(d.name) || hit(blurb(d))))]).filter(([, xs]) => xs.length);
   const more = G_MORE.map(([k, en]) => [en, pkPool().filter((x) => x.c === k && !outNow().has(x.n) && hit(x.n))]).filter(([, xs]) => xs.length);
   return `${sw}<div class="search"><input id="g-mq" type="search" placeholder="🔍" value="${esc(GUEST.mq)}" autocomplete="off" spellcheck="false" translate="no" aria-label="Search"></div>
-    ${secs.map(([s, xs]) => `<div class="g-sec">${gT_(s)}</div>${xs.map((d) => `<button class="g-drink" data-g-drink="${d.id}"><span class="g-gl" aria-hidden="true">${glass(d)}</span><span><b translate="no">${esc(d.name)}</b>${gT_(blurb(d).replace(/^[^·]*·\s*/, ""), "small")}</span></button>`).join("")}`).join("")}
-    ${more.map(([en, xs]) => `<div class="g-sec">${gT_(en)}</div><div class="g-names" translate="no">${xs.map((x) => `<button class="chip" data-g-want="${esc(x.n)}">${esc(x.n)}</button>`).join("")}</div>`).join("")}
-    <p class="note">${gT_("Ask us about anything you don't see. Some things sell out on the night.")}</p>`;
+    ${secs.map(([s, xs]) => `<div class="g-sec">${gT_(s)}</div>${xs.map((d) => `<div class="g-row"><button class="g-drink" data-g-drink="${d.id}"><span class="g-gl" aria-hidden="true">${glass(d)}</span><span><b translate="no">${esc(d.name)}${gPr(d.name)}</b>${gT_(blurb(d).replace(/^[^·]*·\s*/, ""), "small")}</span></button>${gWantBtn(d.name)}</div>`).join("")}`).join("")}
+    ${more.map(([en, xs]) => `<div class="g-sec">${gT_(en)}</div><div class="g-names" translate="no">${xs.map((x) => `<button class="chip" data-g-want="${esc(x.n)}" aria-pressed="${!!GUEST.want[x.n]}">${GUEST.want[x.n] ? `${GUEST.want[x.n]} × ` : ""}${esc(x.n)}${gPr(x.n)}</button>`).join("")}</div>`).join("")}
+    <p class="note">${gT_("Ask us about anything you don't see. Some things sell out on the night.")}</p>${gMineBar()}`;
+}
+// Ticking what they'd like: ＋ adds one, the count shows on the row, − takes one off. It is only a list to point at:
+// nothing is ordered or sent, and staff key it into the till as usual. New guest clears it.
+const gPr = (n) => gPrice(n) != null ? ` <span class="g-pr">${gMoney(gPrice(n))}</span>` : "";
+const gWantN = () => Object.values(GUEST.want).reduce((a, b) => a + b, 0);
+const gWantBtn = (n) => GUEST.want[n] ? `<span class="g-qty" translate="no"><button class="btn" data-g-less="${esc(n)}" aria-label="One less">−</button><b>${GUEST.want[n]}</b><button class="btn" data-g-want="${esc(n)}" aria-label="One more">＋</button></span>` : `<button class="btn g-want" data-g-want="${esc(n)}" aria-label="I'd like this one" translate="no">＋</button>`;
+const gMineBar = () => gWantN() ? `<button class="btn pri wide g-minebar" data-g-mine="1">🧾 ${gT_("My choices")} (${gWantN()}) · ${gT_("Show this to staff")}</button>` : "";
+// Adds up what has a price; anything without one is counted and left to the till.
+function gSumHtml(xs) {
+  const sub = xs.reduce((a, [n, q]) => a + q * (gPrice(n) ?? 0), 0), svc = Math.round(sub * SERVICE_PC) / 100, nop = xs.filter(([n]) => gPrice(n) == null).length;
+  // Labels in the guest's words with the English under them, so both can read it.
+  const row = (en, v, b) => `<div class="g-sum${b ? " g-tot" : ""}"><span>${gT_(en)}${GUEST.c ? ` <small translate="no">${esc(en)}</small>` : ""}</span><span translate="no">${v}</span></div>`;
+  return `<div class="g-sums">${row("Subtotal", gMoney(sub))}${row("Optional service", `${SERVICE_PC}% · ${gMoney(svc)}`)}${row("Estimated total", gMoney(sub + svc), true)}
+    ${gT_("This is an estimate: your bill is final.", "p", "note")}${nop ? `<p class="note" translate="no">${plural(nop, "item")} with no price here: the till adds it.</p>` : ""}</div>`;
+}
+// The list for staff, in English (names as on the menu), with the guest's words above it.
+function gMineHtml() {
+  const xs = Object.entries(GUEST.want);
+  return `<button class="btn" data-g-mine="" translate="no">‹</button>
+    <div class="card g-mine"><p class="g-mine-h">${gT_("Show this to staff")}</p><h2 translate="no">For staff</h2>
+      ${xs.length ? xs.map(([n, q]) => `<div class="g-food"><b translate="no">${q} × ${esc(n)}${gPrice(n) != null ? ` <span class="g-pr">${gMoney(q * gPrice(n))}</span>` : ""}</b>${gWantBtn(n)}</div>`).join("") + gSumHtml(xs) : `<p class="note" translate="no">Nothing ticked yet.</p>`}
+      <p class="note" translate="no">Only a list to point at: nothing is ordered, charged or sent. Key it into the till as usual, and check allergies with the guest. Prices from blacktap.com, ${PRICE_AS_OF}: the till is always right.</p>
+      ${xs.length ? `<div class="actions"><button class="btn" data-g-mine-clear translate="no">Clear the list</button></div>` : ""}</div>`;
 }
 // The food menu (food.js): names stay as on the printed menu, what's in them in the guest's language. No allergen
 // claims here: the allergy card and a manager with the kitchen's chart answer those.
@@ -298,15 +323,16 @@ function gFoodHtml(hit) {
   const secs = FOOD.map(([s, xs]) => [s, xs.filter(([n, w]) => hit(n) || hit(w))]).filter(([, xs]) => xs.length);
   return `<div class="search"><input id="g-mq" type="search" placeholder="🔍" value="${esc(GUEST.mq)}" autocomplete="off" spellcheck="false" translate="no" aria-label="Search"></div>
     <p class="g-alnote"><button class="chip" data-g-tab="allergy">⚠️ ${gT_("I have an allergy")}</button></p>
-    ${secs.map(([s, xs]) => `<div class="g-sec">${G_UI[s] ? gT_(s) : `<span translate="no">${esc(s)}</span>`}</div>${xs.map(([n, w]) => `<div class="g-food"><b translate="no">${esc(n)}</b>${w ? gT_(w, "small") : ""}<button class="btn g-want" data-g-want="${esc(n)}" aria-label="I'd like this one" translate="no">＋</button></div>`).join("")}`).join("")}
+    <div class="g-facts">${gT_("Our chicken is halal. Our beef is not halal.", "p")}${gT_("Any burger can have a gluten-free or vegan bun.", "p")}</div>
+    ${secs.map(([s, xs]) => `<div class="g-sec">${G_UI[s] ? gT_(s) : `<span translate="no">${esc(s)}</span>`}</div>${xs.map(([n, w]) => `<div class="g-food"><b translate="no">${esc(n)}${gPr(n)}</b>${w ? gT_(w, "small") : ""}${gWantBtn(n)}</div>`).join("")}`).join("")}
     ${gT_(FOOD_NOTE, "p", "note")}
     <p class="note">${gT_("Ask us about anything you don't see. Some things sell out on the night.")}</p>`;
 }
 function gDrinkHtml(d) {
   return `<button class="btn" data-g-drink="" translate="no">‹</button>
-    <div class="card g-card"><span class="g" aria-hidden="true">${glass(d)}</span><h2 translate="no">${esc(d.name)}</h2>
+    <div class="card g-card"><span class="g" aria-hidden="true">${glass(d)}</span><h2 translate="no">${esc(d.name)}${gPr(d.name)}</h2>
       ${gT_(d.desc || blurb(d), "p", "g-desc")}${gAlHtml(d)}
-      <button class="btn pri wide" data-g-want="${esc(d.name)}">${gT_("I'd like this one")}</button></div>`;
+      <button class="btn pri wide" data-g-want="${esc(d.name)}">${GUEST.want[d.name] ? `✓ ${GUEST.want[d.name]} · ` : ""}${gT_("I'd like this one")}</button></div>${gMineBar()}`;
 }
 
 /* ---------- Allergy card: written by hand, never translated live ---------- */
@@ -344,10 +370,10 @@ document.addEventListener("click", (e) => {
   }
   if (b("[data-g-hello-say]")) return sayIn(gHelloSay(), GUEST.c);
   if (b("[data-g-new]")) { haptic(); gReset(); return gRender(); }
-  if ((x = b("[data-g-menu]"))) { haptic(); GUEST.menu = x.dataset.gMenu; GUEST.mq = ""; return gRender(); }
+  if ((x = b("[data-g-menu]"))) { haptic(); GUEST.menu = x.dataset.gMenu; GUEST.mq = ""; GUEST.open = null; GUEST.mine = false; return gRender(); }
   if ((x = b(".gw"))) return gGloss(x);
   if ((x = b("[data-g-step]"))) { haptic(); GUEST.step = x.dataset.gStep; if (x.dataset.gTo) GUEST.tab = x.dataset.gTo; GUEST.open = null; return gRender(); }
-  if ((x = b("[data-g-tab]"))) { haptic(); GUEST.tab = x.dataset.gTab; GUEST.open = null; return gRender(); }
+  if ((x = b("[data-g-tab]"))) { haptic(); GUEST.tab = x.dataset.gTab; GUEST.open = null; GUEST.mine = false; return gRender(); }
   if ((x = b("[data-g-sec]"))) { GUEST.sec = x.dataset.gSec; return gRender(); }
   if ((x = b("[data-g-phrase]"))) { haptic(); return gPhrase(x.dataset.gPhrase, "s"); }
   if ((x = b("[data-g-reply]"))) { haptic(); return gPhrase(x.dataset.gReply, "g"); }
@@ -356,7 +382,10 @@ document.addEventListener("click", (e) => {
   if ((x = b("[data-g-heard]"))) { if (x.dataset.gHeard === "clear") { try { gRec?.abort(); } catch {} gRec = null; $("#g-sin").value = ""; $("#g-gin").value = ""; return gMic($("#g-heard").dataset.who || "s"); } listenStop(); return; }
   if ((x = b("[data-g-hear]"))) { const m = GUEST.msgs[+x.dataset.gHear]; return sayIn(m.who === "g" ? m.en : m.t, m.who === "g" ? "" : GUEST.c); }
   if ((x = b("[data-g-drink]"))) { haptic(); GUEST.open = x.dataset.gDrink === "" ? null : +x.dataset.gDrink; gRender(); $("#g-body").scrollTop = 0; return; }
-  if ((x = b("[data-g-want]"))) { haptic(); GUEST.tab = "talk"; GUEST.open = null; return gAdd({ who: "g", en: `I'd like: ${x.dataset.gWant}`, t: `${gLook("I'd like this one") || "I'd like this one"}: ${x.dataset.gWant}` }); }
+  if ((x = b("[data-g-want]"))) { haptic(); const n = x.dataset.gWant; GUEST.want[n] = (GUEST.want[n] || 0) + 1; return gRender(); }
+  if ((x = b("[data-g-less]"))) { haptic(); const n = x.dataset.gLess; if (--GUEST.want[n] <= 0) delete GUEST.want[n]; return gRender(); }
+  if ((x = b("[data-g-mine]"))) { haptic(); GUEST.mine = x.dataset.gMine !== ""; GUEST.open = null; gRender(); $("#g-body").scrollTop = 0; return; }
+  if (b("[data-g-mine-clear]")) { haptic(); GUEST.want = {}; GUEST.mine = false; return gRender(); }
   if ((x = b("[data-g-al]"))) { haptic(); const k = x.dataset.gAl; GUEST.al.has(k) ? GUEST.al.delete(k) : GUEST.al.add(k); x.setAttribute("aria-pressed", GUEST.al.has(k)); return; }
   if (b("[data-g-al-send]")) return gAllergySend(false);
   if (b("[data-g-al-none]")) return gAllergySend(true);
@@ -384,7 +413,9 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .g-bar-r{display:flex;gap:6px}.g-wel{font-family:var(--display);font-size:30px;line-height:1.15;margin:0 0 10px;color:var(--brass)}
 .gw{cursor:pointer;border-radius:4px}.gw:active{background:color-mix(in srgb,var(--brass) 30%,transparent)}
 .g-food{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.g-food b{font-size:17px}.g-food small{grid-column:1;color:var(--muted);font-size:14px}.g-food .g-want{grid-row:1/span 2;grid-column:2;padding:6px 12px}
-.g-alnote{margin:4px 0}
+.g-alnote{margin:4px 0}.g-facts{margin:6px 0 2px;font-weight:600}.g-pr{font-weight:600;color:var(--brass);white-space:nowrap}.g-sums{margin-top:10px}.g-sum{display:flex;justify-content:space-between;gap:10px;padding:4px 0}.g-sum small{display:block;color:var(--muted);font-size:12px;font-weight:400}.g-tot{font-weight:800;font-size:18px;border-top:1px solid var(--line);margin-top:4px;padding-top:8px}.g-facts p{margin:2px 0}.g-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}.g-row .g-drink{border:0;flex:1;min-width:0}.g-row .g-want{flex:none;padding:6px 12px}
+.g-qty{display:flex;align-items:center;gap:6px;grid-row:1/span 2;grid-column:2;flex:none}.g-qty .btn{padding:6px 12px;min-height:40px}.g-qty b{min-width:20px;text-align:center;font-size:18px}
+.g-minebar{position:sticky;bottom:8px;margin-top:12px;box-shadow:0 4px 16px rgba(0,0,0,.35)}.g-mine h2{margin:2px 0 10px}.g-mine-h{font-size:20px;font-weight:700;margin:0}
 #g-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0}
 .g-log{flex:1;min-height:120px;overflow-y:auto;padding:4px 0}
 .g-msg{max-width:88%;margin:8px 0;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--surface)}

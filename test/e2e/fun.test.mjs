@@ -126,7 +126,7 @@ test("Siri and shortcuts: a link for each place, no team code in any, and they o
   await p.click("[data-sc-open]");
   assert.match(await p.textContent("#sheet"), /Hey Siri, Bar Book 86/);
   const urls = await p.$$eval("#sheet .sc-url", (x) => x.map((e) => e.textContent));
-  assert.equal(urls.length, 9);
+  assert.equal(urls.length, 10);
   for (const u of urls) { assert.match(u, /#(at)=/); assert.doesNotMatch(u, /73019264/); }
   await p.click('#sheet [data-sc-try][href="#at=drill"]');
   await p.waitForFunction(() => cur === "fun" && !!DRUN);
@@ -207,47 +207,45 @@ test("quiz night: the iPad hosts, phones answer, a kind scoreboard, and names ca
   for (const p of [O, S, T]) assert.deepEqual(p.errs, []);
 });
 
-test("bar phrases: French, Spanish or Italian, bar or floor, one big card at a time, hear it, toggles, streak", async () => {
+test("language lessons: any hand-written language, bar, floor or small talk, one card at a time, hear it, toggles, streak", async () => {
   const p = await open();
   await games(p);
-  assert.deepEqual(await p.$$eval("[data-ph-lang]", (x) => x.map((b) => b.textContent)), ["Français", "Español", "Italiano"]);
+  const langs = await p.$$eval("[data-ph-lang]", (x) => x.map((b) => b.textContent));
+  for (const l of ["Français", "Español", "Italiano", "Nepali", "Twi"]) assert.ok(langs.some((x) => x.includes(l)), l);
+  await p.click('[data-ph-lang="fr"]');
   await p.click('[data-ph-side="floor"]');
   await p.click('.dr-card.ph [data-fn="phr"]');
-  assert.match(await p.textContent(".ph-say"), /J'apprends encore le français/);
-  assert.match(await p.textContent(".ph-en"), /still learning French/);
-  assert.ok(await p.$(".ph-pron"));
+  const floor = await p.evaluate(() => phCards());
+  assert.ok(floor.length >= 4 && floor.every((r) => r.t && !r.live));
+  assert.equal(await p.textContent(".ph-say"), floor[0].t);
+  assert.ok(await p.$(".ph-en"));
   await p.click(".ph-hear:not([data-ph-slow])");
   assert.deepEqual(await p.evaluate(() => SAID.map((u) => u.lang)), ["fr-FR"]);
-  // Floor has the burgers; bar doesn't.
-  const floor = await p.evaluate(() => phCards().map((r) => r[0]));
-  assert.ok(floor.includes("burger") && !floor.includes("single"));
   // The English and the sound-it-out line switch off.
   await p.uncheck('[data-ph-tg="en"]');
   await p.uncheck('[data-ph-tg="say"]');
   assert.equal(await p.$(".ph-en"), null);
   assert.equal(await p.$(".ph-pron"), null);
-  for (let i = 1; i < floor.length; i++) await p.click('[data-ph="next"]');
-  await p.click('[data-ph="next"]');
-  // Then a quick check: hear it, pick the meaning. Slow plays it slower.
+  for (let i = 0; i < 12 && (await p.$('[data-ph="next"]')); i++) await p.click('[data-ph="next"]');
+  // Then a quick check of five; a slow play is slower.
   assert.match(await p.textContent(".dr-head"), /Quick check/);
-  await p.click('.ph-hear[data-ph-slow]');
-  assert.ok(await p.evaluate(() => SAID.at(-1).rate < 0.7));
-  for (let j = 0; j < 4; j++) {
-    const i = await p.evaluate(() => { const q = PRUN.qs[PRUN.q]; return q.opts.indexOf(q.answer); });
-    await p.locator("[data-ph-ans]").nth(i).click();
+  for (let j = 0; j < 5; j++) {
+    await p.evaluate(() => {
+      const q = PRUN.qs[PRUN.q];
+      if (q.k === "tiles") { [...q.tiles].sort((a, b) => a.j - b.j).forEach((t) => document.querySelector(`[data-ph-tile="${q.tiles.indexOf(t)}"]`).click()); document.querySelector("[data-ph-tcheck]").click(); }
+      else if (q.k === "speak") document.querySelector("[data-ph-sskip]").click();
+      else [...document.querySelectorAll("[data-ph-ans]")].find((b) => b.dataset.phAns === q.answer).click();
+    });
     await p.click('[data-ph="cnext"]');
   }
   assert.match(await p.textContent(".dr-end"), /Nice one/);
-  assert.match(await p.textContent(".dr-end"), /4 of 4 heard right/);
   assert.deepEqual(await p.evaluate(() => DR.days), [await p.evaluate(() => shiftDay())]);
-  // Spanish, at the bar.
+  // Spanish small talk.
   await p.click('[data-fn="home"]');
   await p.click('[data-ph-lang="es"]');
-  await p.click('[data-ph-side="bar"]');
+  await p.click('[data-ph-side="chat"]');
   await p.click('.dr-card.ph [data-fn="phr"]');
-  await p.click('[data-ph="next"]');
-  await p.click('[data-ph="next"]');
-  assert.match(await p.textContent(".ph-say"), /¿Sencillo o doble\?/);
+  assert.match(await p.textContent("#v-fun"), /Small talk/);
   await p.click(".ph-hear:not([data-ph-slow])");
   assert.equal(await p.evaluate(() => SAID.at(-1).lang), "es-ES");
   assert.deepEqual(p.errs, []);

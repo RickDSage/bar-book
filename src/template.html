@@ -456,7 +456,11 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .soon { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 99px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .prep.done .box { background: var(--ok); border-color: var(--ok); }
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
-.brandr { display: flex; align-items: center; gap: 6px; }
+.brandr { display: flex; align-items: center; gap: 6px; flex: none; }
+/* Narrow phones: the name gives way to the buttons (no sideways scrolling), "Bar Book" first. */
+.brand h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 430px) { .brandr { gap: 4px; } .brandr .hbtn { width: 36px; height: 36px; } .brand:has(.langbtn:not([hidden])) h1 span { display: none; } }
+@media (max-width: 360px) { .brand h1 span { display: none; } }
 b.dt { color: var(--fg); font-weight: 700; }
 .bell { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg); }
 .bell svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -5430,6 +5434,7 @@ function openAt(where) {
   // Going somewhere else closes a page left open on top (the stock count, the tour's last step; the Siri links open
   // their own).
   if (where !== "siri" && !$("#sheet").hidden) hideSheet();
+  if (where !== "guest" && GUEST.on) guestClose(true);
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where.startsWith("rep:")) return openReport(where.slice(4));
   // Tonight's closing photos for a side, from a message's link: the close, scrolled to them.

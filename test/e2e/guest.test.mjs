@@ -35,13 +35,28 @@ test("🌍 at the top opens the guest hub: welcome by hand, menus, phrases and q
   await p.click('[data-g-menu="food"]');
   assert.ok((await p.$$(".g-food")).length > 40);
   assert.match(await p.textContent("#g-body"), /Hamburguesas/);
+  // Tick what they'd like: ＋ twice on one, once on another, − takes one off; My choices shows staff the list in English.
   await p.click('.g-food [data-g-want]');
+  await p.click('.g-food [data-g-want]');
+  await p.locator('.g-food [data-g-want]').nth(1).click();
+  await p.click('.g-food [data-g-less]');
+  assert.match(await p.textContent(".g-facts"), /pollo es halal/);
+  await p.click('[data-g-mine]');
+  const mine = await p.textContent(".g-mine");
+  assert.match(mine, /Enséñaselo al personal/);
+  // Hot fried pickles £7.50 + Fried mozzarella £12 = £19.50, optional 13.5% service £2.63, about £22.13.
+  assert.match(mine, /1 × Hot fried pickles £7\.50/);
+  assert.match(mine, /Servicio opcional/); assert.match(mine, /£2\.63/); assert.match(mine, /£22\.13/);
+  assert.equal(await p.$$eval(".g-mine .g-food", (x) => x.length), 2);
+  await p.click("[data-g-mine-clear]");
+  assert.equal(await p.evaluate(() => Object.keys(GUEST.want).length), 0);
+  await p.click('[data-g-tab="talk"]');
   // Talk: a check-back in Spanish with its English, and a guest question shown in English.
   await p.click('[data-g-sec="check"]');
   await p.click('[data-g-phrase="howfood"]');
   await p.click('[data-g-reply="spicy"]');
   const log = await p.textContent("#g-log");
-  assert.match(log, /¿Qué tal la comida\?/); assert.match(log, /How's the food\?/); assert.match(log, /Is this spicy\?/); assert.match(log, /I'd like: Hot fried pickles/);
+  assert.match(log, /¿Qué tal la comida\?/); assert.match(log, /How's the food\?/); assert.match(log, /Is this spicy\?/);
   // Allergies opens the hand-written card.
   await p.click('[data-g-sec="allergy"]');
   await p.click('#g-body [data-g-tab="allergy"]');
