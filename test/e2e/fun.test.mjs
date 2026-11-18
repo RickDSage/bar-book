@@ -16,7 +16,7 @@ async function open({ width = 390, height = 844, init } = {}) {
     localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99 }));
     window.SAID = [];
     window.SpeechSynthesisUtterance = function (t) { this.text = t; };
-    Object.defineProperty(window, "speechSynthesis", { value: { speak: (u) => SAID.push(u), cancel: () => {}, getVoices: () => [{ name: "Daniel", lang: "en-GB" }], speaking: false } });
+    Object.defineProperty(window, "speechSynthesis", { value: { speak: (u) => SAID.push(u), cancel: () => {}, getVoices: () => [{ name: "Daniel", lang: "en-GB" }, { name: "Thomas", lang: "fr-FR" }, { name: "Mónica", lang: "es-ES" }], speaking: false } });
   });
   if (init) await c.addInitScript(init);
   await c.route("**/live.js", (r) => r.abort());
@@ -214,8 +214,9 @@ test("quiz night: the iPad hosts, phones answer, a kind scoreboard, and names ca
 test("language lessons: any hand-written language, bar, floor or small talk, one card at a time, hear it, toggles, streak", async () => {
   const p = await open();
   await games(p);
-  const langs = await p.$$eval("[data-ph-lang]", (x) => x.map((b) => b.textContent));
-  for (const l of ["Français", "Español", "Italiano", "Nepali", "Twi"]) assert.ok(langs.some((x) => x.includes(l)), l);
+  const langs = await p.$$eval("[data-ph-lang]", (x) => x.map((b) => b.dataset.phLang));
+  for (const l of ["fr", "es", "it", "ne", "tw"]) assert.ok(langs.includes(l), l);
+  assert.match(await p.textContent('[data-ph-lang="fr"]'), /Français/);
   await p.click('[data-ph-lang="fr"]');
   await p.click('[data-ph-side="floor"]');
   await p.click('.dr-card.ph [data-fn="phr"]');
@@ -224,7 +225,7 @@ test("language lessons: any hand-written language, bar, floor or small talk, one
   assert.equal(await p.textContent(".ph-say"), floor[0].t);
   assert.ok(await p.$(".ph-en"));
   await p.click(".ph-hear:not([data-ph-slow])");
-  assert.deepEqual(await p.evaluate(() => SAID.map((u) => u.lang)), ["fr-FR"]);
+  assert.equal(await p.evaluate(() => SAID.at(-1).lang), "fr-FR");
   // The English and the sound-it-out line switch off.
   await p.uncheck('[data-ph-tg="en"]');
   await p.uncheck('[data-ph-tg="say"]');

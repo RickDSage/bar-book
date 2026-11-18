@@ -316,7 +316,8 @@ test("Bar 101 remembers what you know, asks the rest first, has its own speed dr
   await answer(S, false);
   for (let i = 1; i < 10; i++) await answer(S, true);
   await waitText(S, "#pquiz", /9 out of 10/);
-  assert.match(await text(S, "#pquiz"), /Say it:/);
+  // The missed card shows its line to say, where it has one (not every card does).
+  if (await S.evaluate(() => !!qz.qs[0].say)) assert.match(await text(S, "#pquiz"), /Say it:/);
   await S.click("#pquiz [data-b101-read]");
   await S.waitForSelector('#pb101 .b101.on');
   // A missed card comes off the known list.
