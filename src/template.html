@@ -403,6 +403,7 @@ a.link86 { text-align: center; margin-top: 0; }
 button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52px; border: 2px solid var(--warn); border-radius: 12px; color: var(--warn); font-weight: 700; font-size: 17px; text-decoration: none; }
 .link86 { display: block; margin: 18px auto 4px; background: none; border: 0; color: var(--muted); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; min-height: 40px; padding: 0 12px; }
 .star { width: 44px; height: 44px; font-size: 26px; color: var(--brass); line-height: 1; }
+.sh-r { display: flex; align-items: center; gap: 6px; }
 .mult { display: inline-flex; gap: 4px; font-family: var(--body); text-transform: none; }
 .mult button { min-width: 44px; min-height: 36px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); font-weight: 700; font-size: 15px; }
 .mult button[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
@@ -951,6 +952,8 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .lgroup .n { font-size: 13px; color: var(--muted); margin-left: 6px; font-family: inherit; text-transform: none; letter-spacing: 0; }
 .lgroup .btn { min-height: 36px; padding: 6px 12px; font-size: 14px; }
 .lgroup .lgb { display: flex; gap: 6px; flex: none; }
+.lfbtn { display: flex; align-items: baseline; gap: 6px; min-height: 40px; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; text-align: left; }
+.lfbtn .chev { font-size: 14px; width: 12px; }
 .lon { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 .lgroup.full h3 { color: var(--ok, var(--brass)); }
 .lfold > summary { list-style: none; cursor: pointer; }
@@ -1035,7 +1038,7 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .pickbar > span { flex: 1; min-width: 0; font-weight: 700; }
 .pickbar .btn { min-height: 44px; }
 body.picking main { padding-bottom: calc(var(--tabh) + 90px); }
-body.picking #sd-mic, body.picking #sd-timer { display: none; }
+body.picking #sd-timer { display: none; }
 .row:active { background: var(--surface); }
 .welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); overflow-y: auto; transition: opacity .3s, transform .3s; }
 .welcome.bye { opacity: 0; transform: scale(1.03); pointer-events: none; }
@@ -1205,7 +1208,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
   <p class="wip">Spot something wrong or got an idea? Tell maintenance: More, then App feedback.</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Guide: find anything in Bar Book">?</button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <button class="upd rulesold" id="rules-old" hidden aria-label="Firebase rules need publishing. Tap to hide">Rules need publishing ✕</button>
@@ -1891,7 +1894,7 @@ function openSheet(id, keepScroll) {
   if (!keepScroll) { lastFocus = document.activeElement; recent = [id, ...recent.filter((r) => r !== id)].slice(0, 6); store.set("recent", recent); keepAwake(); }
   const al = d.allergens && d.allergens !== "None" ? d.allergens : "";
   $("#sheet").innerHTML = `
-    <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t" translate="no">${esc(d.name)}</span><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></div>
+    <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t" translate="no">${esc(d.name)}</span><span class="sh-r"><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></span></div>
       <div class="seg" role="group" aria-label="View"><button data-view="spec" aria-pressed="${view === "spec"}">Spec</button><button data-view="steps" aria-pressed="${view === "steps"}">Step by step</button></div></div>
     <div class="sw${view === "steps" ? " compact" : ""}" id="sw" dir="ltr">
     <div class="hero"><span class="g" id="sh-g" aria-hidden="true">${heroArt(d)}</span><div><h2 id="sh-name" translate="no">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div>
@@ -2752,17 +2755,21 @@ function groupsOf(k) {
 }
 // Items still to tick (not started, in progress or blocked), of the ids given.
 const openOf = (k, ids) => ids.filter((i) => ["todo", "doing", "blocked"].includes(statusOf(k, i)));
+/* A heading on a list folds with a tap, to see the whole close at a glance; this phone remembers which. A heading
+   that's all done folds by itself. */
+const lfShut = store.get("lfShut", {});
 function checklistHtml(k) {
   const p = progress(k), locked = isLocked(k), any = shown(k).some(([i]) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
   const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>
-    <div class="ltools"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button><span></span></div>
+    <div class="ltools"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button>${groupsOf(k).filter(([g]) => g).length > 1 ? `<button class="chip" data-lf-all="${k}">${groupsOf(k).some(([g]) => g && lfShut[`${k}|${g}`]) ? "Open every heading" : "Fold every heading"}</button>` : "<span></span>"}</div>
     ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
     const on = g && left ? onIt(k, xs) : [];
-    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${!LIVE.me || on.includes(LIVE.me) ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">${on.length ? "Take over" : "I'll do this"}</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${secWhoHtml(k, xs, left, on)}` : "";
+    const fk = `${k}|${g}`, shut = !!(g && left && lfShut[fk]);
+    const head = g ? `<div class="lgroup${left ? "" : " full"}">${left ? `<h3><button class="lfbtn" data-lf="${esc(fk)}" aria-expanded="${!shut}"><span class="chev" aria-hidden="true">${shut ? "\u25b8" : "\u25be"}</span>${esc(g)}<span class="n">${req - left}/${req}</span></button></h3>` : `<h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>`}${left && !locked ? `<span class="lgb">${!LIVE.me || on.includes(LIVE.me) ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">${on.length ? "Take over" : "I'll do this"}</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${secWhoHtml(k, xs, left, on)}` : "";
     // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
-    const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
+    const rows = shut ? "" : xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
     return g && !left && !xs.some(([i]) => more === `${k}-${i}`) ? `<details class="lfold"><summary>${head}</summary>${rows}</details>` : head + rows;
   };
@@ -3778,6 +3785,9 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#clear-all")) { clearAll(false); return; }
   if (e.target.closest("#undo-clear")) { undoClearAll(); return; }
   if (e.target.closest("[data-left-only]")) { leftOnly = !leftOnly; store.set("leftOnly", leftOnly); haptic(); renderTally(); return; }
+  const lf = e.target.closest("[data-lf]"); if (lf) { const fk = lf.dataset.lf; lfShut[fk] ? delete lfShut[fk] : (lfShut[fk] = true); store.set("lfShut", lfShut); haptic(); renderTally(); return; }
+  const lfa = e.target.closest("[data-lf-all]");
+  if (lfa) { const k = lfa.dataset.lfAll, gs = groupsOf(k).filter(([g]) => g).map(([g]) => `${k}|${g}`), shut = gs.some((x) => lfShut[x]); gs.forEach((x) => (shut ? delete lfShut[x] : (lfShut[x] = true))); store.set("lfShut", lfShut); haptic(); renderTally(); return; }
   const mo = e.target.closest("[data-more]"); if (mo) { more = more === mo.dataset.more ? "" : mo.dataset.more; renderTally(); return; }
   const tk = e.target.closest("[data-task]"); if (tk) { const [k, i] = taskKey(tk.dataset.task); changeTask(k, i, tk.dataset.to); return; }
   const rn = e.target.closest("[data-run]"); if (rn) { runTo(rn.dataset.run, rn.dataset.to); return; }

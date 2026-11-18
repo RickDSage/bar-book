@@ -403,6 +403,7 @@ a.link86 { text-align: center; margin-top: 0; }
 button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52px; border: 2px solid var(--warn); border-radius: 12px; color: var(--warn); font-weight: 700; font-size: 17px; text-decoration: none; }
 .link86 { display: block; margin: 18px auto 4px; background: none; border: 0; color: var(--muted); font: inherit; font-size: 14px; text-decoration: underline; text-underline-offset: 3px; min-height: 40px; padding: 0 12px; }
 .star { width: 44px; height: 44px; font-size: 26px; color: var(--brass); line-height: 1; }
+.sh-r { display: flex; align-items: center; gap: 6px; }
 .mult { display: inline-flex; gap: 4px; font-family: var(--body); text-transform: none; }
 .mult button { min-width: 44px; min-height: 36px; border-radius: 8px; border: 1px solid var(--line); color: var(--muted); font-weight: 700; font-size: 15px; }
 .mult button[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
@@ -951,6 +952,8 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .lgroup .n { font-size: 13px; color: var(--muted); margin-left: 6px; font-family: inherit; text-transform: none; letter-spacing: 0; }
 .lgroup .btn { min-height: 36px; padding: 6px 12px; font-size: 14px; }
 .lgroup .lgb { display: flex; gap: 6px; flex: none; }
+.lfbtn { display: flex; align-items: baseline; gap: 6px; min-height: 40px; padding: 0; font: inherit; color: inherit; text-transform: inherit; letter-spacing: inherit; text-align: left; }
+.lfbtn .chev { font-size: 14px; width: 12px; }
 .lon { margin: 4px 0 0; font-size: 14px; color: var(--muted); }
 .lgroup.full h3 { color: var(--ok, var(--brass)); }
 .lfold > summary { list-style: none; cursor: pointer; }
@@ -1035,7 +1038,7 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .pickbar > span { flex: 1; min-width: 0; font-weight: 700; }
 .pickbar .btn { min-height: 44px; }
 body.picking main { padding-bottom: calc(var(--tabh) + 90px); }
-body.picking #sd-mic, body.picking #sd-timer { display: none; }
+body.picking #sd-timer { display: none; }
 .row:active { background: var(--surface); }
 .welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); overflow-y: auto; transition: opacity .3s, transform .3s; }
 .welcome.bye { opacity: 0; transform: scale(1.03); pointer-events: none; }
@@ -1205,7 +1208,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
   <p class="wip">Spot something wrong or got an idea? Tell maintenance: More, then App feedback.</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Guide: find anything in Bar Book">?</button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <button class="upd rulesold" id="rules-old" hidden aria-label="Firebase rules need publishing. Tap to hide">Rules need publishing ✕</button>
@@ -1968,7 +1971,7 @@ function openSheet(id, keepScroll) {
   if (!keepScroll) { lastFocus = document.activeElement; recent = [id, ...recent.filter((r) => r !== id)].slice(0, 6); store.set("recent", recent); keepAwake(); }
   const al = d.allergens && d.allergens !== "None" ? d.allergens : "";
   $("#sheet").innerHTML = `
-    <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t" translate="no">${esc(d.name)}</span><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></div>
+    <div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t" translate="no">${esc(d.name)}</span><span class="sh-r"><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="star" id="sh-fav" aria-pressed="${fav.has(d.name)}" aria-label="${fav.has(d.name) ? "Remove from favourites" : "Add to favourites"}">${fav.has(d.name) ? "\u2605" : "\u2606"}</button></span></div>
       <div class="seg" role="group" aria-label="View"><button data-view="spec" aria-pressed="${view === "spec"}">Spec</button><button data-view="steps" aria-pressed="${view === "steps"}">Step by step</button></div></div>
     <div class="sw${view === "steps" ? " compact" : ""}" id="sw" dir="ltr">
     <div class="hero"><span class="g" id="sh-g" aria-hidden="true">${heroArt(d)}</span><div><h2 id="sh-name" translate="no">${esc(d.name)}</h2><div class="sub">${esc(d.section)} · ${esc(blurb(d))}</div>
@@ -2829,17 +2832,21 @@ function groupsOf(k) {
 }
 // Items still to tick (not started, in progress or blocked), of the ids given.
 const openOf = (k, ids) => ids.filter((i) => ["todo", "doing", "blocked"].includes(statusOf(k, i)));
+/* A heading on a list folds with a tap, to see the whole close at a glance; this phone remembers which. A heading
+   that's all done folds by itself. */
+const lfShut = store.get("lfShut", {});
 function checklistHtml(k) {
   const p = progress(k), locked = isLocked(k), any = shown(k).some(([i]) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
   const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>
-    <div class="ltools"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button><span></span></div>
+    <div class="ltools"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button>${groupsOf(k).filter(([g]) => g).length > 1 ? `<button class="chip" data-lf-all="${k}">${groupsOf(k).some(([g]) => g && lfShut[`${k}|${g}`]) ? "Open every heading" : "Fold every heading"}</button>` : "<span></span>"}</div>
     ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
     const on = g && left ? onIt(k, xs) : [];
-    const head = g ? `<div class="lgroup${left ? "" : " full"}"><h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>${left && !locked ? `<span class="lgb">${!LIVE.me || on.includes(LIVE.me) ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">${on.length ? "Take over" : "I'll do this"}</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${secWhoHtml(k, xs, left, on)}` : "";
+    const fk = `${k}|${g}`, shut = !!(g && left && lfShut[fk]);
+    const head = g ? `<div class="lgroup${left ? "" : " full"}">${left ? `<h3><button class="lfbtn" data-lf="${esc(fk)}" aria-expanded="${!shut}"><span class="chev" aria-hidden="true">${shut ? "\u25b8" : "\u25be"}</span>${esc(g)}<span class="n">${req - left}/${req}</span></button></h3>` : `<h3>${esc(g)}<span class="n">${req - left}/${req}</span></h3>`}${left && !locked ? `<span class="lgb">${!LIVE.me || on.includes(LIVE.me) ? "" : `<button class="btn" data-claim="${k}" data-g="${esc(g)}">${on.length ? "Take over" : "I'll do this"}</button>`}<button class="btn" data-tick-all="${k}" data-g="${esc(g)}">Tick all</button></span>` : left ? "" : `<span class="pill ok">Done</span>`}</div>${secWhoHtml(k, xs, left, on)}` : "";
     // With Only what's left on, a done item hides, unless its options are open. A heading that's all done still folds.
-    const rows = xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
+    const rows = shut ? "" : xs.filter(([i]) => !leftOnly || !left || statusOf(k, i) !== "done" || more === `${k}-${i}`).map(([i, t]) => taskRow(k, i, t)).join("");
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
     return g && !left && !xs.some(([i]) => more === `${k}-${i}`) ? `<details class="lfold"><summary>${head}</summary>${rows}</details>` : head + rows;
   };
@@ -3855,6 +3862,9 @@ $("#tally").addEventListener("click", async (e) => {
   if (e.target.closest("#clear-all")) { clearAll(false); return; }
   if (e.target.closest("#undo-clear")) { undoClearAll(); return; }
   if (e.target.closest("[data-left-only]")) { leftOnly = !leftOnly; store.set("leftOnly", leftOnly); haptic(); renderTally(); return; }
+  const lf = e.target.closest("[data-lf]"); if (lf) { const fk = lf.dataset.lf; lfShut[fk] ? delete lfShut[fk] : (lfShut[fk] = true); store.set("lfShut", lfShut); haptic(); renderTally(); return; }
+  const lfa = e.target.closest("[data-lf-all]");
+  if (lfa) { const k = lfa.dataset.lfAll, gs = groupsOf(k).filter(([g]) => g).map(([g]) => `${k}|${g}`), shut = gs.some((x) => lfShut[x]); gs.forEach((x) => (shut ? delete lfShut[x] : (lfShut[x] = true))); store.set("lfShut", lfShut); haptic(); renderTally(); return; }
   const mo = e.target.closest("[data-more]"); if (mo) { more = more === mo.dataset.more ? "" : mo.dataset.more; renderTally(); return; }
   const tk = e.target.closest("[data-task]"); if (tk) { const [k, i] = taskKey(tk.dataset.task); changeTask(k, i, tk.dataset.to); return; }
   const rn = e.target.closest("[data-run]"); if (rn) { runTo(rn.dataset.run, rn.dataset.to); return; }
@@ -8288,7 +8298,7 @@ function sxTonight() {
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn sx-who" data-who-open hidden></button><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">Guide</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn sx-who" data-who-open hidden></button><button class="btn pri" data-log>\uff0b Log it</button><button class="btn sd-micb sx-mic" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="btn sx-mic" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><span class="sx-vl"> Find</span></button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
     <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}"${["round", "batch", "quiz"].includes(k) ? ` data-sx-tile="${k}"` : ""}${k === "setup" ? ' aria-label="Set up"' : ""}>${k === "setup" ? `\u2699\ufe0e<span class="sx-vl"> ${t}</span>` : t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
     <div class="sx-tms" id="sx-tms" hidden></div>
     <div class="sx-86s" id="sx-86s" role="status" hidden></div>
@@ -8597,6 +8607,8 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .sx-tb { display: flex; gap: 8px; }
 @media (max-width: 559px) { .sx-top { flex-wrap: wrap; } .sx-tb { flex-wrap: wrap; } }
 .sx-tb [data-sx-big] { min-width: 52px; font-size: 18px; }
+.sx-mic { gap: 6px; }
+.sx-mic svg { flex: none; width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
 .sx-tb [data-sx-big][aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .sx-live { display: contents; }
 .sx-outl { list-style: none; margin: 0; padding: 0; width: 100%; max-height: 14em; overflow-y: auto; }
@@ -11967,7 +11979,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T17:37";
+const BUILD = "2026-11-18T18:01";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -13931,7 +13943,7 @@ const HELP = {
       "Tonight is every job in one list, each with how it stands: 86'd and running low (with 86 something and Back in), Bar and Floor closing, Hand over, Photos (\ud83d\udcf7+ takes one), Date labels, Stock count and Morning. Tap a row for its page; the station comes back by itself after 2 quiet minutes.", "Choose what shows here (under Tonight, or \u2699 Set up): switch off anything the bar doesn't use (Round, Batches, Quiz, Tonight, any row of Tonight) and back on any time. It changes straight away and stays after a reload. On a shared iPad a manager unlocks it with their code first.",
       "A big ticket: open Round and type each drink into Add a drink, Enter after each one. \u201c3 mojito\u201d or \u201cmojito x3\u201d adds three. Or tap + next to any drink in the list (again for two).", "The round numbers every drink in making order (stir, build, shake, fizz last). Only the next one to make shows its spec: tap any other to open it, or Open every spec. Made folds it away and opens the next. Get ready folds the glasses, ice, garnish and tins into one line: tap it for the list. The bar at the top stays put: how many are left, the next drink, \u25b6 Make the round (a drink at a time, scaled) and Clear.",
       "Aa (on the iPad) makes everything bigger, to read from a step back.", "Ran out of something? 86 something under Tonight: type a few letters or pick a kind, and tap 86. Tick several to 86 them together.",
-      "The bar along the top switches between Drinks, Round, Batches, Quiz and \u2699 Set up. Everything \u25be picks which drinks the list shows. Guide, top right, searches all of Bar Book.",
+      "The bar along the top switches between Drinks, Round, Batches, Quiz and \u2699 Set up. Everything \u25be picks which drinks the list shows. \ud83d\udd0d Find, top right, finds any screen, drink or how-to; \ud83c\udfa4 beside it does it by voice.",
       "Last orders shows big across the top from 15 minutes before the time a manager sets. Across the top: tonight's 86s, then date labels for bar and floor, URGENT when one needs changing now and a reminder the day before. Tap one to change it.",
       "Upright and on a phone, Tonight is one line: tap Show for the list, and it stays as you left it. Tap a row to open that page; the \u2039 Bar station button at the bottom brings you back. Exit (top right) turns the mode off. While it's on, Bar Book opens on it.",
       "Batches: the house batch recipes, scaled, and one tap to date the label. Every bar date label is under them. Prep timer: 1 to 20 minutes, up to 3 at once; the screen flashes when one is up.",
@@ -14042,8 +14054,8 @@ const HELP = {
   make: { t: "What can I make?", what: "Pick what you've got and see what you can make, closest first.",
     how: ["Make: tap ingredients and the matches update.", "My bar: the bottles you have. Specs: every spec on one line.", "Black Tap: our line-up and house serves."],
     behind: ["My bar and My drinks stay on this phone.", "Anything on the 86 board stops counting, so it won't suggest a drink you can't make tonight."] },
-  voice: { t: "Say it \ud83c\udfa4", what: "Hands full? Tap \ud83c\udfa4 and say it how you like. It picks out the key words.",
-    how: ["86 something: \u201c86 the Corona\u201d, \u201cwe've run out of limes\u201d, \u201cthe Corona is out\u201d, or several at once: \u201c86 limes and mint\u201d.", "Back in: \u201climes are back\u201d or \u201cback in Corona\u201d.", "A spec: \u201cMarshmallow Boulevard spec\u201d, \u201chow do I make a Negroni\u201d, or just the name. On the iPad it opens in the station.", "Count: \u201ccount tonic 12\u201d or \u201cSmirnoff count 3 and a half\u201d opens the stock count with it ready to save.", "Also \u201cwhat's 86'd\u201d, \u201clog it ice machine leaking\u201d, \u201cwhat can I make\u201d, \u201clast orders\u201d and \u201copen closing\u201d.", "It shows what it heard and asks first. Nothing changes until you tap Yes. Not sure? It shows the closest few to tap.", "No microphone, or too loud? Type the same words in the box."],
+  voice: { t: "Say it \ud83c\udfa4", what: "Hands full? Tap \ud83c\udfa4 at the top (next to \ud83d\udd0d, and on a drink's page and the bar station) and say it how you like. It picks out the key words.",
+    how: ["86 something: \u201c86 the Corona\u201d, \u201cwe've run out of limes\u201d, \u201cthe Corona is out\u201d, or several at once: \u201c86 limes and mint\u201d.", "Back in: \u201climes are back\u201d or \u201cback in Corona\u201d.", "A drink: just say its name, or \u201cNegroni spec\u201d. It opens straight away, or the closest match if it isn't sure, with Not it? and the next closest along the bottom to tap. On the iPad it opens in the station.", "Count: \u201ccount tonic 12\u201d or \u201cSmirnoff count 3 and a half\u201d opens the stock count with it ready to save.", "Also \u201cwhat's 86'd\u201d, \u201clog it ice machine leaking\u201d, \u201cwhat can I make\u201d, \u201clast orders\u201d and \u201copen closing\u201d.", "While it listens the \ud83c\udfa4 glows and the words show as it hears them. Done stops it early.", "Anything that changes something (an 86, back in, a log) shows what it heard and waits for Yes. Couldn't make it out? It says so, with Try again and the box to type in.", "No microphone, or too loud? Type the same words in the box."],
     behind: ["Names are matched like the 86 search: a letter or two off, split words and sound-alikes are fine, so \u201ctanker ray\u201d is Tanqueray.", "The phone sends up to five guesses at what you said, and Bar Book takes the one that makes most sense.", "Your phone turns speech into words; Bar Book only sees the words. It's free. iPhones need Safari or the home screen app's keyboard \ud83c\udfa4.", "Turn the button off in More, This phone."] },
   phone: { t: "This phone", what: "Settings for this phone only: nobody else's changes.",
     how: ["Light or dark: Auto follows the phone, Clock switches at the venue's times.", "Accessible mode: bigger, plainer and colour-blind-safe.", "One-hand mode: Back, Search, 86, Log it, Send and \ud83c\udfa4 in a row above the tabs, in reach of your thumb.", "Sounds: a short sound for urgent things, last orders and a new best close."],
@@ -14087,7 +14099,7 @@ const INTRO = [
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "Send with photos puts the words in as a picture, so nothing needs pasting. On the iPad it goes to Mail, AirDrop or Save to Files.", more: ["send"] },
   { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Export and import, Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Export and import: every log out as Excel, CSV, Word, a printout or a copy, and spreadsheets in for date labels, items, names, the stock setup and past counts.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, Backup and restore, and Start again to wipe the test data.", "Safety net, Ready for Friday: rules, codes, backups and this phone, each going green by itself once it's done."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["export", "inbox", "replay", "order", "season", "ready"] },
   { t: "Learn it, and look after yourself", how: ["More, Training, Practise specs: flashcards, tonight's quiz (the same 10 for everyone), speed drills against the clock, and the new starter path.", "Bar 101: what to say when a guest asks, from our own back bar. It remembers what you know and quizzes you on the rest.", "More, Training, Games and drills: the daily drill, quiz night and Bar phrases. More, Cheat sheets: a page per kind of drink, to print or send.", "My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
-  { t: "Tips and tricks", how: ["The ? at the top right opens the Guide: every section, and a search for anything (\u201chow do I make a mojito\u201d). \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Hands full? Tap 🎤 and say it how you like: “can you 86 the Corona”, “Negroni spec” or “count tonic 12”. It picks out the key words and asks before it changes anything.", "More, This phone: one-hand mode, accessible mode, sounds and light or dark.", "Tap any small ? for how that part works and what happens behind the scenes.", "Needs you now: a banner at the top when you open the app, for a label due, last night's handover and more. Tap it to go there, × to hide it.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "More, under Help, has Replay the tour and Replay the walkthrough whenever you want them. Hide the ? buttons there too.", more: ["voice", "phone", "drafts"] },
+  { t: "Tips and tricks", how: ["\ud83d\udd0d at the top right opens the Guide: every section, and a search for anything, a screen included (\u201cclosing\u201d, \u201chow do I make a mojito\u201d). \ud83c\udfa4 beside it does it by voice. \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Hands full? Tap 🎤 and say it how you like: “can you 86 the Corona”, “Negroni spec” or “count tonic 12”. It picks out the key words and asks before it changes anything.", "More, This phone: one-hand mode, accessible mode, sounds and light or dark.", "Tap any small ? for how that part works and what happens behind the scenes.", "Needs you now: a banner at the top when you open the app, for a label due, last night's handover and more. Tap it to go there, × to hide it.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "More, under Help, has Replay the tour and Replay the walkthrough whenever you want them. Hide the ? buttons there too.", more: ["voice", "phone", "drafts"] },
 ];
 // The tour card the last help panel was opened from, so Back returns to it.
 let introAt = -1;
@@ -14329,18 +14341,18 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    shared iPad, once per name. When the walkthrough changes, WALK_V goes up and WALK_NEW says what changed: anyone who
    saw an older one gets one small "New in the walkthrough" note instead of the whole thing again. More, Help has Replay
    the walkthrough and Replay the tour any time.
-   The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
+   The 🔍 at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 13;
-const WALK_NEW = "Stock count: tidier. Places are numbered and fold open one at a time, items are numbered, and a counted bottle says what's there (2 full · ½ open). The day, order, cl or ml, How to count and tips are in Options, which also picks the places that are yours tonight.";
+const WALK_V = 14;
+const WALK_NEW = "🔍 at the top finds any screen, drink or how-to: type it and tap to go there. 🎤 sits next to it now, never over the page: it shows the words as it hears them, says when it couldn't make them out, and a drink said opens straight away. On Closing, tap a heading to fold it. Stock count: tidier. Places are numbered and fold open one at a time, items are numbered, and a counted bottle says what's there (2 full · ½ open). The day, order, cl or ml, How to count and tips are in Options, which also picks the places that are yours tonight.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
   "Long lists scroll A to Z, like your phone's contacts: the drinks, the 86 picker, the stock count. Tap a letter on the strip down the right, or slide your finger down it.",
   "Hands full? Tap 🎤 and say it how you like, like “can you 86 the Corona” or “Negroni spec”: it picks out the key words. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
-  "? at the top right opens the Guide: every part of Bar Book by section, and a search for anything, like “how do I make a mojito” or “what's a dry shake”.",
+  "🔍 at the top right finds anything: type a screen (“closing”, “labels”, “pay”) and tap to go straight there, or a drink, or “how do I make a mojito”. 🎤 next to it does the same by voice.",
 ], tip: "× closes this at any time. More, Replay the walkthrough brings it back." };
 const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
   `Saw something, found something, did something, told a manager or someone told you? Tap ＋ Log it on Shift${side === "bar" ? " or on the bar station" : ""}. One line is enough.`,
@@ -14539,7 +14551,7 @@ function guideOpen(q = "") {
   helpFrom = helpFrom || document.activeElement; introAt = -1; gdQ = q;
   $("#help .help-in").innerHTML = `<div class="help-h"><h3 id="help-t">Guide</h3><button class="hq-x" data-help-x aria-label="Close">×</button></div>
     <p class="lead">Ask anything, or pick a section. A tap takes you straight there.</p>${gdBoxHtml("gd-q")}<div id="gd-out">${gdResultsHtml()}</div>
-    <p class="note gd-foot">‹ Back or your phone's back goes back a step. ⌂ goes home. This Guide is always on the ? at the top.</p>`;
+    <p class="note gd-foot">‹ Back or your phone's back goes back a step. ⌂ goes home. This Guide is always on the 🔍 at the top, and 🎤 beside it takes it by voice.</p>`;
   $("#gd-q").value = q; $("#help").hidden = false; $("#help .help-in").scrollTop = 0;
   if (!matchMedia("(pointer: coarse)").matches || q) $("#gd-q").focus();
 }
@@ -15137,6 +15149,8 @@ function sdParse(raw) {
   if (top && top.s >= (want ? 2.5 : 3.5)) return { kind: "drink", d: D[top.x.d], sc: 3 + top.s / 10, say: top.x.n, alts: hits.slice(1).filter((h) => h.s >= 2.5).slice(0, 3).map(dAlt) };
   const g = l.trim().split(" ").length <= 3 && SD_GO.find(([re]) => re.test(l));
   if (g) return { kind: "go", go: g[1], sc: 5, say: `Opening ${l.trim()}` };
+  // Not sure, but a drink is close: open the closest, with the next closest to tap if it's not the one.
+  if (top && top.s >= 2) return { kind: "drink", d: D[top.x.d], sc: 2.5, close: true, say: top.x.n, alts: hits.slice(1).filter((h) => h.s >= 1.6).slice(0, 3).map(dAlt) };
   const near = hits.filter((h) => h.s >= 2);
   return { kind: "none", sc: near.length ? 1 : 0, say: near.length ? `Not sure what “${t}” was. Is it one of these?` : `Didn't catch a command in “${t}”. Try “86 the Corona”, “Negroni spec” or “count tonic 12”.`, alts: near.slice(0, 3).map(dAlt) };
 }
@@ -15156,12 +15170,13 @@ function sdVoiceRender() {
   const h = SD.vc.heard, acts = h && ["86", "back", "log"].includes(h.kind), alts = h?.alts || [];
   const btn = !h ? "" : acts ? "Yes, do it" : h.kind === "count" ? "Open the count" : h.kind !== "none" && h.kind !== "info" ? "Go" : "";
   $("#sd-voice .help-in").innerHTML = `<div class="help-h"><h3 id="sd-vt">🎤 Say it</h3><button class="hq-x" data-sd-vx aria-label="Close">×</button></div>
-    ${SD.vc.on ? `<p class="sd-big sd-pulse">Listening…</p><p class="note">Say it how you like. It picks out the key words.</p>` : ""}
-    ${SD.vc.err ? `<p class="note warnline">${esc(SD.vc.err)}</p>` : ""}
-    ${h ? `<div class="sd-heard${h.kind === "none" ? " no" : ""}">${SD.vc.text && h.kind !== "none" ? `<p class="s">Heard “${esc(SD.vc.text)}”</p>` : ""}<b>${esc(h.say)}</b>${acts ? `<p class="note">${h.kind === "log" ? "It goes in tonight's handover with your name." : h.typed ? "It isn't on the list, so it goes on as said. Or tap the right one below." : "Every phone sees it straight away."}</p>` : ""}
+    ${SD.vc.on ? `<div class="sd-live" role="status"><span class="sd-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><b>${SD.vc.live ? "Hearing" : "Listening: speak now"}</b>
+      <p class="sd-livet">${SD.vc.live ? `“${esc(SD.vc.live)}”` : "Say it how you like: a drink, “86 the Corona”, “open closing”."}</p><button class="btn" data-sd-vstop>Done</button></div>` : ""}
+    ${SD.vc.err ? `<div class="sd-heard no" role="alert"><b>${esc(SD.vc.err)}</b><div class="actions"><button class="btn pri" data-sd-vagain>${SD_REC ? "\ud83c\udfa4 Try again" : "Try again"}</button></div></div>` : ""}
+    ${h ? `<div class="sd-heard${h.kind === "none" ? " no" : ""}">${SD.vc.text && h.kind !== "none" ? `<p class="s">Heard “${esc(SD.vc.text)}”</p>` : ""}${h.close ? `<p class="s">Not sure. The closest drink is:</p>` : ""}<b>${esc(h.say)}</b>${acts ? `<p class="note">${h.kind === "log" ? "It goes in tonight's handover with your name." : h.typed ? "It isn't on the list, so it goes on as said. Or tap the right one below." : "Every phone sees it straight away."}</p>` : ""}
       ${alts.length ? `<p class="mini" style="margin-top:10px">${h.kind === "none" || h.typed ? "Did you mean" : "Or"}</p><div class="recent">${alts.map((a, i) => `<button class="chip" data-sd-valt="${i}" translate="no">${esc(a.t)}</button>`).join("")}</div>` : ""}</div>
       <div class="actions">${btn ? `<button class="btn pri" data-sd-vgo>${btn}</button>` : ""}<button class="btn" data-sd-vagain>${SD_REC ? "Say it again" : "Try again"}</button></div>` : ""}
-    <form class="sd-vform" data-sd-vform><input id="sd-vtext" type="text" enterkeyhint="go" autocomplete="off" placeholder="${SD_REC ? "Or type it" : "Tap the 🎤 on your keyboard and speak"}" value="${esc(SD.vc.text)}" aria-label="Command"><button class="btn" type="submit">Go</button></form>
+    <form class="sd-vform" data-sd-vform><input id="sd-vtext" type="text" enterkeyhint="go" autocomplete="off" placeholder="${SD_REC ? "Or type it here" : "Type it, or tap the 🎤 on your keyboard"}" value="${esc(SD.vc.text)}" aria-label="Command"><button class="btn" type="submit">Go</button></form>
     <p class="note">Try: “86 the Corona”, “limes are back”, “Marshmallow Boulevard spec”, “count tonic 12”, “log it the glass washer is leaking”, “what's 86'd”, “open closing”. Nothing changes until you say yes.</p>`;
 }
 let sdRx = null;
@@ -15169,24 +15184,45 @@ function sdListen() {
   try {
     sdRx?.abort?.();
     SD.vc.err = "";
-    sdRx = new SD_REC(); sdRx.lang = "en-GB"; sdRx.interimResults = false; sdRx.continuous = false; sdRx.maxAlternatives = 5;
+    SD.vc.live = ""; SD.vc.got = false;
+    sdRx = new SD_REC(); sdRx.lang = "en-GB"; sdRx.interimResults = true; sdRx.continuous = false; sdRx.maxAlternatives = 5;
     sdRx.onresult = (e) => {
-      const r = e.results[0], b = vcBest(Array.from({ length: r.length }, (_, i) => r[i].transcript));
+      const r = e.results[e.results.length - 1];
+      // Still talking: show the words so far, so it's plain it's working.
+      if (r.isFinal === false) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing"; } return; }
+      const b = vcBest(Array.from({ length: r.length }, (_, i) => r[i].transcript));
       if (!b) return;
-      SD.vc.text = b.t; SD.vc.heard = b.h; SD.vc.on = false; sdVoiceRender(); sdSpeak(b.h.say);
+      SD.vc.got = true; SD.vc.text = b.t; SD.vc.on = false; sdHeard(b.h);
     };
     sdRx.onerror = (e) => {
       SD.vc.on = false;
       SD.vc.err = e.error === "not-allowed" || e.error === "service-not-allowed" ? "The microphone is off for Bar Book. Allow it in the phone's settings, or tap the 🎤 on the keyboard and speak into the box."
-        : e.error === "no-speech" ? "Didn't hear anything. Tap Say it again and speak close to the phone." : e.error === "network" ? "Speech needs signal on this phone. Type it, or use the keyboard's 🎤." : "";
-      sdVoiceRender(); if (e.error !== "no-speech") $("#sd-vtext")?.focus();
+        : e.error === "no-speech" ? "Didn't hear anything. Try again, close to the phone, or type it below." : e.error === "network" ? "Speech needs signal on this phone. Type it below, or use the keyboard's 🎤."
+        : e.error === "aborted" ? "" : "Couldn't make that out. Try again, or type it below.";
+      SD.vc.got = true; sdVoiceRender(); if (e.error !== "no-speech") $("#sd-vtext")?.focus();
     };
-    sdRx.onend = () => { if (SD.vc.on) { SD.vc.on = false; sdVoiceRender(); } };
-    SD.vc.on = true; sdVoiceRender(); sdRx.start();
+    // Stopped with nothing made out: say so, never just go quiet.
+    sdRx.onend = () => { document.body.classList.remove("sd-listening"); if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
+    SD.vc.on = true; document.body.classList.add("sd-listening"); sdVoiceRender(); sdRx.start();
   } catch { SD.vc.on = false; sdVoiceRender(); $("#sd-vtext")?.focus(); }
 }
 function sdSpeak(t) { if (!SD.set.sound) return; try { const u = new SpeechSynthesisUtterance(t); u.lang = "en-GB"; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} }
-function sdVoiceClose() { sdRx?.abort?.(); SD.vc.on = false; const el = $("#sd-voice"); if (el) el.hidden = true; }
+function sdVoiceClose() { sdRx?.abort?.(); SD.vc.on = false; document.body.classList.remove("sd-listening"); const el = $("#sd-voice"); if (el) el.hidden = true; }
+// What was said, worked out: a drink opens straight away (it changes nothing), with the closest others to tap if it's
+// not the one. Anything that changes something waits for Yes.
+function sdHeard(h) {
+  SD.vc.heard = h;
+  if (h.kind === "drink") { const t = SD.vc.text; sdVoiceGo(); sdNotIt(t, h); sdSpeak(h.say); return; }
+  sdVoiceRender(); sdSpeak(h.say);
+}
+// A strip along the bottom for 10 seconds: what it heard, what it opened, and the next closest to tap instead.
+function sdNotIt(t, h) {
+  let el = $("#sd-notit");
+  if (!el) { document.body.insertAdjacentHTML("beforeend", `<div id="sd-notit" class="sd-notit" role="status"></div>`); el = $("#sd-notit"); }
+  SD.vc.nit = h.alts || [];
+  el.innerHTML = `<span>\ud83c\udfa4 ${t ? `“${esc(t)}”: ` : ""}<b translate="no">${esc(h.d.name)}</b>${h.close ? " (closest)" : ""}</span>${SD.vc.nit.length ? `<span class="sd-nl">Not it?</span>${SD.vc.nit.map((a, i) => `<button class="chip" data-sd-nit="${i}" translate="no">${esc(a.t)}</button>`).join("")}` : ""}<button class="sd-nx" data-sd-nitx aria-label="Close">\u00d7</button>`;
+  el.hidden = false; clearTimeout(sdNotIt.t); sdNotIt.t = setTimeout(() => { el.hidden = true; }, 10000);
+}
 function sdVoiceGo() {
   const h = SD.vc.heard; if (!h) return;
   sdVoiceClose(); haptic();
@@ -15198,7 +15234,7 @@ function sdVoiceGo() {
     pk86(xs, on); renderList(); sdCue("ok"); return;
   }
   if (h.kind === "log") { if (!LIVE.me) return toast("Join the team to log it"); sdCue("ok"); return track(LIVE.api.logIt(mode, "note", h.n.slice(0, LOG_MAX)), "Logged. It's in tonight's handover", "Not saved. Try again"); }
-  if (h.kind === "drink") return cur === "station" ? sxTap(h.d.id) : openSheet(h.d.id);
+  if (h.kind === "drink") { if (cur === "station") { if (!$("#sheet").hidden) hideSheet(); return sxTap(h.d.id); } return openSheet(h.d.id); }
   if (h.kind === "make") { mk.pane = "bar"; mkSave(); return openAt("tab:make"); }
   if (h.kind === "count") { if (!LIVE.me) return toast("Join the team to count stock"); openAt("count"); ctHeard = { ...h.p }; ctRender(true); return; }
   if (h.kind === "go") { if (h.go === "pick86") return pkOpen({ mode: "86" }); if (h.go === "count" && !LIVE.me) return toast("Join the team to count stock"); openAt(h.go); scrollTo(0, 0); }
@@ -15216,12 +15252,15 @@ function sdApplyModes() {
   let bar = $("#sd-1h");
   if (!bar) {
     document.body.insertAdjacentHTML("beforeend", `<nav id="sd-1h" aria-label="Quick actions" hidden><button data-sd-1h="back" aria-label="Back">‹<span>Back</span></button><button data-sd-1h="find" aria-label="Search drinks">🔍<span>Search</span></button><button data-sd-1h="86" aria-label="86 something">🚫<span>86</span></button><button data-log aria-label="Log it">＋<span>Log it</span></button><button data-sd-1h="send" aria-label="Send">📤<span>Send</span></button><button data-sd-mic aria-label="Voice">🎤<span>Say it</span></button></nav>
-      <button id="sd-mic" data-sd-mic aria-label="Voice command" hidden>🎤</button>`);
+`);
     bar = $("#sd-1h");
   }
   bar.hidden = !SD.set.onehand;
-  $("#sd-mic").hidden = !SD.set.voice || !!SD.set.onehand;
+  sdMics();
 }
+// Every 🎤 button in a top bar: shown while Voice is on (More, This phone), and not twice in one-hand mode.
+function sdMics() { for (const b of document.querySelectorAll(".sd-micb")) b.hidden = !SD.set.voice || !!SD.set.onehand; }
+new MutationObserver(() => { if (document.querySelector(".sd-micb:not([data-sd-on])")) { for (const b of document.querySelectorAll(".sd-micb:not([data-sd-on])")) b.dataset.sdOn = "1"; sdMics(); } }).observe(document.body, { childList: true, subtree: true });
 function sdOneHand(k) {
   haptic();
   if (k === "back") { if (!$("#sd-voice")?.hidden) return sdVoiceClose(); if (!$("#logit").hidden) return logClose(); if (!$("#sheet").hidden) return hideSheet(); return history.length > 1 ? history.back() : show("drinks"); }
@@ -15235,7 +15274,7 @@ function sdPhoneHtml() {
   return row("a11y", "Accessible mode", "Easier to read: plain headings, bigger text and spacing, colour-blind-safe colours, bigger buttons.")
     + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and voice in a row above the tabs, in reach of your thumb.")
     + row("sound", "Sounds", "A short sound for urgent things, last orders and a new best close. Android phones buzz too; iPhones can't from a web app.")
-    + row("voice", "Voice button 🎤", "Say it how you like: \"86 the Corona\", \"Negroni spec\", \"count tonic 12\". It picks out the key words. Nothing changes until you say yes.");
+    + row("voice", "Voice button 🎤", "In the top bar. Say a drink and it opens, or \"86 the Corona\", \"count tonic 12\". It picks out the key words, shows them as it hears them, and nothing changes until you say yes.");
 }
 
 /* ---------- Where it all goes ---------- */
@@ -15270,8 +15309,9 @@ document.addEventListener("click", (e) => {
   if (t("#sd-voice")) {
     if (e.target.id === "sd-voice" || t("[data-sd-vx]")) return sdVoiceClose();
     if (t("[data-sd-vgo]")) return sdVoiceGo();
-    if ((x = t("[data-sd-valt]"))) { const a = SD.vc.heard?.alts?.[+x.dataset.sdValt]; if (a) { haptic(); SD.vc.heard = { ...a.h, alts: [] }; sdVoiceRender(); sdSpeak(a.h.say); } return; }
-    if (t("[data-sd-vagain]")) { SD.vc.heard = null; if (SD_REC) sdListen(); else { sdVoiceRender(); $("#sd-vtext")?.focus(); } return; }
+    if ((x = t("[data-sd-valt]"))) { const a = SD.vc.heard?.alts?.[+x.dataset.sdValt]; if (a) { haptic(); sdHeard({ ...a.h, alts: [] }); } return; }
+    if (t("[data-sd-vagain]")) { SD.vc.heard = null; SD.vc.err = ""; if (SD_REC) sdListen(); else { sdVoiceRender(); $("#sd-vtext")?.focus(); } return; }
+    if (t("[data-sd-vstop]")) { haptic(); sdRx?.stop?.(); return; }
   }
   if ((x = t("[data-sd-rp-day]"))) { SD.rp.day = x.dataset.sdRpDay; haptic(); sdReplayLoad(); return; }
   if ((x = t("[data-sd-rp-side]"))) { SD.rp.side = x.dataset.sdRpSide; haptic(); renderCard("replay"); return; }
@@ -15307,7 +15347,7 @@ document.addEventListener("submit", (e) => {
   if (!e.target.closest("[data-sd-vform]")) return;
   e.preventDefault();
   const v = $("#sd-vtext").value.trim(); if (!v) return;
-  sdRx?.abort?.(); SD.vc.on = false; SD.vc.text = v; SD.vc.heard = sdParse(v); sdVoiceRender();
+  sdRx?.abort?.(); SD.vc.on = false; SD.vc.err = ""; SD.vc.text = v; sdHeard(sdParse(v));
 });
 document.addEventListener("input", (e) => {
   if (e.target.id === "sd-ss-q") { SD.ss.q = e.target.value; const p = e.target.selectionStart; if (SD.ss.edit) SD.ss.edit.name = $("#sd-ss-name").value; renderCard("season"); const i = $("#sd-ss-q"); i.focus(); i.setSelectionRange(p, p); }
@@ -15338,32 +15378,36 @@ addEventListener("scroll", () => {
   document.body.classList.toggle("fab-away", d > 0 && y > 120 && !end); fabY = y;
 }, { passive: true });
 document.head.insertAdjacentHTML("beforeend", `<style>
-#sd-off[hidden],#sd-last[hidden],#sd-timer[hidden],#sd-1h[hidden],#sd-mic[hidden]{display:none}
+#sd-off[hidden],#sd-last[hidden],#sd-timer[hidden],#sd-1h[hidden],.sd-micb[hidden],#sd-notit[hidden]{display:none}
+/* Listening: the 🎤 in the top bar glows, and the box shows the words as they come. */
+body.sd-listening .sd-micb{background:var(--warn)!important;border-color:var(--warn)!important;color:#fff;animation:sdp 1.2s ease-in-out infinite}
+.sd-live{margin:10px 0;padding:14px;border:2px solid var(--brass);border-radius:14px;display:grid;grid-template-columns:auto 1fr auto;gap:4px 12px;align-items:center}
+.sd-live b{font-size:19px}.sd-live .btn{margin:0;grid-row:span 2}.sd-livet{grid-column:1/3;margin:0;font-size:18px;min-height:1.4em;color:var(--fg)}
+.sd-wave{display:flex;align-items:center;gap:3px;height:26px}.sd-wave i{width:4px;height:8px;border-radius:2px;background:var(--brass);animation:sdw 1s ease-in-out infinite}
+.sd-wave i:nth-child(2){animation-delay:.15s}.sd-wave i:nth-child(3){animation-delay:.3s}.sd-wave i:nth-child(4){animation-delay:.45s}.sd-wave i:nth-child(5){animation-delay:.6s}
+@keyframes sdw{50%{height:24px}}@media (prefers-reduced-motion:reduce){.sd-wave i,body.sd-listening .sd-micb{animation:none}}
+.sd-notit{position:fixed;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 10px);z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:10px 40px 10px 14px;border:1.5px solid var(--brass);border-radius:14px;background:var(--surface);box-shadow:0 8px 24px #0006;font-size:15px}
+.sd-notit .chip{margin:0}.sd-nl{color:var(--muted)}.sd-nx{position:absolute;top:4px;right:4px;width:36px;height:36px;font-size:20px;color:var(--muted)}
+body.stmode .sd-notit,#sheet:not([hidden])~.sd-notit{bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
 .sd-state{margin:10px 0;padding:10px 12px;border:1.5px solid var(--ok);border-radius:12px;background:var(--surface);line-height:1.4}.sd-state>b{display:block;color:var(--ok);font-size:17px}
 .sd-state>span,.sd-state small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.sd-state.swap{border-color:var(--brass)}.sd-state.swap>b{color:var(--brass)}.sd-state.no{border-color:var(--warn)}.sd-state.no>b{color:var(--warn)}.sd-adj{display:inline-block;margin:2px 0 4px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);border:1px solid var(--warn);border-radius:999px;padding:1px 8px}
 .sd-in{padding:0 12px 12px}.sd-in .chips{flex-wrap:wrap;overflow:visible;margin:4px 0 0;padding:0}.sd-big{font-size:17px;margin:10px 0 4px}.sd-big b{font-size:28px;color:var(--brass);margin-right:4px}
 .sd-warn{border-left:3px solid var(--warn);padding-left:10px}
 .sd-tl{list-style:none;margin:8px 0;padding:0;border-left:2px solid var(--line);margin-left:46px}.sd-tl li{position:relative;display:flex;gap:8px;padding:7px 0 7px 12px}.sd-tl time{position:absolute;left:-50px;top:9px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sd-tl .ic{flex:none;width:22px;text-align:center}.sd-tl p{margin:0;line-height:1.35}.sd-tl small{color:var(--muted);font-size:13px}.sd-tl li.big p{font-weight:700;color:var(--brass)}
-/* One small pill beside the 🎤, so the two never stack over the list's buttons. */
-#sd-timer{position:fixed;right:76px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 22px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:999px;padding:6px 12px;box-shadow:0 6px 20px #0006;display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+/* The timer: one small pill in the corner. */
+#sd-timer{position:fixed;right:14px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 22px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:999px;padding:6px 12px;box-shadow:0 6px 20px #0006;display:flex;align-items:baseline;gap:6px;white-space:nowrap}
 #sd-timer b{font-size:16px;font-variant-numeric:tabular-nums}#sd-timer span{font-size:12px;color:var(--muted)}#sd-timer.slow{border-color:var(--warn)}
-body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}body.sd-1h #sd-mic{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 74px)}
+body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}
 #sd-last{margin-top:8px;display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px;border:2px solid var(--brass);border-radius:14px;background:var(--surface)}
 #sd-last b{font-size:22px}#sd-last span{color:var(--muted)}#sd-last.now{border-color:var(--warn)}#sd-last.now b{color:var(--warn)}
 #v-station~#sd-last,body.ipad #sd-last b{font-size:30px}
 #sd-off{margin-top:8px;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;background:#16351f;color:#e9f7ec;border:1.5px solid #4caf6a;border-radius:16px;padding:10px 14px;box-shadow:0 8px 24px #0007}
 #sd-off .dot{grid-row:span 2;width:14px;height:14px;border-radius:50%;background:#4caf6a;box-shadow:0 0 0 4px #4caf6a33}#sd-off b{font-size:17px}#sd-off span:last-child{font-size:13.5px;opacity:.9}
 body.sd-offon #net{display:none}
-/* Scrolling down to read, the 🎤 and the timer slide out of the way; scrolling back up, stopping at the end or any tap brings them back. */
-body.fab-away #sd-mic,body.fab-away #sd-timer{transform:translateY(calc(100% + 120px));opacity:0;pointer-events:none}
-#sd-mic,#sd-timer{transition:transform .25s ease,opacity .25s ease}
-#sd-mic{position:fixed;right:14px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 14px);z-index:7;width:52px;height:52px;border-radius:50%;background:var(--surface);border:1.5px solid var(--brass);font-size:22px;box-shadow:0 6px 18px #0006}
-/* The page ends clear of the 🎤, so the last row's buttons are never stuck under it. */
-body:has(#sd-mic:not([hidden])) main{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 84px)}
-body.stmode:has(#sd-mic:not([hidden])) main{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 84px)}
-/* The bar station: above the spec panel's Back and Next. */
-body.stmode #sd-mic{bottom:calc(env(safe-area-inset-bottom,0px) + 104px)}
+/* Scrolling down to read, the timer slides out of the way; scrolling back up, stopping at the end or any tap brings it back. */
+body.fab-away #sd-timer{transform:translateY(calc(100% + 120px));opacity:0;pointer-events:none}
+#sd-timer{transition:transform .25s ease,opacity .25s ease}
 #sd-1h{position:fixed;left:0;right:0;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px));z-index:9;display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px max(6px,env(safe-area-inset-left,0px))}
 #sd-1h button{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;color:var(--fg)}#sd-1h span{font-size:11px;color:var(--muted);margin-top:2px}
 body.sd-1h main{padding-bottom:64px}body.sd-1h #sheet{padding-bottom:calc(var(--tabh) + 70px)}
@@ -15384,6 +15428,12 @@ SD_READY = true;
 sdApplyModes(); sdTick();
 LINKS.replay = () => "#at=replay"; LINKS.orderdraft = () => "#at=order";
 { const sd0 = SHARE.drink; SHARE.drink = (id) => { const m = sd0(id), d = D[+id]; if (m && d && sdHouse(d) && plOutOf(d).miss.length) m.head = ["Adjusted tonight: not the house spec", ...m.head]; return m; }; }
+// The Not it? strip: a tap opens that drink instead; × puts it away.
+document.addEventListener("click", (e) => {
+  const n = e.target.closest?.("[data-sd-nit]");
+  if (n) { const a = SD.vc.nit?.[+n.dataset.sdNit]; if (a) { haptic(); $("#sd-notit").hidden = true; SD.vc.heard = a.h; sdVoiceGo(); } return; }
+  if (e.target.closest?.("[data-sd-nitx]")) $("#sd-notit").hidden = true;
+});
 
 if ("serviceWorker" in navigator && location.hostname.endsWith("github.io")) {
   navigator.serviceWorker.register("sw.js").catch(() => {});

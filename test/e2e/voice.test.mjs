@@ -72,7 +72,7 @@ test("on the iPad bar station a spec said opens in the station, not on top of it
   const p = await open(1180);
   await p.evaluate(() => show("station"));
   await p.evaluate(() => { sdVoiceOpen(); });
-  await p.fill("#sd-vtext", "negroni spec please"); await p.press("#sd-vtext", "Enter"); await p.click("[data-sd-vgo]");
+  await p.fill("#sd-vtext", "negroni spec please"); await p.press("#sd-vtext", "Enter");
   assert.equal(await p.evaluate(() => D[SX.id].name), "Negroni");
   assert.equal(await p.evaluate(() => $("#sheet").hidden), true);
   assert.deepEqual(p.errs, []);
@@ -96,3 +96,45 @@ test("listening: the phone's guesses come in and the one that makes sense is sho
   assert.deepEqual(errs, []);
   await c.close();
 });
+
+test("the 🎤 sits in the top bar, never over the page; it shows the words as it hears them and says when it couldn't make them out", async () => {
+  const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  await c.addInitScript(() => {
+    localStorage.setItem("btbar.introSeen", "true"); localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99 }));
+    // A stand-in for the phone's speech recognition, driven from the test.
+    window.SpeechRecognition = window.webkitSpeechRecognition = class { start() { window.REC = this; } abort() {} stop() { this.onend?.(); } };
+  });
+  await c.route("**/live.js", (r) => r.abort());
+  const p = await c.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(e.message));
+  await p.goto(site.url); await p.click("#w-ok");
+  // In the top bar, and on the drink page's: no floating button over the list.
+  assert.equal(await p.locator("#sd-mic").count(), 0);
+  assert.equal(await p.isVisible(".brandbar [data-sd-mic]"), true);
+  await p.evaluate(() => openSheet(D.find((d) => d.name === "Mojito").id));
+  assert.equal(await p.isVisible("#sheet .sheet-top [data-sd-mic]"), true);
+  await p.click("#sheet .sheet-top [data-sd-mic]");
+  assert.match(await p.textContent("#sd-voice .sd-live"), /Listening: speak now/);
+  assert.ok(await p.evaluate(() => document.body.classList.contains("sd-listening")));
+  // Words appear as they're heard.
+  await p.evaluate(() => window.REC.onresult({ results: [Object.assign([{ transcript: "mohito" }], { isFinal: false })] }));
+  assert.match(await p.textContent("#sd-voice .sd-live"), /Hearing[\s\S]*“mohito”/);
+  // It stopped with nothing it could use: it says so, with Try again and the box to type in.
+  await p.evaluate(() => window.REC.onend());
+  assert.match(await p.textContent("#sd-voice .sd-heard.no"), /Couldn't make out “mohito”/);
+  assert.equal(await p.isVisible("#sd-voice [data-sd-vagain]"), true);
+  assert.equal(await p.isVisible("#sd-vtext"), true);
+  assert.ok(!(await p.evaluate(() => document.body.classList.contains("sd-listening"))));
+  // A drink said opens straight away, closest match if it's not exact, with the next closest to tap.
+  await p.click("#sd-voice [data-sd-vagain]");
+  await p.evaluate(() => { const r = Object.assign([{ transcript: "a moheeto" }], { isFinal: true }); window.REC.onresult({ results: [r] }); });
+  await p.waitForSelector("#sheet:not([hidden]) #sh-name");
+  assert.equal(await p.textContent("#sh-name"), "Mojito");
+  assert.equal(await p.isVisible("#sd-voice"), false);
+  assert.match(await p.textContent("#sd-notit"), /“a moheeto”: Mojito/);
+  // Voice off in More hides every 🎤.
+  await p.evaluate(() => { SD.set.voice = false; sdApplyModes(); });
+  assert.equal(await p.isVisible(".brandbar [data-sd-mic]"), false);
+  assert.deepEqual(errs, []);
+  await c.close();
+});
+
