@@ -217,7 +217,7 @@ test("alerts: a banner when the app opens for urgent labels, items to check and 
   assert.match(t, /URGENT: 1 date label to change now: Lime juice/);
   assert.match(t, /1 item to check: Rubicon Mango/);
   await O.click('#alerts [data-al-go="stock"]');
-  assert.equal(await O.$eval("#alerts", (e) => e.hidden), true);
+  assert.equal(await O.evaluate(() => cur), "tally");
   await O.evaluate(() => renderAlerts(true));
   assert.doesNotMatch(await text(O, "#alerts"), /Rubicon/);
   assert.deepEqual([...O.errs, ...S.errs], []);
@@ -225,19 +225,37 @@ test("alerts: a banner when the app opens for urgent labels, items to check and 
 
 test("tonight's brief plays as stories: bars, tap through, Go there, close", async () => {
   await resetEmulators();
-  const { S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
+  const { O, S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
   await S.evaluate(() => LIVE.api.set86("Limes", true)); await S.waitForFunction(() => LIVE.out.has("Limes"));
+  // Off Morning, the ring rides at the top of Needs you now.
+  await S.evaluate(() => { pane = "closing"; show("tally"); });
+  await S.waitForSelector("#alerts:not([hidden]) [data-story]");
   await S.evaluate(() => { pane = "morning"; show("tally"); });
-  await S.click("[data-story]");
+  assert.equal(await S.locator("#alerts [data-story]").count(), 0, "on Morning the ring is on the page, not twice");
+  await S.click("#tally [data-story]");
   assert.equal(await S.locator("#story .sb").count(), 3);
   assert.match(await text(S, "#story"), /1 thing to know/i);
+  // Readable in the light look too: the card is never white on white.
+  assert.notEqual(await S.$eval("#story .sto-card", (e) => getComputedStyle(e).backgroundColor), "rgb(255, 255, 255)");
   await S.click("#story .st-next");
   assert.match(await text(S, "#story"), /86'd Limes/i);
   await S.click("#story [data-story-go]");
   assert.equal(await S.$eval("#story", (e) => e.hidden), true);
   assert.equal(await S.evaluate(() => pane), "stock");
+  // Not to the end, so not watched: it opens again where it stopped.
   await S.evaluate(() => { pane = "morning"; renderTally(); });
+  assert.doesNotMatch(await text(S, ".story-ring"), /Watched/);
+  await S.click("#tally [data-story]");
+  assert.match(await text(S, "#story"), /86'd Limes/i);
+  // Hold to pause: the bars hide while it's held.
+  await S.dispatchEvent("#story .st-next", "pointerdown");
+  assert.equal(await S.evaluate(() => [sto.paused, $("#story").classList.contains("held")].join()), "1,true");
+  await S.dispatchEvent("#story .st-next", "pointerup");
+  await S.click("#story .st-next");
+  assert.match(await text(S, "#story"), /Tonight's quiz/i);
+  await S.click("#story [data-story-x]");
   assert.match(await text(S, ".story-ring"), /Watched/);
+  await O.waitForFunction(() => (LIVE.seen || []).some((x) => x.name === "Sam Staff"));
   assert.deepEqual(S.errs, []);
 });
 

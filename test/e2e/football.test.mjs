@@ -12,7 +12,10 @@ test("a manager adds tonight's game and one next week; staff see them live and c
   const { M, S } = await team(browser, site, [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff", "sam", "staff"]]);
   await S.click("[data-tab=tally]");
   assert.equal(await S.$eval("#football", (e) => e.innerText), "", "nothing shows for staff until there's a game");
-  await M.click("[data-tab=tally]");
+  // With no games yet, Add a game is on Morning only, not on top of every Shift page.
+  await M.evaluate(() => { pane = "closing"; show("tally"); });
+  assert.equal(await M.locator("#fx-add").count(), 0);
+  await M.evaluate(() => { pane = "morning"; show("tally"); });
   await M.click("#fx-add summary");
   await M.fill("[data-fx=ko]", "20:00"); await M.fill("[data-fx=home]", "Arsenal"); await M.fill("[data-fx=away]", "PSG");
   await M.fill("[data-fx=comp]", "Champions League"); await M.fill("[data-fx=channel]", "TNT Sports 1"); await M.fill("[data-fx=screen]", "All screens");

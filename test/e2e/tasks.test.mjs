@@ -109,6 +109,13 @@ test("tasks change on every phone as they happen, with who, when and why, and co
   await settled(S, "close-1", "todo");
   await settled(S, "close-3", "todo");
   assert.equal(await row(S, "close", 1), await S.evaluate(() => itemText("close", 1)), "no Reopened line on a cleared item");
+  // No question first: ↩ Undo clear takes Clear's place and puts back exactly what it took.
+  assert.equal(asked, 0, "Clear doesn't ask");
+  await T.$eval("[data-undo-list=close]", (b) => b.click());
+  await settled(S, "close-1", "done");
+  assert.equal(await T.locator("[data-undo-list=close]").count(), 0);
+  await T.$eval("[data-clear-list=close]", (b) => b.click());
+  await settled(S, "close-1", "todo");
 
   // Managers give an item to someone, who's told, and everyone sees who it's for.
   const sam = await S.evaluate(() => LIVE.uid);
@@ -198,7 +205,8 @@ test("offline, a change waits on the phone and is sent once; one made from an ol
   await S.context().setOffline(false);
   await settled(T, "close-4", "done");
   await S.waitForFunction(() => document.querySelector("#net").hidden && !LIVE.tasks["close-4"].pending);
-  assert.match(await row(S, "close", 4), /Done By Sam Staff, \d\d:\d\d$/);
+  // The list redraws a moment after the save lands.
+  await S.waitForFunction(() => /Done By Sam Staff, \d\d:\d\d$/.test(document.querySelector('[data-list=close][data-i="4"]').innerText.replace(/\s+/g, " ").trim()), null, { timeout: 5000 });
   await T.waitForFunction(() => LIVE.events.length === 2 && LIVE.events.every((e) => !e.pending));
   const day = await T.evaluate(() => shiftDay());
   assert.deepEqual(await T.evaluate(() => LIVE.events.map((e) => e.id).sort()), [`r-${day}-close-1`, `t-${day}-close-4-1`]);

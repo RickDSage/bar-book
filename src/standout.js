@@ -558,9 +558,11 @@ function sdListen() {
     sdRx?.abort?.();
     SD.vc.err = "";
     SD.vc.live = ""; SD.vc.got = false;
-    sdRx = new SD_REC(); sdRx.lang = "en-GB"; sdRx.interimResults = true; sdRx.continuous = false; sdRx.maxAlternatives = 5;
+    sdRx = new SD_REC(); sdRx.lang = "en-GB"; sdRx.interimResults = true; sdRx.continuous = !!SD.vc.ptt; sdRx.maxAlternatives = 5;
     sdRx.onresult = (e) => {
       const r = e.results[e.results.length - 1];
+      // Held like a radio: keep listening through pauses and act on all of it when the button is let go (onend).
+      if (SD.vc.ptt) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t && SD.vc.live) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing. Let go when you're done"; } return; }
       // Still talking: show the words so far, so it's plain it's working.
       if (r.isFinal === false) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing"; } return; }
       const b = vcBest(Array.from({ length: r.length }, (_, i) => r[i].transcript));
@@ -575,10 +577,27 @@ function sdListen() {
       SD.vc.got = true; sdVoiceRender(); if (e.error !== "no-speech") $("#sd-vtext")?.focus();
     };
     // Stopped with nothing made out: say so, never just go quiet.
-    sdRx.onend = () => { document.body.classList.remove("sd-listening"); if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
+    sdRx.onend = () => {
+      document.body.classList.remove("sd-listening");
+      if (SD.vc.ptt) { SD.vc.ptt = false; const b = SD.vc.on && SD.vc.live && vcBest([SD.vc.live]); if (b) { SD.vc.got = true; SD.vc.text = b.t; SD.vc.on = false; return sdHeard(b.h); } }
+      if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
     SD.vc.on = true; document.body.classList.add("sd-listening"); sdVoiceRender(); sdRx.start();
   } catch { SD.vc.on = false; sdVoiceRender(); $("#sd-vtext")?.focus(); }
 }
+/* Hold to talk, like a radio (push-to-talk, as on Zello or a walkie-talkie): hold 🎤 for a moment, talk, let go. It
+   listens for as long as it's held, pauses and all, so a noisy bar can't cut it off half-way, and it stops the moment
+   you let go instead of picking up the next conversation. A quick tap still works the old way. */
+let sdPtt = null;
+document.addEventListener("pointerdown", (e) => {
+  if (!SD_REC || !e.target.closest("[data-sd-mic]")) return;
+  clearTimeout(sdPtt?.t);
+  sdPtt = { held: false, t: setTimeout(() => { sdPtt.held = true; SD.vc.ptt = true; haptic(); sdVoiceOpen(); const b = $("#sd-voice .sd-live b"); if (b) b.textContent = "Talk now. Let go when you're done"; }, 300) };
+});
+const sdPttUp = () => { if (!sdPtt) return; clearTimeout(sdPtt.t); if (sdPtt.held) try { sdRx?.stop(); } catch {} };
+document.addEventListener("pointerup", sdPttUp);
+document.addEventListener("pointercancel", sdPttUp);
+document.addEventListener("contextmenu", (e) => { if (e.target.closest("[data-sd-mic]")) e.preventDefault(); });
+document.head.insertAdjacentHTML("beforeend", "<style>[data-sd-mic]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}</style>");
 function sdSpeak(t) { if (!SD.set.sound) return; try { const u = new SpeechSynthesisUtterance(t); u.lang = "en-GB"; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} }
 function sdVoiceClose() { sdRx?.abort?.(); SD.vc.on = false; document.body.classList.remove("sd-listening"); const el = $("#sd-voice"); if (el) el.hidden = true; }
 // What was said, worked out: a drink opens straight away (it changes nothing), with the closest others to tap if it's
@@ -643,11 +662,11 @@ function sdOneHand(k) {
 }
 function sdPhoneHtml() {
   if (!SD_READY) return "";
-  const row = (k, t, sub) => `<div class="mini" style="margin-top:14px">${t}</div><div class="seg" style="grid-template-columns:1fr 1fr;margin-top:6px" role="group" aria-label="${t}"><button data-sd-set="${k}:1" aria-pressed="${!!SD.set[k]}">On</button><button data-sd-set="${k}:0" aria-pressed="${!SD.set[k]}">Off</button></div><p class="note">${sub}</p>`;
-  return row("a11y", "Accessible mode", "Easier to read: plain headings, bigger text and spacing, colour-blind-safe colours, bigger buttons.")
-    + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and voice in a row above the tabs, in reach of your thumb.")
-    + row("sound", "Sounds", "A short sound for urgent things, last orders and a new best close. Android phones buzz too; iPhones can't from a web app.")
-    + row("voice", "Voice button 🎤", "In the top bar. Say a drink and it opens, or \"86 the Corona\", \"count tonic 12\". It picks out the key words, shows them as it hears them, and nothing changes until you say yes.");
+  const row = (k, t, sub) => `<div class="setrow"><span><b>${t}</b><small>${sub}</small></span><div class="seg" style="grid-template-columns:1fr 1fr" role="group" aria-label="${t}"><button data-sd-set="${k}:1" aria-pressed="${!!SD.set[k]}">On</button><button data-sd-set="${k}:0" aria-pressed="${!SD.set[k]}">Off</button></div></div>`;
+  return row("a11y", "Accessible mode", "Bigger text and buttons, plain headings, colour-blind-safe colours")
+    + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and 🎤 above the tabs, in thumb reach")
+    + row("sound", "Sounds", "Urgent things, last orders, a new best close. iPhones can't buzz")
+    + row("voice", "Voice button 🎤", "Tap it, or hold it like a radio. Nothing changes until you say yes");
 }
 
 /* ---------- Where it all goes ---------- */
@@ -667,7 +686,7 @@ Object.assign(PLACE_KW, { replay: "replay timeline night history what happened",
 /* ---------- Events ---------- */
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
-  if (t("[data-sd-mic]")) { haptic(); return sdVoiceOpen(); }
+  if (t("[data-sd-mic]")) { if (sdPtt?.held) { sdPtt = null; return; } sdPtt = null; SD.vc.ptt = false; haptic(); return sdVoiceOpen(); }
   if ((x = t("[data-sd-1h]"))) return sdOneHand(x.dataset.sd1h);
   if ((x = t("[data-sd-set]"))) { const [k, v] = x.dataset.sdSet.split(":"); SD.set[k] = v === "1"; sdSave(); sdApplyModes(); haptic(); if (k === "sound" && SD.set.sound) sdCue("ok"); x.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === x)); return; }
   if ((x = t("[data-sd-flow]"))) {
