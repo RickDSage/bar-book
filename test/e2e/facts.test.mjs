@@ -47,6 +47,9 @@ test("every card opens without an error, never says free from, and says what's s
   // Sauces are DaVinci Gourmet, 500 g bottles counted each; orgeat is Giffard's 1 litre.
   assert.deepEqual(await p.evaluate(() => [factOf("Chocolate sauce").n, factOf("Chocolate sauce").contains[0], ctRows(true).find((r) => r.item === "Chocolate sauce").u, ctRows(true).find((r) => r.item === "Orgeat").ml]),
     ["DaVinci Belgian Chocolate Sauce", "Soya", "each", 1000]);
+  // The count draws each bottle in its kind of outline, with what a full one is and a link to its facts.
+  assert.deepEqual(await p.evaluate(() => [ctShape("Jack Daniel's").t, ctShape("Smirnoff").t, (ctBottle(40, "Grey Goose").match(/data-ct-lv/g) || []).length]), ["a square bottle", "a classic spirit bottle", 10]);
+  assert.match(await p.evaluate(() => ctRefHtml(ctRows(true).find((r) => r.item === "Baileys"))), /A full one<\/b>: 70 cl[\s\S]*Full 1,370 g on the scale, empty 630 g \(estimate\)[\s\S]*data-fx-open="Baileys"/);
   assert.deepEqual(p.errs, []);
 });
 
