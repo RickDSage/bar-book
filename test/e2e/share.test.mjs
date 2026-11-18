@@ -6,7 +6,7 @@ before(async () => { site = await serve(".emusite"); browser = await launch();
   const g = await browser.newPage(); data = await g.evaluate(() => { const c = document.createElement("canvas"); c.width = 320; c.height = 240; const x = c.getContext("2d"); x.fillStyle = "#6a5"; x.fillRect(0, 0, 320, 240); return c.toDataURL("image/jpeg", 0.8); }); await g.close(); });
 after(async () => { await browser.close(); site.close(); });
 const SH = process.env.SHOTS;
-test("drinks Select and Share, every photo in one place, iPad Go to and tiles", async () => {
+test("drinks Select and Share, every photo in one place, iPad jobs and what shows", async () => {
   await resetEmulators();
   const { M, S, T } = await team(browser, site, [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff"], ["T", "Tia Staff"]]);
   // Drinks select
@@ -41,16 +41,16 @@ test("drinks Select and Share, every photo in one place, iPad Go to and tiles", 
   const gp = await M.$eval("#send-pre", (e) => e.textContent); console.log(gp);
   await M.click("#sh-close"); await M.waitForSelector("#gal .gal-ph");
   if (SH) await M.screenshot({ path: `${SH}/gallery2.png` });
-  // iPad station: Go to row and tiles
+  // iPad station: the jobs under Tonight, and what shows switched in Set up
   await M.setViewportSize({ width: 1080, height: 810 }); await M.evaluate(() => { closeSheet(); stationSet(true); show("station"); });
-  await M.waitForSelector("#sx-go:not([hidden])");
+  await M.waitForSelector("#sx-live .sx-jobs");
   if (SH) await M.screenshot({ path: `${SH}/station.png` });
   await M.click("#sx-views [data-sx-view=setup]"); await M.click("[data-sx-tileset=go-count]"); await M.click("[data-sx-tileset=quiz]");
-  assert.equal(await M.$eval("#sx-go [data-goto=count]", (e) => e.hidden), true);
-  await M.evaluate(() => sessionStorage.setItem("sx.auto", "1")); await M.reload(); await M.waitForSelector("#sx-go:not([hidden])");
-  assert.equal(await M.$eval("#sx-go [data-goto=count]", (e) => e.hidden), true);
+  assert.equal(await M.$eval('#sx-live [data-sx-tile="go-count"]', (e) => e.hidden), true);
+  await M.evaluate(() => sessionStorage.setItem("sx.auto", "1")); await M.reload(); await M.waitForSelector("#sx-live .sx-jobs");
+  assert.equal(await M.$eval('#sx-live [data-sx-tile="go-count"]', (e) => e.hidden), true);
   assert.equal(await M.$eval("#sx-views [data-sx-view=quiz]", (e) => e.hidden), true);
-  await M.click("#sx-go [data-goto=photos]"); await M.waitForSelector("#gal");
+  await M.click("#sx-live [data-goto=photos]"); await M.waitForSelector("#gal");
   if (SH) await M.screenshot({ path: `${SH}/station-gal.png` });
   assert.deepEqual([M.errs, S.errs, T.errs], [[], [], []]);
 });
