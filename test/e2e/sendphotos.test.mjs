@@ -42,7 +42,7 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   await stubShare(S);
   await S.click("#tc-issues [data-send=issue]");
   assert.equal(await S.$eval("#sh-name", (e) => e.textContent), "An issue");
-  assert.match(await preview(S), /^Urgent: Glass washer leaking · Black Tap Soho\nBar, raised .+\nNobody on it yet\n\nMore detail\nWater under the machine$/);
+  assert.match(await preview(S), /^Urgent: Glass washer leaking · Black Tap Soho\nBar, raised .+\nNobody on it yet\n\nMore detail\nWater under the machine\n\nOpen in Bar Book: \S+#at=issues$/);
   assert.equal(await S.getAttribute("#send-note", "placeholder"), "When can you come?");
   // No photos yet: WhatsApp is the main button and there's nothing to send through the share sheet but the words.
   assert.deepEqual(await actions(S), ["WhatsApp", "Text", "Email", "Other apps…", "Copy", "As a picture", "Print"]);
@@ -109,10 +109,13 @@ test("a drink goes with its house photo, captioned, and Back goes back to the dr
   await stubShare(S);
   await S.click("#sheet [data-send=drink]");
   assert.equal(await S.$eval("#sh-name", (e) => e.textContent), "Negroni");
-  await photosReady(S, 1);
-  assert.equal(await preview(S), `Negroni · Black Tap Soho\nGlass: Rocks\nIce: 1 large cube\nGarnish: Orange slice\nAllergens: Sulphites (vermouth)\n\nSpec (3)\n• 25 ml Tanqueray\n• 25 ml Campari\n• 25 ml Martini Rosso\n\nMethod (2)\n• Stir 20 seconds\n• Strain over a large cube\n\nOpen in Bar Book: ${site.url.replace(/\/$/, "")}/#d=negroni`);
+  // The drink's picture card goes first, then the house photo; the words are not turned into a picture as well.
+  await S.waitForFunction(() => snd?.photos.length === 2 && snd.files?.length === 2, null, { timeout: 20000 });
+  assert.equal(await S.evaluate(() => snd.card), false);
+  assert.match(await preview(S), new RegExp(`^Negroni · Black Tap Soho\\nGlass: Rocks\\nIce: 1 large cube\\nGarnish: Orange slice\\nAllergens: Sulphites \\(vermouth\\)\\n\\nSpec \\(3\\)\\n• 25 ml Tanqueray\\n• 25 ml Campari\\n• 25 ml Martini Rosso\\n\\nMethod \\(2\\)\\n• Stir 20 seconds\\n• Strain over a large cube\\n[\\s\\S]*\\nSpec as of .+\\n\\nOpen in Bar Book: \\S+/#d=negroni$`));
+  assert.equal(await S.evaluate(() => snd.files[0].name), "negroni-card.png");
   // The photo carries the drink's name in a strip below it, so it still says what it is in the chat.
-  const f = await S.evaluate(async () => { const b = await createImageBitmap(snd.files[0]); return [snd.files[0].name, snd.files[0].type, b.width, b.height]; });
+  const f = await S.evaluate(async () => { const b = await createImageBitmap(snd.files[1]); return [snd.files[1].name, snd.files[1].type, b.width, b.height]; });
   assert.deepEqual(f.slice(0, 3), ["negroni.jpg", "image/jpeg", 640]);
   assert.ok(f[3] > 480, "taller than the photo by the strip");
   await S.click("#sh-close");

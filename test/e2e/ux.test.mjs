@@ -75,7 +75,7 @@ test("the bar station sends tonight's report, hands over, and has the kinds of d
 
 test("My pay: a payslip typed in by hand is saved like a read one, on the phone only", async () => {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, timezoneId: "Europe/London" });
-  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))));
+  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99, "bar:Angel": 99, "floor:Angel": 99 }))));
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   await p.goto(site.url); await p.click("#w-ok");

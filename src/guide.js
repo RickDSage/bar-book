@@ -7,8 +7,8 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 9;
-const WALK_NEW = "Stock has its own tab at the bottom, and counting is quicker: +6, the level by eye saves and moves on, Same as last time, By kind, and add anything missing and count it there and then. Also on it: a barcode scanner (scan a bottle to count it or see its date label), use-by dates due in the next 3 days, counting tips and Add something new. On Shift, the old Stock tab is now 86. Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
+const WALK_V = 10;
+const WALK_NEW = "Photos: every photo of the night in one place, bar and floor, from every phone and the iPad, with who took it and when. Tap the ones you want (or Pick all) and Send. Drinks: Select drinks to send at the top of the list, tap drinks or Pick all on a section, then Share sends their specs and swaps in one message. Shared specs say when they were true (Specs as of), and every message links back to Bar Book. The bar iPad has a Go to row (86 and low, Closing, Hand over, Photos, Date labels, Stock, Morning), and a manager can switch any of it off in Set up, iPad tiles. Stock has its own tab at the bottom, and counting is quicker: +6, the level by eye saves and moves on, Same as last time, By kind, and add anything missing and count it there and then. Also on it: a barcode scanner (scan a bottle to count it or see its date label), use-by dates due in the next 3 days, counting tips and Add something new. On Shift, the old Stock tab is now 86. Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -140,7 +140,7 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
+const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [
@@ -162,7 +162,7 @@ const gdItems = () => featSorted([
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
   { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: tap a drink and Make it now shows it a big step card at a time, with the jigger side for each amount. Rounds a drink at a time, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
 ]);
-const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round jigger", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
+const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round jigger tiles go to switch off", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make select share send several specs section", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
 // What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.
@@ -173,7 +173,9 @@ function gdSearch(q) {
   const hit = (s) => { const xs = words(s); return ws.every((w) => mkWordHit(w, xs)); };
   const pq = plQuery(ws.join(" "));
   const drinks = plRank(D.filter((d) => plHits(d, pq.words)), pq.words).slice(0, 4);
-  const pages = gdItems().filter((f) => hit(`${f.n} ${f.what} ${f.staff || ""} ${GD_KW[f.k] || ""} ${HELP[GD_HELP[f.k]]?.how.join(" ") || ""}`)).slice(0, 4);
+  // A page whose own name or line matches comes before one that only matches through its keywords or help.
+  const pages = gdItems().filter((f) => hit(`${f.n} ${f.what} ${f.staff || ""} ${GD_KW[f.k] || ""} ${HELP[GD_HELP[f.k]]?.how.join(" ") || ""}`))
+    .map((f, i) => [hit(`${f.n} ${f.what}`) ? 0 : 1, i, f]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map((x) => x[2]).slice(0, 4);
   const terms = GLOSSARY.filter(([t, d]) => hit(t) || (ws.length > 1 && hit(`${t} ${d}`))).slice(0, 3);
   const asksHow = /\b(how|make|recipe|spec)\b/.test(all.join(" ")), asksWhat = /^(what|whats)\b/.test(all.join(" "));
   return { q, words: ws, drinks, pages, terms, fixed: pq.fixed, order: asksWhat ? ["terms", "drinks", "pages"] : asksHow ? ["drinks", "pages", "terms"] : ["pages", "drinks", "terms"] };

@@ -231,6 +231,9 @@ function sxSetupHtml() {
       ${row(sharedDev, "Shared iPad on", "Asks who's using it, hides My pay, and a manager's code locks again after 5 minutes. Leaving the station, turning Shared off and Reset this phone need a manager's code.", `<button class="btn" data-shared-pick="on">Turn Shared on</button>`)}
       ${row(!!lock, "Screen kept on", lock ? "Bar Book is keeping the screen on." : navigator.wakeLock ? "Tap anywhere and Bar Book keeps the screen on while it's open." : "This iPad doesn't let Bar Book keep the screen on, so the Auto-Lock step below matters.")}
     </ul>
+    <div class="sx-k">iPad tiles</div>
+    <p class="st-s">Switch off what the bar doesn't use, and back on any time. It changes straight away on this iPad and stays after a reload.</p>${sxNeedsMgr() ? `<p class="st-s">A manager unlocks it with their code first.</p>` : ""}
+    <div class="sx-tiles">${SX_TILES.map(([k, t]) => `<label class="check"><input type="checkbox" data-sx-tileset="${k}"${sxOn(k) ? " checked" : ""}><span>${t}</span></label>`).join("")}</div>
     <div class="sx-k">Tap a drink</div>
     <div class="sx-set1"><span class="st-s">${SX.mk ? "Opens Make it now: big step cards, one at a time, with Done back to the list. Spec next to the list is one tap away." : "Shows its spec next to the list. \u25b6 Make it now on the spec opens the step cards."}</span><button class="btn${SX.mk ? "" : " pri"}" data-sxm-pref>${SX.mk ? "Show just the spec instead" : "Open Make it now instead"}</button></div>
     <div class="sx-k">In the iPad's Settings</div>
@@ -245,6 +248,27 @@ function sxSetupHtml() {
 }
 // The station's views, in one bar along the top. Drinks is the list and the spec; the rest show where the spec goes.
 const SX_VIEWS = [["drink", "Drinks"], ["round", "Round"], ["batch", "Batches"], ["quiz", "Quiz"], ["setup", "Set up"]];
+/* One tap from the station to every job behind the bar. Each opens its page; the station comes back on its own after 2
+   quiet minutes, or with Bar station at the bottom. */
+const SX_GO = [["stock", "86 and low", "\u26d4"], ["close", "Closing", "\u2705"], ["send", "Hand over", "\ud83d\udcdd"], ["photos", "Photos", "\ud83d\udcf7"],
+  ["labels", "Date labels", "\ud83c\udff7\ufe0f"], ["count", "Stock", "\u2696\ufe0f"], ["morning", "Morning", "\u2600\ufe0f"]];
+/* iPad tiles: what shows on this station, switched on or off in Set up by a manager. Kept on this iPad, as it's the
+   station's own layout, so it survives reloads and needs nothing from the team's database. */
+const SX_TILES = [["round", "Round"], ["batch", "Batches"], ["quiz", "Quiz"], ...SX_GO.map(([k, t]) => [`go-${k}`, t]),
+  ["tonight", "Tonight panel: 86s, closing, photos, sending"], ["runout", "Ran out of something? box"]];
+const sxOff = new Set(store.get("sx.off", []));
+const sxOn = (k) => !sxOff.has(k);
+function sxTilesApply() {
+  $$("#v-station [data-sx-tile]").forEach((e) => { e.hidden = !sxOn(e.dataset.sxTile) || (e.id === "sx-tools" && !LIVE.me); });
+  const go = $("#sx-go"); if (go) go.hidden = !LIVE.me || !SX_GO.some(([k]) => sxOn(`go-${k}`));
+  $("#sx")?.classList.toggle("notonight", !sxOn("tonight"));
+  if (["round", "batch", "quiz"].includes(SX.view) && !sxOn(SX.view)) { SX.view = "drink"; sxBars(); sxList(); sxSpec(); }
+}
+// A manager (or anyone, when the iPad isn't shared) switches a tile; it changes at once.
+function sxTileSet(k, on) {
+  if (sxNeedsMgr()) { toast("A manager unlocks it with their code first"); return openAt("unlock"); }
+  on ? sxOff.delete(k) : sxOff.add(k); store.set("sx.off", [...sxOff]); haptic(); sxTilesApply(); sxFit();
+}
 const SX_PANELS = { round: () => sxRoundHtml(), batch: sxBatchHtml, quiz: sxQuizHtml, setup: sxSetupHtml };
 // What's 86'd tonight, on the spec line itself: struck through, with the swap beside it.
 function sxMark(root) {
@@ -266,7 +290,7 @@ function sxSpec() {
 }
 function sxTonight() {
   const el = $("#sx-live"); if (!el) return;
-  $("#sx-tools").hidden = !LIVE.me;
+  sxTilesApply();
   if (!LIVE.me) { $("#sx-86s").hidden = true; $("#sx-lbs").hidden = true; $("#sx-tsum").hidden = true; $("#sx-tgrid").classList.remove("shut"); el.innerHTML = `<div class="st-tile st-join"><span class="st-k">Tonight</span><span class="st-s">Join the team on this iPad to see tonight's 86s, the close and the handover here, live.</span><button class="btn pri" data-st-go="notices">Join the team</button></div>`; return; }
   const out = [...outNow()].sort(), today = shiftDay(), strip = $("#sx-86s");
   // The one line Tonight folds into, upright and on a phone.
@@ -309,14 +333,15 @@ function sxTonight() {
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">?</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
-    <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}">${t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn sx-who" data-who-open hidden></button><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">?</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+    <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}"${["round", "batch", "quiz"].includes(k) ? ` data-sx-tile="${k}"` : ""}>${t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
+    <nav class="sx-go" id="sx-go" aria-label="Go to" hidden>${SX_GO.map(([k, t, i]) => `<button class="btn" data-goto="${k}" data-sx-tile="go-${k}"><span aria-hidden="true">${i}</span>${t}</button>`).join("")}</nav>
     <div class="sx-tms" id="sx-tms" hidden></div>
     <div class="sx-86s" id="sx-86s" role="status" hidden></div>
     <div class="sx-lbs" id="sx-lbs" hidden></div>
     <div class="sx" id="sx">
       <aside class="sx-tonight" id="sx-tonight" aria-label="Tonight"><button class="sx-tsum" id="sx-tsum" aria-controls="sx-tgrid"></button><div class="sx-tgrid" id="sx-tgrid"><div class="sx-live" id="sx-live"></div>
-        <div class="st-tile sx-tools" id="sx-tools" hidden><span class="st-k">Ran out of something?</span>
+        <div class="st-tile sx-tools" id="sx-tools" data-sx-tile="runout" hidden><span class="st-k">Ran out of something?</span>
           ${pkBtn("Search or pick: any ingredient, bottle or drink", 'data-pk86="bar" id="sx-86q"')}<span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></div></aside>
       <section class="sx-drinks" aria-label="Drinks">
         <div class="search sx-search"><input id="sx-q" type="search" placeholder="Search any drink, spirit or glass" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Search drinks"></div>
@@ -328,7 +353,13 @@ function renderStation() {
       <section class="sx-spec" id="sx-spec" aria-label="Spec"></section>
     </div>`;
   document.body.classList.toggle("sxbig", SX.big);
-  sxBars(); sxList(); sxSpec(); sxTonight(); sxTimers(); sxFit();
+  sxBars(); sxList(); sxSpec(); sxTonight(); sxTimers(); sxTilesApply(); sxFit(); sxWho();
+}
+// Who the station is saving under, one tap to switch on the shared iPad.
+function sxWho() {
+  const w = $("#v-station [data-who-open]"); if (!w) return;
+  w.hidden = !(LIVE.me && LIVE.anon);
+  if (LIVE.me) { w.textContent = `\ud83d\udc64 ${LIVE.me}`; w.setAttribute("aria-label", `${LIVE.me}. Switch person`); w.setAttribute("translate", "no"); }
 }
 // Everything that can go on the 86 board: the stock list, every ingredient in a spec, every drink. Anything else typed
 // still goes on, as typed (a burger, a glass).
@@ -380,6 +411,7 @@ addEventListener("click", (e) => {
 document.addEventListener("click", (e) => {
   if (cur !== "station") return;
   if (e.target.closest("[data-shared-pick]")) { sxTonight(); sxList(); sxSpec(); return; }
+  const ts = e.target.closest("[data-sx-tileset]"); if (ts) { const on = ts.checked; if (sxNeedsMgr()) { e.preventDefault(); ts.checked = !on; } sxTileSet(ts.dataset.sxTileset, on); return; }
   const vw = e.target.closest("[data-sx-view]");
   if (vw) { haptic(); SX.view = vw.dataset.sxView; sxBars(); sxList(); sxSpec(); if (!sxWide()) window.scrollTo(0, $("#sx-list").offsetTop - 80); return; }
   const md = e.target.closest("[data-sx-made]");
@@ -491,13 +523,22 @@ body.stmode .brandbar, body.stmode nav.tabs { display: none; }
 body.stmode main { padding-top: 0; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 .sx-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0 8px; }
 /* One bar for every view: what's on is filled in, and it's the way back from any of them. */
-.sx-views { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0 0 10px; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.sx-views { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin: 0 0 10px; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .sx-views button { min-height: 48px; padding: 6px 4px; border-radius: 10px; font-size: 16px; font-weight: 700; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sx-views button[aria-pressed="true"] { background: var(--brass); color: var(--brass-ink); }
 .sx-badge { display: inline-block; min-width: 1.4em; padding: 0 5px; border-radius: 999px; background: var(--warn); color: #fff; font-size: 13px; line-height: 1.5; vertical-align: 1px; }
 .sx-badge:empty { display: none; }
 @media (max-width: 420px) { .sx-views button { font-size: 14.5px; } }
 @media (min-width: 700px) { .sx-views button { font-size: 18px; min-height: 52px; } }
+/* Go to: every job one tap from the station, big enough for a wet thumb. */
+.sx-go { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin: 0 0 10px; }
+.sx-go[hidden], .sx-go [hidden], .sx-views [hidden] { display: none; }
+.sx-go .btn { min-height: 56px; justify-content: center; gap: 8px; font-size: 16px; font-weight: 700; }
+@media (min-width: 1000px) { .sx-go { grid-template-columns: repeat(7, minmax(0, 1fr)); } .sx-go .btn { font-size: 16px; padding-inline: 6px; } }
+.sx-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; margin: 6px 0 14px; }
+.sx.notonight .sx-tonight { display: none; }
+@media (min-width: 700px) { .sx.notonight { grid-template-areas: "drinks spec"; grid-template-rows: minmax(0, 1fr); } }
+@media (min-width: 1000px) { .sx.notonight { grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); } }
 /* The 86 strip: tonight's 86s across the top, big enough to read from the well. */
 .sx-86s { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 10px; padding: 8px 12px; border: 2px solid var(--warn); border-radius: 12px; background: var(--surface); font-size: 19px; font-weight: 700; }
 .sx-86s::-webkit-scrollbar { display: none; }
@@ -552,7 +593,7 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .sx-tsum .chev { flex: none; color: var(--brass); font-weight: 700; }
 .sx-tsum.hot { border-color: var(--warn); }
 .sx-tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 10px; }
-@media (max-width: 1099px) { .sx-tgrid.shut { display: none; } }
+@media (max-width: 999px) { .sx-tgrid.shut { display: none; } }
 .sx-tonight .st-join { grid-column: 1 / -1; }
 .sx-drinks { grid-area: drinks; min-width: 0; }
 .sx-spec { grid-area: spec; display: none; }
@@ -693,7 +734,7 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
 .sx-rm { color: var(--muted); font-size: 15px; margin-top: 2px; }
 .sx-rc .sx-specl li { font-size: 20px; padding: 7px 0; }
 .sx-rmeth { margin: 8px 0 0; font-size: 16px; }
-.sx-back { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(var(--tabh) + 14px + env(safe-area-inset-bottom, 0px)); z-index: 7; min-height: 48px; padding: 10px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+.sx-back { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(var(--tabh) + 14px + env(safe-area-inset-bottom, 0px)); z-index: 7; min-height: 48px; padding: 10px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
 .sx-back[hidden] { display: none; }
 /* iPad upright: Tonight across the top, then the list and the spec side by side, each scrolling on its own. */
 @media (min-width: 700px) {
@@ -708,8 +749,8 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
   .sx-spec .outbar, .sx-spec .allergy { font-size: 17px; }
 }
 /* iPad sideways (and big iPads): the list, the spec, and Tonight down the right. */
-@media (min-width: 1100px) {
-  .sx { grid-template-columns: 340px minmax(0, 1fr) 290px; grid-template-areas: "drinks spec tonight"; grid-template-rows: minmax(0, 1fr); }
+@media (min-width: 1000px) {
+  .sx { grid-template-columns: minmax(280px, 330px) minmax(0, 1fr) minmax(260px, 290px); grid-template-areas: "drinks spec tonight"; grid-template-rows: minmax(0, 1fr); }
   /* Sideways there's room: Tonight is always open down the right, and scrolls on its own. */
   .sx-tonight { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .sx-tsum { display: none; }

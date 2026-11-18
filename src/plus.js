@@ -416,8 +416,7 @@ function plSheetOut(sh) {
 
 /* ---------- Shareable lists ---------- */
 // A link that opens the Bar Book on just these drinks: tonight's specials, a practice set, the drinks for a party.
-// It carries the names, so it keeps working when drinks are added. The QR code is for a poster behind the bar.
-const QR_URL = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";
+// It carries the names, so it keeps working when drinks are added.
 const plSlug = (n) => n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const PL_BY_SLUG = new Map(D.map((d) => [plSlug(d.name), d]));
 const plListUrl = (name, ids) => `${location.origin}${location.pathname}#list=${encodeURIComponent(name.trim() || "Drinks list")}~${ids.map((id) => plSlug(D[id].name)).join(".")}`;
@@ -429,8 +428,6 @@ function plOpenList(hash) {
   favOnly = false; flav = null; $("#q").value = ""; show("drinks"); renderList();
   return true;
 }
-let plQrLib = null;
-const plQr = () => plQrLib || (plQrLib = new Promise((ok, no) => { const s = document.createElement("script"); s.src = QR_URL; s.onload = () => ok(window.qrcode); s.onerror = () => { plQrLib = null; no(); }; document.head.append(s); }));
 // Your own lists ("Tonight's specials", "Brunch"), kept on this phone, opened in one tap above the menu and sent as a link.
 const plLists = () => store.get("lists", []).filter((x) => x && x.name && Array.isArray(x.drinks));
 const plSaveLists = (xs) => store.set("lists", xs);
@@ -440,34 +437,22 @@ function plOpenSaved(i) {
   PL.list = { name: x.name, names, saved: true };
   favOnly = false; flav = null; $("#q").value = ""; show("drinks"); renderList();
 }
+// Save the picked drinks as your own list on this phone ("Tonight's specials", "Brunch"): one tap above the menu opens
+// it again. Sending them is the Share button beside it, so this only names and saves.
 function openListMaker(ids) {
   if ($("#sheet").hidden) lastFocus = document.activeElement;
   const name = PL.list?.name || (favOnly ? "Favourites" : "Tonight's drinks");
-  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Share as a list</span><span></span></div></div>
-    <div id="pl-lm"><p class="lead" style="margin-top:12px">A link that opens the Bar Book on just these ${ids.length} drinks. Good for tonight's specials, a practice set or a party.</p>
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">Save as a list</span><span></span></div></div>
+    <div id="pl-lm"><p class="lead" style="margin-top:12px">Keep these ${ids.length} drinks as a list on this phone. It shows above the menu, under Filters, and opens in one tap.</p>
     <label class="fld">Name of the list<input id="pl-ln" maxlength="60" value="${esc(name)}"></label>
     <ul class="pl-names" translate="no">${ids.map((id) => `<li>${esc(D[id].name)}</li>`).join("")}</ul>
-    <div class="actions"><button class="btn pri" data-pl-l="save">Save on this phone</button><button class="btn" data-pl-l="copy">Copy link</button><a class="btn" data-pl-l="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a>${navigator.share ? `<button class="btn" data-pl-l="share">Share</button>` : ""}</div>
-    <div class="sec">QR code</div><div id="pl-qr" class="pl-qr"><p class="note">Making the QR code…</p></div>
-    <p class="note">Anyone with the Bar Book link can open it. It shows specs only: nothing from the team.</p></div>`;
+    <div class="actions"><button class="btn pri" data-pl-l="save">Save on this phone</button></div></div>`;
   showSheet(false); $("#sheet").scrollTop = 0;
-  const url = () => plListUrl($("#pl-ln").value, ids);
-  const wa = () => { $("[data-pl-l=wa]").href = "https://wa.me/?text=" + encodeURIComponent(`*${$("#pl-ln").value.trim() || "Drinks list"}*\n${ids.map((id) => `• ${D[id].name}`).join("\n")}\n\n${url()}`); };
-  const qr = async () => {
-    try { const q = (await plQr())(0, "M"); q.addData(url()); q.make(); $("#pl-qr").innerHTML = `<img alt="QR code for the list" src="${q.createDataURL(8, 16)}"><a class="btn" download="${plSlug($("#pl-ln").value || "list")}-qr.gif" href="${q.createDataURL(10, 20)}">Save the QR code</a>`; }
-    catch { $("#pl-qr").innerHTML = `<p class="note">The QR code needs the internet. The link works without it.</p>`; }
-  };
-  wa(); qr();
-  $("#pl-ln").addEventListener("input", () => { wa(); clearTimeout(qr.t); qr.t = setTimeout(qr, 400); });
-  $("#pl-lm").addEventListener("click", async (e) => {
-    const b = e.target.closest("[data-pl-l]"); if (!b) return;
-    if (b.dataset.plL === "save") {
-      const n = $("#pl-ln").value.trim() || "Drinks list", xs = plLists().filter((x) => x.name !== n);
-      plSaveLists([...xs, { name: n, drinks: ids.map((id) => plSlug(D[id].name)) }].slice(-20));
-      toast(`Saved. "${n}" is above the menu`); haptic(); return;
-    }
-    if (b.dataset.plL === "copy") { try { await navigator.clipboard.writeText(url()); toast("Link copied"); } catch { prompt("Copy the link", url()); } }
-    if (b.dataset.plL === "share") { try { await navigator.share({ title: $("#pl-ln").value, url: url() }); } catch {} }
+  $("#pl-lm").addEventListener("click", (e) => {
+    if (!e.target.closest('[data-pl-l="save"]')) return;
+    const n = $("#pl-ln").value.trim() || "Drinks list", xs = plLists().filter((x) => x.name !== n);
+    plSaveLists([...xs, { name: n, drinks: ids.map((id) => plSlug(D[id].name)) }].slice(-20));
+    toast(`Saved. "${n}" is under Filters`); haptic();
   });
 }
 

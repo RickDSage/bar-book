@@ -15,7 +15,7 @@ const flat = (s) => s.replace(/\s+/g, " ").trim();
 test("joining: a name and the typed team code, no login; a wrong code is refused and counted", async () => {
   await resetEmulators();
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
-  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))));
+  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99, "bar:Angel": 99, "floor:Angel": 99 }))));
   const p = await c.newPage();
   p.errs = []; p.on("pageerror", (e) => p.errs.push(e.message));
   // An old team link no longer joins, and its code is taken out of the address bar.
@@ -263,7 +263,7 @@ test("the start screen: pick your name, type the team code and a manager's own c
   await O.evaluate(() => LIVE.api.setSenior("Sarul", "6161"));
   const fresh = async () => {
     const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
-    await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))));
+    await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99, "bar:Angel": 99, "floor:Angel": 99 }))));
     const p = await c.newPage(); p.errs = []; p.on("pageerror", (e) => p.errs.push(e.message));
     await p.goto(site.url); await p.waitForFunction(() => LIVE.ready && LIVE.api);
     return p;

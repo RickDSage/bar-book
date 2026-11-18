@@ -91,7 +91,7 @@ test("the Guide answers how do I make, what's and where, says when it isn't in B
 
 test("Home and the phone's back go where you'd expect, and the start screen's iPad button opens the bar station", async () => {
   const c = await browser.newContext({ viewport: { width: 820, height: 1180 } });
-  await c.addInitScript(() => { localStorage.setItem("btbar.introSeen", "true"); localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9 })); });
+  await c.addInitScript(() => { localStorage.setItem("btbar.introSeen", "true"); localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99, "bar:": 99 })); });
   const p = await c.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   await p.goto(site.url); await p.click("#w-ipad");
   await p.waitForSelector("#v-station:not([hidden]) .sx-top [data-log]");

@@ -19,7 +19,7 @@ const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(documen
 // A phone logged out, with live.js stopped, on a Friday evening.
 async function open() {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, timezoneId: "Europe/London" });
-  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))));
+  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99, "bar:Angel": 99, "floor:Angel": 99 }))));
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = [];

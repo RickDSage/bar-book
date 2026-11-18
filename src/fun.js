@@ -367,18 +367,37 @@ $("#sheet").addEventListener("click", async (e) => {
    the Team page lists (86s, closing reports, list changes), tonight's 86 board and the labels to change. Got it hides it
    until the next shift. The pre-shift brief on the Morning page shows the same parts (sinceLast). */
 const fnHash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
-const specFp = () => Object.fromEntries(D.map((d) => [d.name, fnHash([d.spec.join("|"), d.glass, d.ice, d.garnish, d.method].join("~"))]));
+/* Each drink's spec lines, glass, ice and garnish are kept (the method as a fingerprint), so the card can say what
+   changed: "40 ml Bulleit → 40 ml Buffalo Trace". A phone that kept only the older fingerprint says "spec changed". */
+const fnOld = (d) => fnHash([d.spec.join("|"), d.glass, d.ice, d.garnish, d.method].join("~"));
+const specFp = () => Object.fromEntries(D.map((d) => [d.name, { s: d.spec, g: d.glass, i: d.ice, n: d.garnish, m: fnHash(d.method || "") }]));
+const fpSame = (a, b) => a.s.join("|") === b.s.join("|") && a.g === b.g && a.i === b.i && a.n === b.n && a.m === b.m;
+function specWhat(a, b) {
+  if (typeof a === "string") return "spec changed";
+  const out = [], gone = a.s.filter((x) => !b.s.includes(x)), add = b.s.filter((x) => !a.s.includes(x));
+  if (gone.length === 1 && add.length === 1) out.push(`${gone[0]} \u2192 ${add[0]}`);
+  else { if (gone.length) out.push(`no more ${gone.join(", ")}`); if (add.length) out.push(`now ${add.join(", ")}`); }
+  for (const [k, t] of [["g", "glass"], ["i", "ice"], ["n", "garnish"]]) if (a[k] !== b[k]) out.push(`${t}: ${b[k] || "none"}`);
+  if (a.m !== b.m) out.push("method changed");
+  return out.join("; ") || "spec changed";
+}
 function specNews() {
   const was = store.get("specFp", null); if (!was) return null;
-  const now = specFp(), names = Object.keys(now);
-  return { added: names.filter((n) => !was[n]), changed: names.filter((n) => was[n] && was[n] !== now[n]), gone: Object.keys(was).filter((n) => !now[n]) };
+  const now = specFp(), names = Object.keys(now), byName = new Map(D.map((d) => [d.name, d]));
+  const changed = names.filter((n) => was[n] && (typeof was[n] === "string" ? was[n] !== fnOld(byName.get(n)) : !fpSame(was[n], now[n])));
+  return { added: names.filter((n) => !was[n]), changed: changed.map((n) => ({ n, what: specWhat(was[n], now[n]), d: byName.get(n).id })), gone: Object.keys(was).filter((n) => !now[n]) };
+}
+// Drinks taken off together read as one line: "Pitchers taken off the menu (7)".
+function goneLines(xs) {
+  const pit = xs.filter((n) => /pitcher/i.test(n)), rest = xs.filter((n) => !pit.includes(n));
+  return [...(pit.length > 2 ? [`Pitchers taken off the menu (${pit.length})`] : pit.map((n) => `Off the menu: ${n}`)), ...(rest.length > 3 ? [`Off the menu: ${rest.slice(0, 3).join(", ")} and ${rest.length - 3} more`] : rest.map((n) => `Off the menu: ${n}`))];
 }
 if (!store.get("specFp", null)) store.set("specFp", specFp());
 const lastIn = store.get("lastIn", { day: "", at: 0 });
 function sinceLast(side = mode) {
   const parts = [], sn = specNews();
   if (sn && (sn.added.length || sn.changed.length || sn.gone.length)) parts.push({ id: "specs", k: "tab:drinks", label: "Specs changed since you were last in", hot: true,
-    lines: [...sn.changed.map((n) => `Changed: ${n}`), ...sn.gone.map((n) => `Off the menu: ${n}`), ...sn.added.slice(0, 5).map((n) => `New: ${n}`), ...(sn.added.length > 5 ? [`And ${sn.added.length - 5} more new drinks`] : [])].slice(0, 12) });
+    lines: [...sn.changed.map((x) => ({ t: `${x.n}: ${x.what}`, d: x.d })), ...goneLines(sn.gone), ...sn.added.slice(0, 5).map((n) => ({ t: `New: ${n}`, d: D.find((d) => d.name === n)?.id })), ...(sn.added.length > 5 ? [`And ${sn.added.length - 5} more new drinks`] : [])].slice(0, 12) });
   if (!LIVE.me || !lastIn.at) return parts;
   const ch = changesSince(lastIn.at).map((x) => x.msg);
   if (ch.length) parts.push({ id: "since", k: "notices", label: "While you were away", lines: ch.slice(0, 8) });
@@ -396,7 +415,7 @@ function sinceShow() {
   if (!parts.length || !lastIn.day) return sinceDone();
   const el = document.createElement("div"); el.id = "since"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Since you were last in");
   el.innerHTML = `<div class="since-card"><h2>Since you were last in</h2><p class="note">Only what's new for you. Tap a part to go there.</p>
-    ${parts.map((p) => `<button class="since-p${p.hot ? " hot" : ""}" data-since-go="${esc(p.k)}"><b>${esc(p.label)}</b>${p.lines.map((l) => `<span translate="no">${esc(l)}</span>`).join("")}</button>`).join("")}
+    ${parts.map((p) => `<button class="since-p${p.hot ? " hot" : ""}" data-since-go="${esc(p.k)}"><b>${esc(p.label)}</b>${p.lines.map((l) => `<span translate="no">${esc(lineText(l))}</span>`).join("")}</button>`).join("")}
     <button class="btn pri wide" data-since-go="">Got it</button></div>`;
   document.body.append(el);
 }

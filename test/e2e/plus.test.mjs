@@ -11,7 +11,7 @@ after(async () => { await browser.close(); site.close(); });
 
 async function open(hash = "") {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, timezoneId: "Europe/London" });
-  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))));
+  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99, "bar:Angel": 99, "floor:Angel": 99 }))));
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = [];
@@ -123,10 +123,10 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
   assert.equal(await p.evaluate(() => listIds.length), await p.evaluate(() => D.length));
   // Your own list: saved on the phone, opened in one tap, and deleted.
   await p.click("#dbar [data-dp=filters]"); await p.click('#dpanel [data-pl-fam="martini"]'); await p.click('[data-pl=done]');
-  await p.click("[data-pl-share]");
+  await p.click("[data-pick]"); await p.click('[data-pick-all]'); await p.click("[data-pick-save]");
   await p.fill("#pl-ln", "Tonight's specials");
   await p.click('[data-pl-l="save"]');
-  await p.click("#sh-close");
+  await p.click("#sh-close"); await p.click("[data-pick-done]");
   await p.click('#plf [data-pl-off="fam"]');
   await p.click("#dbar [data-dp=filters]");
   await p.click('#dpanel [data-mylist="0"]');

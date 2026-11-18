@@ -716,6 +716,12 @@ liveChanged = function (what) {
   if (what === "season" && $("#v-drinks") && !$("#v-drinks").hidden) renderList();
 };
 
+let fabY = scrollY;
+addEventListener("scroll", () => {
+  const y = scrollY, d = y - fabY; if (Math.abs(d) < 8) return;
+  const end = innerHeight + y >= document.documentElement.scrollHeight - 60;
+  document.body.classList.toggle("fab-away", d > 0 && y > 120 && !end); fabY = y;
+}, { passive: true });
 document.head.insertAdjacentHTML("beforeend", `<style>
 #sd-off[hidden],#sd-last[hidden],#sd-timer[hidden],#sd-1h[hidden],#sd-mic[hidden]{display:none}
 .sd-state{margin:10px 0;padding:10px 12px;border:1.5px solid var(--ok);border-radius:12px;background:var(--surface);line-height:1.4}.sd-state>b{display:block;color:var(--ok);font-size:17px}
@@ -724,20 +730,25 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .sd-warn{border-left:3px solid var(--warn);padding-left:10px}
 .sd-tl{list-style:none;margin:8px 0;padding:0;border-left:2px solid var(--line);margin-left:46px}.sd-tl li{position:relative;display:flex;gap:8px;padding:7px 0 7px 12px}.sd-tl time{position:absolute;left:-50px;top:9px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sd-tl .ic{flex:none;width:22px;text-align:center}.sd-tl p{margin:0;line-height:1.35}.sd-tl small{color:var(--muted);font-size:13px}.sd-tl li.big p{font-weight:700;color:var(--brass)}
-#sd-timer{position:fixed;right:12px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 12px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:14px;padding:8px 12px;box-shadow:0 6px 20px #0006;display:flex;flex-direction:column;align-items:flex-end}
-#sd-timer b{font-size:20px;font-variant-numeric:tabular-nums}#sd-timer span{font-size:12px;color:var(--muted)}#sd-timer.slow{border-color:var(--warn)}
-body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 74px)}
+/* One small pill beside the 🎤, so the two never stack over the list's buttons. */
+#sd-timer{position:fixed;right:76px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 22px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:999px;padding:6px 12px;box-shadow:0 6px 20px #0006;display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+#sd-timer b{font-size:16px;font-variant-numeric:tabular-nums}#sd-timer span{font-size:12px;color:var(--muted)}#sd-timer.slow{border-color:var(--warn)}
+body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}body.sd-1h #sd-mic{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 74px)}
 #sd-last{margin-top:8px;display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px;border:2px solid var(--brass);border-radius:14px;background:var(--surface)}
 #sd-last b{font-size:22px}#sd-last span{color:var(--muted)}#sd-last.now{border-color:var(--warn)}#sd-last.now b{color:var(--warn)}
 #v-station~#sd-last,body.ipad #sd-last b{font-size:30px}
 #sd-off{margin-top:8px;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;background:#16351f;color:#e9f7ec;border:1.5px solid #4caf6a;border-radius:16px;padding:10px 14px;box-shadow:0 8px 24px #0007}
 #sd-off .dot{grid-row:span 2;width:14px;height:14px;border-radius:50%;background:#4caf6a;box-shadow:0 0 0 4px #4caf6a33}#sd-off b{font-size:17px}#sd-off span:last-child{font-size:13.5px;opacity:.9}
 body.sd-offon #net{display:none}
+/* Scrolling down to read, the 🎤 and the timer slide out of the way; scrolling back up, stopping at the end or any tap brings them back. */
+body.fab-away #sd-mic,body.fab-away #sd-timer{transform:translateY(calc(100% + 120px));opacity:0;pointer-events:none}
+#sd-mic,#sd-timer{transition:transform .25s ease,opacity .25s ease}
 #sd-mic{position:fixed;right:14px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 14px);z-index:7;width:52px;height:52px;border-radius:50%;background:var(--surface);border:1.5px solid var(--brass);font-size:22px;box-shadow:0 6px 18px #0006}
 /* The page ends clear of the 🎤, so the last row's buttons are never stuck under it. */
 body:has(#sd-mic:not([hidden])) main{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 84px)}
 body.stmode:has(#sd-mic:not([hidden])) main{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 84px)}
-body:has(#sd-timer:not([hidden])) #sd-mic{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}
+/* The bar station: above the spec panel's Back and Next. */
+body.stmode #sd-mic{bottom:calc(env(safe-area-inset-bottom,0px) + 104px)}
 #sd-1h{position:fixed;left:0;right:0;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px));z-index:9;display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px max(6px,env(safe-area-inset-left,0px))}
 #sd-1h button{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;color:var(--fg)}#sd-1h span{font-size:11px;color:var(--muted);margin-top:2px}
 body.sd-1h main{padding-bottom:64px}body.sd-1h #sheet{padding-bottom:calc(var(--tabh) + 70px)}

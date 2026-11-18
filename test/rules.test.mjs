@@ -1677,3 +1677,18 @@ describe("standout: last orders, day and night times, seasonal menus, closing ti
     await assertFails(getDocs(collection(db("phone9"), "closes")));
   });
 });
+
+describe("seen by: who has watched tonight's brief", () => {
+  beforeEach(async () => { await env.clearFirestore(); await seedTeam(); });
+  const seen = (uid, extra = {}, id = `${today()}--${uid}`) => setDoc(doc(db(uid), "briefSeen", id), { day: today(), side: "bar", ...by(uid), ...extra });
+  test("each person marks their own, once a day; only managers read them", async () => {
+    await assertSucceeds(seen("staff1"));
+    await assertSucceeds(seen("staff1", { side: "floor" }));
+    await assertFails(seen("staff1", {}, `${today()}--staff2`));
+    for (const bad of [{ side: "kitchen" }, { day: "2020-01-01" }, { extra: 1 }, { name: "Mia Manager" }]) await assertFails(seen("staff1", bad));
+    await assertFails(seen("phone9"));
+    await assertSucceeds(getDocs(query(collection(db("mgr1"), "briefSeen"), where("day", "==", today()))));
+    await assertFails(getDocs(query(collection(db("staff1"), "briefSeen"), where("day", "==", today()))));
+    await assertFails(deleteDoc(doc(db("mgr1"), "briefSeen", `${today()}--staff1`)));
+  });
+});

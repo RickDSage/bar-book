@@ -852,7 +852,11 @@ function ctWeighPut(el) {
   const r = ctRow(el.dataset.ctG), n = +el.value.replace(",", "."), w = r && ctWeigh(r, n), x = r && ctLine(r);
   if (!w) return;
   if (r.u !== "bottle") return ctPut(r, Math.floor(w.n), (w.n % 1) * 100);
-  if (!w.full && n >= r.e - 20 && (x?.open ?? -1) !== w.open) ctPut(r, x?.full || 0, w.open);
+  if (!w.full && n >= r.e - 20 && (x?.open ?? -1) !== w.open) {
+    ctPut(r, x?.full || 0, w.open);
+    // The page waits to redraw while the box has the keyboard, so the total under it changes here and now.
+    const t = $("#ct .ct-sum b"); if (t) t.textContent = ctSay(r.u, (x?.full || 0) + w.open / 100);
+  }
 }
 $("#v-count").addEventListener("change", (e) => {
   if (!$("#ct")) return;
