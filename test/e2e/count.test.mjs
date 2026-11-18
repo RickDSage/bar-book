@@ -10,7 +10,8 @@ before(async () => { site = await serve(".emusite"); browser = await launch(); }
 after(async () => { await browser.close(); site.close(); });
 const people = [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff", "sam", "staff"]];
 const flat = (s) => s.replace(/\s+/g, " ").trim();
-const text = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
+// A redraw can swap the element mid-read, so read it through a locator, which finds it again.
+const text = async (p, sel) => flat(await p.locator(sel).first().innerText());
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
 const openCount = async (p) => { await p.click("[data-tab=count]"); await p.waitForSelector("#ct .ct-row"); };
 const row = (area, item) => `[data-ct-row="${area}|${item}"].ct-line`;
@@ -23,15 +24,17 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
   const { M, S } = await team(browser, site, people);
   await openCount(S);
   // Everything, place by place in walking order: the speed rail first, the milk counted in two places.
-  const secs = await S.$$eval("#ct .sec", (xs) => xs.map((x) => x.textContent));
+  const secs = await S.$$eval("#ct .sec", (xs) => xs.map((x) => x.firstChild.textContent.trim()));
   assert.deepEqual(secs.slice(0, 5), ["Speed rail", "Back bar", "Prep and syrups", "Garnish station", "Bar fridge"]);
-  for (const [a, i] of [["Speed rail", "Smirnoff"], ["Bar fridge", "Whole milk"], ["Shake station", "Whole milk"], ["Cake fridge", "Victoria sponge"], ["Freezer", "Ice cream"], ["Cellar", "Guinness"], ["Floor fridge", "Ketchup"]])
+  for (const [a, i] of [["Speed rail", "Smirnoff"], ["Bar fridge", "Whole milk"], ["Shake station", "Whole milk"], ["Cake fridge", "Victoria sponge"], ["Freezer", "Ice cream"], ["Cellar", "Guinness"]])
     assert.ok(await S.$(row(a, i)), `${i} in ${a}`);
   assert.equal(await S.$(row("Store room", "Ice")), null, "ice isn't counted");
+  // Drinks and desserts only: supplies, gas and table sauces are off.
+  assert.deepEqual(await S.evaluate(() => ctRows().filter((r) => /Ketchup|CO2|Shake cups|Napkins|Straws/i.test(r.item)).map((r) => r.item)), []);
 
-  // Tap: +6 and −, then +1 twice... three full; by eye is first, and the level is the last tap: it saves and opens the next.
+  // Tap: + four times and − once: three full. By eye is first, then the level, then Confirm.
   await S.click(row("Speed rail", "Smirnoff"));
-  await S.click('[data-ct-add="full:6"]'); for (let i = 0; i < 3; i++) await S.click('[data-ct-add="full:-1"]');
+  for (let i = 0; i < 4; i++) await S.click('[data-ct-add="full:1"]'); await S.click('[data-ct-add="full:-1"]');
   await waitLine(S, "Smirnoff", [3, 0]);
   // None, quarters by eye on the line; tenths and the scale under More.
   assert.deepEqual(await S.$$eval(".ct-row.on .ct-quick [data-ct-lvp]", (b) => b.map((x) => x.textContent)), ["None", "¼", "½", "¾"]);
@@ -39,9 +42,14 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
   await S.click('#ct-more [data-ct-lvp="40"]');
   await waitLine(S, "Smirnoff", [3, 40]);
   assert.deepEqual(await line(S, "Smirnoff"), [3, 40, "Sam Staff"]);
+  // Nothing moves on by itself: the line shows what it makes, then Confirm.
+  assert.equal(await S.evaluate(() => ctOpen), "Speed rail|Smirnoff");
+  assert.match(await text(S, ".ct-row.on .ct-sum"), /^3 full \+ 0?\.4 open \(28 cl · 280 ml\) = 3\.4 bottles/);
+  assert.match(await text(S, "#ct-where-slot"), /^Speed rail 1 of 10 Next place: Back bar ›$/);
+  await S.click(".ct-row.on .ct-nav .pri");
   // It moves on by itself to the next on the shelf, which shows a worked example until it's counted.
   await S.waitForSelector('.ct-row.on [data-ct-next="Speed rail|Smirnoff Vanilla"]');
-  assert.match(await text(S, ".ct-row.on .ct-eg"), /^For example: 3 full \+ 0?\.4 open = 3\.4 bottles of 70 cl · 700 ml = 238 cl · 2,380 ml \(2\.38 litres\)$/);
+  assert.match(await text(S, ".ct-row.on .ct-eg"), /^For example: 3 full \+ 0?\.4 open \(28 cl · 280 ml\) = 3\.4 bottles of 70 cl · 700 ml = 238 cl · 2,380 ml \(2\.38 litres\)$/);
   await S.click('[data-ct-show="all"]');
   assert.match(await text(S, row("Speed rail", "Smirnoff")), /^Smirnoff 3\.4 bottles Sam Staff$/);
   await S.click('[data-ct-show="todo"]');
@@ -80,7 +88,7 @@ test("count by tapping, saying or typing: saves per line under who counted, tota
   await M.click('[data-ct-show="todo"]');
   // By kind: all the vodkas together, wherever they're kept, each saying where.
   await M.click('[data-ct-by="kind"]');
-  assert.ok((await M.$$eval("#ct .sec", (xs) => xs.map((x) => x.textContent))).includes("Vodka"));
+  assert.ok((await M.$$eval("#ct .sec", (xs) => xs.map((x) => x.firstChild.textContent.trim()))).includes("Vodka"));
   assert.match(await text(M, "#ct-list"), /Vodka .*Grey Goose Back bar/i);
   // A to Z: every line by name under its letter, with the letter strip, and no place buttons; By place goes back.
   await M.click('[data-ct-by="az"]');
@@ -151,7 +159,7 @@ test("managers set it up; weighing, deliveries and usage between counts", async 
   await openCount(S);
   // One flow for a bottle: full ones, then the open one by eye; ⚖️ Weigh it instead puts the scale first, and it stays.
   await S.click(row("Back bar", "Kraken"));
-  assert.match(await text(S, ".ct-edit"), /^Full 70 cl 700 ml − 0 \+ \+6 Open None ¼ ½ ¾ For example: .* More/i);
+  assert.match(await text(S, ".ct-edit"), /^Full 70 cl 700 ml − 0 \+ Open None ¼ ½ ¾ For example: .* More/i);
   // cl ⇄ ml swaps which unit leads, everywhere on the count, and sticks.
   await S.click("[data-ct-unit]");
   assert.match(await text(S, ".ct-edit"), /^Full 700 ml 70 cl − 0/i);
@@ -364,6 +372,7 @@ test("its own Stock tab: scan a barcode to find or link it, managers check it, u
   await S.click('[data-ct-show="all"]'); await S.click(row("Speed rail", "Tanqueray"));
   assert.match(await text(S, ".ct-same"), /Same as last time: 2\.3 bottles/i);
   await S.click(".ct-same"); await waitLine(S, "Tanqueray", [2, 30]);
+  await S.click(".ct-row.on .ct-nav .pri");
   await S.waitForFunction(() => ctOpen && ctOpen !== "Speed rail|Tanqueray");
   // Photo check: their photo beside a sealed one; the first sealed one is kept for everyone.
   const jpg = Buffer.from("/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=", "base64");
@@ -372,7 +381,7 @@ test("its own Stock tab: scan a barcode to find or link it, managers check it, u
   await S.setInputFiles("#ct-ph-in", { name: "open.jpg", mimeType: "image/jpeg", buffer: jpg });
   await S.waitForSelector(".ct-phc img");
   await S.waitForFunction(() => ctPh?.ref === null);
-  assert.match(await text(S, ".ct-edit"), /Yours Sealed No photo of a sealed Kraken yet\. Compare the two, then tap the level/i);
+  assert.match(await text(S, ".ct-edit"), /Yours Sealed No photo of a sealed Kraken yet\. 1 of 3\. Tap the base of the bottle, inside\. Or compare the two by eye and tap the level/i);
   await S.setInputFiles("#ct-ref-in", { name: "sealed.jpg", mimeType: "image/jpeg", buffer: jpg });
   await waitToast(S, /^Sealed Kraken kept for everyone$/);
   assert.equal(await S.locator(".ct-phc img").count(), 2);
@@ -389,5 +398,63 @@ test("its own Stock tab: scan a barcode to find or link it, managers check it, u
   await S.click("[data-tab=count]"); if (!(await S.$eval("#ct-useby", (e) => e.open))) await S.click("#ct-useby summary");
   await S.click("#ct-useby [data-ct-lbgo=bar]");
   assert.equal(await S.evaluate(() => [cur, pane].join()), "tally,labels");
+  for (const p of [M, S]) assert.deepEqual(p.errs, []);
+});
+
+test("stronger: Undo takes back the last item, Check it flags a slip, two people on one line, nothing lost offline", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  // Last count: Smirnoff 3 on the speed rail.
+  await S.evaluate(() => { const d = addDays(shiftDay(), -1); return LIVE.api.countLine(ctId(d, "Speed rail", "Smirnoff"), { day: d, area: "Speed rail", item: "Smirnoff", unit: "bottle", full: 3, open: 0 }); });
+  await openCount(S);
+  await S.waitForFunction(() => ctPrev?.lines.some((x) => x.item === "Smirnoff"));
+
+  // Under Find: the last item, saved, with Undo. Taps on one line undo together.
+  await S.click(row("Speed rail", "Smirnoff"));
+  for (let i = 0; i < 2; i++) await S.click('.ct-row.on [data-ct-add="full:1"]');
+  await waitLine(S, "Smirnoff", [2, 0]);
+  await S.waitForFunction(() => /✓ Smirnoff 2 bottles, saved/.test(document.querySelector("#ct-undo-slot").textContent));
+  await S.click("[data-ct-undo]");
+  await S.waitForFunction(() => !LIVE.counts.some((x) => x.item === "Smirnoff"));
+  assert.equal(await S.evaluate(() => ctOpen), "Speed rail|Smirnoff", "the line opens again to count it");
+  assert.equal(await S.$("#ct-undo-slot .ct-undo"), null);
+
+  // A slip: 30 for 3. Check it on the line and in Worth a second look; It's right clears it.
+  await S.click('.ct-row.on [data-ct-add="full:1"]');
+  await S.evaluate(() => ctPut(ctRow("Speed rail|Smirnoff"), 30, 0));
+  await waitLine(S, "Smirnoff", [30, 0]);
+  await S.waitForSelector("#ct-odd");
+  assert.match(await text(S, "#ct-odd"), /Worth a second look \(1\).*Smirnoff Speed rail/i);
+  assert.match(await text(S, ".ct-oddn"), /^Much more than 3 bottles last time\. Count it again, or It's right$/);
+  await S.click("[data-ct-ok]");
+  await S.waitForFunction(() => !document.querySelector("#ct-odd"));
+  assert.deepEqual(await S.evaluate(() => store.get("ctOk")[ctDay]), ["Speed rail|Smirnoff"]);
+  // Normal use is never flagged: 3 down to 1.5.
+  await S.evaluate(() => { const d = addDays(shiftDay(), -1); return LIVE.api.countLine(ctId(d, "Speed rail", "Tanqueray"), { day: d, area: "Speed rail", item: "Tanqueray", unit: "bottle", full: 3, open: 0 }); });
+  await S.evaluate(() => { ctPrevFor = ""; ctRender(true); });
+  await S.waitForFunction(() => ctPrev?.lines.some((x) => x.item === "Tanqueray"));
+  await S.evaluate(() => ctPut(ctRow("Speed rail|Tanqueray"), 1, 50));
+  await waitLine(S, "Tanqueray", [1, 50]);
+  assert.equal(await S.evaluate(() => ctOdd(ctRow("Speed rail|Tanqueray"))), "");
+
+  // Two people on one line: the newest stands, and whoever replaces it is told once.
+  await openCount(M);
+  await M.evaluate(() => ctPut(ctRow("Speed rail|Tanqueray"), 2, 0));
+  await waitLine(S, "Tanqueray", [2, 0]);
+  await S.evaluate(() => { ctOpen = "Speed rail|Tanqueray"; ctRender(true); });
+  await S.click('.ct-row.on [data-ct-add="full:1"]');
+  await waitToast(S, /^Mia Manager had 2 bottles\. Yours replaces it: Undo puts theirs back$/);
+  await waitLine(M, "Tanqueray", [3, 0]);
+  await S.click("[data-ct-undo]"); await waitLine(M, "Tanqueray", [2, 0]);
+
+  // No signal: it's kept on the phone and says so, then sends by itself.
+  await S.context().setOffline(true);
+  await S.evaluate(() => ctPut(ctRow("Speed rail|Smirnoff Vanilla"), 4, 0));
+  await S.waitForFunction(() => /on this phone: it sends when there's signal/.test(document.querySelector("#ct-undo-slot").textContent));
+  assert.match(await text(S, ".ct-head"), /1 on this phone, sending when there's signal/i);
+  await S.context().setOffline(false);
+  // The phone's own reconnect can take a while after a drop.
+  await M.waitForFunction(() => LIVE.counts.some((x) => x.item === "Smirnoff Vanilla" && x.full === 4 && !x.pending), null, { timeout: 120000 });
+  await S.waitForFunction(() => /Everything's saved/.test(document.querySelector(".ct-head").textContent));
   for (const p of [M, S]) assert.deepEqual(p.errs, []);
 });
