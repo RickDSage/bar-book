@@ -64,6 +64,10 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
+  // Opening the app (its folder or index.html, with any link's ?… or #…) gets the stored app. Opening any other file
+  // straight in the browser (the rules .txt, a language file) goes to the network, so it shows that file, not the app.
+  const app = /\\/(index\\.html)?$/.test(url.pathname);
+  if (req.mode === "navigate" && !app) return;
   const key = req.mode === "navigate" ? "./" : req;
   e.respondWith(caches.match(key, { ignoreSearch: true }).then((hit) => hit || fetch(req).then(clean).then((res) => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(key, copy)); }
