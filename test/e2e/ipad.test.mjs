@@ -25,7 +25,11 @@ test("on an iPad the app is one centred column, not a stretched phone", async ()
   await p.click("#w-ok");
   const w = await p.$eval("main", (m) => m.getBoundingClientRect().width);
   assert.ok(w <= 760, `main is ${w}px wide`);
-  assert.ok(await p.$eval('nav.tabs [data-tab="pay"]', (b) => !b.hidden));
+  // Five tabs at most (Apple's guideline): My pay lives in More.
+  const tabs = await p.$$eval("nav.tabs [data-tab]", (xs) => xs.filter((b) => !b.hidden).map((b) => b.dataset.tab));
+  assert.ok(tabs.length <= 5 && !tabs.includes("pay"), tabs.join());
+  await p.evaluate(() => show("info"));
+  assert.equal(await p.locator('#v-info [data-go="pay"]').count(), 1);
   assert.deepEqual(p.errs, []);
 });
 
@@ -33,7 +37,8 @@ test("a shared iPad asks who's using it, hides My pay and locks a senior's code 
   const p = await open(true);
   assert.match(await p.textContent("#w-name"), /Shared iPad: who's using it\?/);
   await p.click("#w-ok");
-  assert.ok(await p.$eval('nav.tabs [data-tab="pay"]', (b) => b.hidden));
+  await p.evaluate(() => show("info"));
+  assert.equal(await p.locator('#v-info [data-go="pay"]').count(), 0);
   await p.evaluate(() => show("pay"));
   assert.ok(await p.$eval("#v-pay", (v) => v.hidden));
   // A senior unlocked it and walked off: the next tap after 5 minutes puts it back to the team's view.
@@ -48,7 +53,7 @@ test("a shared iPad asks who's using it, hides My pay and locks a senior's code 
   // Back to someone's own phone: My pay is there again.
   await p.evaluate(() => show("info"));
   await p.click('[data-shared-pick="off"]');
-  assert.ok(await p.$eval('nav.tabs [data-tab="pay"]', (b) => !b.hidden));
+  assert.equal(await p.locator('#v-info [data-go="pay"]').count(), 1);
   assert.deepEqual(p.errs, []);
 });
 

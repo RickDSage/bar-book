@@ -22,6 +22,7 @@ test("joining: a name and the typed team code, no login; a wrong code is refused
   await p.goto(`${site.url}#join=${TEAM_CODE}`);
   assert.equal(await p.evaluate(() => location.hash), "");
   await p.click('[data-w-name="Kadir"]');
+  await p.click('#langask [data-la=""]');
   await p.click("#w-ok");
   await p.waitForFunction(() => LIVE.ready);
   assert.equal(await p.evaluate(() => LIVE.me), null);
@@ -277,6 +278,7 @@ test("the start screen: pick your name, type the team code and a manager's own c
   // A bartender: name, team code, Bar.
   const B = await fresh();
   await B.click('[data-w-name="Simroy"]');
+  await B.click('#langask [data-la=""]');
   assert.equal(await B.$$eval("#w-pin", (x) => x.length), 0);
   await B.fill("#w-code", TEAM_CODE);
   await B.click("#w-ok");
@@ -284,6 +286,7 @@ test("the start screen: pick your name, type the team code and a manager's own c
   // A manager: name, team code and their own code, Floor: on the team and unlocked in one go.
   const M = await fresh();
   await M.click('[data-w-name="Sarul"]');
+  await M.click('#langask [data-la=""]');
   await M.fill("#w-code", TEAM_CODE);
   await M.fill("#w-pin", "6161");
   await M.click("#w-floor");

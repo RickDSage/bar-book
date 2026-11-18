@@ -290,6 +290,7 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .addph label { cursor: pointer; }
 .confirm { margin-top: 10px; padding: 12px; border: 1px solid var(--warn); border-radius: 10px; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 700; }
+.toast-undo { margin-left: 10px; min-height: 36px; padding: 0 6px; font: inherit; font-weight: 800; color: inherit; background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-top: 14px; text-align: center; }
 .card .g { display: block; width: 90px; height: 104px; margin: 0 auto; }
 .card .g svg { width: 100%; height: 100%; }
@@ -456,7 +457,11 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .soon { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 99px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .prep.done .box { background: var(--ok); border-color: var(--ok); }
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
-.brandr { display: flex; align-items: center; gap: 6px; }
+.brandr { display: flex; align-items: center; gap: 6px; flex: none; }
+/* Narrow phones: the name gives way to the buttons (no sideways scrolling), "Bar Book" first. */
+.brand h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 430px) { .brandr { gap: 4px; } .brandr .hbtn { width: 36px; height: 36px; } .brand:has(.langbtn:not([hidden])) h1 span { display: none; } }
+@media (max-width: 360px) { .brand h1 span { display: none; } }
 b.dt { color: var(--fg); font-weight: 700; }
 .bell { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg); }
 .bell svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -733,6 +738,12 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 #v-count .ct-find { position: sticky; top: 0; z-index: 4; background: var(--bg); margin: 8px calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0; padding: calc(env(safe-area-inset-top, 0px) + 8px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
 #v-count .shift-top .s { color: var(--muted); font-size: 14px; }
 @media (max-width: 429px) { .ct-bl { display: none; } .ct-find #ct-scan, .ct-find #ct-mic { min-width: 48px; padding-inline: 10px; font-size: 20px; } }
+.ct-note { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--brass); border-radius: 14px; background: var(--surface); }
+.ct-nrow { display: grid; grid-template-columns: auto 1fr 76px auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.ct-nrow input[type=checkbox] { width: 24px; height: 24px; }
+.ct-nrow label small { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-nrow label { min-width: 0; font-weight: 700; }
+.ct-nrow input[type=number] { min-height: 40px; width: 100%; font: inherit; }
 .ct-scan { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--brass); border-radius: 14px; background: var(--surface); }
 .ct-scan h3 { margin: 4px 0 8px; font-size: 22px; }
 .ct-scan .s { margin: 0; }
@@ -959,6 +970,12 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .lfold > summary { list-style: none; cursor: pointer; }
 .lfold > summary::-webkit-details-marker { display: none; }
 .ltools { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+.ltools.lt1 { display: flex; flex-wrap: wrap; }
+/* More, This phone: one compact row per setting, like a phone's own Settings: name and a short line, switch on the right. */
+.setrow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.setrow b { display: block; font-size: 16px; } .setrow small { display: block; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.setrow .seg { margin: 0; min-width: 150px; } .setrow .seg button { min-height: 40px; padding: 6px 10px; }
+.setrow.full { grid-template-columns: 1fr; } .setrow.full .seg { min-width: 0; }
 /* Send: WhatsApp, Text and the rest stay in reach at the foot of the screen while you pick what goes in. */
 .sendbar { position: sticky; bottom: 0; z-index: 2; padding: 10px 0 calc(env(safe-area-inset-bottom, 0px) + 10px); background: linear-gradient(to bottom, transparent, var(--bg) 14px); }
 .actions.fresh { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -1163,13 +1180,6 @@ body.stmode #say { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 .say-auto { margin-top: 8px; }
 .sc-steps { padding-left: 22px; } .sc-steps li { margin: 6px 0; }
 .sc-url { font-size: 12px; word-break: break-all; }
-#since { position: fixed; inset: 0; z-index: 40; background: rgb(0 0 0 / .55); display: flex; align-items: flex-end; justify-content: center; padding: 16px 12px calc(env(safe-area-inset-bottom, 0px) + 16px); }
-.since-card { width: min(560px, 100%); max-height: 80vh; overflow-y: auto; background: var(--bg); border: 2px solid var(--brass); border-radius: 20px; padding: 16px; }
-.since-card h2 { margin: 0; font-size: 24px; }
-.since-p { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
-.since-p.hot { border-color: var(--warn); }
-.since-p span { color: var(--muted); font-size: 15px; }
-.since-card .btn.wide { margin-top: 8px; }
 .dr-card.ph .btn { margin-top: 8px; }
 .ph-langs { margin: 6px 0 0; padding: 0; }
 .ph-card { padding: 28px 18px; }
@@ -1208,7 +1218,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
   <p class="wip">Spot something wrong or got an idea? Tell maintenance: More, then App feedback.</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-guest-open aria-label="Talk to a guest: their language, menu, phrases"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c-2.6 2.6-2.6 14.4 0 17M12 3.5c2.6 2.6 2.6 14.4 0 17"/></svg></button><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <button class="upd rulesold" id="rules-old" hidden aria-label="Firebase rules need publishing. Tap to hide">Rules need publishing ✕</button>
@@ -1279,7 +1289,6 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <button data-tab="tally"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l2 2 4-4M8.5 16h7"/></svg>Shift</button>
   <button data-tab="count" hidden><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V9l3-2V4h2v3l3 2v11"/><path d="M15 20v-7h5v7"/><path d="M8 13h4"/></svg>Stock</button>
   <button data-tab="notices"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><span class="dot" id="team-n" hidden></span>Team</button>
-  <button data-tab="pay"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>My pay</button>
   <button data-tab="info"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>More</button>
 </nav>
 <button class="sx-back" id="sx-back" hidden>‹ Bar station</button>
@@ -1351,6 +1360,12 @@ function track(p, ok, fail = "Not saved. Try again") {
 }
 addEventListener("online", () => renderNet()); addEventListener("offline", () => renderNet());
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 1800); }
+// A clear on this phone only (the round, the cocktail maker): done straight away, with ↩ Undo on the toast for 8 seconds.
+function undoToast(msg, undo) {
+  const t = $("#toast"); t.innerHTML = `${esc(msg)} <button class="toast-undo" type="button">\u21a9 Undo</button>`; t.hidden = false;
+  t.querySelector(".toast-undo").onclick = () => { t.hidden = true; haptic(); undo(); };
+  clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 8000);
+}
 /* ---------- Send: WhatsApp, email, the phone's share sheet, copy or print ----------
    Every Send button opens the same page. SHARE[k]() builds the message right then: what it is, a title, two or three
    summary lines, then its parts, each with a tick box (ticked when it has anything in it), and photos where there are
@@ -1701,7 +1716,7 @@ const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Pro
 function renderQuick(show, q = "") {
   if (show) { $("#quick").innerHTML = ""; return; }
   const f = PL.sq?.fixed || [], go = placeHits(q);
-  $("#quick").innerHTML = (go.length ? `<div class="goto"><span class="mini">Go to</span>${go.map((x) => `<button class="chip" data-goto="${x.go}">${esc(x.n)} ›</button>`).join("")}</div>` : "") + (f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : "");
+  $("#quick").innerHTML = sdTypedHtml(q) + (go.length ? `<div class="goto"><span class="mini">Go to</span>${go.map((x) => `<button class="chip" data-goto="${x.go}">${esc(x.n)} ›</button>`).join("")}</div>` : "") + (f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : "");
 }
 let listIds = D.map((d) => d.id);
 const SEC_ORDER = [...new Set(D.map((d) => d.section))];
@@ -2739,8 +2754,9 @@ function runText(k) {
 function runHtml(k) {
   const r = runOf(k), st = r?.status || "todo", p = progress(k), A = LIVE.admin;
   const b = (to, label, cls = "") => `<button class="btn${cls}" data-run="${k}" data-to="${to}">${label}</button>`;
-  // Not started yet: nothing to show. The first tick starts the close, so there's no Start button to press first.
-  if (st === "todo" && p.n < p.of && !A) return "";
+  // Not started yet: nothing to show, managers included. The first tick starts the close, so there's no Start button
+  // to press first, and Finish anyway… shows once it's under way.
+  if (st === "todo" && p.n < p.of && (!A || p.n === 0)) return "";
   const btns = st === "finished" ? b("reopen", "Reopen…") : [p.n === p.of ? b("finished", "Finish", " pri") : A && b("override", "Finish anyway…")].filter(Boolean).join("");
   const hint = st !== "finished" && p.n < p.of && !A ? `<div class="s">Finish shows once every item is done.</div>` : "";
   return `<div class="run"><div class="n"><span class="pill ${st === "finished" ? "ok" : st === "started" ? "wait" : ""}">${RUN[st]}</span> ${r ? esc(runText(k)) : "Not started yet."}</div>${hint}${btns ? `<div class="actions">${btns}</div>` : ""}</div>`;
@@ -2760,8 +2776,10 @@ const openOf = (k, ids) => ids.filter((i) => ["todo", "doing", "blocked"].includ
 const lfShut = store.get("lfShut", {});
 function checklistHtml(k) {
   const p = progress(k), locked = isLocked(k), any = shown(k).some(([i]) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
-  const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>
-    <div class="ltools"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button>${groupsOf(k).filter(([g]) => g).length > 1 ? `<button class="chip" data-lf-all="${k}">${groupsOf(k).some(([g]) => g && lfShut[`${k}|${g}`]) ? "Open every heading" : "Fold every heading"}</button>` : "<span></span>"}</div>
+  // One row of tools. A list with headings has Tick all on each heading, so the whole-list Tick all done is only on a
+  // list without them (ticking 39 jobs in one tap isn't a close).
+  const heads = groupsOf(k).filter(([g]) => g).length;
+  const tools = locked ? "" : `<div class="ltools lt1"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button>${heads > 1 ? `<button class="chip" data-lf-all="${k}">${groupsOf(k).some(([g]) => g && lfShut[`${k}|${g}`]) ? "Open every heading" : "Fold every heading"}</button>` : ""}${!heads && p.n < p.of ? `<button class="chip" data-tick-all="${k}">Tick all done</button>` : ""}${canUndoList(k) ? `<button class="chip pri" data-undo-list="${k}">\u21a9 Undo clear</button>` : any ? `<button class="chip" data-clear-list="${k}">\u21ba Clear</button>` : ""}</div>
     ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
@@ -2832,12 +2850,27 @@ function resetList(k, ids) {
   return jobs;
 }
 const touched = (k) => shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
+/* Clear, the same on every list in Bar Book: it sits in the row of tools at the top of the list, it acts straight away
+   (no "are you sure?"), and for UNDO_MINS it turns into ↩ Undo clear in the same spot, which puts back exactly what it
+   took (the toast says so too). Undo over a question, as Gmail and the phone's own apps do: a mis-tap costs one tap,
+   not a dialog every time. Lists also start fresh by themselves at 6am (each shift day has its own), so Clear is only
+   for starting again part-way through a night. */
+const listUndo = {};
+const canUndoList = (k) => listUndo[k] && Date.now() < listUndo[k].until;
 function clearList(k) {
   const t = LISTS[k].title, ids = touched(k);
   if (!ids.length && !isLocked(k)) return toast("Nothing to clear");
-  if (!confirm(`Clear the ${t.toLowerCase()}? ${ids.length} item${ids.length === 1 ? "" : "s"} go back to not started, on every phone.`)) return;
-  track(Promise.all(resetList(k, ids)), `${t} cleared`, "Not all cleared. Check your signal and try again");
-  more = ""; haptic();
+  listUndo[k] = { until: Date.now() + UNDO_MINS * 6e4, tasks: ids.map((i) => ({ i, status: statusOf(k, i), note: taskOf(k, i).note || "" })), run: isLocked(k) ? { ...progress(k), note: runOf(k).note || "" } : null };
+  track(Promise.all(resetList(k, ids)), `${t} cleared. ↩ Undo clear is where Clear was`, "Not all cleared. Check your signal and try again");
+  more = ""; haptic(); renderTally();
+}
+function undoList(k) {
+  const u = listUndo[k]; delete listUndo[k];
+  if (!u || Date.now() > u.until) { renderTally(); return toast("Too late to undo"); }
+  const A = LIVE.api, jobs = u.tasks.map((x) => A.setTask(k, x.i, itemText(k, x.i), x.status, { note: x.note }));
+  if (u.run) jobs.push(A.setRun(k, LISTS[k].title, "finished", u.run.n, u.run.of, u.run.note));
+  track(Promise.all(jobs), `${LISTS[k].title}: put back as it was`, "Not all put back. Check your signal and try again");
+  haptic(); renderTally();
 }
 /* Clear everything, for a fresh start, on every phone: both closing lists back to not started, everything back in
    stock, restocks still waiting cancelled (all of them for a manager, your own for anyone else: the rules let only the
@@ -2849,7 +2882,8 @@ function clearList(k) {
    A mis-tap mid-service would put 86'd items back on sale, so whatever was cleared is kept on this phone for 15
    minutes and Undo clear puts it all back. */
 const UNDO_MINS = 15;
-let undoClear = null;
+let undoClear = null, outUndo = null;
+const canUndoOut = () => !!outUndo && Date.now() < outUndo.until;
 const clearRestocks = () => rsOpen().filter((x) => x.status !== "delivered" && (LIVE.admin || x.askedUid === LIVE.uid));
 async function clearAll(master) {
   const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api, rs = clearRestocks();
@@ -3596,6 +3630,8 @@ function paneBadge(k) {
 }
 let lastPane = "";
 function renderTally() {
+  // Morning has the brief's ring on the page, so Needs you now leaves it off there: checked when the pane changes.
+  if (MG_READY && lastPane !== mode + pane) renderAlerts();
   if (!LIVE.me) {
     renderFootball();
     $("#shift-title").textContent = `${sideName(mode)} shift`; $("#shift-day").textContent = "";
@@ -3617,7 +3653,7 @@ function renderTally() {
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
       ${outList.length ? outList.map((n) => { const sw = pkSwap(n), u = pkUses(n); return `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) || u ? `<div class="s">${outBy(n) ? `86'd by ${outBy(n)}` : ""}${u ? `${outBy(n) ? " · " : ""}${plural(u, "drink")} use it` : ""}</div>` : ""}${sw ? `<div class="s pk-sw">${esc(sw)}</div>` : ""}</div><button class="btn" data-out-back="${esc(n)}">Back in stock</button></div>`; }).join("") : `<p class="note">Nothing 86'd.</p>`}
-      ${outList.length ? `<div class="actions">${sendBtn("out", "Send the 86 list")}<button class="btn" data-out-clear>All back in stock</button></div>` : ""}
+      ${outList.length || canUndoOut() ? `<div class="actions">${outList.length ? sendBtn("out", "Send the 86 list") : ""}${canUndoOut() ? `<button class="btn pri" data-out-undo>\u21a9 Undo clear</button>` : `<button class="btn" data-out-clear>\u21ba Clear: all back in stock</button>`}</div>` : ""}
       ${lowHtml((n) => `<button class="btn" data-out-quick="${esc(n)}">86 it</button>`)}
       ${pkBtn("Search everything to 86: drinks, bottles, cakes, boxes", `data-pk86="${mode}"`)}
       <div class="mini">Quick 86: recent and most 86'd</div><div class="recent" translate="no">${pkTop(mode).filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
@@ -3784,6 +3820,7 @@ $("#tally").addEventListener("click", async (e) => {
   const ta = e.target.closest("[data-tick-all]"); if (ta) { tickAll(ta.dataset.tickAll, ta.dataset.g); return; }
   const cg = e.target.closest("[data-claim]"); if (cg) { claimGroup(cg.dataset.claim, cg.dataset.g); return; }
   const cr = e.target.closest("[data-clear-list]"); if (cr) { clearList(cr.dataset.clearList); return; }
+  const ul = e.target.closest("[data-undo-list]"); if (ul) { undoList(ul.dataset.undoList); return; }
   if (e.target.closest("#clear-all")) { clearAll(false); return; }
   if (e.target.closest("#undo-clear")) { undoClearAll(); return; }
   if (e.target.closest("[data-left-only]")) { leftOnly = !leftOnly; store.set("leftOnly", leftOnly); haptic(); renderTally(); return; }
@@ -3826,10 +3863,17 @@ $("#tally").addEventListener("click", async (e) => {
   const bk = e.target.closest("[data-out-back]"); if (bk) { pk86([bk.dataset.outBack], false); renderTally(); renderList(); return; }
   const oq = e.target.closest("[data-out-quick]"); if (oq) { pk86([oq.dataset.outQuick], true); renderList(); renderTally(); return; }
   if (e.target.closest("[data-out-clear]")) {
-    const xs = [...outNow()];
-    if (!xs.length || !confirm(`Put all ${xs.length} back in stock? It clears the 86 board on every phone.`)) return;
-    track(Promise.all(xs.map((n) => LIVE.api.set86(n, false))), "The 86 board is clear", "Not all cleared. Check your signal and try again");
-    haptic(); return;
+    const xs = [...outNow()]; if (!xs.length) return;
+    outUndo = { until: Date.now() + UNDO_MINS * 6e4, xs };
+    track(Promise.all(xs.map((n) => LIVE.api.set86(n, false))), "The 86 board is clear. ↩ Undo clear is where Clear was", "Not all cleared. Check your signal and try again");
+    haptic(); renderTally(); renderList(); return;
+  }
+  if (e.target.closest("[data-out-undo]")) {
+    const u = outUndo; outUndo = null;
+    if (!u || Date.now() > u.until) { renderTally(); return toast("Too late to undo"); }
+    const xs = u.xs.filter((n) => !outNow().has(n));
+    track(Promise.all(xs.map((n) => LIVE.api.set86(n, true))), `${plural(xs.length, "item")} 86'd again`, "Not all put back. Check your signal and try again");
+    haptic(); renderTally(); renderList(); return;
   }
   if (e.target.closest("#rs-item")) { haptic(); return pkOpen({ mode: "one", title: "What's needed from the cellar?", other: true, onPick: ([n]) => { rsF.item = n.slice(0, 80); renderTally(); } }); }
   if (e.target.closest("[data-lb-pick]")) {
@@ -3883,8 +3927,8 @@ function renderFootball() {
       <label class="fld">Competition<input data-fx="comp" list="fx-comps" maxlength="40" value="${v("comp")}"></label><label class="fld">Channel<input data-fx="channel" list="fx-chans" maxlength="30" value="${v("channel")}"></label></div>
       <label class="fld">Which screen<input data-fx="screen" maxlength="30" placeholder="All screens, upstairs bar…" value="${v("screen")}"></label>
       ${list("fx-comps", COMPS)}${list("fx-chans", CHANNELS)}<button class="btn pri wide" id="fx-go">Add the game</button></details>` : "";
-  // No games: a manager gets one line to add one, not a whole card on top of every Shift page.
-  if (none) { box.innerHTML = `<div class="football fb-none">${form}</div>`; return; }
+  // No games: a manager gets one line to add one on Morning only, not on top of every Shift page.
+  if (none) { box.innerHTML = pane === "morning" ? `<div class="football fb-none">${form}</div>` : ""; return; }
   box.innerHTML = `<div class="notice football"><div class="meta"><b>Football tonight</b></div>
     ${now.length ? now.map(fxRow).join("") : `<p class="note">No games on our screens today.</p>`}
     ${soon.length ? `<details><summary>Coming up (${soon.length})</summary>${soon.map((x) => `<div class="s" style="margin-top:8px"><b>${esc(dayName(x.day))}</b></div>${fxRow(x)}`).join("")}</details>` : ""}
@@ -3930,7 +3974,7 @@ document.addEventListener("click", (e) => {
    on screen is matched whole against the English, so a word that isn't in the list stays in English, and so do drink
    names, specs and allergens, which are never in it. Names and what people type are never touched. */
 /*I18N*/
-const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
+const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur", "he", "fa", "ps", "yi", "sd", "ckb", "ug", "dv"]);
 let lang = store.get("lang", "");
 const TR = new Map();
 /* A language's words are fetched the first time it's picked (lang/<code>.json, about 70 KB), then kept on the phone,
@@ -3947,8 +3991,9 @@ async function langLoad(c) {
   } catch { return p?.c === c; }
 }
 function trBuild() {
-  TR.clear(); TR_PAT = []; trCache.clear(); trFmt = null; const w = langPack(lang); if (!w) return;
-  for (const [en, x] of Object.entries(w)) { if (/\{[a-d]\}/.test(en)) TR_PAT.push(trPat(en, x)); else TR.set(en, x); }
+  TR.clear(); TR_PAT = []; trCache.clear(); trFmt = null; if (!lang) return;
+  for (const [en, x] of Object.entries(langPack(lang) || {})) { if (/\{[a-d]\}/.test(en)) TR_PAT.push(trPat(en, x)); else TR.set(en, x); }
+  aiMerge();
   // The longest phrases are tried first, so "Remove {a} for everyone?" wins over "Remove {a}".
   TR_PAT.sort((a, b) => b.re.source.length - a.re.source.length);
   const loc = `${LOCALE[lang] || lang}-u-nu-latn`;
@@ -4022,15 +4067,15 @@ for (const f of ["alert", "confirm", "prompt"]) { const o = window[f]; window[f]
 const trWas = new WeakMap();
 function trNode(n) {
   const was = trWas.get(n) ?? n.textContent, k = was.trim(), t = trLook(k);
-  if (t) { if (!trWas.has(n)) trWas.set(n, was); const v = was.replace(k, t); if (n.textContent !== v) n.textContent = v; }
-  else if (trWas.has(n)) { n.textContent = was; trWas.delete(n); }
+  if (t) { if (!trWas.has(n)) trWas.set(n, was); const v = was.replace(k, t); if (n.textContent !== v) n.textContent = v; biMark(n, k, t); }
+  else { if (trWas.has(n)) { n.textContent = was; trWas.delete(n); } biMark(n); if (k) aiAsk(k); }
 }
 function trAttr(el, a) {
   const key = "data-en-" + a, was = el.getAttribute(key) ?? el.getAttribute(a), t = trLook(was.trim());
   if (t) { el.setAttribute(key, was); if (el.getAttribute(a) !== t) el.setAttribute(a, t); }
-  else if (el.hasAttribute(key)) { el.setAttribute(a, was); el.removeAttribute(key); }
+  else { if (el.hasAttribute(key)) { el.setAttribute(a, was); el.removeAttribute(key); } if (was.trim()) aiAsk(was.trim()); }
 }
-const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no],[data-ut]";
+const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no],[data-ut],#guest,#enpop";
 function trTree(root) {
   if (root.nodeType === 3) { if (!root.parentElement?.closest(TR_SKIP)) trNode(root); return; }
   if (root.nodeType !== 1 || root.closest(TR_SKIP)) return;
@@ -4050,13 +4095,16 @@ const trWatch = () => trObs.observe(document.body, { childList: true, subtree: t
 let langWant = "";
 async function setLang(c) {
   langWant = c;
-  if (c && !(await langLoad(c))) { if (langWant === c) { toast("That language needs signal the first time. Try again with signal"); $$("select[data-lang]").forEach((s) => (s.value = lang)); } return; }
+  // A language without built-in words needs live translation, or the words this phone translated before.
+  if (c && !LANG_BUILT.has(c) && !aiOn() && !Object.keys(aiWords(c)).length) { toast("Live translation is off. Maintenance switches it on in More"); $$("select[data-lang]").forEach((s) => (s.value = lang)); return; }
+  if (c && LANG_BUILT.has(c) && !(await langLoad(c))) { if (langWant === c) { toast("That language needs signal the first time. Try again with signal"); $$("select[data-lang]").forEach((s) => (s.value = lang)); } return; }
   if (langWant !== c) return;
   lang = c; store.set("lang", c); if (c) store.set("lang.last", c); trBuild();
   langBtn(); utMark(document.body);
   document.documentElement.lang = c || "en-GB"; document.documentElement.dir = LANG_RTL.has(c) ? "rtl" : "ltr";
   trObs.disconnect(); trTree(document.body); trWatch();
   $$("select[data-lang]").forEach((s) => (s.value = c));
+  if (c && !LANG_BUILT.has(c)) aiWarm(c);
 }
 /* What people write or send (chat, broadcasts, notes, issues, handovers) isn't in the app's dictionary, so it gets a
    Translate button that opens Google Translate with the words, into this phone's language (or English, on an English
@@ -4073,20 +4121,23 @@ function utMark(root) {
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-utx]"); if (!b) return;
-  const t = b.previousElementSibling?.textContent.trim(); if (!t) return;
+  const el = b.previousElementSibling, t = el?.textContent.trim(); if (!t) return;
+  // With live translation on, it's translated where it is (tap again for the original).
+  if (aiOn()) return utLive(el, b);
   window.open(`https://translate.google.com/?sl=auto&tl=${GT_LANG[lang] || lang || "en"}&text=${encodeURIComponent(t)}&op=translate`, "_blank", "noopener");
 });
 // One tap between English and the language picked last, from the top of every page.
 function langBtn() {
-  const b = $("#lang-btn"), last = store.get("lang.last", ""), to = lang ? "" : last, l = LANGS.find(([c]) => c === (lang || last));
+  const b = $("#lang-btn"), last = store.get("lang.last", ""), to = lang ? "" : last, l = lang || last;
   b.hidden = !l; if (!l) return;
   b.textContent = to ? to.toUpperCase() : "EN"; b.dataset.to = to;
-  b.setAttribute("aria-label", to ? `${l[1]} (${l[2]})` : "English");
+  b.setAttribute("aria-label", to ? langLabel(to) : "English");
 }
 $("#lang-btn").addEventListener("click", (e) => { setLang(e.currentTarget.dataset.to); haptic(); });
 // The list to pick from: English first, then each language in its own words, with the English name after it.
-const langOptions = () => `<option value="">English</option>${LANGS.map(([c, own, en]) => `<option value="${c}"${c === lang ? " selected" : ""}>${own} (${en})</option>`).join("")}`;
-document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); haptic(); } });
+const langOptions = () => `<option value="">English</option><optgroup label="Built in, works offline">${LANGS.map(([c, own, en]) => `<option value="${c}"${c === lang ? " selected" : ""}>${own} (${en})</option>`).join("")}</optgroup>`
+  + `<optgroup label="Translated live">${WORLD.filter(([c]) => !LANG_BUILT.has(c)).map(([c]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(langLabel(c))}</option>`).join("")}</optgroup>`;
+document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); langRemember(e.target.value); haptic(); } });
 
 /* ---------- My pay ----------
    Everything about pay in one tab, kept on this phone only: nobody else sees it and it never goes online. Payslips
@@ -4974,7 +5025,7 @@ function payInner() {
   const M = monthPay(pm), H = M.H, open = (k) => (paySec.has(k) ? " open" : ""), ns = Object.keys(pay.slips).length, xs = inM(pm);
   const panel = hf.open ? hfHtml() : slip.open ? slipPanelHtml() : slipTy.open ? slipTyHtml() : "";
   // The same tabs as Shift, under the same kind of page title.
-  const tabs = `<h2 class="pgt">My pay</h2><div class="ptabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}">${t}</button>`).join("")}</div>`;
+  const tabs = `<button class="back" data-back>‹ More</button><h2 class="pgt">My pay</h2><div class="ptabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}">${t}</button>`).join("")}</div>`;
   if (payTab === "months") return `${tabs}
     <div id="pay-months">${monthsHtml()}</div>
     <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-ty-open>Type it in</button><button class="btn" data-hf-open>Add hours</button></div>`;
@@ -5208,6 +5259,7 @@ const IC = {
   fun: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
   replay: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/><path d="M10.5 9.5l4 2.5-4 2.5z"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
+  pay: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
   facts: '<path d="M9 3h6v4l3 4v9a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-9l3-4z"/><path d="M9 13h6M9 17h4"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
@@ -5217,6 +5269,7 @@ function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
     <h2 class="pgt">More</h2>
+    ${sharedDev ? "" : `<div class="sec">You</div><div class="hub">${hubRow("pay", 'data-go="pay"', "My pay", "Your shifts, take-home, tronc and holiday. Kept on this phone only")}</div>`}
     <div class="sec">Drinks</div>
     <div class="hub">
       ${hubRow("facts", "data-fx-list", "Everything we stock", "Search any product: size, allergens, how long it keeps opened, its use-by today")}
@@ -5227,13 +5280,11 @@ function renderInfo() {
     <div class="sec">Training</div>
     <div class="hub">
       ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards, tonight's quiz, speed drills, Bar 101 and the new starter path")}
-      ${hubRow("fun", 'data-go="fun"', "Games and drills", "Daily drill with a streak, quiz night, Bar phrases, your month and Spin for a drink")}
+      ${hubRow("fun", 'data-go="fun"', "Games and drills", "Daily drill with a streak, quiz night, language lessons, your month and Spin for a drink")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
-      ${hubRow("features", "data-guide", "Guide: how Bar Book works", "Your shift step by step, every section, and a search for anything")}
-      ${hubRow("replay", `data-walk-open="${mode}"`, "Replay the walkthrough", `Your ${mode} shift step by step, opening to handover`)}
-      ${hubRow("replay", "data-intro-open", "Replay the tour", `Everything Bar Book does, ${INTRO.length} short cards`)}
+      ${hubRow("features", "data-guide", "Guide: how Bar Book works", "The walkthrough, the full tour, every section, and a search for anything")}
       ${hubRow("siri", "data-sc-open", "Siri and shortcuts", "\u201cHey Siri, Bar Book 86\u201d: open any page by voice or a tap on the back of the phone")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
     </div>
@@ -5248,18 +5299,16 @@ function renderInfo() {
     ${fold("tech", "Technique key and words we use", glossHtml())}
     ${fold("prep", "Prep and batches", prep)}
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
-    <div class="sec">This phone</div>
+    <div class="sec" id="set-phone">This phone</div>
     <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
-    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Tell maintenance with App feedback above.</p>
-    <div class="mini" style="margin-top:14px">Light or dark</div>
-    <div class="seg" style="grid-template-columns:repeat(5,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["clock", "Clock"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
-    <p class="note">Auto follows your phone. Clock goes light and dark at the venue's times, set by a manager. This phone only.</p>
+    ${langPanelHtml()}
+    <div class="setrow full"><span><b>Light or dark</b><small>Auto follows your phone. Clock follows the venue's times.</small></span>
+    <div class="seg" style="grid-template-columns:repeat(5,1fr)" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["clock", "Clock"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div></div>
     ${sdPhoneHtml()}
-    <div class="mini" style="margin-top:14px">Help buttons (?)</div>
-    <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
-    <div class="mini" style="margin-top:14px">Shared iPad or tablet</div>
-    <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div>
-    <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a manager's or maintenance's code locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
+    <div class="setrow"><span><b>Help buttons (?)</b><small>The small ? that explains each part</small></span>
+    <div class="seg" style="grid-template-columns:repeat(2,1fr)" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div></div>
+    <div class="setrow"><span><b>Shared iPad or tablet</b><small>Asks who's using it, hides My pay, codes lock after ${IDLE_MIN} minutes</small></span>
+    <div class="seg" style="grid-template-columns:repeat(2,1fr)" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div></div>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
     ${fold("home", "Put this app on your home screen", `
     <h3 style="font-size:18px;margin-top:4px">iPhone</h3>
@@ -5385,9 +5434,12 @@ const FEATURES = [
   { g: "Drinks", k: "quiz", n: "Quiz night", go: "quiz", team: 1,
     what: "A team quiz on our own specs: the iPad shows the questions big and everyone answers on their phone. A kind scoreboard: top three get a cheer, the host can hide names.",
     staff: "Join from Games and drills and answer on your phone. Anyone can host." },
-  { g: "Drinks", k: "phrases", n: "Bar phrases", go: "phrases",
-    what: "A few things you say to guests at the bar or on the floor, in French, Spanish or Italian: one big card at a time, with how to say it and a button to hear it. Counts towards the drill streak.",
-    staff: "Pick a language and Bar or Floor under More, Games and drills, then Start. Switch the English or the sound-it-out line off once you know them." },
+  { g: "Drinks", k: "guest", n: "Talk to a guest", go: "guest",
+    what: "🌍 in the top bar, on every phone and the iPad. The guest picks their language and gets a warm welcome in it, the drinks and food menus in their language, the allergy card written by hand, questions to tap, and two-way talk: speak, type or tap, and each side sees and hears it in their own language. Your ready phrases are grouped: Hello, Check-backs, Order, Drinks, Food, Desserts, Coffee, Tea, Allergies, Pay and Goodbye.",
+    staff: "Tap 🌍, hand over the phone. Tap any word in a message to see what it means. ✕ Staff takes it back; open it again within 20 minutes and it carries on with the same guest, or tap New guest." },
+  { g: "Drinks", k: "phrases", n: "Language lessons", go: "phrases",
+    what: "Short lessons in what you say to guests, at the bar, on the floor and in small talk, in 17 languages written by hand (Spanish to Nepali and Twi) or any language while live translation is on: learn a few cards, then hear it, read it, pick it, put the words in order and say it out loud. Counts towards the drill streak.",
+    staff: "Pick a language and Bar, Floor or Small talk under More, Games and drills, then Start. Switch the English or the sound-it-out line off once you know them." },
   { g: "Drinks", k: "wrap", n: "Your month", go: "wrap",
     what: "Your month in Bar Book on one picture: closing nights, jobs ticked, specs learnt, drill days and quiz nights. Counted on your phone, first name and numbers only.",
     staff: "Share it on WhatsApp or Instagram from Games and drills." },
@@ -5413,7 +5465,7 @@ function featHtml() {
   };
   return `<h2 id="sh-name" style="margin-top:12px">What's in Bar Book</h2>
     <p class="lead">The drinks, the shift and the team in one app, for the bar and floor. Here's every feature and what it's for.</p>
-    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without joining you get the drinks, the cocktail maker, Allergens, Practise, More, My pay and the WhatsApp tools. Join with the team code for the rest: no login or password."}</p>
+    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without joining you get the drinks, the cocktail maker, Allergens, Practise, More (My pay is in there) and the WhatsApp tools. Join with the team code for the rest: no login or password."}</p>
     <div class="actions"><button class="btn pri" id="tour-go">Take the tour (${tourSteps().length} steps)</button></div>
     ${(() => { const xs = featSorted(FEATURES); return [...new Set(xs.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${xs.filter((f) => f.g === g).map(card).join("")}`).join(""); })()}`;
 }
@@ -5427,6 +5479,8 @@ function openAt(where) {
   // Going somewhere else closes a page left open on top (the stock count, the tour's last step; the Siri links open
   // their own).
   if (where !== "siri" && !$("#sheet").hidden) hideSheet();
+  if (where !== "guest" && GUEST.on) guestClose(true);
+  if (MG_READY && sto && where !== "brief") storyClose();
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where.startsWith("rep:")) return openReport(where.slice(4));
   if (where === "facts") return openFacts("");
@@ -5439,8 +5493,13 @@ function openAt(where) {
   if (where === "shift") return show("tally");
   if (where === "photos" || where.startsWith("gallery:")) return openGallery(where.slice(8) || shiftDay());
   if (where === "count") return show("count");
+  if (where === "dnote") { ctInHtml.open = true; show("count"); return setTimeout(() => $("#ct-in-box")?.scrollIntoView({ block: "center" }), 120); }
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
+  if (where === "guest") return setTimeout(guestOpen, 60);
+  if (where === "brief") return storyOpen();
+  if (where === "phone") { show("info"); return setTimeout(() => $("#set-phone")?.scrollIntoView({ block: "start" }), 60); }
+  if (where === "clear") { pane = closeList(); show("tally"); return setTimeout(() => $("#tally .lt1")?.scrollIntoView({ block: "center" }), 60); }
   if (["drill", "quiz", "wrap", "phrases"].includes(where)) return funGo(where === "wrap" ? "home" : where === "phrases" ? "phr" : where);
   if (["morning", "stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
   show("notices");
@@ -5453,11 +5512,11 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
+const PLACE_KW = { guest: "guest tourist customer foreign language translate translation talk speak phrases phrase book welcome hello greeting menu food check back how is the food dessert coffee tea goodbye allergy card", photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
-  drill: "daily drill streak train learn", quiz: "quiz night game team play", siri: "siri shortcut voice back tap", wrap: "wrapped month stats share card", phrases: "french spanish italian language phrases speak guests" };
+  drill: "daily drill streak train learn", quiz: "quiz night game team play", siri: "siri shortcut voice back tap", wrap: "wrapped month stats share card", phrases: "french spanish italian portuguese german polish romanian chinese japanese korean arabic russian turkish hindi nepali twi language lessons learn phrases speak guests duolingo" };
 function placeHits(q) {
   const ws = q.toLowerCase().split(/\s+/).filter((w) => w.length >= 3 || /^\d+$/.test(w)); if (!ws.length) return [];
   return FEATURES.filter((f) => PLACE_KW[f.k] && fUsable(f) && !(f.k === "tell" && LIVE.owner) && ws.every((w) => `${f.n} ${PLACE_KW[f.k]}`.toLowerCase().split(/[\s:]+/).some((x) => x.startsWith(w)))).slice(0, 3);
@@ -5553,7 +5612,7 @@ function setName(n) {
   if (rude(n)) return toast(RUDE);
   myName = n.trim().slice(0, 30); store.set("me", myName);
   if (LIVE.me && LIVE.anon && myName && LIVE.me !== myName) { joining = false; LIVE.me = null; }
-  autoJoin(); renderWelcomeName(); renderTeam();
+  autoJoin(); renderWelcomeName(); renderTeam(); langPerson(myName);
 }
 /* Switch person (the shared iPad) or change name: tap a name, no typing. A manager's code is locked first, so the
    next person never works with it, and a name with its own code goes on to Unlock. */
@@ -5614,8 +5673,8 @@ let sharedDev = store.get("shared", false), lockDue = false, idleOut = false, la
 const IDLE_MIN = 5;
 function applyShared() {
   document.body.classList.toggle("shared", sharedDev);
-  $('nav.tabs [data-tab="pay"]').hidden = sharedDev; navCols();
   if (sharedDev && cur === "pay") show("drinks");
+  if (cur === "info") renderInfo();
 }
 function sharedLock() {
   if (!sharedDev) return;
@@ -6582,6 +6641,8 @@ function sinceHtml() {
     ${c.map((x) => `<div class="staffrow"><div class="n">${esc(x.msg)}</div><div class="s">${when(x.t)}</div></div>`).join("")}</details>` : "";
 }
 function liveChanged(what) {
+  if (what === "ai") store.set("ai.key", LIVE.aiKey || "");
+  aiKick();
   if (what === "media") renderMedia();
   if ((what === "photos" || what === "reports") && $("#gal")) galRefresh();
   // Leaving, or being taken off the team by the manager or the owner: the phone forgets the team code (it reloads
@@ -6673,7 +6734,7 @@ addEventListener("resize", csFit);
    the top that never scrolls sideways (Rapid fire, Menu, Make). More holds everything used less often: Allergens,
    Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
    Tapping the tab you're on takes you back to its top. */
-const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "count", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station"];
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "count", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station", "pay"];
 // Bar station mode: this iPad opens on the bar station until Exit bar station turns it off.
 let stationOn = store.get("station", false);
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
@@ -6717,6 +6778,7 @@ function show(tab, fromBack = false) {
   if (tab === "notices") renderNotices();
   if (DRINK_TABS.includes(tab)) store.set("dmode", tab);
   store.set("tab", tab); window.scrollTo(0, 0);
+  if (MG_READY) renderAlerts();
 }
 $("#subnav").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b && b.dataset.tab !== cur) { haptic(); show(b.dataset.tab); } });
 $("nav.tabs").addEventListener("click", (e) => {

@@ -27,6 +27,8 @@ fs.mkdirSync(OUT + "/lang", { recursive: true });
 {
   const { langs, words } = JSON.parse(fs.readFileSync("i18n.json", "utf8"));
   langs.forEach(([c], i) => fs.writeFileSync(`${OUT}/lang/${c}.json`, JSON.stringify(Object.fromEntries(Object.entries(words).filter(([, xs]) => xs[i]).map(([en, xs]) => [en, xs[i]])))));
+  // Every English line, for a language translated live (lang.js aiWarm).
+  fs.writeFileSync(`${OUT}/lang/_keys.json`, JSON.stringify(Object.keys(words)));
 }
 // A copy of the rules the site can show, so they can be opened on a phone and pasted into the Firebase console.
 fs.copyFileSync("../firestore.rules", OUT + "/firestore.rules.txt");

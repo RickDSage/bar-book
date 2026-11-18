@@ -38,7 +38,7 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   // More: rows that open Allergens, Practise and Cheat sheets, then the Guide, the bar's reference folded away, then this
   // phone's settings. The More tab stays lit on its pages, and the back button returns to it.
   await p.click("[data-tab=info]");
-  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["Allergens", "Cheat sheets", "Bar station", "Practise specs", "Games and drills", "Guide: how Bar Book works", "Replay the walkthrough", "Replay the tour", "Siri and shortcuts", "Send feedback"]);
+  assert.deepEqual(await p.$$eval("#v-info .hrow2 b", (x) => x.map((h) => h.textContent)), ["My pay", "Allergens", "Cheat sheets", "Bar station", "Practise specs", "Games and drills", "Guide: how Bar Book works", "Siri and shortcuts", "Send feedback"]);
   assert.deepEqual(await p.$$eval("#v-info .fold h2", (x) => x.map((h) => h.textContent)), ["Measures and the law", "Technique key and words we use", "Prep and batches",
     "Shot tray, step by step", "Put this app on your home screen", "Reset this phone"]);
   assert.equal(await p.locator("#v-info [data-fold=law][open]").count(), 0, "the reference starts folded");
@@ -50,10 +50,10 @@ test("logged out, drinks and allergens work, and the shift tools ask for a login
   await p.click("#v-allergens [data-back]");
   assert.equal(await p.isVisible("#v-info"), true);
   assert.equal(await p.locator("#v-info [data-fold=law][open]").count(), 1, "a fold stays open when you come back");
-  // The tabs fit a 320px phone, each name on one line: Drinks, Shift, Team, My pay and More. Drinks has three modes
+  // The tabs fit a 320px phone, each name on one line: Drinks, Shift, Team and More (Stock once joined). Drinks has three modes
   // that fit on one line, never a row that scrolls sideways.
   await p.setViewportSize({ width: 320, height: 640 });
-  assert.equal(await p.locator("nav.tabs button:not([hidden])").count(), 5);
+  assert.equal(await p.locator("nav.tabs button:not([hidden])").count(), 4);
   await p.click("nav.tabs [data-tab=drinks]");
   assert.deepEqual(await p.$$eval("#subnav [data-tab]", (x) => x.map((b) => b.textContent)), ["⚡ Rapid fire", "Menu", "Make"]);
   assert.ok(await p.$eval("#subnav", (e) => e.scrollWidth <= e.clientWidth), "the Drinks modes fit");

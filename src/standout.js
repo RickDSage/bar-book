@@ -415,14 +415,35 @@ if (typeof renderAlerts === "function") {
    where it doesn't (most iPhone home screen apps), the box opens with the keyboard so the keyboard's own microphone
    does the listening, and the same key words work typed. Free: the phone's own speech to text, nothing paid. */
 const SD_REC = window.SpeechRecognition || window.webkitSpeechRecognition;
+// Which English the phone listens for. The phone's own speech engine does the hearing and we can't train it, but
+// telling it the accent helps it a lot. In your own language: what you say is translated to English first (live
+// translation), then worked out the same way.
+const SD_ACCENTS = [["en-GB", "English (UK)"], ["en-IE", "English (Ireland)"], ["en-US", "English (US)"], ["en-IN", "English (India)"], ["en-NG", "English (Nigeria)"], ["en-GH", "English (Ghana)"], ["en-ZA", "English (South Africa)"], ["en-AU", "English (Australia)"], ["en-PH", "English (Philippines)"]];
+const sdTag = () => store.get("sd.mic", "en-GB");
+const sdOwn = (tag) => !/^en-/.test(tag);
 SD.vc = { text: "", heard: null, on: false, err: "" };
-const SD_GO = [[/barcode|scan|use.?by|expir/, "count"], [/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"]];
+const SD_GO = [[/barcode|scan|use.?by|expir/, "count"], [/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"], [/dark mode|light mode|theme|setting|accent|my language|one.?hand/, "phone"], [/tick|checklist|to.?do/, "lists"], [/lesson|phrase/, "phrases"], [/quiz|drill|game/, "fun"]];
+// Numbers said as words, for counts: "two and a half" is 2.5, "three quarters" is .75.
+const VC_N = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
+const vcNum = (s) => s.replace(/\b(?:(\w+) and )?(?:a |one )?(half|quarter|three quarters?)\b/g, (w, n, f) => {
+  const whole = n == null ? 0 : n in VC_N ? VC_N[n] : /^\d+$/.test(n) ? +n : null;
+  return whole == null ? w : String(whole + (f === "half" ? 0.5 : f === "quarter" ? 0.25 : 0.75));
+}).replace(/\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b/g, (w) => String(VC_N[w])).replace(/\b(\d+) point (\d)\b/g, "$1.$2");
+// "Guest", "talk to a guest", "French guest", "guest mode Spanish", "translate for a guest": the guest screen, in their
+// language when one is named (in English or in its own words).
+function vcGuest(l) {
+  if (!/\b(?:guests?|tourists?|translat\w*|interpret\w*)\b/.test(l) || /\b(?:wants?|would like|ordered|orders?|having|has)\b/.test(l)) return null;
+  const w = WORLD.find(([c, en]) => new RegExp(`\\b${en.toLowerCase().split(/[ (]/)[0]}\\b`).test(l) || l.includes(` ${langOwn(c).toLowerCase()} `));
+  return { kind: "guest", c: w?.[0] || "", sc: 9, say: w ? `Talk to a guest in ${w[1]}` : "Talk to a guest" };
+}
 // Words said round a command that don't change it.
-const VC_FILL = /\b(?:please|pls|cheers|thanks|thank you|mate|guys|bro|babe|innit|yeah|yes|yep|yo|actually|basically|i think|i reckon|maybe|hey|hi|ok(?:ay)?|right|um+|uh+|erm+|er|so|just|quickly|real quick|now|for me|for us|can you|could you|would you|will you|can we|could we|i need you to|i need to|we need to|need to|i want to|i wanna|let'?s|go ahead and|bar book)\b/g;
+const VC_FILL = /\b(?:please|pls|cheers|thanks|thank you|mate|guys|bro|babe|innit|yeah|yes|yep|yo|actually|basically|i think|i reckon|maybe|hey|hi|ok(?:ay)?|right|um+|uh+|erm+|er|so|just|quickly|real quick|now|for me|for us|can you|could you|would you|will you|can we|could we|i need you to|i need to|we need to|need to|i want to|i wanna|i want|i'?d like|i would like|give me|get me|can i (?:get|have)|let'?s|go ahead and|bar book)\b/g;
 // Words round the thing named that aren't part of its name.
 const VC_STOP = new Set(["the", "a", "an", "some", "any", "our", "all", "of", "we", "ve", "i", "is", "are", "it", "its", "that", "this", "there", "s", "d", "ll", "re", "got", "get", "more", "left", "anymore", "to", "me", "us", "for", "please", "tonight", "today"]);
 function vcNorm(t) {
-  return ` ${t.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[’‘]/g, "'")
+  // Spelt out letter by letter ("M-O-J-I-T-O", "m o j i t o") is one word.
+  t = t.replace(/\b(?:[A-Za-z][\s.\-]+){2,}[A-Za-z]\b/g, (w) => w.replace(/[\s.\-]+/g, ""));
+  return ` ${wdFix(t.toLowerCase().normalize("NFKD").replace(/[̀-ͯ]/g, "").replace(/[’‘]/g, "'"))
     .replace(/\beighty[\s-]?six(?:ed|'?d)?\b/g, "86").replace(/\b8 6\b/g, "86").replace(/\b86(?:ed|'?d|'s)(?![a-z])/g, "86").replace(/\bun[\s-]?86\b/g, "un86")
     .replace(/[^a-z0-9'&.,\s]/g, " ").replace(/[.]+(\s|$)/g, " ").replace(VC_FILL, " ").replace(/\s+/g, " ").trim()} `;
 }
@@ -492,14 +513,18 @@ function vcItems(rest, on) {
   return { kind: "none", sc: 1, say: on ? "86 what? Say the name, like “86 limes”." : "Back in what? Say the name, like “limes are back”.", alts };
 }
 const VC_BACK = /\b(?:back in(?: stock)?|back on(?: the menu)?|un86|restocked|in stock again|(?:is|are|'s) back)\b/;
-const VC_86 = /\b(?:86|we'?ve run out of|we have run out of|ran out of|run out of|run out|sold out of|sold out|out of|no more|none left|(?:is|are|'s) (?:out|gone|finished|done)|we'?ve got no|we have no|there'?s no|take off)\b/;
+const VC_86 = /\b(?:86|(?:we'?re |we are |i'?m )?missing|we'?re out of|we are out of|we'?ve run out of|we have run out of|ran out of|run out of|run out|sold out of|sold out|out of|no more|none left|(?:is|are|'s) (?:out|gone|finished|done)|we'?ve got no|we have no|there'?s no|take off)\b/;
 const VC_SPEC = /\b(?:how (?:do|to|would|d|should)(?: i| you| we| u)? (?:make|build|do|pour|serve)|what'?s in(?: a| an| the)?|what goes in(?: a| an| the)?|specs?(?: for| of| sheet| on)?|recipe(?: for| of)?|builds?(?: for)?|make(?: a| an| me a| me)?|ingredients(?: for| in)?|show me|pull up|bring up|method(?: for)?)\b/;
 const vcCut = (re, s) => s.replace(new RegExp(re.source, "g"), " ");
+// A drink made without something, for one guest: "mojito no sugar", "espresso martini without the coffee liqueur".
+// "no more limes" and "there's no mint" are 86s, not this.
+const VC_WO = /\b(?:without|with ?out|w\/o|with no|minus|hold the|skip the|leave out(?: the)?|but no|no(?! more| left| longer))\b/;
 // What was said, worked out. sc is how much sense it makes, so the best of the phone's guesses wins.
 function sdParse(raw) {
   const t = raw.trim().replace(/[.!?]+$/, ""), l = vcNorm(t);
   let m;
   if (!l.trim()) return { kind: "none", sc: 0, say: "Didn't hear anything. Try again.", alts: [] };
+  const gh = vcGuest(l); if (gh) return gh;
   if (/what can (?:i|we) make/.test(l)) return { kind: "make", sc: 9, say: "Open My bar to see what you can make" };
   if (/last orders?/.test(l)) { const lo = sdLast(); return { kind: "info", sc: 9, say: lo ? `Last orders at ${lo.at}` : "No last orders time set" }; }
   if (/\bwhat(?:'s| is| are|s)? (?:86|out|off)\b|\b86 (?:list|board)\b|\bwhat have we (?:86|run out)/.test(l)) return { kind: "go", go: "stock", sc: 9, say: "Opening the 86 board" };
@@ -507,15 +532,21 @@ function sdParse(raw) {
     const s = m[1].trim(); return { kind: "log", sc: 9, n: vcCap(s), say: `Log "${s}" in tonight's handover?` };
   }
   if (VC_BACK.test(l)) return vcItems(vcCut(VC_BACK, l), false);
+  if ((m = l.match(VC_WO)) && !/\b(?:there'?s no|we have no|we'?ve got no|no more)\b/.test(l)) {
+    const pre = l.slice(0, m.index), post = l.slice(m.index + m[0].length).trim(), dh = vcSpot(pre, pkPool().filter((x) => x.c === "drinks"))[0];
+    if (dh && dh.s >= 2.5 && post) return { kind: "drink", d: D[dh.x.d], wo: post.replace(/^(?:the|a|an|any|some)\s+/, ""), sc: 7, say: `${dh.x.n} without ${post}` };
+  }
   if (/\b86\b/.test(l) && !vcCut(VC_86, l).replace(/\b(?:the|a|an|some)\b/g, "").trim()) return { kind: "go", go: "pick86", sc: 8, say: "Open 86 something" };
   if (VC_86.test(l)) return vcItems(vcCut(VC_86, l), true);
   if (/\b(?:count(?:ed|ing)?|stock count)\b/.test(l)) {
-    const rest = l.replace(/\b(?:stock count|count(?:ed|ing)?|we have|we'?ve got|there (?:are|is)|i)\b/g, " ").trim();
+    const rest = vcNum(l.replace(/\b(?:stock count|count(?:ed|ing)?|we have|we'?ve got|there (?:are|is)|i)\b/g, " ")).trim();
     const p = LIVE.me && rest ? ctParse(rest) : null, r = p && ctRow(p.key);
     if (r) return { kind: "count", sc: 8, p, say: `Count ${r.item}: ${p.grams ? `${p.n} g on the scale` : ctSay(r.u, p.n)}?` };
     return { kind: "go", go: "count", sc: 6, say: rest ? `Open the stock count. Didn't catch the number for “${rest}”.` : "Open the stock count" };
   }
   if ((m = l.match(/\b(?:open|go to|take me to|jump to|show me|show)\s+(.+)/))) { const g = SD_GO.find(([re]) => re.test(m[1])); if (g) return { kind: "go", go: g[1], sc: 8, say: `Opening ${m[1].trim()}` }; }
+  if (/^ (?:tick|check off|mark)\b/.test(l)) return { kind: "go", go: "lists", sc: 7, say: "Opening the closing list: tap it there" };
+  if ((m = l.match(/^ (?:dark|light|gold) (?:mode|theme)? ?$/))) return { kind: "go", go: "phone", sc: 8, say: "Opening This phone: Light or dark" };
   // A drink: with "spec", "how do I make" and the like, or just its name.
   const want = VC_SPEC.test(l), hits = vcSpot(vcCut(VC_SPEC, l), pkPool().filter((x) => x.c === "drinks")), top = hits[0];
   const dAlt = (h) => ({ t: h.x.n, h: { kind: "drink", d: D[h.x.d], sc: 4, say: h.x.n } });
@@ -533,18 +564,20 @@ function vcBest(texts) {
   for (const x of texts.filter(Boolean)) { const h = sdParse(x); if (!best || h.sc > best.h.sc) best = { t: x, h }; }
   return best;
 }
-function sdVoiceOpen() {
+function sdVoiceOpen(typed) {
   let el = $("#sd-voice");
   if (!el) { document.body.insertAdjacentHTML("beforeend", `<div id="sd-voice" class="help" hidden><div class="help-in" role="dialog" aria-modal="true" aria-labelledby="sd-vt"></div></div>`); el = $("#sd-voice"); }
   SD.vc.heard = null; SD.vc.text = ""; SD.vc.on = false; SD.vc.err = ""; sdVoiceRender(); el.hidden = false;
+  if (typed) return;
   if (SD_REC) sdListen(); else setTimeout(() => $("#sd-vtext")?.focus(), 50);
 }
 function sdVoiceRender() {
   const h = SD.vc.heard, acts = h && ["86", "back", "log"].includes(h.kind), alts = h?.alts || [];
   const btn = !h ? "" : acts ? "Yes, do it" : h.kind === "count" ? "Open the count" : h.kind !== "none" && h.kind !== "info" ? "Go" : "";
   $("#sd-voice .help-in").innerHTML = `<div class="help-h"><h3 id="sd-vt">🎤 Say it</h3><button class="hq-x" data-sd-vx aria-label="Close">×</button></div>
+    <label class="sd-vl"><span>🗣 I'm speaking</span><select data-sd-vlang aria-label="Language I'm speaking">${SD_ACCENTS.map(([t, n]) => `<option value="${t}"${sdTag() === t ? " selected" : ""}>${n}</option>`).join("")}${lang && canHear(lang) ? `<option value="${langTag(lang)}"${sdTag() === langTag(lang) ? " selected" : ""}>${esc(langOwn(lang))}${aiOn() ? "" : " (needs live translation)"}</option>` : ""}</select></label>
     ${SD.vc.on ? `<div class="sd-live" role="status"><span class="sd-wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span><b>${SD.vc.live ? "Hearing" : "Listening: speak now"}</b>
-      <p class="sd-livet">${SD.vc.live ? `“${esc(SD.vc.live)}”` : "Say it how you like: a drink, “86 the Corona”, “open closing”."}</p><button class="btn" data-sd-vstop>Done</button></div>` : ""}
+      <p class="sd-livet">${SD.vc.live ? `“${esc(SD.vc.live)}”` : "Just the drink, or a few words: “mojito no sugar”, “missing limes”, “86 mint”."}</p><div class="actions"><button class="btn" data-sd-vclear>Clear, start again</button><button class="btn" data-sd-vstop>Done</button></div></div>` : ""}
     ${SD.vc.err ? `<div class="sd-heard no" role="alert"><b>${esc(SD.vc.err)}</b><div class="actions"><button class="btn pri" data-sd-vagain>${SD_REC ? "\ud83c\udfa4 Try again" : "Try again"}</button></div></div>` : ""}
     ${h ? `<div class="sd-heard${h.kind === "none" ? " no" : ""}">${SD.vc.text && h.kind !== "none" ? `<p class="s">Heard “${esc(SD.vc.text)}”</p>` : ""}${h.close ? `<p class="s">Not sure. The closest drink is:</p>` : ""}<b>${esc(h.say)}</b>${acts ? `<p class="note">${h.kind === "log" ? "It goes in tonight's handover with your name." : h.typed ? "It isn't on the list, so it goes on as said. Or tap the right one below." : "Every phone sees it straight away."}</p>` : ""}
       ${alts.length ? `<p class="mini" style="margin-top:10px">${h.kind === "none" || h.typed ? "Did you mean" : "Or"}</p><div class="recent">${alts.map((a, i) => `<button class="chip" data-sd-valt="${i}" translate="no">${esc(a.t)}</button>`).join("")}</div>` : ""}</div>
@@ -558,12 +591,16 @@ function sdListen() {
     sdRx?.abort?.();
     SD.vc.err = "";
     SD.vc.live = ""; SD.vc.got = false;
-    sdRx = new SD_REC(); sdRx.lang = "en-GB"; sdRx.interimResults = true; sdRx.continuous = false; sdRx.maxAlternatives = 5;
+    sdRx = new SD_REC(); sdRx.lang = sdTag(); sdRx.interimResults = true; sdRx.continuous = !!SD.vc.ptt; sdRx.maxAlternatives = 5;
     sdRx.onresult = (e) => {
       const r = e.results[e.results.length - 1];
+      // Held like a radio: keep listening through pauses and act on all of it when the button is let go (onend).
+      if (SD.vc.ptt) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t && SD.vc.live) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing. Let go when you're done"; } return; }
       // Still talking: show the words so far, so it's plain it's working.
       if (r.isFinal === false) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing"; } return; }
-      const b = vcBest(Array.from({ length: r.length }, (_, i) => r[i].transcript));
+      const said = Array.from({ length: r.length }, (_, i) => r[i].transcript);
+      if (sdOwn(sdTag())) { SD.vc.got = true; SD.vc.on = false; return sdFromOwn(said[0]); }
+      const b = vcBest(said);
       if (!b) return;
       SD.vc.got = true; SD.vc.text = b.t; SD.vc.on = false; sdHeard(b.h);
     };
@@ -571,15 +608,41 @@ function sdListen() {
       SD.vc.on = false;
       SD.vc.err = e.error === "not-allowed" || e.error === "service-not-allowed" ? "The microphone is off for Bar Book. Allow it in the phone's settings, or tap the 🎤 on the keyboard and speak into the box."
         : e.error === "no-speech" ? "Didn't hear anything. Try again, close to the phone, or type it below." : e.error === "network" ? "Speech needs signal on this phone. Type it below, or use the keyboard's 🎤."
+        : e.error === "language-not-supported" ? "This phone can't listen in that language. Pick English (UK) above, or type it below."
         : e.error === "aborted" ? "" : "Couldn't make that out. Try again, or type it below.";
       SD.vc.got = true; sdVoiceRender(); if (e.error !== "no-speech") $("#sd-vtext")?.focus();
     };
     // Stopped with nothing made out: say so, never just go quiet.
-    sdRx.onend = () => { document.body.classList.remove("sd-listening"); if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
+    sdRx.onend = () => {
+      document.body.classList.remove("sd-listening");
+      if (SD.vc.ptt) { SD.vc.ptt = false; const b = SD.vc.on && SD.vc.live && vcBest([SD.vc.live]); if (b) { SD.vc.got = true; SD.vc.text = b.t; SD.vc.on = false; return sdHeard(b.h); } }
+      if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
     SD.vc.on = true; document.body.classList.add("sd-listening"); sdVoiceRender(); sdRx.start();
   } catch { SD.vc.on = false; sdVoiceRender(); $("#sd-vtext")?.focus(); }
 }
-function sdSpeak(t) { if (!SD.set.sound) return; try { const u = new SpeechSynthesisUtterance(t); u.lang = "en-GB"; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} }
+// Said in your own language: shown as heard, put into English (live), then worked out.
+async function sdFromOwn(t) {
+  SD.vc.text = t; SD.vc.live = "";
+  if (!aiOn()) { SD.vc.err = `Heard “${t}”. Commands in ${langEn(lang)} need live translation (Maintenance switches it on in More). Say it in English, or type it.`; return sdVoiceRender(); }
+  SD.vc.heard = { kind: "info", sc: 0, say: "Putting it into English…" }; sdVoiceRender();
+  try { const [en] = await LIVE.api.translate([t], "English", langEn(lang)); SD.vc.text = `${t} → ${en}`; sdHeard(sdParse(en)); }
+  catch { SD.vc.heard = null; SD.vc.err = "Couldn't translate that. Check the signal, or say it in English."; sdVoiceRender(); }
+}
+/* Hold to talk, like a radio (push-to-talk, as on Zello or a walkie-talkie): hold 🎤 for a moment, talk, let go. It
+   listens for as long as it's held, pauses and all, so a noisy bar can't cut it off half-way, and it stops the moment
+   you let go instead of picking up the next conversation. A quick tap still works the old way. */
+let sdPtt = null;
+document.addEventListener("pointerdown", (e) => {
+  if (!SD_REC || !e.target.closest("[data-sd-mic]")) return;
+  clearTimeout(sdPtt?.t);
+  sdPtt = { held: false, t: setTimeout(() => { sdPtt.held = true; SD.vc.ptt = true; haptic(); sdVoiceOpen(); const b = $("#sd-voice .sd-live b"); if (b) b.textContent = "Talk now. Let go when you're done"; }, 300) };
+});
+const sdPttUp = () => { if (!sdPtt) return; clearTimeout(sdPtt.t); if (sdPtt.held) try { sdRx?.stop(); } catch {} };
+document.addEventListener("pointerup", sdPttUp);
+document.addEventListener("pointercancel", sdPttUp);
+document.addEventListener("contextmenu", (e) => { if (e.target.closest("[data-sd-mic]")) e.preventDefault(); });
+document.head.insertAdjacentHTML("beforeend", "<style>[data-sd-mic]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}</style>");
+function sdSpeak(t) { if (!SD.set.sound) return; try { const u = new SpeechSynthesisUtterance(t); u.lang = "en-GB"; const v = sayVoice(); if (v) u.voice = v; u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} }
 function sdVoiceClose() { sdRx?.abort?.(); SD.vc.on = false; document.body.classList.remove("sd-listening"); const el = $("#sd-voice"); if (el) el.hidden = true; }
 // What was said, worked out: a drink opens straight away (it changes nothing), with the closest others to tap if it's
 // not the one. Anything that changes something waits for Yes.
@@ -593,9 +656,32 @@ function sdNotIt(t, h) {
   let el = $("#sd-notit");
   if (!el) { document.body.insertAdjacentHTML("beforeend", `<div id="sd-notit" class="sd-notit" role="status"></div>`); el = $("#sd-notit"); }
   SD.vc.nit = h.alts || [];
-  el.innerHTML = `<span>\ud83c\udfa4 ${t ? `“${esc(t)}”: ` : ""}<b translate="no">${esc(h.d.name)}</b>${h.close ? " (closest)" : ""}</span>${SD.vc.nit.length ? `<span class="sd-nl">Not it?</span>${SD.vc.nit.map((a, i) => `<button class="chip" data-sd-nit="${i}" translate="no">${esc(a.t)}</button>`).join("")}` : ""}<button class="sd-nx" data-sd-nitx aria-label="Close">\u00d7</button>`;
+  el.innerHTML = `<span class="sd-ng" aria-hidden="true">${glass(h.d)}</span><span>\ud83c\udfa4 ${t ? `“${esc(t)}”: ` : ""}<b translate="no">${esc(h.d.name)}</b>${h.wo ? ` without ${esc(h.wo)}` : ""}${h.close ? " (closest)" : ""}</span>${SD.vc.nit.length ? `<span class="sd-nl">Not it?</span>${SD.vc.nit.map((a, i) => `<button class="chip" data-sd-nit="${i}" translate="no">${esc(a.t)}</button>`).join("")}` : ""}<button class="sd-nx" data-sd-nitx aria-label="Close">\u00d7</button>`;
   el.hidden = false; clearTimeout(sdNotIt.t); sdNotIt.t = setTimeout(() => { el.hidden = true; }, 10000);
 }
+// "Without" for one guest: the spec line it means is marked "leave out", with the closest bottle in the bar of the same
+// kind to use instead. Nothing is saved: it's for this one drink.
+function sdWithout(d, wo) {
+  const it = vcSpot(wo, pkPool().filter((x) => x.c !== "drinks"))[0]?.x, ws = pkWords(it ? it.n : wo).filter((w) => w.length > 2 && !VC_STOP.has(w));
+  const i = d.spec.findIndex((l) => ws.some((w) => pkFit(w, pkWords(l)) >= 1.2));
+  if (i < 0) return toast(`Couldn't find “${wo}” in the ${d.name} spec. Check it by eye`);
+  const mi = it && MK.items.find((x) => x.n === it.n), out = plOutKeys(), inDrink = new Set((MK.reqs.get(d.id) || []).map((r) => r.it.k));
+  const alt = mi && MK.items.find((x) => x !== mi && !out.has(x.k) && !inDrink.has(x.k) && plStocked.has(x.k) && x.kind === mi.kind);
+  const t = `Leave out for this one${alt ? `, or use ${alt.n}` : ""}`, li = $$("#sheet ul.spec > li")[i];
+  if (li && !li.querySelector(".sd-wo")) { li.insertAdjacentHTML("beforeend", `<em class="pl-swap sd-wo" translate="no">→ ${esc(t)}</em>`); li.scrollIntoView({ block: "center" }); }
+  toast(`${d.name} without ${wo}: marked on the spec`);
+}
+// Typed, not said: the same understanding from the search boxes ("86 mint", "mojito no sugar", "missing limes").
+const SD_CMD = /\b(?:86|eighty|missing|out of|run out|ran out|sold out|back in|is back|are back|restocked|without|w\/o|hold the|no|log it|count)\b/i;
+function sdTypedHit(q) {
+  if (!q || q.trim().length < 4 || !SD_CMD.test(q)) return null;
+  const h = sdParse(q);
+  return ["86", "back", "log", "count"].includes(h.kind) || (h.kind === "drink" && h.wo) ? h : null;
+}
+function sdTypedHtml(q) { const h = sdTypedHit(q); return h ? `<div class="sd-typed"><button class="btn pri" data-sd-typed="${esc(q)}">${h.kind === "drink" ? "🍸" : "⚡"} ${esc(h.say)}</button></div>` : ""; }
+function sdTyped(q) { sdVoiceOpen(true); SD.vc.text = q; sdHeard(sdParse(q)); }
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-sd-typed]"); if (!b) return; haptic(); helpClose(); sdTyped(b.dataset.sdTyped); });
+document.addEventListener("change", (e) => { if (!e.target.matches?.("[data-sd-vlang]")) return; store.set("sd.mic", e.target.value); haptic(); if (SD.vc.on && SD_REC) sdListen(); });
 function sdVoiceGo() {
   const h = SD.vc.heard; if (!h) return;
   sdVoiceClose(); haptic();
@@ -607,7 +693,8 @@ function sdVoiceGo() {
     pk86(xs, on); renderList(); sdCue("ok"); return;
   }
   if (h.kind === "log") { if (!LIVE.me) return toast("Join the team to log it"); sdCue("ok"); return track(LIVE.api.logIt(mode, "note", h.n.slice(0, LOG_MAX)), "Logged. It's in tonight's handover", "Not saved. Try again"); }
-  if (h.kind === "drink") { if (cur === "station") { if (!$("#sheet").hidden) hideSheet(); return sxTap(h.d.id); } return openSheet(h.d.id); }
+  if (h.kind === "drink") { if (cur === "station" && !h.wo) { if (!$("#sheet").hidden) hideSheet(); return sxTap(h.d.id); } openSheet(h.d.id); if (h.wo) setTimeout(() => sdWithout(h.d, h.wo), 120); return; }
+  if (h.kind === "guest") { guestOpen(); if (h.c) setTimeout(() => $(`#guest [data-g-lang="${h.c}"]`)?.click() ?? (GUEST.c = h.c, GUEST.step = "hello", gRender()), 80); return; }
   if (h.kind === "make") { mk.pane = "bar"; mkSave(); return openAt("tab:make"); }
   if (h.kind === "count") { if (!LIVE.me) return toast("Join the team to count stock"); openAt("count"); ctHeard = { ...h.p }; ctRender(true); return; }
   if (h.kind === "go") { if (h.go === "pick86") return pkOpen({ mode: "86" }); if (h.go === "count" && !LIVE.me) return toast("Join the team to count stock"); openAt(h.go); scrollTo(0, 0); }
@@ -643,11 +730,11 @@ function sdOneHand(k) {
 }
 function sdPhoneHtml() {
   if (!SD_READY) return "";
-  const row = (k, t, sub) => `<div class="mini" style="margin-top:14px">${t}</div><div class="seg" style="grid-template-columns:1fr 1fr;margin-top:6px" role="group" aria-label="${t}"><button data-sd-set="${k}:1" aria-pressed="${!!SD.set[k]}">On</button><button data-sd-set="${k}:0" aria-pressed="${!SD.set[k]}">Off</button></div><p class="note">${sub}</p>`;
-  return row("a11y", "Accessible mode", "Easier to read: plain headings, bigger text and spacing, colour-blind-safe colours, bigger buttons.")
-    + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and voice in a row above the tabs, in reach of your thumb.")
-    + row("sound", "Sounds", "A short sound for urgent things, last orders and a new best close. Android phones buzz too; iPhones can't from a web app.")
-    + row("voice", "Voice button 🎤", "In the top bar. Say a drink and it opens, or \"86 the Corona\", \"count tonic 12\". It picks out the key words, shows them as it hears them, and nothing changes until you say yes.");
+  const row = (k, t, sub) => `<div class="setrow"><span><b>${t}</b><small>${sub}</small></span><div class="seg" style="grid-template-columns:1fr 1fr" role="group" aria-label="${t}"><button data-sd-set="${k}:1" aria-pressed="${!!SD.set[k]}">On</button><button data-sd-set="${k}:0" aria-pressed="${!SD.set[k]}">Off</button></div></div>`;
+  return row("a11y", "Accessible mode", "Bigger text and buttons, plain headings, colour-blind-safe colours")
+    + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and 🎤 above the tabs, in thumb reach")
+    + row("sound", "Sounds", "Urgent things, last orders, a new best close. iPhones can't buzz")
+    + row("voice", "Voice button 🎤", "Tap it, or hold it like a radio. Nothing changes until you say yes");
 }
 
 /* ---------- Where it all goes ---------- */
@@ -667,7 +754,7 @@ Object.assign(PLACE_KW, { replay: "replay timeline night history what happened",
 /* ---------- Events ---------- */
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
-  if (t("[data-sd-mic]")) { haptic(); return sdVoiceOpen(); }
+  if (t("[data-sd-mic]")) { if (sdPtt?.held) { sdPtt = null; return; } sdPtt = null; SD.vc.ptt = false; haptic(); return sdVoiceOpen(); }
   if ((x = t("[data-sd-1h]"))) return sdOneHand(x.dataset.sd1h);
   if ((x = t("[data-sd-set]"))) { const [k, v] = x.dataset.sdSet.split(":"); SD.set[k] = v === "1"; sdSave(); sdApplyModes(); haptic(); if (k === "sound" && SD.set.sound) sdCue("ok"); x.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === x)); return; }
   if ((x = t("[data-sd-flow]"))) {
@@ -685,6 +772,7 @@ document.addEventListener("click", (e) => {
     if ((x = t("[data-sd-valt]"))) { const a = SD.vc.heard?.alts?.[+x.dataset.sdValt]; if (a) { haptic(); sdHeard({ ...a.h, alts: [] }); } return; }
     if (t("[data-sd-vagain]")) { SD.vc.heard = null; SD.vc.err = ""; if (SD_REC) sdListen(); else { sdVoiceRender(); $("#sd-vtext")?.focus(); } return; }
     if (t("[data-sd-vstop]")) { haptic(); sdRx?.stop?.(); return; }
+    if (t("[data-sd-vclear]")) { haptic(); SD.vc.live = ""; SD.vc.heard = null; return sdListen(); }
   }
   if ((x = t("[data-sd-rp-day]"))) { SD.rp.day = x.dataset.sdRpDay; haptic(); sdReplayLoad(); return; }
   if ((x = t("[data-sd-rp-side]"))) { SD.rp.side = x.dataset.sdRpSide; haptic(); renderCard("replay"); return; }
@@ -760,7 +848,8 @@ body.sd-listening .sd-micb{background:var(--warn)!important;border-color:var(--w
 .sd-wave i:nth-child(2){animation-delay:.15s}.sd-wave i:nth-child(3){animation-delay:.3s}.sd-wave i:nth-child(4){animation-delay:.45s}.sd-wave i:nth-child(5){animation-delay:.6s}
 @keyframes sdw{50%{height:24px}}@media (prefers-reduced-motion:reduce){.sd-wave i,body.sd-listening .sd-micb{animation:none}}
 .sd-notit{position:fixed;left:max(10px,env(safe-area-inset-left,0px));right:max(10px,env(safe-area-inset-right,0px));bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 10px);z-index:30;display:flex;flex-wrap:wrap;align-items:center;gap:6px 8px;padding:10px 40px 10px 14px;border:1.5px solid var(--brass);border-radius:14px;background:var(--surface);box-shadow:0 8px 24px #0006;font-size:15px}
-.sd-notit .chip{margin:0}.sd-nl{color:var(--muted)}.sd-nx{position:absolute;top:4px;right:4px;width:36px;height:36px;font-size:20px;color:var(--muted)}
+.sd-notit .chip{margin:0}.sd-ng{width:30px;height:36px;flex:none}.sd-ng svg{width:100%;height:100%}.sd-typed{margin:6px 0}.sd-typed .btn{width:100%;text-align:start}
+.sd-vl{display:flex;align-items:center;gap:8px;margin:0 0 10px;font-size:14px;color:var(--muted)}.sd-vl select{flex:1;min-width:0;font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:6px 8px}.sd-nl{color:var(--muted)}.sd-nx{position:absolute;top:4px;right:4px;width:36px;height:36px;font-size:20px;color:var(--muted)}
 body.stmode .sd-notit,#sheet:not([hidden])~.sd-notit{bottom:calc(env(safe-area-inset-bottom,0px) + 10px)}
 .sd-state{margin:10px 0;padding:10px 12px;border:1.5px solid var(--ok);border-radius:12px;background:var(--surface);line-height:1.4}.sd-state>b{display:block;color:var(--ok);font-size:17px}
 .sd-state>span,.sd-state small{display:block;color:var(--muted);font-size:13px;margin-top:2px}.sd-state.swap{border-color:var(--brass)}.sd-state.swap>b{color:var(--brass)}.sd-state.no{border-color:var(--warn)}.sd-state.no>b{color:var(--warn)}.sd-adj{display:inline-block;margin:2px 0 4px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--warn);border:1px solid var(--warn);border-radius:999px;padding:1px 8px}

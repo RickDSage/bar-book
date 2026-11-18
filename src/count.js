@@ -723,11 +723,48 @@ function ctIntroHtml() {
 }
 
 /* ---- Deliveries in, and usage between counts ---- */
+// 📷 Read the note: a photo (or the emailed PDF) of the delivery note is read on this phone by the same free text reader
+// as payslips. Each line that names something on the count comes back ticked with the first plain number on it as how
+// many; the person checks each against the paper (cases or single ones) and logs the ticked ones in one go.
+var ctNote = null;
+function ctNoteLines(text) {
+  const names = [...new Set(ctRows().map((r) => r.item))], seen = [];
+  for (const line of text.split("\n")) {
+    const ts = ctWords(line); if (ts.length < 2) continue;
+    let best = null;
+    for (let i = 0; i < ts.length; i++) for (let j = i + 1; j <= Math.min(ts.length, i + 4); j++) {
+      const win = ts.slice(i, j); if (!win.every((w) => /^[a-z]{2,}$/.test(w)) || (win.length === 1 && win[0].length < 4)) continue;
+      for (const n of names) { const s = ctScore(win, n); if (s != null && s <= (win.length > 1 ? 1 : 0.6) && (!best || s - win.length * 0.01 < best.s)) best = { s: s - win.length * 0.01, item: n, i, j }; }
+    }
+    if (!best) continue;
+    const rest = ts.filter((_, k) => k < best.i || k >= best.j), q = rest.findIndex((w, k) => /^\d{1,3}$/.test(w) && +w > 0 && !/^(cl|ml|l|ltr|litre|litres|g|kg|x|pct)$/.test(rest[k + 1] || ""));
+    const r = ctRows().find((x) => x.item === best.item);
+    seen.push({ item: best.item, u: r.u, n: q < 0 ? "" : +rest[q], on: q >= 0, line: line.trim().slice(0, 60) });
+  }
+  return seen;
+}
+function ctNoteHtml() {
+  if (!ctNote) return "";
+  if (ctNote.busy) return `<p class="note" id="ct-note-busy" role="status">${esc(ctNote.busy)}</p>`;
+  const on = ctNote.rows.filter((x) => x.on && x.n > 0).length;
+  return `<div class="ct-note" role="region" aria-label="Read from the delivery note">${ctNote.rows.length ? `<p class="s"><b>${ctNote.rows.length} line${ctNote.rows.length === 1 ? "" : "s"} found.</b> Check each number against the note (cases or single ones), untick anything wrong.</p>
+    ${ctNote.rows.map((x, i) => `<div class="ct-nrow"><input type="checkbox" id="ct-n${i}" data-ct-note-on="${i}"${x.on ? " checked" : ""}><label for="ct-n${i}">${esc(x.item)}<small>${esc(x.line)}</small></label><input type="number" inputmode="decimal" min="0" step="any" data-ct-note-n="${i}" value="${x.n}" aria-label="How many ${esc(x.item)}"><span class="s">${esc(x.u)}</span></div>`).join("")}`
+    : `<p class="note">Nothing on the note matched the count. Try a closer, flatter photo in good light, or type each one above.</p>`}
+    <div class="actions">${on ? `<button class="btn pri" id="ct-note-go">Log ${on} ticked</button>` : ""}<button class="btn" id="ct-note-x">Close</button></div></div>`;
+}
+async function ctNoteRead(el) {
+  const files = [...el.files]; el.value = ""; if (!files.length) return;
+  const say = (m) => { ctNote = { busy: m }; const b = $("#ct-note-busy"); if (b) b.textContent = m; else ctRender(true); };
+  say("Reading the note…");
+  let texts;
+  try { texts = await readFiles(files, say, true); } catch { ctNote = null; ctRender(true); return toast("The text reader needs signal the first time. Try again with signal"); }
+  ctNote = { rows: ctNoteLines(texts.join("\n")) }; ctInHtml.open = true; ctRender(true);
+}
 function ctInHtml() {
   const ins = (LIVE.received || []).filter((x) => x.day === ctDay);
-  return `<details class="setup" id="ct-in-box"${ctInHtml.open ? " open" : ""}><summary>Delivery in${ins.length ? ` (${ins.length})` : ""}</summary>
-    <p class="note">Log what came in, so usage between counts is right. Like “Smirnoff 6” or “Limes 2 boxes”: the count's own units.</p>
-    <div class="ltools"><input id="ct-in" maxlength="80" autocomplete="off" placeholder="What came in, and how many" aria-label="What came in"><button class="btn" id="ct-in-go">Log it</button></div>
+  return `<details class="setup" id="ct-in-box"${ctInHtml.open || ctNote ? " open" : ""}><summary>Delivery in${ins.length ? ` (${ins.length})` : ""}</summary>
+    <p class="note">Log what came in, so usage between counts is right. Like “Smirnoff 6” or “Limes 2 boxes”: the count's own units. Or 📷 Read the note: a photo of the delivery note, or its PDF.</p>
+    <div class="ltools"><input id="ct-in" maxlength="80" autocomplete="off" placeholder="What came in, and how many" aria-label="What came in"><button class="btn" id="ct-in-go">Log it</button><label class="btn" for="ct-in-ph">📷 Read the note</label><input type="file" accept="image/*,application/pdf" id="ct-in-ph" hidden></div>${ctNoteHtml()}
     ${ins.map((x) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(x.item)}: ${ctSay(x.unit, x.qty / 100)}<div class="s">${esc(x.name)}</div></div>${x.uid === LIVE.uid || LIVE.admin ? `<button class="btn" data-ct-in-drop="${x.id}">Take off</button>` : ""}</div>`).join("")}</details>`;
 }
 // Usage per product between the last counts: the count before, plus what came in, less this count. A drop much bigger
@@ -940,6 +977,11 @@ $("#v-count").addEventListener("click", (e) => {
     track(LIVE.api.addReceived({ day: ctDay, item: hr.item, unit: hr.u, qty: Math.round(p.n * 100) }), `${hr.item}: ${ctSay(hr.u, p.n)} in`, "Not saved. Check the signal and try again");
     $("#ct-in").value = ""; return;
   }
+  if (t("#ct-note-x")) { ctNote = null; return ctRender(true); }
+  if (t("#ct-note-go")) {
+    const xs = ctNote.rows.filter((x) => x.on && x.n > 0); ctNote = null; ctRender(true);
+    return track(Promise.all(xs.map((x) => LIVE.api.addReceived({ day: ctDay, item: x.item, unit: x.u, qty: Math.round(x.n * 100) }))), `${xs.length} logged in`, "Not saved. Check the signal and try again");
+  }
   const id = t("[data-ct-in-drop]"); if (id) return track(LIVE.api.dropReceived(id.dataset.ctInDrop), "Taken off", "Not taken off. Try again");
   if (t("#ct-use-go")) return ctUseLoad();
   if (t("[data-ct-unit]")) { ctMlFirst = !ctMlFirst; store.set("ctMlFirst", ctMlFirst); toast(ctMlFirst ? "Sizes in ml first. 10 ml = 1 cl" : "Sizes in cl first. 1 cl = 10 ml"); return ctRender(true); }
@@ -1020,6 +1062,9 @@ $("#v-count").addEventListener("change", (e) => {
   if (!$("#ct")) return;
   const el = e.target;
   if (el.id === "ct-ph-in" || el.id === "ct-ref-in") return ctPhoto(el);
+  if (el.id === "ct-in-ph") return ctNoteRead(el);
+  if (el.dataset.ctNoteOn) { ctNote.rows[+el.dataset.ctNoteOn].on = el.checked; return ctRender(true); }
+  if (el.dataset.ctNoteN) { const x = ctNote.rows[+el.dataset.ctNoteN], n = +el.value.replace(",", "."); x.n = n > 0 ? n : ""; x.on = n > 0; el.blur(); return ctRender(true); }
   if (el.id === "ct-day") { ctDay = el.value && el.value <= shiftDay() ? el.value : shiftDay(); ctOpen = ""; ctUse = null; el.blur(); return ctRender(); }
   if (el.id === "ct-type") { const r = ctRow(ctOpen), n = +el.value.replace(",", "."); el.blur(); if (r && el.value.trim() !== "" && n >= 0) { ctPut(r, Math.floor(n + 1e-9), ((n + 1e-9) % 1) * 100); return ctNext(r.key, true); } return ctRender(); }
   if (el.dataset.ctG) {
