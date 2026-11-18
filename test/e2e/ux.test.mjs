@@ -24,7 +24,7 @@ test("the drinks search finds pages, and the section counts follow it", async ()
   // A drink word brings no pages, and the row under the search says how many drinks are left.
   await S.fill("#q", "gin");
   assert.equal(await S.$("#quick [data-goto]"), null);
-  const all = +(await S.$eval("#dbar .dj", (e) => e.textContent)).match(/\d+/)[0];
+  const all = +(await S.$eval("#count", (e) => e.textContent)).match(/\d+/)[0];
   assert.equal(all, await S.evaluate(() => listIds.length));
   assert.ok(all < 301);
   // Kinds of drink are in Filters.

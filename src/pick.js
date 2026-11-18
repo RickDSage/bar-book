@@ -1,6 +1,7 @@
 /* ---------- Pick an item: one picker for the whole app ----------
    The 86 board, the bar station, Log it, restocking, running low and date labels all choose items the
-   same way: type a few letters (typos are fine), tap a kind, or scroll. Recent and the team's most 86'd sit on top.
+   same way: type a few letters (typos are fine), tap a kind, or scroll it A to Z with the letter strip down the side.
+   What's 86'd now, recent and the team's most 86'd sit on top.
    It reads the one item list the app already has (the stock list plus what the team has added, the bar's own line-up
    and the drinks), and the 86 board is still the one source: an 86 here is the same 86 everywhere.
    Modes: "86" picks several and 86s or brings them back (or one tap on a row), "one" picks one and closes,
@@ -149,14 +150,15 @@ function pkList() {
   const base = pkBase(), hits = pkSearch(PK.q, base).filter((x) => PK.cat === "all" || x.c === PK.cat), q = PK.q.trim();
   let html = "", top = "";
   if (!q && PK.cat === "all") {
-    // Nothing typed: what's 86'd now, then the usual ones, then everything by kind, to scroll.
+    // Nothing typed: what's 86'd now, then the usual ones, then everything A to Z (the kinds are the chips above).
     const have = new Set(base.map((x) => x.n));
     const now = PK.mode === "86" ? [...outNow()].sort() : [], usual = pkTop(PK.side, 6).filter((n) => have.has(n) && !now.includes(n));
     if (now.length) top += `<div class="mini pk-h">86'd now (${now.length})</div>${now.map((n) => pkRow(pkByName(n))).join("")}`;
     if (usual.length) top += `<div class="mini pk-h">${pkRecent().length ? "Recent and most 86'd" : "Most 86'd"}</div>${usual.map((n) => pkRow(pkByName(n))).join("")}`;
-    if (top) top += `<div class="mini pk-h">Or pick a kind</div>`;
-    for (const [c, t] of PK_CATS) { const xs = base.filter((x) => x.c === c); if (xs.length) html += `<div class="mini pk-h">${t}</div>${xs.map(pkRow).join("")}`; }
-  } else {
+    if (top) top += `<div class="mini pk-h">Everything, A to Z</div>`;
+    html = azHtml(base, (x) => x.n, pkRow);
+  } else if (!q) html = azHtml(hits, (x) => x.n, pkRow);
+  else {
     const shown = hits.slice(0, 80);
     html = shown.map(pkRow).join("") + (hits.length > 80 ? `<p class="note">${hits.length - 80} more: type a little more.</p>` : "");
     const exact = q && hits.some((x) => x.n.toLowerCase() === q.toLowerCase());

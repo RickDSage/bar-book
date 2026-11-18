@@ -80,33 +80,36 @@ test("search fixes typos, understands mocktail, and filters and sort narrow the 
   assert.deepEqual(await p.$$eval("#plf .pl-off", (x) => x.map((e) => e.textContent)), ["Gin", "Stirred", "Sort: Strongest"]);
   await p.click('#plf [data-pl="clear"]');
   assert.equal(await p.evaluate(() => listIds.length), await p.evaluate(() => D.length));
-  // The menu shows every drink, each section once with all its drinks, and the bar jumps to any section.
+  // A to Z, the default: the signatures first, then every drink (signatures too) under its letter.
+  assert.equal(await p.$$eval("#list .row", (x) => x.length), await p.evaluate(() => D.length + D.filter((d) => d.section === "Black Tap Signatures").length));
+  assert.equal(await p.$eval('#list [data-az="★"]', (e) => e.firstChild.textContent), "Black Tap Signatures");
+  assert.ok(await p.evaluate(() => listIds.every((id, i) => !i || azCmp(D[listIds[i - 1]].name, D[id].name) <= 0)));
+  // The letter strip down the side goes straight to a letter, just under the search bar.
+  assert.equal(await p.$eval("#az-rail", (e) => e.textContent.slice(0, 3)), "★AB");
+  await p.click('#az-rail [data-azk="M"]');
+  await p.waitForFunction(() => Math.abs(document.querySelector('#list [data-az="M"]').getBoundingClientRect().top - $("#hdr").getBoundingClientRect().bottom) < 40);
+  await p.waitForFunction(() => $('#az-rail [data-azk="M"]').getAttribute("aria-current") === "true");
+  // A search has no letters, so no strip.
+  await p.fill("#q", "rum");
+  await p.waitForFunction(() => $("#az-rail").hidden);
+  await p.fill("#q", "");
+  // Sections: each section once with all its drinks; the Sections button names the one you're in and jumps to any.
+  await p.click('#dbar [data-dview="menu"]');
   assert.equal(await p.$$eval("#list .row", (x) => x.length), await p.evaluate(() => D.length));
   const heads = await p.$$eval("#list .sec", (x) => x.map((e) => e.firstChild.textContent));
   assert.deepEqual(heads, [...new Set(heads)]);
-  // One row under the search: Jump to lists every section with its count, and names the one you're in.
   assert.equal(await text(p, "#dbar .dj"), "Signatures");
   await p.click("#dbar .dj");
   assert.deepEqual(await p.$$eval("#dpanel [data-jump]", (x) => x.map((e) => e.firstChild.textContent.trim())), await p.evaluate((h) => h.map(secName), heads));
   await p.click('#dpanel [data-jump]:has-text("No alcohol")');
   assert.equal(await p.locator("#dpanel").isHidden(), true);
   await p.waitForFunction(() => { const z = [...document.querySelectorAll("#list .sec")].find((e) => e.firstChild.textContent === "Zero Proof"); return Math.abs(z.getBoundingClientRect().top - $("#hdr").getBoundingClientRect().bottom) < 80; });
+  await p.waitForFunction(() => $("#dbar .dj").textContent === "No alcohol");
   // The search bar stays on screen however far down the menu you are.
   assert.ok(await p.evaluate(() => scrollY > 2000 && $("#hdr").getBoundingClientRect().top >= 0));
-  // A to Z: letters to jump to, and a heading over each letter.
-  await p.click("#dbar [data-dp=filters]");
-  await p.click('[data-pl-sort="az"]');
-  await p.click('[data-pl=done]');
-  await p.click("#dbar .dj");
-  const letters = await p.$$eval("#dpanel [data-jump]", (x) => x.map((e) => e.textContent));
-  assert.ok(letters.includes("A") && letters.includes("M"));
-  await p.click('#dpanel [data-jump="az-M"]');
-  await p.waitForFunction(() => Math.abs(document.querySelector("#az-M").getBoundingClientRect().top) < 400);
-  await p.waitForFunction(() => $("#dbar .dj").textContent === "M");
-  // Sort shows as a chip above the list while it isn't the menu order.
-  assert.match(await text(p, "#plf"), /Sort: A to Z/);
-  await p.click("#dbar [data-dp=filters]"); await p.click('[data-pl-sort="menu"]');
-  await p.click('[data-pl=done]');
+  // Sections is remembered on this phone; A to Z goes back.
+  assert.equal(await p.evaluate(() => store.get("dview")), "menu");
+  await p.click('#dbar [data-dview="az"]');
   // Kinds of drink are in Filters, and each one on shows above the list.
   await p.click("#dbar [data-dp=filters]");
   await p.click('#dpanel [data-pl-fam="margarita"]');

@@ -7,12 +7,13 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 5;
-const WALK_NEW = "Stock count: every bottle comes with its size and weights filled in, each line says what to do, and the first time it walks you through it with pictures.";
+const WALK_V = 6;
+const WALK_NEW = "Long lists scroll A to Z: the drinks (signatures first), the 86 picker and the stock count have a letter strip down the right. Tap a letter or slide your finger down it.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
+  "Long lists scroll A to Z, like your phone's contacts: the drinks, the 86 picker, the stock count. Tap a letter on the strip down the right, or slide your finger down it.",
   "Hands full? Tap 🎤 and say it how you like, like “can you 86 the Corona” or “Negroni spec”: it picks out the key words. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
   "? at the top right opens the Guide: every part of Bar Book by section, and a search for anything, like “how do I make a mojito” or “what's a dry shake”.",
 ], tip: "× closes this at any time. More, Replay the walkthrough brings it back." };
@@ -24,7 +25,7 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
 const WALK_COUNT = { t: "Stock count", how: [
   "Shift, Stock, Count stock: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left.",
   "Tap an item: + for each full, sealed bottle, then the open one on the scale in grams (or tap how full it is). Next › opens the one after.",
-  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or tap A to Z and use the letter strip. Or 🎤 Say it: “Smirnoff two and a half”.",
   "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
 ], tip: "No signal in the cellar? It saves anyway and sends when you're back." };
 const WALK_SEND = { t: "Hand over and send", how: [
