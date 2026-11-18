@@ -8802,7 +8802,7 @@ function plStatsHtml(d, n = 1) {
   const cell = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
   const vol = (u) => (PL.oz ? `${(u / 29.57).toFixed(1)} oz` : `${Math.round(u)} ml`);
   return `<div class="pl-stats" role="list">${[
-    f.free ? cell("0", "Alcohol-free") : cell(plU(f.units * n) + per, n > 1 ? `UK units for ${n}` : "UK units"),
+    f.free ? cell("0", "Alcohol-free") : cell(plU(f.units * n), n > 1 ? `UK units for ${n}` : "UK units"),
     cell(f.free ? "0%" : "≈" + plPct(f.abv), "In the glass"),
     cell("≈" + plRound(f.kcal * n), n > 1 ? `kcal for ${n}` : "kcal"),
     cell(vol(f.vol * n), n > 1 ? `Liquid for ${n}` : "Liquid"),
@@ -11209,7 +11209,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T01:01";
+const BUILD = "2026-11-18T01:18";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
