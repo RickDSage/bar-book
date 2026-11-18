@@ -21,7 +21,7 @@ const WALK_NEW = [
 const WALK_NAV_LINE = "🔍 at the top finds any screen, drink or how-to. 🎤 beside it: hold it like a radio and talk, or tap it. ⌂ goes home, ‹ Back goes back.";
 const WALK_BRIEF_LINE = "The ring at the top is tonight's brief: tap it and tap through, like stories. Hold to pause.";
 const WALK_SEND = (side) => ({ t: "Hand over", how: [
-  "Handover: tap who closed, then check Running low, Outstanding and For tomorrow. Whatever the team logged is already in.",
+  "Handover: tap who closed, then check Running low, Outstanding and For the opener. Whatever the team logged is already in.",
   "Hand over: send with photos saves it for the morning team and every manager, then opens the share sheet. Just save sends nothing.",
   side === "bar" ? "On the iPad it goes to Mail, AirDrop or Files. Or send it later from your own phone." : "Send it to the team chat from the share sheet, or later from Team, Send on WhatsApp.",
 ], tip: "Leaving part-way? Save draft: the team sees who started it, and anyone can carry on and add photos." });

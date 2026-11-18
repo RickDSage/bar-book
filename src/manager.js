@@ -476,8 +476,8 @@ function briefParts(side = mode) {
   const r = lastReport(), h = r && reportDay(r) === lastNight() ? handoverOf(r) : null, now = toChange([side]), soon = labelsDue([side]).filter((x) => !now.includes(x));
   const games = LIVE.fixtures.filter((x) => x.day === ukDay(Date.now())).sort((a, b) => a.ko.localeCompare(b.ko));
   const iss = openIssues().filter((x) => [side, "other", "cellar", "toilets", "terrace"].includes(x.area) || x.urgent).sort((a, b) => b.urgent - a.urgent);
-  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for today.
-  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For today: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
+  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for the opener.
+  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For the opener: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
   const carry = typeof carryRows === "function" ? carryRows(false).filter((x) => x.sd === side) : [];
   // What changed since this person was last in (specs, the team's changes). Last night's handover has its own card.
   const since = (typeof sinceLast === "function" ? sinceLast(side) : []).filter((p) => p.id !== "handover");

@@ -148,7 +148,7 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   assert.match(await S.evaluate(() => tallyText()), new RegExp(`\\n\\nDate labels, bar:\\n- URGENT, overdue: Orange juice \\(use by ${wasName}\\), opened ${openedName} by Tia Staff\\n- URGENT, due today: Cranberry juice \\(use by ${today}\\), opened today by Sam Staff\\nDate labels, floor: nothing due\\n\\n86'd: nothing`));
   await handOver(S);
   await O.waitForFunction(() => LIVE.reports[0] && !LIVE.reports[0].pending);
-  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Closing 0\/39 · 0 86'd · URGENT: 2 date labels to change$/);
+  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Closing 0\/38 · 0 86'd · URGENT: 2 date labels to change$/);
 
   // Sam changes it a day late. Tia's phone (on the bar) is told, and Live keeps it as an exception.
   await labels(T); await labels(S);

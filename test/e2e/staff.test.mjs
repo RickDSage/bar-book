@@ -506,7 +506,7 @@ test("tonight's report: every section in one message, each with a tick box to le
   await M.click('.glance [data-send="tonight"]');
   await M.waitForSelector("#send-pre");
   const t = await M.$eval("#send-pre", (e) => e.innerText);
-  assert.match(t, /tonight.*86'd.*1 open issue.*Closing.*Bar: not started.*Handover not sent yet.*Floor: not started.*86'd \(1\).*since.*Kadir.*To order and running low \(1\).*Bar: Limes.*Issues and faults.*URGENT: Heater broken.*Outstanding \(1\).*Bar: Tab 12 left open.*For tomorrow \(1\).*Bar: Order Prosecco/s);
+  assert.match(t, /tonight.*86'd.*1 open issue.*Closing.*Bar: not started.*Handover not sent yet.*Floor: not started.*86'd \(1\).*since.*Kadir.*To order and running low \(1\).*Bar: Limes.*Issues and faults.*URGENT: Heater broken.*Outstanding \(1\).*Bar: Tab 12 left open.*For the opener \(1\).*Bar: Order Prosecco/s);
   assert.doesNotMatch(t, /On the team/);
   await M.uncheck('[data-send-part="out"]');
   assert.doesNotMatch(await M.$eval("#send-pre", (e) => e.innerText), /86'd \(1\)/);

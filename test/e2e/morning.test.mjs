@@ -24,15 +24,16 @@ test("the morning reads last night's handover back, with today's order and the p
   await shift(O, "morning");
   await O.waitForSelector("#handover");
   const page = await O.$eval("#tally .pane", (e) => e.innerText);
-  assert.match(page, /Last night's handover · Angel, Emily[\s\S]*Running low\s*Gas \(CO2\), Limes[\s\S]*Outstanding\s*Tap 3 dripping[\s\S]*For today\s*Prep: lime juice/i);
-  assert.match(page, /Left from that shift:\s*Bar storage tidied[\s\S]*No closing photos: Camera broken/);
+  // An older report says "For tomorrow": it reads the same as For the opener, with what the close left undone under it.
+  assert.match(page, /Last night's handover · Angel, Emily[^\n]*\s*For the opener \(2\)\s*Prep: lime juice\s*Bar storage tidied\s*Running low\s*Gas \(CO2\), Limes[\s\S]*Outstanding\s*Tap 3 dripping/i);
+  assert.match(page, /No closing photos: Camera broken/);
   assert.match(page, /Today's order\s*Gas \(CO2\), Limes, Prosecco bottle/i);
   assert.match(page, /Prep to par[\s\S]*Lime juice/i);
   assert.equal(await O.locator(".ptabs [data-pane=open]").count(), 0, "no opening checklist");
   assert.equal(await O.locator("#ho-stale").count(), 0);
 
   const msg = await O.evaluate(() => shareText("morning"));
-  assert.match(msg, /^\*Black Tap Soho · Bar morning · .*\*\n✅ Last night's handover checked by Olly Owner\n\n\*Still outstanding\*\nTap 3 dripping\nBar storage tidied\n\n\*For today\*\nPrep: lime juice/);
+  assert.match(msg, /^\*Black Tap Soho · Bar morning · .*\*\n✅ Last night's handover checked by Olly Owner\n\n\*For the opener\*\nPrep: lime juice\nBar storage tidied\n\n\*Still outstanding\*\nTap 3 dripping/);
   assert.match(await O.evaluate(() => shareText("order")), /To order or bring up today:\n\n\*Order \(3\)\*\n• Gas \(CO2\)\n• Limes\n• Prosecco bottle\n\nOpen in Bar Book: \S+#at=morning$/);
   assert.match(await O.evaluate(() => shareText("pars")), /\*Prep to par \(\d+\)\*\n⬜ Lime juice: /);
   // Mark as read: nothing goes on WhatsApp, and the managers see who read it and when.
@@ -52,7 +53,7 @@ test("the close shows when it started, how long it's taking and who has ticked w
   await S.waitForFunction(() => ["close-0", "close-1"].every((k) => LIVE.tasks[k]?.status === "done" && !LIVE.tasks[k].pending));
   await S.evaluate(() => renderTally());
   const top = await S.$eval("#tally .pane", (e) => e.innerText);
-  assert.match(top, /Started\s*\d\d:\d\d\s*So far\s*\d+ min\s*Left\s*37/i);
+  assert.match(top, /Started\s*\d\d:\d\d\s*So far\s*\d+ min\s*Left\s*36/i);
   assert.match(top, /Still to do: Service 1 · /);
   assert.match(top, /Ticked: Sam Staff 2/);
   assert.match(await S.evaluate(() => shareText("shift")), /⏱ Closing started \d\d:\d\d, so far \d+ min/);
