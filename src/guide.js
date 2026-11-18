@@ -11,15 +11,11 @@
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
 const WALK_V = 16;
 const WALK_NEW = [
-  "🌍 at the top (Guest on the bar station): hand a guest the phone. Their language, the drinks and food menus to tick (with prices), questions to tap, two-way talk and the allergy card",
-  "Your own language is asked when you pick your name. Hold any words to see them in English",
-  "🎤 needs fewer words: “mojito no sugar”, “missing limes”, or just “Negroni”. Pick your accent in its settings",
-  "Language lessons for any language are in Games and drills",
-  "What's new lives here now: the ring at the top of the app. Tap through like stories; hold to pause",
-  "🎤 works like a radio: hold it, talk, let go. A quick tap still works too",
-  "↺ Clear works the same on every list: it acts at once, and ↩ Undo clear sits in its place for 15 minutes",
-  "🔍 finds settings too: try “dark mode” or “undo”",
-  "My pay is in More now: five tabs along the bottom",
+  "🌍 at the top (Guest on the iPad): hand a guest the phone. Their language, the menus with prices to tick, questions, two-way talk, the allergy card",
+  "Your language is asked when you pick your name. Hold any words to see them in English",
+  "🎤 works like a radio: hold, talk, let go. Fewer words: “mojito no sugar”, “French guest”, “open labels”",
+  "↺ Clear acts at once on every list, and ↩ Undo clear stays for 15 minutes",
+  "🔍 finds settings too (“dark mode”). My pay is in More: five tabs along the bottom",
   "Stock, Delivery in: 📷 Read the note logs a delivery from a photo of the paper",
 ];
 const WALK_NAV_LINE = "🌍 is for guests who don't speak English: hand them the phone, ✕ Staff takes it back. 🔍 at the top finds any screen, drink or how-to. 🎤 beside it: hold it like a radio and talk, or tap it. ⌂ goes home, ‹ Back goes back.";
