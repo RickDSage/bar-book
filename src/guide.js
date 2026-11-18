@@ -7,8 +7,8 @@
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 10;
-const WALK_NEW = "Photos: every photo of the night in one place, bar and floor, from every phone and the iPad, with who took it and when. Tap the ones you want (or Pick all) and Send. Drinks: Select drinks to send at the top of the list, tap drinks or Pick all on a section, then Share sends their specs and swaps in one message. Shared specs say when they were true (Specs as of), and every message links back to Bar Book. The bar iPad has a Go to row (86 and low, Closing, Hand over, Photos, Date labels, Stock, Morning), and a manager can switch any of it off in Set up, iPad tiles. Stock has its own tab at the bottom, and counting is quicker: +6, the level by eye saves and moves on, Same as last time, By kind, and add anything missing and count it there and then. Also on it: a barcode scanner (scan a bottle to count it or see its date label), use-by dates due in the next 3 days, counting tips and Add something new. On Shift, the old Stock tab is now 86. Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
+const WALK_V = 11;
+const WALK_NEW = "Counting stock is shorter: each item is two lines, Full with + and +6, then the open one with None, ¼, ½ or ¾, which saves it and opens the next. Tenths, Photo check, the scale and None left are under More, which stays open if you use it. Sizes show in cl and ml, with cl ⇄ ml to swap, and the sum line gives a worked example.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -24,8 +24,9 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
 ], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
 const WALK_COUNT = { t: "Stock count", how: [
   "The Stock tab: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left. Counting tips are under How to count.",
-  "Tap an item: + for each full, sealed bottle (+6 for a row), then tap the open one's level by eye. That saves it and opens the next one. Same as last time does a line in one tap. Want it exact? ⚖️ Weigh it.",
+  "Tap an item: + for each full, sealed bottle (+6 for a row), then the open one: None, ¼, ½ or ¾. That saves it and opens the next one. Same as last time does a line in one tap. More has tenths, Photo check and the scale.",
   "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 📷 Scan its barcode. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "For example: 3 sealed Smirnoff and an open one about four-tenths full is Full 3, open .4 (under More), which is 3.4 bottles of 70 cl, or 2,380 ml. The line shows the sum. Sizes show in cl and ml (1 cl = 10 ml); cl ⇄ ml at the top swaps which leads.",
   "Use-by, at the top of Stock: date labels due in the next 3 days. Changed it saves the new date in one tap.",
   "Anything under its running-low level gets a Running low tag, then shows on the 86 board, the bar station and Needs you now as a heads-up before it's an 86.",
   "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
