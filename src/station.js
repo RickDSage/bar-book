@@ -4,8 +4,9 @@
    has a "‹ Bar station" button back. Exit bar station (top right) turns it off.
    - Drinks: one big search across the whole book (typos fine, Enter opens the top match), groups one tap away, the
      signatures and the Top 10 first, then every drink A to Z. 86'd drinks are greyed with the swap.
-   - On an iPad the spec sits next to the list in big type: glass, ice and garnish, the spec, numbered steps, ×2 to ×4,
-     the next drink by swipe or arrow. On a phone a tap opens the usual drink page.
+   - On an iPad a tap opens Make it now (makenow.js): big step cards, one at a time. The spec sits next to the list in
+     big type: glass, ice and garnish, the spec, numbered steps, ×2 to ×8, the next drink by swipe or arrow. On a phone
+     a tap opens the usual drink page.
    - A round: + adds a drink (again for two), and the round shows every spec scaled, shaken drinks first and fizz last,
      with the glasses to pull.
    - Tonight: the 86 board, the close on both sides and the handover, live.
@@ -92,6 +93,7 @@ function sxSpecHtml(d) {
     ${out ? `<div class="outbar on"><span><b>86'd tonight.</b> ${outBy(d.name) ? `By ${outBy(d.name)}. ` : ""}Offer something else.</span>${LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">Back in stock</button>` : ""}</div>
       ${alts.length ? `<div class="pl-alts">Offer instead: ${alts.map((x) => `<button class="chip" data-sx-id="${x.id}" translate="no">${esc(x.name)}</button>`).join("")}</div>` : ""}` : plOutBanner(d)}
     ${al ? `<div class="allergy"><b>Allergens:</b> <span translate="no">${esc(al)}</span></div>` : ""}
+    ${sxmOk(d) ? `<button class="btn pri sx-mkgo" data-sxm="${d.id}">\u25b6 Make it now${SX.x > 1 ? ` \u00d7${SX.x}` : ""}</button>` : ""}
     <div class="sx-gig" translate="no"><div><i class="pic" aria-hidden="true">${glass(d)}</i><p><span>Glass</span><b>${esc(d.glass)}</b></p></div><div><p><span>Ice</span><b>${esc(d.ice)}</b></p></div>
       <div>${ART.garnish(d.garnish) ? `<i class="pic gar" aria-hidden="true">${ART.garnish(d.garnish)}</i>` : ""}<p><span>Garnish</span><b>${esc(d.garnish)}</b></p></div></div>
     <div class="sx-k">Spec${SX.x > 1 ? ` for ${SX.x}` : ""}<span class="sx-x" role="group" aria-label="How many">${SX_XS.map((n) => `<button data-sx-x="${n}" aria-pressed="${n === SX.x}">×${n}</button>`).join("")}</span></div>
@@ -101,7 +103,7 @@ function sxSpecHtml(d) {
     ${sxZero(d) ? `<div class="sx-zero"><span>Alcohol-free?</span><button class="chip" data-sx-id="${sxZero(d).id}" translate="no">${esc(sxZero(d).name)} \u203a</button></div>` : ""}
     <div class="sx-k">Method</div>${steps(d.method)}
     ${!out && d.subs ? `<details class="subs"><summary>Out of something?<span class="cnt">${d.subs.length}</span></summary><ul translate="no">${d.subs.map((x) => `<li>${esc(x)}</li>`).join("")}</ul></details>` : ""}
-    <div class="sx-acts"><button class="btn pri" data-sx-add="${d.id}">+ Add to round${SX.round.get(d.id) ? ` (${SX.round.get(d.id)})` : ""}</button><button class="btn" data-sx-sheet="steps:${d.id}">Step by step</button>${sayBtn(d)}<button class="btn" data-sx-sheet="spec:${d.id}">Full card and send</button>${LIVE.admin ? `<label class="btn" for="dm-in" data-sx-dm="${d.id}">${mediaOf(d)?.photo ? "Change house photo" : "Add house photo"}</label>` : ""}${!out && LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">86 it</button>` : ""}</div>
+    <div class="sx-acts"><button class="btn pri" data-sx-add="${d.id}">+ Add to round${SX.round.get(d.id) ? ` (${SX.round.get(d.id)})` : ""}</button>${sayBtn(d)}<button class="btn" data-sx-sheet="spec:${d.id}">Full card and send</button>${LIVE.admin ? `<label class="btn" for="dm-in" data-sx-dm="${d.id}">${mediaOf(d)?.photo ? "Change house photo" : "Add house photo"}</label>` : ""}${!out && LIVE.me ? `<button class="btn" data-sx-86="${esc(d.name)}">86 it</button>` : ""}</div>
     ${nx ? `<div class="sx-pn"><button class="btn" data-sx-step="-1">‹ <span translate="no">${esc(pv.name)}</span></button><span>${i + 1} of ${SX.ids.length}</span><button class="btn" data-sx-step="1"><span translate="no">${esc(nx.name)}</span> ›</button></div>` : ""}`;
 }
 // The round: every drink scaled to how many, in the bar's making order: the ones that hold longest first (stirred, then
@@ -118,13 +120,14 @@ function sxRoundHtml() {
   const card = ([d, n]) => { mult = n; const s = d.spec.map(specRow).join(""); mult = was;
     const made = SX.made.has(d.id);
     return `<div class="sx-rc${isOut(d.name) ? " out" : ""}${made ? " made" : ""}"><div class="sx-rh"><b translate="no">${n} × ${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</b>
-      <span class="sx-x"><button data-sx-rn="${d.id}:-1" aria-label="One fewer">−</button><button data-sx-rn="${d.id}:1" aria-label="One more">+</button><button class="sx-made" data-sx-made="${d.id}" aria-pressed="${made}">${made ? "Made \u2713" : "Made"}</button></span></div>
+      <span class="sx-x"><button data-sx-rn="${d.id}:-1" aria-label="One fewer">−</button><button data-sx-rn="${d.id}:1" aria-label="One more">+</button>${made || !sxmOk(d) ? "" : `<button class="sx-made" data-sxm="${d.id}">\u25b6 Make</button>`}<button class="sx-made" data-sx-made="${d.id}" aria-pressed="${made}">${made ? "Made \u2713" : "Made"}</button></span></div>
       <div class="sx-rm" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.garnish)}</div>${plOutTag(d)}
       <ul class="spec sx-specl" data-d="${d.id}" translate="no">${s}</ul><p class="sx-rmeth" translate="no">${esc(d.method)}</p></div>`; };
   // Drinks made the same way sit together, so the shaken ones go in the tins in one go.
   const cards = SX_BUILDS.map((t, k) => { const g = ds.filter(([d]) => sxOrder(d) === k); return g.length ? `<div class="sx-bh">${t} \u00b7 ${g.reduce((a, [, n]) => a + n, 0)}</div>${g.map(card).join("")}` : ""; }).join("");
   const left = ds.filter(([d]) => !SX.made.has(d.id)).length;
   return `${back}<div class="sx-k">Round of ${sxRoundN()}${left ? ` \u00b7 ${left} to make` : ""}<button class="linkbtn" data-sx-round="clear">Clear the round</button></div>
+    ${ds.some(([d]) => !SX.made.has(d.id) && sxmOk(d)) ? `<button class="btn pri sx-mkgo" data-sxm-round>\u25b6 Make the round: a drink at a time, in this order</button>` : ""}
     ${left ? "" : `<div class="sx-done"><b>Round made.</b><button class="btn pri" data-sx-round="clear">Clear it for the next one</button></div>`}
     <dl class="sx-prep" translate="no"><dt>Glasses</dt><dd>${tally((d) => d.glass)}</dd><dt>Ice</dt><dd>${tally((d) => d.ice) || "None"}</dd><dt>Garnish</dt><dd>${tally((d) => d.garnish) || "None"}</dd>
       ${shaken ? `<dt>Tins</dt><dd>${shaken} to shake: ${Math.ceil(shaken / 2)} tin${shaken > 2 ? "s" : ""}, up to 2 drinks a tin</dd>` : ""}</dl>
@@ -228,6 +231,8 @@ function sxSetupHtml() {
       ${row(sharedDev, "Shared iPad on", "Asks who's using it, hides My pay, and a manager's code locks again after 5 minutes. Leaving the station, turning Shared off and Reset this phone need a manager's code.", `<button class="btn" data-shared-pick="on">Turn Shared on</button>`)}
       ${row(!!lock, "Screen kept on", lock ? "Bar Book is keeping the screen on." : navigator.wakeLock ? "Tap anywhere and Bar Book keeps the screen on while it's open." : "This iPad doesn't let Bar Book keep the screen on, so the Auto-Lock step below matters.")}
     </ul>
+    <div class="sx-k">Tap a drink</div>
+    <div class="sx-set1"><span class="st-s">${SX.mk ? "Opens Make it now: big step cards, one at a time, with Done back to the list. Spec next to the list is one tap away." : "Shows its spec next to the list. \u25b6 Make it now on the spec opens the step cards."}</span><button class="btn${SX.mk ? "" : " pri"}" data-sxm-pref>${SX.mk ? "Show just the spec instead" : "Open Make it now instead"}</button></div>
     <div class="sx-k">In the iPad's Settings</div>
     <ol class="sx-steps">
       <li><b>Auto-Lock:</b> Settings, Display &amp; Brightness, Auto-Lock, Never. Some iPadOS versions let the screen sleep anyway, so do this even when the tick above shows.</li>
@@ -391,7 +396,7 @@ document.addEventListener("click", (e) => {
   const bk = e.target.closest("[data-sx-back]"); if (bk) { const n = bk.dataset.sxBack; haptic(); setOut(n, false); toast(`${n} back in stock`); return; }
   const lbg = e.target.closest("[data-sx-labels]"); if (lbg) { haptic(); if (lbg.dataset.sxLabels !== mode) setMode(lbg.dataset.sxLabels); pane = labelPane(mode); show("tally"); return; }
   if (e.target.closest("[data-sx-exit]")) { haptic(); stationSet(false); show("info"); toast("Bar station off. Turn it on again in More"); return; }
-  const o = e.target.closest("[data-sx-id]"); if (o) { haptic(); SX.x = 1; return sxOpen(+o.dataset.sxId); }
+  const o = e.target.closest("[data-sx-id]"); if (o) { haptic(); SX.x = 1; return o.closest("#sx-list, #sx-recent") ? sxTap(+o.dataset.sxId) : sxOpen(+o.dataset.sxId); }
   const a = e.target.closest("[data-sx-add]"); if (a) return sxRound(+a.dataset.sxAdd, 1);
   const rn = e.target.closest("[data-sx-rn]"); if (rn) { const [id, n] = rn.dataset.sxRn.split(":"); return sxRound(+id, +n); }
   const rb = e.target.closest("[data-sx-round]");
@@ -418,7 +423,7 @@ document.addEventListener("input", (e) => { if (e.target.id !== "sx-q") return; 
 function sxOpenQuiet(id) { if (!sxWide()) return; SX.id = id; $$("#sx-list [data-sx-id]").forEach((b) => b.setAttribute("aria-current", +b.dataset.sxId === id)); sxSpec(); }
 document.addEventListener("keydown", (e) => {
   if (cur !== "station" || !$("#sheet").hidden) return;
-  if (e.target.id === "sx-q" && e.key === "Enter") { e.preventDefault(); if (SX.ids.length) { e.target.blur(); sxOpen(SX.ids[0]); } return; }
+  if (e.target.id === "sx-q" && e.key === "Enter") { e.preventDefault(); if (SX.ids.length) { e.target.blur(); sxTap(SX.ids[0]); } return; }
   if (e.target.closest("input, textarea, select")) return;
   if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); sxStep(1); }
   if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); sxStep(-1); }
@@ -434,7 +439,7 @@ document.addEventListener("touchend", (e) => {
 // The 86s change everything on the station; anything else only the Tonight panel.
 function stationLive(what) {
   if (!$("#sx-list")) return renderStation();
-  if (what === "out" || what === "me" || what === "media" || SX.view === "batch" || SX.view === "setup") { sxList(); sxSpec(); }
+  if (what === "out" || what === "me" || what === "media" || SX.view === "batch" || SX.view === "setup") { sxList(); sxSpec(); if (what === "out") sxmRender(); }
   sxTonight();
 }
 // Left alone for 2 minutes: clear the search and the open drink and go back to the top, ready for the next person.
@@ -446,8 +451,9 @@ setInterval(() => {
   if (cur !== "station") return;
   sxFit();
   sxTonight();
-  if (Date.now() - lastTap < 2 * 6e4 || (!SX.q && SX.grp === "all" && SX.view === "drink" && $("#sheet").hidden && !$("#sx-list").scrollTop)) return;
+  if (Date.now() - lastTap < 2 * 6e4 || (!SX.q && SX.grp === "all" && SX.view === "drink" && $("#sheet").hidden && !SXM && !$("#sx-list").scrollTop)) return;
   if (!$("#sheet").hidden) closeSheet();
+  sxmClose();
   SX.q = ""; SX.grp = "all"; SX.view = "drink"; SX.x = 1; $("#sx-q").value = ""; $("#sx-q").blur(); $("#sx-list").scrollTop = 0; window.scrollTo(0, 0);
   sxBars(); sxList(); sxSpec();
 }, 15e3);
@@ -658,6 +664,8 @@ body.sxbig .sx-rmeth { font-size: 20px; }
 .sx-made { min-width: 76px !important; }
 .sx-made[aria-pressed="true"] { background: var(--ok) !important; border-color: var(--ok) !important; color: var(--bg) !important; }
 .sx-rc.made { opacity: .5; }
+.sx-set1 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 4px; }
+.sx-set1 .st-s { flex: 1 1 260px; margin: 0; }
 .sx-done { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 8px 0; padding: 12px 14px; border: 2px solid var(--ok); border-radius: 14px; font-size: 19px; }
 .sx-tmb { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .sx-tmb .btn { min-height: 52px; min-width: 76px; font-size: 17px; }
