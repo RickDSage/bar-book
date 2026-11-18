@@ -85,7 +85,7 @@ service cloud.firestore {
     // The build writes a fingerprint of this file here (src/site.js). Maintenance's phone asks for rulesv/{its build's
     // fingerprint}: refused means the rules published in the console are older than the app. Nothing is stored here.
     match /rulesv/{v} {
-      allow get: if signedIn() && v == 'abb669381e8f'; // RULES-FINGERPRINT
+      allow get: if signedIn() && v == '0e5f723f0292'; // RULES-FINGERPRINT
     }
 
     // ---------- Joining the team ----------
@@ -262,6 +262,8 @@ service cloud.firestore {
         && reqText(incoming().text, 8000) && reqText(incoming().summary, 200)
         && incoming().photos is int && incoming().photos >= 0 && incoming().photos <= 8
         && stamped();
+      // Whoever sent it, or a manager, can delete it; its photos go in the same write.
+      allow delete: if isManager() || (isMember() && resource.data.uid == request.auth.uid);
     }
     function reportDoc(id) { return /databases/$(database)/documents/reports/$(id); }
     match /photos/{id} {
@@ -280,8 +282,12 @@ service cloud.firestore {
               && getAfter(reportDoc(incoming().report)).data.uid == request.auth.uid
               && getAfter(reportDoc(incoming().report)).data.at == request.time
               && getAfter(reportDoc(incoming().report)).data.side == resource.data.get('side', getAfter(reportDoc(incoming().report)).data.side)));
-      // Unsent ones can be binned by anyone on the team. The owner's or a senior's phone clears photos over 30 days old (to stay free).
-      allow delete: if isMember() && (resource.data.report == null
+      // Unsent ones can be binned by whoever took them or a manager. A sent one goes only with its report, in the same
+      // write, by whoever sent the report or a manager. The owner's or a senior's phone clears photos over 30 days old
+      // (to stay free).
+      allow delete: if isMember() && ((resource.data.report == null && (resource.data.uid == request.auth.uid || isManager()))
+        || (resource.data.report != null && !existsAfter(reportDoc(resource.data.report))
+          && (isManager() || get(reportDoc(resource.data.report)).data.uid == request.auth.uid))
         || (isManager() && resource.data.at < request.time - duration.value(30, 'd')));
     }
 

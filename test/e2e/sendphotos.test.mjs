@@ -31,7 +31,7 @@ const stubShare = (p) => p.evaluate(() => {
 const preview = (p) => p.$eval("#send-pre", (e) => e.textContent);
 const actions = (p) => p.$$eval("#send .actions .btn", (x) => x.map((b) => b.textContent));
 const addButtons = (p) => p.$$eval("#send .addph label", (x) => x.map((l) => [l.htmlFor, l.textContent]));
-const photosReady = (p, n) => p.waitForFunction((n) => snd?.photos.length === n && snd.files?.length === n, n, { timeout: 20000 });
+const photosReady = (p, n) => p.waitForFunction((n) => snd?.photos.length === n && snd.files?.length === n && snd.cards, n, { timeout: 20000 });
 
 test("photos added to an issue: copy the words, then the share sheet gets the photos on their own", async () => {
   await resetEmulators();
@@ -56,13 +56,15 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   await photosReady(S, 3);
   assert.equal(await S.$$eval("#send .sendph img", (x) => x.length), 3);
   assert.equal((await addButtons(S)).length, 2, "both buttons stay for more");
-  assert.deepEqual(await actions(S), ["Copy the words", "Send with photos", "WhatsApp, words only", "Text", "Email", "As a picture", "Print"]);
+  assert.deepEqual(await actions(S), ["Send with photos", "Copy the words", "WhatsApp, words only", "Text", "Email", "As a picture", "Print"]);
   assert.deepEqual(await S.$$eval("#send .sendhow li", (x) => x.map((l) => l.textContent)),
-    ["Tap Copy the words, then Send with photos.", "Pick WhatsApp, then the chat.", "Press and hold the caption box, tap Paste, then send."]);
+    ["Tap Send with photos.", "Pick WhatsApp (or Mail, Messages, AirDrop), then the chat.", "Want the words as text as well? Tap Copy the words first, then paste them in as the caption or the email."]);
+  assert.equal(await S.isChecked("#send [data-send-card]"), true, "the words go as a picture too, unless unticked");
   await S.click('[data-send-unphoto="1"]');
   await photosReady(S, 2);
 
   await S.fill("#send-note", "Can you come before 5?");
+  await S.waitForFunction(() => snd.cards?.length === 1);
   // Two taps: Safari opens the share sheet only from a fresh tap, and copying first could use it up.
   await S.click("#send [data-send-copy]");
   await S.waitForFunction(() => window.copied);
@@ -70,7 +72,17 @@ test("photos added to an issue: copy the words, then the share sheet gets the ph
   assert.equal(await S.$eval("#toast", (e) => e.textContent), "Copied. Now tap Send with photos");
   await S.click("#send [data-send-sheet]");
   await S.waitForFunction(() => window.shared);
-  assert.deepEqual(await S.evaluate(() => window.shared), { text: undefined, files: [["photo-1.jpg", "image/jpeg", true], ["photo-2.jpg", "image/jpeg", true]] });
+  // The words as a picture first, then the photos.
+  const sh = await S.evaluate(() => window.shared);
+  assert.equal(sh.text, undefined);
+  assert.match(sh.files[0][0], /^Urgent-Glass-washer-leaking.*\.jpg$/);
+  assert.deepEqual(sh.files.slice(1), [["photo-1.jpg", "image/jpeg", true], ["photo-2.jpg", "image/jpeg", true]]);
+  // Unticked, the photos go on their own.
+  await S.uncheck("#send [data-send-card]");
+  await S.evaluate(() => (window.shared = null));
+  await S.click("#send [data-send-sheet]");
+  await S.waitForFunction(() => window.shared);
+  assert.deepEqual((await S.evaluate(() => window.shared)).files, [["photo-1.jpg", "image/jpeg", true], ["photo-2.jpg", "image/jpeg", true]]);
   // WhatsApp on its own still takes the words.
   await S.click("#send [data-share][data-via=wa]");
   assert.match(new URL(await S.getAttribute("#send [data-share][data-via=wa]", "href")).searchParams.get("text"), /^\*Urgent: Glass washer leaking/);

@@ -72,14 +72,17 @@ test("a phone photo is shrunk, noted, sent with the report and locked once sent"
     navigator.share = (d) => { window.shared = { text: d.text, files: (d.files || []).map((f) => [f.name, f.type, f.size > 1000]) }; return Promise.resolve(); };
     Object.defineProperty(navigator, "clipboard", { value: { writeText: (t) => { window.copied = t; return Promise.resolve(); } } });
   });
+  await S.click(".ptabs [data-pane=close]");
   await S.click("#tally [data-send=shift]");
   await S.waitForSelector("#send .sendph img");
-  await S.waitForFunction(() => snd.files?.length === 1);
+  await S.waitForFunction(() => snd.files?.length === 1 && snd.cards?.length);
   await S.click("#send [data-send-copy]");
   await S.click("#send [data-send-sheet]");
   await S.waitForFunction(() => window.shared);
   const sh = await S.evaluate(() => window.shared);
-  assert.deepEqual(sh, { text: undefined, files: [["photo-1.jpg", "image/jpeg", true]] }, "the photo goes alone");
+  assert.equal(sh.text, undefined, "no words with the files: an iPhone would drop the photos");
+  assert.deepEqual(sh.files.at(-1), ["photo-1.jpg", "image/jpeg", true], "the photo goes after the words as a picture");
+  assert.match(sh.files[0][0], /^Black-Tap-Soho-Bar-shift/);
   assert.match(await S.evaluate(() => window.copied), /^\*Black Tap Soho · Bar shift · /, "the words are copied for the caption");
   await S.evaluate(() => closeSheet());
 

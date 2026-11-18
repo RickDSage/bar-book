@@ -1233,10 +1233,29 @@ describe("shift reports and photos", () => {
     const { side, ...noSide } = report("staff1");
     await assertFails(addDoc(collection(db("staff1"), "reports"), noSide));
   });
-  test("an unsigned report can't be edited or deleted either", async () => {
+  test("a report can't be edited; only whoever sent it, or a manager, deletes it", async () => {
     const ref = await addDoc(collection(db("staff1"), "reports"), report("staff1"));
     await assertFails(updateDoc(doc(db("staff1"), "reports", ref.id), { text: "Changed my mind" }));
-    await assertFails(deleteDoc(doc(db("mgr1"), "reports", ref.id)));
+    await assertFails(deleteDoc(doc(db("staff2"), "reports", ref.id)));
+    await assertFails(deleteDoc(doc(db("stranger"), "reports", ref.id)));
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "reports", ref.id)));
+    const r2 = await addDoc(collection(db("staff1"), "reports"), report("staff1"));
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "reports", r2.id)));
+  });
+  test("a sent photo goes only with its report, in the same write, by the report's sender or a manager", async () => {
+    const p1 = await addDoc(collection(db("staff1"), "photos"), photo("staff1"));
+    const p2 = await addDoc(collection(db("staff2"), "photos"), photo("staff2"));
+    const sent = sendReport(db("staff1"), "staff1", [p1.id, p2.id]); await sent.b.commit();
+    const both = (uid) => { const d = db(uid), b = writeBatch(d); b.delete(doc(d, "photos", p1.id)); b.delete(doc(d, "photos", p2.id)); b.delete(doc(d, "reports", sent.id)); return b.commit(); };
+    // On its own, or by someone else, it's refused, even for the person who took the photo.
+    await fails(deleteDoc(doc(db("staff1"), "photos", p1.id)), "photo alone");
+    await fails(both("staff2"), "not the sender");
+    await assertSucceeds(both("staff1"));
+    // A manager can delete anyone's report with its photos.
+    const p3 = await addDoc(collection(db("staff2"), "photos"), photo("staff2"));
+    const s2 = sendReport(db("staff2"), "staff2", [p3.id]); await s2.b.commit();
+    const d = db("mgr1"), b = writeBatch(d); b.delete(doc(d, "photos", p3.id)); b.delete(doc(d, "reports", s2.id));
+    await assertSucceeds(b.commit());
   });
   test("closing photos: bounded size, JPEG only, attached only in the report's own write", async () => {
     const d = db("staff1");
@@ -1278,10 +1297,13 @@ describe("shift reports and photos", () => {
     await seed((s) => setDoc(doc(s, "photos/nos1"), { data: JPEG, note: "", report: null, uid: "staff1", name: "Sam Staff", at: now() }));
     await assertSucceeds(sendReport(db("staff1"), "staff1", ["nos1"], { side: "floor" }).b.commit());
   });
-  test("unsent photos can be binned by anyone on the team; only photos over 30 days old can be cleared by managers", async () => {
+  test("unsent photos can be binned by whoever took them or a manager; only photos over 30 days old can be cleared by managers", async () => {
     const p = await addDoc(collection(db("staff1"), "photos"), photo("staff1"));
     await assertFails(deleteDoc(doc(db("stranger"), "photos", p.id)));
-    await assertSucceeds(deleteDoc(doc(db("staff2"), "photos", p.id)));
+    await assertFails(deleteDoc(doc(db("staff2"), "photos", p.id)));
+    await assertSucceeds(deleteDoc(doc(db("staff1"), "photos", p.id)));
+    const q = await addDoc(collection(db("staff1"), "photos"), photo("staff1"));
+    await assertSucceeds(deleteDoc(doc(db("mgr1"), "photos", q.id)));
     await seed((s) => setDoc(doc(s, "photos/old1"), { ...photo("staff1"), report: "abcdefghijabcdefghij", at: daysAgo(31) }));
     await assertFails(deleteDoc(doc(db("staff2"), "photos/old1")));
     await assertSucceeds(getDocs(query(collection(db("mgr1"), "photos"), where("at", "<", daysAgo(30)), limit(100))));

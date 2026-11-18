@@ -30,10 +30,10 @@ const WALK_COUNT = { t: "Stock count", how: [
 ], tip: "No signal in the cellar? It saves anyway and sends when you're back." };
 const WALK_SEND = { t: "Hand over and send", how: [
   "Shift, Handover: tap who closed, then check Running low, Outstanding and For tomorrow. Whatever the team logged is already in.",
-  "Tap Hand over and send on WhatsApp. It saves for the morning team and opens WhatsApp with the whole close in tick boxes: pick the team chat and send.",
-  "Bar Book never sends anything by itself. If it isn't sent from a phone, the chat doesn't see it.",
-  "Closed on the iPad? Send it from your own phone: Team, Send on WhatsApp, then the last handover.",
-], tip: "On an iPhone with photos: Copy the words, tap Send with photos, then paste the words as the caption." };
+  "Tap Hand over: send with photos. It saves for the morning team and every manager, then the share sheet opens with the close as a picture and the photos: pick the team chat and send.",
+  "Not sending now? Hand over: just save. It's saved, photos included, and anyone can open it or send it later.",
+  "Closed on the iPad? Send with photos goes to Mail, AirDrop or Save to Files, or send it from your own phone: Team, Send on WhatsApp, then the last handover.",
+], tip: "Leaving part-way? Save draft: the team sees who started it, and anyone can carry on and add photos." };
 const WALK = {
   bar: [
     { t: "Your bar shift", how: [

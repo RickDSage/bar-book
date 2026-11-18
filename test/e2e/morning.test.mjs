@@ -188,7 +188,7 @@ test("the morning never passes an older handover off as last night's, and the cl
   await S.waitForSelector("#ho-wait");
   await S.context().setOffline(false);
   await S.waitForSelector("#ho-sent", { timeout: 20000 });
-  assert.match(await S.$eval("#ho-sent", (e) => e.innerText), /^✅ Handover sent \d\d:\d\d by Sam Staff\. The morning team will see it\.$/);
+  assert.match(await S.$eval("#ho-sent", (e) => e.innerText), /^✅ Handover saved \d\d:\d\d by Sam Staff\. The morning team and every manager can open it\.$/);
   assert.deepEqual([O.errs, S.errs], [[], []]);
 });
 
