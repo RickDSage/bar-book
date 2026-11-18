@@ -11,7 +11,7 @@ after(async () => { await browser.close(); site.close(); });
 
 async function open(width = 390) {
   const c = await browser.newContext({ viewport: { width, height: width > 700 ? 820 : 844 }, isMobile: width < 700, hasTouch: true, timezoneId: "Europe/London" });
-  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9 }))));
+  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99 }))));
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = []; p.on("pageerror", (e) => p.errs.push(e.message));
@@ -81,7 +81,7 @@ test("on the iPad bar station a spec said opens in the station, not on top of it
 test("listening: the phone's guesses come in and the one that makes sense is shown", async () => {
   const c = await browser.newContext({ viewport: { width: 375, height: 667 }, isMobile: true, hasTouch: true });
   await c.addInitScript(() => {
-    localStorage.setItem("btbar.introSeen", "true"); localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9 }));
+    localStorage.setItem("btbar.introSeen", "true"); localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99 }));
     // A stand-in for the phone's speech recognition: three guesses, the right one last.
     window.SpeechRecognition = window.webkitSpeechRecognition = class { start() { window.REC = this; setTimeout(() => { const r = [{ transcript: "eight he sicks the coroner" }, { transcript: "86 the coroner please" }, { transcript: "86 the Corona please" }]; this.onresult({ results: [r] }); this.onend?.(); }, 30); } abort() {} stop() {} };
   });

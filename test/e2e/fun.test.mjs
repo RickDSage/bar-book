@@ -13,7 +13,7 @@ async function open({ width = 390, height = 844, init } = {}) {
   const c = await browser.newContext({ viewport: { width, height }, isMobile: width < 700, hasTouch: true, timezoneId: "Europe/London" });
   await c.addInitScript(() => {
     localStorage.setItem("btbar.introSeen", "true");
-    localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9 }));
+    localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99 }));
     window.SAID = [];
     window.SpeechSynthesisUtterance = function (t) { this.text = t; };
     Object.defineProperty(window, "speechSynthesis", { value: { speak: (u) => SAID.push(u), cancel: () => {}, getVoices: () => [{ name: "Daniel", lang: "en-GB" }], speaking: false } });

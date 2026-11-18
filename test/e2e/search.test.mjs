@@ -10,7 +10,7 @@ after(async () => { await browser.close(); site.close(); });
 
 async function open() {
   const c = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, timezoneId: "Europe/London" });
-  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))));
+  await c.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99, "bar:Angel": 99, "floor:Angel": 99 }))));
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage();
   p.errs = []; p.on("pageerror", (e) => p.errs.push(e.message));
@@ -99,7 +99,7 @@ test("every message ends with a link back to the same thing, and the link opens 
   assert.doesNotMatch(await p.evaluate(() => shareText("pars")), /join=/);
   // Opening it: the start screen, then straight to the spec.
   const q = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true });
-  await q.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))));
+  await q.addInitScript(() => (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99, "bar:Angel": 99, "floor:Angel": 99 }))));
   await q.route("**/live.js", (r) => r.abort());
   const r = await q.newPage();
   await r.goto(link.replace("Open in Bar Book: ", ""));

@@ -64,7 +64,7 @@ export async function phone(browser, site, { start = "#w-ok", width = 390, leftO
   // morning.test.mjs tests it on.
   if (!leftOnly) await c.addInitScript(() => { try { if (localStorage.getItem("btbar.leftOnly") == null) localStorage.setItem("btbar.leftOnly", "false"); } catch {} });
   // The first-open tour would sit over the app: tests start past it (help.test.mjs checks it).
-  await c.addInitScript(() => { try { if (localStorage.getItem("btbar.introSeen") == null) (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.ctHow", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 9, floor: 9, "bar:Angel": 9, "floor:Angel": 9 }))); } catch {} });
+  await c.addInitScript(() => { try { if (localStorage.getItem("btbar.introSeen") == null) (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.ctHow", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99, "bar:Angel": 99, "floor:Angel": 99 }))); } catch {} });
   const p = await c.newPage();
   p.errs = [];
   p.on("pageerror", (e) => p.errs.push(e.message));

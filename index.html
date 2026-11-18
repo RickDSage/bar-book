@@ -187,6 +187,17 @@ main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 
 .facts dd { margin: 2px 0 0; font-weight: 700; font-size: 15px; overflow-wrap: anywhere; }
 .h3 { font-family: var(--display); font-size: 22px; color: var(--brass); text-transform: uppercase; margin: 22px 0 6px; }
 .h3.tm-sub { font-family: inherit; font-size: 13px; font-weight: 700; letter-spacing: .06em; color: var(--muted, inherit); margin: 18px 0 2px; }
+.tgrp { margin: 10px 0 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.tgrp > summary { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: center; min-height: 56px; padding: 10px 14px; cursor: pointer; list-style: none; }
+.tgrp > summary::-webkit-details-marker { display: none; }
+.tgrp .tg-t { font-weight: 800; font-size: 17px; }
+.tgrp .tg-n { color: var(--muted); font-weight: 700; }
+.tgrp .tg-n::after { content: " \25be"; color: var(--brass); }
+.tgrp[open] .tg-n::after { content: " \25b4"; }
+.tgrp .tg-n b { display: inline-block; min-width: 1.5em; padding: 0 6px; border-radius: 999px; background: var(--warn); color: #fff; text-align: center; }
+.tgrp > summary .tsub { grid-column: 1 / -1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tgrp[open] > summary .tsub { display: none; }
+.tg-in { padding: 0 14px 6px; }
 .spec { list-style: none; margin: 0; padding: 0; }
 .spec li { display: grid; grid-template-columns: 92px 1fr; gap: 12px; padding: 9px 0; border-bottom: 1px dashed var(--line); font-size: 18px; }
 .spec .q { font-weight: 700; color: var(--brass); text-align: right; }
@@ -412,9 +423,10 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .modesw { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 10px; }
 .modesw .chip { justify-content: center; }
 #shift-day { color: var(--muted); font-size: 14px; }
-.ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px var(--shadow); }
+.ptabs { position: sticky; top: 6px; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 0 0 10px var(--bg), 0 16px 14px -8px var(--shadow); }
 .ptabs button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 52px; padding: 6px 2px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--muted); }
-@media (max-width: 380px) { .ptabs button { font-size: 13px; padding-inline: 0; } }
+@media (max-width: 440px) { .ptabs button { font-size: 13.5px; padding-inline: 0; letter-spacing: -.01em; } }
+@media (max-width: 380px) { .ptabs button { font-size: 12.5px; } }
 .ptabs small { font-size: 11.5px; font-weight: 600; opacity: .85; min-height: 14px; }
 .ptabs button[aria-selected="true"] { background: var(--brass); color: var(--brass-ink); }
 .pane.enter { animation: paneIn .18s ease-out; }
@@ -966,6 +978,18 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .btn, .chip, .tile, .round, .star { transition: transform .08s ease-out; }
 .btn:active, .chip:active, .tile:active, .round:active, .star:active { transform: scale(.96); }
 .row { transition: background .12s; border-radius: 10px; }
+/* Select on the drinks list: a tick box per drink, and one bar at the bottom to share them. */
+.row.picking .pk-box { display: grid; place-items: center; width: 30px; height: 30px; margin-left: 6px; border: 2px solid var(--line); border-radius: 8px; font-weight: 800; color: var(--brass-ink); }
+.row.picking[aria-pressed="true"] .pk-box { background: var(--brass); border-color: var(--brass); }
+.row.picking[aria-pressed="true"] { background: var(--surface); }
+.pickbar { position: fixed; left: 0; right: 0; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); z-index: 8; display: flex; align-items: center; gap: 10px; padding: 10px max(16px, env(safe-area-inset-left, 0px)); background: var(--surface); border-top: 1px solid var(--brass); box-shadow: 0 -8px 18px var(--shadow); }
+.pickbar[hidden] { display: none; }
+.pick-top { display: flex; justify-content: flex-end; margin: 0 0 -16px; position: relative; z-index: 1; }
+.pick-top .linkbtn { min-height: 44px; }
+.pickbar > span { flex: 1; min-width: 0; font-weight: 700; }
+.pickbar .btn { min-height: 44px; }
+body.picking main { padding-bottom: calc(var(--tabh) + 90px); }
+body.picking #sd-mic, body.picking #sd-timer { display: none; }
 .row:active { background: var(--surface); }
 .welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); overflow-y: auto; transition: opacity .3s, transform .3s; }
 .welcome.bye { opacity: 0; transform: scale(1.03); pointer-events: none; }
@@ -1133,7 +1157,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
   <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
-  <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
+  <p class="wip">Spot something wrong or got an idea? Tell maintenance: More, then App feedback.</p>
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Guide: find anything in Bar Book">?</button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
@@ -1362,8 +1386,11 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = fal
    nothing itself: WhatsApp and Email open the person's own app with the words written in, and they pick who it goes
    to. Messages are in English, the venue's working language, whatever language the phone shows. */
 const SHARE = {};
+// The bar's iPad has no WhatsApp: its share sheet offers Mail, Messages, AirDrop and Save to Files. iPadOS says it's a Mac.
+const isIPad = () => /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 // A note given here starts the Send page's note, for the person to change.
-const sendBtn = (k, label, o, note) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}${note ? ` data-send-note="${esc(note)}"` : ""}>${label}</button>`;
+// The bar iPad has no WhatsApp, so its buttons just say Send (its Send page offers Mail, Messages, AirDrop and Files).
+const sendBtn = (k, label, o, note) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}${note ? ` data-send-note="${esc(note)}"` : ""}>${isIPad() ? label.replace(/ (?:on|to) WhatsApp$/, "") : label}</button>`;
 // A line starting with a space belongs to the item above it.
 const partItems = (p) => p.lines.filter((l) => !/^\s/.test(l)).length;
 const subLine = (t) => `   ◦ ${t}`;
@@ -1375,6 +1402,8 @@ function msgText(m, pick, note = "", wa = true) {
     out.push("", b(p.one ? p.label : `${p.label} (${partItems(p)})`), ...p.lines.map((l) => (p.one || p.raw || /^\s/.test(l) ? l : `• ${l}`)));
   }
   if (note.trim()) out.push("", ...(m.noteHead === null ? [] : [b("Note")]), note.trim());
+  // Specs say when they were true, so an old spec forwarded later is never taken for today's. Everything else has its day in the title.
+  if (m.asOf) out.push("", `${m.asOf} ${stamp(new Date())}`);
   // Photos saved in Bar Book: the link opens them, so a phone that can't attach photos still gets them to the team.
   if (m.link) out.push("", m.photoN ? `\ud83d\udcf7 ${plural(m.photoN, "photo")} and the rest in Bar Book (team only): ${m.link}` : `Open in Bar Book: ${m.link}`);
   return out.join("\n");
@@ -1406,11 +1435,11 @@ let snd = null;
 // A builder can offer one choice (how late, which shift, who): SHARE[k](value) builds the message for it.
 const sndMsg = () => snd && withLink(snd.k, snd.opt, SHARE[snd.k](snd.opt));
 function openSend(k, o, note = "") {
-  const m = SHARE[k](o); if (!m) return toast("Nothing to send yet");
+  const m = withLink(k, o, SHARE[k](o)); if (!m) return toast("Nothing to send yet");
   if ($("#sheet").hidden) lastFocus = document.activeElement;
   document.querySelector(".swhint")?.remove();
   // From a drink, Back goes back to the drink.
-  const s = snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, card: true, cards: null, busy: false, drink: k === "drink" ? +o : null, rep: k === "report" && $("#rep") ? o : null };
+  const s = snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, card: !m.photoCard, cards: null, busy: false, drink: k === "drink" ? +o : null, rep: k === "report" && $("#rep") ? o : null, gal: k === "photos" && $("#gal") ? o : null };
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Send</span><span></span></div></div><div id="send"></div>`;
   renderSend(m); showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus(); sndCards();
   if (m.photos) m.photos().then((ps) => {
@@ -1419,8 +1448,6 @@ function openSend(k, o, note = "") {
   }).catch(() => {});
 }
 const canFiles = () => { try { return !!navigator.canShare?.({ files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] }); } catch { return false; } };
-// The bar's iPad has no WhatsApp: its share sheet offers Mail, Messages, AirDrop and Save to Files. iPadOS says it's a Mac.
-const isIPad = () => /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 /* Photos on the Send page: the message's own (tonight's closing photos, a concern's, a drink's house photo, the rota as
    a picture) and any the person adds here from the camera or their photos. Added ones are only for this message:
    nothing is saved. The share sheet takes the photos on their own: given words as well, an iPhone keeps the words and
@@ -1610,6 +1637,27 @@ const issueLines = (x) => [`${x.title} · ${AREA[x.area] || "Other"}${x.status =
 // One row under the search: A to Z or Sections, Filters and Favourites. A to Z has the letter strip down the side
 // (az.js); on Sections, the Sections button names the section you're in and opens the list of them.
 let favOnly = store.get("favOnly", false);
+/* Select: tap drinks (or a whole section with Pick all) and send their specs, swaps included, in one message. One
+   bar at the bottom says how many and sends them; Done leaves it. */
+let pick = null;
+function pickBar() {
+  let el = $("#pickbar");
+  if (!pick || cur !== "drinks") { if (el) el.hidden = true; document.body.classList.remove("picking"); return; }
+  if (!el) { el = document.createElement("div"); el.id = "pickbar"; el.className = "pickbar"; document.body.append(el); }
+  el.hidden = false; document.body.classList.add("picking");
+  const ids = [...pick].slice(0, SPEC_MAX);
+  el.innerHTML = `<span>${pick.size ? plural(pick.size, "drink") : "Tap drinks to pick them"}</span>${pick.size ? `<button class="linkbtn" data-pick-clear>Clear</button>${pick.size > 1 ? `<button class="linkbtn" data-pick-save>Save as a list</button>` : ""}${sendBtn("specs", "Share", ids.join(",")).replace('class="btn"', 'class="btn pri"')}` : ""}<button class="btn" data-pick-done>Done</button>`;
+}
+function pickSet(on) { pick = on ? new Set() : null; haptic(); renderBar(); renderList(); pickBar(); }
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-pick-done]")) return pickSet(false);
+  if (e.target.closest("[data-pick]")) return pickSet(true);
+  if (e.target.closest("[data-pick-save]")) return openListMaker([...pick]);
+  if (e.target.closest("[data-pick-clear]")) { pick.clear(); haptic(); renderList(); return pickBar(); }
+  const all = e.target.closest("[data-pick-all]"); if (!all || !pick) return;
+  const ids = all.dataset.pickAll.split(",").map(Number), has = ids.every((i) => pick.has(i));
+  ids.forEach((i) => (has ? pick.delete(i) : pick.add(i))); haptic(); renderList(); pickBar();
+});
 let fav = new Set(store.get("fav", []));
 const favOk = (d) => !favOnly || fav.has(d.name);
 // The menu's sections by their short names, so they fit the button and the jump list.
@@ -1665,6 +1713,7 @@ function setOut(name, on) {
   track(LIVE.api.set86(name, on), null, "86 list not updated. Someone may have just changed it");
 }
 function rowHtml(d) {
+  if (pick) return `<button class="row picking${isOut(d.name) ? " out" : ""}" data-id="${d.id}" aria-pressed="${pick.has(d.id)}"><span class="pk-box" aria-hidden="true">${pick.has(d.id) ? "\u2713" : ""}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)}${isOut(d.name) ? " \u00b7 86'd" : ""}</div></div></button>`;
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)} · ${esc(blurb(d))}${plOutTag(d)}</div></div></button>`;
 }
@@ -1705,8 +1754,10 @@ function renderList() {
   if (!rows.length && favOnly && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here. Tap \u2605 again to see every drink.</p>`; return; }
   if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
   // Each section can go out as one WhatsApp message of its specs, straight from its heading.
-  const head = (k, ds, attr = "") => `<div class="sec"${attr}>${esc(k)}<span class="cnt">${ds.length}</span><button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button></div>`;
-  let html = q ? "" : sdSeasonBanner();
+  const head = (k, ds, attr = "") => `<div class="sec"${attr}>${esc(k)}<span class="cnt">${ds.length}</span>${pick
+    ? `<button class="ssend" data-pick-all="${ds.map((d) => d.id).join(",")}">${ds.every((d) => pick.has(d.id)) ? "Unpick all" : "Pick all"}</button>`
+    : `<button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button>`}</div>`;
+  let html = (q ? "" : sdSeasonBanner()) + (pick ? "" : `<div class="pick-top"><button class="linkbtn" data-pick>Select drinks to send \u203a</button></div>`);
   if (groups.size) for (const [k, ds] of groups) html += `<i class="anc" id="${sid(k)}"></i>${head(k, ds)}${ds.map(rowHtml).join("")}`;
   else if (az) {
     // The signatures first (★ on the letter strip), then every drink under its letter, signatures too.
@@ -1715,7 +1766,8 @@ function renderList() {
     html += azHtml(rows, (d) => d.name, rowHtml, 13);
   } else html += rows.map(rowHtml).join("");
   // A narrowed list (favourites, a filter or a search) can go out as one WhatsApp message of specs.
-  if (narrowed) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
+  if (pick) html += `<div class="actions"><button class="btn" data-pick-all="${listIds.join(",")}">${listIds.every((i) => pick.has(i)) ? "Unpick every drink shown" : `Pick all ${listIds.length} shown`}</button></div>`;
+  else if (narrowed) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}</div>`;
   $("#list").innerHTML = html;
   jumpSync();
 }
@@ -1754,7 +1806,11 @@ document.addEventListener("touchend", (e) => {
 // The sticky jump bar and headings sit under the sticky search bar, whatever its height.
 function hdhSet() { document.documentElement.style.setProperty("--hdh", `${$("#hdr").offsetHeight}px`); }
 new ResizeObserver(hdhSet).observe($("#hdr"));
-document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
+document.addEventListener("click", (e) => {
+  const r = e.target.closest(".row[data-id]"); if (!r) return;
+  if (pick && r.closest("#list")) { const id = +r.dataset.id; pick.has(id) ? pick.delete(id) : pick.add(id); haptic(); renderList(); return pickBar(); }
+  openSheet(+r.dataset.id);
+});
 
 /* ---------- Spec sheet ---------- */
 const QTY = /^((?:\d+(?:\.\d+)?|half|one|two|three)\s?(?:ml|cl|l|g)\b|(?:\d+|a|half a|one|two|three)\s(?:dash(?:es)?|drops?|slices?|heaped spoons?|spoons?|wedges?|leaves|sprigs?|scoops?|can|cans|shots?|pinch(?:es)?)(?: of)?|dash of|pinch of|half pinch of|top with|top up with)\s+(.*)$/i;
@@ -1775,14 +1831,17 @@ function specRow(line) {
 // The method a step a line, as on the drink.
 const methodLines = (method) => method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i)
   .map((s) => s.replace(/\.$/, "").trim()).filter(Boolean).map((s) => s[0].toUpperCase() + s.slice(1));
+const slugName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 SHARE.drink = (id) => {
   const d = D[+id]; if (!d) return null;
   const m = mediaOf(d), al = d.allergens && d.allergens !== "None" ? d.allergens : "";
-  return { what: d.name, title: `${d.name} · Black Tap Soho`,
+  return { what: d.name, title: `${d.name} · Black Tap Soho`, asOf: "Spec as of",
     head: [`Glass: ${d.glass}`, `Ice: ${d.ice}`, `Garnish: ${d.garnish}`, ...(al ? [`Allergens: ${al}`] : [])],
     parts: [{ id: "spec", label: "Spec", lines: d.spec }, { id: "method", label: "Method", lines: methodLines(d.method) },
-      { id: "subs", label: "Out of something?", one: true, lines: d.subs ? d.subs.map((x) => `• ${x}`) : [], off: true, opt: true }],
-    photos: m?.photo ? async () => [{ data: m.photo, note: d.name, file: d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") }] : null,
+      { id: "subs", label: "Out of something?", one: true, lines: d.subs ? d.subs.map((x) => `• ${x}`) : [], opt: true }],
+    // The drink's own picture card goes first (it reads well in WhatsApp), then the house photo if there is one.
+    photoCard: true, photos: async () => [{ data: URL.createObjectURL(await plCardBlob(d)), note: "", file: `${slugName(d.name)}-card` },
+      ...(m?.photo ? [{ data: m.photo, note: d.name, file: slugName(d.name) }] : [])],
     tip: "Jigger everything. 12.5 ml is half a 25 ml jigger." };
 };
 function steps(method) {
@@ -1890,7 +1949,7 @@ function openSheet(id, keepScroll) {
     <div id="dmedit">${mediaEditHtml(d)}</div>
     ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
-    <div class="actions">${sendBtn("drink", "Send this drink", String(id))}<button class="btn" data-pl-card>Picture card</button><button class="btn" data-pl-print>Print card</button></div>
+    <div class="actions">${sendBtn("drink", "Share this drink", String(id))}</div>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
   plTickMark(); plOutMark(d);
@@ -2003,6 +2062,7 @@ function hideSheet() {
 $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("#sh-close") && snd?.drink != null) { const id = snd.drink; snd = null; openSheet(id, true); $("#sheet").scrollTop = 0; return; }
   // From a handover, Back goes back to the handover.
+  if (e.target.closest("#sh-close") && snd?.gal) { const d = snd.gal; snd = null; openGallery(d, true); return; }
   if (e.target.closest("#sh-close") && snd?.rep) { const id = snd.rep; snd = null; openReport(id, true); return; }
   const rd = e.target.closest("[data-rep-del]"); if (rd) { delReport(rd.dataset.repDel); return; }
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
@@ -2544,7 +2604,8 @@ function freshNight() {
   store.set("ho", ho); store.set("closer", ""); store.set("noPhotos", ""); store.set("noteDay", shiftDay());
 }
 function tallyText() {
-  const day = stamp(new Date());
+  // After midnight the shift is still the night before: name that night, then when it was sent.
+  const now = new Date(), day = shiftDay() === ukDay(now) ? stamp(now) : `${dayName(shiftDay())} night (sent ${stamp(now)})`;
   const list = (k) => {
     const p = progress(k), r = runOf(k);
     const items = (title, sts) => {
@@ -2802,19 +2863,24 @@ function clearList(k) {
   track(Promise.all(resetList(k, ids)), `${t} cleared`, "Not all cleared. Check your signal and try again");
   more = ""; haptic();
 }
-/* Clear everything, for a fresh start: both closing lists back to not started, everything back in stock, and tonight's
-   handover, Closed by and unsent photos gone, for both sides. Anyone on the team can. The owner's master clear also
-   cancels open restocks and marks the inbox done (kept, not deleted). Open issues are never cleared: they're faults the
-   next shift needs to see. Sent handovers stay: the morning reads them. Each person's own unsent forms (an incident,
-   a request) stay on their phone.
+/* Clear everything, for a fresh start, on every phone: both closing lists back to not started, everything back in
+   stock, restocks still waiting cancelled (all of them for a manager, your own for anyone else: the rules let only the
+   asker or a manager cancel one), tonight's handover boxes, drafts, Closed by and unsent photos, and this phone's
+   half-typed restock and date label forms. Anyone on the team can. The owner's master clear also marks the inbox done
+   (kept, not deleted). What stays is said in the question: sent handovers (the morning reads them), date labels (food
+   safety: they're the use-by dates on the shelf), today's stock count (a dated record; tomorrow starts at 0) and open
+   issues (faults the next shift needs to see). Each person's own forms to the managers stay on their phone.
    A mis-tap mid-service would put 86'd items back on sale, so whatever was cleared is kept on this phone for 15
    minutes and Undo clear puts it all back. */
 const UNDO_MINS = 15;
 let undoClear = null;
+const clearRestocks = () => rsOpen().filter((x) => x.status !== "delivered" && (LIVE.admin || x.askedUid === LIVE.uid));
 async function clearAll(master) {
-  const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api;
-  if (!confirm(master ? "Master clear: both closing lists, the 86 board and restocks for everyone, and the inbox marked done. Open issues and sent handovers stay. You can undo it for 15 minutes. Go ahead?"
-    : `Clear everything for a fresh start? On every phone: both closing lists go back to not started, everything 86'd goes back in stock, and tonight's handover, Closed by and unsent photos go. You can undo it for ${UNDO_MINS} minutes.`)) return;
+  const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api, rs = clearRestocks();
+  const goes = `both closing lists, every 86 (back in stock), ${LIVE.admin ? "every restock still waiting" : "restocks you asked for that are still waiting"}, tonight's handover and its drafts, Closed by, unsent closing photos, and the restock and label forms on this phone`;
+  const stays = "sent handovers, date labels, today's stock count and open issues";
+  if (!confirm(master ? `Master clear, on every phone. Goes: ${goes}, and the inbox is marked done. Stays: ${stays}. Undo clear puts it back for ${UNDO_MINS} minutes. Go ahead?`
+    : `Clear everything for a fresh start, on every phone? Goes: ${goes}. Stays: ${stays}. Undo clear puts it back for ${UNDO_MINS} minutes.`)) return;
   // What's about to go, so Undo clear can put it back.
   undoClear = {
     until: Date.now() + UNDO_MINS * 6e4,
@@ -2823,8 +2889,8 @@ async function clearAll(master) {
     out: [...outNow()],
     photos: tonightPhotos().map((x) => ({ data: x.data, side: x.side || mode, note: x.note || "" })),
     drafts: Object.keys(MODE_LISTS).map(draftOf).filter(Boolean).map((d) => ({ side: d.side, x: { low: d.low, issues: d.issues, next: d.next, closer: d.closer, noPhotos: d.noPhotos } })),
-    local: { ho: { ...ho }, closer, noPhotos },
-    restock: master ? rsOpen().filter((x) => x.status !== "delivered").map((r) => r.id) : [],
+    local: { ho: { ...ho }, closer, noPhotos, forms: { restock: { ...rsF }, label: { ...lbF } } },
+    restock: rs.map((r) => r.id),
   };
   const jobs = lists.flatMap((k) => resetList(k, touched(k)));
   for (const n of outNow()) jobs.push(A.set86(n, false));
@@ -2833,10 +2899,9 @@ async function clearAll(master) {
   // this phone hasn't heard back about yet is deleted too.
   clearTimeout(draftT); draftT = null;
   for (const side of Object.keys(MODE_LISTS)) jobs.push(A.dropDraft(side));
-  if (master) {
-    for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
-    for (const a of LIVE.asks.filter((x) => x.status !== "done")) jobs.push(A.answer(a.id, "done", CLEARED));
-  }
+  for (const r of rs) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
+  if (master) for (const a of LIVE.asks.filter((x) => x.status !== "done")) jobs.push(A.answer(a.id, "done", CLEARED));
+  dropDraft("restock"); dropDraft("label");
   ho = { low: "", issues: "", next: "" }; closer = ""; noPhotos = "";
   store.set("ho", ho); store.set("closer", ""); store.set("noPhotos", "");
   more = ""; haptic(); renderTally();
@@ -2856,6 +2921,7 @@ function undoClearAll() {
   for (const d of u.drafts) jobs.push(A.saveDraft(d.side, d.x));
   for (const id of u.restock) { const r = LIVE.restock.find((x) => x.id === id); if (r?.status === "cancelled") jobs.push(A.moveRestock(r, "asked", { note: "Clear undone" })); }
   ho = u.local.ho; closer = u.local.closer; noPhotos = u.local.noPhotos;
+  Object.assign(rsF, u.local.forms.restock); Object.assign(lbF, u.local.forms.label); saveDrafts();
   store.set("ho", ho); store.set("closer", closer); store.set("noPhotos", noPhotos);
   haptic(); renderTally();
   track(Promise.all(jobs), "Put back as it was", "Not all put back. Check what's missing");
@@ -3465,11 +3531,20 @@ function labelsByStation(side) {
   return [...by].filter(([, ys]) => ys.length).map(([k, ys]) => { const n = ys.filter((x) => x.on && ["overdue", "today"].includes(labelDue(x))).length;
     return `<div class="mini lbst">${esc(k)}${n ? ` <span class="pill no">${n} to change</span>` : ""}</div>${ys.map(labelRow).join("")}`; }).join("");
 }
+// By station (the order you walk them) or A to Z (the letter strip, for finding one), once a side has 10 or more.
+let lbAz = store.get("lbAz", false);
+function labelsList(side) {
+  const xs = sideLabels(side); if (!xs.length) return "";
+  if (xs.length < 10) return labelsByStation(side);
+  return `<div class="seg ct-order" role="group" aria-label="Order"><button data-lb-az="0" aria-pressed="${!lbAz}">By station</button><button data-lb-az="1" aria-pressed="${lbAz}">A to Z</button></div>`
+    + (lbAz ? azHtml(xs, (x) => x.item, labelRow, 10) : labelsByStation(side));
+}
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-lb-az]"); if (!b) return; lbAz = b.dataset.lbAz === "1"; store.set("lbAz", lbAz); haptic(); renderTally(); });
 function labelsHtml(side) {
   const head = `<div class="sec">Date labels</div>`;
   if (!LIVE.loaded.has("labels")) return `${head}<p class="note">Loading. It needs signal the first time.</p>`;
   return `${head}<p class="note">Opened one? Tap Opened one and write the date it gives you on the label. Binned the old one and opened a new one? Tap Changed it. Found one open with no label? Tap Found open. Each tap is saved with your name and the time.</p>
-    ${labelsByStation(side) || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
+    ${labelsList(side) || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
     ${sideLabels(side).some((x) => x.on) ? `<div class="actions">${sendBtn("labels", "Send the date labels", side)}</div>` : ""}
     ${LIVE.admin ? labelAddHtml(side) : ""}`;
 }
@@ -3495,11 +3570,12 @@ function labelsReport() {
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
-    <p class="note">Any time of the shift, from a phone or the iPad, by anyone on this side. Each one is saved for the whole team straight away (with no signal it waits on the phone, even if the app is closed) and goes with the handover. Send now shares one on its own as well. Whoever took a photo, or a manager, can delete it.</p>
+    <p class="note">Any time of the shift, from any phone or the iPad. Saved for the whole team straight away (with no signal it waits on the phone) and sent with the handover. Whoever took a photo, or a manager, can delete it.</p>
     ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo">${p.name ? `<div class="s">\ud83d\udcf7 <span translate="no">${esc(p.name)}</span>${p.at ? `, ${hhmm(new Date(ms(p.at)))}` : ""}</div>` : ""}<label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button>${p.uid === LIVE.uid || LIVE.admin ? `<button class="btn danger" data-ph-del="${p.id}">Delete photo</button>` : ""}</div></div>`).join("")}
     ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
       : photoBusy ? `<p class="note" role="status">Adding…</p>`
-      : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
+      : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}
+    <button class="linkbtn" data-goto="photos">\ud83d\udcf7 Every photo tonight, bar and floor: pick and send \u203a</button>`;
 }
 // Under the photos: the checklist goes any time with its photos, and nothing needs saving by hand.
 const closeSendHtml = () => `<div class="sec">Send or save</div><p class="note">Ticks, photos and notes save by themselves as you go, for everyone on the team on any phone or the iPad. Leaving part-way? Anyone can carry on. Send the checklist with its photos any time, or hand over to save it for the morning and the managers.</p><div class="actions">${sendBtn("shift", draftPhotos().length ? `Send the checklist with ${plural(draftPhotos().length, "photo")}` : "Send the checklist")}</div>`;
@@ -3819,12 +3895,15 @@ function renderFootball() {
   const now = games.filter((x) => x.day === today), soon = games.filter((x) => x.day > today);
   if (!now.length && !soon.length && !LIVE.admin) { box.innerHTML = ""; return; }
   const v = (k) => esc(fxForm[k]), list = (id, xs) => `<datalist id="${id}">${xs.map((x) => `<option value="${esc(x)}">`).join("")}</datalist>`;
-  const form = LIVE.admin ? `<details class="setup" id="fx-add"${fxForm.open ? " open" : ""}><summary>Add a game</summary>
+  const none = !now.length && !soon.length;
+  const form = LIVE.admin ? `<details class="setup" id="fx-add"${fxForm.open ? " open" : ""}><summary>${none ? "\u26bd No football today · Add a game" : "Add a game"}</summary>
       <div class="paygrid"><label class="fld">Day<input type="date" data-fx="day" value="${v("day") || today}"></label><label class="fld">Kick-off<input type="time" data-fx="ko" value="${v("ko")}"></label>
       <label class="fld">Home<input data-fx="home" maxlength="40" value="${v("home")}"></label><label class="fld">Away<input data-fx="away" maxlength="40" value="${v("away")}"></label>
       <label class="fld">Competition<input data-fx="comp" list="fx-comps" maxlength="40" value="${v("comp")}"></label><label class="fld">Channel<input data-fx="channel" list="fx-chans" maxlength="30" value="${v("channel")}"></label></div>
       <label class="fld">Which screen<input data-fx="screen" maxlength="30" placeholder="All screens, upstairs bar…" value="${v("screen")}"></label>
       ${list("fx-comps", COMPS)}${list("fx-chans", CHANNELS)}<button class="btn pri wide" id="fx-go">Add the game</button></details>` : "";
+  // No games: a manager gets one line to add one, not a whole card on top of every Shift page.
+  if (none) { box.innerHTML = `<div class="football fb-none">${form}</div>`; return; }
   box.innerHTML = `<div class="notice football"><div class="meta"><b>Football tonight</b></div>
     ${now.length ? now.map(fxRow).join("") : `<p class="note">No games on our screens today.</p>`}
     ${soon.length ? `<details><summary>Coming up (${soon.length})</summary>${soon.map((x) => `<div class="s" style="margin-top:8px"><b>${esc(dayName(x.day))}</b></div>${fxRow(x)}`).join("")}</details>` : ""}
@@ -3869,7 +3948,7 @@ document.addEventListener("click", (e) => {
    phrase with its translations in the same order, "" where there isn't one yet). Whatever is
    on screen is matched whole against the English, so a word that isn't in the list stays in English, and so do drink
    names, specs and allergens, which are never in it. Names and what people type are never touched. */
-const I18N = {"langs":[["ar","العربية","Arabic"],["hy","Հայերեն","Armenian"],["bn","বাংলা","Bengali"],["bg","Български","Bulgarian"],["zh","中文","Chinese"],["fr","Français","French"],["gu","ગુજરાતી","Gujarati"],["hi","हिन्दी","Hindi"],["it","Italiano","Italian"],["lt","Lietuvių","Lithuanian"],["ne","नेपाली","Nepali"],["pl","Polski","Polish"],["pt","Português","Portuguese"],["pa","ਪੰਜਾਬੀ","Punjabi"],["ro","Română","Romanian"],["es","Español","Spanish"],["ta","தமிழ்","Tamil"],["tr","Türkçe","Turkish"],["uk","Українська","Ukrainian"],["ur","اردو","Urdu"],["vi","Tiếng Việt","Vietnamese"],["cy","Cymraeg","Welsh"]],"v":"68d5b071f8"};
+const I18N = {"langs":[["ar","العربية","Arabic"],["hy","Հայերեն","Armenian"],["bn","বাংলা","Bengali"],["bg","Български","Bulgarian"],["zh","中文","Chinese"],["fr","Français","French"],["gu","ગુજરાતી","Gujarati"],["hi","हिन्दी","Hindi"],["it","Italiano","Italian"],["lt","Lietuvių","Lithuanian"],["ne","नेपाली","Nepali"],["pl","Polski","Polish"],["pt","Português","Portuguese"],["pa","ਪੰਜਾਬੀ","Punjabi"],["ro","Română","Romanian"],["es","Español","Spanish"],["ta","தமிழ்","Tamil"],["tr","Türkçe","Turkish"],["uk","Українська","Ukrainian"],["ur","اردو","Urdu"],["vi","Tiếng Việt","Vietnamese"],["cy","Cymraeg","Welsh"]],"v":"9b44cee725"};
 const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
 let lang = store.get("lang", "");
 const TR = new Map();
@@ -4981,7 +5060,7 @@ function payInner() {
     <div class="paycard" id="pay-sum">${paySumHtml()}</div>
     ${M.slip ? "" : `<div class="paygrid"><label class="fld">Hours in ${mName(pm)}<input data-pay-plan inputmode="decimal" value="${esc(pay.plan[pm] ?? "")}" placeholder="${fmtN(planless(pm))}"></label>
       ${pay.trOn ? `<label class="fld">Tronc an hour (£)<input data-pay="trRate" inputmode="decimal" value="${esc(pay.trRate ?? "")}" placeholder="${troncAuto(pm).r.toFixed(2)}"></label>` : ""}</div>
-      <p class="note">Put in the hours you expect to work to see what ${mName(pm)} would pay. Clear it to go back to your average. Tronc an hour applies to every month without a payslip.</p>`}
+      <p class="note">Type the hours you expect for a prediction; clear it for your average.</p>`}
     <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-ty-open>Type it in</button><button class="btn" data-hf-open>Add hours</button></div>
     <p class="note" id="slip-st" aria-live="polite">${esc(slip.busy)}</p>
     ${slip.learnt.length ? `<p class="note">Updated from your payslip: ${slip.learnt.map((x) => `<b>${esc(x)}</b>`).join(", ")}.</p>` : ""}
@@ -5188,7 +5267,7 @@ function renderInfo() {
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
     <div class="sec">This phone</div>
     <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
-    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Use Send feedback above.</p>
+    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Tell maintenance with App feedback above.</p>
     <div class="mini" style="margin-top:14px">Light or dark</div>
     <div class="seg" style="grid-template-columns:repeat(5,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["clock", "Clock"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. Clock goes light and dark at the venue's times, set by a manager. This phone only.</p>
@@ -5271,6 +5350,9 @@ const FEATURES = [
   { g: "Shift", k: "morning", n: "Morning", go: "morning", team: 1, tour: 1,
     what: "Before you open: a short brief of what matters today (tap the ring to play it full screen, one card at a time). Then last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
     staff: "Read the handover, send that it's checked with anything outstanding, send the order and the prep list on WhatsApp." },
+  { g: "Shift", k: "photos", n: "Photos", go: "photos", team: 1,
+    what: "Every photo the team took on a shift, bar and floor, from every phone and the iPad, sent or not yet: who took it, when and its note. Kept 30 days.",
+    staff: "Pick a night, tap the photos you want (or Pick all), then Send. Tap \u2922 to see one full size." },
   { g: "Shift", k: "lists", n: "Closing checklists", go: "shift", team: 1, tour: 1,
     what: "The bar and floor closes, ticked off live on every phone, with how long it's taking and who has ticked what.",
     staff: "Tick items off or a whole heading at once, mark one blocked and say why, give one to someone, or clear everything for a fresh start.", mgr: "Maintenance also has a master clear in Maintenance settings." },
@@ -5368,6 +5450,7 @@ function openAt(where) {
     return setTimeout(() => $("#tally .photo, #tally .addph")?.scrollIntoView({ block: "center" }), 80);
   }
   if (where === "shift") return show("tally");
+  if (where === "photos" || where.startsWith("gallery:")) return openGallery(where.slice(8) || shiftDay());
   if (where === "count") return show("count");
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
@@ -5383,7 +5466,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
+const PLACE_KW = { photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
@@ -5477,7 +5560,7 @@ function autoJoin() {
   if (LIVE.me === myName && !LIVE.admin) return;
   if (LIVE.uid && !LIVE.anon) return;
   joining = true; joinErr = "";
-  LIVE.api.join(teamCode, myName).catch((e) => { joinErr = e.message; toast(e.message); pendingPin = null; }).finally(() => { joining = false; renderTeam(); renderWelcomeName(); });
+  LIVE.api.join(teamCode, myName).catch((e) => { joinErr = e.message; toast(e.message); pendingPin = null; show("notices"); scrollTo(0, 0); }).finally(() => { joining = false; renderTeam(); renderWelcomeName(); });
 }
 function setName(n) {
   if (rude(n)) return toast(RUDE);
@@ -5485,6 +5568,30 @@ function setName(n) {
   if (LIVE.me && LIVE.anon && myName && LIVE.me !== myName) { joining = false; LIVE.me = null; }
   autoJoin(); renderWelcomeName(); renderTeam();
 }
+/* Switch person (the shared iPad) or change name: tap a name, no typing. A manager's code is locked first, so the
+   next person never works with it, and a name with its own code goes on to Unlock. */
+function openWho() {
+  lastFocus = document.activeElement;
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">${sharedDev ? "Who's using the iPad?" : "Your name"}</span><span></span></div></div>
+    <p class="note">Tap your name. What you tick, 86 or log from now on is saved under it.</p>${nameChips(LIVE.me || myName, "data-who")}
+    <label class="fld">Someone else<input id="who-other" maxlength="30" autocomplete="given-name" placeholder="Your first name" translate="no"></label>
+    <button class="btn pri wide" id="who-go">That's me</button>`;
+  showSheet(false); $("#sheet").scrollTop = 0;
+}
+async function whoPick(n) {
+  n = (n || "").trim(); if (!n) return toast("Tap your name or type it");
+  if (rude(n)) return toast(RUDE);
+  closeSheet(); haptic();
+  if (n === LIVE.me) return;
+  if (LIVE.pin) { try { await LIVE.api.lock(LIVE.me); } catch { return toast("Couldn't lock the manager's code. Check the signal"); } }
+  setName(n); toast(`Hi ${n}. Saving under your name from now on`);
+  if (hasCode(n)) setTimeout(() => { openAt("unlock"); toast("Type your own code to unlock"); }, 400);
+}
+document.addEventListener("click", (e) => {
+  const c = e.target.closest("[data-who]"); if (c) return whoPick(c.dataset.who);
+  if (e.target.closest("#who-go")) return whoPick($("#who-other")?.value);
+  if (e.target.closest("[data-who-open]")) { haptic(); openWho(); }
+});
 const nameChips = (pick, attr) => Object.entries({ Managers: STAFF.mgr, Bar: STAFF.bar, Floor: STAFF.floor }).map(([g, ns]) =>
   `<div class="mini">${g}</div><div class="recent" translate="no">${ns.map((n) => `<button class="chip" ${attr}="${esc(n)}" aria-pressed="${n === pick}">${esc(n)}</button>`).join("")}</div>`).join("");
 // Names that have their own code (the managers, and maintenance once this phone has seen the team's list), so the
@@ -6074,7 +6181,8 @@ const CARDS = () => [
     ]),
     ["§", "Team"],
   ] : []),
-  ...(LIVE.me && !LIVE.admin && LIVE.seniors.length ? [["unlock", "Manager or maintenance? Unlock with your code", unlockHtml]] : []),
+  // Only where a manager could be standing: a phone joined under a name with its own code, or the shared iPad.
+  ...(LIVE.me && !LIVE.admin && LIVE.seniors.length && (sharedDev || hasCode(LIVE.me)) ? [["unlock", "Manager or maintenance? Unlock with your code", unlockHtml]] : []),
   ["quick", "Send on WhatsApp", quickHtml],
   ...(LIVE.me && !LIVE.admin ? [["ask", "To the managers", askHtml, draftPill("ask")]] : []),
   ["incident", "Incident or accident", incHtml, draftPill("incident")],
@@ -6092,11 +6200,20 @@ function quickHtml() {
     <div class="mini">From you</div><div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}</div>
     <p class="note">Each message ends with a link that opens the right page in Bar Book, never the team code. Off sick goes on WhatsApp only: Bar Book keeps no copy.</p>`;
 }
-function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (c && box) box.innerHTML = c[2](); }
+// A card's body, and the count on its heading, which can change once the body has read what it needs (Ready for Friday).
+function renderCard(k) {
+  const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (!c || !box) return;
+  box.innerHTML = c[2]();
+  const sm = document.querySelector(`[data-card="${k}"] > summary`), sub = c[3], pill = sm?.querySelector(":scope > .pill");
+  if (!sm) return;
+  if (!sub) { pill?.remove(); return; }
+  const t = String(sub.t ?? sub), cls = `pill${sub.hot ? " no" : ""}`;
+  if (pill) { if (pill.textContent !== t) pill.textContent = t; pill.className = cls; } else sm.insertAdjacentHTML("beforeend", ` <span class="${cls}">${t}</span>`);
+}
 /* ---------- Drafts ----------
    Whatever someone types in a form stays on this phone as they type, so a guest, a locked phone or closing the app
    loses nothing. Save draft puts it away to finish later (its card says Draft, and the app says so when it opens);
-   Discard wipes it. Clear everything wipes them all. Nothing here leaves the phone until it's sent. */
+   Discard wipes it. Clear everything wipes the two on Shift (restock and date label); the rest are each person's own. Nothing here leaves the phone until it's sent. */
 const DRAFTS = {
   restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "detail"] },
   label: { n: "Date label", get: () => lbF, blank: () => ({ item: "", life: "", on: true, open: false }), fs: ["item", "life"] },
@@ -6140,12 +6257,12 @@ setTimeout(() => { const ds = Object.keys(DRAFTS).filter(drafted).map((k) => DRA
 function topHtml() {
   if (!LIVE.api) return `<p class="note">The team side needs signal the first time.</p>`;
   if (LIVE.admin) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${ROLE[LIVE.role]}</span><button class="linkbtn" data-send="team">Share the Bar Book link</button>${LIVE.pin ? `<button class="linkbtn" id="tm-lock">Lock</button>` : `<button class="linkbtn" id="tm-leave">Log out</button>`}</p>`;
-  if (LIVE.me) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${sideName(mode)}</span><button class="linkbtn" id="tm-rename">Change name</button><button class="linkbtn" data-send="team">Share the Bar Book link</button><button class="linkbtn" id="tm-leave">Leave</button></p>`;
+  if (LIVE.me) return `<p class="note acct"><span><b translate="no">${esc(LIVE.me)}</b> · ${sideName(mode)}</span><button class="linkbtn" id="tm-rename">${sharedDev ? "Switch person" : "Change name"}</button><button class="linkbtn" data-send="team">Share the Bar Book link</button><button class="linkbtn" id="tm-leave">Leave</button></p>`;
   const busyNow = joining || (LIVE.uid && LIVE.anon && myName && teamCode && !joinErr);
   return `<div class="fbbox"><h2 style="margin-top:0">Join the team</h2>
     ${busyNow ? `<p class="note" role="status">Joining as <b translate="no">${esc(myName)}</b>…</p>` : `
     <p>No login or password. Pick your name and type the team code (ask a manager). Managers and maintenance: join here first, then unlock with your own code.</p>
-    ${joinErr ? `<p class="note warn" role="alert">${esc(joinErr)}</p>` : ""}
+    ${joinErr ? `<p class="note warnline" role="alert">${esc(joinErr)}</p>` : ""}
     <div class="mini">Who are you?</div>${nameChips(myName, "data-j-name")}
     <label class="fld">Or type your first name (first name only)<input id="j-name" maxlength="30" value="${esc(allStaff().includes(myName) ? "" : myName)}" translate="no"></label>
     <label class="fld">Team code<input id="j-code" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" autocomplete="off" value="${esc(teamCode)}"></label>
@@ -6159,9 +6276,36 @@ function renderTeam() {
   if ($("#v-notices").hidden) return;
   const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if (!typing($("#tm-top"))) $("#tm-top").innerHTML = topHtml();
-  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = carryHtml(false) + sinceHtml() + CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3${sub ? " tm-sub" : ""}">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
+  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = carryHtml(false) + sinceHtml() + teamCardsHtml();
   renderBell();
 }
+/* The managers' headings fold, so the page is a short list of headings with the live summary on top: one tap opens a
+   heading's cards. Needs you, a heading with something hot, or one with a card open shows open. */
+const tgOpen = new Set(store.get("tgOpen", []));
+function teamCardsHtml() {
+  let html = "", grp = null;
+  const close = () => { if (grp) { html += `</div></details>`; grp = null; } };
+  const xs = CARDS();
+  xs.forEach(([k, t, f, sub], i) => {
+    if (k === "§") {
+      close();
+      if (!sub) { html += `<div class="h3">${t}</div>${f ? f() : ""}`; return; }
+      const mine = []; for (let j = i + 1; j < xs.length && xs[j][0] !== "§"; j++) mine.push(xs[j]);
+      const hot = mine.filter((c) => c[3]?.hot).length, open = t === "Needs you" || hot || tgOpen.has(t) || mine.some((c) => tmOpen.has(c[0]));
+      grp = t;
+      html += `<details class="tgrp" data-grp="${esc(t)}"${open ? " open" : ""}><summary><span class="tg-t">${t}</span><span class="tg-n">${hot ? `<b>${hot}</b> ` : ""}${mine.length}</span>${mine.length > 1 || mine[0]?.[1] !== t ? `<small class="tsub">${mine.map((c) => esc(c[1])).join(" \u00b7 ")}</small>` : ""}</summary><div class="tg-in">`;
+      return;
+    }
+    html += card(k, t, f, sub);
+  });
+  close();
+  return html;
+}
+$("#v-notices").addEventListener("toggle", (e) => {
+  const d = e.target; if (!d.matches?.("details.tgrp")) return;
+  const t = d.dataset.grp; d.open ? tgOpen.add(t) : tgOpen.delete(t); store.set("tgOpen", [...tgOpen]);
+  if (!d.open) { d.querySelectorAll("[data-card]").forEach((c) => tmOpen.delete(c.dataset.card)); store.set("tmOpen", [...tmOpen]); }
+}, true);
 function renderNotices() { renderTeam(); }
 // Opening or shutting a card is remembered, and its inside is drawn as it opens.
 $("#v-notices").addEventListener("toggle", (e) => {
@@ -6258,7 +6402,7 @@ $("#v-notices").addEventListener("click", async (e) => {
     return track(A.dropSenior(s.id), `${s.name} taken off`, "Not taken off");
   }
   if (b("#tm-leave")) { if (confirm(LIVE.admin ? "Log out on this phone?" : "Leave the team on this phone? Type the team code to join again.")) A.leave(); return; }
-  if (b("#tm-rename")) { const n = prompt("Your first name", LIVE.me); if (n && n.trim()) setName(n); return; }
+  if (b("#tm-rename")) { openWho(); return; }
   // To the manager.
   if ((x = b("[data-ask-kind]"))) { askF.kind = x.dataset.askKind; return renderCard("ask"); }
   if (b("#ask-go")) {
@@ -6414,11 +6558,12 @@ function sinceHtml() {
 }
 function liveChanged(what) {
   if (what === "media") renderMedia();
+  if ((what === "photos" || what === "reports") && $("#gal")) galRefresh();
   // Leaving, or being taken off the team by the manager or the owner: the phone forgets the team code (it reloads
   // next), so it doesn't join straight back. The link from the staff group brings it back.
   if (what === "left" && idleOut) return;
   if (what === "left" || what === "removed") { teamCode = ""; store.set("team", ""); store.set("kicked", what === "removed"); return; }
-  if (what === "me") { autoJoin(); sharedLock(); checkQueued(); }
+  if (what === "me") { autoJoin(); sharedLock(); checkQueued(); if (typeof sxWho === "function") sxWho(); }
   if (what === "names" && LIVE.names) { Object.assign(STAFF, LIVE.names); store.set("names", LIVE.names); }
   if (what === "seniors") { store.set("codeNames", LIVE.seniors.map((x) => x.name)); tryPendingPin(); }
   if (what === "me" || what === "seniors") renderWelcomeName();
@@ -6448,7 +6593,7 @@ function liveChanged(what) {
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports", "count", "low", "countSetup", "received"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports", "count", "low", "countSetup", "received", "seen"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (what === "me") { $('nav.tabs [data-tab="count"]').hidden = !LIVE.me; navCols(); if (cur === "count") renderStock(); }
   if (["count", "countSetup", "received", "items", "out", "labels", "codes"].includes(what)) ctRender();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
@@ -6622,6 +6767,7 @@ let cur = "drinks";
 let pageShown = false;
 function show(tab, fromBack = false) {
   if (!TABS.includes(tab) || (tab === "pay" && sharedDev)) tab = "drinks";
+  if (pick && tab !== "drinks") { pick = null; document.body.classList.remove("picking"); if ($("#pickbar")) $("#pickbar").hidden = true; }
   if (!fromBack) {
     if (!pageShown || history.state?.sheet) history.replaceState({ tab }, "");
     else if (tab !== cur) history.pushState({ tab }, "");
@@ -7106,12 +7252,13 @@ const btUses = (k) => D.filter((d) => MK.reqs.get(d.id).some((r) => mkCover(r, k
    Each drink is its own tick box on the Send page, so the person picks which go. The first dozen are ticked. */
 const SPEC_MAX = 40, SPEC_ON = 12;
 const specPart = (d, i) => ({ id: "d" + d.id, label: d.name, one: true, off: i >= SPEC_ON,
-  lines: [...plOutLines(d), ...d.spec.map((l) => `• ${l}`), [d.glass, d.ice, d.garnish && `Garnish: ${d.garnish}`].filter((x) => x && !/^(Garnish: )?None\b/i.test(x)).join(" · "), `How: ${d.method}`] });
+  lines: [...plOutLines(d), ...d.spec.map((l) => `• ${l}`), [d.glass, d.ice, d.garnish && `Garnish: ${d.garnish}`].filter((x) => x && !/^(Garnish: )?None\b/i.test(x)).join(" · "), `How: ${d.method}`,
+    ...(d.subs?.length ? ["Out of something?", ...d.subs.map((x) => `\u21aa ${x}`)] : [])] });
 SHARE.specs = (o) => {
   const ids = String(o || "").split(",").filter(Boolean).map(Number).filter((i) => D[i]).slice(0, SPEC_MAX);
   if (!ids.length) return null;
   const ds = ids.map((i) => D[i]);
-  return { what: `${ds.length} ${ds.length === 1 ? "spec" : "specs"}`, title: "Drink specs · Black Tap Soho",
+  return { what: `${ds.length} ${ds.length === 1 ? "spec" : "specs"}`, title: "Drink specs · Black Tap Soho", asOf: "Specs as of",
     head: [`${ds.length} ${ds.length === 1 ? "drink" : "drinks"}. Jigger everything: 25 ml single, 50 ml double.`],
     parts: ds.map(specPart), tip: `Tick the drinks to send. The first ${SPEC_ON} are ticked; a long message may be cut short by WhatsApp.` };
 };
@@ -7913,6 +8060,9 @@ function sxSetupHtml() {
       ${row(sharedDev, "Shared iPad on", "Asks who's using it, hides My pay, and a manager's code locks again after 5 minutes. Leaving the station, turning Shared off and Reset this phone need a manager's code.", `<button class="btn" data-shared-pick="on">Turn Shared on</button>`)}
       ${row(!!lock, "Screen kept on", lock ? "Bar Book is keeping the screen on." : navigator.wakeLock ? "Tap anywhere and Bar Book keeps the screen on while it's open." : "This iPad doesn't let Bar Book keep the screen on, so the Auto-Lock step below matters.")}
     </ul>
+    <div class="sx-k">iPad tiles</div>
+    <p class="st-s">Switch off what the bar doesn't use, and back on any time. It changes straight away on this iPad and stays after a reload.</p>${sxNeedsMgr() ? `<p class="st-s">A manager unlocks it with their code first.</p>` : ""}
+    <div class="sx-tiles">${SX_TILES.map(([k, t]) => `<label class="check"><input type="checkbox" data-sx-tileset="${k}"${sxOn(k) ? " checked" : ""}><span>${t}</span></label>`).join("")}</div>
     <div class="sx-k">Tap a drink</div>
     <div class="sx-set1"><span class="st-s">${SX.mk ? "Opens Make it now: big step cards, one at a time, with Done back to the list. Spec next to the list is one tap away." : "Shows its spec next to the list. \u25b6 Make it now on the spec opens the step cards."}</span><button class="btn${SX.mk ? "" : " pri"}" data-sxm-pref>${SX.mk ? "Show just the spec instead" : "Open Make it now instead"}</button></div>
     <div class="sx-k">In the iPad's Settings</div>
@@ -7927,6 +8077,27 @@ function sxSetupHtml() {
 }
 // The station's views, in one bar along the top. Drinks is the list and the spec; the rest show where the spec goes.
 const SX_VIEWS = [["drink", "Drinks"], ["round", "Round"], ["batch", "Batches"], ["quiz", "Quiz"], ["setup", "Set up"]];
+/* One tap from the station to every job behind the bar. Each opens its page; the station comes back on its own after 2
+   quiet minutes, or with Bar station at the bottom. */
+const SX_GO = [["stock", "86 and low", "\u26d4"], ["close", "Closing", "\u2705"], ["send", "Hand over", "\ud83d\udcdd"], ["photos", "Photos", "\ud83d\udcf7"],
+  ["labels", "Date labels", "\ud83c\udff7\ufe0f"], ["count", "Stock", "\u2696\ufe0f"], ["morning", "Morning", "\u2600\ufe0f"]];
+/* iPad tiles: what shows on this station, switched on or off in Set up by a manager. Kept on this iPad, as it's the
+   station's own layout, so it survives reloads and needs nothing from the team's database. */
+const SX_TILES = [["round", "Round"], ["batch", "Batches"], ["quiz", "Quiz"], ...SX_GO.map(([k, t]) => [`go-${k}`, t]),
+  ["tonight", "Tonight panel: 86s, closing, photos, sending"], ["runout", "Ran out of something? box"]];
+const sxOff = new Set(store.get("sx.off", []));
+const sxOn = (k) => !sxOff.has(k);
+function sxTilesApply() {
+  $$("#v-station [data-sx-tile]").forEach((e) => { e.hidden = !sxOn(e.dataset.sxTile) || (e.id === "sx-tools" && !LIVE.me); });
+  const go = $("#sx-go"); if (go) go.hidden = !LIVE.me || !SX_GO.some(([k]) => sxOn(`go-${k}`));
+  $("#sx")?.classList.toggle("notonight", !sxOn("tonight"));
+  if (["round", "batch", "quiz"].includes(SX.view) && !sxOn(SX.view)) { SX.view = "drink"; sxBars(); sxList(); sxSpec(); }
+}
+// A manager (or anyone, when the iPad isn't shared) switches a tile; it changes at once.
+function sxTileSet(k, on) {
+  if (sxNeedsMgr()) { toast("A manager unlocks it with their code first"); return openAt("unlock"); }
+  on ? sxOff.delete(k) : sxOff.add(k); store.set("sx.off", [...sxOff]); haptic(); sxTilesApply(); sxFit();
+}
 const SX_PANELS = { round: () => sxRoundHtml(), batch: sxBatchHtml, quiz: sxQuizHtml, setup: sxSetupHtml };
 // What's 86'd tonight, on the spec line itself: struck through, with the swap beside it.
 function sxMark(root) {
@@ -7948,7 +8119,7 @@ function sxSpec() {
 }
 function sxTonight() {
   const el = $("#sx-live"); if (!el) return;
-  $("#sx-tools").hidden = !LIVE.me;
+  sxTilesApply();
   if (!LIVE.me) { $("#sx-86s").hidden = true; $("#sx-lbs").hidden = true; $("#sx-tsum").hidden = true; $("#sx-tgrid").classList.remove("shut"); el.innerHTML = `<div class="st-tile st-join"><span class="st-k">Tonight</span><span class="st-s">Join the team on this iPad to see tonight's 86s, the close and the handover here, live.</span><button class="btn pri" data-st-go="notices">Join the team</button></div>`; return; }
   const out = [...outNow()].sort(), today = shiftDay(), strip = $("#sx-86s");
   // The one line Tonight folds into, upright and on a phone.
@@ -7991,14 +8162,15 @@ function sxTonight() {
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">?</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
-    <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}">${t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn sx-who" data-who-open hidden></button><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">?</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+    <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}"${["round", "batch", "quiz"].includes(k) ? ` data-sx-tile="${k}"` : ""}>${t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
+    <nav class="sx-go" id="sx-go" aria-label="Go to" hidden>${SX_GO.map(([k, t, i]) => `<button class="btn" data-goto="${k}" data-sx-tile="go-${k}"><span aria-hidden="true">${i}</span>${t}</button>`).join("")}</nav>
     <div class="sx-tms" id="sx-tms" hidden></div>
     <div class="sx-86s" id="sx-86s" role="status" hidden></div>
     <div class="sx-lbs" id="sx-lbs" hidden></div>
     <div class="sx" id="sx">
       <aside class="sx-tonight" id="sx-tonight" aria-label="Tonight"><button class="sx-tsum" id="sx-tsum" aria-controls="sx-tgrid"></button><div class="sx-tgrid" id="sx-tgrid"><div class="sx-live" id="sx-live"></div>
-        <div class="st-tile sx-tools" id="sx-tools" hidden><span class="st-k">Ran out of something?</span>
+        <div class="st-tile sx-tools" id="sx-tools" data-sx-tile="runout" hidden><span class="st-k">Ran out of something?</span>
           ${pkBtn("Search or pick: any ingredient, bottle or drink", 'data-pk86="bar" id="sx-86q"')}<span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></div></aside>
       <section class="sx-drinks" aria-label="Drinks">
         <div class="search sx-search"><input id="sx-q" type="search" placeholder="Search any drink, spirit or glass" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Search drinks"></div>
@@ -8010,7 +8182,13 @@ function renderStation() {
       <section class="sx-spec" id="sx-spec" aria-label="Spec"></section>
     </div>`;
   document.body.classList.toggle("sxbig", SX.big);
-  sxBars(); sxList(); sxSpec(); sxTonight(); sxTimers(); sxFit();
+  sxBars(); sxList(); sxSpec(); sxTonight(); sxTimers(); sxTilesApply(); sxFit(); sxWho();
+}
+// Who the station is saving under, one tap to switch on the shared iPad.
+function sxWho() {
+  const w = $("#v-station [data-who-open]"); if (!w) return;
+  w.hidden = !(LIVE.me && LIVE.anon);
+  if (LIVE.me) { w.textContent = `\ud83d\udc64 ${LIVE.me}`; w.setAttribute("aria-label", `${LIVE.me}. Switch person`); w.setAttribute("translate", "no"); }
 }
 // Everything that can go on the 86 board: the stock list, every ingredient in a spec, every drink. Anything else typed
 // still goes on, as typed (a burger, a glass).
@@ -8062,6 +8240,7 @@ addEventListener("click", (e) => {
 document.addEventListener("click", (e) => {
   if (cur !== "station") return;
   if (e.target.closest("[data-shared-pick]")) { sxTonight(); sxList(); sxSpec(); return; }
+  const ts = e.target.closest("[data-sx-tileset]"); if (ts) { const on = ts.checked; if (sxNeedsMgr()) { e.preventDefault(); ts.checked = !on; } sxTileSet(ts.dataset.sxTileset, on); return; }
   const vw = e.target.closest("[data-sx-view]");
   if (vw) { haptic(); SX.view = vw.dataset.sxView; sxBars(); sxList(); sxSpec(); if (!sxWide()) window.scrollTo(0, $("#sx-list").offsetTop - 80); return; }
   const md = e.target.closest("[data-sx-made]");
@@ -8173,13 +8352,22 @@ body.stmode .brandbar, body.stmode nav.tabs { display: none; }
 body.stmode main { padding-top: 0; padding-bottom: calc(16px + env(safe-area-inset-bottom, 0px)); }
 .sx-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0 8px; }
 /* One bar for every view: what's on is filled in, and it's the way back from any of them. */
-.sx-views { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 4px; margin: 0 0 10px; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
+.sx-views { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 4px; margin: 0 0 10px; padding: 4px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); }
 .sx-views button { min-height: 48px; padding: 6px 4px; border-radius: 10px; font-size: 16px; font-weight: 700; color: var(--fg); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sx-views button[aria-pressed="true"] { background: var(--brass); color: var(--brass-ink); }
 .sx-badge { display: inline-block; min-width: 1.4em; padding: 0 5px; border-radius: 999px; background: var(--warn); color: #fff; font-size: 13px; line-height: 1.5; vertical-align: 1px; }
 .sx-badge:empty { display: none; }
 @media (max-width: 420px) { .sx-views button { font-size: 14.5px; } }
 @media (min-width: 700px) { .sx-views button { font-size: 18px; min-height: 52px; } }
+/* Go to: every job one tap from the station, big enough for a wet thumb. */
+.sx-go { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin: 0 0 10px; }
+.sx-go[hidden], .sx-go [hidden], .sx-views [hidden] { display: none; }
+.sx-go .btn { min-height: 56px; justify-content: center; gap: 8px; font-size: 16px; font-weight: 700; }
+@media (min-width: 1000px) { .sx-go { grid-template-columns: repeat(7, minmax(0, 1fr)); } .sx-go .btn { font-size: 16px; padding-inline: 6px; } }
+.sx-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; margin: 6px 0 14px; }
+.sx.notonight .sx-tonight { display: none; }
+@media (min-width: 700px) { .sx.notonight { grid-template-areas: "drinks spec"; grid-template-rows: minmax(0, 1fr); } }
+@media (min-width: 1000px) { .sx.notonight { grid-template-columns: minmax(280px, 360px) minmax(0, 1fr); } }
 /* The 86 strip: tonight's 86s across the top, big enough to read from the well. */
 .sx-86s { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; margin: 0 0 10px; padding: 8px 12px; border: 2px solid var(--warn); border-radius: 12px; background: var(--surface); font-size: 19px; font-weight: 700; }
 .sx-86s::-webkit-scrollbar { display: none; }
@@ -8234,7 +8422,7 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .sx-tsum .chev { flex: none; color: var(--brass); font-weight: 700; }
 .sx-tsum.hot { border-color: var(--warn); }
 .sx-tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 10px; }
-@media (max-width: 1099px) { .sx-tgrid.shut { display: none; } }
+@media (max-width: 999px) { .sx-tgrid.shut { display: none; } }
 .sx-tonight .st-join { grid-column: 1 / -1; }
 .sx-drinks { grid-area: drinks; min-width: 0; }
 .sx-spec { grid-area: spec; display: none; }
@@ -8375,7 +8563,7 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
 .sx-rm { color: var(--muted); font-size: 15px; margin-top: 2px; }
 .sx-rc .sx-specl li { font-size: 20px; padding: 7px 0; }
 .sx-rmeth { margin: 8px 0 0; font-size: 16px; }
-.sx-back { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(var(--tabh) + 14px + env(safe-area-inset-bottom, 0px)); z-index: 7; min-height: 48px; padding: 10px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+.sx-back { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(var(--tabh) + 14px + env(safe-area-inset-bottom, 0px)); z-index: 7; min-height: 48px; padding: 10px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
 .sx-back[hidden] { display: none; }
 /* iPad upright: Tonight across the top, then the list and the spec side by side, each scrolling on its own. */
 @media (min-width: 700px) {
@@ -8390,8 +8578,8 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
   .sx-spec .outbar, .sx-spec .allergy { font-size: 17px; }
 }
 /* iPad sideways (and big iPads): the list, the spec, and Tonight down the right. */
-@media (min-width: 1100px) {
-  .sx { grid-template-columns: 340px minmax(0, 1fr) 290px; grid-template-areas: "drinks spec tonight"; grid-template-rows: minmax(0, 1fr); }
+@media (min-width: 1000px) {
+  .sx { grid-template-columns: minmax(280px, 330px) minmax(0, 1fr) minmax(260px, 290px); grid-template-areas: "drinks spec tonight"; grid-template-rows: minmax(0, 1fr); }
   /* Sideways there's room: Tonight is always open down the right, and scrolls on its own. */
   .sx-tonight { min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   .sx-tsum { display: none; }
@@ -8637,15 +8825,16 @@ function azScroller(el) {
 }
 // The bars that stick at the top of what scrolls: the search bar, the Shift places, the top of a full-screen sheet, the
 // bar station's part headings.
-const AZ_STICKY = "#hdr, #placebar, .sheet-top, .sx-h";
+// The Shift tabs carry a 10 px band of page colour under them (their box-shadow), so a heading clears that too.
+const AZ_STICKY = "#hdr, #placebar, .sheet-top, .sx-h, .ptabs";
 const azStickies = () => [...(AZ.sc || document).querySelectorAll(AZ_STICKY)].filter((s) => s.getClientRects().length && getComputedStyle(s).position === "sticky");
 // How far down they reach once they've stuck, so a letter lands just under them.
-function azStick() { return Math.max(0, ...azStickies().map((s) => (parseFloat(getComputedStyle(s).top) || 0) + s.offsetHeight)); }
+function azStick() { return Math.max(0, ...azStickies().map((s) => (parseFloat(getComputedStyle(s).top) || 0) + s.offsetHeight + (s.matches(".ptabs") ? 10 : 0))); }
 // The part of the screen the list shows in: under the sticky bars, above the tab bar.
 function azFrame() {
   const r = AZ.sc ? AZ.sc.getBoundingClientRect() : { top: 0, bottom: innerHeight };
   let top = Math.max(r.top, 0), bottom = Math.min(r.bottom, innerHeight);
-  for (const s of azStickies()) if (!AZ.box.contains(s)) top = Math.max(top, s.getBoundingClientRect().bottom);
+  for (const s of azStickies()) if (!AZ.box.contains(s)) top = Math.max(top, s.getBoundingClientRect().bottom + (s.matches(".ptabs") ? 10 : 0));
   const tabs = document.querySelector("nav.tabs");
   if (!AZ.sc && tabs && tabs.getClientRects().length) bottom = Math.min(bottom, tabs.getBoundingClientRect().top);
   // Stop above the buttons that float in the bottom corner (🎤 Say it, a timer, one-hand mode), where they'd cover it.
@@ -9142,8 +9331,7 @@ function plSheetOut(sh) {
 
 /* ---------- Shareable lists ---------- */
 // A link that opens the Bar Book on just these drinks: tonight's specials, a practice set, the drinks for a party.
-// It carries the names, so it keeps working when drinks are added. The QR code is for a poster behind the bar.
-const QR_URL = "https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js";
+// It carries the names, so it keeps working when drinks are added.
 const plSlug = (n) => n.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const PL_BY_SLUG = new Map(D.map((d) => [plSlug(d.name), d]));
 const plListUrl = (name, ids) => `${location.origin}${location.pathname}#list=${encodeURIComponent(name.trim() || "Drinks list")}~${ids.map((id) => plSlug(D[id].name)).join(".")}`;
@@ -9155,8 +9343,6 @@ function plOpenList(hash) {
   favOnly = false; flav = null; $("#q").value = ""; show("drinks"); renderList();
   return true;
 }
-let plQrLib = null;
-const plQr = () => plQrLib || (plQrLib = new Promise((ok, no) => { const s = document.createElement("script"); s.src = QR_URL; s.onload = () => ok(window.qrcode); s.onerror = () => { plQrLib = null; no(); }; document.head.append(s); }));
 // Your own lists ("Tonight's specials", "Brunch"), kept on this phone, opened in one tap above the menu and sent as a link.
 const plLists = () => store.get("lists", []).filter((x) => x && x.name && Array.isArray(x.drinks));
 const plSaveLists = (xs) => store.set("lists", xs);
@@ -9166,34 +9352,22 @@ function plOpenSaved(i) {
   PL.list = { name: x.name, names, saved: true };
   favOnly = false; flav = null; $("#q").value = ""; show("drinks"); renderList();
 }
+// Save the picked drinks as your own list on this phone ("Tonight's specials", "Brunch"): one tap above the menu opens
+// it again. Sending them is the Share button beside it, so this only names and saves.
 function openListMaker(ids) {
   if ($("#sheet").hidden) lastFocus = document.activeElement;
   const name = PL.list?.name || (favOnly ? "Favourites" : "Tonight's drinks");
-  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Share as a list</span><span></span></div></div>
-    <div id="pl-lm"><p class="lead" style="margin-top:12px">A link that opens the Bar Book on just these ${ids.length} drinks. Good for tonight's specials, a practice set or a party.</p>
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">Save as a list</span><span></span></div></div>
+    <div id="pl-lm"><p class="lead" style="margin-top:12px">Keep these ${ids.length} drinks as a list on this phone. It shows above the menu, under Filters, and opens in one tap.</p>
     <label class="fld">Name of the list<input id="pl-ln" maxlength="60" value="${esc(name)}"></label>
     <ul class="pl-names" translate="no">${ids.map((id) => `<li>${esc(D[id].name)}</li>`).join("")}</ul>
-    <div class="actions"><button class="btn pri" data-pl-l="save">Save on this phone</button><button class="btn" data-pl-l="copy">Copy link</button><a class="btn" data-pl-l="wa" href="https://wa.me/" target="_blank" rel="noopener">WhatsApp</a>${navigator.share ? `<button class="btn" data-pl-l="share">Share</button>` : ""}</div>
-    <div class="sec">QR code</div><div id="pl-qr" class="pl-qr"><p class="note">Making the QR code…</p></div>
-    <p class="note">Anyone with the Bar Book link can open it. It shows specs only: nothing from the team.</p></div>`;
+    <div class="actions"><button class="btn pri" data-pl-l="save">Save on this phone</button></div></div>`;
   showSheet(false); $("#sheet").scrollTop = 0;
-  const url = () => plListUrl($("#pl-ln").value, ids);
-  const wa = () => { $("[data-pl-l=wa]").href = "https://wa.me/?text=" + encodeURIComponent(`*${$("#pl-ln").value.trim() || "Drinks list"}*\n${ids.map((id) => `• ${D[id].name}`).join("\n")}\n\n${url()}`); };
-  const qr = async () => {
-    try { const q = (await plQr())(0, "M"); q.addData(url()); q.make(); $("#pl-qr").innerHTML = `<img alt="QR code for the list" src="${q.createDataURL(8, 16)}"><a class="btn" download="${plSlug($("#pl-ln").value || "list")}-qr.gif" href="${q.createDataURL(10, 20)}">Save the QR code</a>`; }
-    catch { $("#pl-qr").innerHTML = `<p class="note">The QR code needs the internet. The link works without it.</p>`; }
-  };
-  wa(); qr();
-  $("#pl-ln").addEventListener("input", () => { wa(); clearTimeout(qr.t); qr.t = setTimeout(qr, 400); });
-  $("#pl-lm").addEventListener("click", async (e) => {
-    const b = e.target.closest("[data-pl-l]"); if (!b) return;
-    if (b.dataset.plL === "save") {
-      const n = $("#pl-ln").value.trim() || "Drinks list", xs = plLists().filter((x) => x.name !== n);
-      plSaveLists([...xs, { name: n, drinks: ids.map((id) => plSlug(D[id].name)) }].slice(-20));
-      toast(`Saved. "${n}" is above the menu`); haptic(); return;
-    }
-    if (b.dataset.plL === "copy") { try { await navigator.clipboard.writeText(url()); toast("Link copied"); } catch { prompt("Copy the link", url()); } }
-    if (b.dataset.plL === "share") { try { await navigator.share({ title: $("#pl-ln").value, url: url() }); } catch {} }
+  $("#pl-lm").addEventListener("click", (e) => {
+    if (!e.target.closest('[data-pl-l="save"]')) return;
+    const n = $("#pl-ln").value.trim() || "Drinks list", xs = plLists().filter((x) => x.name !== n);
+    plSaveLists([...xs, { name: n, drinks: ids.map((id) => plSlug(D[id].name)) }].slice(-20));
+    toast(`Saved. "${n}" is under Filters`); haptic();
   });
 }
 
@@ -11060,7 +11234,11 @@ function ctWeighPut(el) {
   const r = ctRow(el.dataset.ctG), n = +el.value.replace(",", "."), w = r && ctWeigh(r, n), x = r && ctLine(r);
   if (!w) return;
   if (r.u !== "bottle") return ctPut(r, Math.floor(w.n), (w.n % 1) * 100);
-  if (!w.full && n >= r.e - 20 && (x?.open ?? -1) !== w.open) ctPut(r, x?.full || 0, w.open);
+  if (!w.full && n >= r.e - 20 && (x?.open ?? -1) !== w.open) {
+    ctPut(r, x?.full || 0, w.open);
+    // The page waits to redraw while the box has the keyboard, so the total under it changes here and now.
+    const t = $("#ct .ct-sum b"); if (t) t.textContent = ctSay(r.u, (x?.full || 0) + w.open / 100);
+  }
 }
 $("#v-count").addEventListener("change", (e) => {
   if (!$("#ct")) return;
@@ -11439,7 +11617,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T01:41";
+const BUILD = "2026-11-18T02:44";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -11570,38 +11748,56 @@ function readyHtml() {
 }
 /* ---------- Pre-shift brief ----------
    At the top of Morning: one look before the doors open, made from what's already in Bar Book. Nobody writes it. */
+// A brief line is text, or { t, d } for one that opens drink d (a spec that changed).
+const lineText = (l) => (typeof l === "string" ? l : l.t);
 function briefParts(side = mode) {
   const r = lastReport(), h = r && reportDay(r) === lastNight() ? handoverOf(r) : null, now = toChange([side]), soon = labelsDue([side]).filter((x) => !now.includes(x));
   const games = LIVE.fixtures.filter((x) => x.day === ukDay(Date.now())).sort((a, b) => a.ko.localeCompare(b.ko));
   const iss = openIssues().filter((x) => [side, "other", "cellar", "toilets", "terrace"].includes(x.area) || x.urgent).sort((a, b) => b.urgent - a.urgent);
+  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for today.
+  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For today: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
+  const carry = typeof carryRows === "function" ? carryRows(false).filter((x) => x.sd === side) : [];
+  // What changed since this person was last in (specs, the team's changes). Last night's handover has its own card.
+  const since = (typeof sinceLast === "function" ? sinceLast(side) : []).filter((p) => p.id !== "handover");
   return [
-    // Another part of the app can add what changed since this person was last in (same shape).
-    ...(typeof sinceLast === "function" ? sinceLast(side) : []),
-    { id: "out", k: "stock", label: "86'd", lines: [...outNow()].sort() },
+    ...since.filter((p) => p.id === "specs"),
     { id: "now", k: "labels", label: "Date labels to change now", lines: now.map((x) => `${x.item} (use by ${dayName(x.useBy)})`), hot: true },
-    { id: "soon", k: "labels", label: "Date labels due tomorrow", lines: soon.map((x) => x.item) },
-    { id: "next", k: "morning", label: "Last night said, for today", lines: h ? hoSplit(h.next) : [] },
+    { id: "out", k: "stock", label: "86'd", lines: [...outNow()].sort() },
+    { id: "low", k: "stock", label: "Running low", lines: typeof lowNow === "function" ? lowNow().map((x) => `${x.item}: ${lowSay(x)}`) : [] },
+    { id: "last", k: "morning", label: "Last night's handover", lines: ho },
+    { id: "carry", k: "send", label: "Started, not handed over yet", lines: carry.map((x) => `${x.bits.join(", ")}${x.by ? `, started by ${x.by}` : ""}. Anyone can carry on`) },
     { id: "issues", k: "issues", label: "Open faults", lines: iss.map((x) => `${x.urgent ? "URGENT: " : ""}${x.title}`), hot: iss.some((x) => x.urgent) },
     { id: "restock", k: "stock", label: "Restocks waiting", lines: rsOpen().filter((x) => DEST_SIDE[x.dest] === side).map((x) => amtOf(x.qty, x.unit, x.item)) },
     { id: "games", k: "football", label: "Games on today", lines: games.map((x) => `${x.ko} ${x.home} v ${x.away}`) },
+    { id: "soon", k: "labels", label: "Date labels due tomorrow", lines: soon.map((x) => x.item) },
     { id: "approve", k: "stock", label: "Waiting for you to check", lines: LIVE.owner ? LIVE.items.filter((x) => x.status === "waiting").map((x) => `${x.item} (${x.addedBy})`) : [] },
+    ...since.filter((p) => p.id !== "specs"),
   ];
 }
 function briefHtml() {
   if (!LIVE.me) return "";
-  const ps = briefParts(), any = ps.filter((p) => p.lines.length);
+  // Last night's handover is in full just below on the Morning page, so the list here leaves it to that.
+  const ps = briefParts(), any = ps.filter((p) => p.lines.length && p.id !== "last");
   const seen = store.get("storySeen", "") === `${shiftDay()}-${mode}`;
   return `<div class="brief"><button class="story-ring${seen ? " seen" : ""}" data-story aria-label="Play tonight's brief"><span class="sr-dot">▶</span><span><b>Tonight's brief</b><small>${seen ? "Watched. Tap to see it again" : `${plural(any.length + 2, "card")}, tap through`}</small></span></button>
+    ${LIVE.admin ? seenHtml() : ""}
     <div class="sec">Before you open</div>
-    ${any.length ? any.map((p) => `<button class="bline${p.hot ? " hot" : ""}" data-goto="${p.k}"><b>${p.label}</b><span translate="no">${p.lines.slice(0, 4).map(esc).join(" · ")}${p.lines.length > 4 ? ` +${p.lines.length - 4}` : ""}</span></button>`).join("")
+    ${any.length ? any.map((p) => `<button class="bline${p.hot ? " hot" : ""}" data-goto="${p.k}"><b>${p.label}</b><span translate="no">${p.lines.slice(0, 4).map((l) => esc(lineText(l))).join(" · ")}${p.lines.length > 4 ? ` +${p.lines.length - 4}` : ""}</span></button>`).join("")
       : `<p class="note">✅ Nothing 86'd, no labels due, no open faults.</p>`}
     <p class="note">Tonight's quiz is ready in Practise: same 10 for everyone.</p>
     <div class="actions">${sendBtn("brief", "Send the brief on WhatsApp")}</div></div>`;
 }
+// The managers' Seen by: who has watched tonight's brief, bar and floor, with when.
+function seenHtml() {
+  const xs = (LIVE.seen || []).slice().sort((a, b) => ms(a.at) - ms(b.at));
+  if (!xs.length) return `<p class="note seenby">\ud83d\udc41 Seen by: nobody yet tonight</p>`;
+  return `<details class="seenby"><summary>\ud83d\udc41 Seen by ${xs.length}: <span translate="no">${esc(xs.slice(0, 3).map((x) => x.name).join(", "))}${xs.length > 3 ? ` +${xs.length - 3}` : ""}</span></summary>
+    <ul translate="no">${xs.map((x) => `<li>${esc(x.name)} \u00b7 ${esc(sideName(x.side))} \u00b7 ${x.at ? hhmm(new Date(ms(x.at))) : ""}</li>`).join("")}</ul></details>`;
+}
 SHARE.brief = () => {
   const ps = briefParts().filter((p) => p.lines.length);
   return { what: "Pre-shift brief", title: `Black Tap Soho · ${sideName(mode)} pre-shift · ${dayName(shiftDay())}`, head: [ps.length ? "" : "✅ Nothing 86'd, no labels due, no open faults"].filter(Boolean),
-    parts: [...ps.map((p) => ({ id: p.id, label: p.label, lines: p.lines })), { id: "quiz", label: "Tonight's quiz", one: true, lines: ["Practise > Quiz in Bar Book: 10 questions, first go counts"] }] };
+    parts: [...ps.map((p) => ({ id: p.id, label: p.label, lines: p.lines.map(lineText) })), { id: "quiz", label: "Tonight's quiz", one: true, lines: ["Practise > Quiz in Bar Book: 10 questions, first go counts"] }] };
 };
 LINKS.brief = () => "#at=morning"; LINKS.week = () => "#at=week"; LINKS.lblog = () => "#at=lblog"; LINKS.training = () => "#at=tab:practice";
 
@@ -11729,7 +11925,7 @@ let sto = null;
 function storyCards() {
   const ps = briefParts().filter((p) => p.lines.length), hot = ps.filter((p) => p.hot).length;
   return [
-    { k: "", label: `${sideName(mode)} · ${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}`, big: ps.length ? `${plural(ps.length, "thing")} to know${hot ? `, ${hot} urgent` : ""}` : "All clear tonight", lines: ps.map((p) => p.label) },
+    { k: "", label: `${sideName(mode)} · ${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}`, big: ps.length ? `${plural(ps.length, "thing")} to know${hot ? `, ${hot} urgent` : ""}` : "All clear tonight", lines: ps.map((p) => (p.lines.length === 1 ? `${p.label}: ${lineText(p.lines[0])}` : `${p.label} (${p.lines.length})`)) },
     ...ps.map((p) => ({ k: p.k, label: p.label, lines: p.lines, hot: p.hot })),
     { k: "tab:practice", label: "Tonight's quiz", big: "10 questions. First go counts.", lines: ["Same 10 for everyone", "Then try a speed drill and beat your best"], end: true },
   ];
@@ -11737,7 +11933,10 @@ function storyCards() {
 function storyOpen() {
   if (!$("#story")) document.body.insertAdjacentHTML("beforeend", `<div id="story" class="story" role="dialog" aria-modal="true" aria-label="Tonight's brief" hidden></div>`);
   sto = { i: 0, xs: storyCards(), t0: Date.now(), paused: 0 };
-  $("#story").hidden = false; document.body.classList.add("storyon"); store.set("storySeen", `${shiftDay()}-${mode}`);
+  $("#story").hidden = false; document.body.classList.add("storyon");
+  // Once a night, the managers' Seen by hears about it (a manager watching their own isn't counted).
+  if (LIVE.me && !LIVE.admin && store.get("storySeen", "") !== `${shiftDay()}-${mode}`) LIVE.api?.briefSeen(mode).catch(() => {});
+  store.set("storySeen", `${shiftDay()}-${mode}`);
   storyDraw(); storyTimer();
 }
 function storyClose() { if (!sto) return; sto = null; clearInterval(storyTimer.h); $("#story").hidden = true; document.body.classList.remove("storyon"); if (cur === "tally") renderTally(); }
@@ -11757,7 +11956,7 @@ function storyDraw() {
   $("#story").innerHTML = `<div class="sbars">${sto.xs.map((_, j) => `<span class="sb"><i data-n="${j}" style="width:${j < sto.i ? 100 : 0}%"></i></span>`).join("")}</div>
     <button class="st-x" data-story-x aria-label="Close">×</button>
     <div class="st-card${c.hot ? " hot" : ""}"><div class="st-k">${esc(c.label)}</div>${c.big ? `<div class="st-big">${esc(c.big)}</div>` : ""}
-      <ul class="st-l" translate="no">${c.lines.slice(0, 9).map((l) => `<li>${esc(l)}</li>`).join("")}${c.lines.length > 9 ? `<li>+${c.lines.length - 9} more</li>` : ""}</ul>
+      <ul class="st-l" translate="no">${c.lines.slice(0, 9).map((l) => `<li>${typeof l !== "string" && l.d != null ? `<button class="st-open" data-story-open="${l.d}">${esc(l.t)} <span aria-hidden="true">›</span></button>` : esc(lineText(l))}</li>`).join("")}${c.lines.length > 9 ? `<li>+${c.lines.length - 9} more</li>` : ""}</ul>
       <div class="st-act">${c.k ? `<button class="btn pri" data-story-go="${esc(c.k)}">${c.end ? "Take the quiz" : "Go there"}</button>` : ""}${c.end ? sendBtn("brief", "Send the brief") : ""}</div></div>
     <button class="st-prev" data-story-step="-1" aria-label="Back"></button><button class="st-next" data-story-step="1" aria-label="Next"></button>`;
 }
@@ -11765,6 +11964,7 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-story]")) { haptic(); storyOpen(); return; }
   if (!sto) return;
   if (e.target.closest("[data-story-x]")) return storyClose();
+  const o = e.target.closest("[data-story-open]"); if (o) { storyClose(); openSheet(+o.dataset.storyOpen); return; }
   const g = e.target.closest("[data-story-go]"); if (g) { const k = g.dataset.storyGo; storyClose(); openAt(k); scrollTo(0, 0); return; }
   if (e.target.closest("[data-send]")) { storyClose(); return; }
   const s = e.target.closest("[data-story-step]"); if (s) storyGo(+s.dataset.storyStep);
@@ -11782,6 +11982,7 @@ document.addEventListener("keydown", (e) => { if (!sto) return; if (e.key === "E
 document.head.insertAdjacentHTML("beforeend", `<style>
 .story-ring{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--fg);margin-top:12px;padding:6px 0}
 .sr-dot{flex:none;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:18px;color:var(--brass);background:var(--surface);box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--brass)}
+.seenby{margin:6px 0 0;font-size:14px;color:var(--muted)}.seenby summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:4px}.seenby ul{margin:0;padding-left:20px}
 .story-ring.seen .sr-dot{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--line);color:var(--muted)}.story-ring b{display:block;font-size:17px}.story-ring small{display:block;color:var(--muted);font-size:13px}
 body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background:#0d0c0a;color:#f4f1ea;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 20px);touch-action:none;user-select:none}
 .sbars{display:flex;gap:4px}.sb{flex:1;height:3px;border-radius:2px;background:#ffffff40;overflow:hidden}.sb i{display:block;height:100%;background:#fff}
@@ -11790,6 +11991,7 @@ body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background
 .st-k{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#c9a45c}.st-card.hot .st-k{color:#ff6b5b}
 .st-big{font-family:var(--display);font-size:42px;line-height:1.05;text-transform:uppercase;margin-top:10px}
 .st-l{list-style:none;margin:16px 0 0;padding:0}.st-l li{font-size:22px;line-height:1.3;padding:8px 0;border-bottom:1px solid #ffffff1f}
+.st-open{pointer-events:auto;color:inherit;font:inherit;text-align:left;padding:0;background:none;border:0;text-decoration:underline;text-decoration-color:#c9a45c;text-underline-offset:4px}.st-open span{color:#c9a45c}
 .st-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
 .st-prev,.st-next{position:absolute;top:70px;bottom:0;z-index:1}.st-prev{left:0;width:33%}.st-next{right:0;width:67%}
 @media (min-width:700px){.st-big{font-size:56px}.st-l li{font-size:26px}}
@@ -11854,6 +12056,103 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .al-x{position:absolute;top:4px;right:6px;width:36px;height:36px;font-size:22px;color:var(--muted)}
 </style>`);
 MG_READY = true;
+/* ---------- Photos: every photo the team took on a shift, in one place ----------
+   Bar and floor, from every phone and the iPad, sent with a handover or not yet: who took it, when, and its note. Tap
+   photos to pick them (or Pick all), then Send goes to the same Send page as everything else. Photos are kept 30 days,
+   so the days to pick from go back that far. Sent photos are read once per handover and kept for the visit. */
+const GAL = { day: null, pick: new Set(), side: "all", cache: new Map(), list: [], big: null };
+const photoDay = (p) => ukDay((p.at ? ms(p.at) : Date.now()) - 6 * 36e5);
+function galDays() {
+  const ds = new Set([shiftDay()]);
+  LIVE.draftPhotos.forEach((p) => ds.add(photoDay(p)));
+  LIVE.reports.filter((r) => !r.pending && r.photos).forEach((r) => ds.add(reportDay(r)));
+  return [...ds].sort().reverse().slice(0, 10);
+}
+async function galLoad(day) {
+  const unsent = LIVE.draftPhotos.filter((p) => photoDay(p) === day);
+  const reps = LIVE.reports.filter((r) => !r.pending && r.photos && reportDay(r) === day);
+  const sent = (await Promise.all(reps.map(async (r) => {
+    if (!GAL.cache.has(r.id)) GAL.cache.set(r.id, await LIVE.api.loadPhotos(r.id));
+    return GAL.cache.get(r.id).map((p) => ({ ...p, rep: r }));
+  }))).flat();
+  const ids = new Set(sent.map((p) => p.id));
+  return [...sent, ...unsent.filter((p) => !ids.has(p.id))].map((p) => ({ ...p, side: p.side || p.rep?.side || "bar" })).sort((a, b) => ms(a.at) - ms(b.at));
+}
+function openGallery(day = shiftDay(), back = false) {
+  if (!LIVE.me) { show("notices"); return toast("Join the team to see the photos"); }
+  if ($("#sheet").hidden) lastFocus = document.activeElement;
+  if (GAL.day !== day) { GAL.day = day; GAL.pick.clear(); }
+  snd = null;
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Photos</span><span></span></div></div><div id="gal"><p class="note" role="status">Loading the photos…</p></div>`;
+  showSheet(back); $("#sheet").scrollTop = 0; $("#sh-close").focus();
+  galLoad(day).then((xs) => { if (GAL.day !== day || !$("#gal")) return; GAL.list = xs; galRender(); },
+    () => { const g = $("#gal"); if (g) g.innerHTML = `<p class="note">Couldn't load them. Check the signal and open it again.</p>`; });
+}
+// New photos or a handover sent while it's open: read again, keeping what's picked.
+let galT = 0;
+function galRefresh() { clearTimeout(galT); galT = setTimeout(() => { const d = GAL.day; galLoad(d).then((xs) => { if (GAL.day === d && $("#gal")) { GAL.list = xs; galRender(); } }, () => {}); }, 300); }
+const galShown = () => GAL.list.filter((p) => GAL.side === "all" || p.side === GAL.side);
+function galRender() {
+  const el = $("#gal"); if (!el) return;
+  const xs = galShown(), n = GAL.pick.size, by = (s) => GAL.list.filter((p) => p.side === s).length;
+  const where = (p) => (p.rep ? `On the handover sent by ${p.rep.name}` : "Not sent yet");
+  el.innerHTML = `<h2 id="sh-name" style="margin-top:12px">${GAL.day === shiftDay() ? "Tonight's photos" : `Photos, ${esc(dayName(GAL.day))}`}</h2>
+    <div class="recent gal-days" role="group" aria-label="Which shift">${galDays().map((d) => `<button class="chip" data-gal-day="${d}" aria-pressed="${d === GAL.day}">${esc(d === shiftDay() ? "Tonight" : dayName(d))}</button>`).join("")}</div>
+    ${GAL.list.length ? `<div class="recent gal-side" role="group" aria-label="Bar or floor">${[["all", `All ${GAL.list.length}`], ["bar", `Bar ${by("bar")}`], ["floor", `Floor ${by("floor")}`]].map(([k, t]) => `<button data-gal-side="${k}" class="chip" aria-pressed="${GAL.side === k}">${t}</button>`).join("")}</div>
+      <p class="note">Every photo from every phone and the iPad. Tap photos to pick them, then Send.</p>
+      <div class="gal-grid">${xs.map((p) => `<figure class="gal-ph"><button class="gal-pk" data-gal-pk="${p.id}" aria-pressed="${GAL.pick.has(p.id)}" aria-label="Pick this photo"><img src="${p.data}" alt="${esc(p.note || "Photo")}" loading="lazy"><span class="gal-tick" aria-hidden="true">${GAL.pick.has(p.id) ? "✓" : ""}</span></button>
+        <figcaption><b>${esc(sideName(p.side))} · ${p.at ? hhmm(new Date(ms(p.at))) : ""}</b> <span translate="no">${esc(p.name || "")}</span>${p.note ? `<span class="gal-note" translate="no">${esc(p.note)}</span>` : ""}<small>${esc(where(p))}</small></figcaption>
+        <button class="gal-big" data-gal-big="${p.id}" aria-label="See it full size">⤢</button></figure>`).join("")}</div>`
+    : `<p class="empty">No photos for this shift yet.</p>`}
+    ${GAL.day === shiftDay() ? `<div class="addph"><label class="btn${GAL.list.length ? "" : " pri"}" for="ph-in">Take a ${esc(lower(sideName(mode)))} photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>` : ""}
+    ${GAL.list.length ? `<div class="gal-bar"><button class="btn" data-gal-all>${xs.length && xs.every((p) => GAL.pick.has(p.id)) ? "Unpick all" : "Pick all"}</button>${n ? `<button class="btn pri" data-gal-send>Send ${plural(n, "photo")}</button>` : `<span class="note">Pick photos to send</span>`}</div>` : ""}`;
+}
+function galBig(id) {
+  const p = GAL.list.find((x) => x.id === id); if (!p) return;
+  let el = $("#gal-lb"); if (!el) { el = document.createElement("button"); el.id = "gal-lb"; el.className = "gal-lb"; el.setAttribute("aria-label", "Close the photo"); document.body.append(el); }
+  el.innerHTML = `<img src="${p.data}" alt="${esc(p.note || "Photo")}"><span>${esc(sideName(p.side))} · ${esc(p.name || "")} · ${p.at ? hhmm(new Date(ms(p.at))) : ""}${p.note ? ` · ${esc(p.note)}` : ""}</span>`;
+  el.hidden = false; haptic();
+}
+document.addEventListener("click", (e) => {
+  if (e.target.closest("#gal-lb")) { $("#gal-lb").hidden = true; return; }
+  if (!$("#gal")) return;
+  const d = e.target.closest("[data-gal-day]"); if (d) { haptic(); return openGallery(d.dataset.galDay, true); }
+  const sd = e.target.closest("[data-gal-side]"); if (sd) { haptic(); GAL.side = sd.dataset.galSide; return galRender(); }
+  const bg = e.target.closest("[data-gal-big]"); if (bg) return galBig(bg.dataset.galBig);
+  const pk = e.target.closest("[data-gal-pk]"); if (pk) { const id = pk.dataset.galPk; GAL.pick.has(id) ? GAL.pick.delete(id) : GAL.pick.add(id); haptic(); return galRender(); }
+  if (e.target.closest("[data-gal-all]")) { const xs = galShown(), all = xs.every((p) => GAL.pick.has(p.id)); xs.forEach((p) => (all ? GAL.pick.delete(p.id) : GAL.pick.add(p.id))); haptic(); return galRender(); }
+  if (e.target.closest("[data-gal-send]")) { haptic(); openSend("photos", GAL.day); }
+});
+// The picked photos as a message: who took each and when, with the link back to this shift's photos.
+SHARE.photos = (day = GAL.day) => {
+  const xs = GAL.list.filter((p) => GAL.pick.has(p.id)); if (!xs.length) return null;
+  const sides = [...new Set(xs.map((p) => lower(sideName(p.side))))].join(" and ").replace(/^./, (c) => c.toUpperCase());
+  return { what: `${plural(xs.length, "photo")}`, title: `📷 ${sides} photos, ${dayName(day)}`, head: [], photoN: xs.length, link: appUrl(`#at=gallery:${day}`),
+    parts: [{ id: "who", label: "Who took them", lines: xs.map((p) => `${p.at ? hhmm(new Date(ms(p.at))) : ""} ${sideName(p.side)}, ${p.name || ""}${p.note ? `: ${p.note}` : ""}`) }],
+    photos: async () => xs.slice(0, SEND_MAX).map((p, i) => ({ data: p.data, note: p.note, file: `${p.side}-${day}-${i + 1}` })),
+    tip: xs.length > SEND_MAX ? `${SEND_MAX} photos go at a time. Send these, then pick the rest.` : "" };
+};
+document.head.insertAdjacentHTML("beforeend", `<style>
+.gal-days { margin: 6px 0 10px; }
+.gal-side { margin: 0 0 8px; }
+.gal-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; margin: 10px 0 90px; }
+@media (min-width: 900px) { .gal-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); } }
+.gal-ph { position: relative; margin: 0; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: var(--surface); }
+.gal-pk { display: block; position: relative; width: 100%; padding: 0; }
+.gal-pk img { display: block; width: 100%; aspect-ratio: 4 / 3; object-fit: cover; }
+.gal-pk[aria-pressed="true"] { outline: 4px solid var(--brass); outline-offset: -4px; }
+.gal-tick { position: absolute; top: 8px; left: 8px; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; border: 2px solid #fff; background: rgba(0,0,0,.35); color: var(--brass-ink); font-weight: 800; }
+.gal-pk[aria-pressed="true"] .gal-tick { background: var(--brass); border-color: var(--brass); }
+.gal-big { position: absolute; top: 6px; right: 6px; width: 44px; height: 44px; border-radius: 50%; background: rgba(0,0,0,.45); color: #fff; font-size: 20px; }
+.gal-ph figcaption { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px 10px; font-size: 14px; }
+.gal-ph figcaption small { color: var(--muted); }
+.gal-note { font-style: italic; }
+.gal-bar { position: sticky; bottom: 0; display: flex; align-items: center; gap: 10px; padding: 10px 0 calc(10px + env(safe-area-inset-bottom, 0px)); background: var(--bg); border-top: 1px solid var(--line); }
+.gal-bar .btn.pri { flex: 1; }
+.gal-lb { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; background: rgba(0,0,0,.92); color: #fff; }
+.gal-lb[hidden] { display: none; }
+.gal-lb img { max-width: 100%; max-height: 82vh; object-fit: contain; border-radius: 8px; }
+</style>`);
 /* ---------- Export ----------
    Everything the team logs in Bar Book, in one place for the managers: pick the dates, the side, a person and which
    logs, then open it as an Excel workbook (one tab per log), CSV files (for Nory or anything else that imports a
@@ -11932,7 +12231,6 @@ function exTables() {
 const exPicked = () => exTables().filter((x) => !EX.off.has(x.L.k) && x.rows.length);
 const exPeople = () => [...new Set(EX.D ? EX_LOGS.flatMap((L) => L.rows(EX.D).flatMap((r) => r.who)) : [])].sort((a, b) => a.localeCompare(b));
 const exName = (ext) => `bar-book-${EX.from === EX.to ? EX.from : `${EX.from}-to-${EX.to}`}${EX.side === "all" ? "" : `-${EX.side}`}${EX.who ? `-${slugName(EX.who)}` : ""}.${ext}`;
-const slugName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const exAbout = () => [["Exported", mgShort({ toMillis: () => Date.now() })], ["By", LIVE.me || ""], ["Shift dates", EX.from === EX.to ? dayName(EX.from) : `${dayName(EX.from)} to ${dayName(EX.to)}`],
   ["Side", EX.side === "all" ? "Bar and floor" : sideName(EX.side)], ["Person", EX.who || "Everyone"], ["Logs", exPicked().map((x) => x.L.n).join(", ")],
   ["Shift date", "The business day. Anything after midnight counts for the night before, as it does in Bar Book."], ["Photos", "Closing photos stay in Bar Book: Team, Closing reports."]];
@@ -12974,18 +13272,37 @@ $("#sheet").addEventListener("click", async (e) => {
    the Team page lists (86s, closing reports, list changes), tonight's 86 board and the labels to change. Got it hides it
    until the next shift. The pre-shift brief on the Morning page shows the same parts (sinceLast). */
 const fnHash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
-const specFp = () => Object.fromEntries(D.map((d) => [d.name, fnHash([d.spec.join("|"), d.glass, d.ice, d.garnish, d.method].join("~"))]));
+/* Each drink's spec lines, glass, ice and garnish are kept (the method as a fingerprint), so the card can say what
+   changed: "40 ml Bulleit → 40 ml Buffalo Trace". A phone that kept only the older fingerprint says "spec changed". */
+const fnOld = (d) => fnHash([d.spec.join("|"), d.glass, d.ice, d.garnish, d.method].join("~"));
+const specFp = () => Object.fromEntries(D.map((d) => [d.name, { s: d.spec, g: d.glass, i: d.ice, n: d.garnish, m: fnHash(d.method || "") }]));
+const fpSame = (a, b) => a.s.join("|") === b.s.join("|") && a.g === b.g && a.i === b.i && a.n === b.n && a.m === b.m;
+function specWhat(a, b) {
+  if (typeof a === "string") return "spec changed";
+  const out = [], gone = a.s.filter((x) => !b.s.includes(x)), add = b.s.filter((x) => !a.s.includes(x));
+  if (gone.length === 1 && add.length === 1) out.push(`${gone[0]} \u2192 ${add[0]}`);
+  else { if (gone.length) out.push(`no more ${gone.join(", ")}`); if (add.length) out.push(`now ${add.join(", ")}`); }
+  for (const [k, t] of [["g", "glass"], ["i", "ice"], ["n", "garnish"]]) if (a[k] !== b[k]) out.push(`${t}: ${b[k] || "none"}`);
+  if (a.m !== b.m) out.push("method changed");
+  return out.join("; ") || "spec changed";
+}
 function specNews() {
   const was = store.get("specFp", null); if (!was) return null;
-  const now = specFp(), names = Object.keys(now);
-  return { added: names.filter((n) => !was[n]), changed: names.filter((n) => was[n] && was[n] !== now[n]), gone: Object.keys(was).filter((n) => !now[n]) };
+  const now = specFp(), names = Object.keys(now), byName = new Map(D.map((d) => [d.name, d]));
+  const changed = names.filter((n) => was[n] && (typeof was[n] === "string" ? was[n] !== fnOld(byName.get(n)) : !fpSame(was[n], now[n])));
+  return { added: names.filter((n) => !was[n]), changed: changed.map((n) => ({ n, what: specWhat(was[n], now[n]), d: byName.get(n).id })), gone: Object.keys(was).filter((n) => !now[n]) };
+}
+// Drinks taken off together read as one line: "Pitchers taken off the menu (7)".
+function goneLines(xs) {
+  const pit = xs.filter((n) => /pitcher/i.test(n)), rest = xs.filter((n) => !pit.includes(n));
+  return [...(pit.length > 2 ? [`Pitchers taken off the menu (${pit.length})`] : pit.map((n) => `Off the menu: ${n}`)), ...(rest.length > 3 ? [`Off the menu: ${rest.slice(0, 3).join(", ")} and ${rest.length - 3} more`] : rest.map((n) => `Off the menu: ${n}`))];
 }
 if (!store.get("specFp", null)) store.set("specFp", specFp());
 const lastIn = store.get("lastIn", { day: "", at: 0 });
 function sinceLast(side = mode) {
   const parts = [], sn = specNews();
   if (sn && (sn.added.length || sn.changed.length || sn.gone.length)) parts.push({ id: "specs", k: "tab:drinks", label: "Specs changed since you were last in", hot: true,
-    lines: [...sn.changed.map((n) => `Changed: ${n}`), ...sn.gone.map((n) => `Off the menu: ${n}`), ...sn.added.slice(0, 5).map((n) => `New: ${n}`), ...(sn.added.length > 5 ? [`And ${sn.added.length - 5} more new drinks`] : [])].slice(0, 12) });
+    lines: [...sn.changed.map((x) => ({ t: `${x.n}: ${x.what}`, d: x.d })), ...goneLines(sn.gone), ...sn.added.slice(0, 5).map((n) => ({ t: `New: ${n}`, d: D.find((d) => d.name === n)?.id })), ...(sn.added.length > 5 ? [`And ${sn.added.length - 5} more new drinks`] : [])].slice(0, 12) });
   if (!LIVE.me || !lastIn.at) return parts;
   const ch = changesSince(lastIn.at).map((x) => x.msg);
   if (ch.length) parts.push({ id: "since", k: "notices", label: "While you were away", lines: ch.slice(0, 8) });
@@ -13003,7 +13320,7 @@ function sinceShow() {
   if (!parts.length || !lastIn.day) return sinceDone();
   const el = document.createElement("div"); el.id = "since"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Since you were last in");
   el.innerHTML = `<div class="since-card"><h2>Since you were last in</h2><p class="note">Only what's new for you. Tap a part to go there.</p>
-    ${parts.map((p) => `<button class="since-p${p.hot ? " hot" : ""}" data-since-go="${esc(p.k)}"><b>${esc(p.label)}</b>${p.lines.map((l) => `<span translate="no">${esc(l)}</span>`).join("")}</button>`).join("")}
+    ${parts.map((p) => `<button class="since-p${p.hot ? " hot" : ""}" data-since-go="${esc(p.k)}"><b>${esc(p.label)}</b>${p.lines.map((l) => `<span translate="no">${esc(lineText(l))}</span>`).join("")}</button>`).join("")}
     <button class="btn pri wide" data-since-go="">Got it</button></div>`;
   document.body.append(el);
 }
@@ -13261,6 +13578,7 @@ const HELP = {
   station: { t: "Bar station", what: "The iPad on the bar for express service: any drink in big type, rounds made in one go, tonight's 86s, photos, date labels, the close on both sides and the handover.",
     how: ["Tap a drink (or search and press Go): on an iPad Make it now opens it as big step cards. Get ready first (glass, ice, garnish, what you need and the whole spec), then one step a card, each amount with its side of the 25/50 jigger. Tap the card when it's done for the next one; Done goes back to the list. \u00d71 to \u00d74 scales it, Spec shows it next to the list instead, 🔊 reads it out.",
       "The spec next to the list: swipe it, or use the arrows, for the next drink. \u00d72 to \u00d78 scales it for a round, with the total liquid. \u25b6 Make it now on it opens the step cards. Set up, Tap a drink chooses which one a tap opens.", "Every drink says if it can be made tonight: ✓ Can make, ⚠ Can make with a swap (with the amounts that change), or ✕ Can't make tonight. Missing something? Tap it under the spec. Can't make it? Go with the flow picks the next best thing. Alcohol-free? jumps to the no-alcohol version.",
+      "Go to, under the top bar: one tap to 86 and low, Closing, Hand over, Photos, Date labels, Stock and Morning. The station comes back by itself after 2 quiet minutes.", "Set up, iPad tiles: switch off anything the bar doesn't use (Round, Batches, Quiz, any Go to button, the Tonight panel, the Ran out box) and back on any time. It changes straight away and stays after a reload. On a shared iPad a manager unlocks it with their code first.",
       "+ adds a drink to the round (tap again for two). The round puts drinks made the same way together (stir, build, shake, fizz last) and lists the glasses, ice, garnish and tins to get ready. \u25b6 Make the round walks it a drink at a time, scaled, and Done marks each one Made.",
       "Aa makes everything bigger, to read from a step back.", "Ran out of something? Tap the search box under Tonight, type a few letters or pick a kind, and tap 86. Tick several to 86 them together. Take a photo or Upload adds it to tonight's handover.",
       "The bar along the top switches between Drinks, Round, Batches, Quiz and Set up. Everything \u25be picks which drinks the list shows.",
@@ -13276,9 +13594,12 @@ const HELP = {
   shift: { t: "The Shift tab", what: "Tonight's work for your side, in the order it happens.",
     how: ["Pick Bar or Floor at the top. Each phone remembers its side.", "Go left to right: Morning, Labels, Stock, Closing, Handover.", "The small number on each tab shows what's left there."],
     behind: ["Everything here is shared live: every phone on your side sees the same ticks, 86s and handover.", "The shift day runs 6am to 6am UK time, so a close after midnight still counts as tonight."] },
+  photos: { t: "Photos", what: "Every photo the team took on a shift, in one place.",
+    how: ["Shift, Closing, then Every photo tonight, or Photos on the bar iPad. Tonight's show first; older nights are along the top.", "All, Bar or Floor narrows them down. Each says who took it, when, its note, and whether it went with a handover yet.", "Tap photos to pick them (or Pick all), then Send. \u2922 shows one full size."],
+    behind: ["Photos from every phone and the iPad are here, sent or not. They are kept 30 days, then cleared to keep Bar Book free.", "10 photos go in one message; pick the rest and send again.", "The message carries a link back to the night's photos for anyone on the team."] },
   morning: { t: "Morning", what: "Last night's handover for the opening team, today's order and the prep pars.",
-    how: ["Start with Before you open: what's 86'd, labels due and anything new. Tap the ring to play it full screen like stories: tap the right side for the next card, the left to go back, hold to pause.", "Read the handover and sort what you can.", "Tap Checked: send on WhatsApp so the duty manager knows what's still outstanding.", "Send the order and the prep list if you need to."],
-    behind: ["The handover is the last one your side sent before today. It stays saved, so it's still here if nobody reads it straight away.", "Today's order is what last night said was running low, plus anything still 86'd.", "Prep pars are higher on Fridays and Saturdays."] },
+    how: ["Start with Before you open: what's 86'd, labels due and anything new. Tap the ring to play it full screen like stories: tap the right side (or swipe) for the next card, the left to go back, hold to pause. Drinks whose spec changed say what changed: tap one to open it.", "Read the handover and sort what you can.", "Tap Checked: send on WhatsApp so the duty manager knows what's still outstanding.", "Send the order and the prep list if you need to."],
+    behind: ["Managers see Seen by under the brief: who has watched it tonight and when. Only managers see it.", "The handover is the last one your side sent before today. It stays saved, so it's still here if nobody reads it straight away.", "Today's order is what last night said was running low, plus anything still 86'd.", "Prep pars are higher on Fridays and Saturdays."] },
   labels: { t: "Date labels", what: "Everything your side dates once it's opened, and when each one needs changing.",
     how: ["Opened one? Tap Opened one and write the date it gives you on the label.", "Binned the old one and opened a new one? Tap Changed it.", "Binned with no new one opened? Tap Binned. ⋯ shows its history."],
     behind: ["Each tap is saved with your name and the time, so a label that wasn't changed can be traced.", "Due today, tomorrow and overdue show at the top of Morning and Closing, and go in the handover.", "Only managers add, change or remove items. They set each side up from Black Tap's list in one go, with the days from each pack."] },
@@ -13300,7 +13621,7 @@ const HELP = {
     behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Every bottle and pack comes filled in: its size from the label (70 cl, Monkey 47's 50 cl, Martini's 75 cl, a 200 ml Fever-Tree, a 1 kg Funkin pouch) and estimated empty and full weights. A liqueur weighs more than a spirit, so grams are never taken as ml.", "Estimates are near enough to count with, and say so. A manager makes one exact by weighing a sealed bottle once (Check it, on the line): the empty weight follows. Weighed ones are locked, with who and when, so nobody changes them by accident: re-weighing takes Unlock to re-weigh first, and a spreadsheet import can't change them. Set up the count changes any size or weight. A sealed bottle goes on Full with +, so it's never counted twice.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory.", "Running low uses the latest count that has the product in every place, plus deliveries logged since. It's worked out, not saved, so it's never a second list: once it's 86'd it's on the 86 board instead.", "A barcode says which product it is, never its use-by date, so use-by stays on the date labels: one record, not two. A barcode someone links works straight away; managers check it under Barcodes to check.", "Scanning needs signal the first time, to load the scanner; after that it works offline. Looking up a new barcode's name online needs signal."] },
   stock: { t: "86 and restock", what: "What's run out tonight, and getting stock up from the cellar.",
     how: ["Tap Search everything to 86: type a few letters (typos are fine), pick a kind, like Spirits, Cakes or Frozen, or scroll it A to Z with the letter strip down the side.", "Tap 86 on a row, or tick several and 86 them together. Each row says how many drinks use it, and the swap once it's out.", "Quick 86 has this phone's recent ones and the team's most 86'd: one tap. Not on the list? Type it and it goes on as you typed it.", "Back in stock takes it off for everyone.", "Restock: pick what's needed from the same list, then how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it.", "Running low, under the 86 board: what the last stock count says is under its level. Not out yet. 86 it there when it runs out."],
-    behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere. An 86'd ingredient turns every drink that uses it to Can make with a swap, or Can't make tonight if nothing close is in.", "Missing on a drink's own ingredient goes on this same board, so one tap does both.", "Restocks waiting over 15 minutes show as late. The stock count has its own tab, Stock: its totals go into Nory.", "Clear everything puts every 86 back in stock."] },
+    behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere. An 86'd ingredient turns every drink that uses it to Can make with a swap, or Can't make tonight if nothing close is in.", "Missing on a drink's own ingredient goes on this same board, so one tap does both.", "Restocks waiting over 15 minutes show as late. The stock count has its own tab, Stock: its totals go into Nory.", "Clear everything puts every 86 back in stock and cancels restocks still waiting."] },
   closing: { t: "Closing checklist", what: "The close, ticked off live on every phone.",
     how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part. Someone left before finishing theirs? Tap Take over and carry on: the heading and the report say who started it and who finished it.", "Started but not handed over? It shows on Team (and on Shift for anyone not on it) with who started it and Carry on, so anyone can pick it up, add photos or hand over.", "Under the photos, Send the checklist sends it with its photos any time. Nothing needs saving by hand: ticks, photos and notes save for the whole team as you go.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started.", "The timer at the top shows how long the close has taken against the team's best. A new best gets a cheer."],
     behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks and photos wait on the phone, even if the app is closed, and go in order when it's back. A banner says they're waiting, and Back online. Everything's sent says they've arrived.", "The clock starts at the first tick and stops when the handover goes. Each side's time is kept for the managers."] },
@@ -13308,8 +13629,8 @@ const HELP = {
     how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos. Anyone on your side can add photos any time of the shift: each is saved for the whole team straight away, and Send now shares one on its own too.", "Then pick one: Hand over: send with photos saves it and opens the share sheet with the words as a picture and the photos (WhatsApp on a phone; Mail, Messages, AirDrop or Save to Files on the iPad). Hand over: just save saves it and sends nothing.", "Either way it's saved for the morning team and every manager, photos included. Open it shows it; Delete takes it off for everyone (whoever saved it, or a manager)."],
     behind: ["The boxes are shared live with everyone closing your side, so two people can fill them in. Save draft tells the team someone has started; anyone can carry on.", "Photos are required. With none, you're asked why, and the reason goes in the handover.", "Whoever took a photo, or a manager, can delete it. The database checks the same.", "Saved handovers are kept. Photos are cleared after 30 days to stay on the free plan. The boxes start empty again at 6am."] },
   clearall: { t: "Clear everything", what: "A fresh start for the shift, on every phone.",
-    how: ["Tap it, then confirm."],
-    behind: ["Clears: both closing lists back to not started, every 86 back in stock, tonight's handover boxes and Closed by, unsent closing photos, and the drafts on this phone.", "Stays: sent handovers and their photos, date labels, restocks and issues.", "Anyone on the team can do it, and it can't be undone, so check with whoever's closing first."] },
+    how: ["Tap it at the foot of any Shift page. The question lists what goes and what stays: tap OK.", "Tapped it by mistake? Undo clear, at the top of Shift, puts it all back for 15 minutes."],
+    behind: ["Goes: both closing lists back to not started, every 86 back in stock, restocks still waiting (every one for a manager, your own for anyone else), tonight's handover boxes and drafts, Closed by, unsent closing photos, and the restock and date label forms on this phone.", "Stays: sent handovers and their photos (the morning reads them), date labels (they're the use-by dates on the shelf), today's stock count (tomorrow starts at 0) and open issues (faults the next shift needs to see).", "Anyone on the team can do it, so check with whoever's closing first. Maintenance's master clear also marks the managers' inbox done."] },
   join: { t: "Joining the team", what: "One team code, no login or password.",
     how: ["Pick your first name and type the team code. Ask a manager for it in person.", "Managers and maintenance: then tap your name under Unlock with your code and type your own code."],
     behind: ["The phone signs in by itself with no account. The code is checked by the database, not by the app.", "Anyone with the link can join, so keep it in the staff group. A manager can take a lost phone off the team, and changing the code takes every phone off at once.", "Leaving wipes this phone's copy of the team's data.", "Saved for the team: first names, ticks, 86s, labels, restocks, issues, handovers and photos of the bar. Never saved: My pay, payslips, off sick messages, incident write-ups, or anyone's address, phone or bank details."] },
@@ -13351,11 +13672,11 @@ const HELP = {
   drafts: { t: "Drafts", what: "What you type is saved on this phone as you type.",
     how: ["Save draft folds it away to finish later. Discard wipes it."],
     behind: ["A guest, a locked phone or closing the app loses nothing. Nothing leaves the phone until you send it.", "Clear everything and Reset this phone wipe drafts too."] },
-  send: { t: "Sending", what: "Every Send button opens this page.",
-    how: ["Untick anything you don't want in, add a note or more photos, and check How it will look.", "With photos: tap Send with photos. The share sheet gets the words as a picture, then the photos: WhatsApp on a phone, or Mail, Messages, AirDrop or Save to Files on the iPad (it has no WhatsApp). Want the words as text too? Copy the words first and paste them in.", "Words only: WhatsApp, Text or Email opens your own app with the words in, and you pick the chat."],
-    behind: ["Bar Book never sends anything by itself.", "When you're on the team, the managers get a copy in Everything sent. My pay, payslips, off sick, incidents and the Bar Book link are never copied.", "iPhones drop photos sent together with words, which is why the words go as a picture.", "A phone that can't attach photos from the browser sends a link to them instead. The link opens them in Bar Book for anyone on the team, and holds no team code."] },
+  send: { t: "Sending", what: "Every Send and Share button opens this page, for drinks, closing, the handover, photos, labels, stock and exports alike.",
+    how: ["Tick what goes in: each part (and each drink, when there are several) has its own tick box.", "Untick anything you don't want in, add a note or more photos, and check How it will look.", "With photos: tap Send with photos. The share sheet gets the words as a picture, then the photos: WhatsApp on a phone, or Mail, Messages, AirDrop or Save to Files on the iPad (it has no WhatsApp). Want the words as text too? Copy the words first and paste them in.", "Words only: WhatsApp, Text or Email opens your own app with the words in, and you pick the chat."],
+    behind: ["Bar Book never sends anything by itself.", "Every message ends with a link back to the same thing in Bar Book, so everyone opens the current version. Drink specs also say when they were true (Specs as of), so an old spec forwarded on is never taken for today's.", "When you're on the team, the managers get a copy in Everything sent. My pay, payslips, off sick, incidents and the Bar Book link are never copied.", "iPhones drop photos sent together with words, which is why the words go as a picture.", "A phone that can't attach photos from the browser sends a link to them instead. The link opens them in Bar Book for anyone on the team, and holds no team code."] },
   drink: { t: "The drink page", what: "The spec, the method and a step-by-step guide.",
-    how: ["Spec or Step by step at the top. Tap a line or a step to tick it off as you go.", "Every drink says if it can be made tonight: ✓ Can make, ⚠ Can make with a swap (with the amounts that change), or ✕ Can't make tonight.", "Missing something? Tap it, then Missing next to it: the drink works out the swap straight away, and it goes on the 86 board for everyone.", "Can't make tonight? Go with the flow when the guest doesn't mind: it uses the closest bottle you have, or leaves out a small part, and says what changed. Or pick a close drink instead. Undo puts it back.", "Batch it: pick a bottle or tub and it gives every amount, the water and how many drinks it makes.", "− and + scale the spec for up to 12 drinks. ml or oz switches units. Swipe sideways for the next drink. ☆ keeps it in Favourites."],
+    how: ["Share this drink, at the bottom, sends the spec, the method and its Out of something? swaps, with its picture card. Several drinks at once: Select drinks to send at the top of the list. Save as a list keeps the ones you picked on this phone, under Filters.", "Spec or Step by step at the top. Tap a line or a step to tick it off as you go.", "Every drink says if it can be made tonight: ✓ Can make, ⚠ Can make with a swap (with the amounts that change), or ✕ Can't make tonight.", "Missing something? Tap it, then Missing next to it: the drink works out the swap straight away, and it goes on the 86 board for everyone.", "Can't make tonight? Go with the flow when the guest doesn't mind: it uses the closest bottle you have, or leaves out a small part, and says what changed. Or pick a close drink instead. Undo puts it back.", "Batch it: pick a bottle or tub and it gives every amount, the water and how many drinks it makes.", "− and + scale the spec for up to 12 drinks. ml or oz switches units. Swipe sideways for the next drink. ☆ keeps it in Favourites."],
     behind: ["A swap uses the drink's own Out of something? line first, else a bottle of the same kind. Syrups and citrus are swapped by sugar and acid, so lime for lemon or agave for sugar syrup comes out at the right amount, and the drink's other syrup or citrus line moves with it. Taste before it goes out.", "A house cocktail made any other way says Adjusted: not the house spec, on the page and when it's sent.", "Batches add 20% water to stirred drinks, as if stirred on ice. Fizz goes in to order, and egg, foamer or cream drinks are never batched. Fresh citrus batches are for tonight only.", "The screen stays on while a drink is open.", "Units and calories are estimates worked out on the phone."] },
   rapid: { t: "Rapid fire", what: "The house drinks as big buttons, for answering a guest fast.",
     how: ["Tap a drink for its full spec, or Show specs on the page to see them all without tapping.", "Change on Top 10 picks your own ten. Type to search the whole book."],
@@ -13652,8 +13973,8 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 9;
-const WALK_NEW = "Stock has its own tab at the bottom, and counting is quicker: +6, the level by eye saves and moves on, Same as last time, By kind, and add anything missing and count it there and then. Also on it: a barcode scanner (scan a bottle to count it or see its date label), use-by dates due in the next 3 days, counting tips and Add something new. On Shift, the old Stock tab is now 86. Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
+const WALK_V = 10;
+const WALK_NEW = "Photos: every photo of the night in one place, bar and floor, from every phone and the iPad, with who took it and when. Tap the ones you want (or Pick all) and Send. Drinks: Select drinks to send at the top of the list, tap drinks or Pick all on a section, then Share sends their specs and swaps in one message. Shared specs say when they were true (Specs as of), and every message links back to Bar Book. The bar iPad has a Go to row (86 and low, Closing, Hand over, Photos, Date labels, Stock, Morning), and a manager can switch any of it off in Set up, iPad tiles. Stock has its own tab at the bottom, and counting is quicker: +6, the level by eye saves and moves on, Same as last time, By kind, and add anything missing and count it there and then. Also on it: a barcode scanner (scan a bottle to count it or see its date label), use-by dates due in the next 3 days, counting tips and Add something new. On Shift, the old Stock tab is now 86. Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -13785,7 +14106,7 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
+const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [
@@ -13807,7 +14128,7 @@ const gdItems = () => featSorted([
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
   { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: tap a drink and Make it now shows it a big step card at a time, with the jigger side for each amount. Rounds a drink at a time, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
 ]);
-const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round jigger", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
+const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round jigger tiles go to switch off", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make select share send several specs section", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
 // What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.
@@ -13818,7 +14139,9 @@ function gdSearch(q) {
   const hit = (s) => { const xs = words(s); return ws.every((w) => mkWordHit(w, xs)); };
   const pq = plQuery(ws.join(" "));
   const drinks = plRank(D.filter((d) => plHits(d, pq.words)), pq.words).slice(0, 4);
-  const pages = gdItems().filter((f) => hit(`${f.n} ${f.what} ${f.staff || ""} ${GD_KW[f.k] || ""} ${HELP[GD_HELP[f.k]]?.how.join(" ") || ""}`)).slice(0, 4);
+  // A page whose own name or line matches comes before one that only matches through its keywords or help.
+  const pages = gdItems().filter((f) => hit(`${f.n} ${f.what} ${f.staff || ""} ${GD_KW[f.k] || ""} ${HELP[GD_HELP[f.k]]?.how.join(" ") || ""}`))
+    .map((f, i) => [hit(`${f.n} ${f.what}`) ? 0 : 1, i, f]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map((x) => x[2]).slice(0, 4);
   const terms = GLOSSARY.filter(([t, d]) => hit(t) || (ws.length > 1 && hit(`${t} ${d}`))).slice(0, 3);
   const asksHow = /\b(how|make|recipe|spec)\b/.test(all.join(" ")), asksWhat = /^(what|whats)\b/.test(all.join(" "));
   return { q, words: ws, drinks, pages, terms, fixed: pq.fixed, order: asksWhat ? ["terms", "drinks", "pages"] : asksHow ? ["drinks", "pages", "terms"] : ["pages", "drinks", "terms"] };
@@ -14647,6 +14970,12 @@ liveChanged = function (what) {
   if (what === "season" && $("#v-drinks") && !$("#v-drinks").hidden) renderList();
 };
 
+let fabY = scrollY;
+addEventListener("scroll", () => {
+  const y = scrollY, d = y - fabY; if (Math.abs(d) < 8) return;
+  const end = innerHeight + y >= document.documentElement.scrollHeight - 60;
+  document.body.classList.toggle("fab-away", d > 0 && y > 120 && !end); fabY = y;
+}, { passive: true });
 document.head.insertAdjacentHTML("beforeend", `<style>
 #sd-off[hidden],#sd-last[hidden],#sd-timer[hidden],#sd-1h[hidden],#sd-mic[hidden]{display:none}
 .sd-state{margin:10px 0;padding:10px 12px;border:1.5px solid var(--ok);border-radius:12px;background:var(--surface);line-height:1.4}.sd-state>b{display:block;color:var(--ok);font-size:17px}
@@ -14655,20 +14984,25 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .sd-warn{border-left:3px solid var(--warn);padding-left:10px}
 .sd-tl{list-style:none;margin:8px 0;padding:0;border-left:2px solid var(--line);margin-left:46px}.sd-tl li{position:relative;display:flex;gap:8px;padding:7px 0 7px 12px}.sd-tl time{position:absolute;left:-50px;top:9px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sd-tl .ic{flex:none;width:22px;text-align:center}.sd-tl p{margin:0;line-height:1.35}.sd-tl small{color:var(--muted);font-size:13px}.sd-tl li.big p{font-weight:700;color:var(--brass)}
-#sd-timer{position:fixed;right:12px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 12px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:14px;padding:8px 12px;box-shadow:0 6px 20px #0006;display:flex;flex-direction:column;align-items:flex-end}
-#sd-timer b{font-size:20px;font-variant-numeric:tabular-nums}#sd-timer span{font-size:12px;color:var(--muted)}#sd-timer.slow{border-color:var(--warn)}
-body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 74px)}
+/* One small pill beside the 🎤, so the two never stack over the list's buttons. */
+#sd-timer{position:fixed;right:76px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 22px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:999px;padding:6px 12px;box-shadow:0 6px 20px #0006;display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+#sd-timer b{font-size:16px;font-variant-numeric:tabular-nums}#sd-timer span{font-size:12px;color:var(--muted)}#sd-timer.slow{border-color:var(--warn)}
+body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}body.sd-1h #sd-mic{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 74px)}
 #sd-last{margin-top:8px;display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px;border:2px solid var(--brass);border-radius:14px;background:var(--surface)}
 #sd-last b{font-size:22px}#sd-last span{color:var(--muted)}#sd-last.now{border-color:var(--warn)}#sd-last.now b{color:var(--warn)}
 #v-station~#sd-last,body.ipad #sd-last b{font-size:30px}
 #sd-off{margin-top:8px;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;background:#16351f;color:#e9f7ec;border:1.5px solid #4caf6a;border-radius:16px;padding:10px 14px;box-shadow:0 8px 24px #0007}
 #sd-off .dot{grid-row:span 2;width:14px;height:14px;border-radius:50%;background:#4caf6a;box-shadow:0 0 0 4px #4caf6a33}#sd-off b{font-size:17px}#sd-off span:last-child{font-size:13.5px;opacity:.9}
 body.sd-offon #net{display:none}
+/* Scrolling down to read, the 🎤 and the timer slide out of the way; scrolling back up, stopping at the end or any tap brings them back. */
+body.fab-away #sd-mic,body.fab-away #sd-timer{transform:translateY(calc(100% + 120px));opacity:0;pointer-events:none}
+#sd-mic,#sd-timer{transition:transform .25s ease,opacity .25s ease}
 #sd-mic{position:fixed;right:14px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 14px);z-index:7;width:52px;height:52px;border-radius:50%;background:var(--surface);border:1.5px solid var(--brass);font-size:22px;box-shadow:0 6px 18px #0006}
 /* The page ends clear of the 🎤, so the last row's buttons are never stuck under it. */
 body:has(#sd-mic:not([hidden])) main{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 84px)}
 body.stmode:has(#sd-mic:not([hidden])) main{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 84px)}
-body:has(#sd-timer:not([hidden])) #sd-mic{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}
+/* The bar station: above the spec panel's Back and Next. */
+body.stmode #sd-mic{bottom:calc(env(safe-area-inset-bottom,0px) + 104px)}
 #sd-1h{position:fixed;left:0;right:0;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px));z-index:9;display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px max(6px,env(safe-area-inset-left,0px))}
 #sd-1h button{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;color:var(--fg)}#sd-1h span{font-size:11px;color:var(--muted);margin-top:2px}
 body.sd-1h main{padding-bottom:64px}body.sd-1h #sheet{padding-bottom:calc(var(--tabh) + 70px)}
@@ -14732,6 +15066,10 @@ else {
       if (pin) pendingPin = { name: myName, pin };
       if (c) { teamCode = c; store.set("team", c); store.set("kicked", false); joinErr = ""; autoJoin(); }
       tryPendingPin();
+    }
+    // The bar's iPad is shared: opened as the station on a tablet, it hides My pay and locks codes after 5 minutes.
+    if (b.dataset.ipad && !sharedDev && (isIPad() || Math.min(screen.width, screen.height) >= 700)) {
+      sharedDev = true; store.set("shared", true); applyShared(); toast("Shared iPad: My pay hidden, codes lock after 5 minutes. More, This phone to change it");
     }
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);

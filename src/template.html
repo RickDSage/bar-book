@@ -1325,8 +1325,8 @@ function msgText(m, pick, note = "", wa = true) {
     out.push("", b(p.one ? p.label : `${p.label} (${partItems(p)})`), ...p.lines.map((l) => (p.one || p.raw || /^\s/.test(l) ? l : `• ${l}`)));
   }
   if (note.trim()) out.push("", ...(m.noteHead === null ? [] : [b("Note")]), note.trim());
-  // Every message says when it was true, so an old one forwarded later is never taken for tonight's.
-  out.push("", `${m.asOf || "As of"} ${stamp(new Date())}`);
+  // Specs say when they were true, so an old spec forwarded later is never taken for today's. Everything else has its day in the title.
+  if (m.asOf) out.push("", `${m.asOf} ${stamp(new Date())}`);
   // Photos saved in Bar Book: the link opens them, so a phone that can't attach photos still gets them to the team.
   if (m.link) out.push("", m.photoN ? `\ud83d\udcf7 ${plural(m.photoN, "photo")} and the rest in Bar Book (team only): ${m.link}` : `Open in Bar Book: ${m.link}`);
   return out.join("\n");
@@ -1569,12 +1569,13 @@ function pickBar() {
   if (!el) { el = document.createElement("div"); el.id = "pickbar"; el.className = "pickbar"; document.body.append(el); }
   el.hidden = false; document.body.classList.add("picking");
   const ids = [...pick].slice(0, SPEC_MAX);
-  el.innerHTML = `<span>${pick.size ? plural(pick.size, "drink") : "Tap drinks to pick them"}</span>${pick.size ? `<button class="linkbtn" data-pick-clear>Clear</button>${sendBtn("specs", "Share", ids.join(",")).replace('class="btn"', 'class="btn pri"')}` : ""}<button class="btn" data-pick-done>Done</button>`;
+  el.innerHTML = `<span>${pick.size ? plural(pick.size, "drink") : "Tap drinks to pick them"}</span>${pick.size ? `<button class="linkbtn" data-pick-clear>Clear</button>${pick.size > 1 ? `<button class="linkbtn" data-pick-save>Save as a list</button>` : ""}${sendBtn("specs", "Share", ids.join(",")).replace('class="btn"', 'class="btn pri"')}` : ""}<button class="btn" data-pick-done>Done</button>`;
 }
 function pickSet(on) { pick = on ? new Set() : null; haptic(); renderBar(); renderList(); pickBar(); }
 document.addEventListener("click", (e) => {
   if (e.target.closest("[data-pick-done]")) return pickSet(false);
   if (e.target.closest("[data-pick]")) return pickSet(true);
+  if (e.target.closest("[data-pick-save]")) return openListMaker([...pick]);
   if (e.target.closest("[data-pick-clear]")) { pick.clear(); haptic(); renderList(); return pickBar(); }
   const all = e.target.closest("[data-pick-all]"); if (!all || !pick) return;
   const ids = all.dataset.pickAll.split(",").map(Number), has = ids.every((i) => pick.has(i));

@@ -232,7 +232,7 @@ function sxSetupHtml() {
       ${row(!!lock, "Screen kept on", lock ? "Bar Book is keeping the screen on." : navigator.wakeLock ? "Tap anywhere and Bar Book keeps the screen on while it's open." : "This iPad doesn't let Bar Book keep the screen on, so the Auto-Lock step below matters.")}
     </ul>
     <div class="sx-k">iPad tiles</div>
-    <p class="st-s">Switch off what the bar doesn't use, and back on any time. It changes straight away on this iPad and stays after a reload.${sxNeedsMgr() ? " A manager unlocks it with their code first." : ""}</p>
+    <p class="st-s">Switch off what the bar doesn't use, and back on any time. It changes straight away on this iPad and stays after a reload.</p>${sxNeedsMgr() ? `<p class="st-s">A manager unlocks it with their code first.</p>` : ""}
     <div class="sx-tiles">${SX_TILES.map(([k, t]) => `<label class="check"><input type="checkbox" data-sx-tileset="${k}"${sxOn(k) ? " checked" : ""}><span>${t}</span></label>`).join("")}</div>
     <div class="sx-k">Tap a drink</div>
     <div class="sx-set1"><span class="st-s">${SX.mk ? "Opens Make it now: big step cards, one at a time, with Done back to the list. Spec next to the list is one tap away." : "Shows its spec next to the list. \u25b6 Make it now on the spec opens the step cards."}</span><button class="btn${SX.mk ? "" : " pri"}" data-sxm-pref>${SX.mk ? "Show just the spec instead" : "Open Make it now instead"}</button></div>
