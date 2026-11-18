@@ -20,7 +20,6 @@ const CHEAT = (() => {
     { id: "mojitos", t: "Mojitos & Mules", sub: "Press the mint, don't shred it", names: ["Passion Fruit Mojito", "Strawberry Mojito", "Raspberry Mojito", "Mojito Royale", "Whiskey Smash", "Kentucky Mule", "Mexican Mule", "Gin-Gin Mule"] },
     { id: "modern", t: "Modern Favourites", sub: "The twists guests ask for", names: ["Hazelnut Espresso Martini", "Salted Caramel Espresso Martini", "Baileys Espresso Martini", "Chocolate Old Fashioned", "Midori Sour", "Japanese Slipper", "Rhubarb & Elderflower Martini", "Mango Martini"] },
     { id: "nyc", t: "Born in NYC", sub: "New York classics for a New York burger bar", names: ["Bronx Cocktail", "Big Apple Sour", "Staten Island Ferry", "Jack Rose", "Gold Rush", "Old Cuban", "Greenpoint", "New York Sour"] },
-    { id: "pitchers", t: "Pitchers", sub: "Serves 4. Glasses with ice on the side", names: ["Pimm's Pitcher", "Mojito Pitcher", "Aperol Spritz Pitcher", "Woo Woo Pitcher", "Rum Punch Pitcher", "Sangria Pitcher", "Margarita Pitcher"] },
     { id: "aperitivo", t: "Aperitivo & Stirred", sub: "Low and slow: stir cold, strain, zest", names: ["Adonis", "Bamboo", "Milano Torino", "Old Pal", "Rosita", "Americano", "Gibson", "Cardinale"] },
     { id: "bartender", t: "Bartender's Classics", sub: "For guests who know their drinks", names: ["Naked & Famous", "Sidecar", "El Presidente", "Eastside Gimlet", "Blood & Sand", "Queens", "Floradora", "Twinkle"] },
     { id: "shots", t: "Shots & Bombs", sub: "Chill the shots. Bombs go out side by side", names: ["Baby Guinness", "B-52", "Jägerbomb", "Tequila, Salt & Lime", "Mini Espresso Martini", "Pornstar Shot", "Kamikaze", "Lemon Drop", "Green Tea Shot", "Pickleback", "Cherry Bakewell", "Skittle Bomb"] },
@@ -34,7 +33,7 @@ const CHEAT = (() => {
   const GLASS = {
     martini: "M3 5h18l-9 9z M12 14v6 M8 21h8", coupe: "M4 6h16c0 5-3.5 7-8 7s-8-2-8-7z M12 13v7 M8 21h8",
     rocks: "M5 8h14l-1.2 12H6.2z M5.6 12h12.8", highball: "M7 3h10l-.7 18H7.7z M7.3 8h9.4", wine: "M6 3h12c.6 6-2 9-6 9s-6.6-3-6-9z M12 12v8 M8 21h8",
-    shot: "M8 8h8l-1 13H9z", heatproof: "M6 6h11l-1 13H7z M17 9h1.5a3 3 0 0 1 0 6H16.5", hurricane: "M8 3c-1 5 3 6 2 10s1 7 2 7 3-3 2-7 3-5 2-10z", pitcher: "M6 5h10l1 16H7z M6 5 4 3 M16 8h1.5a3 3 0 0 1 0 7H16.6",
+    shot: "M8 8h8l-1 13H9z", heatproof: "M6 6h11l-1 13H7z M17 9h1.5a3 3 0 0 1 0 6H16.5", hurricane: "M8 3c-1 5 3 6 2 10s1 7 2 7 3-3 2-7 3-5 2-10z",
   };
   const METHOD = {
     shake: "M8 9h8l-1 12H9z M9 9V7h6v2 M10.5 7V4.5h3V7", stir: "M6 8h10l-1 13H7z M18 2l-6 13", layer: "M8 5h8l-1 16H9z M8.4 10h7.2 M8.8 15.5h6.4",
@@ -43,7 +42,7 @@ const CHEAT = (() => {
   const GARNISH = "M3 13a9 9 0 0 0 18 0z M12 13l-5.5 6 M12 13v8 M12 13l5.5 6";
   const glassKind = (d) => (/martini glass/i.test(d.glass) ? "martini" : GLASS[d.g] ? d.g : "coupe");
   const methodKind = (d) => /hot|warm the glass/i.test(d.method) && /heatproof/i.test(d.glass) ? "hot" : /shake|roll/i.test(d.method) ? "shake" : /stir 2|stir 3|stir,|^stir/i.test(d.method) ? "stir" : /layer|float baileys/i.test(d.method) ? "layer" : "build";
-  const ICE = [[/^none \(served up\)/i, "Served up, no ice"], [/^none \(hot\)/i, "Hot, no ice"], [/^none/i, "No ice"], [/glass full/i, "Glass full of ice"], [/^cubed/i, "Cubed ice"], [/^crushed/i, "Crushed ice"], [/^pitcher half full/i, "Half full of ice"]];
+  const ICE = [[/^none \(served up\)/i, "Served up, no ice"], [/^none \(hot\)/i, "Hot, no ice"], [/^none/i, "No ice"], [/glass full/i, "Glass full of ice"], [/^cubed/i, "Cubed ice"], [/^crushed/i, "Crushed ice"]];
   const ice = (t) => { const m = ICE.find(([re]) => re.test(t || "")); return m ? m[1] : t || ""; };
   // "35 ml Cîroc Red Berry" puts the measure in bold so the eye finds it first.
   const spec = (s) => { const m = /^(Top |Side: )?(\d+(?:\.\d+)?\s?ml)\b\s*(.*)$/i.exec(s); return m ? `${m[1] ? esc(m[1]) : ""}<b>${esc(m[2])}</b> ${esc(m[3])}` : esc(s); };

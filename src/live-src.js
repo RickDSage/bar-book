@@ -125,9 +125,11 @@ function listen(uid) {
     sub("signoffs", collection(db, "signoffs"), (snap) => { LIVE.signoffs = rows(snap); liveChanged("signoffs"); });
     // The stock count's setup (the places in walking order, units, bottle weights: one record a manager changes) and the
     // deliveries logged lately. The count itself is read a day at a time, while the count is open (watchCount).
-    sub("countSetup", doc(db, "countSetup", "main"), (d) => { LIVE.countSetup = d.exists() ? d.data() : null; LIVE.countErr = false; liveChanged("countSetup"); },
+    sub("countSetup", doc(db, "countSetup", "main"), (d) => { LIVE.countSetup = d.exists() ? d.data() : null; LIVE.countErr = false; watchLow(); liveChanged("countSetup"); },
       (e) => { if (e?.code === "permission-denied") { LIVE.countErr = true; liveChanged("countSetup"); } });
     sub("received", query(collection(db, "received"), orderBy("at", "desc"), limit(300)), (snap) => { LIVE.received = rows(snap); liveChanged("received"); });
+    // The day of the latest count, for running low (watchLow).
+    sub("countLast", query(collection(db, "counts"), orderBy("day", "desc"), limit(1)), (snap) => { lowLast = snap.docs[0]?.data().day || ""; watchLow(); });
     // Restocking: everything still open, however old, plus the latest few including finished ones. The two can hold the
     // same record a moment apart, so the newer version wins.
     const rs = { open: [], recent: [] };
@@ -266,6 +268,29 @@ function subDay(k, ref, fn, when = shiftDay()) {
   if (dayKeys[k] === when && subs[k]) return;
   unsub(k); dayKeys[k] = when;
   sub(k, ref(), fn);
+}
+// Running low: the count lines of only the products a manager gave a running-low level, from the two latest counts,
+// live. Two counts, so a count half done tonight doesn't hide what the last full one said. A few dozen reads, not the
+// whole count. Firestore takes up to 30 names in one "in", so the names go in 30s.
+let lowLast = "", lowSig = "", lowParts = {};
+const lowPrev = {};
+async function watchLow() {
+  if (!LIVE.me) return;
+  const items = Object.entries(LIVE.countSetup?.items || {}).filter(([, o]) => +o.low > 0).map(([k]) => k).sort(), d1 = lowLast;
+  if (d1 && !(d1 in lowPrev)) {
+    lowPrev[d1] = "";
+    try { const s = await getDocs(query(collection(db, "counts"), where("day", "<", d1), orderBy("day", "desc"), limit(1))); lowPrev[d1] = s.docs[0]?.data().day || ""; } catch {}
+    return watchLow();
+  }
+  const days = [d1, lowPrev[d1]].filter(Boolean), sig = JSON.stringify([days, items]);
+  if (sig === lowSig && (!items.length || !days.length || Object.keys(subs).some((k) => k.startsWith("low:")))) return;
+  lowSig = sig; lowParts = {};
+  Object.keys(subs).filter((k) => k.startsWith("low:")).forEach(unsub);
+  LIVE.lowLines = []; liveChanged("low");
+  for (const day of days) for (let i = 0; i < items.length; i += 30) {
+    const k = `low:${day}:${i}`;
+    sub(k, query(collection(db, "counts"), where("day", "==", day), where("item", "in", items.slice(i, i + 30))), (snap) => { lowParts[k] = rows(snap); LIVE.lowLines = Object.values(lowParts).flat(); liveChanged("low"); });
+  }
 }
 // Tonight's tasks (one record per checklist item), procedures (one per list) and every change to them or to restocking,
 // for the business day. A record still saving shows the phone's estimate of the time, and says it's pending.
@@ -657,7 +682,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] });
+  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, lowLines: [], countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

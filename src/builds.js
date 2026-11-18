@@ -43,7 +43,6 @@ const FIX = {
   // Buck's Fizz, which is two parts fizz to one of juice.
   "Mimosa": { ml: { "orange juice": 75, "Prosecco": 75 } },
   // Four of the single serve, and "As Mojito" means the same lime and sugar.
-  "Mojito Pitcher": { ml: { "lime juice": 80, "sugar syrup": 60 } },
   "Virgin Mojito": { ml: { "lime juice": 20, "sugar syrup": 15 } },
   // The guide presses a lime wedge with the mint.
   "Hugo Spritz": { spec: ["4 mint leaves", "1 lime wedge", "25 ml elderflower cordial", "100 ml Prosecco", "25 ml soda"] },

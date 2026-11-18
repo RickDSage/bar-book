@@ -70,7 +70,7 @@ function sxBars() {
   $("#sx-recent").innerHTML = rec.length ? `<span class="sx-lab">Recent</span>${rec.map((d) => `<button class="chip" data-sx-id="${d.id}" translate="no">${esc(d.name)}</button>`).join("")}` : "";
   sxRecentShow();
 }
-// ×1 to ×4 for a table, ×6 and ×8 for a jug or a pitcher.
+// ×1 to ×4 for a table, ×6 and ×8 for a big table's round.
 const SX_XS = [1, 2, 3, 4, 6, 8];
 // The liquid in one drink, from its ml lines (toppings like "Top ~100 ml" count; a garnish doesn't).
 const sxMl = (d) => Math.round(d.spec.reduce((t, l) => { const m = l.match(/^(?:top(?: about)?\s+|side:\s*)?(\d+(?:\.\d+)?)\s?ml\b/i); return t + (m ? +m[1] : 0); }, 0));
@@ -267,7 +267,7 @@ function sxTonight() {
   // The one line Tonight folds into, upright and on a phone.
   const pb = progress(MODE_LISTS.bar.at(-1)), pf = progress(MODE_LISTS.floor.at(-1)), open = !!store.get("sx.tOpen", false);
   const sum = $("#sx-tsum"); sum.hidden = false;
-  sum.innerHTML = `<span class="st-k">Tonight</span><span>${out.length ? `${out.length} 86'd` : "Nothing 86'd"} \u00b7 Bar ${pb.n}/${pb.of} \u00b7 Floor ${pf.n}/${pf.of}</span><span class="chev">${open ? "Hide \u25b4" : "Show \u25be"}</span>`;
+  sum.innerHTML = `<span class="st-k">Tonight</span><span>${out.length ? `${out.length} 86'd` : "Nothing 86'd"}${lowNow().length ? ` \u00b7 ${lowNow().length} low` : ""} \u00b7 Bar ${pb.n}/${pb.of} \u00b7 Floor ${pf.n}/${pf.of}</span><span class="chev">${open ? "Hide \u25b4" : "Show \u25be"}</span>`;
   sum.setAttribute("aria-expanded", open); $("#sx-tgrid").classList.toggle("shut", !open);
   // Across the top, so it's seen from anywhere behind the bar.
   strip.hidden = !out.length;
@@ -289,6 +289,7 @@ function sxTonight() {
   el.innerHTML = `
     <div class="st-tile st-86"><span class="st-k">86'd tonight${out.length ? ` \u00b7 ${out.length}` : ""}</span>
       ${out.length ? `<ul class="sx-outl" translate="no">${out.map((n) => `<li><span>${esc(n)}</span><button class="chip" data-sx-back="${esc(n)}">Back in</button></li>`).join("")}</ul>` : `<b class="st-big">Nothing</b>`}
+      ${(() => { const lo = lowNow(); return lo.length ? `<span class="st-k">Running low \u00b7 ${lo.length}</span><ul class="sx-lowl" translate="no">${lo.map((x) => `<li><span>${esc(x.item)}<small>${lowSay(x)}</small></span><button class="chip" data-sx-86="${esc(x.item)}">86 it</button></li>`).join("")}</ul>` : ""; })()}
       <button class="linkbtn" data-st-go="stock">Open the 86 board \u203a</button></div>
     ${side("bar")}${side("floor")}
     <div class="st-tile sx-send"><span class="st-k">Send on WhatsApp</span>

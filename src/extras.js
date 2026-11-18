@@ -66,7 +66,6 @@ const overIce = (sp, g, ice = "cubed", glass = "rocks glass") => [S.ice(ice, gla
 const foamUp = (sp, g) => [S.chill("coupe"), S.tin(pick(sp, ALL)), S.dry(), S.shakeAgain(), S.strain(UP, true), S.garnish(g, "Serve straight away. The foam is foamer drops, no egg.")];
 const shotShake = (sp) => [S.tin(pick(sp, ALL)), S.shake("Fill the tin with ice. Seal it and shake hard for 8 seconds."), S.strainShot(), S.serve(ID)];
 const fizzUp = (sp, g) => [S.glass(pick(sp, /^\d/), "Measure with the jigger and pour into the coupe."), S.top(pick(sp, TOPS), "Tilt the glass and top up slowly so it doesn't foam over."), S.garnish(g)];
-const pitcherIce = { scene: "ice", title: "Ice the pitcher and glasses", text: "Fill the pitcher halfway with ice. Put ice in 4 glasses.", ice: "cubed", pitcher: true };
 
 const X = [
   // ---------- Cocktails ----------
@@ -782,13 +781,6 @@ const X = [
   { section: "Zero Proof", name: "Cucumber & Elderflower Cooler", tags: ["Fresh", "Floral", "Fizzy", "No alcohol"], blurb: "pressed cucumber, elderflower and lime with soda", glass: "Highball", ice: "Cubed", colour: "#d6ecc4",
     method: "Press cucumber in the glass, add ice, cordial and lime, top soda, short stir", spec: ["3 cucumber slices", "25 ml elderflower cordial", "15 ml lime juice", "Top soda"], garnish: "Cucumber ribbon",
     steps: (sp) => [S.muddle([item(sp[0])], "Press the cucumber slices in the bottom of the highball, just enough to break them up."), S.ice("cubed", "highball"), S.glass(pick(sp, /^\d+ ml/)), S.top(pick(sp, TOPS)), S.lift("Lift from the bottom with the bar spoon so the cucumber comes up through the drink."), S.garnish("Cucumber ribbon")] },
-  // ---------- Pitchers ----------
-  { section: "Pitchers", name: "Sangria Pitcher", tags: ["Fruity", "Party"], blurb: "serves 4. Red wine, brandy, orange and fruit", glass: "Pitcher with 4 glasses", ice: "Pitcher half full of cubed ice, glasses with ice", colour: "#7a1a2a",
-    method: "Build in pitcher, add fruit, top lemonade, stir", spec: ["375 ml red wine", "50 ml Martell VS", "50 ml Cointreau", "100 ml orange juice", "Top about 200 ml lemonade"], garnish: "Orange, lemon and apple slices", allergens: "Sulphites (wine)",
-    steps: (sp) => [pitcherIce, { ...S.glass(pick(sp, /^\d/), "Measure the wine, brandy, Cointreau and orange juice into the pitcher."), title: "Pour into the pitcher", pitcher: true }, S.top(pick(sp, TOPS), "Top with about 200 ml lemonade."), S.lift("Add the fruit and stir."), S.garnish("Orange, lemon and apple slices", "Fruit in the pitcher. Serve with the 4 glasses.")] },
-  { section: "Pitchers", name: "Margarita Pitcher", tags: ["Zesty", "Party"], blurb: "serves 4. Four IBA Margaritas, salt-rimmed glasses", glass: "Pitcher with 4 glasses", ice: "Pitcher half full of cubed ice, glasses with ice", colour: "#e4efc0",
-    method: "Build in pitcher, stir well with ice, serve with salt-rimmed glasses", spec: ["200 ml El Jimador Blanco", "80 ml Cointreau", "60 ml lime juice", "100 ml water"], garnish: "Lime wheels, salt rims",
-    steps: (sp) => [S.rim("salt", "Run a lime wedge round half the outside rim of 4 rocks glasses and roll them in salt."), pitcherIce, { ...S.glass(pick(sp, ALL), "Measure everything into the pitcher. The water stands in for the melt you'd get from shaking."), title: "Pour into the pitcher", pitcher: true }, S.lift("Stir for 20 seconds so it's ice cold."), S.garnish("Lime wheels, salt rims", "Serve with the 4 salt-rimmed glasses.")] },
 ];
 
 function tools(steps) {

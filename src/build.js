@@ -11,7 +11,8 @@ const clean = (t) => t && t.replace(/\s*\((?:website says|overwritten|as read|ca
 // Manhattan: replaced by the corrected versions in extras.js. Bramble is back (owner, 3 Nov 2026: list it whatever the stock).
 const DROP = new Set(["Soho Sizzle", "The Bronx Boss", "Manhattan"]);
 const SHAKE_STATION = new Set(["Spiked Egg Cream", "Brooklyn Egg Cream", "Fairground", "PB&J", "Salted Caramel"]);
-const noShake = (d) => d.section !== "Spike Your Shake" && d.section !== "Soho Originals" && !SHAKE_STATION.has(d.name);
+// No pitchers at all (owner, 18 Nov 2026).
+const noShake = (d) => d.section !== "Pitchers" && d.section !== "Spike Your Shake" && d.section !== "Soho Originals" && !SHAKE_STATION.has(d.name);
 const unpairShake = (d) => ({
   ...d,
   blurb: d.blurb && d.blurb.replace(/\s*· pairs with [^·]*shake$/i, ""),

@@ -1,5 +1,5 @@
 /* ---------- Standout features ----------
-   Smart 86 swaps that keep the drink balanced, batching into a bottle or jug, Shift replay, voice commands, the order
+   Smart 86 swaps that keep the drink balanced, batching into a bottle, Shift replay, voice commands, the order
    draft from the stock count, the closing timer, last orders, the offline badge, clock themes, the seasonal menu,
    accessible mode, one-hand mode, and sound and vibration cues. Everything reads what Bar Book already keeps: nothing
    here is a second copy of the 86 board, the count or the closing. Settings that are only for this phone stay on it. */
@@ -118,13 +118,13 @@ function sdFlow(d) {
 }
 
 
-/* ---------- 2. Batch it: into a bottle, jug or tub ----------
+/* ---------- 2. Batch it: into a bottle or tub ----------
    Pick the container and it works out how many drinks fit, every amount, and the water. Stirred drinks get 20% water
    on top of the batch: Death & Co ("add water at about 20% of the total volume") and Diageo Bar Academy ("20-25%")
    both use that, so a batched Negroni pours ready, with no stirring. Shaken drinks take no water (the shake does it),
    fizz goes on to order, and egg, cream or foamer is never batched. Fresh lime and lemon must be used the day they are
    squeezed (Liquid Intelligence), so a batch with them is for tonight only. */
-const SD_JARS = [[700, "70 cl bottle"], [1000, "1 litre bottle"], [2000, "2 litre jug"], [5000, "5 litre tub"]];
+const SD_JARS = [[700, "70 cl bottle"], [1000, "1 litre bottle"], [5000, "5 litre tub"]];
 function sdBatchPlan(d, jar) {
   const m = d.method.toLowerCase(), spec = d.spec.join(" ");
   const stirred = /stir/.test(m) && !/short stir/.test(m) && !/shake/.test(m);
@@ -141,7 +141,7 @@ function sdBatchHtml(d) {
   const jar = SD.jar || 1000, p = sdBatchPlan(d, jar);
   if (p.never) return `<details class="subs sd-batch"><summary>Batch it<span class="cnt">not this one</span></summary><p class="note" style="margin:4px 12px 12px">Egg, foamer or cream: make it to order, it doesn't keep.</p></details>`;
   if (!p.per || p.serves < 2) return "";
-  return `<details class="subs sd-batch"${SD.batchOpen ? " open" : ""}><summary>Batch it into a bottle or jug<span class="cnt">${p.serves} drinks</span></summary><div class="sd-in">
+  return `<details class="subs sd-batch"${SD.batchOpen ? " open" : ""}><summary>Batch it into a bottle<span class="cnt">${p.serves} drinks</span></summary><div class="sd-in">
     <div class="chips" role="group" aria-label="Container">${SD_JARS.map(([v, t]) => `<button class="chip" data-sd-jar="${v}" aria-pressed="${v === jar}">${t}</button>`).join("")}</div>
     <p class="sd-big"><b>${p.serves}</b> drinks in a ${esc(SD_JARS.find((x) => x[0] === jar)[1])}</p>
     <ul class="spec" translate="no">${p.lines.map(([n, t]) => `<li><span class="q">${n} ml</span><span>${esc(t)}</span></li>`).join("")}${p.water ? `<li><span class="q">${p.water} ml</span><span>cold water (20%)</span></li>` : ""}</ul>
@@ -221,7 +221,7 @@ function sdOrderRows() {
   };
   const rows = [...T[last].values()].map((t) => {
     const par = items[t.item]?.par, per = rate(t.item), want = par != null ? par : per != null ? per * SD.od.cover : null;
-    return { item: t.item, u: t.u, n: t.n, per, par, order: want == null ? null : Math.max(0, Math.ceil(want - t.n)) };
+    return { item: t.item, u: t.u, n: t.n, per, par, low: +items[t.item]?.low || 0, order: want == null ? null : Math.max(0, Math.ceil(want - t.n)) };
   }).sort((a, b) => (b.order || 0) - (a.order || 0) || a.item.localeCompare(b.item));
   return { days, last, rows };
 }
@@ -239,8 +239,8 @@ function orderHtml() {
   return `<p class="note">From the count on ${ctDate(s.last)}${s.days.length > 1 ? ` and usage since ${ctDate(s.days[0])}` : ""}. With a par it orders back up to the par; without one it covers the days below. A list to send, not an order.</p>
     <div class="seg" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Cover">${[3, 7, 14].map((n) => `<button data-sd-od-cover="${n}" aria-pressed="${n === SD.od.cover}">${n} days</button>`).join("")}</div>
     <p class="sd-big"><b>${want.length}</b> to order</p>
-    <div class="ct-tot">${s.rows.map((r) => `<div${r.order > 0 ? ' class="flag"' : ""}><span translate="no">${esc(r.item)}<small>${ctSay(r.u, r.n)} left${r.per != null ? ` · ${ctNum(r.per)} a day` : ""}${r.par != null ? ` · par ${ctNum(r.par)}` : ""}</small></span>
-      <b>${r.order == null ? "–" : r.order ? `Order ${ctSay(r.u, r.order)}` : "OK"}</b>${LIVE.admin ? `<button class="linkbtn" data-sd-od-par="${esc(r.item)}">Par</button>` : ""}</div>${SD.od.edit === r.item ? `<div class="surow"><span>Par</span><input type="number" inputmode="decimal" min="0" step="1" id="sd-od-par" value="${r.par ?? ""}"><button class="btn pri" data-sd-od-save="${esc(r.item)}">Save</button><button class="btn" data-sd-od-clear="${esc(r.item)}">No par</button></div>` : ""}`).join("")}</div>
+    <div class="ct-tot">${s.rows.map((r) => `<div${r.order > 0 ? ' class="flag"' : ""}><span translate="no">${esc(r.item)}<small>${ctSay(r.u, r.n)} left${r.per != null ? ` · ${ctNum(r.per)} a day` : ""}${r.par != null ? ` · par ${ctNum(r.par)}` : ""}${r.low ? ` · low below ${ctNum(r.low)}` : ""}</small></span>
+      <b>${r.order == null ? "–" : r.order ? `Order ${ctSay(r.u, r.order)}` : "OK"}</b>${LIVE.admin ? `<button class="linkbtn" data-sd-od-par="${esc(r.item)}">Levels</button>` : ""}</div>${SD.od.edit === r.item ? `<div class="surow"><span>Par</span><input type="number" inputmode="decimal" min="0" step="1" id="sd-od-par" value="${r.par ?? ""}" aria-label="Par: order back up to"><span>Low below</span><input type="number" inputmode="decimal" min="0" step="1" id="sd-od-low" value="${r.low || ""}" aria-label="Running low below"><button class="btn pri" data-sd-od-save="${esc(r.item)}">Save</button><button class="btn" data-sd-od-clear="${esc(r.item)}">Clear both</button></div>` : ""}`).join("")}</div>
     ${noData.length ? `<p class="note">${plural(noData.length, "item")} need a second count or a par before they can be worked out.</p>` : ""}
     <div class="actions">${want.length ? sendBtn("orderdraft", "Send the order list") : ""}<button class="btn" data-sd-od-reload>Refresh</button></div>`;
 }
@@ -249,11 +249,13 @@ SHARE.orderdraft = () => {
   return { what: "Order list", title: `Black Tap Soho · order list · ${dayName(shiftDay())}`, head: [`From the stock count on ${ctDate(s.last)}`],
     parts: [{ id: "o", label: "To order", lines: want.map((r) => `${r.item}: ${ctSay(r.u, r.order)} (${ctSay(r.u, r.n)} left)`) }] };
 };
-function sdOrderPar(item, v) {
+// A product's par (order back up to) and running-low level (the heads-up before an 86), set together. Blank clears one.
+function sdOrderPar(item, v, lo) {
   const su = ctSetup(), items = { ...su.items }, cur = { ...(items[item] || {}) };
   if (v == null || v === "" || isNaN(+v)) delete cur.par; else cur.par = Math.max(0, Math.round(+v * 100) / 100);
+  if (lo == null || lo === "" || !(+lo > 0)) delete cur.low; else cur.low = Math.min(9999, Math.round(+lo * 100) / 100);
   items[item] = cur; SD.od.edit = "";
-  track(LIVE.api.saveCountSetup({ areas: su.areas, items, order: su.order }), "Par saved", "Not saved. Try again");
+  track(LIVE.api.saveCountSetup({ areas: su.areas, items, order: su.order }), "Levels saved", "Not saved. Try again");
   setTimeout(() => renderCard("order"), 300);
 }
 
@@ -661,8 +663,8 @@ document.addEventListener("click", (e) => {
   if (t("[data-sd-rp-reload]")) return sdReplayLoad();
   if ((x = t("[data-sd-od-cover]"))) { SD.od.cover = +x.dataset.sdOdCover; haptic(); renderCard("order"); return; }
   if ((x = t("[data-sd-od-par]"))) { SD.od.edit = SD.od.edit === x.dataset.sdOdPar ? "" : x.dataset.sdOdPar; renderCard("order"); $("#sd-od-par")?.focus(); return; }
-  if ((x = t("[data-sd-od-save]"))) return sdOrderPar(x.dataset.sdOdSave, $("#sd-od-par").value);
-  if ((x = t("[data-sd-od-clear]"))) return sdOrderPar(x.dataset.sdOdClear, null);
+  if ((x = t("[data-sd-od-save]"))) return sdOrderPar(x.dataset.sdOdSave, $("#sd-od-par").value, $("#sd-od-low").value);
+  if ((x = t("[data-sd-od-clear]"))) return sdOrderPar(x.dataset.sdOdClear, null, null);
   if (t("[data-sd-od-reload]")) { SD.od.hist = null; return sdOrderLoad(); }
   if (t("[data-sd-v-save]")) {
     const lo = $("#sd-v-lo").value, da = $("#sd-v-day").value || "07:00", ni = $("#sd-v-night").value || "19:00";
