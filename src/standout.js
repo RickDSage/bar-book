@@ -736,6 +736,8 @@ body.sd-offon #net{display:none}
 body:has(#sd-mic:not([hidden])) main{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 84px)}
 body.stmode:has(#sd-mic:not([hidden])) main{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 84px)}
 body:has(#sd-timer:not([hidden])) #sd-mic{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}
+/* The bar station: above the spec panel's Back and Next. */
+body.stmode #sd-mic{bottom:calc(env(safe-area-inset-bottom,0px) + 104px)}
 #sd-1h{position:fixed;left:0;right:0;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px));z-index:9;display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px max(6px,env(safe-area-inset-left,0px))}
 #sd-1h button{min-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:20px;color:var(--fg)}#sd-1h span{font-size:11px;color:var(--muted);margin-top:2px}
 body.sd-1h main{padding-bottom:64px}body.sd-1h #sheet{padding-bottom:calc(var(--tabh) + 70px)}

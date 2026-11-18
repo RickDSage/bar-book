@@ -684,7 +684,7 @@ body.sxbig .sx-add { width: 68px; font-size: 26px; }
 .sx-rm { color: var(--muted); font-size: 15px; margin-top: 2px; }
 .sx-rc .sx-specl li { font-size: 20px; padding: 7px 0; }
 .sx-rmeth { margin: 8px 0 0; font-size: 16px; }
-.sx-back { position: fixed; right: max(16px, env(safe-area-inset-right, 0px)); bottom: calc(var(--tabh) + 14px + env(safe-area-inset-bottom, 0px)); z-index: 7; min-height: 48px; padding: 10px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
+.sx-back { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(var(--tabh) + 14px + env(safe-area-inset-bottom, 0px)); z-index: 7; min-height: 48px; padding: 10px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
 .sx-back[hidden] { display: none; }
 /* iPad upright: Tonight across the top, then the list and the spec side by side, each scrolling on its own. */
 @media (min-width: 700px) {

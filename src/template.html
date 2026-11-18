@@ -412,9 +412,10 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .modesw { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; margin-top: 10px; }
 .modesw .chip { justify-content: center; }
 #shift-day { color: var(--muted); font-size: 14px; }
-.ptabs { position: sticky; top: 0; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 6px 14px -8px var(--shadow); }
+.ptabs { position: sticky; top: 6px; z-index: 5; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 4px; margin: 12px 0 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 0 0 10px var(--bg), 0 16px 14px -8px var(--shadow); }
 .ptabs button { display: flex; flex-direction: column; align-items: center; gap: 1px; min-height: 52px; padding: 6px 2px; border-radius: 10px; font-weight: 700; font-size: 15px; color: var(--muted); }
-@media (max-width: 380px) { .ptabs button { font-size: 13px; padding-inline: 0; } }
+@media (max-width: 440px) { .ptabs button { font-size: 13.5px; padding-inline: 0; letter-spacing: -.01em; } }
+@media (max-width: 380px) { .ptabs button { font-size: 12.5px; } }
 .ptabs small { font-size: 11.5px; font-weight: 600; opacity: .85; min-height: 14px; }
 .ptabs button[aria-selected="true"] { background: var(--brass); color: var(--brass-ink); }
 .pane.enter { animation: paneIn .18s ease-out; }
@@ -1105,7 +1106,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <p>Every drink we make, in your pocket.</p>
   <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
   <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
-  <p class="wip">Work in progress. Spot something wrong or got an idea? Use Send feedback in More.</p>
+  <p class="wip">Spot something wrong or got an idea? Tell maintenance: More, then App feedback.</p>
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Guide: find anything in Bar Book">?</button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
@@ -1254,8 +1255,11 @@ function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = fal
    nothing itself: WhatsApp and Email open the person's own app with the words written in, and they pick who it goes
    to. Messages are in English, the venue's working language, whatever language the phone shows. */
 const SHARE = {};
+// The bar's iPad has no WhatsApp: its share sheet offers Mail, Messages, AirDrop and Save to Files. iPadOS says it's a Mac.
+const isIPad = () => /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 // A note given here starts the Send page's note, for the person to change.
-const sendBtn = (k, label, o, note) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}${note ? ` data-send-note="${esc(note)}"` : ""}>${label}</button>`;
+// The bar iPad has no WhatsApp, so its buttons just say Send (its Send page offers Mail, Messages, AirDrop and Files).
+const sendBtn = (k, label, o, note) => `<button class="btn" data-send="${k}"${o ? ` data-send-o="${esc(o)}"` : ""}${note ? ` data-send-note="${esc(note)}"` : ""}>${isIPad() ? label.replace(/ (?:on|to) WhatsApp$/, "") : label}</button>`;
 // A line starting with a space belongs to the item above it.
 const partItems = (p) => p.lines.filter((l) => !/^\s/.test(l)).length;
 const subLine = (t) => `   ◦ ${t}`;
@@ -1311,8 +1315,6 @@ function openSend(k, o, note = "") {
   }).catch(() => {});
 }
 const canFiles = () => { try { return !!navigator.canShare?.({ files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] }); } catch { return false; } };
-// The bar's iPad has no WhatsApp: its share sheet offers Mail, Messages, AirDrop and Save to Files. iPadOS says it's a Mac.
-const isIPad = () => /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 /* Photos on the Send page: the message's own (tonight's closing photos, a concern's, a drink's house photo, the rota as
    a picture) and any the person adds here from the camera or their photos. Added ones are only for this message:
    nothing is saved. The share sheet takes the photos on their own: given words as well, an iPhone keeps the words and
@@ -2693,19 +2695,24 @@ function clearList(k) {
   track(Promise.all(resetList(k, ids)), `${t} cleared`, "Not all cleared. Check your signal and try again");
   more = ""; haptic();
 }
-/* Clear everything, for a fresh start: both closing lists back to not started, everything back in stock, and tonight's
-   handover, Closed by and unsent photos gone, for both sides. Anyone on the team can. The owner's master clear also
-   cancels open restocks and marks the inbox done (kept, not deleted). Open issues are never cleared: they're faults the
-   next shift needs to see. Sent handovers stay: the morning reads them. Each person's own unsent forms (an incident,
-   a request) stay on their phone.
+/* Clear everything, for a fresh start, on every phone: both closing lists back to not started, everything back in
+   stock, restocks still waiting cancelled (all of them for a manager, your own for anyone else: the rules let only the
+   asker or a manager cancel one), tonight's handover boxes, drafts, Closed by and unsent photos, and this phone's
+   half-typed restock and date label forms. Anyone on the team can. The owner's master clear also marks the inbox done
+   (kept, not deleted). What stays is said in the question: sent handovers (the morning reads them), date labels (food
+   safety: they're the use-by dates on the shelf), today's stock count (a dated record; tomorrow starts at 0) and open
+   issues (faults the next shift needs to see). Each person's own forms to the managers stay on their phone.
    A mis-tap mid-service would put 86'd items back on sale, so whatever was cleared is kept on this phone for 15
    minutes and Undo clear puts it all back. */
 const UNDO_MINS = 15;
 let undoClear = null;
+const clearRestocks = () => rsOpen().filter((x) => x.status !== "delivered" && (LIVE.admin || x.askedUid === LIVE.uid));
 async function clearAll(master) {
-  const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api;
-  if (!confirm(master ? "Master clear: both closing lists, the 86 board and restocks for everyone, and the inbox marked done. Open issues and sent handovers stay. You can undo it for 15 minutes. Go ahead?"
-    : `Clear everything for a fresh start? On every phone: both closing lists go back to not started, everything 86'd goes back in stock, and tonight's handover, Closed by and unsent photos go. You can undo it for ${UNDO_MINS} minutes.`)) return;
+  const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api, rs = clearRestocks();
+  const goes = `both closing lists, every 86 (back in stock), ${LIVE.admin ? "every restock still waiting" : "restocks you asked for that are still waiting"}, tonight's handover and its drafts, Closed by, unsent closing photos, and the restock and label forms on this phone`;
+  const stays = "sent handovers, date labels, today's stock count and open issues";
+  if (!confirm(master ? `Master clear, on every phone. Goes: ${goes}, and the inbox is marked done. Stays: ${stays}. Undo clear puts it back for ${UNDO_MINS} minutes. Go ahead?`
+    : `Clear everything for a fresh start, on every phone? Goes: ${goes}. Stays: ${stays}. Undo clear puts it back for ${UNDO_MINS} minutes.`)) return;
   // What's about to go, so Undo clear can put it back.
   undoClear = {
     until: Date.now() + UNDO_MINS * 6e4,
@@ -2714,8 +2721,8 @@ async function clearAll(master) {
     out: [...outNow()],
     photos: tonightPhotos().map((x) => ({ data: x.data, side: x.side || mode, note: x.note || "" })),
     drafts: Object.keys(MODE_LISTS).map(draftOf).filter(Boolean).map((d) => ({ side: d.side, x: { low: d.low, issues: d.issues, next: d.next, closer: d.closer, noPhotos: d.noPhotos } })),
-    local: { ho: { ...ho }, closer, noPhotos },
-    restock: master ? rsOpen().filter((x) => x.status !== "delivered").map((r) => r.id) : [],
+    local: { ho: { ...ho }, closer, noPhotos, forms: { restock: { ...rsF }, label: { ...lbF } } },
+    restock: rs.map((r) => r.id),
   };
   const jobs = lists.flatMap((k) => resetList(k, touched(k)));
   for (const n of outNow()) jobs.push(A.set86(n, false));
@@ -2724,10 +2731,9 @@ async function clearAll(master) {
   // this phone hasn't heard back about yet is deleted too.
   clearTimeout(draftT); draftT = null;
   for (const side of Object.keys(MODE_LISTS)) jobs.push(A.dropDraft(side));
-  if (master) {
-    for (const r of rsOpen().filter((x) => x.status !== "delivered")) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
-    for (const a of LIVE.asks.filter((x) => x.status !== "done")) jobs.push(A.answer(a.id, "done", CLEARED));
-  }
+  for (const r of rs) jobs.push(A.moveRestock(r, "cancelled", { note: CLEARED }));
+  if (master) for (const a of LIVE.asks.filter((x) => x.status !== "done")) jobs.push(A.answer(a.id, "done", CLEARED));
+  dropDraft("restock"); dropDraft("label");
   ho = { low: "", issues: "", next: "" }; closer = ""; noPhotos = "";
   store.set("ho", ho); store.set("closer", ""); store.set("noPhotos", "");
   more = ""; haptic(); renderTally();
@@ -2747,6 +2753,7 @@ function undoClearAll() {
   for (const d of u.drafts) jobs.push(A.saveDraft(d.side, d.x));
   for (const id of u.restock) { const r = LIVE.restock.find((x) => x.id === id); if (r?.status === "cancelled") jobs.push(A.moveRestock(r, "asked", { note: "Clear undone" })); }
   ho = u.local.ho; closer = u.local.closer; noPhotos = u.local.noPhotos;
+  Object.assign(rsF, u.local.forms.restock); Object.assign(lbF, u.local.forms.label); saveDrafts();
   store.set("ho", ho); store.set("closer", closer); store.set("noPhotos", noPhotos);
   haptic(); renderTally();
   track(Promise.all(jobs), "Put back as it was", "Not all put back. Check what's missing");
@@ -3356,11 +3363,20 @@ function labelsByStation(side) {
   return [...by].filter(([, ys]) => ys.length).map(([k, ys]) => { const n = ys.filter((x) => x.on && ["overdue", "today"].includes(labelDue(x))).length;
     return `<div class="mini lbst">${esc(k)}${n ? ` <span class="pill no">${n} to change</span>` : ""}</div>${ys.map(labelRow).join("")}`; }).join("");
 }
+// By station (the order you walk them) or A to Z (the letter strip, for finding one), once a side has 10 or more.
+let lbAz = store.get("lbAz", false);
+function labelsList(side) {
+  const xs = sideLabels(side); if (!xs.length) return "";
+  if (xs.length < 10) return labelsByStation(side);
+  return `<div class="seg ct-order" role="group" aria-label="Order"><button data-lb-az="0" aria-pressed="${!lbAz}">By station</button><button data-lb-az="1" aria-pressed="${lbAz}">A to Z</button></div>`
+    + (lbAz ? azHtml(xs, (x) => x.item, labelRow, 10) : labelsByStation(side));
+}
+document.addEventListener("click", (e) => { const b = e.target.closest("[data-lb-az]"); if (!b) return; lbAz = b.dataset.lbAz === "1"; store.set("lbAz", lbAz); haptic(); renderTally(); });
 function labelsHtml(side) {
   const head = `<div class="sec">Date labels</div>`;
   if (!LIVE.loaded.has("labels")) return `${head}<p class="note">Loading. It needs signal the first time.</p>`;
   return `${head}<p class="note">Opened one? Tap Opened one and write the date it gives you on the label. Binned the old one and opened a new one? Tap Changed it. Found one open with no label? Tap Found open. Each tap is saved with your name and the time.</p>
-    ${labelsByStation(side) || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
+    ${labelsList(side) || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
     ${sideLabels(side).some((x) => x.on) ? `<div class="actions">${sendBtn("labels", "Send the date labels", side)}</div>` : ""}
     ${LIVE.admin ? labelAddHtml(side) : ""}`;
 }
@@ -5078,7 +5094,7 @@ function renderInfo() {
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
     <div class="sec">This phone</div>
     <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
-    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Use Send feedback above.</p>
+    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Tell maintenance with App feedback above.</p>
     <div class="mini" style="margin-top:14px">Light or dark</div>
     <div class="seg" style="grid-template-columns:repeat(5,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["clock", "Clock"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. Clock goes light and dark at the venue's times, set by a manager. This phone only.</p>
@@ -6494,6 +6510,10 @@ else {
       if (pin) pendingPin = { name: myName, pin };
       if (c) { teamCode = c; store.set("team", c); store.set("kicked", false); joinErr = ""; autoJoin(); }
       tryPendingPin();
+    }
+    // The bar's iPad is shared: opened as the station on a tablet, it hides My pay and locks codes after 5 minutes.
+    if (b.dataset.ipad && !sharedDev && (isIPad() || Math.min(screen.width, screen.height) >= 700)) {
+      sharedDev = true; store.set("shared", true); applyShared(); toast("Shared iPad: My pay hidden, codes lock after 5 minutes. More, This phone to change it");
     }
     haptic(); document.body.style.overflow = ""; w.classList.add("bye"); setTimeout(() => w.remove(), 300);
     setMode(b.dataset.start);

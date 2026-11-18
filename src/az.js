@@ -42,15 +42,16 @@ function azScroller(el) {
 }
 // The bars that stick at the top of what scrolls: the search bar, the Shift places, the top of a full-screen sheet, the
 // bar station's part headings.
-const AZ_STICKY = "#hdr, #placebar, .sheet-top, .sx-h";
+// The Shift tabs carry a 10 px band of page colour under them (their box-shadow), so a heading clears that too.
+const AZ_STICKY = "#hdr, #placebar, .sheet-top, .sx-h, .ptabs";
 const azStickies = () => [...(AZ.sc || document).querySelectorAll(AZ_STICKY)].filter((s) => s.getClientRects().length && getComputedStyle(s).position === "sticky");
 // How far down they reach once they've stuck, so a letter lands just under them.
-function azStick() { return Math.max(0, ...azStickies().map((s) => (parseFloat(getComputedStyle(s).top) || 0) + s.offsetHeight)); }
+function azStick() { return Math.max(0, ...azStickies().map((s) => (parseFloat(getComputedStyle(s).top) || 0) + s.offsetHeight + (s.matches(".ptabs") ? 10 : 0))); }
 // The part of the screen the list shows in: under the sticky bars, above the tab bar.
 function azFrame() {
   const r = AZ.sc ? AZ.sc.getBoundingClientRect() : { top: 0, bottom: innerHeight };
   let top = Math.max(r.top, 0), bottom = Math.min(r.bottom, innerHeight);
-  for (const s of azStickies()) if (!AZ.box.contains(s)) top = Math.max(top, s.getBoundingClientRect().bottom);
+  for (const s of azStickies()) if (!AZ.box.contains(s)) top = Math.max(top, s.getBoundingClientRect().bottom + (s.matches(".ptabs") ? 10 : 0));
   const tabs = document.querySelector("nav.tabs");
   if (!AZ.sc && tabs && tabs.getClientRects().length) bottom = Math.min(bottom, tabs.getBoundingClientRect().top);
   // Stop above the buttons that float in the bottom corner (🎤 Say it, a timer, one-hand mode), where they'd cover it.
