@@ -810,9 +810,12 @@ $("#v-fun").addEventListener("click", (e) => {
 });
 function mkQsList() {
   const words = mk.qs.q.trim() ? plQuery(mk.qs.q.trim()).words : [];
-  const rows = D.filter((d) => mkKindOk(d, mk.qs.kind) && plHits(d, words) && (!mk.qs.mine || mkCanMake(d)));
+  // A to Z with the letter strip; a search keeps the best matches first.
+  const hits = D.filter((d) => mkKindOk(d, mk.qs.kind) && plHits(d, words) && (!mk.qs.mine || mkCanMake(d)));
+  const rows = words.length ? plRank(hits, words) : azSort(hits, (d) => d.name);
   MK.ids = rows.map((d) => d.id);
-  return `<p class="count">${rows.length} ${rows.length === 1 ? "drink" : "drinks"}</p>${rows.map((d) => `<button class="mk-q" data-mk-open="${d.id}"><div class="n">${esc(d.name)}<span>${esc(d.glass)}</span></div><div class="s">${esc(mkShort(d))}</div><div class="m">${esc(d.method)} · ${esc(d.garnish)}</div></button>`).join("") || `<p class="empty">Nothing matches.</p>`}`;
+  const row = (d) => `<button class="mk-q" data-mk-open="${d.id}"><div class="n">${esc(d.name)}<span>${esc(d.glass)}</span></div><div class="s">${esc(mkShort(d))}</div><div class="m">${esc(d.method)} · ${esc(d.garnish)}</div></button>`;
+  return `<p class="count">${rows.length} ${rows.length === 1 ? "drink" : "drinks"}</p>${(words.length ? rows.map(row).join("") : azHtml(rows, (d) => d.name, row)) || `<p class="empty">Nothing matches.</p>`}`;
 }
 function mkQsPane() {
   return `<p class="lead">Every spec on one line, for when it's busy. Tap one for the full card.</p>
