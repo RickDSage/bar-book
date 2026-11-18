@@ -391,3 +391,61 @@ test("its own Stock tab: scan a barcode to find or link it, managers check it, u
   assert.equal(await S.evaluate(() => [cur, pane].join()), "tally,labels");
   for (const p of [M, S]) assert.deepEqual(p.errs, []);
 });
+
+test("stronger: Undo takes back the last item, Check it flags a slip, two people on one line, nothing lost offline", async () => {
+  await resetEmulators();
+  const { M, S } = await team(browser, site, people);
+  // Last count: Smirnoff 3 on the speed rail.
+  await S.evaluate(() => { const d = addDays(shiftDay(), -1); return LIVE.api.countLine(ctId(d, "Speed rail", "Smirnoff"), { day: d, area: "Speed rail", item: "Smirnoff", unit: "bottle", full: 3, open: 0 }); });
+  await openCount(S);
+  await S.waitForFunction(() => ctPrev?.lines.some((x) => x.item === "Smirnoff"));
+
+  // Under Find: the last item, saved, with Undo. Taps on one line undo together.
+  await S.click(row("Speed rail", "Smirnoff"));
+  for (let i = 0; i < 2; i++) await S.click('.ct-row.on [data-ct-add="full:1"]');
+  await waitLine(S, "Smirnoff", [2, 0]);
+  await S.waitForFunction(() => /✓ Smirnoff 2 bottles, saved/.test(document.querySelector("#ct-undo-slot").textContent));
+  await S.click("[data-ct-undo]");
+  await S.waitForFunction(() => !LIVE.counts.some((x) => x.item === "Smirnoff"));
+  assert.equal(await S.evaluate(() => ctOpen), "Speed rail|Smirnoff", "the line opens again to count it");
+  assert.equal(await S.$("#ct-undo-slot .ct-undo"), null);
+
+  // A slip: 30 for 3. Check it on the line and in Worth a second look; It's right clears it.
+  await S.click('.ct-row.on [data-ct-add="full:6"]');
+  await S.evaluate(() => ctPut(ctRow("Speed rail|Smirnoff"), 30, 0));
+  await waitLine(S, "Smirnoff", [30, 0]);
+  await S.waitForSelector("#ct-odd");
+  assert.match(await text(S, "#ct-odd"), /Worth a second look \(1\).*Smirnoff Speed rail/i);
+  assert.match(await text(S, ".ct-oddn"), /^Much more than 3 bottles last time\. Count it again, or It's right$/);
+  await S.click("[data-ct-ok]");
+  await S.waitForFunction(() => !document.querySelector("#ct-odd"));
+  assert.deepEqual(await S.evaluate(() => store.get("ctOk")[ctDay]), ["Speed rail|Smirnoff"]);
+  // Normal use is never flagged: 3 down to 1.5.
+  await S.evaluate(() => { const d = addDays(shiftDay(), -1); return LIVE.api.countLine(ctId(d, "Speed rail", "Tanqueray"), { day: d, area: "Speed rail", item: "Tanqueray", unit: "bottle", full: 3, open: 0 }); });
+  await S.evaluate(() => { ctPrevFor = ""; ctRender(true); });
+  await S.waitForFunction(() => ctPrev?.lines.some((x) => x.item === "Tanqueray"));
+  await S.evaluate(() => ctPut(ctRow("Speed rail|Tanqueray"), 1, 50));
+  await waitLine(S, "Tanqueray", [1, 50]);
+  assert.equal(await S.evaluate(() => ctOdd(ctRow("Speed rail|Tanqueray"))), "");
+
+  // Two people on one line: the newest stands, and whoever replaces it is told once.
+  await openCount(M);
+  await M.evaluate(() => ctPut(ctRow("Speed rail|Tanqueray"), 2, 0));
+  await waitLine(S, "Tanqueray", [2, 0]);
+  await S.evaluate(() => { ctOpen = "Speed rail|Tanqueray"; ctRender(true); });
+  await S.click('.ct-row.on [data-ct-add="full:1"]');
+  await waitToast(S, /^Mia Manager had 2 bottles\. Yours replaces it: Undo puts theirs back$/);
+  await waitLine(M, "Tanqueray", [3, 0]);
+  await S.click("[data-ct-undo]"); await waitLine(M, "Tanqueray", [2, 0]);
+
+  // No signal: it's kept on the phone and says so, then sends by itself.
+  await S.context().setOffline(true);
+  await S.evaluate(() => ctPut(ctRow("Speed rail|Smirnoff Vanilla"), 4, 0));
+  await S.waitForFunction(() => /on this phone: it sends when there's signal/.test(document.querySelector("#ct-undo-slot").textContent));
+  assert.match(await text(S, ".ct-head"), /1 on this phone, sending when there's signal/i);
+  await S.context().setOffline(false);
+  // The phone's own reconnect can take a while after a drop.
+  await M.waitForFunction(() => LIVE.counts.some((x) => x.item === "Smirnoff Vanilla" && x.full === 4 && !x.pending), null, { timeout: 120000 });
+  await S.waitForFunction(() => /Everything's saved/.test(document.querySelector(".ct-head").textContent));
+  for (const p of [M, S]) assert.deepEqual(p.errs, []);
+});

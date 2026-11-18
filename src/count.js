@@ -239,7 +239,7 @@ function ctPage() {
   const speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition), cam = !!navigator.mediaDevices?.getUserMedia;
   $("#v-count").innerHTML = `<div class="shift-top"><h2>Stock</h2><span class="s">Count, scan, use-by</span></div>
     <div class="ct-find" id="ct-find"><div class="ltools"><span class="ct-q"><span aria-hidden="true">⌕</span><input id="ct-say" type="search" enterkeyhint="go" maxlength="80" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Find, or say “Smirnoff 2.5”" aria-label="Find an item, or say or type a count, or type a barcode"></span>${cam ? `<button class="btn" id="ct-scan" aria-label="Scan a barcode">📷<span class="ct-bl"> Scan</span></button>` : ""}${speech ? `<button class="btn" id="ct-mic" aria-label="Say a count">🎤<span class="ct-bl"> Say it</span></button>` : ""}<button class="btn pri" id="ct-say-go" hidden>Count it</button></div>
-    <div id="ct-heard-slot"></div></div><div id="ct"></div>`;
+    <div id="ct-heard-slot"></div><div id="ct-undo-slot" aria-live="polite"></div></div><div id="ct"></div>`;
   ctRender(true);
 }
 // The Stock tab: off the team it says how to join; on it, the count book.
@@ -257,6 +257,7 @@ function ctRender(force) {
   const top = $("#ct-find"); if (top) top.hidden = ctSetupOn || ctIntro >= 0;
   if ($("#ct-mic")) $("#ct-mic").innerHTML = ctRx ? "Listening…" : `🎤<span class="ct-bl"> Say it</span>`;
   if ($("#ct-heard-slot")) $("#ct-heard-slot").innerHTML = ctSetupOn ? "" : ctHeardHtml();
+  ctUndoShow();
   if (typing && !force) { ctRender.later = true; return; }
   ctRender.later = false;
   el.innerHTML = ctSetupOn ? ctSetupHtml() : ctIntro >= 0 ? ctIntroHtml() : ctHtml();
@@ -287,7 +288,9 @@ function ctHtml() {
   if (!LIVE.loaded.has("countSetup") || LIVE.countDay !== ctDay) return `<p class="note">Loading the count…</p>`;
   ctPrevLoad();
   const rows = ctRows(), tot = ctTotals(), done = rows.filter(ctLine).length, by = [...new Set(ctLines().map((x) => x.name))], wide = ctWide();
-  return `${ctScanHtml()}${ctCodesHtml()}${ctUseByHtml()}<div class="ct-head"><p class="s"><b>${done} of ${rows.length} lines counted</b>${by.length ? ` by ${esc(by.join(", "))}` : ""}. Saves as you go, with no signal too.</p>
+  const pend = ctLines().filter((x) => x.pending).length, odds = ctOdds();
+  const oddBox = odds.length ? `<div class="ct-odd" id="ct-odd"><p class="s"><b>Worth a second look (${odds.length})</b>: far from the last count. Tap one, count it again, or tap It's right.</p><div class="recent">${odds.map((r) => `<button class="chip" data-ct-row="${esc(r.key)}">${esc(r.item)} <small>${esc(r.area)}</small></button>`).join("")}</div></div>` : "";
+  return `${ctScanHtml()}${ctCodesHtml()}${ctUseByHtml()}<div class="ct-head">${rows.length && done === rows.length ? `<p class="note ct-fin">✓ <b>All ${rows.length} lines counted.</b> ${odds.length ? `${odds.length} worth a second look, then send` : "Check the totals, then send"} them at the bottom.</p>` : ""}<p class="s"><b>${done} of ${rows.length} lines counted</b>${by.length ? ` by ${esc(by.join(", "))}` : ""}. ${pend ? `<b>${pend} on this phone, sending when there's signal</b>: keep counting.` : "Everything's saved, on any phone."}</p>${oddBox}
       <div class="ct-bar" aria-hidden="true"><i style="width:${rows.length ? Math.round((done / rows.length) * 100) : 0}%"></i></div>
       <div class="ct-hrow"><label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label><button class="btn ct-howbtn" data-ct-intro="0">How to count</button><button class="btn ct-unit" data-ct-unit aria-label="Swap cl and ml">${ctMlFirst ? "ml ⇄ cl" : "cl ⇄ ml"}</button></div>${ctTipsHtml()}</div>
     <div id="ct-list">${ctListHtml()}</div>
@@ -335,7 +338,7 @@ function ctDo(r) {
 }
 function ctRowHtml(r, where) {
   const x = ctLine(r), on = ctOpen === r.key;
-  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}${ctLowSet.has(r.item) ? `<small class="ct-low">Running low</small>` : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
+  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}${x && ctOdd(r, x) ? `<small class="ct-chk">Check it</small>` : ""}${ctLowSet.has(r.item) ? `<small class="ct-low">Running low</small>` : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
 }
 // Next: down the list as it shows (by place, by kind or A to Z), past anything counted already when only what's left is
 // showing. Left blank, Next saves it as none. soon: after a line's last tap, a moment to see it saved first.
@@ -403,7 +406,8 @@ function ctEditHtml(r, x) {
   const more = `<details class="ct-more" id="ct-more"${ctMoreOn ? " open" : ""}><summary>More: ${b ? "tenths, photo check, weigh it" : "weigh it"}, none left${LIVE.admin ? ", levels" : ""}</summary>
     ${one}${tenths}${b ? `<div class="ct-open">${ctBottle(open)}<div><span>Or tap the bottle</span>${ctPhotoBtn(r)}</div></div>${ctPhotoHtml(r)}` : ""}
     ${weigh}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}${b ? `<button class="btn" data-ct-next="${esc(r.key)}">Next ›</button>` : ""}</div></details>`;
-  return `<div class="ct-edit ct-c">${same}${step}${quick}${ctSumLine(r, x)}${more}</div>`;
+  const odd = x && ctOdd(r, x), chk = odd ? `<p class="note warnline ct-oddn">${esc(odd)}. Count it again, or <button class="linkbtn" data-ct-ok>It's right</button></p>` : "";
+  return `<div class="ct-edit ct-c">${chk}${same}${step}${quick}${ctSumLine(r, x)}${more}</div>`;
 }
 // What the line adds up to, in bottles and in ml: a worked example until it's counted.
 const ctLitres = (ml) => `${ctVol(ml)}${ml >= 1000 ? ` (${ctNum(ml / 1000)} litres)` : ""}`;
@@ -454,9 +458,56 @@ function ctWeightsHtml(r) {
 }
 function ctPut(r, full, open) {
   full = Math.max(0, Math.min(9999, Math.round(full))); open = Math.max(0, Math.min(99, Math.round(open)));
+  ctBefore(r);
   track(LIVE.api.countLine(ctId(ctDay, r.area, r.item), { day: ctDay, area: r.area, item: r.item, unit: r.u, full, open }), null, "Not saved. Check the signal and try again");
 }
 const ctRow = (key) => ctRows().find((r) => r.key === key);
+function ctDrop(r) { ctBefore(r); track(LIVE.api.dropCountLine(ctId(ctDay, r.area, r.item)), null, "Not cleared. Try again"); }
+
+/* ---- Stronger: one-tap Undo, two people on one line, what's still sending, and a second look ----
+   Every line saves on its own, on the phone first, so a count survives no signal, a closed app or a flat battery, and
+   carries on from any phone. Under Find: the last change on this phone, whether it has reached the server, and Undo,
+   which puts the line back to what it was before (taps on one line in a row undo together). */
+const CT_UNDO_S = 12;
+var ctUndo = null, ctWarned = new Set();
+function ctBefore(r) {
+  const x = ctLine(r);
+  // Taps on one line in a row undo together, unless someone else changed it in between.
+  if (!(ctUndo && ctUndo.key === r.key && ctUndo.day === ctDay && Date.now() - ctUndo.t < CT_UNDO_S * 1e3 && (!x || x.uid === LIVE.uid)))
+    ctUndo = { key: r.key, day: ctDay, area: r.area, item: r.item, u: r.u, prev: x ? { full: x.full, open: x.open } : null };
+  ctUndo.t = Date.now();
+  // Two people on the same line: the newest count stands, and whoever replaces someone else's is told once.
+  if (x && x.uid && x.uid !== LIVE.uid && !ctWarned.has(r.key)) { ctWarned.add(r.key); toast(`${x.name} had ${ctSay(r.u, ctQty(x))}. Yours replaces it: Undo puts theirs back`); }
+}
+function ctUndoHtml() {
+  const u = ctUndo; if (!u || u.day !== ctDay || Date.now() - u.t > CT_UNDO_S * 1e3) return "";
+  const x = ctLines().find((y) => y.area === u.area && y.item === u.item);
+  return `<p class="ct-undo"><span>${x?.pending ? "⏳" : "✓"} <b>${esc(u.item)}</b> ${x ? ctSay(u.u, ctQty(x)) : "not counted"}${x?.pending ? ", on this phone: it sends when there's signal" : ", saved"}</span><button class="btn" data-ct-undo>↩ Undo</button></p>`;
+}
+function ctUndoShow() {
+  const s = $("#ct-undo-slot"); if (s) s.innerHTML = ctSetupOn || ctIntro >= 0 ? "" : ctUndoHtml();
+  clearTimeout(ctUndoShow.t); if (ctUndo) ctUndoShow.t = setTimeout(ctUndoShow, CT_UNDO_S * 1e3 + 100);
+}
+function ctUndoGo() {
+  const u = ctUndo; if (!u) return; ctUndo = null; ctUndoShow();
+  const id = ctId(u.day, u.area, u.item);
+  track(u.prev ? LIVE.api.countLine(id, { day: u.day, area: u.area, item: u.item, unit: u.u, full: u.prev.full, open: u.prev.open }) : LIVE.api.dropCountLine(id), `${u.item} put back`, "Not put back. Try again");
+  if (ctRow(u.key)) ctGo(u.key);
+}
+// A second look: a line far from the last count is likely a slip (30 for 3, a case counted as bottles), so it's flagged
+// to count again. Far: 3 or more off and 3 times as many or a third as many as last time, with deliveries logged since
+// added on. Normal use between counts never gets near that. It's right clears it for this count.
+const ctOkSet = () => new Set(store.get("ctOk", {})[ctDay] || []);
+function ctOdd(r, x = ctLine(r)) {
+  const p = x && ctPrevOf(r); if (!p || ctOkSet().has(r.key)) return "";
+  const got = (LIVE.received || []).filter((y) => y.item === r.item && y.day > ctPrev.day && y.day <= ctDay).reduce((n, y) => n + y.qty / 100, 0);
+  const was = ctQty(p) + got, now = ctQty(x), last = `${ctSay(r.u, ctQty(p))} last time${got ? `, ${ctNum(got)} in since` : ""}`;
+  if (now - was >= 3 && now >= 3 * Math.max(was, 1)) return `Much more than ${last}`;
+  if (was - now >= 3 && now * 3 <= was) return `Much less than ${last}`;
+  return "";
+}
+const ctOdds = () => ctRows().filter((r) => ctOdd(r));
+function ctOkIt(r) { const m = store.get("ctOk", {}); m[ctDay] = [...new Set([...(m[ctDay] || []), r.key])]; for (const d of Object.keys(m)) if (d < addDays(ctDay, -60)) delete m[d]; store.set("ctOk", m); }
 function ctGo(key) {
   if (ctPh && ctRow(key)?.item !== ctPh.item) ctPh = null;
   ctOpen = key; ctHeard = null; ctRender();
@@ -498,6 +549,7 @@ var CT_TIPS = [
   ["Broken or out of date", "It isn't stock: don't count it. Take it out and tell the duty manager."],
   ["Hands full?", "🎤 Say it: “Corona 48”, “Smirnoff two and a half”. Can't find a bottle on the list? 📷 Scan its barcode."],
   ["Two of you", "One counts out loud and one taps, or split the places. It all adds up on both phones."],
+  ["Mis-tap?", "↩ Undo under Find puts the last item back as it was. A number far from last time says Check it: count it again, or It's right."],
 ];
 const ctTipsHtml = () => `<details class="setup ct-tips" id="ct-tips"${ctTipsHtml.open ?? ctWide() ? " open" : ""}><summary>Counting tips</summary><dl>${CT_TIPS.map(([t, d]) => `<dt>${t}</dt><dd>${d}</dd>`).join("")}</dl></details>`;
 
@@ -599,7 +651,7 @@ var CT_INTRO = [
   { t: "Can't find it?", pic: CT_PIC(`<circle cx="100" cy="68" r="38"/><path d="M128 96l40 40"/><path d="M84 68h32" stroke="var(--brass)"/>`),
     how: ["Type a few letters in Find at the top. It looks in every place, and says where the item is. By kind puts all the vodkas, all the cakes and so on together.", "Or tap 📷 and scan the bottle's barcode: it opens that item.", "Not on the list at all, like a new cake or shake topping? Find shows ＋ Add it and count it: count it straight away, and Maintenance checks it after."] },
   { t: "Finished", pic: CT_PIC(`<rect x="60" y="20" width="120" height="110" rx="12"/><path d="M90 60l20 20 40-40" stroke="var(--brass)" stroke-width="8"/><path d="M90 108h60"/>`),
-    how: ["When Not counted yet is empty, check the totals.", "Send on WhatsApp, or Spreadsheet, at the bottom: for whoever puts it into Nory.", "Counting tips, under How to count, cover cases, fridges, wine and kegs."] },
+    how: ["When Not counted yet is empty, it says All counted. Anything under Worth a second look is far from last time: count it again, or tap It's right. ↩ Undo, under Find, takes back the last tap.", "Send on WhatsApp, or Spreadsheet, at the bottom: for whoever puts it into Nory.", "Counting tips, under How to count, cover cases, fridges, wine and kegs."] },
 ];
 var ctIntro = -1;
 function ctIntroHtml() {
@@ -782,6 +834,7 @@ $("#v-count").addEventListener("click", (e) => {
   const la = t("[data-ct-lbadd]"); if (la) { const n = la.dataset.ctLbadd; Object.assign(lbF, { item: n, life: itKeep(n)?.days ? String(itKeep(n).days) : "", open: true }); haptic(); openAt("labels"); requestAnimationFrame(() => $("#lb-add")?.scrollIntoView({ block: "start" })); return; }
   const by = t("[data-ct-by]"); if (by) { haptic(); ctBy = by.dataset.ctBy; store.set("ctBy", ctBy); ctClearFind(); return ctRender(true); }
   const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
+  if (t("[data-ct-undo]")) { haptic(); return ctUndoGo(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
   const jp = t("[data-ct-jump]"); if (jp) {
     // A place already counted is hidden under Not counted yet: going to it shows everything.
@@ -797,7 +850,8 @@ $("#v-count").addEventListener("click", (e) => {
   const lv = t("[data-ct-lv]"); if (lv && r) { haptic(); ctPut(r, x?.full || 0, +lv.dataset.ctLv * 10); return ctNext(r.key, true); }
   const st = t("[data-ct-set]"); if (st && r) { haptic(); const [f, o] = st.dataset.ctSet.split(":").map(Number); ctPut(r, f, o); return ctNext(r.key, true); }
   const sm = t("[data-ct-same]"); if (sm && r) { const p = ctPrevOf(r); if (!p) return; haptic(); ctPut(r, p.full, p.open); return ctNext(r.key, true); }
-  const dr = t("[data-ct-drop]"); if (dr && r) { track(LIVE.api.dropCountLine(ctId(ctDay, r.area, r.item)), null, "Not cleared. Try again"); return; }
+  const dr = t("[data-ct-drop]"); if (dr && r) return ctDrop(r);
+  if (t("[data-ct-ok]") && r) { haptic(); ctOkIt(r); toast(`${r.item}: kept as counted`); return ctNext(r.key, true); }
   // Next: down the list as it shows (the shelf, or A to Z), past anything counted already when only what's left is showing.
   const nx = t("[data-ct-next]"); if (nx) return ctNext(nx.dataset.ctNext);
   if (t("#ct-say-go")) return ctHear($("#ct-say").value);
