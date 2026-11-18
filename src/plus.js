@@ -103,7 +103,7 @@ function plStatsHtml(d, n = 1) {
   const cell = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
   const vol = (u) => (PL.oz ? `${(u / 29.57).toFixed(1)} oz` : `${Math.round(u)} ml`);
   return `<div class="pl-stats" role="list">${[
-    f.free ? cell("0", "Alcohol-free") : cell(plU(f.units * n) + per, n > 1 ? `UK units for ${n}` : "UK units"),
+    f.free ? cell("0", "Alcohol-free") : cell(plU(f.units * n), n > 1 ? `UK units for ${n}` : "UK units"),
     cell(f.free ? "0%" : "≈" + plPct(f.abv), "In the glass"),
     cell("≈" + plRound(f.kcal * n), n > 1 ? `kcal for ${n}` : "kcal"),
     cell(vol(f.vol * n), n > 1 ? `Liquid for ${n}` : "Liquid"),
