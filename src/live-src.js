@@ -508,6 +508,13 @@ LIVE.api = {
   dropDraft: (side) => deleteDoc(doc(db, "drafts", `${shiftDay()}-${side}`)),
   notePhoto: (id, note) => updateDoc(doc(db, "photos", id), { note }),
   deletePhoto: (id) => deleteDoc(doc(db, "photos", id)),
+  // A handover and its photos go in one write: whoever sent it, or a manager (the rules check the same).
+  async deleteReport(id) {
+    const ps = await getDocs(query(collection(db, "photos"), where("report", "==", id)));
+    const b = writeBatch(db);
+    ps.docs.forEach((x) => b.delete(x.ref)); b.delete(doc(db, "reports", id));
+    return b.commit();
+  },
   loadPhotos: (reportId) => getDocs(query(collection(db, "photos"), where("report", "==", reportId))).then((s) => s.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id })).sort((a, b) => ms(a.at) - ms(b.at))),
   KEEP_DAYS,
   // The board and its log change in one write. Back in stock writes "{the 86's log id}-back", so the two always match.

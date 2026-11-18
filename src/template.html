@@ -431,6 +431,11 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .football .fx { padding: 8px 0; }
 .hopt { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 10px 0; }
 .hopt span { text-align: right; color: var(--muted); }
+/* Work someone started, for anyone to carry on. */
+.hopt.carry { flex-direction: column; align-items: stretch; gap: 6px; padding: 12px; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; }
+.hopt.carry span { text-align: left; }
+.photo > .s { margin-top: 6px; font-size: 13px; color: var(--muted); }
+.sendph figcaption.by { color: var(--muted); font-size: 12px; }
 .sumcard { display: grid; grid-template-columns: repeat(auto-fit, minmax(70px, 1fr)); gap: 8px; margin-top: 14px; }
 .sumcard div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px; text-align: center; }
 .sumcard span { display: block; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
@@ -1271,7 +1276,8 @@ function msgText(m, pick, note = "", wa = true) {
     out.push("", b(p.one ? p.label : `${p.label} (${partItems(p)})`), ...p.lines.map((l) => (p.one || p.raw || /^\s/.test(l) ? l : `• ${l}`)));
   }
   if (note.trim()) out.push("", ...(m.noteHead === null ? [] : [b("Note")]), note.trim());
-  if (m.link) out.push("", `Open in Bar Book: ${m.link}`);
+  // Photos saved in Bar Book: the link opens them, so a phone that can't attach photos still gets them to the team.
+  if (m.link) out.push("", m.photoN ? `\ud83d\udcf7 ${plural(m.photoN, "photo")} and the rest in Bar Book (team only): ${m.link}` : `Open in Bar Book: ${m.link}`);
   return out.join("\n");
 }
 /* A link back to the same thing in the app, at the bottom of every message: the drink's spec, the 86 board, tonight's
@@ -1281,7 +1287,7 @@ const appUrl = (h) => `${location.origin}${location.pathname}${h}`;
 const LINKS = {
   drink: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`, swap: (o) => D[+o] && `#d=${plSlug(D[+o].name)}`,
   specs: (o) => { const ids = String(o || "").split(",").filter((i) => D[+i]).slice(0, 15); return ids.length ? `#list=~${ids.map((i) => plSlug(D[+i].name)).join(".")}` : ""; },
-  out: () => "#at=stock", restock: () => "#at=stock", log: () => "#at=send", logs: () => "#at=send", labels: () => "#at=labels", shift: () => "#at=send", report: () => "#at=send",
+  out: () => "#at=stock", restock: () => "#at=stock", log: () => "#at=send", logs: () => "#at=send", labels: () => "#at=labels", shift: () => "#at=send", report: (id) => (id ? `#at=rep:${id}` : "#at=send"),
   tonight: () => "#at=tab:notices", morning: () => "#at=morning", order: () => "#at=morning", pars: () => "#at=morning", issues: () => "#at=issues", issue: () => "#at=issues",
   contacts: () => "#at=call", games: () => "#at=football", lineup: () => "#at=tab:make", sheet: () => "#at=tab:sheets", allergen: () => "#at=tab:allergens",
 };
@@ -1290,7 +1296,7 @@ const withLink = (k, o, m) => { const h = m && !m.link && LINKS[k]?.(o); if (h) 
 function openLink(h) {
   let m = h.match(/^#d=([a-z0-9-]+)$/);
   if (m) { const d = PL_BY_SLUG.get(m[1]); if (!d) return false; show("drinks"); openSheet(d.id); return true; }
-  m = h.match(/^#at=([a-z0-9:-]+)$/);
+  m = h.match(/^#at=([A-Za-z0-9:-]+)$/);
   if (m) { openAt(m[1]); return true; }
   return plOpenList(h);
 }
@@ -1305,22 +1311,40 @@ function openSend(k, o, note = "") {
   if ($("#sheet").hidden) lastFocus = document.activeElement;
   document.querySelector(".swhint")?.remove();
   // From a drink, Back goes back to the drink.
-  const s = snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, busy: false, drink: k === "drink" ? +o : null };
+  const s = snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, card: true, cards: null, busy: false, drink: k === "drink" ? +o : null, rep: k === "report" && $("#rep") ? o : null };
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Send</span><span></span></div></div><div id="send"></div>`;
-  renderSend(m); showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus();
+  renderSend(m); showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus(); sndCards();
   if (m.photos) m.photos().then((ps) => {
     if (snd !== s || !ps.length) return;
     s.photos = [...ps, ...s.photos].slice(0, SEND_MAX); sndFiles(); renderSend();
   }).catch(() => {});
 }
 const canFiles = () => { try { return !!navigator.canShare?.({ files: [new File(["x"], "x.jpg", { type: "image/jpeg" })] }); } catch { return false; } };
+// The bar's iPad has no WhatsApp: its share sheet offers Mail, Messages, AirDrop and Save to Files. iPadOS says it's a Mac.
+const isIPad = () => /iPad/.test(navigator.userAgent) || (/Macintosh/.test(navigator.userAgent) && navigator.maxTouchPoints > 1);
 /* Photos on the Send page: the message's own (tonight's closing photos, a concern's, a drink's house photo, the rota as
    a picture) and any the person adds here from the camera or their photos. Added ones are only for this message:
    nothing is saved. The share sheet takes the photos on their own: given words as well, an iPhone keeps the words and
    drops the photos (WebKit bug 251500). So the words are copied first, with their own tap, for pasting in as the
-   caption: Safari lets the share sheet open only from a fresh tap, and sharing uses that tap up. */
+   caption: Safari lets the share sheet open only from a fresh tap, and sharing uses that tap up. The words also go as a
+   picture in front of the photos (ticked unless the person unticks it), so they arrive even if nothing is pasted, in
+   Mail, AirDrop or Save to Files on the iPad as much as WhatsApp on a phone. JPEGs, because older iPhones can't share
+   a PDF. */
 const SEND_MAX = 10;
 let sndGen = 0;
+// The words as a picture, made ready shortly after each change (a tick, the note, a choice), for the same reason.
+let sndCardT = null;
+function sndCards() {
+  const s = snd; if (!s) return;
+  s.cards = null; clearTimeout(sndCardT);
+  sndCardT = setTimeout(() => {
+    const m = sndMsg(); if (!m || snd !== s) return;
+    const text = msgText(m, s.pick, s.note, false);
+    msgCards(m.title, text).then((fs) => { if (snd === s && msgText(sndMsg(), s.pick, s.note, false) === text) s.cards = fs; }, () => { if (snd === s) s.cards = []; });
+  }, 250);
+}
+// What Send with photos hands the share sheet: the words as a picture (if ticked), then the photos.
+const sndShareFiles = () => [...(snd.card ? snd.cards || [] : []), ...(snd.files || [])];
 // The photos as files for the share sheet, made ready as they change: it has to open straight from the tap.
 async function sndFiles() {
   const s = snd, n = ++sndGen; s.files = null;
@@ -1351,7 +1375,7 @@ async function photoBlob(x) {
 }
 function renderSend(m = sndMsg()) {
   const box = $("#send"); if (!box || !m) return;
-  const ph = snd.photos.length, files = ph && canFiles(), c = m.choose;
+  const ph = snd.photos.length, files = ph && canFiles(), c = m.choose, ipad = isIPad();
   box.innerHTML = `<h2 id="sh-name" style="margin-top:12px"${snd.k === "drink" ? ' translate="no"' : ""}>${esc(m.what)}</h2>
     ${c ? `<div class="mini">${esc(c.label)}</div><div class="recent">${c.opts.map(([v, t]) => `<button class="chip" data-send-opt="${esc(v)}" aria-pressed="${v === c.v}">${esc(t)}</button>`).join("")}</div>` : ""}
     ${m.head.length ? `<div class="sendsum" translate="no">${m.head.map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
@@ -1362,10 +1386,11 @@ function renderSend(m = sndMsg()) {
     ${ph >= SEND_MAX ? `<p class="note">${SEND_MAX} photos is the most.</p>` : snd.busy ? `<p class="note" role="status">Adding…</p>`
       : `<div class="addph"><label class="btn" for="send-cam">Take a photo</label><label class="btn" for="send-in">Choose from your photos</label></div>`}
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
-    ${files ? `<div class="actions"><button class="btn" data-send-copy>Copy the words</button><button class="btn pri" data-send-sheet>Send with photos</button></div>
-      <ol class="sendhow"><li>Tap Copy the words, then Send with photos.</li><li>Pick WhatsApp, then the chat.</li><li>Press and hold the caption box, tap Paste, then send.</li></ol>` : ""}
-    <div class="actions sendbar"><a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a><a class="btn" data-share="${snd.k}" data-via="sms" href="sms:">Text</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-pic>As a picture</button><button class="btn" data-send-print>Print</button></div>
-    ${ph && !files ? `<p class="note">WhatsApp, Text and Email take the words. For the photos too, tap Print and save it as a PDF.</p>` : ""}
+    ${files ? `<label class="check sendpart"><input type="checkbox" data-send-card${snd.card ? " checked" : ""}><span>The words as a picture too, in front of the photos</span></label>
+      <div class="actions"><button class="btn pri" data-send-sheet>Send with photos</button><button class="btn" data-send-copy>Copy the words</button></div>
+      <ol class="sendhow"><li>Tap Send with photos.</li><li>${ipad ? "Pick Mail, Messages, AirDrop or Save to Files." : "Pick WhatsApp (or Mail, Messages, AirDrop), then the chat."}</li><li>Want the words as text as well? Tap Copy the words first, then paste them in as the caption or the email.</li></ol>` : ""}
+    <div class="actions sendbar">${ipad ? "" : `<a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a>`}<a class="btn${files || !ipad ? "" : " pri"}" data-share="${snd.k}" data-via="sms" href="sms:">Text</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-pic>As a picture</button><button class="btn" data-send-print>Print</button></div>
+    ${ph && !files ? `<p class="note">This phone can't attach photos from Bar Book. ${m.photoN && m.link ? "The message carries a link to them instead: anyone on the team opens them in Bar Book." : "Tap Print to keep them with the words, or send from a phone or the iPad, which can."}</p>` : ""}
     ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
     <p class="note">It goes in English, so everyone can read it.</p>
     <div class="sec">How it will look</div>
@@ -1373,27 +1398,37 @@ function renderSend(m = sndMsg()) {
 }
 // The preview shows the bold that WhatsApp will show, not the marks.
 const preHtml = (t) => esc(t).replace(/^\*([^*\n]+)\*$/gm, "<b>$1</b>");
-const sendPreview = () => { const pre = $("#send-pre"), m = sndMsg(); if (pre && m) pre.innerHTML = preHtml(msgText(m, snd.pick, snd.note)); };
-// As a picture: the message drawn as a JPEG card, for a WhatsApp status, a printer by the bar or a phone that can't
-// open PDFs. The share sheet takes it where the phone can; otherwise it opens to be saved.
-async function sendPicture(title, text) {
-  const W = 1080, pad = 64, fs = 34, lh = Math.round(fs * 1.45), c = document.createElement("canvas"), g = c.getContext("2d");
+const sendPreview = () => { const pre = $("#send-pre"), m = sndMsg(); if (pre && m) pre.innerHTML = preHtml(msgText(m, snd.pick, snd.note)); sndCards(); };
+// As a picture: the message drawn as JPEG cards, for a WhatsApp status, a printer by the bar, Send with photos or a phone
+// that can't open PDFs. A long message (a full closing) goes over several cards, each well inside what an older
+// iPhone's browser can draw.
+const CARD_ROWS = 60;
+async function msgCards(title, text) {
+  const W = 1080, pad = 64, fs = 34, lh = Math.round(fs * 1.45);
   const font = (b, z = fs) => `${b ? 700 : 400} ${z}px -apple-system, system-ui, "Segoe UI", Roboto, sans-serif`;
-  g.font = font(false);
-  const rows = text.split("\n").flatMap((l, i) => (l.trim() ? fitLines(g, l, W - pad * 2).map((x) => [x, i === 0]) : [["", false]]));
-  c.width = W; c.height = pad * 2 + rows.length * lh + 40;
-  g.fillStyle = "#111"; g.fillRect(0, 0, W, c.height); g.fillStyle = "#c9a45c"; g.fillRect(0, 0, W, 12);
-  g.textBaseline = "top";
-  rows.forEach(([l, head], i) => { g.font = font(head, head ? fs + 4 : fs); g.fillStyle = head ? "#c9a45c" : "#f4f1ea"; g.fillText(l, pad, pad + i * lh); });
-  g.font = font(false, 22); g.fillStyle = "#8a8579"; g.fillText("Black Tap Bar Book", pad, c.height - pad + 8);
-  const blob = await new Promise((ok) => c.toBlob(ok, "image/jpeg", 0.9));
-  const file = new File([blob], `${title.replace(/[^\w ]+/g, "").trim().slice(0, 40).replace(/ +/g, "-") || "bar-book"}.jpg`, { type: "image/jpeg" });
-  const save = () => {
-    const u = URL.createObjectURL(blob), a = document.createElement("a"); a.href = u; a.download = file.name; a.target = "_blank"; a.rel = "noopener";
+  const gm = document.createElement("canvas").getContext("2d"); gm.font = font(false);
+  const rows = text.split("\n").flatMap((l, i) => (l.trim() ? fitLines(gm, l, W - pad * 2).map((x) => [x, i === 0]) : [["", false]]));
+  const pages = []; for (let i = 0; i < rows.length; i += CARD_ROWS) pages.push(rows.slice(i, i + CARD_ROWS));
+  const base = title.replace(/[^\w ]+/g, "").trim().slice(0, 40).replace(/ +/g, "-") || "bar-book";
+  return Promise.all(pages.map(async (rs, p) => {
+    const c = document.createElement("canvas"), g = c.getContext("2d");
+    c.width = W; c.height = pad * 2 + rs.length * lh + 40;
+    g.fillStyle = "#111"; g.fillRect(0, 0, W, c.height); g.fillStyle = "#c9a45c"; g.fillRect(0, 0, W, 12);
+    g.textBaseline = "top";
+    rs.forEach(([l, head], i) => { g.font = font(head, head ? fs + 4 : fs); g.fillStyle = head ? "#c9a45c" : "#f4f1ea"; g.fillText(l, pad, pad + i * lh); });
+    g.font = font(false, 22); g.fillStyle = "#8a8579"; g.fillText(`Black Tap Bar Book${pages.length > 1 ? ` \u00b7 ${p + 1} of ${pages.length}` : ""}`, pad, c.height - pad + 8);
+    const blob = await new Promise((ok, no) => c.toBlob((x) => (x ? ok(x) : no(new Error("No picture"))), "image/jpeg", 0.9));
+    return new File([blob], `${base}${pages.length > 1 ? `-${p + 1}` : ""}.jpg`, { type: "image/jpeg" });
+  }));
+}
+async function sendPicture(title, text) {
+  const files = await msgCards(title, text);
+  const save = () => files.forEach((f, i) => setTimeout(() => {
+    const u = URL.createObjectURL(f), a = document.createElement("a"); a.href = u; a.download = f.name; a.target = "_blank"; a.rel = "noopener";
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 60000);
-  };
-  // Safari can refuse the share sheet once drawing has taken a moment; the picture opens to be saved instead.
-  if (navigator.canShare?.({ files: [file] })) return navigator.share({ files: [file] }).catch((e) => { if (e?.name !== "AbortError") save(); });
+  }, i * 400));
+  // Safari can refuse the share sheet once drawing has taken a moment; the pictures open to be saved instead.
+  if (navigator.canShare?.({ files })) return navigator.share({ files }).catch((e) => { if (e?.name !== "AbortError") save(); });
   save();
 }
 // Print: the message and its photos on their own, for the venue's printer or to save as a PDF.
@@ -1416,7 +1451,7 @@ document.addEventListener("click", (e) => {
   const o = e.target.closest("[data-send]"); if (o) { haptic(); openSend(o.dataset.send, o.dataset.sendO, o.dataset.sendNote); return; }
   if (!snd || !e.target.closest("#send")) return;
   const op = e.target.closest("[data-send-opt]");
-  if (op) { snd.opt = op.dataset.sendOpt; const m = sndMsg(); if (m) { snd.pick = pickOf(m); renderSend(m); } return; }
+  if (op) { snd.opt = op.dataset.sendOpt; const m = sndMsg(); if (m) { snd.pick = pickOf(m); renderSend(m); sndCards(); } return; }
   const m = sndMsg(); if (!m) return;
   // The address is filled in as it's tapped, so it's never out of date and nothing blocks it as a pop-up.
   const a = e.target.closest("a[data-share]");
@@ -1436,8 +1471,8 @@ document.addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest("[data-send-sheet]")) {
-    if (snd.photos.length && !snd.files) return toast("Getting the photos ready. Tap again in a moment");
-    const files = snd.files?.length && navigator.canShare?.({ files: snd.files }) ? snd.files : null;
+    if (snd.photos.length && (!snd.files || (snd.card && !snd.cards))) return toast("Getting the photos ready. Tap again in a moment");
+    const all = snd.photos.length ? sndShareFiles() : [], files = all.length && navigator.canShare?.({ files: all }) ? all : null;
     navigator.share(files ? { files } : { title: m.title, text }).catch(() => {});
     logSent(m);
     return;
@@ -1451,6 +1486,7 @@ document.addEventListener("change", (e) => {
   if (!snd) return;
   const x = e.target.closest("[data-send-part]");
   if (x) { if (x.checked) snd.pick.add(x.dataset.sendPart); else snd.pick.delete(x.dataset.sendPart); sendPreview(); }
+  if (e.target.closest("[data-send-card]")) snd.card = e.target.checked;
 });
 document.addEventListener("input", (e) => { if (snd && e.target.id === "send-note") { snd.note = e.target.value; sendPreview(); } });
 // The camera, or several of the phone's photos at once.
@@ -1874,6 +1910,9 @@ function hideSheet() {
 }
 $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("#sh-close") && snd?.drink != null) { const id = snd.drink; snd = null; openSheet(id, true); $("#sheet").scrollTop = 0; return; }
+  // From a handover, Back goes back to the handover.
+  if (e.target.closest("#sh-close") && snd?.rep) { const id = snd.rep; snd = null; openReport(id, true); return; }
+  const rd = e.target.closest("[data-rep-del]"); if (rd) { delReport(rd.dataset.repDel); return; }
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
   const op = e.target.closest("[data-open]"); if (op) { mult = 1; openSheet(+op.dataset.open, true); $("#sheet").scrollTop = 0; return; }
   const gb = e.target.closest("[data-go]"); if (gb) { slideTo(+gb.dataset.go); return; }
@@ -2388,6 +2427,8 @@ const hoNote = () => HO.filter((f) => hoAll(f.id).length).map((f) => `${f.short}
 const tonightPhotos = () => LIVE.draftPhotos.filter((p) => ukDay((p.at ? p.at.toMillis() : Date.now()) - 6 * 36e5) === shiftDay());
 const draftPhotos = () => tonightPhotos().filter((p) => (p.side || (p.uid === LIVE.uid ? mode : "")) === mode);
 const draftOf = (side) => LIVE.drafts.find((x) => x.day === shiftDay() && x.side === side);
+// Tonight's handover for a side, whoever sent it.
+const sentTonight = (side) => LIVE.reports.find((r) => r.side === side && reportDay(r) === shiftDay());
 let draftT = null;
 // The shared draft into this phone: not the box being typed in, and not while this phone's own change is waiting to go.
 function pullDraft() {
@@ -2457,7 +2498,9 @@ SHARE.shift = () => {
   else if (noPhotos) bg.push(`\ud83d\udcf7 No closing photos: ${noPhotos}`);
   // The four handover points always show, so "nothing" is said, not left out.
   const point = (id, label, none) => ({ id, label, one: true, lines: hoAll(id).length ? hoAll(id) : [none] });
-  return { what: `${sideName(mode)} shift`, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
+  // The link at the foot opens the photos: tonight's on the close while it's going, then the handover they went with.
+  const sent = sentTonight(mode), dp = draftPhotos().length;
+  return { what: `${sideName(mode)} shift`, link: appUrl(dp ? `#at=photos:${mode}` : sent ? `#at=rep:${sent.id}` : "#at=send"), photoN: dp || sent?.photos || 0, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
     { id: "sit", label: "S \u00b7 Situation", one: true, lines: head },
     { id: "bg", label: "B \u00b7 Background", one: true, lines: bg },
     // The closing list heading by heading, then what's left on each list. A list nobody started is left out unless
@@ -2475,11 +2518,7 @@ SHARE.shift = () => {
     point("next", "R \u00b7 4. For tomorrow (what the morning does first)", "Nothing extra"),
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
     ...lists.map((k) => ({ id: `all-${k}`, label: `${LISTS[k].title}: every item`, raw: true, lines: shown(k).map(([i, t]) => line(k, i, t)), off: true, opt: true })),
-  ], photos: async () => {
-    if (draftPhotos().length) return draftPhotos();
-    const r = LIVE.reports.find((x) => x.uid === LIVE.uid && x.side === mode && x.photos && bday(x.at) === shiftDay());
-    return r ? LIVE.api.loadPhotos(r.id) : [];
-  } };
+  ], photos: async () => (dp ? draftPhotos() : sent?.photos ? LIVE.api.loadPhotos(sent.id) : []) };
 };
 // Each side: the morning (last night's handover, prep pars, the order), date labels, stock and 86s, the close, and the handover.
 const PANES = {
@@ -2879,7 +2918,7 @@ const lastReport = () => LIVE.reports.find((r) => r.side === mode && !r.pending 
 // holding it with no signal, and the morning mustn't read an older night as if it were last night's.
 const lastNight = () => ukDay(Date.parse(shiftDay() + "T12:00:00Z") - 864e5);
 // Tonight's handover from this side: sent, or saved on a phone and still waiting for signal.
-const tonightsReport = () => LIVE.reports.find((r) => r.side === mode && reportDay(r) === shiftDay());
+const tonightsReport = () => sentTonight(mode);
 // How the close is going: when the first item was ticked, how long it's taken (to the finish once it's finished), and
 // who has ticked what, so the duty manager sees at a glance what's behind.
 function closeClock(k) {
@@ -2887,6 +2926,32 @@ function closeClock(k) {
   if (!ts.length) return null;
   const start = Math.min(...ts), end = isLocked(k) && runOf(k)?.at ? ms(runOf(k).at) : Date.now();
   return { start, mins: Math.max(0, Math.round((end - start) / 6e4)), done: isLocked(k) };
+}
+/* Nobody left alone: a close someone started, a handover draft or tonight's photos, while that side hasn't handed over,
+   show on the Team page (and on the Shift tab for anyone not already on it) with who started it and Carry on, so
+   anyone on the team picks it up where it was left, adds photos part-way, or hands over. Free, in the app only. */
+function carryRows(notMine) {
+  if (!LIVE.me) return [];
+  return ["bar", "floor"].flatMap((sd) => {
+    if (sentTonight(sd)) return [];
+    const k = MODE_LISTS[sd].at(-1), r = runOf(k), p = progress(k), d = draftOf(sd), ph = tonightPhotos().filter((x) => x.side === sd);
+    const ev = LIVE.events.filter((e) => e.kind === "task" && e.list === k).sort((a, b) => ms(a.at) - ms(b.at));
+    if (!ev.length && !r && !d && !ph.length) return [];
+    const who = new Set([...ev.map((e) => e.uid), ...ph.map((x) => x.uid), d?.uid].filter(Boolean));
+    if (notMine && who.has(LIVE.uid)) return [];
+    const first = ev[0] || (d?.at ? d : ph[0]);
+    const bits = [`${LISTS[k].title} ${p.n}/${p.of}${r?.status === "finished" ? ", finished" : ""}`];
+    if (ph.length) bits.push(`\ud83d\udcf7 ${plural(ph.length, "photo")}`);
+    if (d) bits.push(`handover draft saved by ${d.name}`);
+    return [{ sd, by: first?.name || "", at: first?.at, bits, done: r?.status === "finished" }];
+  });
+}
+const carryHtml = (notMine) => carryRows(notMine).map((x) => `<div class="hopt carry"><b>\ud83e\udd1d ${esc(sideName(x.sd))}: started by <span translate="no">${esc(x.by || "the team")}</span>${x.at ? ` at ${hhmm(new Date(ms(x.at)))}` : ""}</b>
+  <span>${esc(x.bits.join(" \u00b7 "))}. Not handed over yet: anyone can carry on, add photos or hand over.</span>
+  <button class="btn" data-carry="${x.sd}">${x.done ? "Hand over" : "Carry on"}</button></div>`).join("");
+function carryOn(sd) {
+  if (sd !== mode) setMode(sd);
+  pane = isLocked(MODE_LISTS[sd].at(-1)) ? "send" : closeList(); show("tally"); scrollTo(0, 0); haptic();
 }
 const minsText = (n) => (n < 60 ? `${n} min` : `${Math.floor(n / 60)} h ${n % 60} min`);
 function closeStatsHtml(k) {
@@ -3337,12 +3402,14 @@ function labelsReport() {
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
-    <p class="note">Any time of the shift, from a phone or the iPad. Each one is saved for tonight straight away (with no signal it waits on the phone, even if the app is closed) and goes with the handover. Send now shares one on WhatsApp as well.</p>
-    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo"><label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button><button class="btn danger" data-ph-del="${p.id}">Delete photo</button></div></div>`).join("")}
+    <p class="note">Any time of the shift, from a phone or the iPad, by anyone on this side. Each one is saved for the whole team straight away (with no signal it waits on the phone, even if the app is closed) and goes with the handover. Send now shares one on its own as well. Whoever took a photo, or a manager, can delete it.</p>
+    ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo">${p.name ? `<div class="s">\ud83d\udcf7 <span translate="no">${esc(p.name)}</span>${p.at ? `, ${hhmm(new Date(ms(p.at)))}` : ""}</div>` : ""}<label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button>${p.uid === LIVE.uid || LIVE.admin ? `<button class="btn danger" data-ph-del="${p.id}">Delete photo</button>` : ""}</div></div>`).join("")}
     ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
       : photoBusy ? `<p class="note" role="status">Adding…</p>`
       : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
 }
+// Under the photos: the checklist goes any time with its photos, and nothing needs saving by hand.
+const closeSendHtml = () => `<div class="sec">Send or save</div><p class="note">Ticks, photos and notes save by themselves as you go, for everyone on the team on any phone or the iPad. Leaving part-way? Anyone can carry on. Send the checklist with its photos any time, or hand over to save it for the morning and the managers.</p><div class="actions">${sendBtn("shift", draftPhotos().length ? `Send the checklist with ${plural(draftPhotos().length, "photo")}` : "Send the checklist")}</div>`;
 let photoBusy = false;
 // A saved photo as a file, made straight away (no waiting), because the share sheet only opens from the tap itself.
 function dataFile(url, name) {
@@ -3399,7 +3466,7 @@ function renderTally() {
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
-    fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${putAwayHtml("floor")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+    fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${putAwayHtml("floor")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
       ${outList.length ? outList.map((n) => { const sw = pkSwap(n), u = pkUses(n); return `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) || u ? `<div class="s">${outBy(n) ? `86'd by ${outBy(n)}` : ""}${u ? `${outBy(n) ? " · " : ""}${plural(u, "drink")} use it` : ""}</div>` : ""}${sw ? `<div class="s pk-sw">${esc(sw)}</div>` : ""}</div><button class="btn" data-out-back="${esc(n)}">Back in stock</button></div>`; }).join("") : `<p class="note">Nothing 86'd.</p>`}
@@ -3407,7 +3474,7 @@ function renderTally() {
       ${pkBtn("Search everything to 86: drinks, bottles, cakes, boxes", `data-pk86="${mode}"`)}
       <div class="mini">Quick 86: recent and most 86'd</div><div class="recent" translate="no">${pkTop(mode).filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
       ${restockHtml()}${itemsHtml(mode)}${ctCardHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
-    close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${nextBtn("send", "Next: hand over")}`,
+    close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
@@ -3415,7 +3482,7 @@ function renderTally() {
       </div>
       ${(() => { const t = tonightsReport(); return !t ? "" : t.pending
         ? `<p class="note warnline" id="ho-wait"><b>Handover not sent yet: no signal.</b> It's saved on this phone and goes as soon as there's signal. Open Bar Book somewhere with signal before you go home, or the morning won't see it.</p>`
-        : `<p class="note" id="ho-sent">\u2705 Handover sent ${hhmm(new Date(ms(t.at)))} by ${esc(t.name)}. The morning team will see it.</p><div class="actions">${sendBtn("report", t.photos ? `Send it with ${plural(t.photos, "photo")}` : "Send it", t.id)}</div>`; })()}
+        : `<p class="note" id="ho-sent">\u2705 Handover saved ${hhmm(new Date(ms(t.at)))} by ${esc(t.name)}${t.photos ? `, with ${plural(t.photos, "photo")}` : ""}. The morning team and every manager can open it.</p><div class="actions">${sendBtn("report", t.photos ? `Send it with ${plural(t.photos, "photo")}` : "Send it", t.id)}<button class="btn" data-go-rep="${t.id}">Open it</button>${repDelBtn(t)}</div>`; })()}
       ${stillToDoHtml()}
       <div class="fld">Closed by<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${closedBy().includes(m)}">${esc(m)}</button>`).join("")}</div></div>
       <div class="sec">Handover</div>
@@ -3426,15 +3493,15 @@ function renderTally() {
       ${logHoHtml()}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
       <div class="draftbar"><span>${LIVE.me ? "Shared live with everyone closing this side" : "Saved on this phone as you type"}</span><button class="btn" data-ho-save>Save draft</button><button class="btn" data-ho-clear>Discard</button></div>
-      <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done` : "Hand over and send on WhatsApp"}</button>
-      <p class="note">Saves the handover for the next shift to see here, then opens WhatsApp with the closing in tick boxes. The photos go on their own (iPhones drop photos sent with words).</p>
-      <div class="actions">${sendBtn("shift", "Just send on WhatsApp")}</div>
+      <button class="btn pri wide" id="t-copy">${left ? `Hand over with ${left} not done: send with photos` : "Hand over: send with photos"}</button>
+      <button class="btn wide" id="t-save">${left ? `Hand over with ${left} not done: just save` : "Hand over: just save"}</button>
+      <p class="note">Both save the handover, photos included, for the morning team and every manager to open on any phone or the iPad. Send with photos then opens the share sheet: WhatsApp on a phone, Mail, Messages, AirDrop or Save to Files on the iPad. Just save sends nothing now: it can be sent later from here, or from the link anyone gets.</p>
       <p class="note">The handover and Closed by start empty again at 6am.</p>`;
     },
   }[pane]();
   // The pane slides in when it's switched to, not each time a teammate's change redraws it.
   const enter = lastPane !== mode + pane; lastPane = mode + pane;
-  $("#tally").innerHTML = tabs + `<div class="pane${enter ? " enter" : ""}">${body}</div><div class="actions fresh"><button class="btn" id="clear-all">Clear everything</button></div>`;
+  $("#tally").innerHTML = tabs + carryHtml(true) + `<div class="pane${enter ? " enter" : ""}">${body}</div><div class="actions fresh"><button class="btn" id="clear-all">Clear everything</button></div>`;
 }
 // The photo inputs live outside #tally. A teammate's change re-draws the list, and if an input were redrawn while the
 // camera or the phone's photos were open, the photos would be lost without a word. Several chosen at once go in as far
@@ -3499,7 +3566,10 @@ $("#tally").addEventListener("input", (e) => {
   if ($("#t-text")) $("#t-text").value = tallyText();
 });
 $("#tally").addEventListener("click", async (e) => {
-  if (e.target.closest("#t-copy")) {
+  const gr = e.target.closest("[data-go-rep]"); if (gr) { openReport(gr.dataset.goRep); return; }
+  const rdl = e.target.closest("[data-rep-del]"); if (rdl) { delReport(rdl.dataset.repDel); return; }
+  if (e.target.closest("#t-copy, #t-save")) {
+    const send = !!e.target.closest("#t-copy");
     // Closing photos are required. With none, the closer says why or goes and takes them.
     if (!draftPhotos().length && !noPhotos) {
       noPhotos = reason("Closing photos are required for the handover. Cancel to go and take them.\nIf you really can't, say why:");
@@ -3511,9 +3581,10 @@ $("#tally").addEventListener("click", async (e) => {
     const n = Math.min(draftPhotos().length, LIVE.api.MAX_PHOTOS);
     const lb = toChange([mode]).length;
     const summary = `${sideName(mode)} · ${MODE_LISTS[mode].map((k) => `${LISTS[k].short} ${done(k)}`).join(" · ")} · ${outNow().size} 86'd${lb ? ` · URGENT: ${lb} date label${lb > 1 ? "s" : ""} to change` : ""}${n ? ` · ${n} photo${n > 1 ? "s" : ""}` : ""}${closer ? ` · Closed by ${closer}` : ""}`;
-    track(LIVE.api.sendReport(mode, tallyText(), summary, draftPhotos()), "Handover saved for the next shift", "Handover not saved. Try again"); haptic();
+    track(LIVE.api.sendReport(mode, tallyText(), summary, draftPhotos()), send ? "Handover saved for the next shift" : "Handover saved for the next shift and the managers. Nothing sent", "Handover not saved. Try again"); haptic();
     sdClosed(mode);
-    openSend("shift"); return;
+    if (send) openSend("shift"); else renderTally();
+    return;
   }
   if (e.target.closest("[data-login]")) { show("notices"); return; }
   // Mark as read: a note for the managers (in Everything sent) of who read last night's handover and when. Nothing goes on WhatsApp.
@@ -3600,7 +3671,7 @@ $("#tally").addEventListener("click", async (e) => {
     haptic(); Object.assign(rsF, { item: "", qty: "1", unit: "each", detail: "" }); renderTally(); return;
   }
   const ps = e.target.closest("[data-ph-send]"); if (ps) { sendPhotoNow(ps.dataset.phSend); return; }
-  const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo?")) track(LIVE.api.deletePhoto(pd.dataset.phDel), null, "Could not delete"); return; }
+  const pd = e.target.closest("[data-ph-del]"); if (pd) { if (confirm("Delete this photo for everyone? This can't be undone.")) track(LIVE.api.deletePhoto(pd.dataset.phDel), "Photo deleted", "Not deleted. Only whoever took it, or a manager, can delete it"); return; }
   const bk = e.target.closest("[data-out-back]"); if (bk) { pk86([bk.dataset.outBack], false); renderTally(); renderList(); return; }
   const oq = e.target.closest("[data-out-quick]"); if (oq) { pk86([oq.dataset.outQuick], true); renderList(); renderTally(); return; }
   if (e.target.closest("[data-out-clear]")) {
@@ -5120,8 +5191,8 @@ const FEATURES = [
     staff: "Tap an item: + for each full, sealed bottle, then weigh the open one on the scale (or tap how full it is), then Next. Find looks in every place, Not counted yet shows what's left, and 🎤 takes “Smirnoff two and a half”. Send the totals on WhatsApp or as a spreadsheet.",
     mgr: "Every bottle and pack comes with its size and estimated weights. Make one exact by weighing a sealed bottle once (Check it): it's then locked until you choose Unlock to re-weigh. Set up the count: the places in walking order, what's counted where and in what, and any size or weight." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
-    what: "Each side's close with up to 8 photos, handed over to the next shift and sent on WhatsApp.",
-    staff: "Hand over and send it on WhatsApp.", mgr: "Read every closing report with its photos on the Team page." },
+    what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",
+    staff: "Hand over: send with photos (WhatsApp on a phone; Mail, AirDrop or Files on the iPad), or just save. Anyone can carry on what someone started.", mgr: "Open, send or delete any closing report with its photos on the Team page." },
   { g: "Shift", k: "football", n: "Football", go: "football", team: 1,
     what: "Today's and coming games at the top of the Shift tab, so everyone knows what's on the screens.",
     staff: "See the games, and add or remove one." },
@@ -5195,6 +5266,13 @@ function openAt(where) {
   // their own).
   if (where !== "siri" && !$("#sheet").hidden) hideSheet();
   if (where.startsWith("tab:")) return show(where.slice(4));
+  if (where.startsWith("rep:")) return openReport(where.slice(4));
+  // Tonight's closing photos for a side, from a message's link: the close, scrolled to them.
+  if (where.startsWith("photos:")) {
+    const sd = where.slice(7); if (MODE_LISTS[sd] && sd !== mode) setMode(sd);
+    pane = closeList(); show("tally");
+    return setTimeout(() => $("#tally .photo, #tally .addph")?.scrollIntoView({ block: "center" }), 80);
+  }
   if (where === "shift") return show("tally");
   if (where === "count") { pane = "stock"; show("tally"); if (LIVE.me) ctPage(); return; }
   if (where === "close") { pane = closeList(); return show("tally"); }
@@ -5539,9 +5617,39 @@ SHARE.contacts = () => ({ what: "Who to call", title: "Black Tap Soho · who to 
     { id: "ours", label: "Our numbers", lines: LIVE.contacts.map((c) => `${c.t}${c.n ? ` (${c.n})` : ""}: ${c.p}`) },
     { id: "uk", label: "In an emergency", lines: CALL_UK.map(([p, t]) => `${t}: ${p}`) },
   ] });
+/* One handover, from a message's link or a list: the report and its photos, to read, send on, or delete. The link holds
+   only the report's id (never the team code), so it opens for anyone on the team and asks anyone else to join. */
+let repWait = "";
+const canDelReport = (r) => !!r && !r.pending && (r.uid === LIVE.uid || LIVE.admin);
+const repDelBtn = (r) => (canDelReport(r) ? `<button class="btn danger" data-rep-del="${r.id}">Delete</button>` : "");
+const photoFig = (p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}${p.name ? `<figcaption class="by">${esc(p.name)}</figcaption>` : ""}</figure>`;
+function openReport(id, back = false) {
+  if (!LIVE.me) { repWait = id; show("notices"); return toast("Join the team to see it, photos included"); }
+  const r = LIVE.reports.find((x) => x.id === id);
+  if (!r) { if (!LIVE.loaded.has("reports")) { repWait = id; return; } repWait = ""; return toast("That handover isn't in Bar Book any more"); }
+  repWait = "";
+  if ($("#sheet").hidden) lastFocus = document.activeElement;
+  snd = null;
+  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">\u2039 Back</button><span class="t">Handover</span><span></span></div></div>
+    <div id="rep"><h2 id="sh-name" style="margin-top:12px">${esc(sideName(r.side))} handover, ${esc(dayName(reportDay(r)))}</h2>
+    <p class="note">Sent by <b translate="no">${esc(r.name)}</b>, ${when(r.at)}. Saved for the whole team.</p>
+    <div class="actions">${sendBtn("report", r.photos ? `Send with ${plural(r.photos, "photo")}` : "Send it", r.id)}${repDelBtn(r)}</div>
+    ${r.photos ? `<div class="sec">Photos (${r.photos})</div><div class="sendph" id="rep-ph"><p class="note" role="status">Loading the photos\u2026</p></div>` : `<p class="note">No photos with this one.</p>`}
+    <div class="sec">Report</div><pre class="sendpre" translate="no">${esc(r.text)}</pre></div>`;
+  showSheet(back); $("#sheet").scrollTop = 0; $("#sh-close").focus();
+  if (r.photos) LIVE.api.loadPhotos(r.id).then((ps) => { const b = $("#rep-ph"); if (b) b.innerHTML = ps.map(photoFig).join("") || `<p class="note">Cleared after ${LIVE.api.KEEP_DAYS} days.</p>`; },
+    () => { const b = $("#rep-ph"); if (b) b.innerHTML = `<p class="note">Couldn't load them. Check the signal and open it again.</p>`; });
+}
+// Delete: the person who sent it, or a manager, with a confirm. Its photos go with it. The rules check the same.
+function delReport(id) {
+  const r = LIVE.reports.find((x) => x.id === id); if (!canDelReport(r)) return toast("Only whoever sent it, or a manager, can delete it");
+  if (!confirm(`Delete the ${lower(sideName(r.side))} handover sent by ${r.name}${r.photos ? `, and its ${plural(r.photos, "photo")},` : ""} for everyone? This can't be undone.`)) return;
+  if ($("#rep")) closeSheet();
+  track(LIVE.api.deleteReport(id), "Handover deleted", "Not deleted. Check the signal and try again");
+}
 SHARE.report = (id) => {
   const r = LIVE.reports.find((x) => x.id === id); if (!r) return null;
-  return { what: "Closing report", title: r.summary, head: [`Sent by ${r.name}, ${when(r.at)}`], noteHead: null,
+  return { what: "Closing report", title: r.summary, head: [`Sent by ${r.name}, ${when(r.at)}`], noteHead: null, photoN: r.photos,
     parts: [{ id: "report", label: "Report", one: true, raw: true, lines: r.text.split("\n") }],
     photos: r.photos ? () => LIVE.api.loadPhotos(r.id) : null };
 };
@@ -5680,7 +5788,7 @@ function inboxHtml() {
 }
 function reportsHtml() {
   return LIVE.reports.map((r) => `<details class="setup"><summary>${esc(r.summary)} · ${esc(r.name)}, ${when(r.at)}</summary><pre class="sendpre" translate="no">${esc(r.text)}</pre>
-    <div class="actions">${sendBtn("report", "Send this report", r.id)}${r.photos ? `<button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button>` : ""}</div>${r.photos ? `<div id="rp-ph-${r.id}" class="sendph"></div>` : ""}</details>`).join("") || `<p class="note">No closing reports yet.</p>`;
+    <div class="actions">${sendBtn("report", r.photos ? `Send with ${plural(r.photos, "photo")}` : "Send this report", r.id)}${r.photos ? `<button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button>` : ""}${repDelBtn(r)}</div>${r.photos ? `<div id="rp-ph-${r.id}" class="sendph"></div>` : ""}</details>`).join("") || `<p class="note">No closing reports yet.</p>`;
 }
 const outlogHtml = () => LIVE.outlog.slice(0, 60).map((x) => `<div class="staffrow"><div class="n">${x.action === "out" ? "🚫" : "✅"} <span translate="no">${esc(x.itemName)}</span> ${x.action === "out" ? "86'd" : "back on"}</div><div class="s">${esc(x.name)} · ${when(x.at)}</div></div>`).join("") || `<p class="note">No 86s yet.</p>`;
 const ROLE = { owner: "maintenance", manager: "manager", staff: "" };
@@ -5957,7 +6065,7 @@ function renderTeam() {
   if ($("#v-notices").hidden) return;
   const typing = (el) => el && el.contains(document.activeElement) && /^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName);
   if (!typing($("#tm-top"))) $("#tm-top").innerHTML = topHtml();
-  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = sinceHtml() + CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3${sub ? " tm-sub" : ""}">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
+  if (!typing($("#tm-cards"))) $("#tm-cards").innerHTML = carryHtml(false) + sinceHtml() + CARDS().map(([k, t, f, sub]) => (k === "§" ? `<div class="h3${sub ? " tm-sub" : ""}">${t}</div>${f ? f() : ""}` : card(k, t, f, sub))).join("");
   renderBell();
 }
 function renderNotices() { renderTeam(); }
@@ -6117,6 +6225,8 @@ $("#v-notices").addEventListener("click", async (e) => {
     const id = x.dataset.rpPhotos;
     return busy(x, "Loading…", A.loadPhotos(id).then((ps) => { $(`#rp-ph-${id}`).innerHTML = ps.map((p) => `<figure><img src="${p.data}" alt="${esc(p.note || "Closing photo")}">${p.note ? `<figcaption>${ut(p.note)}</figcaption>` : ""}</figure>`).join("") || `<p class="note">Cleared after ${A.KEEP_DAYS} days.</p>`; }, () => toast("Couldn't load them. Check the signal")));
   }
+  if ((x = b("[data-rep-del]"))) return delReport(x.dataset.repDel);
+  if ((x = b("[data-carry]"))) return carryOn(x.dataset.carry);
   if ((x = b("[data-tm-drop]"))) {
     const p = LIVE.staff.find((s) => s.uid === x.dataset.tmDrop); if (!p) return;
     if (confirm(`Take ${p.name} off the team? Their phone goes back to the drinks only until they join again.`)) track(A.remove(p), `${p.name} is off the team`);
@@ -6183,13 +6293,18 @@ const TOAST = {
   sent: (x) => (LIVE.admin ? `📤 ${x.anon ? "Someone" : x.name} sent: ${x.what}` : ""),
   outlog: (x) => `${x.action === "out" ? "🚫 86'd" : "✅ Back on"}: ${x.itemName} (${x.name})`,
   // Something added for Maintenance to check, and the person who added it told when it's on.
+  // Someone saving part-way: the team hears it once, so anyone can carry on or add photos.
+  drafts: (x) => (x.day === shiftDay() && !sentTonight(x.side) ? `\ud83d\udcdd ${x.name} saved the ${lower(sideName(x.side))} handover so far: anyone can carry on` : ""),
+  photos: (x) => (x.side && !x.report ? `\ud83d\udcf7 ${x.name} added a ${lower(sideName(x.side))} closing photo` : ""),
   items: (x) => (LIVE.owner && x.status === "waiting" ? `🆕 ${x.addedBy} added ${x.item}: check it in Shift, Stock` : x.status === "live" && x.addedUid === LIVE.uid && x.uid !== LIVE.uid ? `✅ ${x.item} is on every phone now` : ""),
 };
+// Where a pop-up's records live, when it isn't under the same name.
+const TOAST_OF = { photos: "draftPhotos" };
 // What changed since this phone last opened the Team page: the same messages as the pop-ups, from what the app already
 // holds, so nothing is missed while the app was shut or a pop-up went by. The newest 15, other people's only.
 function changesSince(t) {
   const out = [];
-  for (const what of Object.keys(TOAST)) for (const x of Object.values(LIVE[what])) {
+  for (const what of Object.keys(TOAST)) for (const x of Object.values(LIVE[TOAST_OF[what] || what])) {
     const at = x.at ? ms(x.at) : 0;
     if (x.pending || at <= t || x.uid === LIVE.uid) continue;
     const msg = TOAST[what](x);
@@ -6218,11 +6333,12 @@ function liveChanged(what) {
   if (cur === "station") stationLive(what);
   funLive(what);
   if (what === "drafts" || what === "me") pullDraft();
+  if (repWait && (what === "reports" || what === "me") && LIVE.me) openReport(repWait);
   if (what === "events") logLive();
   pkLive(what);
   if (TOAST[what]) {
     const first = !firstSnap.has(what); firstSnap.add(what);
-    for (const x of Object.values(LIVE[what])) {
+    for (const x of Object.values(LIVE[TOAST_OF[what] || what])) {
       const k = what + x.id + (x.status || "") + (x.whoUid || "") + (x.v ?? "");
       if (x.pending || told.has(k)) continue; told.add(k);
       if (first || (x.uid === LIVE.uid && !["asks", "issues"].includes(what))) continue;
