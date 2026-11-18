@@ -724,9 +724,10 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .sd-warn{border-left:3px solid var(--warn);padding-left:10px}
 .sd-tl{list-style:none;margin:8px 0;padding:0;border-left:2px solid var(--line);margin-left:46px}.sd-tl li{position:relative;display:flex;gap:8px;padding:7px 0 7px 12px}.sd-tl time{position:absolute;left:-50px;top:9px;font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
 .sd-tl .ic{flex:none;width:22px;text-align:center}.sd-tl p{margin:0;line-height:1.35}.sd-tl small{color:var(--muted);font-size:13px}.sd-tl li.big p{font-weight:700;color:var(--brass)}
-#sd-timer{position:fixed;right:12px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 12px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:14px;padding:8px 12px;box-shadow:0 6px 20px #0006;display:flex;flex-direction:column;align-items:flex-end}
-#sd-timer b{font-size:20px;font-variant-numeric:tabular-nums}#sd-timer span{font-size:12px;color:var(--muted)}#sd-timer.slow{border-color:var(--warn)}
-body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 74px)}
+/* One small pill beside the 🎤, so the two never stack over the list's buttons. */
+#sd-timer{position:fixed;right:76px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 22px);z-index:7;background:var(--surface);border:1.5px solid var(--brass);border-radius:999px;padding:6px 12px;box-shadow:0 6px 20px #0006;display:flex;align-items:baseline;gap:6px;white-space:nowrap}
+#sd-timer b{font-size:16px;font-variant-numeric:tabular-nums}#sd-timer span{font-size:12px;color:var(--muted)}#sd-timer.slow{border-color:var(--warn)}
+body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}body.sd-1h #sd-mic{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 74px)}
 #sd-last{margin-top:8px;display:flex;flex-direction:column;align-items:center;text-align:center;padding:12px;border:2px solid var(--brass);border-radius:14px;background:var(--surface)}
 #sd-last b{font-size:22px}#sd-last span{color:var(--muted)}#sd-last.now{border-color:var(--warn)}#sd-last.now b{color:var(--warn)}
 #v-station~#sd-last,body.ipad #sd-last b{font-size:30px}
@@ -737,7 +738,6 @@ body.sd-offon #net{display:none}
 /* The page ends clear of the 🎤, so the last row's buttons are never stuck under it. */
 body:has(#sd-mic:not([hidden])) main{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 84px)}
 body.stmode:has(#sd-mic:not([hidden])) main{padding-bottom:calc(env(safe-area-inset-bottom,0px) + 84px)}
-body:has(#sd-timer:not([hidden])) #sd-mic{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 82px)}
 /* The bar station: above the spec panel's Back and Next. */
 body.stmode #sd-mic{bottom:calc(env(safe-area-inset-bottom,0px) + 104px)}
 #sd-1h{position:fixed;left:0;right:0;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px));z-index:9;display:grid;grid-template-columns:repeat(6,1fr);background:var(--surface);border-top:1px solid var(--line);padding:4px max(6px,env(safe-area-inset-left,0px))}

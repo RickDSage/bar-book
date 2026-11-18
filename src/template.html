@@ -2444,7 +2444,8 @@ function freshNight() {
   store.set("ho", ho); store.set("closer", ""); store.set("noPhotos", ""); store.set("noteDay", shiftDay());
 }
 function tallyText() {
-  const day = stamp(new Date());
+  // After midnight the shift is still the night before: name that night, then when it was sent.
+  const now = new Date(), day = shiftDay() === ukDay(now) ? stamp(now) : `${dayName(shiftDay())} night (sent ${stamp(now)})`;
   const list = (k) => {
     const p = progress(k), r = runOf(k);
     const items = (title, sts) => {
@@ -6006,11 +6007,20 @@ function quickHtml() {
     <div class="mini">From you</div><div class="actions">${sendBtn("late", "Running late")}${sendBtn("sick", "Off sick")}${sendBtn("swap", "Swap a shift")}</div>
     <p class="note">Each message ends with a link that opens the right page in Bar Book, never the team code. Off sick goes on WhatsApp only: Bar Book keeps no copy.</p>`;
 }
-function renderCard(k) { const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (c && box) box.innerHTML = c[2](); }
+// A card's body, and the count on its heading, which can change once the body has read what it needs (Ready for Friday).
+function renderCard(k) {
+  const c = CARDS().find((x) => x[0] === k), box = $(`#tc-${k}`); if (!c || !box) return;
+  box.innerHTML = c[2]();
+  const sm = document.querySelector(`[data-card="${k}"] > summary`), sub = c[3], pill = sm?.querySelector(":scope > .pill");
+  if (!sm) return;
+  if (!sub) { pill?.remove(); return; }
+  const t = String(sub.t ?? sub), cls = `pill${sub.hot ? " no" : ""}`;
+  if (pill) { if (pill.textContent !== t) pill.textContent = t; pill.className = cls; } else sm.insertAdjacentHTML("beforeend", ` <span class="${cls}">${t}</span>`);
+}
 /* ---------- Drafts ----------
    Whatever someone types in a form stays on this phone as they type, so a guest, a locked phone or closing the app
    loses nothing. Save draft puts it away to finish later (its card says Draft, and the app says so when it opens);
-   Discard wipes it. Clear everything wipes them all. Nothing here leaves the phone until it's sent. */
+   Discard wipes it. Clear everything wipes the two on Shift (restock and date label); the rest are each person's own. Nothing here leaves the phone until it's sent. */
 const DRAFTS = {
   restock: { n: "Restock request", get: () => rsF, blank: () => ({ item: "", qty: "1", unit: "each", dest: "", detail: "" }), fs: ["item", "detail"] },
   label: { n: "Date label", get: () => lbF, blank: () => ({ item: "", life: "", on: true, open: false }), fs: ["item", "life"] },

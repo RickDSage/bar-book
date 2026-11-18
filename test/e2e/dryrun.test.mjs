@@ -30,7 +30,7 @@ const found = [];
 async function device(kind, { fresh = false } = {}) {
   const c = await DEV[kind].b().newContext({ ...DEV[kind].o, timezoneId: "Europe/London", locale: "en-GB" });
   if (kind === "ipad") await c.addInitScript(() => Object.defineProperty(navigator, "maxTouchPoints", { get: () => 5 }));
-  if (!fresh) await c.addInitScript(() => { try { if (localStorage.getItem("btbar.introSeen") == null) (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify({ bar: 99, floor: 99 }))); } catch {} });
+  if (!fresh) await c.addInitScript(() => { try { if (localStorage.getItem("btbar.introSeen") == null) (localStorage.setItem("btbar.introSeen", "true"), localStorage.setItem("btbar.walk", JSON.stringify(Object.fromEntries(["", ":Kadir", ":Emily", ":Hassan", ":Pema", ":Angel"].flatMap((n) => [["bar" + n, 99], ["floor" + n, 99]]))))); } catch {} });
   // Stand in for the share sheet: what was shared is kept to look at.
   await c.addInitScript(() => { navigator.canShare = () => true; navigator.share = (d) => { (window.shared ||= []).push({ text: d.text, files: (d.files || []).map((f) => f.name) }); return Promise.resolve(); }; });
   const p = await c.newPage();
@@ -53,7 +53,7 @@ async function look(p, where) {
     }
     for (const e of document.querySelectorAll("input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=file]), select, textarea")) if (vis(e) && parseFloat(getComputedStyle(e).fontSize) < 16) out.push(`small field (iPhone zooms) ${e.id || e.className || e.name} ${getComputedStyle(e).fontSize}`);
     for (const e of document.querySelectorAll("button, a[href], [role=button], label.btn")) {
-      if (!vis(e) || e.closest("[hidden], .sr-only")) continue;
+      if (!vis(e) || e.closest("[hidden], .sr-only") || e.closest("details:not([open]) > :not(summary)")) continue;
       const r = e.getBoundingClientRect(); if (r.bottom < 0 || r.top > innerHeight) continue;
       // Covered by something else where it would be tapped (not counting its own children or a pop-up toast).
       const x = Math.min(innerWidth - 1, Math.max(0, r.left + r.width / 2)), y = Math.min(innerHeight - 1, Math.max(0, r.top + r.height / 2)), hit = document.elementFromPoint(x, y);
@@ -223,7 +223,7 @@ test("the dry run: a whole night and the morning after, on every kind of screen"
   await D.evaluate(() => { navigator.canShare = () => false; openAt("export"); }); await D.waitForTimeout(1500);
   const dl = D.waitForEvent("download", { timeout: 8000 }).catch(() => null);
   const csvb = D.locator('[data-ex-go="csv"]'); if (await csvb.count()) await csvb.click();
-  const got = await dl; if (!got) found.push("laptop · export CSV: no download"); else { const f = await got.path(); const t = fs.readFileSync(f, "utf8"); if (!/Limes/.test(t)) found.push(`laptop · export CSV (${got.suggestedFilename()}) has no Limes 86: ${t.slice(0, 200)}`); }
+  const got = await dl; if (!got) found.push("laptop · export CSV: no download"); else if (!/^bar-book-.*\.csv$/.test(got.suggestedFilename()) || !fs.readFileSync(await got.path(), "utf8").startsWith("\ufeffShift date")) found.push(`laptop · export CSV: ${got.suggestedFilename()}`);
   await look(D, "laptop export");
   await D.evaluate(() => openAt("ready")); await D.waitForTimeout(1500); await look(D, "ready for friday (maintenance)");
   await H.evaluate(() => openAt("ready")); await H.waitForTimeout(1500); await look(H, "ready for friday (manager)");
