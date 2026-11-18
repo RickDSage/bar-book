@@ -5319,6 +5319,7 @@ const IC = {
   replay: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/><path d="M10.5 9.5l4 2.5-4 2.5z"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
   pay: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
+  read: '<path d="M4 8V5h3M17 5h3v3M20 16v3h-3M7 19H4v-3"/><path d="M8 10h8M8 13h8M8 16h5"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
 const hubRow = (k, attr, t, sub) => `<${attr.startsWith("href") ? "a" : "button"} class="hrow2" ${attr}><span class="hic">${icon(k)}</span><span><b>${t}</b><small>${sub}</small></span><span class="chev" aria-hidden="true">${attr.startsWith("href") ? "↗" : "›"}</span></${attr.startsWith("href") ? "a" : "button"}>`;
@@ -5341,6 +5342,7 @@ function renderInfo() {
     </div>
     <div class="sec">Help</div>
     <div class="hub">
+      ${hubRow("read", "data-rt-open", "Read text in a photo", "A label, note or sign: its words to copy or search, read on this phone")}
       ${hubRow("features", "data-guide", "Guide: how Bar Book works", "The walkthrough, the full tour, every section, and a search for anything")}
       ${hubRow("siri", "data-sc-open", "Siri and shortcuts", "\u201cHey Siri, Bar Book 86\u201d: open any page by voice or a tap on the back of the phone")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
@@ -5542,6 +5544,7 @@ function openAt(where) {
   if (where === "shift") return show("tally");
   if (where === "photos" || where.startsWith("gallery:")) return openGallery(where.slice(8) || shiftDay());
   if (where === "count") return show("count");
+  if (where === "readtext") return rtShow(null);
   if (where === "dnote") { ctInHtml.open = true; show("count"); return setTimeout(() => $("#ct-in-box")?.scrollIntoView({ block: "center" }), 120); }
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
@@ -12067,7 +12070,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T20:33";
+const BUILD = "2026-11-18T20:34";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -12509,6 +12512,7 @@ FEATURES.push(
   { g: "Shift", k: "brief", n: "Tonight's brief", go: "brief", what: "What's new and what's on tonight, played like stories: specs changed, 86s, labels due, last night's handover and what's new in Bar Book." },
   { g: "Shift", k: "clear", n: "Clear and undo", go: "clear", team: 1, what: "Every list's ↺ Clear sits in the row of tools at its top and acts straight away; ↩ Undo clear takes its place for 15 minutes. Lists start fresh by themselves at 6am." },
   { g: "Stock", k: "dnote", n: "Read a delivery note", go: "dnote", team: 1, what: "Stock, Delivery in, 📷 Read the note: a photo or PDF of the delivery note is read on this phone. Each line on the count comes back with how many; check them against the paper and log the ticked ones." },
+  { g: "More", k: "readtext", n: "Read text in a photo", go: "readtext", what: "Take or choose a photo of a label, note, letter or sign, or open one in Photos: its words come up under it to copy or search. Read on this phone, never sent." },
   { g: "More", k: "phone", n: "This phone: look and settings", go: "phone", what: "Light or dark, accessible mode, one-hand mode, sounds, the 🎤 button, help buttons, shared iPad, language, home screen and reset." },
   { g: "Team", k: "week", adm: 1, n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
   { g: "Team", k: "pilot", adm: 1, n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
@@ -12519,7 +12523,8 @@ FEATURES.push(
   { g: "Team", k: "ready", adm: 1, n: "Ready for Friday", go: "ready", team: 1, what: "One checklist before the team starts: rules published, every code set, backups on, this phone on the Home Screen, nothing waiting to send and the app up to date.", mgr: "Each line goes green by itself. Tick backups once they're on in the Firebase console." },
   { g: "Team", k: "backup", adm: 1, n: "Backup and restore", go: "backup", team: 1, what: "Everything Bar Book keeps for the team, saved as one file.", mgr: "Save one now and then. Restore shows what's different and only adds or changes, never deletes." },
   { g: "Team", k: "health", n: "Health check", go: "health", what: "Whether this phone is online, saving, up to date and ready with no signal.", staff: "Something not syncing? Check here, then send it to maintenance." });
-Object.assign(PLACE_KW, { dnote: "delivery note invoice docket paperwork camera photo read scan supplier booker came in goods in",
+Object.assign(PLACE_KW, { readtext: "read text words photo picture camera scan ocr copy writing label sign letter note handwriting",
+  dnote: "delivery note invoice docket paperwork camera photo read scan supplier booker came in goods in",
   brief: "brief stories story whats new news update updates changes changed seen read preshift pre shift",
   clear: "clear reset start over wipe undo fresh empty restart again", phone: "settings setting dark light theme night mode gold clock accessible dyslexia bigger text font size one hand thumb sounds sound buzz mute quiet voice mic microphone help buttons hide shared ipad tablet language install home screen reset phone",
   mgr: "maintenance start again wipe test data master clear team code password", week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline", ready: "ready friday launch checklist go live rules backup" });
@@ -12616,12 +12621,51 @@ function galRender() {
 }
 function galBig(id) {
   const p = GAL.list.find((x) => x.id === id); if (!p) return;
-  let el = $("#gal-lb"); if (!el) { el = document.createElement("button"); el.id = "gal-lb"; el.className = "gal-lb"; el.setAttribute("aria-label", "Close the photo"); document.body.append(el); }
-  el.innerHTML = `<img src="${p.data}" alt="${esc(p.note || "Photo")}"><span>${esc(sideName(p.side))} · ${esc(p.name || "")} · ${p.at ? hhmm(new Date(ms(p.at))) : ""}${p.note ? ` · ${esc(p.note)}` : ""}</span>`;
+  let el = $("#gal-lb"); if (!el) { el = document.createElement("div"); el.id = "gal-lb"; el.className = "gal-lb"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "The photo"); document.body.append(el); }
+  el.innerHTML = `<img src="${p.data}" alt="${esc(p.note || "Photo")}"><span>${esc(sideName(p.side))} · ${esc(p.name || "")} · ${p.at ? hhmm(new Date(ms(p.at))) : ""}${p.note ? ` · ${esc(p.note)}` : ""}</span>
+    <div class="actions"><button class="btn" data-rt-photo="${p.id}">Read the text in it</button><button class="btn" data-gal-lb-x>Close</button></div>`;
   el.hidden = false; haptic();
 }
+
+/* ---------- Read text: the words in any photo ----------
+   Take or choose a photo (or open one from Photos) and the same free text reader as payslips and delivery notes reads
+   it on this phone: the photo on top, what it read underneath, to copy or search. The photo is never sent anywhere. */
+let RT = null;
+function rtShow(src) {
+  let el = $("#rt"); if (!el) { el = document.createElement("div"); el.id = "rt"; el.className = "rt"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Read text"); document.body.append(el); }
+  if (RT?.blob) URL.revokeObjectURL(RT.url);
+  RT = src ? { url: typeof src === "string" ? src : URL.createObjectURL(src), blob: typeof src !== "string", text: null, msg: "Reading the picture…", q: "" } : { url: "", text: null, msg: "", q: "" };
+  el.hidden = false; rtDraw();
+  if (src) rtRead(src, RT);
+}
+async function rtRead(src, me) {
+  try {
+    const f = typeof src === "string" ? new File([await (await fetch(src)).blob()], "photo.jpg", { type: "image/jpeg" }) : src;
+    const [t] = await readFiles([f], (m) => { if (RT === me) { me.msg = m; const s = $("#rt-msg"); if (s) s.textContent = m; } });
+    if (RT === me) { me.text = t.replace(/[ \t]+\n/g, "\n").replace(/\n{3,}/g, "\n\n").trim(); rtDraw(); }
+  } catch { if (RT === me) { me.msg = "The text reader needs signal the first time. Try again with signal."; rtDraw(); } }
+}
+function rtDraw() {
+  const el = $("#rt"); if (!el || !RT) return;
+  const lines = (RT.text || "").split("\n"), q = RT.q.trim().toLowerCase(), hits = q ? lines.filter((l) => l.toLowerCase().includes(q)) : [];
+  const mark = (l) => (q ? esc(l).replace(new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/&/g, "&amp;").replace(/</g, "&lt;"), "gi"), (m) => `<mark>${m}</mark>`) : esc(l));
+  el.innerHTML = `<div class="bar1"><button class="back" data-rt-x>‹ Back</button><span class="t">Read text</span><span></span></div>
+    <div class="addph"><label class="btn${RT.url ? "" : " pri"}" for="rt-cam">📷 Take a photo</label><label class="btn" for="rt-pick">Choose a photo</label></div>
+    <input id="rt-cam" type="file" accept="image/*" capture="environment" hidden><input id="rt-pick" type="file" accept="image/*" hidden>
+    ${RT.url ? `<img class="rt-img" src="${RT.url}" alt="The photo">` : `<p class="note">A label, a note, a letter, a sign: take or choose a photo and its words come up here to copy or search. It's read on this phone.</p>`}
+    ${RT.text == null ? (RT.msg ? `<p class="note" id="rt-msg" role="status">${esc(RT.msg)}</p>` : "")
+      : RT.text ? `<div class="ltools"><input id="rt-q" type="search" placeholder="Search the text" aria-label="Search the text" value="${esc(RT.q)}"><button class="btn" data-rt-copy>Copy all</button></div>
+        ${q ? `<p class="s" role="status">${hits.length ? `${hits.length} line${hits.length === 1 ? "" : "s"} with “${esc(RT.q.trim())}”` : `No “${esc(RT.q.trim())}” in it`}</p>` : ""}
+        <div class="rt-text" id="rt-text">${(q ? hits : lines).map((l) => `<p>${mark(l) || "&nbsp;"}</p>`).join("")}</div>
+        <p class="s">The reader can slip on handwriting, curved bottles and small print: check it against the photo.</p>`
+      : `<p class="note">No words found. Try closer, flatter and in good light.</p>`}`;
+}
 document.addEventListener("click", (e) => {
-  if (e.target.closest("#gal-lb")) { $("#gal-lb").hidden = true; return; }
+  if (e.target.closest("[data-rt-open]")) { haptic(); return rtShow(null); }
+  const rp = e.target.closest("[data-rt-photo]"); if (rp) { const p = GAL.list.find((x) => x.id === rp.dataset.rtPhoto); $("#gal-lb").hidden = true; haptic(); return p && rtShow(p.data); }
+  if (e.target.closest("[data-rt-x]")) { $("#rt").hidden = true; if (RT?.blob) URL.revokeObjectURL(RT.url); RT = null; return; }
+  if (e.target.closest("[data-rt-copy]")) return navigator.clipboard?.writeText(RT.text).then(() => toast("Copied. Paste it anywhere"), () => toast("Couldn't copy. Press and hold the text to copy it"));
+  if (e.target.closest("[data-gal-lb-x]") || e.target.id === "gal-lb") { $("#gal-lb").hidden = true; return; }
   if (!$("#gal")) return;
   const d = e.target.closest("[data-gal-day]"); if (d) { haptic(); return openGallery(d.dataset.galDay, true); }
   const sd = e.target.closest("[data-gal-side]"); if (sd) { haptic(); GAL.side = sd.dataset.galSide; return galRender(); }
@@ -12630,6 +12674,8 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-gal-all]")) { const xs = galShown(), all = xs.every((p) => GAL.pick.has(p.id)); xs.forEach((p) => (all ? GAL.pick.delete(p.id) : GAL.pick.add(p.id))); haptic(); return galRender(); }
   if (e.target.closest("[data-gal-send]")) { haptic(); openSend("photos", GAL.day); }
 });
+document.addEventListener("change", (e) => { if ((e.target.id === "rt-cam" || e.target.id === "rt-pick") && e.target.files[0]) { rtShow(e.target.files[0]); } });
+document.addEventListener("input", (e) => { if (e.target.id === "rt-q" && RT) { RT.q = e.target.value; rtDraw(); const i = $("#rt-q"); i.focus(); i.setSelectionRange(i.value.length, i.value.length); } });
 // The picked photos as a message: who took each and when, with the link back to this shift's photos.
 SHARE.photos = (day = GAL.day) => {
   const xs = GAL.list.filter((p) => GAL.pick.has(p.id)); if (!xs.length) return null;
@@ -12658,7 +12704,17 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .gal-bar .btn.pri { flex: 1; }
 .gal-lb { position: fixed; inset: 0; z-index: 60; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 16px; background: rgba(0,0,0,.92); color: #fff; }
 .gal-lb[hidden] { display: none; }
-.gal-lb img { max-width: 100%; max-height: 82vh; object-fit: contain; border-radius: 8px; }
+.gal-lb .actions { justify-content: center; }
+.gal-lb .btn { background: #222; color: #fff; border-color: #555; }
+.rt { position: fixed; inset: 0; z-index: 61; overflow-y: auto; padding: calc(10px + env(safe-area-inset-top, 0px)) 16px calc(24px + env(safe-area-inset-bottom, 0px)); background: var(--bg); }
+.rt[hidden] { display: none; }
+.rt .bar1 { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; margin-bottom: 8px; }
+.rt .bar1 .t { text-align: center; font-weight: 800; }
+.rt-img { display: block; max-width: 100%; max-height: 40vh; margin: 10px auto; border-radius: 10px; object-fit: contain; }
+.rt-text { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); font-size: 17px; line-height: 1.45; user-select: text; -webkit-user-select: text; }
+.rt-text p { margin: 0; }
+.rt-text mark { background: var(--brass); color: var(--brass-ink); border-radius: 3px; }
+.gal-lb img { max-width: 100%; max-height: 72vh; object-fit: contain; border-radius: 8px; }
 </style>`);
 /* ---------- Export ----------
    Everything the team logs in Bar Book, in one place for the managers: pick the dates, the side, a person and which
@@ -14480,7 +14536,7 @@ const WALK_NEW = [
   "↺ Clear works the same on every list: it acts at once, and ↩ Undo clear sits in its place for 15 minutes",
   "🔍 finds settings too: try “dark mode” or “undo”",
   "My pay is in More now: five tabs along the bottom",
-  "Stock, Delivery in: 📷 Read the note logs a delivery from a photo of the paper",
+  "📷 Any photo's words: More, Read text in a photo. In Stock, Read the note logs a delivery from the paper",
 ];
 const WALK_NAV_LINE = "🔍 at the top finds any screen, drink or how-to. 🎤 beside it: hold it like a radio and talk, or tap it. ⌂ goes home, ‹ Back goes back.";
 const WALK_BRIEF_LINE = "The ring at the top is tonight's brief: tap it and tap through, like stories. Hold to pause.";
@@ -14589,7 +14645,7 @@ const FEAT_SECS = [
   ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
   ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "sent", "tell"]],
   ["Managers", ["ready", "export", "week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
-  ["More", ["pay", "phone", "info", "siri", "health"]],
+  ["More", ["pay", "readtext", "phone", "info", "siri", "health"]],
 ];
 const SEC_OF = Object.fromEntries(FEAT_SECS.flatMap(([g, ks]) => ks.map((k) => [k, g])));
 const SEC_AT = (k) => { const g = SEC_OF[k], i = FEAT_SECS.findIndex((x) => x[0] === g); return i < 0 ? 99 : i * 100 + FEAT_SECS[i][1].indexOf(k); };

@@ -16,7 +16,7 @@ const WALK_NEW = [
   "↺ Clear works the same on every list: it acts at once, and ↩ Undo clear sits in its place for 15 minutes",
   "🔍 finds settings too: try “dark mode” or “undo”",
   "My pay is in More now: five tabs along the bottom",
-  "Stock, Delivery in: 📷 Read the note logs a delivery from a photo of the paper",
+  "📷 Any photo's words: More, Read text in a photo. In Stock, Read the note logs a delivery from the paper",
 ];
 const WALK_NAV_LINE = "🔍 at the top finds any screen, drink or how-to. 🎤 beside it: hold it like a radio and talk, or tap it. ⌂ goes home, ‹ Back goes back.";
 const WALK_BRIEF_LINE = "The ring at the top is tonight's brief: tap it and tap through, like stories. Hold to pause.";
@@ -125,7 +125,7 @@ const FEAT_SECS = [
   ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
   ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "sent", "tell"]],
   ["Managers", ["ready", "export", "week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
-  ["More", ["pay", "phone", "info", "siri", "health"]],
+  ["More", ["pay", "readtext", "phone", "info", "siri", "health"]],
 ];
 const SEC_OF = Object.fromEntries(FEAT_SECS.flatMap(([g, ks]) => ks.map((k) => [k, g])));
 const SEC_AT = (k) => { const g = SEC_OF[k], i = FEAT_SECS.findIndex((x) => x[0] === g); return i < 0 ? 99 : i * 100 + FEAT_SECS[i][1].indexOf(k); };
