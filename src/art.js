@@ -15,7 +15,6 @@ const ART = (() => {
     shot: { body: "M20 36 H44 L41 72 H23Z", top: 46, extra: "M22.5 64 H41.5", cubes: [], rim: [42, 36] },
     hurricane: { body: "M19 6 C16 18 26 22 23 32 C20 42 24 53 32 53 C40 53 44 42 41 32 C38 22 48 18 45 6Z", top: 14, extra: "M32 53 V68 M21 71 Q32 66 43 71", cubes: [[25, 22, 9], [31, 34, 9]], rim: [43, 6] },
     heatproof: { body: "M17 16 H45 L43 58 H19Z", top: 20, extra: "M45 24 C55 24 55 44 44 44 M31 58 V68 M20 71 Q31 66 42 71", cubes: [], rim: [43, 16], cream: 8 },
-    pitcher: { body: "M14 16 H44 L46 72 H16Z", top: 26, extra: "M14 16 L9 11 M44 24 C56 24 56 52 45 52", cubes: [[20, 32, 10], [30, 42, 10], [21, 54, 10]], rim: [42, 16] },
     shake: { body: "M17 26 H47 L42 72 H22Z", top: 26, extra: "M38 4 L33 26", cubes: [], rim: [40, 14], whip: true },
     halfpint: { body: "M17 10 H47 L43 72 H21Z", top: 16, extra: "", cubes: [], rim: [45, 10], foam: 6 },
   };

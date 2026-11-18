@@ -292,8 +292,8 @@ const BT_LINEUP = [
     { k: "campari", glass: "Rocks or highball, cubed ice", measure: "25 ml in a Negroni, 50 ml with soda", note: "Negroni, Americano, Campari Soda, Garibaldi." },
     { k: "martini rosso", glass: "As the drink", measure: "25 ml in a Negroni or Manhattan", pour: "Measure with the jigger. Keep it in the fridge once open", note: "Sweet vermouth. Negroni, Manhattan, Americano, Boulevardier." },
     { k: "martini extra dry", glass: "As the drink", measure: "As the spec: from a rinse to 15 ml in a Martini", pour: "Measure with the jigger. Keep it in the fridge once open", note: "Dry vermouth. Dry Martini, Dirty Martini, Gibson, Perfect Manhattan." },
-    { k: "pimm s no 1", glass: "Highball or pitcher, cubed ice", measure: "50 ml, topped with lemonade", pour: "Ice, Pimm's, top with lemonade, then cucumber, mint, orange and strawberry", note: "Pimm's Cup and the jug." },
-    { k: "red wine", glass: "As the drink", measure: "As the spec", pour: "From an open bottle; stopper it and date it", note: "New York Sour (floated) and the Sangria jug." },
+    { k: "pimm s no 1", glass: "Highball, cubed ice", measure: "50 ml, topped with lemonade", pour: "Ice, Pimm's, top with lemonade, then cucumber, mint, orange and strawberry", note: "Pimm's Cup." },
+    { k: "red wine", glass: "As the drink", measure: "As the spec", pour: "From an open bottle; stopper it and date it", note: "New York Sour (floated)." },
     { k: "prosecco", glass: "Flute or wine glass, as the drink", measure: "Top up, or as the spec", pour: "Pour slowly down the side so it keeps its bubbles. Stopper the bottle and keep it in the fridge", note: "Spritzes, Bellini, Mimosa, French 75, Rossini." },
   ]],
   ["Foam", [

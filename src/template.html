@@ -745,6 +745,12 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-row.done .ct-dot::after { content: "✓"; }
 .ct-line b { font-variant-numeric: tabular-nums; }
 .ct-line small.by { grid-column: 2 / -1; color: var(--muted); font-size: 12px; }
+/* Running low (count.js lowNow): a heads-up before it's an 86 */
+.ct-line small.ct-low, .ct-tot > div.flag small { display: block; color: var(--warn); font-size: 12px; font-weight: 700; }
+.low-row .s { color: var(--warn); }
+.sx-lowl { list-style: none; margin: 6px 0 0; padding: 0; }
+.sx-lowl li { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 0; }
+.sx-lowl small { display: block; color: var(--warn); }
 .ct-all { padding: 14px 0; font-weight: 600; }
 .ct-line > span small.ct-do { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
 .ct-hrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
@@ -1715,7 +1721,7 @@ function carSync() {
 function haptic() { try { navigator.vibrate?.(8); } catch {} }
 const BASES = [["vodka", /vodka|smirnoff|c[iî]roc|grey goose|belvedere|chase/i], ["gin", /\bgin\b|tanqueray|aviation|roku|monkey 47|botanist|drumshanbo|brockmans|cygnet/i], ["rum", /\brum\b|captain morgan|kraken|zacapa|52north|cacha/i], ["tequila", /tequila|jimador|casamigos|don julio|clase azul|mezcal/i], ["whisky", /whisk|bourbon|buffalo trace|jack daniel|jameson|bulleit|elijah|michter/i], ["fizz", /prosecco/i]];
 const baseOf = (d) => { const t = d.spec.join(" "); const b = BASES.find(([, re]) => re.test(t)); return b ? b[0] : "other"; };
-const kindOf = (d) => /Shots|Bombs/.test(d.section) ? "shot" : d.section === "Zero Proof" ? "zero" : d.section === "Pitchers" ? "pitcher" : "cocktail";
+const kindOf = (d) => /Shots|Bombs/.test(d.section) ? "shot" : d.section === "Zero Proof" ? "zero" : "cocktail";
 D.forEach((d) => { d._b = baseOf(d); d._k = kindOf(d); });
 // The three closest drinks still in stock: the same kind and base spirit first, then shared flavours.
 const similarTo = (d) => D.filter((x) => x !== d && x._k === d._k && !isOut(x.name))
@@ -2036,7 +2042,7 @@ const shuffle = (r, xs) => { const a = xs.slice(); for (let i = a.length - 1; i 
 // When two answers mean the same: the glass without "chilled" or its rim, the kind of ice, and a garnish with twist,
 // zest and peel as one, wheel and slice as one.
 const glassKey = (g) => g.toLowerCase().replace(/^chilled /, "").split(/,| \+ | or /)[0].trim();
-const iceKey = (i) => (/^none/i.test(i) ? "none" : /crushed/i.test(i) ? "crushed" : /large cube/i.test(i) ? "large" : /^pitcher/i.test(i) ? "pitcher" : "cubed");
+const iceKey = (i) => (/^none/i.test(i) ? "none" : /crushed/i.test(i) ? "crushed" : /large cube/i.test(i) ? "large" : "cubed");
 const garnishKey = (g) => g.toLowerCase().replace(/\b(twist|zest|peel)\b/g, "peel").replace(/\b(wheel|slice)\b/g, "slice");
 const nearly = (a, b) => a.includes(b) || b.includes(a);
 const QZ_HOW = [["shake", "Shaken"], ["stir", "Stirred"], ["build", "Built in the glass"], ["layer", "Layered"]];
@@ -2054,12 +2060,12 @@ let qzUsual = null;
 // app: the answers are the app's own words, so they're translated.
 const QZ_KINDS = {
   glass: (d, r) => {
-    const k = glassKey(d.glass); if (k.startsWith("pitcher")) return null;
-    return { ask: "Which glass?", answer: d.glass, wrong: shuffle(r, qzUsual.glass.filter(([x]) => x !== k && !x.startsWith("pitcher")).map(([, v]) => v)).slice(0, 3) };
+    const k = glassKey(d.glass);
+    return { ask: "Which glass?", answer: d.glass, wrong: shuffle(r, qzUsual.glass.filter(([x]) => x !== k).map(([, v]) => v)).slice(0, 3) };
   },
   ice: (d, r) => {
-    const k = iceKey(d.ice); if (k === "pitcher") return null;
-    return { ask: "What ice?", answer: d.ice, wrong: shuffle(r, qzUsual.ice.filter(([x]) => x !== k && x !== "pitcher").map(([, v]) => v)).slice(0, 3) };
+    const k = iceKey(d.ice);
+    return { ask: "What ice?", answer: d.ice, wrong: shuffle(r, qzUsual.ice.filter(([x]) => x !== k).map(([, v]) => v)).slice(0, 3) };
   },
   garnish: (d, r) => {
     const seen = [garnishKey(d.garnish)], wrong = [];
@@ -2398,7 +2404,8 @@ const HO_CHIPS = {
   issues: ["Broken or needs fixing: ", "Not finished: ", "Guest to know about: ", "Tabs and cash: "],
   next: ["Prep: ", "Follow up: ", "Delivery due: ", "Ordered: "],
 };
-const hoChips = (id) => HO_CHIPS[id][mode] || HO_CHIPS[id];
+// Running low starts with what the stock count says is low, then the usual suspects.
+const hoChips = (id) => { const xs = HO_CHIPS[id][mode] || HO_CHIPS[id]; return id === "low" ? [...new Set([...lowNow().map((x) => x.item), ...xs])] : xs; };
 let ho = { low: "", issues: "", next: "", ...store.get("ho", {}) };
 // Why there are no closing photos, when there really can't be any. It goes in the handover.
 let noPhotos = store.get("noPhotos", "");
@@ -2977,8 +2984,8 @@ const PARS = {
 };
 const busyDay = () => [5, 6].includes(new Date(shiftDay()).getUTCDay());
 const parsToday = () => PARS[mode].map(([t, n, b]) => [t, busyDay() ? b : n]);
-// Today's order: what last night said was running low, and anything still 86'd.
-const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).map((x) => x.trim()).filter(Boolean) : []; return [...new Set([...low, ...[...outNow()].sort()])]; };
+// Today's order: what last night said was running low, what the stock count says is low, and anything still 86'd.
+const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).map((x) => x.trim()).filter(Boolean) : []; return [...new Set([...low, ...lowNow().map((x) => x.item), ...[...outNow()].sort()])]; };
 // The morning: read last night's handover, say it's checked (and what's outstanding) on WhatsApp, send the order, prep to par.
 function morningHtml() {
   const r = lastReport(), h = r && handoverOf(r), order = orderLines(r);
@@ -3443,7 +3450,7 @@ async function shrink(file) {
 }
 function paneBadge(k) {
   if (LISTS[k]) { const p = progress(k); return p.n === p.of ? "\u2713" : `${p.n}/${p.of}`; }
-  if (k === "stock") return [outNow().size && `${outNow().size} out`, rsOpen().length && `${rsOpen().length} up`].filter(Boolean).join(" \u00b7 ");
+  if (k === "stock") return [outNow().size && `${outNow().size} out`, lowNow().length && `${lowNow().length} low`, rsOpen().length && `${rsOpen().length} up`].filter(Boolean).join(" \u00b7 ");
   if (k === "labels") { const n = labelsDue([mode]).length; return n ? `${n} due` : ""; }
   return "";
 }
@@ -3471,6 +3478,7 @@ function renderTally() {
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
       ${outList.length ? outList.map((n) => { const sw = pkSwap(n), u = pkUses(n); return `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) || u ? `<div class="s">${outBy(n) ? `86'd by ${outBy(n)}` : ""}${u ? `${outBy(n) ? " · " : ""}${plural(u, "drink")} use it` : ""}</div>` : ""}${sw ? `<div class="s pk-sw">${esc(sw)}</div>` : ""}</div><button class="btn" data-out-back="${esc(n)}">Back in stock</button></div>`; }).join("") : `<p class="note">Nothing 86'd.</p>`}
       ${outList.length ? `<div class="actions">${sendBtn("out", "Send the 86 list")}<button class="btn" data-out-clear>All back in stock</button></div>` : ""}
+      ${lowHtml((n) => `<button class="btn" data-out-quick="${esc(n)}">86 it</button>`)}
       ${pkBtn("Search everything to 86: drinks, bottles, cakes, boxes", `data-pk86="${mode}"`)}
       <div class="mini">Quick 86: recent and most 86'd</div><div class="recent" translate="no">${pkTop(mode).filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
       ${restockHtml()}${itemsHtml(mode)}${ctCardHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
@@ -5086,7 +5094,7 @@ function renderInfo() {
       <li>Gin, rum, vodka and whisky on their own or with one mixer go in 25 ml or 35 ml measures (or multiples). We use 25 ml and 50 ml.</li>
       <li>Cocktails with three or more liquids are exempt, which is why the house cards use 10, 15, 20 and 35 ml.</li>
       <li>Jigger everything. No free pouring.</li>
-      <li>No drinking games, no “drink as much as you can” deals, free tap water on request. Shot trays and pitchers are fine as fixed amounts.</li>
+      <li>No drinking games, no “drink as much as you can” deals, free tap water on request. Shot trays are fine as fixed amounts.</li>
       <li>ID check on bombs and shots under the venue's Challenge policy.</li>
     </ul>`)}
     ${fold("tech", "Technique key and words we use", glossHtml())}
@@ -5187,9 +5195,9 @@ const FEATURES = [
     what: "Asking for stock from the cellar and following it until it arrives, and what's 86'd tonight, on every phone.",
     staff: "Ask for something, take a request on, bring it up, confirm it arrived, and 86 a drink or bring it back." },
   { g: "Shift", k: "count", n: "Stock count", go: "count", team: 1, tour: 1,
-    what: "The count book on your phone: everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, and usage between counts.",
+    what: "The count book on your phone: everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
     staff: "Tap an item: + for each full, sealed bottle, then weigh the open one on the scale (or tap how full it is), then Next. Find looks in every place, Not counted yet shows what's left, and 🎤 takes “Smirnoff two and a half”. Send the totals on WhatsApp or as a spreadsheet.",
-    mgr: "Every bottle and pack comes with its size and estimated weights. Make one exact by weighing a sealed bottle once (Check it): it's then locked until you choose Unlock to re-weigh. Set up the count: the places in walking order, what's counted where and in what, and any size or weight." },
+    mgr: "Every bottle and pack comes with its size and estimated weights. Make one exact by weighing a sealed bottle once (Check it): it's then locked until you choose Unlock to re-weigh. Set up the count: the places in walking order, what's counted where and in what, and any size or weight. Set a running-low level (and a par) on a line: under it after a count, it shows on the 86 board, the bar station and Needs you now." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",
     staff: "Hand over: send with photos (WhatsApp on a phone; Mail, AirDrop or Files on the iPad), or just save. Anyone can carry on what someone started.", mgr: "Open, send or delete any closing report with its photos on the Team page." },
@@ -6349,12 +6357,12 @@ function liveChanged(what) {
     }
   }
   renderBell(); renderNet();
-  if (MG_READY && ["me", "labels", "items", "asks", "tells", "reports", "events"].includes(what)) renderAlerts();
+  if (MG_READY && ["me", "labels", "items", "asks", "tells", "reports", "events", "low", "out"].includes(what)) renderAlerts();
   if (what === "me" || what === "out") plOutRefresh();
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports", "count"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports", "count", "low", "countSetup", "received"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (["count", "countSetup", "received", "items", "out"].includes(what) && typeof ctRender === "function") ctRender();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }

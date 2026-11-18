@@ -584,6 +584,8 @@ function alertsNow() {
   if (!LIVE.me || !MG_READY) return [];
   const xs = [], now = toChange([mode]), r = lastReport(), hour = +new Date().toLocaleTimeString("en-GB", { hour: "2-digit", hour12: false, timeZone: UK });
   if (now.length) xs.push({ id: `lb${now.map((x) => x.id + x.v).join()}`, hot: 1, t: `🚨 ${URGENT(now.length)}: ${now.slice(0, 3).map((x) => x.item).join(", ")}`, go: "labels" });
+  const low = lowNow();
+  if (low.length) xs.push({ id: `lo${low.map((x) => x.item + x.day).join()}`, t: `📉 Running low: ${low.slice(0, 3).map((x) => x.item).join(", ")}${low.length > 3 ? ` and ${low.length - 3} more` : ""}. 86 it when it runs out`, go: "stock" });
   if (r && reportDay(r) === lastNight() && store.get("hoRead", "") !== r.id && hour >= 6 && hour < 18) xs.push({ id: `ho${r.id}`, t: `📋 Last night's ${lower(sideName(mode))} handover is in, from ${handoverOf(r).by}. Read it`, go: "morning" });
   if (LIVE.owner) { const w = LIVE.items.filter((x) => x.status === "waiting"); if (w.length) xs.push({ id: `it${w.map((x) => x.id).join()}`, t: `🆕 ${plural(w.length, "item")} to check: ${w.slice(0, 3).map((x) => x.item).join(", ")}`, go: "stock" }); }
   if (LIVE.admin) {

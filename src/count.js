@@ -72,7 +72,7 @@ function ctRows(all) {
   let i = 0;
   for (const [g, xs] of Object.entries(stockGroups())) for (const item of xs) {
     const d = ctDefault(item, g), o = s.items[item] || {};
-    const r = { item, group: g, i: i++, a: o.a?.length ? o.a : d.a, off: o.off ?? d.off, ...ctMeasure(item, o.u || d.u, o, d) };
+    const r = { item, group: g, i: i++, a: o.a?.length ? o.a : d.a, off: o.off ?? d.off, low: +o.low || 0, ...ctMeasure(item, o.u || d.u, o, d) };
     if (r.off && !all) continue;
     for (const area of r.a) out.push({ ...r, area, key: `${area}|${item}` });
   }
@@ -87,12 +87,46 @@ const ctQty = (x) => x.full + x.open / 100;
 function ctTotals(day = ctDay, lines = ctLines()) {
   const out = new Map();
   for (const r of ctRows()) {
-    const t = out.get(r.item) || { item: r.item, u: r.u, n: 0, done: 0, of: 0, where: [], by: new Set(), ml: r.ml, size: r.size };
+    const t = out.get(r.item) || { item: r.item, u: r.u, n: 0, done: 0, of: 0, where: [], by: new Set(), ml: r.ml, size: r.size, low: r.low };
     const x = lines.find((y) => y.day === day && y.area === r.area && y.item === r.item);
     t.of++; if (x) { t.done++; t.n += ctQty(x); t.where.push(`${r.area} ${ctNum(ctQty(x))}`); t.by.add(x.name); }
     out.set(r.item, t);
   }
   return [...out.values()];
+}
+// Counted in every place and under its running-low level.
+const ctIsLow = (t) => t.low > 0 && t.done === t.of && t.n < t.low;
+
+/* ---- Running low: a heads-up before it's an 86 ----
+   A manager gives a product a level, in what it's counted in ("Running low below 2 bottles"). Its total from the
+   latest count that counted it in every place, plus deliveries logged since, below that level is running low. It shows
+   on the 86 board, the bar station, Needs you now, the count, the handover and the morning's order. Something already
+   86'd is on the 86 board instead, so it's never listed twice. Nothing is saved: it's worked out from the count. */
+var ctLowMemo = null;
+function lowNow() {
+  if (!LIVE.me || !LIVE.lowLines?.length) return [];
+  const k = [LIVE.lowLines, LIVE.countSetup, LIVE.received, LIVE.out, LIVE.items];
+  if (ctLowMemo && ctLowMemo.k.every((x, i) => x === k[i])) return ctLowMemo.v;
+  const rows = ctRows().filter((r) => r.low > 0), out = [];
+  for (const item of new Set(rows.map((r) => r.item))) {
+    if (LIVE.out.has(item)) continue;
+    const places = rows.filter((r) => r.item === item), ls = (LIVE.lowLines || []).filter((x) => x.item === item && places.some((r) => r.area === x.area));
+    const day = [...new Set(ls.map((x) => x.day))].sort().reverse().find((d) => places.every((r) => ls.some((x) => x.day === d && x.area === r.area)));
+    if (!day) continue;
+    const got = (LIVE.received || []).filter((x) => x.item === item && x.day > day).reduce((n, x) => n + x.qty / 100, 0);
+    const n = ls.filter((x) => x.day === day).reduce((t, x) => t + ctQty(x), 0) + got, r = places[0];
+    if (n < r.low) out.push({ item, n, u: r.u, low: r.low, day, got });
+  }
+  const v = out.sort((a, b) => a.n / a.low - b.n / b.low || a.item.localeCompare(b.item));
+  ctLowMemo = { k, v };
+  return v;
+}
+function lowSay(x) { return `${ctSay(x.u, x.n)} left, low below ${ctSay(x.u, x.low)}`; }
+// On the 86 board and the bar station: what's running low, each with 86 it for when it runs out.
+function lowHtml(btn) {
+  const xs = lowNow(); if (!xs.length) return "";
+  return `<div class="sec">Running low</div><p class="note">From the latest stock count. Not out yet: 86 it when it runs out.</p>
+    ${xs.map((x) => `<div class="tally-row low-row" style="grid-template-columns:1fr auto"><div class="n" translate="no">${esc(x.item)}<div class="s">${lowSay(x)} · counted ${esc(dayName(x.day))}${x.got ? `, ${ctNum(x.got)} in since` : ""}</div></div>${btn(x.item)}</div>`).join("")}`;
 }
 const ctDate = (d) => new Date(d + "T12:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
@@ -238,14 +272,16 @@ function ctHtml() {
     <div id="ct-list">${ctListHtml()}</div>
     <details class="setup" id="ct-tot-box"${ctTotOpen ?? wide ? " open" : ""}><summary>Totals so far${tot.some((t) => t.done) ? ` (${tot.filter((t) => t.done).length})` : ""}</summary>
       <p class="note">Each product added up across its places, for typing into Nory.</p>
-      <div class="ct-tot">${tot.filter((t) => t.done).map((t) => `<div><span>${esc(t.item)}</span><b>${ctSay(t.u, t.n)}${t.done < t.of ? " <small>(not all places)</small>" : ""}</b></div>`).join("") || `<p class="note">Nothing counted yet.</p>`}</div></details>
+      <div class="ct-tot">${tot.filter((t) => t.done).map((t) => `<div${ctIsLow(t) ? ' class="flag"' : ""}><span>${esc(t.item)}${ctIsLow(t) ? `<small>Running low: below ${ctSay(t.u, t.low)}</small>` : ""}</span><b>${ctSay(t.u, t.n)}${t.done < t.of ? " <small>(not all places)</small>" : ""}</b></div>`).join("") || `<p class="note">Nothing counted yet.</p>`}</div></details>
     <div class="actions">${sendBtn("count", "Send on WhatsApp", ctDay)}<button class="btn" id="ct-csv">Spreadsheet (Numbers, Excel)</button></div>
     ${ctInHtml()}${ctUseHtml()}
     ${LIVE.admin ? `<div class="actions"><button class="btn" id="ct-setup">Set up the count</button></div>` : ""}`;
 }
 // Not counted yet, everything, or what's been counted; By place (the order you walk it, with the places to jump to) or
 // A to Z (the letter strip down the side, for finding one thing); and the lines. A search looks in every place.
+var ctLowSet = new Set();
 function ctListHtml() {
+  ctLowSet = new Set(ctTotals().filter(ctIsLow).map((t) => t.item));
   const rows = ctRows(), areas = [...new Set(rows.map((r) => r.area))], found = ctQ.trim() ? ctFind(ctQ, rows) : null;
   const todo = rows.filter((r) => !ctLine(r)).length;
   const show = (r) => r.key === ctOpen || ctShow === "all" || (ctShow === "todo" ? !ctLine(r) : !!ctLine(r));
@@ -277,7 +313,7 @@ function ctDo(r) {
 }
 function ctRowHtml(r, where) {
   const x = ctLine(r), on = ctOpen === r.key;
-  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
+  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}${ctLowSet.has(r.item) ? `<small class="ct-low">Running low</small>` : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
 }
 // The line being counted, one way through: the full ones, then the open one (weighed if the scale can, else its
 // level), then Next. Big buttons for wet hands.
@@ -286,7 +322,8 @@ function ctEditHtml(r, x) {
   const step = (k, n, label) => `<div class="ct-step"><span>${label}</span><button class="ct-big" data-ct-add="${k}:-1" aria-label="One less">−</button><b>${n}</b><button class="ct-big" data-ct-add="${k}:1" aria-label="One more">+</button></div>`;
   const lvl = `<div class="ct-open"><div><span>Open bottle</span><b>${open ? `${ctNum(open / 100)}${r.ml ? ` · ${Math.round((open / 100) * r.ml)} ml` : ""}` : "None"}</b><button class="btn" data-ct-set="${full}:0">No open one</button></div>${ctBottle(open)}</div>`;
   const total = x ? `<p class="ct-sum">Total here: <b>${ctSay(r.u, ctQty(x))}</b></p>` : "";
-  const foot = `${total}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}<button class="btn pri" data-ct-next="${esc(r.key)}">Next ›</button></div>`;
+  const lowSet = LIVE.admin ? `<div class="ct-lowset" data-ct-item="${esc(r.item)}" data-ct-area="${esc(r.area)}">${ctLowField(r)}</div>` : "";
+  const foot = `${total}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}<button class="btn pri" data-ct-next="${esc(r.key)}">Next ›</button></div>`;
   const one = r.size && r.u !== "bottle" ? `<p class="s ct-size">One is a ${esc(r.size)}${r.guess ? " (the usual size: a manager can change it)" : ""}.</p>` : "";
   if (r.u !== "bottle") return `<div class="ct-edit">${one}${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
   // Phones show one way at a time, the scale first; picking the level sticks until the scale is picked again.
@@ -295,6 +332,9 @@ function ctEditHtml(r, x) {
   return `<div class="ct-edit ct-b"><div class="ct-c1"><p class="ct-n">1. Full, sealed bottles${r.size ? ` <small>${esc(r.size)}</small>` : ""}</p>${step("full", full, "Full")}</div>
     <div class="ct-c2"><p class="ct-n">2. The open one</p>${how}</div>${foot}</div>`;
 }
+// Managers: the product's levels, in what it's counted in, all places together. Running low below: the heads-up before
+// an 86. Par: what the order draft orders back up to. Blank is off.
+const ctLowField = (r) => `<div class="two"><label class="fld">Running low below <span class="s">(${ctUnit(r.u, 2).trim() || "how many"})</span><input inputmode="decimal" data-ct-f="low" value="${r.low || ""}" placeholder="Off"></label><label class="fld">Par: order up to<input inputmode="decimal" data-ct-f="par" value="${ctSetup().items[r.item]?.par ?? ""}" placeholder="Off"></label></div>`;
 // The open bottle: tap how full it is, in tenths. Top band is full.
 function ctBottle(open) {
   const lv = Math.round(open / 10);
@@ -445,7 +485,8 @@ SHARE.count = (day) => {
   if (!got.length) return null;
   const by = [...new Set(got.flatMap((x) => x.by.split(", ")))];
   return { title: `Stock count, ${ctDate(day)}`, head: [`Counted by ${by.join(", ")}`, `${got.length} of ${t.length} products counted`],
-    parts: [{ id: "tot", label: "Totals", lines: got.map((x) => `${x.item}: ${ctSay(x.u, x.n)}${x.done < x.of ? " (not all places)" : ""}`) },
+    parts: [{ id: "low", label: "Running low", lines: got.filter(ctIsLow).map((x) => `${x.item}: ${ctSay(x.u, x.n)} (low below ${ctSay(x.u, x.low)})`) },
+      { id: "tot", label: "Totals", lines: got.map((x) => `${x.item}: ${ctSay(x.u, x.n)}${x.done < x.of ? " (not all places)" : ""}`) },
       { id: "not", label: "Not counted", off: true, lines: t.filter((x) => !x.done).map((x) => x.item) }],
     photos: async () => ctPictures(`Stock count, ${ctDate(day)}`, ["Item", "Count", "Unit", "Counted by"], got.map((x) => [x.item, ctNum(x.n), x.u, x.by])) };
 };
@@ -509,6 +550,8 @@ function ctSetupHtml() {
   return `<div class="sec">Set up the count</div>
     <p class="note">The places in the order you walk them, what's counted in each, in what, and bottle weights for weighing. Changes save straight away for everyone. A product kept in two places can be counted in both: its total adds them up.</p>
     <div class="actions"><button class="btn pri" id="ct-setup-done">Back to the count</button></div>
+    <div class="mini">Running low levels</div>
+    <p class="note">${(() => { const ls = [...new Map(all.filter((r) => r.low > 0).map((r) => [r.item, r])).values()]; return ls.length ? `Set on ${ls.length}: ${ls.map((r) => `${esc(r.item)} below ${ctSay(r.u, r.low)}`).join(", ")}.` : "None set yet."; })()} Open a product below, or a line while counting, to set one. Below it after a count, it shows as running low on the 86 board, the bar station and Needs you now, before it's an 86.</p>
     <div class="mini">Places, in walking order</div>
     ${areas.map((a, i) => `<div class="tally-row" style="grid-template-columns:1fr auto auto auto"><div class="n">${esc(a)} <span class="s">${all.filter((r) => r.area === a).length}</span></div><button class="btn" data-ct-amove="${i}:-1" aria-label="Move ${esc(a)} up"${i ? "" : " disabled"}>↑</button><button class="btn" data-ct-amove="${i}:1" aria-label="Move ${esc(a)} down"${i < areas.length - 1 ? "" : " disabled"}>↓</button><button class="btn" data-ct-adrop="${esc(a)}"${all.some((r) => r.area === a) ? " disabled" : ""}>Remove</button></div>`).join("")}
     <div class="ltools"><input id="ct-anew" maxlength="40" placeholder="Add a place, like Keg room" aria-label="New place"><button class="btn" id="ct-aadd">Add</button></div>
@@ -520,6 +563,7 @@ function ctSetupHtml() {
         <label class="fld">Place<select data-ct-f="area">${areas.map((x) => `<option${x === a ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label></div>
         ${first ? `<label class="fld">Also counted in<select data-ct-f="also"><option value="">Nowhere else</option>${areas.filter((x) => x !== a).map((x) => `<option${r.a.includes(x) ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>` : `<p class="s">Also counted in ${esc(r.a.filter((x) => x !== a).join(", "))}.</p>`}
         ${r.u === "bottle" ? ctWeightsHtml(r) : `<div class="two"><label class="fld">One portion or unit, grams <span class="s">(to weigh)</span><input inputmode="decimal" data-ct-f="pw" value="${r.pw || ""}"></label><label class="fld">Container, grams<input inputmode="decimal" data-ct-f="e" value="${r.e || ""}"></label></div>`}
+        ${first ? ctLowField(r) : ""}
         <label class="check"><input type="checkbox" data-ct-f="off"${r.off ? " checked" : ""}> Don't count this</label></div>` : ""}</details>`;
     }).join("")}`; }).join("")}`;
 }
@@ -639,6 +683,8 @@ $("#sheet").addEventListener("change", (e) => {
     if (f === "u") ctItemSet(s, r, { u: el.value });
     if (f === "off") ctItemSet(s, r, { off: el.checked });
     if (f === "pw" || f === "e") ctItemSet(s, r, { [f]: +el.value.replace(",", ".") || 0 });
+    if (f === "low") ctItemSet(s, r, { low: Math.max(0, Math.min(9999, +el.value.replace(",", ".") || 0)) });
+    if (f === "par") { const v = el.value.trim().replace(",", "."); ctItemSet(s, r, {}); if (v === "" || isNaN(+v)) delete s.items[r.item].par; else s.items[r.item].par = Math.max(0, Math.round(+v * 100) / 100); }
     if (f === "area") { ctItemSet(s, r, { a: [...new Set(r.a.map((x) => (x === area ? el.value : x)))] }); ctSetOpen = `${el.value}|${r.item}`; }
     if (f === "also") ctItemSet(s, r, { a: el.value ? [r.a[0], el.value] : [r.a[0]] });
   });
