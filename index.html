@@ -290,6 +290,7 @@ nav.tabs button[aria-current="page"] svg { background: color-mix(in srgb, var(--
 .addph label { cursor: pointer; }
 .confirm { margin-top: 10px; padding: 12px; border: 1px solid var(--warn); border-radius: 10px; }
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(var(--tabh) + 16px + env(safe-area-inset-bottom, 0px)); z-index: 30; background: var(--fg); color: var(--bg); padding: 10px 16px; border-radius: 999px; font-weight: 700; }
+.toast-undo { margin-left: 10px; min-height: 36px; padding: 0 6px; font: inherit; font-weight: 800; color: inherit; background: none; border: 0; text-decoration: underline; text-underline-offset: 3px; }
 .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 20px; margin-top: 14px; text-align: center; }
 .card .g { display: block; width: 90px; height: 104px; margin: 0 auto; }
 .card .g svg { width: 100%; height: 100%; }
@@ -456,7 +457,11 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .soon { display: inline-block; margin-top: 6px; padding: 4px 10px; border-radius: 99px; border: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
 .prep.done .box { background: var(--ok); border-color: var(--ok); }
 .prep.done > span:last-child { color: var(--muted); text-decoration: line-through; }
-.brandr { display: flex; align-items: center; gap: 6px; }
+.brandr { display: flex; align-items: center; gap: 6px; flex: none; }
+/* Narrow phones: the name gives way to the buttons (no sideways scrolling), "Bar Book" first. */
+.brand h1 { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 430px) { .brandr { gap: 4px; } .brandr .hbtn { width: 36px; height: 36px; } .brand:has(.langbtn:not([hidden])) h1 span { display: none; } }
+@media (max-width: 360px) { .brand h1 span { display: none; } }
 b.dt { color: var(--fg); font-weight: 700; }
 .bell { position: relative; width: 44px; height: 44px; display: grid; place-items: center; color: var(--fg); }
 .bell svg { width: 26px; height: 26px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
@@ -733,6 +738,12 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 #v-count .ct-find { position: sticky; top: 0; z-index: 4; background: var(--bg); margin: 8px calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0; padding: calc(env(safe-area-inset-top, 0px) + 8px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
 #v-count .shift-top .s { color: var(--muted); font-size: 14px; }
 @media (max-width: 429px) { .ct-bl { display: none; } .ct-find #ct-scan, .ct-find #ct-mic { min-width: 48px; padding-inline: 10px; font-size: 20px; } }
+.ct-note { margin: 10px 0; padding: 10px 12px; border: 1px solid var(--brass); border-radius: 14px; background: var(--surface); }
+.ct-nrow { display: grid; grid-template-columns: auto 1fr 76px auto; gap: 8px; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.ct-nrow input[type=checkbox] { width: 24px; height: 24px; }
+.ct-nrow label small { display: block; font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ct-nrow label { min-width: 0; font-weight: 700; }
+.ct-nrow input[type=number] { min-height: 40px; width: 100%; font: inherit; }
 .ct-scan { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--brass); border-radius: 14px; background: var(--surface); }
 .ct-scan h3 { margin: 4px 0 8px; font-size: 22px; }
 .ct-scan .s { margin: 0; }
@@ -959,6 +970,12 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .lfold > summary { list-style: none; cursor: pointer; }
 .lfold > summary::-webkit-details-marker { display: none; }
 .ltools { display: grid; grid-template-columns: 1fr auto; gap: 8px; margin-top: 10px; }
+.ltools.lt1 { display: flex; flex-wrap: wrap; }
+/* More, This phone: one compact row per setting, like a phone's own Settings: name and a short line, switch on the right. */
+.setrow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 6px 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.setrow b { display: block; font-size: 16px; } .setrow small { display: block; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.setrow .seg { margin: 0; min-width: 150px; } .setrow .seg button { min-height: 40px; padding: 6px 10px; }
+.setrow.full { grid-template-columns: 1fr; } .setrow.full .seg { min-width: 0; }
 /* Send: WhatsApp, Text and the rest stay in reach at the foot of the screen while you pick what goes in. */
 .sendbar { position: sticky; bottom: 0; z-index: 2; padding: 10px 0 calc(env(safe-area-inset-bottom, 0px) + 10px); background: linear-gradient(to bottom, transparent, var(--bg) 14px); }
 .actions.fresh { margin-top: 28px; padding-top: 14px; border-top: 1px solid var(--line); }
@@ -1163,13 +1180,6 @@ body.stmode #say { bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
 .say-auto { margin-top: 8px; }
 .sc-steps { padding-left: 22px; } .sc-steps li { margin: 6px 0; }
 .sc-url { font-size: 12px; word-break: break-all; }
-#since { position: fixed; inset: 0; z-index: 40; background: rgb(0 0 0 / .55); display: flex; align-items: flex-end; justify-content: center; padding: 16px 12px calc(env(safe-area-inset-bottom, 0px) + 16px); }
-.since-card { width: min(560px, 100%); max-height: 80vh; overflow-y: auto; background: var(--bg); border: 2px solid var(--brass); border-radius: 20px; padding: 16px; }
-.since-card h2 { margin: 0; font-size: 24px; }
-.since-p { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; width: 100%; text-align: left; font: inherit; color: var(--fg); background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin: 8px 0; }
-.since-p.hot { border-color: var(--warn); }
-.since-p span { color: var(--muted); font-size: 15px; }
-.since-card .btn.wide { margin-top: 8px; }
 .dr-card.ph .btn { margin-top: 8px; }
 .ph-langs { margin: 6px 0 0; padding: 0; }
 .ph-card { padding: 28px 18px; }
@@ -1279,7 +1289,6 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <button data-tab="tally"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l2 2 4-4M8.5 16h7"/></svg>Shift</button>
   <button data-tab="count" hidden><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V9l3-2V4h2v3l3 2v11"/><path d="M15 20v-7h5v7"/><path d="M8 13h4"/></svg>Stock</button>
   <button data-tab="notices"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><span class="dot" id="team-n" hidden></span>Team</button>
-  <button data-tab="pay"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>My pay</button>
   <button data-tab="info"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>More</button>
 </nav>
 <button class="sx-back" id="sx-back" hidden>‹ Bar station</button>
@@ -1428,6 +1437,12 @@ function track(p, ok, fail = "Not saved. Try again") {
 }
 addEventListener("online", () => renderNet()); addEventListener("offline", () => renderNet());
 function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 1800); }
+// A clear on this phone only (the round, the cocktail maker): done straight away, with ↩ Undo on the toast for 8 seconds.
+function undoToast(msg, undo) {
+  const t = $("#toast"); t.innerHTML = `${esc(msg)} <button class="toast-undo" type="button">\u21a9 Undo</button>`; t.hidden = false;
+  t.querySelector(".toast-undo").onclick = () => { t.hidden = true; haptic(); undo(); };
+  clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 8000);
+}
 /* ---------- Send: WhatsApp, email, the phone's share sheet, copy or print ----------
    Every Send button opens the same page. SHARE[k]() builds the message right then: what it is, a title, two or three
    summary lines, then its parts, each with a tick box (ticked when it has anything in it), and photos where there are
@@ -2816,8 +2831,9 @@ function runText(k) {
 function runHtml(k) {
   const r = runOf(k), st = r?.status || "todo", p = progress(k), A = LIVE.admin;
   const b = (to, label, cls = "") => `<button class="btn${cls}" data-run="${k}" data-to="${to}">${label}</button>`;
-  // Not started yet: nothing to show. The first tick starts the close, so there's no Start button to press first.
-  if (st === "todo" && p.n < p.of && !A) return "";
+  // Not started yet: nothing to show, managers included. The first tick starts the close, so there's no Start button
+  // to press first, and Finish anyway… shows once it's under way.
+  if (st === "todo" && p.n < p.of && (!A || p.n === 0)) return "";
   const btns = st === "finished" ? b("reopen", "Reopen…") : [p.n === p.of ? b("finished", "Finish", " pri") : A && b("override", "Finish anyway…")].filter(Boolean).join("");
   const hint = st !== "finished" && p.n < p.of && !A ? `<div class="s">Finish shows once every item is done.</div>` : "";
   return `<div class="run"><div class="n"><span class="pill ${st === "finished" ? "ok" : st === "started" ? "wait" : ""}">${RUN[st]}</span> ${r ? esc(runText(k)) : "Not started yet."}</div>${hint}${btns ? `<div class="actions">${btns}</div>` : ""}</div>`;
@@ -2837,8 +2853,10 @@ const openOf = (k, ids) => ids.filter((i) => ["todo", "doing", "blocked"].includ
 const lfShut = store.get("lfShut", {});
 function checklistHtml(k) {
   const p = progress(k), locked = isLocked(k), any = shown(k).some(([i]) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
-  const tools = locked ? "" : `<div class="ltools">${p.n < p.of ? `<button class="btn" data-tick-all="${k}">Tick all done</button>` : "<span></span>"}${any ? `<button class="btn" data-clear-list="${k}">Clear</button>` : ""}</div>
-    <div class="ltools"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button>${groupsOf(k).filter(([g]) => g).length > 1 ? `<button class="chip" data-lf-all="${k}">${groupsOf(k).some(([g]) => g && lfShut[`${k}|${g}`]) ? "Open every heading" : "Fold every heading"}</button>` : "<span></span>"}</div>
+  // One row of tools. A list with headings has Tick all on each heading, so the whole-list Tick all done is only on a
+  // list without them (ticking 39 jobs in one tap isn't a close).
+  const heads = groupsOf(k).filter(([g]) => g).length;
+  const tools = locked ? "" : `<div class="ltools lt1"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button>${heads > 1 ? `<button class="chip" data-lf-all="${k}">${groupsOf(k).some(([g]) => g && lfShut[`${k}|${g}`]) ? "Open every heading" : "Fold every heading"}</button>` : ""}${!heads && p.n < p.of ? `<button class="chip" data-tick-all="${k}">Tick all done</button>` : ""}${canUndoList(k) ? `<button class="chip pri" data-undo-list="${k}">\u21a9 Undo clear</button>` : any ? `<button class="chip" data-clear-list="${k}">\u21ba Clear</button>` : ""}</div>
     ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
@@ -2909,12 +2927,27 @@ function resetList(k, ids) {
   return jobs;
 }
 const touched = (k) => shown(k).map(([i]) => i).filter((i) => ["done", "doing", "blocked"].includes(statusOf(k, i)));
+/* Clear, the same on every list in Bar Book: it sits in the row of tools at the top of the list, it acts straight away
+   (no "are you sure?"), and for UNDO_MINS it turns into ↩ Undo clear in the same spot, which puts back exactly what it
+   took (the toast says so too). Undo over a question, as Gmail and the phone's own apps do: a mis-tap costs one tap,
+   not a dialog every time. Lists also start fresh by themselves at 6am (each shift day has its own), so Clear is only
+   for starting again part-way through a night. */
+const listUndo = {};
+const canUndoList = (k) => listUndo[k] && Date.now() < listUndo[k].until;
 function clearList(k) {
   const t = LISTS[k].title, ids = touched(k);
   if (!ids.length && !isLocked(k)) return toast("Nothing to clear");
-  if (!confirm(`Clear the ${t.toLowerCase()}? ${ids.length} item${ids.length === 1 ? "" : "s"} go back to not started, on every phone.`)) return;
-  track(Promise.all(resetList(k, ids)), `${t} cleared`, "Not all cleared. Check your signal and try again");
-  more = ""; haptic();
+  listUndo[k] = { until: Date.now() + UNDO_MINS * 6e4, tasks: ids.map((i) => ({ i, status: statusOf(k, i), note: taskOf(k, i).note || "" })), run: isLocked(k) ? { ...progress(k), note: runOf(k).note || "" } : null };
+  track(Promise.all(resetList(k, ids)), `${t} cleared. ↩ Undo clear is where Clear was`, "Not all cleared. Check your signal and try again");
+  more = ""; haptic(); renderTally();
+}
+function undoList(k) {
+  const u = listUndo[k]; delete listUndo[k];
+  if (!u || Date.now() > u.until) { renderTally(); return toast("Too late to undo"); }
+  const A = LIVE.api, jobs = u.tasks.map((x) => A.setTask(k, x.i, itemText(k, x.i), x.status, { note: x.note }));
+  if (u.run) jobs.push(A.setRun(k, LISTS[k].title, "finished", u.run.n, u.run.of, u.run.note));
+  track(Promise.all(jobs), `${LISTS[k].title}: put back as it was`, "Not all put back. Check your signal and try again");
+  haptic(); renderTally();
 }
 /* Clear everything, for a fresh start, on every phone: both closing lists back to not started, everything back in
    stock, restocks still waiting cancelled (all of them for a manager, your own for anyone else: the rules let only the
@@ -2926,7 +2959,8 @@ function clearList(k) {
    A mis-tap mid-service would put 86'd items back on sale, so whatever was cleared is kept on this phone for 15
    minutes and Undo clear puts it all back. */
 const UNDO_MINS = 15;
-let undoClear = null;
+let undoClear = null, outUndo = null;
+const canUndoOut = () => !!outUndo && Date.now() < outUndo.until;
 const clearRestocks = () => rsOpen().filter((x) => x.status !== "delivered" && (LIVE.admin || x.askedUid === LIVE.uid));
 async function clearAll(master) {
   const lists = Object.values(MODE_LISTS).flat(), A = LIVE.api, rs = clearRestocks();
@@ -3671,6 +3705,8 @@ function paneBadge(k) {
 }
 let lastPane = "";
 function renderTally() {
+  // Morning has the brief's ring on the page, so Needs you now leaves it off there: checked when the pane changes.
+  if (MG_READY && lastPane !== mode + pane) renderAlerts();
   if (!LIVE.me) {
     renderFootball();
     $("#shift-title").textContent = `${sideName(mode)} shift`; $("#shift-day").textContent = "";
@@ -3692,7 +3728,7 @@ function renderTally() {
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
       ${outList.length ? outList.map((n) => { const sw = pkSwap(n), u = pkUses(n); return `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) || u ? `<div class="s">${outBy(n) ? `86'd by ${outBy(n)}` : ""}${u ? `${outBy(n) ? " · " : ""}${plural(u, "drink")} use it` : ""}</div>` : ""}${sw ? `<div class="s pk-sw">${esc(sw)}</div>` : ""}</div><button class="btn" data-out-back="${esc(n)}">Back in stock</button></div>`; }).join("") : `<p class="note">Nothing 86'd.</p>`}
-      ${outList.length ? `<div class="actions">${sendBtn("out", "Send the 86 list")}<button class="btn" data-out-clear>All back in stock</button></div>` : ""}
+      ${outList.length || canUndoOut() ? `<div class="actions">${outList.length ? sendBtn("out", "Send the 86 list") : ""}${canUndoOut() ? `<button class="btn pri" data-out-undo>\u21a9 Undo clear</button>` : `<button class="btn" data-out-clear>\u21ba Clear: all back in stock</button>`}</div>` : ""}
       ${lowHtml((n) => `<button class="btn" data-out-quick="${esc(n)}">86 it</button>`)}
       ${pkBtn("Search everything to 86: drinks, bottles, cakes, boxes", `data-pk86="${mode}"`)}
       <div class="mini">Quick 86: recent and most 86'd</div><div class="recent" translate="no">${pkTop(mode).filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
@@ -3859,6 +3895,7 @@ $("#tally").addEventListener("click", async (e) => {
   const ta = e.target.closest("[data-tick-all]"); if (ta) { tickAll(ta.dataset.tickAll, ta.dataset.g); return; }
   const cg = e.target.closest("[data-claim]"); if (cg) { claimGroup(cg.dataset.claim, cg.dataset.g); return; }
   const cr = e.target.closest("[data-clear-list]"); if (cr) { clearList(cr.dataset.clearList); return; }
+  const ul = e.target.closest("[data-undo-list]"); if (ul) { undoList(ul.dataset.undoList); return; }
   if (e.target.closest("#clear-all")) { clearAll(false); return; }
   if (e.target.closest("#undo-clear")) { undoClearAll(); return; }
   if (e.target.closest("[data-left-only]")) { leftOnly = !leftOnly; store.set("leftOnly", leftOnly); haptic(); renderTally(); return; }
@@ -3901,10 +3938,17 @@ $("#tally").addEventListener("click", async (e) => {
   const bk = e.target.closest("[data-out-back]"); if (bk) { pk86([bk.dataset.outBack], false); renderTally(); renderList(); return; }
   const oq = e.target.closest("[data-out-quick]"); if (oq) { pk86([oq.dataset.outQuick], true); renderList(); renderTally(); return; }
   if (e.target.closest("[data-out-clear]")) {
-    const xs = [...outNow()];
-    if (!xs.length || !confirm(`Put all ${xs.length} back in stock? It clears the 86 board on every phone.`)) return;
-    track(Promise.all(xs.map((n) => LIVE.api.set86(n, false))), "The 86 board is clear", "Not all cleared. Check your signal and try again");
-    haptic(); return;
+    const xs = [...outNow()]; if (!xs.length) return;
+    outUndo = { until: Date.now() + UNDO_MINS * 6e4, xs };
+    track(Promise.all(xs.map((n) => LIVE.api.set86(n, false))), "The 86 board is clear. ↩ Undo clear is where Clear was", "Not all cleared. Check your signal and try again");
+    haptic(); renderTally(); renderList(); return;
+  }
+  if (e.target.closest("[data-out-undo]")) {
+    const u = outUndo; outUndo = null;
+    if (!u || Date.now() > u.until) { renderTally(); return toast("Too late to undo"); }
+    const xs = u.xs.filter((n) => !outNow().has(n));
+    track(Promise.all(xs.map((n) => LIVE.api.set86(n, true))), `${plural(xs.length, "item")} 86'd again`, "Not all put back. Check your signal and try again");
+    haptic(); renderTally(); renderList(); return;
   }
   if (e.target.closest("#rs-item")) { haptic(); return pkOpen({ mode: "one", title: "What's needed from the cellar?", other: true, onPick: ([n]) => { rsF.item = n.slice(0, 80); renderTally(); } }); }
   if (e.target.closest("[data-lb-pick]")) {
@@ -3958,8 +4002,8 @@ function renderFootball() {
       <label class="fld">Competition<input data-fx="comp" list="fx-comps" maxlength="40" value="${v("comp")}"></label><label class="fld">Channel<input data-fx="channel" list="fx-chans" maxlength="30" value="${v("channel")}"></label></div>
       <label class="fld">Which screen<input data-fx="screen" maxlength="30" placeholder="All screens, upstairs bar…" value="${v("screen")}"></label>
       ${list("fx-comps", COMPS)}${list("fx-chans", CHANNELS)}<button class="btn pri wide" id="fx-go">Add the game</button></details>` : "";
-  // No games: a manager gets one line to add one, not a whole card on top of every Shift page.
-  if (none) { box.innerHTML = `<div class="football fb-none">${form}</div>`; return; }
+  // No games: a manager gets one line to add one on Morning only, not on top of every Shift page.
+  if (none) { box.innerHTML = pane === "morning" ? `<div class="football fb-none">${form}</div>` : ""; return; }
   box.innerHTML = `<div class="notice football"><div class="meta"><b>Football tonight</b></div>
     ${now.length ? now.map(fxRow).join("") : `<p class="note">No games on our screens today.</p>`}
     ${soon.length ? `<details><summary>Coming up (${soon.length})</summary>${soon.map((x) => `<div class="s" style="margin-top:8px"><b>${esc(dayName(x.day))}</b></div>${fxRow(x)}`).join("")}</details>` : ""}
@@ -5056,7 +5100,7 @@ function payInner() {
   const M = monthPay(pm), H = M.H, open = (k) => (paySec.has(k) ? " open" : ""), ns = Object.keys(pay.slips).length, xs = inM(pm);
   const panel = hf.open ? hfHtml() : slip.open ? slipPanelHtml() : slipTy.open ? slipTyHtml() : "";
   // The same tabs as Shift, under the same kind of page title.
-  const tabs = `<h2 class="pgt">My pay</h2><div class="ptabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}">${t}</button>`).join("")}</div>`;
+  const tabs = `<button class="back" data-back>‹ More</button><h2 class="pgt">My pay</h2><div class="ptabs" role="tablist" aria-label="My pay">${PAY_TABS.map(([k, t]) => `<button role="tab" data-pay-tab="${k}" aria-selected="${payTab === k}">${t}</button>`).join("")}</div>`;
   if (payTab === "months") return `${tabs}
     <div id="pay-months">${monthsHtml()}</div>
     <div class="payacts"><label class="btn pri">Add payslips<input type="file" accept="image/*,application/pdf,.pdf,text/plain" multiple data-slip-file hidden></label><button class="btn" data-ty-open>Type it in</button><button class="btn" data-hf-open>Add hours</button></div>`;
@@ -5290,6 +5334,7 @@ const IC = {
   fun: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
   replay: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/><path d="M10.5 9.5l4 2.5-4 2.5z"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
+  pay: '<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
 const hubRow = (k, attr, t, sub) => `<${attr.startsWith("href") ? "a" : "button"} class="hrow2" ${attr}><span class="hic">${icon(k)}</span><span><b>${t}</b><small>${sub}</small></span><span class="chev" aria-hidden="true">${attr.startsWith("href") ? "↗" : "›"}</span></${attr.startsWith("href") ? "a" : "button"}>`;
@@ -5298,6 +5343,7 @@ function renderInfo() {
   const prep = DATA.prep.map((p) => `<h3 style="font-size:18px;margin-top:14px">${esc(p.name)}</h3><ul>${p.spec.map((s) => `<li>${esc(s)}</li>`).join("")}</ul>`).join("");
   $("#v-info").innerHTML = `
     <h2 class="pgt">More</h2>
+    ${sharedDev ? "" : `<div class="sec">You</div><div class="hub">${hubRow("pay", 'data-go="pay"', "My pay", "Your shifts, take-home, tronc and holiday. Kept on this phone only")}</div>`}
     <div class="sec">Drinks</div>
     <div class="hub">
       ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
@@ -5311,9 +5357,7 @@ function renderInfo() {
     </div>
     <div class="sec">Help</div>
     <div class="hub">
-      ${hubRow("features", "data-guide", "Guide: how Bar Book works", "Your shift step by step, every section, and a search for anything")}
-      ${hubRow("replay", `data-walk-open="${mode}"`, "Replay the walkthrough", `Your ${mode} shift step by step, opening to handover`)}
-      ${hubRow("replay", "data-intro-open", "Replay the tour", `Everything Bar Book does, ${INTRO.length} short cards`)}
+      ${hubRow("features", "data-guide", "Guide: how Bar Book works", "The walkthrough, the full tour, every section, and a search for anything")}
       ${hubRow("siri", "data-sc-open", "Siri and shortcuts", "\u201cHey Siri, Bar Book 86\u201d: open any page by voice or a tap on the back of the phone")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
     </div>
@@ -5328,18 +5372,16 @@ function renderInfo() {
     ${fold("tech", "Technique key and words we use", glossHtml())}
     ${fold("prep", "Prep and batches", prep)}
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
-    <div class="sec">This phone</div>
+    <div class="sec" id="set-phone">This phone</div>
     <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
     ${langPanelHtml()}
-    <div class="mini" style="margin-top:14px">Light or dark</div>
-    <div class="seg" style="grid-template-columns:repeat(5,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["clock", "Clock"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
-    <p class="note">Auto follows your phone. Clock goes light and dark at the venue's times, set by a manager. This phone only.</p>
+    <div class="setrow full"><span><b>Light or dark</b><small>Auto follows your phone. Clock follows the venue's times.</small></span>
+    <div class="seg" style="grid-template-columns:repeat(5,1fr)" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["clock", "Clock"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div></div>
     ${sdPhoneHtml()}
-    <div class="mini" style="margin-top:14px">Help buttons (?)</div>
-    <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div>
-    <div class="mini" style="margin-top:14px">Shared iPad or tablet</div>
-    <div class="seg" style="grid-template-columns:repeat(2,1fr);margin-top:6px" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div>
-    <p class="note">Shared: it asks who's using it every time it opens, hides My pay, and a manager's or maintenance's code locks after ${IDLE_MIN} minutes without a tap. Closing and photos save to the team, so anyone can send the handover from their phone.</p>
+    <div class="setrow"><span><b>Help buttons (?)</b><small>The small ? that explains each part</small></span>
+    <div class="seg" style="grid-template-columns:repeat(2,1fr)" role="group" aria-label="Help buttons">${[["on", "Show"], ["off", "Hide"]].map(([k, t]) => `<button data-help-pick="${k}" aria-pressed="${(k === "on") === helpOn()}">${t}</button>`).join("")}</div></div>
+    <div class="setrow"><span><b>Shared iPad or tablet</b><small>Asks who's using it, hides My pay, codes lock after ${IDLE_MIN} minutes</small></span>
+    <div class="seg" style="grid-template-columns:repeat(2,1fr)" role="group" aria-label="Shared iPad or tablet">${[["off", "My own"], ["on", "Shared"]].map(([k, t]) => `<button data-shared-pick="${k}" aria-pressed="${(k === "on") === sharedDev}">${t}</button>`).join("")}</div></div>
     <button class="btn pri wide" id="install" ${installEvt ? "" : "hidden"}>Install the app</button>
     ${fold("home", "Put this app on your home screen", `
     <h3 style="font-size:18px;margin-top:4px">iPhone</h3>
@@ -5493,7 +5535,7 @@ function featHtml() {
   };
   return `<h2 id="sh-name" style="margin-top:12px">What's in Bar Book</h2>
     <p class="lead">The drinks, the shift and the team in one app, for the bar and floor. Here's every feature and what it's for.</p>
-    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without joining you get the drinks, the cocktail maker, Allergens, Practise, More, My pay and the WhatsApp tools. Join with the team code for the rest: no login or password."}</p>
+    <p class="note">${LIVE.me ? "This phone is on the team, so everything here works." : "Without joining you get the drinks, the cocktail maker, Allergens, Practise, More (My pay is in there) and the WhatsApp tools. Join with the team code for the rest: no login or password."}</p>
     <div class="actions"><button class="btn pri" id="tour-go">Take the tour (${tourSteps().length} steps)</button></div>
     ${(() => { const xs = featSorted(FEATURES); return [...new Set(xs.map((f) => f.g))].map((g) => `<div class="sec">${g}</div>${xs.filter((f) => f.g === g).map(card).join("")}`).join(""); })()}`;
 }
@@ -5507,6 +5549,8 @@ function openAt(where) {
   // Going somewhere else closes a page left open on top (the stock count, the tour's last step; the Siri links open
   // their own).
   if (where !== "siri" && !$("#sheet").hidden) hideSheet();
+  if (where !== "guest" && GUEST.on) guestClose(true);
+  if (MG_READY && sto && where !== "brief") storyClose();
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where.startsWith("rep:")) return openReport(where.slice(4));
   // Tonight's closing photos for a side, from a message's link: the close, scrolled to them.
@@ -5518,9 +5562,13 @@ function openAt(where) {
   if (where === "shift") return show("tally");
   if (where === "photos" || where.startsWith("gallery:")) return openGallery(where.slice(8) || shiftDay());
   if (where === "count") return show("count");
+  if (where === "dnote") { ctInHtml.open = true; show("count"); return setTimeout(() => $("#ct-in-box")?.scrollIntoView({ block: "center" }), 120); }
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
   if (where === "guest") return setTimeout(guestOpen, 60);
+  if (where === "brief") return storyOpen();
+  if (where === "phone") { show("info"); return setTimeout(() => $("#set-phone")?.scrollIntoView({ block: "start" }), 60); }
+  if (where === "clear") { pane = closeList(); show("tally"); return setTimeout(() => $("#tally .lt1")?.scrollIntoView({ block: "center" }), 60); }
   if (["drill", "quiz", "wrap", "phrases"].includes(where)) return funGo(where === "wrap" ? "home" : where === "phrases" ? "phr" : where);
   if (["morning", "stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
   show("notices");
@@ -5694,8 +5742,8 @@ let sharedDev = store.get("shared", false), lockDue = false, idleOut = false, la
 const IDLE_MIN = 5;
 function applyShared() {
   document.body.classList.toggle("shared", sharedDev);
-  $('nav.tabs [data-tab="pay"]').hidden = sharedDev; navCols();
   if (sharedDev && cur === "pay") show("drinks");
+  if (cur === "info") renderInfo();
 }
 function sharedLock() {
   if (!sharedDev) return;
@@ -6864,7 +6912,7 @@ addEventListener("resize", csFit);
    the top that never scrolls sideways (Rapid fire, Menu, Make). More holds everything used less often: Allergens,
    Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
    Tapping the tab you're on takes you back to its top. */
-const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "count", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station"];
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "count", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station", "pay"];
 // Bar station mode: this iPad opens on the bar station until Exit bar station turns it off.
 let stationOn = store.get("station", false);
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
@@ -6908,6 +6956,7 @@ function show(tab, fromBack = false) {
   if (tab === "notices") renderNotices();
   if (DRINK_TABS.includes(tab)) store.set("dmode", tab);
   store.set("tab", tab); window.scrollTo(0, 0);
+  if (MG_READY) renderAlerts();
 }
 $("#subnav").addEventListener("click", (e) => { const b = e.target.closest("[data-tab]"); if (b && b.dataset.tab !== cur) { haptic(); show(b.dataset.tab); } });
 $("nav.tabs").addEventListener("click", (e) => {
@@ -7591,7 +7640,7 @@ function mkShelf(on) {
 function mkMakePane() {
   const on = new Set(mk.pick.map((p) => p.k));
   const ed = mk.edit && mk.pick.find((p) => p.k === mk.edit);
-  const picks = mk.pick.length ? `<div class="mk-picks"><span class="mini" style="margin:0;align-self:center">Order:</span>${mk.pick.map((p) => `<span class="mk-pk"><button data-mk-ml="${esc(p.k)}" aria-label="Set ml for ${esc(mkName(p.k))}">${p.ml ? `<span class="ml">${p.ml} ml</span>` : ""}${esc(mkName(p.k))}${p.k.startsWith("~") ? " ✎" : ""}</button><button class="x" data-mk-rm="${esc(p.k)}" aria-label="Remove ${esc(mkName(p.k))}">×</button></span>`).join("")}<button class="chip" data-mk="clear">Clear</button></div>
+  const picks = mk.pick.length ? `<div class="mk-picks"><span class="mini" style="margin:0;align-self:center">Order:</span>${mk.pick.map((p) => `<span class="mk-pk"><button data-mk-ml="${esc(p.k)}" aria-label="Set ml for ${esc(mkName(p.k))}">${p.ml ? `<span class="ml">${p.ml} ml</span>` : ""}${esc(mkName(p.k))}${p.k.startsWith("~") ? " ✎" : ""}</button><button class="x" data-mk-rm="${esc(p.k)}" aria-label="Remove ${esc(mkName(p.k))}">×</button></span>`).join("")}<button class="chip" data-mk="clear">\u21ba Clear</button></div>
     ${ed ? `<div class="mk-mls"><div class="mini">How much ${esc(mkName(ed.k))}?</div>${[null, 10, 12.5, 15, 20, 25, 35, 50, 75, 100].map((n) => `<button class="chip" aria-pressed="${(ed.ml || null) === n}" data-mk-setml="${n ?? ""}">${n ? n + " ml" : "Any amount"}</button>`).join("")}</div>` : ""}` : "";
   const kinds = `<div class="chips hrow" role="toolbar" aria-label="Show">${MK_KINDS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.opt.kind === k}" data-mk-kind="${k}">${l}</button>`).join("")}</div>`;
   let out;
@@ -7834,7 +7883,7 @@ $("#v-make").addEventListener("click", (e) => {
   const a = ds.mk;
   if (a === "btbar") { const ks = new Set(mk.bar); for (const k of BT_KEYS) ks.add(k); mk.bar = [...ks]; mkSave(); toast(`Line-up loaded: My bar has ${mk.bar.length} items`); return mkRedraw(); }
   if (a === "keep") { for (const p of mk.pick) if (!mk.bar.includes(p.k)) mk.bar.push(p.k); mkSave(); toast(`Kept in My bar (${mk.bar.length})`); return mkRedraw(); }
-  if (a === "clear") { mk.pick = []; mk.edit = null; mkSave(); return mkRedraw(); }
+  if (a === "clear") { const was = mk.pick; mk.pick = []; mk.edit = null; mkSave(); mkRedraw(); if (was.length) undoToast("Cleared", () => { mk.pick = was; mkSave(); mkRedraw(); }); return; }
   if (a === "clearbar") { if (confirm("Clear everything from My bar on this phone?")) { mk.bar = []; mkSave(); mkRedraw(); } return; }
   if (a === "unbar") { mk.fromBar = false; return mkRedraw(); }
   if (a === "frombar") { mk.pick = []; mk.fromBar = true; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }
@@ -8093,7 +8142,7 @@ function sxRoundHtml() {
   const cards = SX_BUILDS.map((t, k) => { const g = ds.filter(([d]) => sxOrder(d) === k); return g.length ? `<div class="sx-bh">${t} · ${g.reduce((a, [, n]) => a + n, 0)}</div>${g.map(card).join("")}` : ""; }).join("");
   const allOpen = ds.every(([d]) => sxRxOpen(d, nx));
   return `<div class="sx-rbar"><div class="sx-rbt"><b>Round of ${sxRoundN()}</b><span>${left ? `${left} to make${nx ? ` · next: <span translate="no">${esc(nx.name)}</span>` : ""}` : "All made"}</span></div>
-      <span class="sx-rba">${left && ds.some(([d]) => !SX.made.has(d.id) && sxmOk(d)) ? `<button class="btn pri sx-mkgo" data-sxm-round>▶ Make the round</button>` : ""}<button class="btn" data-sx-round="clear">Clear</button></span></div>
+      <span class="sx-rba">${left && ds.some(([d]) => !SX.made.has(d.id) && sxmOk(d)) ? `<button class="btn pri sx-mkgo" data-sxm-round>▶ Make the round</button>` : ""}<button class="btn" data-sx-round="clear">\u21ba Clear</button></span></div>
     ${left ? "" : `<div class="sx-done"><b>Round made.</b><button class="btn pri" data-sx-round="clear">Clear it for the next one</button></div>`}
     ${add}
     <details class="sx-prepd" data-sx-prep${prepOpen ? " open" : ""}><summary><span class="sx-k">Get ready</span><span>${sum(gl)} glass${sum(gl) === 1 ? "" : "es"}${ic.length ? ` · ${ic.length} kind${ic.length === 1 ? "" : "s"} of ice` : ""}${ga.length ? ` · ${sum(ga)} garnish${sum(ga) === 1 ? "" : "es"}` : ""}${shaken ? ` · ${tins} tin${tins === 1 ? "" : "s"}` : ""}</span></summary>
@@ -8421,7 +8470,11 @@ document.addEventListener("click", (e) => {
   const rb = e.target.closest("[data-sx-round]");
   if (rb) {
     haptic(); const k = rb.dataset.sxRound;
-    if (k === "clear") { SX.round.clear(); SX.made.clear(); SX.rx.clear(); sxSaveRound(); SX.view = "drink"; }
+    if (k === "clear") {
+      const was = { round: [...SX.round], made: [...SX.made], view: SX.view };
+      SX.round.clear(); SX.made.clear(); SX.rx.clear(); sxSaveRound(); SX.view = "drink";
+      if (was.round.length) undoToast("Round cleared", () => { SX.round = new Map(was.round); SX.made = new Set(was.made); SX.view = was.view; sxSaveRound(); sxBars(); sxList(); sxSpec(); });
+    }
     else SX.view = k === "show" ? "round" : "drink";
     sxBars(); sxList(); sxSpec(); if (!sxWide()) window.scrollTo(0, $("#sx-list").offsetTop - 80); return;
   }
@@ -9323,7 +9376,8 @@ const plHits = (d, words) => words.every((w) => plHit(d, w));
 // The words to look for, with typos fixed ("espreso martni" finds the Espresso Martini) and what was fixed, to show.
 function plQuery(q) {
   if (PL.sq?.q === q) return PL.sq;
-  let words = wdFix(plNorm(q)).replace(/&/g, " ").replace(/alcohol[- ]free|non[- ]alcoholic|no alcohol/g, "zero").replace(/\bg ?(&|and|n|\+) ?t\b|\bg&ts?\b/g, "tonic").split(/[\s,]+/).filter(Boolean);
+  // G&T means every tonic drink here, so it is read before the word list (which makes it one drink, for the mic).
+  let words = wdFix(plNorm(q).replace(/\bg ?(&|and|n|\+) ?t\b|\bg&ts?\b|\bgnt\b/g, "tonic")).replace(/&/g, " ").replace(/alcohol[- ]free|non[- ]alcoholic|no alcohol/g, "zero").split(/[\s,]+/).filter(Boolean);
   const kept = words.filter((w) => !PL_STOP.has(w)); if (kept.length) words = kept;
   const out = [], fixed = [];
   words.forEach((w, i) => {
@@ -11322,11 +11376,48 @@ function ctIntroHtml() {
 }
 
 /* ---- Deliveries in, and usage between counts ---- */
+// 📷 Read the note: a photo (or the emailed PDF) of the delivery note is read on this phone by the same free text reader
+// as payslips. Each line that names something on the count comes back ticked with the first plain number on it as how
+// many; the person checks each against the paper (cases or single ones) and logs the ticked ones in one go.
+var ctNote = null;
+function ctNoteLines(text) {
+  const names = [...new Set(ctRows().map((r) => r.item))], seen = [];
+  for (const line of text.split("\n")) {
+    const ts = ctWords(line); if (ts.length < 2) continue;
+    let best = null;
+    for (let i = 0; i < ts.length; i++) for (let j = i + 1; j <= Math.min(ts.length, i + 4); j++) {
+      const win = ts.slice(i, j); if (!win.every((w) => /^[a-z]{2,}$/.test(w)) || (win.length === 1 && win[0].length < 4)) continue;
+      for (const n of names) { const s = ctScore(win, n); if (s != null && s <= (win.length > 1 ? 1 : 0.6) && (!best || s - win.length * 0.01 < best.s)) best = { s: s - win.length * 0.01, item: n, i, j }; }
+    }
+    if (!best) continue;
+    const rest = ts.filter((_, k) => k < best.i || k >= best.j), q = rest.findIndex((w, k) => /^\d{1,3}$/.test(w) && +w > 0 && !/^(cl|ml|l|ltr|litre|litres|g|kg|x|pct)$/.test(rest[k + 1] || ""));
+    const r = ctRows().find((x) => x.item === best.item);
+    seen.push({ item: best.item, u: r.u, n: q < 0 ? "" : +rest[q], on: q >= 0, line: line.trim().slice(0, 60) });
+  }
+  return seen;
+}
+function ctNoteHtml() {
+  if (!ctNote) return "";
+  if (ctNote.busy) return `<p class="note" id="ct-note-busy" role="status">${esc(ctNote.busy)}</p>`;
+  const on = ctNote.rows.filter((x) => x.on && x.n > 0).length;
+  return `<div class="ct-note" role="region" aria-label="Read from the delivery note">${ctNote.rows.length ? `<p class="s"><b>${ctNote.rows.length} line${ctNote.rows.length === 1 ? "" : "s"} found.</b> Check each number against the note (cases or single ones), untick anything wrong.</p>
+    ${ctNote.rows.map((x, i) => `<div class="ct-nrow"><input type="checkbox" id="ct-n${i}" data-ct-note-on="${i}"${x.on ? " checked" : ""}><label for="ct-n${i}">${esc(x.item)}<small>${esc(x.line)}</small></label><input type="number" inputmode="decimal" min="0" step="any" data-ct-note-n="${i}" value="${x.n}" aria-label="How many ${esc(x.item)}"><span class="s">${esc(x.u)}</span></div>`).join("")}`
+    : `<p class="note">Nothing on the note matched the count. Try a closer, flatter photo in good light, or type each one above.</p>`}
+    <div class="actions">${on ? `<button class="btn pri" id="ct-note-go">Log ${on} ticked</button>` : ""}<button class="btn" id="ct-note-x">Close</button></div></div>`;
+}
+async function ctNoteRead(el) {
+  const files = [...el.files]; el.value = ""; if (!files.length) return;
+  const say = (m) => { ctNote = { busy: m }; const b = $("#ct-note-busy"); if (b) b.textContent = m; else ctRender(true); };
+  say("Reading the note…");
+  let texts;
+  try { texts = await readFiles(files, say, true); } catch { ctNote = null; ctRender(true); return toast("The text reader needs signal the first time. Try again with signal"); }
+  ctNote = { rows: ctNoteLines(texts.join("\n")) }; ctInHtml.open = true; ctRender(true);
+}
 function ctInHtml() {
   const ins = (LIVE.received || []).filter((x) => x.day === ctDay);
-  return `<details class="setup" id="ct-in-box"${ctInHtml.open ? " open" : ""}><summary>Delivery in${ins.length ? ` (${ins.length})` : ""}</summary>
-    <p class="note">Log what came in, so usage between counts is right. Like “Smirnoff 6” or “Limes 2 boxes”: the count's own units.</p>
-    <div class="ltools"><input id="ct-in" maxlength="80" autocomplete="off" placeholder="What came in, and how many" aria-label="What came in"><button class="btn" id="ct-in-go">Log it</button></div>
+  return `<details class="setup" id="ct-in-box"${ctInHtml.open || ctNote ? " open" : ""}><summary>Delivery in${ins.length ? ` (${ins.length})` : ""}</summary>
+    <p class="note">Log what came in, so usage between counts is right. Like “Smirnoff 6” or “Limes 2 boxes”: the count's own units. Or 📷 Read the note: a photo of the delivery note, or its PDF.</p>
+    <div class="ltools"><input id="ct-in" maxlength="80" autocomplete="off" placeholder="What came in, and how many" aria-label="What came in"><button class="btn" id="ct-in-go">Log it</button><label class="btn" for="ct-in-ph">📷 Read the note</label><input type="file" accept="image/*,application/pdf" id="ct-in-ph" hidden></div>${ctNoteHtml()}
     ${ins.map((x) => `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(x.item)}: ${ctSay(x.unit, x.qty / 100)}<div class="s">${esc(x.name)}</div></div>${x.uid === LIVE.uid || LIVE.admin ? `<button class="btn" data-ct-in-drop="${x.id}">Take off</button>` : ""}</div>`).join("")}</details>`;
 }
 // Usage per product between the last counts: the count before, plus what came in, less this count. A drop much bigger
@@ -11539,6 +11630,11 @@ $("#v-count").addEventListener("click", (e) => {
     track(LIVE.api.addReceived({ day: ctDay, item: hr.item, unit: hr.u, qty: Math.round(p.n * 100) }), `${hr.item}: ${ctSay(hr.u, p.n)} in`, "Not saved. Check the signal and try again");
     $("#ct-in").value = ""; return;
   }
+  if (t("#ct-note-x")) { ctNote = null; return ctRender(true); }
+  if (t("#ct-note-go")) {
+    const xs = ctNote.rows.filter((x) => x.on && x.n > 0); ctNote = null; ctRender(true);
+    return track(Promise.all(xs.map((x) => LIVE.api.addReceived({ day: ctDay, item: x.item, unit: x.u, qty: Math.round(x.n * 100) }))), `${xs.length} logged in`, "Not saved. Check the signal and try again");
+  }
   const id = t("[data-ct-in-drop]"); if (id) return track(LIVE.api.dropReceived(id.dataset.ctInDrop), "Taken off", "Not taken off. Try again");
   if (t("#ct-use-go")) return ctUseLoad();
   if (t("[data-ct-unit]")) { ctMlFirst = !ctMlFirst; store.set("ctMlFirst", ctMlFirst); toast(ctMlFirst ? "Sizes in ml first. 10 ml = 1 cl" : "Sizes in cl first. 1 cl = 10 ml"); return ctRender(true); }
@@ -11619,6 +11715,9 @@ $("#v-count").addEventListener("change", (e) => {
   if (!$("#ct")) return;
   const el = e.target;
   if (el.id === "ct-ph-in" || el.id === "ct-ref-in") return ctPhoto(el);
+  if (el.id === "ct-in-ph") return ctNoteRead(el);
+  if (el.dataset.ctNoteOn) { ctNote.rows[+el.dataset.ctNoteOn].on = el.checked; return ctRender(true); }
+  if (el.dataset.ctNoteN) { const x = ctNote.rows[+el.dataset.ctNoteN], n = +el.value.replace(",", "."); x.n = n > 0 ? n : ""; x.on = n > 0; el.blur(); return ctRender(true); }
   if (el.id === "ct-day") { ctDay = el.value && el.value <= shiftDay() ? el.value : shiftDay(); ctOpen = ""; ctUse = null; el.blur(); return ctRender(); }
   if (el.id === "ct-type") { const r = ctRow(ctOpen), n = +el.value.replace(",", "."); el.blur(); if (r && el.value.trim() !== "" && n >= 0) { ctPut(r, Math.floor(n + 1e-9), ((n + 1e-9) % 1) * 100); return ctNext(r.key, true); } return ctRender(); }
   if (el.dataset.ctG) {
@@ -11992,7 +12091,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T20:14";
+const BUILD = "2026-11-18T20:33";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -12153,13 +12252,11 @@ function briefHtml() {
   if (!LIVE.me) return "";
   // Last night's handover is in full just below on the Morning page, so the list here leaves it to that.
   const ps = briefParts(), any = ps.filter((p) => p.lines.length && p.id !== "last");
-  const seen = store.get("storySeen", "") === `${shiftDay()}-${mode}`;
-  return `<div class="brief"><button class="story-ring${seen ? " seen" : ""}" data-story aria-label="Play tonight's brief"><span class="sr-dot">▶</span><span><b>Tonight's brief</b><small>${seen ? "Watched. Tap to see it again" : `${plural(any.length + 2, "card")}, tap through`}</small></span></button>
+  return `<div class="brief">${storyRing()}
     ${LIVE.admin ? seenHtml() : ""}
     <div class="sec">Before you open</div>
     ${any.length ? any.map((p) => `<button class="bline${p.hot ? " hot" : ""}" data-goto="${p.k}"><b>${p.label}</b><span translate="no">${p.lines.slice(0, 4).map((l) => esc(lineText(l))).join(" · ")}${p.lines.length > 4 ? ` +${p.lines.length - 4}` : ""}</span></button>`).join("")
       : `<p class="note">✅ Nothing 86'd, no labels due, no open faults.</p>`}
-    <p class="note">Tonight's quiz is ready in Practise: same 10 for everyone.</p>
     <div class="actions">${sendBtn("brief", "Send the brief on WhatsApp")}</div></div>`;
 }
 // The managers' Seen by: who has watched tonight's brief, bar and floor, with when.
@@ -12270,11 +12367,13 @@ function renderAlerts(force) {
   let box = $("#alerts");
   if (!box) { $("#net").insertAdjacentHTML("afterend", `<div class="gut alerts" id="alerts" role="status" hidden></div>`); box = $("#alerts"); }
   const off = new Set(store.get("alOff", [])), xs = alertsNow().filter((x) => !off.has(x.id));
-  const sig = xs.map((x) => x.id).join("|");
-  if ((!force && sig === alShown) || cur === "station") { if (!xs.length || cur === "station") box.hidden = true; return; }
+  // Tonight's brief rides at the top as a stories ring until it's watched to the end (× hides the ring for today too).
+  const ring = storyDue() && store.get("ringOff", "") !== storyKey();
+  const sig = (ring ? "ring|" : "") + xs.map((x) => x.id).join("|");
+  if ((!force && sig === alShown) || cur === "station") { if ((!xs.length && !ring) || cur === "station") box.hidden = true; return; }
   alShown = sig;
-  box.hidden = !xs.length;
-  box.innerHTML = xs.length ? `<div class="al-in"><b>Needs you now</b><button class="al-x" data-al-x aria-label="Hide these">×</button>${xs.map((x) => `<button class="al${x.hot ? " hot" : ""}" data-al-go="${x.go}" data-al-id="${esc(x.id)}">${esc(x.t)}</button>`).join("")}</div>` : "";
+  box.hidden = !xs.length && !ring;
+  box.innerHTML = xs.length || ring ? `<div class="al-in"><b>Needs you now</b><button class="al-x" data-al-x aria-label="Hide these">×</button>${ring ? storyRing(true) : ""}${xs.map((x) => `<button class="al${x.hot ? " hot" : ""}" data-al-go="${x.go}" data-al-id="${esc(x.id)}">${esc(x.t)}</button>`).join("")}</div>` : "";
 }
 // The Team badge counts new messages already, so they aren't counted twice.
 const alBadge = () => { const off = new Set(store.get("alOff", [])); return alertsNow().filter((x) => !off.has(x.id) && !x.id.startsWith("in")).length; };
@@ -12282,6 +12381,7 @@ document.addEventListener("click", (e) => {
   const g = e.target.closest("[data-al-go]"), x = e.target.closest("[data-al-x]");
   if (!g && !x) return;
   const ids = g ? [g.dataset.alId] : [...$$("#alerts [data-al-id]")].map((b) => b.dataset.alId);
+  if (x) store.set("ringOff", storyKey());
   store.set("alOff", [...new Set([...store.get("alOff", []), ...ids])].slice(-60));
   if (ids.some((i) => i.startsWith("lg"))) store.set("alLogs", Date.now());
   $("#alerts").hidden = true; alShown = "";
@@ -12293,46 +12393,83 @@ setTimeout(() => renderAlerts(true), 2500);
 
 
 /* ---------- Tonight's brief as stories ----------
-   The same brief, full screen, one card at a time like stories: bars along the top, tap the right side (or swipe left)
-   for the next, the left side to go back, hold to pause, × to close. Each card moves on by itself after 8 seconds. */
-const STORY_MS = 8000;
+   The one place for what's new: tonight's brief, specs changed in a new release, what changed while you were away and
+   what's new in Bar Book itself, played full screen one card at a time like Instagram or Snapchat stories. Bars along
+   the top; tap the right side (or swipe left) for the next, the left side to go back; hold to pause (the bars hide,
+   like stories do); swipe down or × to close. Each card stays up for as long as it takes to read (about 4 seconds plus
+   a third of a second a word, 5 to 15 seconds). Closed part-way? It opens again where you stopped, the same day.
+   The ring at the top of Needs you now (on every page) and on Morning glows until you reach the end; only then does
+   it count as watched, for the managers' Seen by too, like a read receipt. */
+const STORY_MIN = 5000, STORY_MAX = 15000;
+const storyMs = (c) => { const w = [c.label, c.big || "", ...c.lines.map(lineText)].join(" ").split(/\s+/).filter(Boolean).length; return Math.max(STORY_MIN, Math.min(STORY_MAX, 4000 + w * 330)); };
+const storyKey = () => `${shiftDay()}-${mode}`;
+const storyWatched = () => store.get("storySeen", "") === storyKey();
 let sto = null;
+// What's new in Bar Book itself: shown once per version of the walkthrough to anyone who saw an older one.
+const appNews = () => (walkVer(mode) && !walkSeen(mode) ? [{ id: "app", k: "", label: "New in Bar Book", lines: WALK_NEW, news: 1 }] : []);
 function storyCards() {
-  const ps = briefParts().filter((p) => p.lines.length), hot = ps.filter((p) => p.hot).length;
+  // A phone that isn't on the team still hears about changed specs and what's new in the app.
+  const ps = [...appNews(), ...(LIVE.me ? briefParts() : sinceLast())].filter((p) => p.lines.length), hot = ps.filter((p) => p.hot).length;
   return [
     { k: "", label: `${sideName(mode)} · ${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}`, big: ps.length ? `${plural(ps.length, "thing")} to know${hot ? `, ${hot} urgent` : ""}` : "All clear tonight", lines: ps.map((p) => (p.lines.length === 1 ? `${p.label}: ${lineText(p.lines[0])}` : `${p.label} (${p.lines.length})`)) },
-    ...ps.map((p) => ({ k: p.k, label: p.label, lines: p.lines, hot: p.hot })),
-    { k: "tab:practice", label: "Tonight's quiz", big: "10 questions. First go counts.", lines: ["Same 10 for everyone", "Then try a speed drill and beat your best"], end: true },
+    ...ps.map((p) => ({ id: p.id, k: p.k, label: p.label, lines: p.lines, hot: p.hot, news: p.news })),
+    ...(LIVE.me ? [{ k: "tab:practice", label: "Tonight's quiz", big: "10 questions. First go counts.", lines: ["Same 10 for everyone", "Then try a speed drill and beat your best"], end: true }] : []),
   ];
 }
+// Worth a ring at the top of the app: not watched to the end today, and there's something in it.
+function storyDue() {
+  // On Morning the ring is on the page already, with Seen by.
+  if (storyWatched() || cur === "station" || $("#welcome") || (LIVE.me && cur === "tally" && pane === "morning")) return false;
+  return LIVE.me ? MG_READY : storyCards().length > 1;
+}
 function storyOpen() {
+  if (!$("#help").hidden) helpClose();
   if (!$("#story")) document.body.insertAdjacentHTML("beforeend", `<div id="story" class="story" role="dialog" aria-modal="true" aria-label="Tonight's brief" hidden></div>`);
-  sto = { i: 0, xs: storyCards(), t0: Date.now(), paused: 0 };
+  const xs = storyCards(), at = store.get("storyAt", {});
+  // Back where you stopped today, unless it was watched to the end (then from the start, to watch again).
+  const i = !storyWatched() && at.k === storyKey() && at.i < xs.length ? at.i : 0;
+  sto = { i, xs, t0: Date.now(), paused: 0 };
   $("#story").hidden = false; document.body.classList.add("storyon");
-  // Once a night, the managers' Seen by hears about it (a manager watching their own isn't counted).
-  if (LIVE.me && !LIVE.admin && store.get("storySeen", "") !== `${shiftDay()}-${mode}`) LIVE.api?.briefSeen(mode).catch(() => {});
-  store.set("storySeen", `${shiftDay()}-${mode}`);
   storyDraw(); storyTimer();
 }
-function storyClose() { if (!sto) return; sto = null; clearInterval(storyTimer.h); $("#story").hidden = true; document.body.classList.remove("storyon"); if (cur === "tally") renderTally(); }
-function storyGo(d) { if (!sto) return; const n = sto.i + d; if (n < 0) { sto.t0 = Date.now(); return storyDraw(); } if (n >= sto.xs.length) return storyClose(); sto.i = n; sto.t0 = Date.now(); haptic(); storyDraw(); }
+function storyClose() {
+  if (!sto) return; sto = null; clearInterval(storyTimer.h); $("#story").hidden = true; document.body.classList.remove("storyon");
+  if (cur === "tally") renderTally(); renderAlerts(true);
+}
+// Reaching the last card is watching it: Seen by hears about it once a night (a manager watching their own isn't
+// counted), and what it showed (changed specs, what's new, while you were away) is marked as seen.
+function storyEnd() {
+  if (storyWatched()) return;
+  if (LIVE.me && !LIVE.admin) LIVE.api?.briefSeen(mode).catch(() => {});
+  store.set("storySeen", storyKey());
+  if (appNews().length) walkMark(mode);
+  sinceDone();
+}
+function storyGo(d) {
+  if (!sto) return; const n = sto.i + d;
+  if (n < 0) { sto.t0 = Date.now(); return storyDraw(); }
+  if (n >= sto.xs.length) return storyClose();
+  sto.i = n; sto.t0 = Date.now(); haptic(); storyDraw();
+}
 function storyTimer() {
   clearInterval(storyTimer.h);
   storyTimer.h = setInterval(() => {
     if (!sto || document.hidden) return;
     if (sto.paused) { sto.t0 += 100; return; }
-    const f = Math.min(1, (Date.now() - sto.t0) / STORY_MS), bar = $(`#story .sb i[data-n="${sto.i}"]`);
+    const c = sto.xs[sto.i], f = Math.min(1, (Date.now() - sto.t0) / storyMs(c)), bar = $(`#story .sb i[data-n="${sto.i}"]`);
     if (bar) bar.style.width = `${f * 100}%`;
-    if (f >= 1 && !sto.xs[sto.i].end) storyGo(1);
+    if (f >= 1 && sto.i < sto.xs.length - 1) storyGo(1);
   }, 100);
 }
 function storyDraw() {
-  const c = sto.xs[sto.i];
+  const c = sto.xs[sto.i], last = sto.i === sto.xs.length - 1;
+  store.set("storyAt", { k: storyKey(), i: sto.i });
+  if (last) storyEnd();
   $("#story").innerHTML = `<div class="sbars">${sto.xs.map((_, j) => `<span class="sb"><i data-n="${j}" style="width:${j < sto.i ? 100 : 0}%"></i></span>`).join("")}</div>
-    <button class="st-x" data-story-x aria-label="Close">×</button>
-    <div class="st-card${c.hot ? " hot" : ""}"><div class="st-k">${esc(c.label)}</div>${c.big ? `<div class="st-big">${esc(c.big)}</div>` : ""}
-      <ul class="st-l" translate="no">${c.lines.slice(0, 9).map((l) => `<li>${typeof l !== "string" && l.d != null ? `<button class="st-open" data-story-open="${l.d}">${esc(l.t)} <span aria-hidden="true">›</span></button>` : esc(lineText(l))}</li>`).join("")}${c.lines.length > 9 ? `<li>+${c.lines.length - 9} more</li>` : ""}</ul>
-      <div class="st-act">${c.k ? `<button class="btn pri" data-story-go="${esc(c.k)}">${c.end ? "Take the quiz" : "Go there"}</button>` : ""}${c.end ? sendBtn("brief", "Send the brief") : ""}</div></div>
+    <button class="sto-x" data-story-x aria-label="Close">×</button><span class="sto-pause" aria-hidden="true">Paused</span>
+    <div class="sto-card${c.hot ? " hot" : ""}"><div class="sto-k">${esc(c.label)}</div>${c.big ? `<div class="sto-big">${esc(c.big)}</div>` : ""}
+      <ul class="sto-l" translate="no">${c.lines.slice(0, 9).map((l) => `<li>${typeof l !== "string" && l.d != null ? `<button class="sto-open" data-story-open="${l.d}">${esc(l.t)} <span aria-hidden="true">›</span></button>` : esc(lineText(l))}</li>`).join("")}${c.lines.length > 9 ? `<li>+${c.lines.length - 9} more</li>` : ""}</ul>
+      <div class="sto-act">${c.k ? `<button class="btn${last ? "" : " pri"}" data-story-go="${esc(c.k)}">${c.end ? "Take the quiz" : "Go there"}</button>` : ""}${c.news ? `<button class="btn" data-story-walk>Show me</button>` : ""}${last ? `<button class="btn pri" data-story-x>Got it ✓</button>${LIVE.me ? sendBtn("brief", "Send the brief") : ""}` : ""}</div></div>
     <button class="st-prev" data-story-step="-1" aria-label="Back"></button><button class="st-next" data-story-step="1" aria-label="Next"></button>`;
 }
 document.addEventListener("click", (e) => {
@@ -12341,35 +12478,47 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-story-x]")) return storyClose();
   const o = e.target.closest("[data-story-open]"); if (o) { storyClose(); openSheet(+o.dataset.storyOpen); return; }
   const g = e.target.closest("[data-story-go]"); if (g) { const k = g.dataset.storyGo; storyClose(); openAt(k); scrollTo(0, 0); return; }
+  if (e.target.closest("[data-story-walk]")) { storyClose(); walkOpen(mode, 0); return; }
   if (e.target.closest("[data-send]")) { storyClose(); return; }
   const s = e.target.closest("[data-story-step]"); if (s) storyGo(+s.dataset.storyStep);
 });
-// Hold to pause, swipe sideways to move, down to close. Escape closes, arrows move.
+// Hold to pause (the bars and × fade after a moment, so the card reads clean), swipe sideways to move, down to close.
+// Escape closes, arrows move.
 let stTouch = null;
-document.addEventListener("pointerdown", (e) => { if (sto && e.target.closest("#story")) { sto.paused = 1; stTouch = { x: e.clientX, y: e.clientY }; } });
+document.addEventListener("pointerdown", (e) => { if (sto && e.target.closest("#story") && !e.target.closest(".btn,.sto-open,[data-story-x]")) { sto.paused = 1; $("#story").classList.add("held"); stTouch = { x: e.clientX, y: e.clientY }; } });
 document.addEventListener("pointerup", (e) => {
-  if (!sto || !stTouch) return; sto.paused = 0;
+  if (!sto || !stTouch) return; sto.paused = 0; $("#story").classList.remove("held");
   const dx = e.clientX - stTouch.x, dy = e.clientY - stTouch.y; stTouch = null;
   if (dy > 90 && Math.abs(dx) < 60) { e.preventDefault(); storyClose(); }
   else if (Math.abs(dx) > 50 && Math.abs(dy) < 60) storyGo(dx < 0 ? 1 : -1);
 });
+document.addEventListener("pointercancel", () => { if (sto) { sto.paused = 0; $("#story").classList.remove("held"); } stTouch = null; });
 document.addEventListener("keydown", (e) => { if (!sto) return; if (e.key === "Escape") storyClose(); if (e.key === "ArrowRight") storyGo(1); if (e.key === "ArrowLeft") storyGo(-1); });
+// The ring: the same one at the top of Needs you now and on Morning. Unwatched glows brass; watched goes grey.
+const storyRing = (small) => {
+  const n = storyCards().length - 1 - (LIVE.me ? 1 : 0), w = storyWatched();
+  return `<button class="story-ring${w ? " seen" : ""}${small ? " sm" : ""}" data-story aria-label="Play tonight's brief"><span class="sr-dot">▶</span><span><b>${LIVE.me ? "Tonight's brief" : "What's new"}</b><small>${w ? "Watched. Tap to see it again" : n > 0 ? `${plural(n, "thing")} to know · tap to play` : "All clear · tap to play"}</small></span></button>`;
+};
 document.head.insertAdjacentHTML("beforeend", `<style>
 .story-ring{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--fg);margin-top:12px;padding:6px 0}
 .sr-dot{flex:none;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:18px;color:var(--brass);background:var(--surface);box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--brass)}
+.story-ring.sm{margin:0 0 6px;padding:2px 0}.story-ring.sm .sr-dot{width:40px;height:40px;font-size:14px}
 .seenby{margin:6px 0 0;font-size:14px;color:var(--muted)}.seenby summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:4px}.seenby ul{margin:0;padding-left:20px}
 .story-ring.seen .sr-dot{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--line);color:var(--muted)}.story-ring b{display:block;font-size:17px}.story-ring small{display:block;color:var(--muted);font-size:13px}
 body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background:#0d0c0a;color:#f4f1ea;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 20px);touch-action:none;user-select:none}
-.sbars{display:flex;gap:4px}.sb{flex:1;height:3px;border-radius:2px;background:#ffffff40;overflow:hidden}.sb i{display:block;height:100%;background:#fff}
-.st-x{position:absolute;top:calc(env(safe-area-inset-top,0px) + 18px);right:10px;z-index:3;width:44px;height:44px;font-size:30px;color:#fff}
-.st-card{position:relative;z-index:2;margin:auto 0;max-width:640px;width:100%;align-self:center;pointer-events:none}.st-card .btn,.st-card a{pointer-events:auto}
-.st-k{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#c9a45c}.st-card.hot .st-k{color:#ff6b5b}
-.st-big{font-family:var(--display);font-size:42px;line-height:1.05;text-transform:uppercase;margin-top:10px}
-.st-l{list-style:none;margin:16px 0 0;padding:0}.st-l li{font-size:22px;line-height:1.3;padding:8px 0;border-bottom:1px solid #ffffff1f}
-.st-open{pointer-events:auto;color:inherit;font:inherit;text-align:left;padding:0;background:none;border:0;text-decoration:underline;text-decoration-color:#c9a45c;text-underline-offset:4px}.st-open span{color:#c9a45c}
-.st-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.sbars{display:flex;gap:4px;transition:opacity .2s}.sb{flex:1;height:3px;border-radius:2px;background:#ffffff40;overflow:hidden}.sb i{display:block;height:100%;background:#fff}
+.sto-x{position:absolute;top:calc(env(safe-area-inset-top,0px) + 18px);right:10px;z-index:3;width:44px;height:44px;font-size:30px;color:#fff;transition:opacity .2s}
+.sto-pause{position:absolute;top:calc(env(safe-area-inset-top,0px) + 26px);left:16px;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#ffffffb0;opacity:0;transition:opacity .2s}
+.story.held .sbars,.story.held .sto-x{opacity:0;transition-delay:.25s}.story.held .sto-pause{opacity:1;transition-delay:.25s}
+.sto-card{position:relative;z-index:2;margin:auto 0;max-width:640px;width:100%;align-self:center;pointer-events:none;background:none;border:0;padding:0;color:#f4f1ea}.sto-card .btn,.sto-card a{pointer-events:auto}
+.sto-k{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#c9a45c}.sto-card.hot .sto-k{color:#ff6b5b}
+.sto-big{font-family:var(--display);font-size:42px;line-height:1.05;text-transform:uppercase;margin-top:10px}
+.sto-l{list-style:none;margin:16px 0 0;padding:0}.sto-l li{font-size:clamp(17px,2.9vh,22px);line-height:1.3;padding:8px 0;border-bottom:1px solid #ffffff1f}
+@media (max-height:700px){.sto-big{font-size:34px}.sto-l{margin-top:10px}.sto-l li{padding:6px 0}.sto-act{margin-top:14px}}
+.sto-open{pointer-events:auto;color:inherit;font:inherit;text-align:left;padding:0;background:none;border:0;text-decoration:underline;text-decoration-color:#c9a45c;text-underline-offset:4px}.sto-open span{color:#c9a45c}
+.sto-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}.sto-act .btn:not(.pri){background:#ffffff14;color:#f4f1ea;border-color:#ffffff40}
 .st-prev,.st-next{position:absolute;top:70px;bottom:0;z-index:1}.st-prev{left:0;width:33%}.st-next{right:0;width:67%}
-@media (min-width:700px){.st-big{font-size:56px}.st-l li{font-size:26px}}
+@media (min-width:700px){.sto-big{font-size:56px}.sto-l li{font-size:26px}}
 </style>`);
 
 /* ---------- Where it goes on the Team page ---------- */
@@ -12381,6 +12530,10 @@ function mgCards() {
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
+  { g: "Shift", k: "brief", n: "Tonight's brief", go: "brief", what: "What's new and what's on tonight, played like stories: specs changed, 86s, labels due, last night's handover and what's new in Bar Book." },
+  { g: "Shift", k: "clear", n: "Clear and undo", go: "clear", team: 1, what: "Every list's ↺ Clear sits in the row of tools at its top and acts straight away; ↩ Undo clear takes its place for 15 minutes. Lists start fresh by themselves at 6am." },
+  { g: "Stock", k: "dnote", n: "Read a delivery note", go: "dnote", team: 1, what: "Stock, Delivery in, 📷 Read the note: a photo or PDF of the delivery note is read on this phone. Each line on the count comes back with how many; check them against the paper and log the ticked ones." },
+  { g: "More", k: "phone", n: "This phone: look and settings", go: "phone", what: "Light or dark, accessible mode, one-hand mode, sounds, the 🎤 button, help buttons, shared iPad, language, home screen and reset." },
   { g: "Team", k: "week", adm: 1, n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
   { g: "Team", k: "pilot", adm: 1, n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
   { g: "Team", k: "lblog", adm: 1, n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp, or Excel or CSV for a spreadsheet." },
@@ -12390,7 +12543,10 @@ FEATURES.push(
   { g: "Team", k: "ready", adm: 1, n: "Ready for Friday", go: "ready", team: 1, what: "One checklist before the team starts: rules published, every code set, backups on, this phone on the Home Screen, nothing waiting to send and the app up to date.", mgr: "Each line goes green by itself. Tick backups once they're on in the Firebase console." },
   { g: "Team", k: "backup", adm: 1, n: "Backup and restore", go: "backup", team: 1, what: "Everything Bar Book keeps for the team, saved as one file.", mgr: "Save one now and then. Restore shows what's different and only adds or changes, never deletes." },
   { g: "Team", k: "health", n: "Health check", go: "health", what: "Whether this phone is online, saving, up to date and ready with no signal.", staff: "Something not syncing? Check here, then send it to maintenance." });
-Object.assign(PLACE_KW, { week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline", ready: "ready friday launch checklist go live rules backup" });
+Object.assign(PLACE_KW, { dnote: "delivery note invoice docket paperwork camera photo read scan supplier booker came in goods in",
+  brief: "brief stories story whats new news update updates changes changed seen read preshift pre shift",
+  clear: "clear reset start over wipe undo fresh empty restart again", phone: "settings setting dark light theme night mode gold clock accessible dyslexia bigger text font size one hand thumb sounds sound buzz mute quiet voice mic microphone help buttons hide shared ipad tablet language install home screen reset phone",
+  mgr: "maintenance start again wipe test data master clear team code password", week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline", ready: "ready friday launch checklist go live rules backup" });
 
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
@@ -13278,7 +13434,7 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .b101k{color:var(--ok);text-transform:none;letter-spacing:0}
 .b101 .txt,.b101 .s,.b101say{margin:0;padding:0 14px 10px}.b101say{font-size:15px}.b101.on{border-color:var(--brass)}
 </style>`);
-/* ---------- Games and drills, read-aloud, Siri shortcuts and "since you were last in" (fun.js) ----------
+/* ---------- Games and drills, read-aloud, Siri shortcuts and what changed since you were last in (fun.js) ----------
    Injected at the PLUS marker after the other modules, so the drinks, the quiz questions (quizMake), LIVE and the pages exist.
    Everything here stays on the phone except quiz night, which goes through Firebase (quiz/live, see firestore.rules). */
 
@@ -13644,10 +13800,10 @@ $("#sheet").addEventListener("click", async (e) => {
 });
 
 /* ---------- Since you were last in ----------
-   The first time the app opens on a new shift day, one card says what changed while you were away: specs changed in a
-   new release (checked against a fingerprint of every spec kept on this phone), and from the team side the same changes
-   the Team page lists (86s, closing reports, list changes), tonight's 86 board and the labels to change. Got it hides it
-   until the next shift. The pre-shift brief on the Morning page shows the same parts (sinceLast). */
+   What changed while you were away: specs changed in a new release (checked against a fingerprint of every spec kept
+   on this phone), and from the team side the same changes the Team page lists (86s, closing reports, list changes).
+   No pop-up of its own: these parts play in tonight's brief, the stories (manager.js), and watching it to the end
+   marks them seen (sinceDone). */
 const fnHash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
 /* Each drink's spec lines, glass, ice and garnish are kept (the method as a fingerprint), so the card can say what
    changed: "40 ml Bulleit → 40 ml Buffalo Trace". A phone that kept only the older fingerprint says "spec changed". */
@@ -13687,35 +13843,14 @@ function sinceLast(side = mode) {
   if (r && ms(r.at) > lastIn.at) parts.push({ id: "handover", k: "morning", label: `Last ${lower(sideName(side))} handover`, lines: [r.summary] });
   return parts;
 }
-function sinceShow() {
-  if ($("#welcome") || !$("#sheet").hidden || $("#since") || cur === "station" || (lastIn.day === fnDay())) return;
-  if (LIVE.me && !["outlog", "reports"].every((k) => LIVE.loaded.has(k))) return;
-  if (!LIVE.me && teamCode && sinceShow.tries++ < 20) return;
-  const parts = sinceLast(), out = LIVE.me ? [...outNow()].sort() : [], lbs = LIVE.me ? toChange([mode]) : [];
-  if (out.length) parts.push({ id: "out", k: "stock", label: "86'd right now", lines: [out.join(", ")] });
-  if (lbs.length) parts.push({ id: "labels", k: "labels", label: "Date labels to change", lines: lbs.map((x) => x.item), hot: true });
-  if (!parts.length || !lastIn.day) return sinceDone();
-  const el = document.createElement("div"); el.id = "since"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Since you were last in");
-  el.innerHTML = `<div class="since-card"><h2>Since you were last in</h2><p class="note">Only what's new for you. Tap a part to go there.</p>
-    ${parts.map((p) => `<button class="since-p${p.hot ? " hot" : ""}" data-since-go="${esc(p.k)}"><b>${esc(p.label)}</b>${p.lines.map((l) => `<span translate="no">${esc(lineText(l))}</span>`).join("")}</button>`).join("")}
-    <button class="btn pri wide" data-since-go="">Got it</button></div>`;
-  document.body.append(el);
-}
-sinceShow.tries = 0;
 function sinceDone() {
   store.set("specFp", specFp());
   Object.assign(lastIn, { day: fnDay(), at: Date.now() }); store.set("lastIn", lastIn);
-  $("#since")?.remove();
 }
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-since-go]"); if (!b) return;
-  haptic(); const k = b.dataset.sinceGo; sinceDone(); if (k) { openAt(k); scrollTo(0, 0); }
-});
 // Each open after that on the same day moves "last in" on, so tomorrow's card covers only what's new since today.
 const sinceMove = () => { if (lastIn.day === fnDay()) { lastIn.at = Date.now(); store.set("lastIn", lastIn); } };
 addEventListener("pagehide", sinceMove);
 document.addEventListener("visibilitychange", () => { if (document.hidden) sinceMove(); });
-setTimeout(function sinceTry() { if (lastIn.day === fnDay() || $("#since")) return; sinceShow(); setTimeout(sinceTry, 3000); }, 1500);
 
 /* ---------- The Games and drills page (More) ---------- */
 function funTopHtml() {
@@ -14161,6 +14296,13 @@ const G_UI = {
   "Menu": { es: "Carta", fr: "Carte", it: "Menù", de: "Karte", pt: "Menu", nl: "Menu", pl: "Menu", ro: "Meniu", zh: "菜单", ja: "メニュー", ko: "메뉴", ar: "القائمة", ru: "Меню", tr: "Menü", hi: "मेन्यू", ne: "मेनु", tw: "Menu", bn: "মেনু", ur: "مینو", pa: "ਮੀਨੂ", gu: "મેનુ", ta: "மெனு", bg: "Меню", uk: "Меню", lt: "Meniu", vi: "Thực đơn", hy: "Ճաշացանկ", cy: "Bwydlen", ga: "Biachlár", el: "Μενού", sv: "Meny", he: "תפריט", th: "เมนู", id: "Menu" },
   "Allergies": { es: "Alergias", fr: "Allergies", it: "Allergie", de: "Allergien", pt: "Alergias", nl: "Allergieën", pl: "Alergie", ro: "Alergii", zh: "过敏", ja: "アレルギー", ko: "알레르기", ar: "الحساسية", ru: "Аллергии", tr: "Alerjiler", hi: "एलर्जी", ne: "एलर्जी", tw: "Allergy", bn: "অ্যালার্জি", ur: "الرجی", pa: "ਐਲਰਜੀ", gu: "એલર્જી", ta: "ஒவ்வாமை", bg: "Алергии", uk: "Алергії", lt: "Alergijos", vi: "Dị ứng", hy: "Ալերգիաներ", cy: "Alergeddau", ga: "Ailléirgí", el: "Αλλεργίες", sv: "Allergier", he: "אלרגיות", th: "แพ้อาหาร", id: "Alergi" },
   "You": { es: "Tú", fr: "Vous", it: "Tu", de: "Sie", pt: "Você", nl: "U", pl: "Pan/Pani", ro: "Dumneavoastră", zh: "您", ja: "お客様", ko: "손님", ar: "أنت", ru: "Вы", tr: "Siz", hi: "आप", ne: "तपाईं", tw: "Wo", bn: "আপনি", ur: "آپ", pa: "ਤੁਸੀਂ", gu: "તમે", ta: "நீங்கள்", bg: "Вие", uk: "Ви", lt: "Jūs", vi: "Bạn", hy: "Դուք", cy: "Chi", ga: "Tusa", el: "Εσείς", sv: "Du", he: "אתה", th: "คุณ", id: "Anda" },
+  "Extras": { es: "Extras", fr: "Suppléments", it: "Extra", de: "Extras", pt: "Extras", nl: "Extra's", pl: "Dodatki", ro: "Extra", zh: "加料", ja: "追加", ko: "추가", ar: "إضافات", ru: "Добавки", tr: "Ekstralar", hi: "एक्स्ट्रा", ne: "थप" },
+  "Subtotal": { es: "Subtotal", fr: "Sous-total", it: "Subtotale", de: "Zwischensumme", pt: "Subtotal", nl: "Subtotaal", pl: "Suma częściowa", ro: "Subtotal", zh: "小计", ja: "小計", ko: "소계", ar: "المجموع الفرعي", ru: "Промежуточный итог", tr: "Ara toplam", hi: "उप-योग", ne: "उप-जम्मा" },
+  "Optional service": { es: "Servicio opcional", fr: "Service facultatif", it: "Servizio facoltativo", de: "Freiwilliges Trinkgeld", pt: "Serviço opcional", nl: "Optionele bediening", pl: "Opcjonalna opłata za obsługę", ro: "Serviciu opțional", zh: "可选服务费", ja: "サービス料（任意）", ko: "선택 봉사료", ar: "رسوم خدمة اختيارية", ru: "Необязательный сервисный сбор", tr: "İsteğe bağlı servis ücreti", hi: "वैकल्पिक सेवा शुल्क", ne: "ऐच्छिक सेवा शुल्क" },
+  "Estimated total": { es: "Total aproximado", fr: "Total estimé", it: "Totale stimato", de: "Geschätzte Summe", pt: "Total estimado", nl: "Geschat totaal", pl: "Szacowana suma", ro: "Total estimat", zh: "预计总额", ja: "合計（目安）", ko: "예상 합계", ar: "المجموع التقديري", ru: "Примерный итог", tr: "Tahmini toplam", hi: "अनुमानित कुल", ne: "अनुमानित जम्मा" },
+  "This is an estimate: your bill is final.": { es: "Es una estimación: la cuenta es la que vale.", fr: "C'est une estimation : seule l'addition fait foi.", it: "È una stima: vale il conto.", de: "Nur eine Schätzung: Es gilt die Rechnung.", pt: "É uma estimativa: a conta é que vale.", nl: "Dit is een schatting: de rekening is definitief.", pl: "To tylko szacunek: obowiązuje rachunek.", ro: "Este o estimare: nota de plată este cea finală.", zh: "这只是估算，以账单为准。", ja: "これは目安です。お会計の金額が正式です。", ko: "예상 금액이에요. 최종 금액은 계산서를 따릅니다.", ar: "هذا تقدير فقط: الفاتورة هي النهائية.", ru: "Это примерно: окончательная сумма в счёте.", tr: "Bu bir tahmindir: geçerli olan hesaptır.", hi: "यह अनुमान है: अंतिम राशि आपके बिल में होगी।", ne: "यो अनुमान मात्र हो: अन्तिम रकम बिलमा हुन्छ।" },
+  "My choices": { es: "Lo que quiero", fr: "Mes choix", it: "Le mie scelte", de: "Meine Auswahl", pt: "As minhas escolhas", nl: "Mijn keuze", pl: "Mój wybór", ro: "Alegerile mele", zh: "我选的", ja: "選んだもの", ko: "내가 고른 것", ar: "اختياراتي", ru: "Мой выбор", tr: "Seçtiklerim", hi: "मेरी पसंद", ne: "मेरो छनोट", tw: "Nea mepɛ" },
+  "Show this to staff": { es: "Enséñaselo al personal", fr: "Montrez ceci au personnel", it: "Mostralo al personale", de: "Bitte dem Personal zeigen", pt: "Mostre isto à equipa", nl: "Laat dit aan het personeel zien", pl: "Pokaż to obsłudze", ro: "Arată asta personalului", zh: "请给服务员看", ja: "スタッフに見せてください", ko: "직원에게 보여 주세요", ar: "اعرض هذا على الموظفين", ru: "Покажите это персоналу", tr: "Bunu personele gösterin", hi: "यह स्टाफ़ को दिखाएँ", ne: "यो कर्मचारीलाई देखाउनुहोस्", tw: "Kyerɛ adwumayɛfoɔ no eyi" },
   "I have an allergy": { es: "Tengo una alergia", fr: "J'ai une allergie", it: "Ho un'allergia", de: "Ich habe eine Allergie", pt: "Tenho uma alergia", nl: "Ik heb een allergie", pl: "Mam alergię", ro: "Am o alergie", zh: "我有过敏", ja: "アレルギーがあります", ko: "알레르기가 있어요", ar: "لدي حساسية", ru: "У меня аллергия", tr: "Alerjim var", hi: "मुझे एलर्जी है", ne: "मलाई एलर्जी छ", tw: "Aduane bi wɔ hɔ a ɛnyɛ me", bn: "আমার অ্যালার্জি আছে", ur: "مجھے الرجی ہے", pa: "ਮੈਨੂੰ ਐਲਰਜੀ ਹੈ", gu: "મને એલર્જી છે", ta: "எனக்கு ஒவ்வாமை உள்ளது", bg: "Имам алергия", uk: "У мене алергія", lt: "Turiu alergiją", vi: "Tôi bị dị ứng", hy: "Ես ալերգիա ունեմ", cy: "Mae gen i alergedd", ga: "Tá ailléirge orm", el: "Έχω αλλεργία", sv: "Jag har en allergi", he: "יש לי אלרגיה", th: "ฉันแพ้อาหาร", id: "Saya punya alergi" },
   "I'd like this one": { es: "Quiero esta", fr: "Je voudrais celui-ci", it: "Vorrei questo", de: "Das hätte ich gern", pt: "Quero este", nl: "Deze graag", pl: "Poproszę to", ro: "Aș vrea asta", zh: "我要这个", ja: "これをお願いします", ko: "이걸로 주세요", ar: "أريد هذا", ru: "Мне вот это", tr: "Bunu istiyorum", hi: "मुझे यह चाहिए", ne: "मलाई यो दिनुहोस्", tw: "Mepɛ eyi", bn: "আমি এটা নেব", ur: "مجھے یہ چاہیے", pa: "ਮੈਨੂੰ ਇਹ ਚਾਹੀਦਾ ਹੈ", gu: "મારે આ જોઈએ છે", ta: "எனக்கு இது வேண்டும்", bg: "Искам това", uk: "Мені ось це", lt: "Norėčiau šito", vi: "Tôi muốn món này", hy: "Ես սա եմ ուզում", cy: "Hoffwn i hwn", ga: "Ba mhaith liom é seo", el: "Θα ήθελα αυτό", sv: "Jag tar den här", he: "אני רוצה את זה", th: "ขออันนี้", id: "Saya mau yang ini" },
   "Ask us about anything you don't see. Some things sell out on the night.": { es: "Pregúntanos por lo que no veas. Algunas cosas se agotan durante la noche.", fr: "Demandez-nous ce que vous ne voyez pas. Certaines choses partent vite le soir.", it: "Chiedeteci quello che non vedete. Alcune cose finiscono durante la serata.", de: "Fragen Sie uns nach allem, was Sie nicht sehen. Manches ist am Abend schnell aus.", pt: "Pergunte-nos pelo que não vê. Algumas coisas esgotam durante a noite.", nl: "Vraag ons naar alles wat u niet ziet. Sommige dingen raken 's avonds op.", pl: "Pytaj nas o wszystko, czego tu nie ma. Niektóre rzeczy kończą się wieczorem.", ro: "Întrebați-ne de orice nu vedeți. Unele lucruri se termină pe parcursul serii.", zh: "没看到的可以问我们。有些东西当晚可能会卖完。", ja: "見当たらないものはお気軽にお尋ねください。夜のうちに売り切れるものもあります。", ko: "안 보이는 건 물어봐 주세요. 일부는 저녁에 품절될 수 있어요.", ar: "اسألنا عن أي شيء لا تراه. بعض الأشياء تنفد خلال السهرة.", ru: "Спросите нас о том, чего не видите. Кое-что заканчивается за вечер.", tr: "Göremediğiniz her şeyi bize sorun. Bazı şeyler gece içinde bitebilir.", hi: "जो न दिखे, हमसे पूछें। कुछ चीज़ें रात में ख़त्म हो जाती हैं।", ne: "नदेखिएको कुरा हामीलाई सोध्नुहोस्। केही कुरा राति सकिन्छन्।", tw: "Biribi a wonhu no, bisa yɛn. Nneɛma bi sa anadwo no mu." },
@@ -14281,6 +14423,13 @@ TK.push(
   ["spicy", "g", "reply", "Is this spicy?", { es: ["¿Pica?"], fr: ["C'est épicé ?"], it: ["È piccante?"], de: ["Ist das scharf?"], pt: ["É picante?"], nl: ["Is het pittig?"], pl: ["Czy to jest ostre?"], ro: ["Este picant?"], zh: ["这个辣吗？"], ja: ["これは辛いですか？"], ko: ["이거 매워요?"], ar: ["هل هذا حار؟"], ru: ["Это острое?"], tr: ["Bu acı mı?"], hi: ["क्या यह तीखा है?"], ne: ["यो पिरो छ?"], tw: ["Mako wɔ mu?"] }],
   ["veggie", "g", "reply", "Is this vegetarian?", { es: ["¿Es vegetariano?"], fr: ["C'est végétarien ?"], it: ["È vegetariano?"], de: ["Ist das vegetarisch?"], pt: ["É vegetariano?"], nl: ["Is dit vegetarisch?"], pl: ["Czy to jest wegetariańskie?"], ro: ["Este vegetarian?"], zh: ["这是素的吗？"], ja: ["これはベジタリアン向けですか？"], ko: ["이거 채식이에요?"], ar: ["هل هذا نباتي؟"], ru: ["Это вегетарианское?"], tr: ["Bu vejetaryen mi?"], hi: ["क्या यह शाकाहारी है?"], ne: ["यो शाकाहारी हो?"] }],
   ["desserts", "g", "reply", "Can I see the desserts?", { es: ["¿Puedo ver los postres?"], fr: ["Je peux voir les desserts ?"], it: ["Posso vedere i dolci?"], de: ["Kann ich die Desserts sehen?"], pt: ["Posso ver as sobremesas?"], nl: ["Mag ik de desserts zien?"], pl: ["Mogę zobaczyć desery?"], ro: ["Pot să văd deserturile?"], zh: ["可以看看甜点吗？"], ja: ["デザートを見せてもらえますか？"], ko: ["디저트 좀 볼 수 있을까요?"], ar: ["هل يمكنني رؤية الحلويات؟"], ru: ["Можно посмотреть десерты?"], tr: ["Tatlılara bakabilir miyim?"], hi: ["क्या मैं डेज़र्ट देख सकता हूँ?"], ne: ["के म डेजर्ट हेर्न सक्छु?"] }],
+  // Derek, 18 Nov: the chicken is halal; the beef is not. Buns: gluten-free or wholewheat vegan on any burger (website).
+  ["halal", "s", "food", "Our chicken is halal. Our beef is not halal.", { es: ["Nuestro pollo es halal. La ternera no es halal."], fr: ["Notre poulet est halal. Notre bœuf n'est pas halal."], it: ["Il nostro pollo è halal. Il manzo non è halal."], de: ["Unser Hähnchen ist halal. Unser Rindfleisch ist nicht halal."], pt: ["O nosso frango é halal. A carne de vaca não é halal."], nl: ["Onze kip is halal. Ons rundvlees is niet halal."], pl: ["Nasz kurczak jest halal. Wołowina nie jest halal."], ro: ["Puiul nostru este halal. Carnea de vită nu este halal."], zh: ["我们的鸡肉是清真的，牛肉不是清真的。"], ja: ["当店の鶏肉はハラールです。牛肉はハラールではありません。"], ko: ["저희 닭고기는 할랄이에요. 소고기는 할랄이 아니에요."], ar: ["الدجاج عندنا حلال. لحم البقر ليس حلالاً."], ru: ["Наша курица халяльная. Говядина не халяльная."], tr: ["Tavuğumuz helal. Dana etimiz helal değil."], hi: ["हमारा चिकन हलाल है। बीफ़ हलाल नहीं है।"], ne: ["हाम्रो कुखुराको मासु हलाल हो। गाईको मासु हलाल होइन।"] }],
+  ["bun", "s", "food", "Any burger can have a gluten-free or vegan bun.", { es: ["Cualquier hamburguesa puede llevar pan sin gluten o vegano."], fr: ["Tous nos burgers existent avec un pain sans gluten ou vegan."], it: ["Ogni burger può avere un panino senza glutine o vegano."], de: ["Jeden Burger gibt es auch mit glutenfreiem oder veganem Brötchen."], pt: ["Qualquer hambúrguer pode levar pão sem glúten ou vegano."], nl: ["Elke burger kan met een glutenvrij of veganistisch broodje."], pl: ["Każdy burger może być w bułce bezglutenowej lub wegańskiej."], ro: ["Orice burger poate fi cu chiflă fără gluten sau vegană."], zh: ["任何汉堡都可以换无麸质或纯素面包。"], ja: ["どのバーガーもグルテンフリーかヴィーガンのバンズにできます。"], ko: ["모든 버거는 글루텐 프리나 비건 번으로 바꿀 수 있어요."], ar: ["يمكن تقديم أي برغر بخبز خالٍ من الغلوتين أو نباتي."], ru: ["Любой бургер можно с булочкой без глютена или веганской."], tr: ["Her burger glutensiz ya da vegan ekmekle olabilir."], hi: ["किसी भी बर्गर में ग्लूटेन-फ़्री या वीगन बन ले सकते हैं।"], ne: ["जुनसुकै बर्गरमा ग्लुटेन-फ्री वा भेगन बन लिन सकिन्छ।"] }],
+  ["kids", "s", "food", "We have a kids' menu.", { es: ["Tenemos menú infantil."], fr: ["Nous avons un menu enfant."], it: ["Abbiamo un menù per bambini."], de: ["Wir haben eine Kinderkarte."], pt: ["Temos menu infantil."], nl: ["We hebben een kindermenu."], pl: ["Mamy menu dla dzieci."], ro: ["Avem meniu pentru copii."], zh: ["我们有儿童菜单。"], ja: ["お子様メニューもあります。"], ko: ["어린이 메뉴도 있어요."], ar: ["لدينا قائمة طعام للأطفال."], ru: ["У нас есть детское меню."], tr: ["Çocuk menümüz var."], hi: ["हमारे पास बच्चों का मेन्यू है।"], ne: ["हामीसँग बच्चाहरूको मेनु छ।"] }],
+  ["kidsq", "g", "reply", "Do you have a kids' menu?", { es: ["¿Tenéis menú infantil?"], fr: ["Vous avez un menu enfant ?"], it: ["Avete un menù per bambini?"], de: ["Haben Sie eine Kinderkarte?"], pt: ["Têm menu infantil?"], nl: ["Hebben jullie een kindermenu?"], pl: ["Czy macie menu dla dzieci?"], ro: ["Aveți meniu pentru copii?"], zh: ["有儿童菜单吗？"], ja: ["お子様メニューはありますか？"], ko: ["어린이 메뉴 있나요?"], ar: ["هل لديكم قائمة للأطفال؟"], ru: ["У вас есть детское меню?"], tr: ["Çocuk menünüz var mı?"], hi: ["क्या बच्चों का मेन्यू है?"], ne: ["बच्चाहरूको मेनु छ?"] }],
+  ["halalq", "g", "reply", "Is the chicken halal?", { es: ["¿El pollo es halal?"], fr: ["Le poulet est halal ?"], it: ["Il pollo è halal?"], de: ["Ist das Hähnchen halal?"], pt: ["O frango é halal?"], nl: ["Is de kip halal?"], pl: ["Czy kurczak jest halal?"], ro: ["Puiul este halal?"], zh: ["鸡肉是清真的吗？"], ja: ["鶏肉はハラールですか？"], ko: ["닭고기는 할랄인가요?"], ar: ["هل الدجاج حلال؟"], ru: ["Курица халяльная?"], tr: ["Tavuk helal mi?"], hi: ["क्या चिकन हलाल है?"], ne: ["कुखुराको मासु हलाल हो?"] }],
+  ["bunq", "g", "reply", "Can I have a gluten-free or vegan bun?", { es: ["¿Puede ser con pan sin gluten o vegano?"], fr: ["Je peux avoir un pain sans gluten ou vegan ?"], it: ["Posso avere un panino senza glutine o vegano?"], de: ["Geht das mit glutenfreiem oder veganem Brötchen?"], pt: ["Pode ser com pão sem glúten ou vegano?"], nl: ["Kan het met een glutenvrij of veganistisch broodje?"], pl: ["Czy mogę prosić o bułkę bezglutenową lub wegańską?"], ro: ["Se poate cu chiflă fără gluten sau vegană?"], zh: ["可以换无麸质或纯素面包吗？"], ja: ["グルテンフリーかヴィーガンのバンズにできますか？"], ko: ["글루텐 프리나 비건 번으로 할 수 있나요?"], ar: ["هل يمكن أن يكون بخبز خالٍ من الغلوتين أو نباتي؟"], ru: ["Можно с булочкой без глютена или веганской?"], tr: ["Glutensiz ya da vegan ekmekle olur mu?"], hi: ["क्या ग्लूटेन-फ़्री या वीगन बन मिल सकता है?"], ne: ["ग्लुटेन-फ्री वा भेगन बन पाउन सकिन्छ?"] }],
 );
 // "Enjoy your meal!" is a check-back now, and the goodbyes have their own group.
 for (const r of TK) { if (r[0] === "enjoy") r[2] = "check"; if (r[0] === "bye") r[2] = "bye"; }
@@ -14304,79 +14453,103 @@ Object.assign(G_UI, {
 });
 /* ---------- The food menu, for guests (food.js) ----------
    Black Tap London Soho's food menu, copied from blacktap.com/restaurant-menu/london-soho on 18 Nov 2026: names and
-   what's in them only. No prices (they change) and no allergen, vegan or diet claims: allergy questions go to the
+   what's in them only. No prices (they change) and no allergen or diet claims beyond the menu's own (vegan bun and shakes) and Derek's (the chicken is halal, the beef is not): allergy questions go to the
    allergy card and a manager with the kitchen's allergen chart. Shown only on the guest screen, in the guest's
    language (section names by hand, the rest live when live translation is on). Staff fill gaps in the menu here.
    [section, [[name, what's in it], …]] */
 const FOOD = [
   ["Snacks", [
-    ["Hot fried pickles", "with spiced buttermilk-dill"],
-    ["Fried mozzarella", "smoky chipotle tomato sauce"],
-    ["Truffle and black garlic spinach dip", "black garlic, truffle, parmesan, spinach, cream, served with fried naan"],
-    ["Queso and chips", "zesty cheese sauce with warm tortilla chips"],
-    ["Guac and chips", "smashed avocado, pico de gallo, coriander, spring onion, with salsa verde"],
-    ["Buttermilk fried chicken tenders", "served with house buttermilk-dill, Korean BBQ and lime honey mustard"],
-    ["Teriyaki broccoli", "ginger, garlic, sesame seeds, spring onion"],
-    ["Caesar salad", "lettuce, shaved parmesan, croutons, Caesar dressing"],
-    ["House salad", "lettuce, tomato, cucumber, pickled onion, house vinaigrette"],
-    ["Rocket salad", "rocket, roasted tomatoes, parmesan, house vinaigrette"],
+    ["Hot fried pickles", "with spiced buttermilk-dill", 7.5],
+    ["Fried mozzarella", "smoky chipotle tomato sauce", 12],
+    ["Truffle and black garlic spinach dip", "black garlic, truffle, parmesan, spinach, cream, served with fried naan", 12],
+    ["Queso and chips", "zesty cheese sauce with warm tortilla chips", 8],
+    ["Guac and chips", "smashed avocado, pico de gallo, coriander, spring onion, with salsa verde", 8],
+    ["Buttermilk fried chicken tenders", "served with house buttermilk-dill, Korean BBQ and lime honey mustard", 12],
+    ["Teriyaki broccoli", "ginger, garlic, sesame seeds, spring onion", 8],
+    ["Caesar salad", "lettuce, shaved parmesan, croutons, Caesar dressing", 7],
+    ["House salad", "lettuce, tomato, cucumber, pickled onion, house vinaigrette", 7],
+    ["Rocket salad", "rocket, roasted tomatoes, parmesan, house vinaigrette", 7],
   ]],
   ["Wings", [
-    ["Korean BBQ wings", "6 pieces: sweet and spicy BBQ, spring onion, sesame seeds, lime, with house buttermilk-dill"],
-    ["Black Tap Hot wings", "6 pieces: spicy dry rub, with house buttermilk-dill"],
-    ["Mexican Hot wings", "6 pieces: spicy hot sauce, blue cheese crumbles, spring onion, with blue cheese dressing"],
-    ["Texas BBQ wings", "6 pieces: sweet and smoky BBQ, spring onion, with house buttermilk-dill"],
+    ["Korean BBQ wings", "6 pieces: sweet and spicy BBQ, spring onion, sesame seeds, lime, with house buttermilk-dill", 13],
+    ["Black Tap Hot wings", "6 pieces: spicy dry rub, with house buttermilk-dill", 13],
+    ["Mexican Hot wings", "6 pieces: spicy hot sauce, blue cheese crumbles, spring onion, with blue cheese dressing", 13],
+    ["Texas BBQ wings", "6 pieces: sweet and smoky BBQ, spring onion, with house buttermilk-dill", 13],
   ]],
   ["Burgers", [
-    ["The All-American Burger", "burger, American cheese, special sauce"],
-    ["The Texan", "burger, bacon, aged cheddar, crispy onion ring, BBQ sauce, mayo"],
-    ["The Champ", "wagyu burger, house buttermilk-dill, blue cheese, rocket"],
-    ["The Wagyu Steakhouse Burger", "wagyu burger, pepper jack cheese, crispy onions, A1 sauce, roasted garlic mayo"],
-    ["The Falafel Burger", "falafel burger, vegan feta, pickled onions, hummus, tahini, coriander, parsley, wholewheat vegan bun"],
-    ["The Black Truffle Burger", "wagyu burger, havarti cheese, rocket, truffle-yuzu vinaigrette, black garlic peppercorn aioli, shaved parmesan, truffle oil"],
-    ["The French Onion Burger", "burger, provolone, parmesan, simmered onions, French onion broth, roasted garlic mayo"],
-    ["Zhoug Lamb Burger", "seasoned lamb patty, Swiss cheese, spicy pickled cucumbers and onion, parsley, zhoug yoghurt sauce"],
-    ["Crispy Chicken", "buttermilk coleslaw, coriander, fresh lime, spicy mayo, Korean BBQ"],
-    ["BT Hot Chicken", "crispy chicken, hot chilli oil, black garlic and chilli seasoning, pickle chips, buttermilk-dill, parsley"],
-    ["The Cali Chicken", "grilled chicken, Swiss cheese, truffle mayo, sliced avocado, pickled onions, house vinaigrette, parsley"],
-    ["BT Fish and Chips Sandwich", "battered cod, tartare sauce, malt vinegar and black pepper spice, black pepper fries, lemon and dill slaw"],
+    ["The All-American Burger", "burger, American cheese, special sauce", 20],
+    ["The Texan", "burger, bacon, aged cheddar, crispy onion ring, BBQ sauce, mayo", 22],
+    ["The Champ", "wagyu burger, house buttermilk-dill, blue cheese, rocket", 26],
+    ["The Wagyu Steakhouse Burger", "wagyu burger, pepper jack cheese, crispy onions, A1 sauce, roasted garlic mayo", 26],
+    ["The Falafel Burger", "falafel burger, vegan feta, pickled onions, hummus, tahini, coriander, parsley, wholewheat vegan bun", 17],
+    ["The Black Truffle Burger", "wagyu burger, havarti cheese, rocket, truffle-yuzu vinaigrette, black garlic peppercorn aioli, shaved parmesan, truffle oil", 26],
+    ["The French Onion Burger", "burger, provolone, parmesan, simmered onions, French onion broth, roasted garlic mayo", 21],
+    ["Zhoug Lamb Burger", "seasoned lamb patty, Swiss cheese, spicy pickled cucumbers and onion, parsley, zhoug yoghurt sauce", 23],
+    ["Crispy Chicken", "buttermilk coleslaw, coriander, fresh lime, spicy mayo, Korean BBQ", 19],
+    ["BT Hot Chicken", "crispy chicken, hot chilli oil, black garlic and chilli seasoning, pickle chips, buttermilk-dill, parsley", 19],
+    ["The Cali Chicken", "grilled chicken, Swiss cheese, truffle mayo, sliced avocado, pickled onions, house vinaigrette, parsley", 19],
+    ["BT Fish and Chips Sandwich", "battered cod, tartare sauce, malt vinegar and black pepper spice, black pepper fries, lemon and dill slaw", 19],
   ]],
   ["Salads", [
-    ["Crispy Chicken Caesar", "crispy chicken, lettuce, roasted tomato, Moroccan spice, shaved parmesan, croutons, Caesar dressing"],
-    ["Burger Chopped Salad", "burger, smoked salt and black pepper rub, bacon, cherry tomato, red onion, pickles, iceberg lettuce, spring onion, black pepper parmesan dressing"],
-    ["Falafel Burger Salad", "house-made falafel, lettuce, cucumber, tomatoes, kalamata olives, hummus, vegan feta, pickled onions, tahini dressing"],
-    ["Korean BBQ Chopped Salad", "crispy chicken tenders, Korean BBQ sauce, cherry tomatoes, cucumber, avocado, sweetcorn, red peppers, spring onions, crispy onions, buttermilk-dill dressing"],
-    ["Texas Cobb Salad", "crispy chicken, lettuce, pickled onions, smoked bacon, peppers, hard-boiled eggs, avocado, cherry tomatoes, cotija cheese, chipotle buttermilk, coriander"],
+    ["Crispy Chicken Caesar", "crispy chicken, lettuce, roasted tomato, Moroccan spice, shaved parmesan, croutons, Caesar dressing", 16.5],
+    ["Burger Chopped Salad", "burger, smoked salt and black pepper rub, bacon, cherry tomato, red onion, pickles, iceberg lettuce, spring onion, black pepper parmesan dressing", 16],
+    ["Falafel Burger Salad", "house-made falafel, lettuce, cucumber, tomatoes, kalamata olives, hummus, vegan feta, pickled onions, tahini dressing", 16],
+    ["Korean BBQ Chopped Salad", "crispy chicken tenders, Korean BBQ sauce, cherry tomatoes, cucumber, avocado, sweetcorn, red peppers, spring onions, crispy onions, buttermilk-dill dressing", 17],
+    ["Texas Cobb Salad", "crispy chicken, lettuce, pickled onions, smoked bacon, peppers, hard-boiled eggs, avocado, cherry tomatoes, cotija cheese, chipotle buttermilk, coriander", 18],
   ]],
   ["Fries and rings", [
-    ["Idaho fries", "with a house sauce of your choice"],
-    ["Sweet potato fries", "with a house sauce of your choice"],
-    ["Onion rings", "made here, with a house sauce of your choice"],
-    ["Cheese fries", "zesty cheese sauce, parmesan, bacon, spring onion, sour cream and onion"],
-    ["Black truffle fries", "smoked salt, black truffle, parmesan, black garlic peppercorn aioli"],
+    ["Idaho fries", "with a house sauce of your choice", 7.5],
+    ["Sweet potato fries", "with a house sauce of your choice", 8],
+    ["Onion rings", "made here, with a house sauce of your choice", 7.5],
+    ["Cheese fries", "zesty cheese sauce, parmesan, bacon, spring onion, sour cream and onion", 11],
+    ["Black truffle fries", "smoked salt, black truffle, parmesan, black garlic peppercorn aioli", 11.5],
   ]],
   ["Sauces", [
-    ["Special sauce", ""], ["Truffle mayo", ""], ["Chipotle mayo", ""], ["House buttermilk-dill", ""], ["Korean BBQ", ""],
-    ["Texas BBQ", ""], ["Garlic mayo", ""], ["Salsa verde", ""],
+    ["Special sauce", "", 1.5], ["Truffle mayo", "", 1.5], ["Chipotle mayo", "", 1.5], ["House buttermilk-dill", "", 1.5], ["Korean BBQ", "", 1.5],
+    ["Texas BBQ", "", 1.5], ["Garlic mayo", "", 1.5], ["Salsa verde", "", 1.5],
+  ]],
+  // From the website's burger list: bun swaps and add-ons, ticked like anything else (no prices).
+  ["Extras", [
+    ["Gluten-free bun", "instead of the usual bun, on any burger", 1], ["Wholewheat vegan bun", "instead of the usual bun, on any burger", 1],
+    ["Side salad instead of fries", "with a burger", 0], ["Onion rings instead of fries", "with a burger", 2], ["Sweet potato fries instead of fries", "with a burger", 1.5], ["Speciality fries instead of fries", "with a burger", 3.5],
+    ["Fried egg", "", 1.5], ["Bacon", "", 2], ["Avocado", "", 2], ["Extra cheese", "", 1.5], ["Any house sauce", "", 1.5], ["Sautéed mushrooms", "", 1.5], ["Caramelised onions", "", 1.5],
   ]],
   ["Shakes", [
-    ["Strawberry shake", ""], ["Chocolate shake", ""], ["Vanilla shake", ""], ["Oreo shake", ""],
-    ["Strawberry cheesecake shake", ""], ["Lotus Biscoff shake", ""], ["Guinness shake", ""],
+    ["Strawberry shake", "", 7.5], ["Chocolate shake", "", 7.5], ["Vanilla shake", "", 7.5], ["Oreo shake", "", 8.5],
+    ["Strawberry cheesecake shake", "", 8.5], ["Lotus Biscoff shake", "", 8.5], ["Guinness shake", "", 9],
+    ["Vegan shake", "any classic shake made with vegan ice cream and vegan whipped cream"],
   ]],
   ["CrazyShake®", [
-    ["The Cookie Shake", "vanilla shake with a cookie-crumble rim, topped with a cookie sandwich, cookies, chocolate chips, whipped cream and chocolate sauce"],
-    ["The CakeShake®", "cake batter shake with a sprinkles rim, topped with a slice of funfetti cake, whipped cream, sprinkles and a cherry"],
-    ["Brooklyn Blackout", "chocolate shake with a chocolate-chip rim, topped with brownies, whipped cream and chocolate sauce"],
-    ["Cookies 'n Cream Supreme", "Oreo shake with a crushed-Oreo rim, topped with a cookies and cream sandwich, whipped cream and chocolate sauce"],
-    ["Cotton Candy", "strawberry shake with a sprinkles rim, topped with a lollipop, rock candy, whipped cream and candy floss"],
-    ["New Yorker", "strawberry shake with a biscuit-crumb rim, topped with a slice of strawberry cheesecake, whipped cream and a fresh strawberry"],
-    ["Jammy Dodger", "raspberry shake with a Jammy Dodger rim, topped with a giant Jammy Dodger, raspberry sauce, whipped cream and fresh raspberries"],
-    ["Guinness CakeShake®", "Guinness chocolate shake with a white-chocolate rim, topped with Guinness chocolate cake, half a brownie, whipped cream and chocolate sauce"],
+    ["The Cookie Shake", "vanilla shake with a cookie-crumble rim, topped with a cookie sandwich, cookies, chocolate chips, whipped cream and chocolate sauce", 16],
+    ["The CakeShake®", "cake batter shake with a sprinkles rim, topped with a slice of funfetti cake, whipped cream, sprinkles and a cherry", 16],
+    ["Brooklyn Blackout", "chocolate shake with a chocolate-chip rim, topped with brownies, whipped cream and chocolate sauce", 16],
+    ["Cookies 'n Cream Supreme", "Oreo shake with a crushed-Oreo rim, topped with a cookies and cream sandwich, whipped cream and chocolate sauce", 16],
+    ["Cotton Candy", "strawberry shake with a sprinkles rim, topped with a lollipop, rock candy, whipped cream and candy floss", 16],
+    ["New Yorker", "strawberry shake with a biscuit-crumb rim, topped with a slice of strawberry cheesecake, whipped cream and a fresh strawberry", 16],
+    ["Jammy Dodger", "raspberry shake with a Jammy Dodger rim, topped with a giant Jammy Dodger, raspberry sauce, whipped cream and fresh raspberries", 16],
+    ["Guinness CakeShake®", "Guinness chocolate shake with a white-chocolate rim, topped with Guinness chocolate cake, half a brownie, whipped cream and chocolate sauce", 16],
   ]],
 ];
 // Not on the website, so staff tell Derek and he adds them here: desserts other than shakes, hot drinks (coffee, tea),
 // a children's menu, and anything only on the printed menu or the night's specials.
 const FOOD_NOTE = "Burgers come with fries, lettuce, tomato and a pickle. Ask us for a side salad, onion rings or other fries instead.";
+// Drink prices from the same page (18 Nov 2026), for the guest menu only (the staff app shows no prices). Draught
+// beer is a pint. Left out where the website's product isn't clearly the same as ours (waters, wine by the glass,
+// Sprite, Fanta, Stella bottles): those show no price and the till has it.
+const DRINK_PRICE = {
+  "London Cosmo": 14, "Uptown Hustle": 14, "Salted Caramel Buzz": 14, "Cali Heatwave": 14.75, "West Coast Love": 14, "The Paddington": 14,
+  "Marshmallow Boulevard": 14, "The Rockefeller": 14.75,
+  Guinness: 7.9, Corona: 7.7, Stella: 7.1, "Goose Island": 7.9, Bud: 7.1, "Signature Roadie": 7.9, "San Miguel": 7.4, "Camden Hells": 7.8,
+  "Camden Off Menu IPA": 7.8, "Kopparberg Apple (draught)": 7.2, "Corona bottles": 6, "Corona Cero": 5.5, "Kopparberg Strawberry & Lime (bottle)": 7,
+  "Kopparberg Mixed Fruit (bottle)": 7, "Kopparberg Mixed Fruit 0%": 6.7, "Prosecco bottle": 38,
+  Coke: 3.5, "Diet Coke": 3.5, "Coke bottles": 4, "Coke Zero bottles": 4, "Diet Coke bottles": 4, Lemonade: 4, "Red Bull": 4.5, "Red Bull Sugarfree": 4.5,
+  Tonic: 4, "Light tonic": 4, "Ginger beer": 4, "Ginger ale": 4,
+};
+// What a guest's list adds up to. The service charge is optional and the till is always right.
+const FOOD_PRICE = new Map(FOOD.flatMap(([, xs]) => xs.filter((x) => x[2] != null).map((x) => [x[0], x[2]])));
+const PRICE_AS_OF = "18 Nov 2026", SERVICE_PC = 13.5;
+const gPrice = (n) => FOOD_PRICE.get(n) ?? DRINK_PRICE[n];
+const gMoney = (x) => "£" + (Number.isInteger(x) ? x : x.toFixed(2));
 /* ---------- The words people really use (words.js) ----------
    Slang, short names, common typos and what the phone's speech engine tends to hear instead, for the drinks, bottles,
    bar things and screens in Bar Book, plus the everyday bar words in the languages the team and guests speak most.
@@ -14845,7 +15018,7 @@ document.addEventListener("click", (e) => { const b = e.target.closest("[data-la
    live when live translation is on (lang.js), and labelled so. Allergen names are never translated live: the guest
    language's hand-written names, or the English with a picture.
    Staff-only things (logs, pay, closing, codes) sit under this screen and nothing on it opens them. ✕ Staff returns. */
-var GUEST = { on: false, c: "", step: "pick", tab: "talk", msgs: [], q: "", mq: "", al: new Set(), open: null, menu: "drinks", sec: "start", at: 0 };
+var GUEST = { on: false, c: "", step: "pick", tab: "talk", msgs: [], q: "", mq: "", al: new Set(), open: null, want: {}, mine: false, menu: "drinks", sec: "start", at: 0 };
 // Hand-written words for a language: its own, else the main language's (Brazilian Portuguese uses Portuguese), but
 // never Simplified Chinese for Traditional.
 const gBase = (c) => (/^zh-(TW|HK|Hant)/i.test(c || "") ? c : (c || "").split("-")[0]);
@@ -14953,7 +15126,7 @@ const G_TOP = ["es", "fr", "it", "de", "pt-BR", "pt", "zh", "ar", "ja", "ko", "n
 // Opened from 🌍 in the top bar on every phone and iPad. Back within 20 minutes, it carries on with the same guest
 // (their language, the talk so far); after that, or with New guest, it starts fresh.
 const G_KEEP = 20 * 60 * 1000;
-function gReset() { GUEST.c = ""; GUEST.step = "pick"; GUEST.msgs = []; GUEST.q = ""; GUEST.mq = ""; GUEST.al = new Set(); GUEST.open = null; GUEST.tab = "talk"; GUEST.sec = "start"; GUEST.menu = "drinks"; }
+function gReset() { GUEST.c = ""; GUEST.step = "pick"; GUEST.msgs = []; GUEST.q = ""; GUEST.mq = ""; GUEST.al = new Set(); GUEST.open = null; GUEST.want = {}; GUEST.mine = false; GUEST.tab = "talk"; GUEST.sec = "start"; GUEST.menu = "drinks"; }
 function guestOpen() {
   haptic(); sayStop?.();
   if (!GUEST.c || Date.now() - GUEST.at > G_KEEP) gReset(); else { GUEST.step = "main"; GUEST.tab = "talk"; }
@@ -14961,10 +15134,11 @@ function guestOpen() {
   $("#guest").hidden = false; document.body.style.overflow = "hidden";
   history.pushState({ guest: 1 }, ""); gRender();
 }
-function guestClose() {
+// stay: going somewhere else straight away (openAt), so the guest's history step is swapped rather than gone back.
+function guestClose(stay) {
   listenStop(); if (SAY_OK) speechSynthesis.cancel();
   GUEST.on = false; GUEST.at = Date.now(); document.body.classList.remove("g-open"); $("#guest").hidden = true; document.body.style.overflow = "";
-  if (history.state?.guest) history.back();
+  if (history.state?.guest) stay ? history.replaceState(null, "") : history.back();
 }
 const gRecent = () => store.get("guest.recent", []);
 // The back gesture doesn't take a guest into the staff app: only ✕ Staff does.
@@ -15120,15 +15294,39 @@ function gAlHtml(d) {
 }
 function gMenuHtml() {
   const q = GUEST.mq.trim().toLowerCase(), hit = (s) => !q || s.toLowerCase().includes(q);
+  if (GUEST.mine) return gMineHtml();
   if (GUEST.open != null) return gDrinkHtml(D[GUEST.open]);
   const sw = `<div class="seg g-menu-sw" role="group"><button data-g-menu="drinks" aria-pressed="${GUEST.menu !== "food"}">🍸 ${gT_("Drinks")}</button><button data-g-menu="food" aria-pressed="${GUEST.menu === "food"}">🍔 ${gT_("Food")}</button></div>`;
-  if (GUEST.menu === "food") return sw + gFoodHtml(hit);
+  if (GUEST.menu === "food") return sw + gFoodHtml(hit) + gMineBar();
   const secs = SECTIONS.map((s) => [s, D.filter((d) => d.section === s && !outNow().has(d.name) && (hit(d.name) || hit(blurb(d))))]).filter(([, xs]) => xs.length);
   const more = G_MORE.map(([k, en]) => [en, pkPool().filter((x) => x.c === k && !outNow().has(x.n) && hit(x.n))]).filter(([, xs]) => xs.length);
   return `${sw}<div class="search"><input id="g-mq" type="search" placeholder="🔍" value="${esc(GUEST.mq)}" autocomplete="off" spellcheck="false" translate="no" aria-label="Search"></div>
-    ${secs.map(([s, xs]) => `<div class="g-sec">${gT_(s)}</div>${xs.map((d) => `<button class="g-drink" data-g-drink="${d.id}"><span class="g-gl" aria-hidden="true">${glass(d)}</span><span><b translate="no">${esc(d.name)}</b>${gT_(blurb(d).replace(/^[^·]*·\s*/, ""), "small")}</span></button>`).join("")}`).join("")}
-    ${more.map(([en, xs]) => `<div class="g-sec">${gT_(en)}</div><div class="g-names" translate="no">${xs.map((x) => `<button class="chip" data-g-want="${esc(x.n)}">${esc(x.n)}</button>`).join("")}</div>`).join("")}
-    <p class="note">${gT_("Ask us about anything you don't see. Some things sell out on the night.")}</p>`;
+    ${secs.map(([s, xs]) => `<div class="g-sec">${gT_(s)}</div>${xs.map((d) => `<div class="g-row"><button class="g-drink" data-g-drink="${d.id}"><span class="g-gl" aria-hidden="true">${glass(d)}</span><span><b translate="no">${esc(d.name)}${gPr(d.name)}</b>${gT_(blurb(d).replace(/^[^·]*·\s*/, ""), "small")}</span></button>${gWantBtn(d.name)}</div>`).join("")}`).join("")}
+    ${more.map(([en, xs]) => `<div class="g-sec">${gT_(en)}</div><div class="g-names" translate="no">${xs.map((x) => `<button class="chip" data-g-want="${esc(x.n)}" aria-pressed="${!!GUEST.want[x.n]}">${GUEST.want[x.n] ? `${GUEST.want[x.n]} × ` : ""}${esc(x.n)}${gPr(x.n)}</button>`).join("")}</div>`).join("")}
+    <p class="note">${gT_("Ask us about anything you don't see. Some things sell out on the night.")}</p>${gMineBar()}`;
+}
+// Ticking what they'd like: ＋ adds one, the count shows on the row, − takes one off. It is only a list to point at:
+// nothing is ordered or sent, and staff key it into the till as usual. New guest clears it.
+const gPr = (n) => gPrice(n) != null ? ` <span class="g-pr">${gMoney(gPrice(n))}</span>` : "";
+const gWantN = () => Object.values(GUEST.want).reduce((a, b) => a + b, 0);
+const gWantBtn = (n) => GUEST.want[n] ? `<span class="g-qty" translate="no"><button class="btn" data-g-less="${esc(n)}" aria-label="One less">−</button><b>${GUEST.want[n]}</b><button class="btn" data-g-want="${esc(n)}" aria-label="One more">＋</button></span>` : `<button class="btn g-want" data-g-want="${esc(n)}" aria-label="I'd like this one" translate="no">＋</button>`;
+const gMineBar = () => gWantN() ? `<button class="btn pri wide g-minebar" data-g-mine="1">🧾 ${gT_("My choices")} (${gWantN()}) · ${gT_("Show this to staff")}</button>` : "";
+// Adds up what has a price; anything without one is counted and left to the till.
+function gSumHtml(xs) {
+  const sub = xs.reduce((a, [n, q]) => a + q * (gPrice(n) ?? 0), 0), svc = Math.round(sub * SERVICE_PC) / 100, nop = xs.filter(([n]) => gPrice(n) == null).length;
+  // Labels in the guest's words with the English under them, so both can read it.
+  const row = (en, v, b) => `<div class="g-sum${b ? " g-tot" : ""}"><span>${gT_(en)}${GUEST.c ? ` <small translate="no">${esc(en)}</small>` : ""}</span><span translate="no">${v}</span></div>`;
+  return `<div class="g-sums">${row("Subtotal", gMoney(sub))}${row("Optional service", `${SERVICE_PC}% · ${gMoney(svc)}`)}${row("Estimated total", gMoney(sub + svc), true)}
+    ${gT_("This is an estimate: your bill is final.", "p", "note")}${nop ? `<p class="note" translate="no">${plural(nop, "item")} with no price here: the till adds it.</p>` : ""}</div>`;
+}
+// The list for staff, in English (names as on the menu), with the guest's words above it.
+function gMineHtml() {
+  const xs = Object.entries(GUEST.want);
+  return `<button class="btn" data-g-mine="" translate="no">‹</button>
+    <div class="card g-mine"><p class="g-mine-h">${gT_("Show this to staff")}</p><h2 translate="no">For staff</h2>
+      ${xs.length ? xs.map(([n, q]) => `<div class="g-food"><b translate="no">${q} × ${esc(n)}${gPrice(n) != null ? ` <span class="g-pr">${gMoney(q * gPrice(n))}</span>` : ""}</b>${gWantBtn(n)}</div>`).join("") + gSumHtml(xs) : `<p class="note" translate="no">Nothing ticked yet.</p>`}
+      <p class="note" translate="no">Only a list to point at: nothing is ordered, charged or sent. Key it into the till as usual, and check allergies with the guest. Prices from blacktap.com, ${PRICE_AS_OF}: the till is always right.</p>
+      ${xs.length ? `<div class="actions"><button class="btn" data-g-mine-clear translate="no">Clear the list</button></div>` : ""}</div>`;
 }
 // The food menu (food.js): names stay as on the printed menu, what's in them in the guest's language. No allergen
 // claims here: the allergy card and a manager with the kitchen's chart answer those.
@@ -15136,15 +15334,16 @@ function gFoodHtml(hit) {
   const secs = FOOD.map(([s, xs]) => [s, xs.filter(([n, w]) => hit(n) || hit(w))]).filter(([, xs]) => xs.length);
   return `<div class="search"><input id="g-mq" type="search" placeholder="🔍" value="${esc(GUEST.mq)}" autocomplete="off" spellcheck="false" translate="no" aria-label="Search"></div>
     <p class="g-alnote"><button class="chip" data-g-tab="allergy">⚠️ ${gT_("I have an allergy")}</button></p>
-    ${secs.map(([s, xs]) => `<div class="g-sec">${G_UI[s] ? gT_(s) : `<span translate="no">${esc(s)}</span>`}</div>${xs.map(([n, w]) => `<div class="g-food"><b translate="no">${esc(n)}</b>${w ? gT_(w, "small") : ""}<button class="btn g-want" data-g-want="${esc(n)}" aria-label="I'd like this one" translate="no">＋</button></div>`).join("")}`).join("")}
+    <div class="g-facts">${gT_("Our chicken is halal. Our beef is not halal.", "p")}${gT_("Any burger can have a gluten-free or vegan bun.", "p")}</div>
+    ${secs.map(([s, xs]) => `<div class="g-sec">${G_UI[s] ? gT_(s) : `<span translate="no">${esc(s)}</span>`}</div>${xs.map(([n, w]) => `<div class="g-food"><b translate="no">${esc(n)}${gPr(n)}</b>${w ? gT_(w, "small") : ""}${gWantBtn(n)}</div>`).join("")}`).join("")}
     ${gT_(FOOD_NOTE, "p", "note")}
     <p class="note">${gT_("Ask us about anything you don't see. Some things sell out on the night.")}</p>`;
 }
 function gDrinkHtml(d) {
   return `<button class="btn" data-g-drink="" translate="no">‹</button>
-    <div class="card g-card"><span class="g" aria-hidden="true">${glass(d)}</span><h2 translate="no">${esc(d.name)}</h2>
+    <div class="card g-card"><span class="g" aria-hidden="true">${glass(d)}</span><h2 translate="no">${esc(d.name)}${gPr(d.name)}</h2>
       ${gT_(d.desc || blurb(d), "p", "g-desc")}${gAlHtml(d)}
-      <button class="btn pri wide" data-g-want="${esc(d.name)}">${gT_("I'd like this one")}</button></div>`;
+      <button class="btn pri wide" data-g-want="${esc(d.name)}">${GUEST.want[d.name] ? `✓ ${GUEST.want[d.name]} · ` : ""}${gT_("I'd like this one")}</button></div>${gMineBar()}`;
 }
 
 /* ---------- Allergy card: written by hand, never translated live ---------- */
@@ -15182,10 +15381,10 @@ document.addEventListener("click", (e) => {
   }
   if (b("[data-g-hello-say]")) return sayIn(gHelloSay(), GUEST.c);
   if (b("[data-g-new]")) { haptic(); gReset(); return gRender(); }
-  if ((x = b("[data-g-menu]"))) { haptic(); GUEST.menu = x.dataset.gMenu; GUEST.mq = ""; return gRender(); }
+  if ((x = b("[data-g-menu]"))) { haptic(); GUEST.menu = x.dataset.gMenu; GUEST.mq = ""; GUEST.open = null; GUEST.mine = false; return gRender(); }
   if ((x = b(".gw"))) return gGloss(x);
   if ((x = b("[data-g-step]"))) { haptic(); GUEST.step = x.dataset.gStep; if (x.dataset.gTo) GUEST.tab = x.dataset.gTo; GUEST.open = null; return gRender(); }
-  if ((x = b("[data-g-tab]"))) { haptic(); GUEST.tab = x.dataset.gTab; GUEST.open = null; return gRender(); }
+  if ((x = b("[data-g-tab]"))) { haptic(); GUEST.tab = x.dataset.gTab; GUEST.open = null; GUEST.mine = false; return gRender(); }
   if ((x = b("[data-g-sec]"))) { GUEST.sec = x.dataset.gSec; return gRender(); }
   if ((x = b("[data-g-phrase]"))) { haptic(); return gPhrase(x.dataset.gPhrase, "s"); }
   if ((x = b("[data-g-reply]"))) { haptic(); return gPhrase(x.dataset.gReply, "g"); }
@@ -15194,7 +15393,10 @@ document.addEventListener("click", (e) => {
   if ((x = b("[data-g-heard]"))) { if (x.dataset.gHeard === "clear") { try { gRec?.abort(); } catch {} gRec = null; $("#g-sin").value = ""; $("#g-gin").value = ""; return gMic($("#g-heard").dataset.who || "s"); } listenStop(); return; }
   if ((x = b("[data-g-hear]"))) { const m = GUEST.msgs[+x.dataset.gHear]; return sayIn(m.who === "g" ? m.en : m.t, m.who === "g" ? "" : GUEST.c); }
   if ((x = b("[data-g-drink]"))) { haptic(); GUEST.open = x.dataset.gDrink === "" ? null : +x.dataset.gDrink; gRender(); $("#g-body").scrollTop = 0; return; }
-  if ((x = b("[data-g-want]"))) { haptic(); GUEST.tab = "talk"; GUEST.open = null; return gAdd({ who: "g", en: `I'd like: ${x.dataset.gWant}`, t: `${gLook("I'd like this one") || "I'd like this one"}: ${x.dataset.gWant}` }); }
+  if ((x = b("[data-g-want]"))) { haptic(); const n = x.dataset.gWant; GUEST.want[n] = (GUEST.want[n] || 0) + 1; return gRender(); }
+  if ((x = b("[data-g-less]"))) { haptic(); const n = x.dataset.gLess; if (--GUEST.want[n] <= 0) delete GUEST.want[n]; return gRender(); }
+  if ((x = b("[data-g-mine]"))) { haptic(); GUEST.mine = x.dataset.gMine !== ""; GUEST.open = null; gRender(); $("#g-body").scrollTop = 0; return; }
+  if (b("[data-g-mine-clear]")) { haptic(); GUEST.want = {}; GUEST.mine = false; return gRender(); }
   if ((x = b("[data-g-al]"))) { haptic(); const k = x.dataset.gAl; GUEST.al.has(k) ? GUEST.al.delete(k) : GUEST.al.add(k); x.setAttribute("aria-pressed", GUEST.al.has(k)); return; }
   if (b("[data-g-al-send]")) return gAllergySend(false);
   if (b("[data-g-al-none]")) return gAllergySend(true);
@@ -15222,7 +15424,9 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .g-bar-r{display:flex;gap:6px}.g-wel{font-family:var(--display);font-size:30px;line-height:1.15;margin:0 0 10px;color:var(--brass)}
 .gw{cursor:pointer;border-radius:4px}.gw:active{background:color-mix(in srgb,var(--brass) 30%,transparent)}
 .g-food{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.g-food b{font-size:17px}.g-food small{grid-column:1;color:var(--muted);font-size:14px}.g-food .g-want{grid-row:1/span 2;grid-column:2;padding:6px 12px}
-.g-alnote{margin:4px 0}
+.g-alnote{margin:4px 0}.g-facts{margin:6px 0 2px;font-weight:600}.g-pr{font-weight:600;color:var(--brass);white-space:nowrap}.g-sums{margin-top:10px}.g-sum{display:flex;justify-content:space-between;gap:10px;padding:4px 0}.g-sum small{display:block;color:var(--muted);font-size:12px;font-weight:400}.g-tot{font-weight:800;font-size:18px;border-top:1px solid var(--line);margin-top:4px;padding-top:8px}.g-facts p{margin:2px 0}.g-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}.g-row .g-drink{border:0;flex:1;min-width:0}.g-row .g-want{flex:none;padding:6px 12px}
+.g-qty{display:flex;align-items:center;gap:6px;grid-row:1/span 2;grid-column:2;flex:none}.g-qty .btn{padding:6px 12px;min-height:40px}.g-qty b{min-width:20px;text-align:center;font-size:18px}
+.g-minebar{position:sticky;bottom:8px;margin-top:12px;box-shadow:0 4px 16px rgba(0,0,0,.35)}.g-mine h2{margin:2px 0 10px}.g-mine-h{font-size:20px;font-weight:700;margin:0}
 #g-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0}
 .g-log{flex:1;min-height:120px;overflow-y:auto;padding:4px 0}
 .g-msg{max-width:88%;margin:8px 0;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--surface)}
@@ -15445,8 +15649,8 @@ const HELP = {
     how: ["Shift, Closing, then Every photo tonight, or Photos on the bar iPad. Tonight's show first; older nights are along the top.", "All, Bar or Floor narrows them down. Each says who took it, when, its note, and whether it went with a handover yet.", "Tap photos to pick them (or Pick all), then Send. \u2922 shows one full size."],
     behind: ["Photos from every phone and the iPad are here, sent or not. They are kept 30 days, then cleared to keep Bar Book free.", "10 photos go in one message; pick the rest and send again.", "The message carries a link back to the night's photos for anyone on the team."] },
   morning: { t: "Morning", what: "Last night's handover for the opening team, today's order and the prep pars.",
-    how: ["Start with Before you open: what's 86'd, labels due and anything new. Tap the ring to play it full screen like stories: tap the right side (or swipe) for the next card, the left to go back, hold to pause. Drinks whose spec changed say what changed: tap one to open it.", "Read the handover and sort what you can.", "Tap Checked: send on WhatsApp so the duty manager knows what's still outstanding.", "Send the order and the prep list if you need to."],
-    behind: ["Managers see Seen by under the brief: who has watched it tonight and when. Only managers see it.", "The handover is the last one your side sent before today. It stays saved, so it's still here if nobody reads it straight away.", "Today's order is what last night said was running low, plus anything still 86'd.", "Prep pars are higher on Fridays and Saturdays."] },
+    how: ["Start with tonight's brief: the ring here and at the top of the app. Tap it to play it full screen like stories: tap the right side (or swipe) for the next card, the left to go back, hold to pause, swipe down to close. Each card stays up as long as it takes to read. Drinks whose spec changed say what changed: tap one to open it.", "Before you open lists the same things on the page: what's 86'd, labels due and anything new.", "Read the handover and sort what you can.", "Tap Checked: send on WhatsApp so the duty manager knows what's still outstanding.", "Send the order and the prep list if you need to."],
+    behind: ["The brief is the one place for what's new: specs changed in a new version, what changed while you were away, and what's new in Bar Book itself. Closed part-way? It opens again where you stopped, the same day.", "It counts as watched once you reach the last card, like a read receipt: then the ring goes grey and the managers' Seen by shows your name and the time. Only managers see Seen by.", "The handover is the last one your side sent before today. It stays saved, so it's still here if nobody reads it straight away.", "Today's order is what last night said was running low, plus anything still 86'd.", "Prep pars are higher on Fridays and Saturdays."] },
   labels: { t: "Date labels", what: "Everything your side dates once it's opened, and when each one needs changing.",
     how: ["Opened one? Tap Opened one and write the date it gives you on the label.", "Binned the old one and opened a new one? Tap Changed it.", "Binned with no new one opened? Tap Binned. ⋯ shows its history."],
     behind: ["Each tap is saved with your name and the time, so a label that wasn't changed can be traced.", "Due today, tomorrow and overdue show at the top of Morning and Closing, and go in the handover.", "Only managers add, change or remove items. They set each side up from Black Tap's list in one go, with the days from each pack."] },
@@ -15467,15 +15671,15 @@ const HELP = {
       "📷 Scan: point the camera at a bottle's barcode and it opens that item to count, with its date label. The first time a barcode is scanned, pick which item it is: from then on it finds it for everyone. Camera won't read it? Type the barcode's numbers into Find.",
       "Use-by, at the top: date labels due in the next 3 days. Changed it or Opened one saves the new use-by in one tap; › opens Date labels for anything else.",
       "Not on the count at all, like a new cake or shake topping? Find shows ＋ Add it and count it (or use Something new, at the bottom, or scan it). It's on the count straight away for you to count; Maintenance checks it after.",
-      "Delivery in: log what came in so usage between counts comes out right.",
+      "Delivery in: log what came in so usage between counts comes out right. 📷 Read the note reads a photo (or the PDF) of the delivery note: check each number against the paper, then Log ticked.",
       "Running low: a line under its level shows Running low. Managers set the level on the line, or in Set up the count (Running low below, next to Par).",
       "Done: Send on WhatsApp sends the totals as a table, or Spreadsheet gives a file for Numbers or Excel to type into Nory."],
     behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Every bottle and pack comes filled in: its size from the label (70 cl, Monkey 47's 50 cl, Martini's 75 cl, a 200 ml Fever-Tree, a 1 kg Funkin pouch) and estimated empty and full weights. A liqueur weighs more than a spirit, so grams are never taken as ml.", "Estimates are near enough to count with, and say so. A manager makes one exact by weighing a sealed bottle once (Check it, on the line): the empty weight follows. Weighed ones are locked, with who and when, so nobody changes them by accident: re-weighing takes Unlock to re-weigh first, and a spreadsheet import can't change them. Set up the count changes any size or weight. A sealed bottle goes on Full with +, so it's never counted twice.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory.", "Running low uses the latest count that has the product in every place, plus deliveries logged since. It's worked out, not saved, so it's never a second list: once it's 86'd it's on the 86 board instead.", "A barcode says which product it is, never its use-by date, so use-by stays on the date labels: one record, not two. A barcode someone links works straight away; managers check it under Barcodes to check.", "Scanning needs signal the first time, to load the scanner; after that it works offline. Looking up a new barcode's name online needs signal."] },
   stock: { t: "86 and restock", what: "What's run out tonight, and getting stock up from the cellar.",
-    how: ["Tap Search everything to 86: type a few letters (typos are fine), pick a kind, like Spirits, Cakes or Frozen, or scroll it A to Z with the letter strip down the side.", "Tap 86 on a row, or tick several and 86 them together. Each row says how many drinks use it, and the swap once it's out.", "Quick 86 has this phone's recent ones and the team's most 86'd: one tap. Not on the list? Type it and it goes on as you typed it.", "Back in stock takes it off for everyone.", "Restock: pick what's needed from the same list, then how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it.", "Running low, under the 86 board: what the last stock count says is under its level. Not out yet. 86 it there when it runs out."],
+    how: ["Tap Search everything to 86: type a few letters (typos are fine), pick a kind, like Spirits, Cakes or Frozen, or scroll it A to Z with the letter strip down the side.", "Tap 86 on a row, or tick several and 86 them together. Each row says how many drinks use it, and the swap once it's out.", "Quick 86 has this phone's recent ones and the team's most 86'd: one tap. Not on the list? Type it and it goes on as you typed it.", "Back in stock takes it off for everyone. ↺ Clear: all back in stock empties the board at once, with ↩ Undo clear in its place for 15 minutes.", "Restock: pick what's needed from the same list, then how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it.", "Running low, under the 86 board: what the last stock count says is under its level. Not out yet. 86 it there when it runs out."],
     behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere. An 86'd ingredient turns every drink that uses it to Can make with a swap, or Can't make tonight if nothing close is in.", "Missing on a drink's own ingredient goes on this same board, so one tap does both.", "Restocks waiting over 15 minutes show as late. The stock count has its own tab, Stock: its totals go into Nory.", "Clear everything puts every 86 back in stock and cancels restocks still waiting."] },
   closing: { t: "Closing checklist", what: "The close, ticked off live on every phone.",
-    how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part. Someone left before finishing theirs? Tap Take over and carry on: the heading and the report say who started it and who finished it.", "Started but not handed over? It shows on Team (and on Shift for anyone not on it) with who started it and Carry on, so anyone can pick it up, add photos or hand over.", "Under the photos, Send the checklist sends it with its photos any time. Nothing needs saving by hand: ticks, photos and notes save for the whole team as you go.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started.", "The timer at the top shows how long the close has taken against the team's best. A new best gets a cheer."],
+    how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part. Someone left before finishing theirs? Tap Take over and carry on: the heading and the report say who started it and who finished it.", "Started but not handed over? It shows on Team (and on Shift for anyone not on it) with who started it and Carry on, so anyone can pick it up, add photos or hand over.", "Under the photos, Send the checklist sends it with its photos any time. Nothing needs saving by hand: ticks, photos and notes save for the whole team as you go.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. ↺ Clear, in the row at the top of the list, puts the whole list back to not started straight away; ↩ Undo clear takes its place for 15 minutes. The list starts fresh by itself at 6am anyway.", "The timer at the top shows how long the close has taken against the team's best. A new best gets a cheer."],
     behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks and photos wait on the phone, even if the app is closed, and go in order when it's back. A banner says they're waiting, and Back online. Everything's sent says they've arrived.", "The clock starts at the first tick and stops when the handover goes. Each side's time is kept for the managers."] },
   handover: { t: "Handover", what: "The end of the night: what's done, what's low, what's outstanding and what tomorrow needs.",
     how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos. Anyone on your side can add photos any time of the shift: each is saved for the whole team straight away, and Send now shares one on its own too.", "Then pick one: Hand over: send with photos saves it and opens the share sheet with the words as a picture and the photos (WhatsApp on a phone; Mail, Messages, AirDrop or Save to Files on the iPad). Hand over: just save saves it and sends nothing.", "Either way it's saved for the morning team and every manager, photos included. Open it shows it; Delete takes it off for everyone (whoever saved it, or a manager)."],
@@ -15540,10 +15744,10 @@ const HELP = {
     how: ["Make: tap ingredients and the matches update.", "My bar: the bottles you have. Specs: every spec on one line.", "Black Tap: our line-up and house serves."],
     behind: ["My bar and My drinks stay on this phone.", "Anything on the 86 board stops counting, so it won't suggest a drink you can't make tonight."] },
   voice: { t: "Say it \ud83c\udfa4", what: "Hands full? Tap \ud83c\udfa4 at the top (next to \ud83d\udd0d, and on a drink's page and the bar station) and say it how you like. It picks out the key words.",
-    how: ["86 something: \u201c86 the Corona\u201d, \u201cwe've run out of limes\u201d, \u201cthe Corona is out\u201d, or several at once: \u201c86 limes and mint\u201d.", "Back in: \u201climes are back\u201d or \u201cback in Corona\u201d.", "A drink: just say its name, or \u201cNegroni spec\u201d. It opens straight away, or the closest match if it isn't sure, with Not it? and the next closest along the bottom to tap. On the iPad it opens in the station.", "Count: \u201ccount tonic 12\u201d or \u201cSmirnoff count 3 and a half\u201d opens the stock count with it ready to save.", "Also \u201cwhat's 86'd\u201d, \u201clog it ice machine leaking\u201d, \u201cwhat can I make\u201d, \u201clast orders\u201d and \u201copen closing\u201d.", "While it listens the \ud83c\udfa4 glows and the words show as it hears them. Done stops it early.", "Anything that changes something (an 86, back in, a log) shows what it heard and waits for Yes. Couldn't make it out? It says so, with Try again and the box to type in.", "No microphone, or too loud? Type the same words in the box.", "No need to say “make” or “spec”: a drink's name on its own opens it. “Mojito no sugar” or “Paddington without aquafaba” opens it with that line marked: leave it out, or the closest swap. “Missing limes” and “we're out of mint” are 86s.", "Spell it if it won't catch it: “M-O-J-I-T-O”. Slang and nicknames work too (“marg”, “p star”, “g and t”, “tanker ray”).", "I'm speaking, at the top: pick your English (UK, Irish, US, Indian, Nigerian, Ghanaian, South African, Australian or Filipino) and it listens for your accent. Or your own language, if the phone can hear it: it's put into English first (needs live translation).", "Clear, start again, while it listens, if it's going wrong.", "Typing works the same: “86 mint” or “mojito no sugar” in 🔍 or the drinks search shows a button to do it."],
+    how: ["86 something: \u201c86 the Corona\u201d, \u201cwe've run out of limes\u201d, \u201cthe Corona is out\u201d, or several at once: \u201c86 limes and mint\u201d.", "Back in: \u201climes are back\u201d or \u201cback in Corona\u201d.", "Like a radio: hold \ud83c\udfa4, talk, and let go when you've said it. Or tap it once and it stops by itself when you stop talking.", "A drink: just say its name, or \u201cNegroni spec\u201d. It opens straight away, or the closest match if it isn't sure, with Not it? and the next closest along the bottom to tap. On the iPad it opens in the station.", "Count: \u201ccount tonic 12\u201d or \u201cSmirnoff count 3 and a half\u201d opens the stock count with it ready to save.", "Also \u201cwhat's 86'd\u201d, \u201clog it ice machine leaking\u201d, \u201cwhat can I make\u201d, \u201clast orders\u201d and \u201copen closing\u201d.", "While it listens the \ud83c\udfa4 glows and the words show as it hears them. Done stops it early.", "Anything that changes something (an 86, back in, a log) shows what it heard and waits for Yes. Couldn't make it out? It says so, with Try again and the box to type in.", "No microphone, or too loud? Type the same words in the box.", "No need to say “make” or “spec”: a drink's name on its own opens it. “Mojito no sugar” or “Paddington without aquafaba” opens it with that line marked: leave it out, or the closest swap. “Missing limes” and “we're out of mint” are 86s.", "Spell it if it won't catch it: “M-O-J-I-T-O”. Slang and nicknames work too (“marg”, “p star”, “g and t”, “tanker ray”).", "I'm speaking, at the top: pick your English (UK, Irish, US, Indian, Nigerian, Ghanaian, South African, Australian or Filipino) and it listens for your accent. Or your own language, if the phone can hear it: it's put into English first (needs live translation).", "Clear, start again, while it listens, if it's going wrong.", "Any screen by voice too: “open closing”, “labels”, “dark mode”, “language lessons”. “French guest” or “talk to a guest” opens 🌍, in their language if you name it. Counts take words: “count Smirnoff two and a half”.", "Typing works the same: “86 mint” or “mojito no sugar” in 🔍 or the drinks search shows a button to do it."],
     behind: ["Names are matched like the 86 search: a letter or two off, split words and sound-alikes are fine, so \u201ctanker ray\u201d is Tanqueray.", "The phone sends up to five guesses at what you said, and Bar Book takes the one that makes most sense.", "Your phone turns speech into words; Bar Book only sees the words. It's free. iPhones need Safari or the home screen app's keyboard \ud83c\udfa4.", "Turn the button off in More, This phone."] },
   guest: { t: "Talk to a guest 🌍", what: "A guest who doesn't speak English: tap 🌍 at the top (Guest on the bar station) and hand them the phone or iPad.",
-    how: ["They pick their language (search it in their own words: Español, 中文, Polski). A welcome and “Here's our menu. Sorry, I don't speak your language well, but this app can help us talk” come up in it, and are said out loud if the phone has the voice.", "Menu: Drinks and Food, in their language. Names stay as on the menu; what's in them is translated. ＋ or I'd like this one tells you what they want.", "Talk: they tap a question (Is this spicy? The bill, please) or type or speak in their language, and you see it in English. You tap a phrase (Hello, Check-backs, Desserts, Coffee, Tea, Goodbye…) or type or speak in English, and they see and hear it in theirs.", "Tap any word in a message to see what it means.", "Allergies: the card is written by hand in 34 languages. They tick what they're allergic to and you get it in English. Always check with a manager and the kitchen's allergen chart.", "✕ Staff takes it back. Open it again within 20 minutes and it carries on with the same guest; New guest starts again. Staff: write your own second line, on the welcome, changes the hello."],
+    how: ["They pick their language (search it in their own words: Español, 中文, Polski). A welcome and “Here's our menu. Sorry, I don't speak your language well, but this app can help us talk” come up in it, and are said out loud if the phone has the voice.", "Menu: Drinks and Food, in their language. Names stay as on the menu; what's in them is translated. They tick what they'd like with ＋ (− takes one off), then My choices shows you the list in English to key into the till. Nothing is ordered or sent; New guest clears it. Food says our chicken is halal (the beef is not) and any burger can have a gluten-free or vegan bun.", "Talk: they tap a question (Is this spicy? The bill, please) or type or speak in their language, and you see it in English. You tap a phrase (Hello, Check-backs, Desserts, Coffee, Tea, Goodbye…) or type or speak in English, and they see and hear it in theirs.", "Tap any word in a message to see what it means.", "Allergies: the card is written by hand in 34 languages. They tick what they're allergic to and you get it in English. Always check with a manager and the kitchen's allergen chart.", "✕ Staff takes it back. Open it again within 20 minutes and it carries on with the same guest; New guest starts again. Staff: write your own second line, on the welcome, changes the hello."],
     behind: ["Written by hand (works with no signal): the welcome, the phrases and questions in 17 languages, the allergy card in 34. Everything else, and every other language, needs live translation, switched on in More by Maintenance. It's marked Translated live.", "Nothing staff-only (logs, pay, closing, codes) can be opened from it.", "The phone's own voice and microphone do the speaking and hearing. Some languages have no voice or microphone on iPhones: those read and type."] },
   lang: { t: "Your language", what: "Bar Book in your language, with the English always one tap or one hold away.",
     how: ["Picked when you choose your name, and kept for you on the shared iPad. Change it in More, This phone, or with the language button at the top.", "EN at the top flips to English and back.", "Hold any words for a moment (or select them) to see them in English, with 🔊 to hear both.", "Show the English too (More, This phone) puts the English in small under each line, for learning.", "22 languages are built in and work with no signal. Any other, like Irish, Twi or Tamil, works while live translation is on."],
@@ -15563,7 +15767,10 @@ const HELP = {
   venue: { t: "Last orders and day or night", what: "Times that run the whole team.",
     how: ["Last orders: 15 minutes before, every phone and the iPad flag it, and it goes in the pre-shift brief.", "Day and night: phones set to Clock go light and dark at these times."],
     behind: ["Leave last orders empty to turn the reminder off."] },
-  pay: { t: "My pay", what: "An estimate of your take-home, not a payslip.",
+  clear: { t: "Clear and undo", what: "One way to clear, everywhere: the closing lists, the 86 board, the round on the bar station and the cocktail maker.",
+    how: ["↺ Clear sits in the row of tools at the top of the list. It acts straight away, with no question first.", "Cleared by mistake? ↩ Undo clear is in the same spot for 15 minutes and puts back exactly what it took. The toast says so too.", "Nothing to clear yet? The button isn't there.", "Clear everything, at the foot of Shift, clears both sides at once for a fresh start, with its own Undo clear."],
+    behind: ["Checklists, the handover and the 86 board start fresh by themselves at 6am: each shift day has its own, so nobody has to clear them at night.", "Undo is kept on the phone that cleared, so use the same phone to undo.", "Sent handovers, date labels, today's stock count and open issues never clear: the morning and the managers need them."] },
+  pay: { t: "My pay", what: "An estimate of your take-home, not a payslip. It's in More, under You.",
     how: ["Tap Add payslips and pick your payslips (photos, screenshots or PDFs, a year's at once). Every month fills in by itself: hours, rate, tronc an hour, tax, NI and take-home.", "This month shows how the month adds up, step by step. Every month puts them side by side; Holiday and More hold the rest.", "Months without a payslip are predicted from your average hours and tronc an hour. Type the hours you expect under the summary to see what it would pay."],
     behind: ["It stays on this phone: nobody else sees it and it never goes online. Payslips are read on the phone.", "Tronc is paid on the hours worked the month before, so its rate an hour is each payslip's tronc over the month before's hours. With no payslips yet it's a suggested £6.", "Tax uses the 2026 to 2027 GOV.UK rates, month by month. Your payslip is always the final word."] },
   logit: { t: "Log it", what: "Anything you see, find, do, are told or tell a manager, saved in one line with your name and the time.",
@@ -15576,7 +15783,7 @@ const HELP = {
 /* How Bar Book works: five short cards, shown once on a phone's first open (after Bar or Floor) and any time from
    More. Skip ends it. The last card leads to the full feature list and its tour. */
 const INTRO = [
-  { t: "Welcome to Bar Book", how: ["Every drink we make, the shift, the close and the handover, in one app built for Black Tap Soho.", "Specs and guides work with no signal. The team side syncs live between every phone on shift.", "Tap Next to see what it does. Skip any time: More, Replay the tour brings it back."], tip: "Two minutes now saves you that every shift." },
+  { t: "Welcome to Bar Book", how: ["Every drink we make, the shift, the close and the handover, in one app built for Black Tap Soho.", "Specs and guides work with no signal. The team side syncs live between every phone on shift.", "Tap Next to see what it does. Skip any time: the Guide (🔍 at the top) has it again."], tip: "Two minutes now saves you that every shift." },
   { t: "Find any drink in seconds", how: ["Rapid fire: the house drinks as big buttons, one tap from the start page. Show specs on the page and most questions need no tap at all.", "Menu: search by drink, spirit, glass or flavour. It forgives typos, so “espreso martni” still finds it.", "Or just scroll: A to Z shows the Black Tap signatures first, then every drink under its letter. Tap a letter on the strip down the right, or slide your finger down it, to go straight there. Sections shows the menu's sections instead: tap it again to jump to one.", "Filters narrows by kind of drink, spirit or what the guest fancies, or sorts by strength or fewest ingredients. ★ shows your favourites."], tip: "Tap the empty search box to see the drinks you opened last. Tap the Drinks tab again at the top of the Menu to jump straight into search.", more: ["rapid"] },
   { t: "Every spec, done right", how: ["Each drink has the spec, glass, ice, garnish and method, plus a picture guide for every step.", "Tap a line or step to tick it off as you build. − and + scale it for up to 12 drinks. ml or oz switches units. On the bar iPad, a tap on a drink opens Make it now: one big step card at a time, with the jigger side for each amount.", "Batch it turns any drink into a prep bottle: every amount, the water and how many it makes."], tip: "Send this drink, Picture card or Print card turns any spec into a WhatsApp message or a card for the well.", more: ["drink"] },
   { t: "Every language, for the team and guests", how: ["Your language is asked when you pick your name, and stays yours on the shared iPad. EN at the top flips to English and back; hold any words to see them in English, or tick Show the English too to learn.", "🌍 at the top, on every phone and the iPad: a guest picks their language and gets a welcome, the drinks and food menus, questions to tap, the allergy card and two-way talk. You tap ready phrases (How's the food?, desserts, coffee, tea, goodbye) and they see and hear them in their language.", "Language lessons in Games and drills teach you the phrases."], tip: "Allergens are never machine translated: the allergy card is written by hand, and the kitchen's chart and a manager always check." },
@@ -15590,8 +15797,8 @@ const INTRO = [
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift and Who to call."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "Send with photos puts the words in as a picture, so nothing needs pasting. On the iPad it goes to Mail, AirDrop or Save to Files.", more: ["send"] },
   { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Export and import, Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Export and import: every log out as Excel, CSV, Word, a printout or a copy, and spreadsheets in for date labels, items, names, the stock setup and past counts.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, Backup and restore, and Start again to wipe the test data.", "Safety net, Ready for Friday: rules, codes, backups and this phone, each going green by itself once it's done."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["export", "inbox", "replay", "order", "season", "ready"] },
-  { t: "Learn it, and look after yourself", how: ["More, Training, Practise specs: flashcards, tonight's quiz (the same 10 for everyone), speed drills against the clock, and the new starter path.", "Bar 101: what to say when a guest asks, from our own back bar. It remembers what you know and quizzes you on the rest.", "More, Training, Games and drills: the daily drill, quiz night and language lessons (guest phrases in any language). More, Cheat sheets: a page per kind of drink, to print or send.", "My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
-  { t: "Tips and tricks", how: ["\ud83d\udd0d at the top right opens the Guide: every section, and a search for anything, a screen included (\u201cclosing\u201d, \u201chow do I make a mojito\u201d). \ud83c\udfa4 beside it does it by voice. \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Hands full? Tap 🎤 and say it how you like: “can you 86 the Corona”, “Negroni spec” or “count tonic 12”. It picks out the key words and asks before it changes anything.", "More, This phone: one-hand mode, accessible mode, sounds and light or dark.", "Tap any small ? for how that part works and what happens behind the scenes.", "Needs you now: a banner at the top when you open the app, for a label due, last night's handover and more. Tap it to go there, × to hide it.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "More, under Help, has Replay the tour and Replay the walkthrough whenever you want them. Hide the ? buttons there too.", more: ["voice", "phone", "drafts"] },
+  { t: "Learn it, and look after yourself", how: ["More, Training, Practise specs: flashcards, tonight's quiz (the same 10 for everyone), speed drills against the clock, and the new starter path.", "Bar 101: what to say when a guest asks, from our own back bar. It remembers what you know and quizzes you on the rest.", "More, Training, Games and drills: the daily drill, quiz night and language lessons (guest phrases in any language). More, Cheat sheets: a page per kind of drink, to print or send.", "More, My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
+  { t: "Tips and tricks", how: ["\ud83d\udd0d at the top right opens the Guide: every section, and a search for anything, a screen included (\u201cclosing\u201d, \u201chow do I make a mojito\u201d). \ud83c\udfa4 beside it does it by voice. \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Hands full? Tap 🎤 and say it how you like: “can you 86 the Corona”, “Negroni spec” or “count tonic 12”. It picks out the key words and asks before it changes anything.", "More, This phone: one-hand mode, accessible mode, sounds and light or dark.", "Tap any small ? for how that part works and what happens behind the scenes.", "Needs you now: a banner at the top when you open the app, with tonight's brief as a ring to tap and play, then a label due, last night's handover and more. Tap one to go there, × to hide it.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "The Guide (🔍 at the top, or More, Guide) has this tour and the walkthrough whenever you want them. Hide the ? buttons there too.", more: ["voice", "phone", "drafts"] },
 ];
 // The tour card the last help panel was opened from, so Back returns to it.
 let introAt = -1;
@@ -15830,112 +16037,87 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 </style>`);
 /* ---------- Your shift, and the Guide ----------
    Bar or Floor on the start screen (or the first time someone opens Shift, after going straight to the drinks) shows a
-   short walkthrough of that side's night: opening, Log it, closing and the handover. Once per person on each side: on a
-   shared iPad, once per name. When the walkthrough changes, WALK_V goes up and WALK_NEW says what changed: anyone who
-   saw an older one gets one small "New in the walkthrough" note instead of the whole thing again. More, Help has Replay
-   the walkthrough and Replay the tour any time.
+   short walkthrough of that side's night in four cards: the basics, opening and service, closing, and the handover.
+   Four, not seven: tours of three or four steps are finished about three times in four, seven or more about one time
+   in six (Chameleon's tour benchmarks), so each card is a few short lines and the detail lives in the ? buttons and
+   the Guide. Once per person on each side: on a shared iPad, once per name. When the walkthrough changes, WALK_V goes
+   up and WALK_NEW says what changed: anyone who saw an older one gets it as a "New in Bar Book" card in tonight's
+   brief (the stories), not a pop-up. The Guide (🔍, or More, Guide) has the walkthroughs and the full tour any time.
    The 🔍 at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 15;
-const WALK_NEW = "🌍 at the top (and Guest on the bar station) talks to any guest: they pick their language and see a welcome, the drinks and food menus, questions to tap and the allergy card in it, and you tap ready phrases (check-backs, desserts, coffee, tea, goodbye) that they see and hear in their language. Your own language is asked when you pick your name; hold any words to see them in English. 🎤 needs fewer words now: “mojito no sugar”, “missing limes”, and it can listen for your accent. Language lessons are in Games and drills. Before that: 🔍 at the top finds any screen, drink or how-to: type it and tap to go there. 🎤 sits next to it now, never over the page: it shows the words as it hears them, says when it couldn't make them out, and a drink said opens straight away. On Closing, tap a heading to fold it. Stock count: tidier. Places are numbered and fold open one at a time, items are numbered, and a counted bottle says what's there (2 full · ½ open). The day, order, cl or ml, How to count and tips are in Options, which also picks the places that are yours tonight.";
-const WALK_NAV = { t: "Getting around", how: [
-  "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
-  "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
-  "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
-  "Long lists scroll A to Z, like your phone's contacts: the drinks, the 86 picker, the stock count. Tap a letter on the strip down the right, or slide your finger down it.",
-  "A guest who doesn't speak English? Tap 🌍 at the top and hand them the phone: their language, the menu, questions to tap and two-way talk. ✕ Staff takes it back.",
-  "Hands full? Tap 🎤 and say it how you like, like “86 the Corona”, “mojito no sugar” or just “Negroni”: it picks out the key words. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
-  "🔍 at the top right finds anything: type a screen (“closing”, “labels”, “pay”) and tap to go straight there, or a drink, or “how do I make a mojito”. 🎤 next to it does the same by voice.",
-], tip: "× closes this at any time. More, Replay the walkthrough brings it back." };
-const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
-  `Saw something, found something, did something, told a manager or someone told you? Tap ＋ Log it on Shift${side === "bar" ? " or on the bar station" : ""}. One line is enough.`,
-  "Pick what it is. 86 goes on the 86 board for everyone and Broken goes on Issues. Running low, Not finished and For tomorrow go straight into tonight's handover. The rest goes under Logged tonight.",
-  "Log it and send on WhatsApp puts it in the team chat from your phone, so everyone knows now.",
-], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
-const WALK_COUNT = { t: "Stock count", how: [
-  "The Stock tab: the first time, it walks you through it with pictures. Every place is numbered in the order you walk it and folds open one at a time, and Not counted yet shows only what's left. Options holds the day, the order, cl or ml, which places are yours tonight, How to count and the tips.",
-  "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm ›. ‹ Back goes to the item before. Same as last time does a line in one tap. More has tenths, Photo check and the scale.",
-  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 📷 Scan its barcode. Or 🎤 Say it: “Smirnoff two and a half”.",
-  "For example: 3 sealed Smirnoff and an open one about four-tenths full is Full 3, open .4 (under More), which is 3.4 bottles of 70 cl, or 2,380 ml. The line shows the sum. Sizes show in cl and ml (1 cl = 10 ml); cl ⇄ ml, in Options, swaps which leads.",
-  "Mis-tap? ↩ Undo, under Find, puts it back. Check it on a line means it's far from last time: count it again, or tap It's right.",
-  "Use-by, at the top of Stock: date labels due in the next 3 days. Changed it saves the new date in one tap.",
-  "Anything under its running-low level gets a Running low tag, then shows on the 86 board, the bar station and Needs you now as a heads-up before it's an 86.",
-  "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
-], tip: "No signal in the cellar? It saves anyway and sends when you're back." };
-const WALK_SEND = { t: "Hand over and send", how: [
-  "Shift, Handover: tap who closed, then check Running low, Outstanding and For tomorrow. Whatever the team logged is already in.",
-  "Tap Hand over: send with photos. It saves for the morning team and every manager, then the share sheet opens with the close as a picture and the photos: pick the team chat and send.",
-  "Not sending now? Hand over: just save. It's saved, photos included, and anyone can open it or send it later.",
-  "Closed on the iPad? Send with photos goes to Mail, AirDrop or Save to Files, or send it from your own phone: Team, Send on WhatsApp, then the last handover.",
-], tip: "Leaving part-way? Save draft: the team sees who started it, and anyone can carry on and add photos." };
+const WALK_V = 16;
+const WALK_NEW = [
+  "🌍 at the top (Guest on the bar station): hand a guest the phone. Their language, the drinks and food menus to tick (with prices), questions to tap, two-way talk and the allergy card",
+  "Your own language is asked when you pick your name. Hold any words to see them in English",
+  "🎤 needs fewer words: “mojito no sugar”, “missing limes”, or just “Negroni”. Pick your accent in its settings",
+  "Language lessons for any language are in Games and drills",
+  "What's new lives here now: the ring at the top of the app. Tap through like stories; hold to pause",
+  "🎤 works like a radio: hold it, talk, let go. A quick tap still works too",
+  "↺ Clear works the same on every list: it acts at once, and ↩ Undo clear sits in its place for 15 minutes",
+  "🔍 finds settings too: try “dark mode” or “undo”",
+  "My pay is in More now: five tabs along the bottom",
+  "Stock, Delivery in: 📷 Read the note logs a delivery from a photo of the paper",
+];
+const WALK_NAV_LINE = "🌍 is for guests who don't speak English: hand them the phone, ✕ Staff takes it back. 🔍 at the top finds any screen, drink or how-to. 🎤 beside it: hold it like a radio and talk, or tap it. ⌂ goes home, ‹ Back goes back.";
+const WALK_BRIEF_LINE = "The ring at the top is tonight's brief: tap it and tap through, like stories. Hold to pause.";
+const WALK_SEND = (side) => ({ t: "Hand over", how: [
+  "Handover: tap who closed, then check Running low, Outstanding and For tomorrow. Whatever the team logged is already in.",
+  "Hand over: send with photos saves it for the morning team and every manager, then opens the share sheet. Just save sends nothing.",
+  side === "bar" ? "On the iPad it goes to Mail, AirDrop or Files. Or send it later from your own phone." : "Send it to the team chat from the share sheet, or later from Team, Send on WhatsApp.",
+], tip: "Leaving part-way? Save draft: the team sees who started it, and anyone can carry on and add photos." });
 const WALK = {
   bar: [
     { t: "Your bar shift", how: [
-      "Shift, Bar has the night in order, left to right: Morning, Labels, 86, Closing, Handover. Stock counts and use-by have their own tab.",
-      "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top: tap a drink there and Make it now shows it one big step card at a time.",
-      "Ran out? Shift, 86, then Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
-    ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
-    WALK_NAV,
-    { t: "Opening", how: [
-      "Shift, Morning: read last night's handover and tap Mark as read.",
-      "Sort what's outstanding. Anything you can't, tell the duty manager, then tap Checked: send on WhatsApp.",
-      "Send today's order and prep to par. Date labels due today show at the top: change those first.",
-    ], tip: "No handover from last night? Ask whoever closed to open Bar Book with signal: it may be waiting on their phone." },
-    WALK_LOG("bar"),
+      "Shift has the night left to right: Morning, Labels, 86, Closing, Handover. Stock has its own tab.",
+      "Everything you tick, 86 or log saves with your name and shows on every phone straight away.",
+      WALK_BRIEF_LINE,
+      WALK_NAV_LINE,
+    ], tip: "× closes this at any time. The Guide (🔍 at the top) has it again any time." },
+    { t: "Opening and service", how: [
+      "Morning: last night's handover, today's order and prep. Date labels due today are at the top: change those first.",
+      "Ran out? Shift, 86: type a few letters (lymes finds Limes), tap 86. Every drink that uses it shows the swap.",
+      "Saw, found or did something, or told a manager? ＋ Log it, on Shift or the bar station. One line is enough.",
+    ], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away. Bar Book isn't the accident book." },
     { t: "Closing the bar", how: [
-      "Shift, Closing: tick each job as you do it, or Tick all under a heading.",
-      "Two of you? Tap I'll do this on a heading, so the other person takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
-      "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
-      "The timer at the top shows how long the close is taking against the team's best.",
+      "Closing: tick each job as you do it. Tap a heading to fold it.",
+      "Two of you? I'll do this on a heading splits the close. Can't do one? ⋯, Blocked, and say why: it goes in the handover.",
+      "Closing photos can go in any time of the shift. Stock count: + for each full bottle, then the open one.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
-    WALK_COUNT,
-    WALK_SEND,
+    WALK_SEND("bar"),
   ],
   floor: [
     { t: "Your floor shift", how: [
-      "Shift, Floor has the night in order, left to right: Morning, Labels, 86, Closing, Handover. Stock counts and use-by have their own tab.",
-      "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "86 anything, food too: Shift, 86, then Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
-    ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
-    WALK_NAV,
-    { t: "Opening", how: [
-      "Shift, Morning: read last night's floor handover and tap Mark as read.",
-      "Sort what's outstanding. Anything you can't, tell the duty manager, then tap Checked: send on WhatsApp.",
-      "Send today's order and prep to par (napkins, cutlery, desserts). Date labels due today show at the top.",
-    ], tip: "No handover from last night? Ask whoever closed to open Bar Book with signal: it may be waiting on their phone." },
-    WALK_LOG("floor"),
+      "Shift has the night left to right: Morning, Labels, 86, Closing, Handover. Stock has its own tab.",
+      "Everything you tick, 86 or log saves with your name and shows on every phone straight away.",
+      WALK_BRIEF_LINE,
+      WALK_NAV_LINE,
+    ], tip: "× closes this at any time. The Guide (🔍 at the top) has it again any time." },
+    { t: "Opening and service", how: [
+      "Morning: last night's floor handover, today's order and prep (napkins, cutlery, desserts). Date labels due today are at the top.",
+      "86 anything, food too: Shift, 86, a few letters, tap 86. Not on the list? It goes on as you typed it.",
+      "Saw, found or did something, or told a manager? ＋ Log it on Shift. One line is enough.",
+    ], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away. Bar Book isn't the accident book." },
     { t: "Closing the floor", how: [
-      "Shift, Closing: the floor close heading by heading, shake station included. Tick as you go, or Tick all under a heading.",
-      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
-      "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
-      "The timer at the top shows how long the close is taking against the team's best.",
+      "Closing: heading by heading, shake station included. Tick as you go; tap a heading to fold it.",
+      "Splitting it? I'll do this on a heading. Can't do one? ⋯, Blocked, and say why: it goes in the handover.",
+      "Closing photos can go in any time of the shift.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
-    WALK_COUNT,
-    WALK_SEND,
+    WALK_SEND("floor"),
   ],
 };
 const walkKey = (side) => (sharedDev ? `${side}:${myName}` : side);
 const walkVer = (side) => store.get("walk", {})[walkKey(side)] || 0;
 const walkSeen = (side) => walkVer(side) >= WALK_V;
 function walkMark(side) { const w = store.get("walk", {}); w[walkKey(side)] = WALK_V; store.set("walk", w); }
-// Once per person and side, when nothing else is open over the app. Seen an older one: just the note on what's new.
+// Once per person and side, when nothing else is open over the app. Seen an older one: nothing pops up; what's new
+// is a card in tonight's brief (appNews in manager.js), marked seen when the brief is watched to the end.
 function walkMaybe(side, wait = 0) {
   if (!WALK[side]) return;
   setTimeout(() => {
-    if (walkSeen(side) || !$("#help").hidden || !$("#logit").hidden || $("#welcome")) return;
-    if (walkVer(side)) { walkMark(side); return walkNudge(side); }
+    if (walkVer(side) || !$("#help").hidden || !$("#logit").hidden || $("#welcome")) return;
     walkOpen(side, 0);
   }, wait);
-}
-function walkNudge(side) {
-  $("#walk-new")?.remove();
-  document.body.insertAdjacentHTML("beforeend", `<div id="walk-new" class="walknew" role="status"><p><b>New in the walkthrough.</b> ${esc(WALK_NEW)}</p>
-    <div class="walknew-f"><button class="btn pri" data-walk-new="${side}">Show me</button><button class="btn" data-walk-new-x>Got it</button></div></div>`);
-  setTimeout(() => $("#walk-new")?.remove(), 20000);
 }
 function walkOpen(side, i = 0) {
   const xs = WALK[side], c = xs[i], last = i === xs.length - 1;
@@ -15973,18 +16155,18 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { guest: "guest", phrases: "guest", drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
+const GD_HELP = { guest: "guest", phrases: "guest", dnote: "count", brief: "morning", clear: "clear", phone: "phone", drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [
   ["Drinks", ["drinks", "rapid", "make", "allergens", "sheets", "station", "voice"]],
-  ["Shift and 86", ["morning", "stock", "labels", "logit", "football"]],
-  ["Closing and handover", ["lists", "send"]],
-  ["Stock", ["count", "order"]],
+  ["Shift and 86", ["brief", "morning", "stock", "labels", "logit", "football"]],
+  ["Closing and handover", ["lists", "clear", "send"]],
+  ["Stock", ["count", "dnote", "order"]],
   ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
   ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "sent", "tell"]],
   ["Managers", ["ready", "export", "week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
-  ["More", ["pay", "info", "siri", "health"]],
+  ["More", ["pay", "phone", "info", "siri", "health"]],
 ];
 const SEC_OF = Object.fromEntries(FEAT_SECS.flatMap(([g, ks]) => ks.map((k) => [k, g])));
 const SEC_AT = (k) => { const g = SEC_OF[k], i = FEAT_SECS.findIndex((x) => x[0] === g); return i < 0 ? 99 : i * 100 + FEAT_SECS[i][1].indexOf(k); };
@@ -16004,11 +16186,14 @@ function gdSearch(q) {
   if (!ws.length) return null;
   const words = (s) => plNorm(s).split(/[^a-z0-9]+/).filter(Boolean);
   const hit = (s) => { const xs = words(s); return ws.every((w) => mkWordHit(w, xs)); };
+  // The words typed, side by side and in order ("one hand" in "one-hand mode"): the best match of all.
+  const phrase = (s) => ` ${words(s).join(" ")} `.includes(` ${ws.join(" ")} `);
   const pq = plQuery(ws.join(" "));
   const drinks = plRank(D.filter((d) => plHits(d, pq.words)), pq.words).slice(0, 4);
-  // A page whose own name or line matches comes before one that only matches through its keywords or help.
+  // A page whose own name or line has the words in order comes first, then one with them anywhere in its name or line,
+  // then one whose search words match, then one that only matches through its help text.
   const pages = gdItems().filter((f) => hit(`${f.n} ${f.what} ${f.staff || ""} ${GD_KW[f.k] || ""} ${HELP[GD_HELP[f.k]]?.how.join(" ") || ""}`))
-    .map((f, i) => [hit(`${f.n} ${f.what}`) ? 0 : 1, i, f]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map((x) => x[2]).slice(0, 4);
+    .map((f, i) => [phrase(`${f.n} ${f.what}`) ? 0 : hit(`${f.n} ${f.what}`) ? 1 : hit(`${f.staff || ""} ${GD_KW[f.k] || ""}`) ? 2 : 3, i, f]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map((x) => x[2]).slice(0, 4);
   const terms = GLOSSARY.filter(([t, d]) => hit(t) || (ws.length > 1 && hit(`${t} ${d}`))).slice(0, 3);
   const asksHow = /\b(how|make|recipe|spec)\b/.test(all.join(" ")), asksWhat = /^(what|whats)\b/.test(all.join(" "));
   return { q, words: ws, drinks, pages, terms, fixed: pq.fixed, order: asksWhat ? ["terms", "drinks", "pages"] : asksHow ? ["drinks", "pages", "terms"] : ["pages", "drinks", "terms"] };
@@ -16033,7 +16218,7 @@ function gdHomeHtml() {
   return `<div class="mini">Start here</div><div class="gd-start">
       <button class="gd-tile" data-walk="bar:0"><b>A bar shift</b><small>Opening to handover</small></button>
       <button class="gd-tile" data-walk="floor:0"><b>A floor shift</b><small>Opening to handover</small></button>
-      <button class="gd-tile" data-walk="bar:1"><b>Getting around</b><small>Back, home and this Guide</small></button>
+      <button class="gd-tile" data-story><b>Tonight's brief</b><small>What's new, played like stories</small></button>
       <button class="gd-tile" data-intro="0"><b>Everything Bar Book does</b><small>The full tour, ${INTRO.length} cards</small></button></div>
     ${groups.map((g) => `<details class="gd-sec"><summary>${esc(g)}<span>${gdItems().filter((f) => f.g === g).length}</span></summary>${gdItems().filter((f) => f.g === g).map((f) => `<div class="gd-item"><button class="gd-row" data-gd-go="${f.k}"><span><b>${esc(f.n)}</b><small>${esc(f.what)}</small></span><i>›</i></button>${GD_HELP[f.k] && HELP[GD_HELP[f.k]] ? `<button class="linkbtn" data-gd-help="${GD_HELP[f.k]}">How it works</button>` : ""}</div>`).join("")}</details>`).join("")}
     <details class="gd-sec"><summary>Words we use<span>${GLOSSARY.length}</span></summary>${GLOSSARY.map(([t, d]) => `<div class="gd-term"><b>${esc(t)}</b><span>${esc(d)}</span></div>`).join("")}</details>`;
@@ -16092,12 +16277,8 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-guide]")) { e.preventDefault(); haptic(); const was = !$("#help").hidden; if (was) $("#help").hidden = true; return guideOpen(); }
   if (e.target.closest("[data-home]")) { e.preventDefault(); return goHome(); }
   const wo = e.target.closest("[data-walk-open]"); if (wo) { haptic(); return walkOpen(WALK[wo.dataset.walkOpen] ? wo.dataset.walkOpen : "bar", 0); }
-  const wn = e.target.closest("[data-walk-new]"); if (wn) { haptic(); $("#walk-new").remove(); return walkOpen(wn.dataset.walkNew, 0); }
-  if (e.target.closest("[data-walk-new-x]")) { haptic(); $("#walk-new").remove(); }
 });
 document.head.insertAdjacentHTML("beforeend", `<style>
-.walknew{position:fixed;left:12px;right:12px;bottom:calc(var(--tabh) + 14px + env(safe-area-inset-bottom,0px));z-index:25;max-width:520px;margin:0 auto;background:var(--surface);border:2px solid var(--brass);border-radius:16px;padding:12px 14px;box-shadow:0 10px 30px rgb(0 0 0 / .25)}
-.walknew p{margin:0}.walknew-f{display:flex;gap:8px;margin-top:10px}
 .hbtn{font-size:22px;font-weight:800;color:var(--brass);border:1px solid var(--line);border-radius:50%;width:40px;height:40px;background:none;padding:0;min-height:0}
 .hbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .gd-search{margin:10px 0 6px}.gd-search input{width:100%}
@@ -16543,7 +16724,20 @@ const SD_ACCENTS = [["en-GB", "English (UK)"], ["en-IE", "English (Ireland)"], [
 const sdTag = () => store.get("sd.mic", "en-GB");
 const sdOwn = (tag) => !/^en-/.test(tag);
 SD.vc = { text: "", heard: null, on: false, err: "" };
-const SD_GO = [[/barcode|scan|use.?by|expir/, "count"], [/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"]];
+const SD_GO = [[/barcode|scan|use.?by|expir/, "count"], [/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"], [/dark mode|light mode|theme|setting|accent|my language|one.?hand/, "phone"], [/tick|checklist|to.?do/, "lists"], [/lesson|phrase/, "phrases"], [/quiz|drill|game/, "fun"]];
+// Numbers said as words, for counts: "two and a half" is 2.5, "three quarters" is .75.
+const VC_N = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
+const vcNum = (s) => s.replace(/\b(?:(\w+) and )?(?:a |one )?(half|quarter|three quarters?)\b/g, (w, n, f) => {
+  const whole = n == null ? 0 : n in VC_N ? VC_N[n] : /^\d+$/.test(n) ? +n : null;
+  return whole == null ? w : String(whole + (f === "half" ? 0.5 : f === "quarter" ? 0.25 : 0.75));
+}).replace(/\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b/g, (w) => String(VC_N[w])).replace(/\b(\d+) point (\d)\b/g, "$1.$2");
+// "Guest", "talk to a guest", "French guest", "guest mode Spanish", "translate for a guest": the guest screen, in their
+// language when one is named (in English or in its own words).
+function vcGuest(l) {
+  if (!/\b(?:guests?|tourists?|translat\w*|interpret\w*)\b/.test(l) || /\b(?:wants?|would like|ordered|orders?|having|has)\b/.test(l)) return null;
+  const w = WORLD.find(([c, en]) => new RegExp(`\\b${en.toLowerCase().split(/[ (]/)[0]}\\b`).test(l) || l.includes(` ${langOwn(c).toLowerCase()} `));
+  return { kind: "guest", c: w?.[0] || "", sc: 9, say: w ? `Talk to a guest in ${w[1]}` : "Talk to a guest" };
+}
 // Words said round a command that don't change it.
 const VC_FILL = /\b(?:please|pls|cheers|thanks|thank you|mate|guys|bro|babe|innit|yeah|yes|yep|yo|actually|basically|i think|i reckon|maybe|hey|hi|ok(?:ay)?|right|um+|uh+|erm+|er|so|just|quickly|real quick|now|for me|for us|can you|could you|would you|will you|can we|could we|i need you to|i need to|we need to|need to|i want to|i wanna|i want|i'?d like|i would like|give me|get me|can i (?:get|have)|let'?s|go ahead and|bar book)\b/g;
 // Words round the thing named that aren't part of its name.
@@ -16632,6 +16826,7 @@ function sdParse(raw) {
   const t = raw.trim().replace(/[.!?]+$/, ""), l = vcNorm(t);
   let m;
   if (!l.trim()) return { kind: "none", sc: 0, say: "Didn't hear anything. Try again.", alts: [] };
+  const gh = vcGuest(l); if (gh) return gh;
   if (/what can (?:i|we) make/.test(l)) return { kind: "make", sc: 9, say: "Open My bar to see what you can make" };
   if (/last orders?/.test(l)) { const lo = sdLast(); return { kind: "info", sc: 9, say: lo ? `Last orders at ${lo.at}` : "No last orders time set" }; }
   if (/\bwhat(?:'s| is| are|s)? (?:86|out|off)\b|\b86 (?:list|board)\b|\bwhat have we (?:86|run out)/.test(l)) return { kind: "go", go: "stock", sc: 9, say: "Opening the 86 board" };
@@ -16646,12 +16841,14 @@ function sdParse(raw) {
   if (/\b86\b/.test(l) && !vcCut(VC_86, l).replace(/\b(?:the|a|an|some)\b/g, "").trim()) return { kind: "go", go: "pick86", sc: 8, say: "Open 86 something" };
   if (VC_86.test(l)) return vcItems(vcCut(VC_86, l), true);
   if (/\b(?:count(?:ed|ing)?|stock count)\b/.test(l)) {
-    const rest = l.replace(/\b(?:stock count|count(?:ed|ing)?|we have|we'?ve got|there (?:are|is)|i)\b/g, " ").trim();
+    const rest = vcNum(l.replace(/\b(?:stock count|count(?:ed|ing)?|we have|we'?ve got|there (?:are|is)|i)\b/g, " ")).trim();
     const p = LIVE.me && rest ? ctParse(rest) : null, r = p && ctRow(p.key);
     if (r) return { kind: "count", sc: 8, p, say: `Count ${r.item}: ${p.grams ? `${p.n} g on the scale` : ctSay(r.u, p.n)}?` };
     return { kind: "go", go: "count", sc: 6, say: rest ? `Open the stock count. Didn't catch the number for “${rest}”.` : "Open the stock count" };
   }
   if ((m = l.match(/\b(?:open|go to|take me to|jump to|show me|show)\s+(.+)/))) { const g = SD_GO.find(([re]) => re.test(m[1])); if (g) return { kind: "go", go: g[1], sc: 8, say: `Opening ${m[1].trim()}` }; }
+  if (/^ (?:tick|check off|mark)\b/.test(l)) return { kind: "go", go: "lists", sc: 7, say: "Opening the closing list: tap it there" };
+  if ((m = l.match(/^ (?:dark|light|gold) (?:mode|theme)? ?$/))) return { kind: "go", go: "phone", sc: 8, say: "Opening This phone: Light or dark" };
   // A drink: with "spec", "how do I make" and the like, or just its name.
   const want = VC_SPEC.test(l), hits = vcSpot(vcCut(VC_SPEC, l), pkPool().filter((x) => x.c === "drinks")), top = hits[0];
   const dAlt = (h) => ({ t: h.x.n, h: { kind: "drink", d: D[h.x.d], sc: 4, say: h.x.n } });
@@ -16696,9 +16893,11 @@ function sdListen() {
     sdRx?.abort?.();
     SD.vc.err = "";
     SD.vc.live = ""; SD.vc.got = false;
-    sdRx = new SD_REC(); sdRx.lang = sdTag(); sdRx.interimResults = true; sdRx.continuous = false; sdRx.maxAlternatives = 5;
+    sdRx = new SD_REC(); sdRx.lang = sdTag(); sdRx.interimResults = true; sdRx.continuous = !!SD.vc.ptt; sdRx.maxAlternatives = 5;
     sdRx.onresult = (e) => {
       const r = e.results[e.results.length - 1];
+      // Held like a radio: keep listening through pauses and act on all of it when the button is let go (onend).
+      if (SD.vc.ptt) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t && SD.vc.live) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing. Let go when you're done"; } return; }
       // Still talking: show the words so far, so it's plain it's working.
       if (r.isFinal === false) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing"; } return; }
       const said = Array.from({ length: r.length }, (_, i) => r[i].transcript);
@@ -16716,7 +16915,10 @@ function sdListen() {
       SD.vc.got = true; sdVoiceRender(); if (e.error !== "no-speech") $("#sd-vtext")?.focus();
     };
     // Stopped with nothing made out: say so, never just go quiet.
-    sdRx.onend = () => { document.body.classList.remove("sd-listening"); if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
+    sdRx.onend = () => {
+      document.body.classList.remove("sd-listening");
+      if (SD.vc.ptt) { SD.vc.ptt = false; const b = SD.vc.on && SD.vc.live && vcBest([SD.vc.live]); if (b) { SD.vc.got = true; SD.vc.text = b.t; SD.vc.on = false; return sdHeard(b.h); } }
+      if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
     SD.vc.on = true; document.body.classList.add("sd-listening"); sdVoiceRender(); sdRx.start();
   } catch { SD.vc.on = false; sdVoiceRender(); $("#sd-vtext")?.focus(); }
 }
@@ -16728,6 +16930,20 @@ async function sdFromOwn(t) {
   try { const [en] = await LIVE.api.translate([t], "English", langEn(lang)); SD.vc.text = `${t} → ${en}`; sdHeard(sdParse(en)); }
   catch { SD.vc.heard = null; SD.vc.err = "Couldn't translate that. Check the signal, or say it in English."; sdVoiceRender(); }
 }
+/* Hold to talk, like a radio (push-to-talk, as on Zello or a walkie-talkie): hold 🎤 for a moment, talk, let go. It
+   listens for as long as it's held, pauses and all, so a noisy bar can't cut it off half-way, and it stops the moment
+   you let go instead of picking up the next conversation. A quick tap still works the old way. */
+let sdPtt = null;
+document.addEventListener("pointerdown", (e) => {
+  if (!SD_REC || !e.target.closest("[data-sd-mic]")) return;
+  clearTimeout(sdPtt?.t);
+  sdPtt = { held: false, t: setTimeout(() => { sdPtt.held = true; SD.vc.ptt = true; haptic(); sdVoiceOpen(); const b = $("#sd-voice .sd-live b"); if (b) b.textContent = "Talk now. Let go when you're done"; }, 300) };
+});
+const sdPttUp = () => { if (!sdPtt) return; clearTimeout(sdPtt.t); if (sdPtt.held) try { sdRx?.stop(); } catch {} };
+document.addEventListener("pointerup", sdPttUp);
+document.addEventListener("pointercancel", sdPttUp);
+document.addEventListener("contextmenu", (e) => { if (e.target.closest("[data-sd-mic]")) e.preventDefault(); });
+document.head.insertAdjacentHTML("beforeend", "<style>[data-sd-mic]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}</style>");
 function sdSpeak(t) { if (!SD.set.sound) return; try { const u = new SpeechSynthesisUtterance(t); u.lang = "en-GB"; const v = sayVoice(); if (v) u.voice = v; u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} }
 function sdVoiceClose() { sdRx?.abort?.(); SD.vc.on = false; document.body.classList.remove("sd-listening"); const el = $("#sd-voice"); if (el) el.hidden = true; }
 // What was said, worked out: a drink opens straight away (it changes nothing), with the closest others to tap if it's
@@ -16780,6 +16996,7 @@ function sdVoiceGo() {
   }
   if (h.kind === "log") { if (!LIVE.me) return toast("Join the team to log it"); sdCue("ok"); return track(LIVE.api.logIt(mode, "note", h.n.slice(0, LOG_MAX)), "Logged. It's in tonight's handover", "Not saved. Try again"); }
   if (h.kind === "drink") { if (cur === "station" && !h.wo) { if (!$("#sheet").hidden) hideSheet(); return sxTap(h.d.id); } openSheet(h.d.id); if (h.wo) setTimeout(() => sdWithout(h.d, h.wo), 120); return; }
+  if (h.kind === "guest") { guestOpen(); if (h.c) setTimeout(() => $(`#guest [data-g-lang="${h.c}"]`)?.click() ?? (GUEST.c = h.c, GUEST.step = "hello", gRender()), 80); return; }
   if (h.kind === "make") { mk.pane = "bar"; mkSave(); return openAt("tab:make"); }
   if (h.kind === "count") { if (!LIVE.me) return toast("Join the team to count stock"); openAt("count"); ctHeard = { ...h.p }; ctRender(true); return; }
   if (h.kind === "go") { if (h.go === "pick86") return pkOpen({ mode: "86" }); if (h.go === "count" && !LIVE.me) return toast("Join the team to count stock"); openAt(h.go); scrollTo(0, 0); }
@@ -16815,11 +17032,11 @@ function sdOneHand(k) {
 }
 function sdPhoneHtml() {
   if (!SD_READY) return "";
-  const row = (k, t, sub) => `<div class="mini" style="margin-top:14px">${t}</div><div class="seg" style="grid-template-columns:1fr 1fr;margin-top:6px" role="group" aria-label="${t}"><button data-sd-set="${k}:1" aria-pressed="${!!SD.set[k]}">On</button><button data-sd-set="${k}:0" aria-pressed="${!SD.set[k]}">Off</button></div><p class="note">${sub}</p>`;
-  return row("a11y", "Accessible mode", "Easier to read: plain headings, bigger text and spacing, colour-blind-safe colours, bigger buttons.")
-    + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and voice in a row above the tabs, in reach of your thumb.")
-    + row("sound", "Sounds", "A short sound for urgent things, last orders and a new best close. Android phones buzz too; iPhones can't from a web app.")
-    + row("voice", "Voice button 🎤", "In the top bar. Say a drink and it opens, or \"86 the Corona\", \"count tonic 12\". It picks out the key words, shows them as it hears them, and nothing changes until you say yes.");
+  const row = (k, t, sub) => `<div class="setrow"><span><b>${t}</b><small>${sub}</small></span><div class="seg" style="grid-template-columns:1fr 1fr" role="group" aria-label="${t}"><button data-sd-set="${k}:1" aria-pressed="${!!SD.set[k]}">On</button><button data-sd-set="${k}:0" aria-pressed="${!SD.set[k]}">Off</button></div></div>`;
+  return row("a11y", "Accessible mode", "Bigger text and buttons, plain headings, colour-blind-safe colours")
+    + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and 🎤 above the tabs, in thumb reach")
+    + row("sound", "Sounds", "Urgent things, last orders, a new best close. iPhones can't buzz")
+    + row("voice", "Voice button 🎤", "Tap it, or hold it like a radio. Nothing changes until you say yes");
 }
 
 /* ---------- Where it all goes ---------- */
@@ -16839,7 +17056,7 @@ Object.assign(PLACE_KW, { replay: "replay timeline night history what happened",
 /* ---------- Events ---------- */
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
-  if (t("[data-sd-mic]")) { haptic(); return sdVoiceOpen(); }
+  if (t("[data-sd-mic]")) { if (sdPtt?.held) { sdPtt = null; return; } sdPtt = null; SD.vc.ptt = false; haptic(); return sdVoiceOpen(); }
   if ((x = t("[data-sd-1h]"))) return sdOneHand(x.dataset.sd1h);
   if ((x = t("[data-sd-set]"))) { const [k, v] = x.dataset.sdSet.split(":"); SD.set[k] = v === "1"; sdSave(); sdApplyModes(); haptic(); if (k === "sound" && SD.set.sound) sdCue("ok"); x.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === x)); return; }
   if ((x = t("[data-sd-flow]"))) {

@@ -79,7 +79,7 @@ test("My pay: a payslip typed in by hand is saved like a read one, on the phone 
   await c.route("**/live.js", (r) => r.abort());
   const p = await c.newPage(); const errs = []; p.on("pageerror", (e) => errs.push(e.message));
   await p.goto(site.url); await p.click("#w-ok");
-  await p.click('nav.tabs [data-tab="pay"]');
+  await p.click("nav.tabs [data-tab=info]"); await p.click('#v-info [data-go="pay"]');
   await p.click("[data-ty-open]");
   await p.waitForSelector("#slip-ty");
   const m = await p.$eval("[data-ty-m]", (s) => s.value);

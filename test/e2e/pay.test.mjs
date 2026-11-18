@@ -17,7 +17,7 @@ async function open({ start = "#w-ok", at, width = 390 } = {}) {
   if (at) await p.clock.setFixedTime(new Date(at));
   await p.goto(site.url);
   await p.click(start);
-  await p.click("[data-tab=pay]");
+  await p.click("[data-tab=info]"); await p.click('#v-info [data-go="pay"]');
   // Tapping or typing in something goes to the part of My pay it's in first, as a person would.
   for (const f of ["click", "fill", "check", "uncheck", "inputValue", "getAttribute", "selectOption"]) { const o = p[f].bind(p); p[f] = async (sel, ...a) => { await reach(p, sel); return o(sel, ...a); }; }
   return p;
@@ -134,7 +134,7 @@ test("my pay: real payslips fill in every month, tronc an hour, the next pay and
   await toastIs(p, "Payslip for August saved");
   assert.equal(await p.evaluate(() => pay.code), "992L");
   // Kept on this phone, and nothing wider than a small phone.
-  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
+  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]"); await p.click('#v-info [data-go="pay"]');
   assert.equal(await p.evaluate(() => Object.keys(pay.slips).sort().join()), "2026-08,2026-09,2026-10");
   await p.setViewportSize({ width: 320, height: 700 });
   assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 320);
@@ -155,7 +155,7 @@ test("my pay: payslips saved by the old reader are put right on opening, or name
     old("2026-09", "2026-09-30", 12.71, 592.95, 3724.57, 746.09, 407.19, 579.4, 166.69, 2978.48),
     old("2026-10", "2026-10-30", 12.71, 915.59, 2571.19, 397.21, 185.79, 348.6, 48.61, 2173.98),
   ]);
-  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
+  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]"); await p.click('#v-info [data-go="pay"]');
   await p.click('[data-pm="-1"]');
   assert.match(await txt(p, "#pay-sum"), /^Take-home £2,173\.98 From your payslip · paid Friday 30 October 130\.3 Hours £3\.72 Tronc an hour £2,571\.19 Gross Next pay, Monday 30 November: about £2,126\.78/);
   assert.match(await txt(p, "#pay-out"), /Hours pay Regular Hours \(130\.26 h at £12\.71\) £1,655\.60 TRONC \(246\.39 h in September at £3\.72\) £915\.59 Gross £2,571\.19 Income tax PAYE −£348\.60 National Insurance Employee National Insurance Contribution −£48\.61 Take-home £2,173\.98/);
@@ -187,7 +187,7 @@ test("my pay: the estimate to the penny, tronc on and off, any tax code", async 
   assert.match(await out(), /Income tax −£419\.99/);
   await p.click('[data-pay-code="BR"]'); assert.match(await out(), /Income tax −£626\.20/);
   await p.fill('[data-pay="code"]', "K100"); assert.match(await out(), /Check the tax code/);
-  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
+  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]"); await p.click('#v-info [data-go="pay"]');
   assert.equal(await p.inputValue("[data-pay-plan]"), "246.39", "kept on this phone");
   assert.deepEqual(p.errs, []);
 });
@@ -259,7 +259,7 @@ test("my hours: several shifts at once, planned ones, a month at a time, with a 
   p.once("dialog", (d) => d.accept());
   await p.click(`[data-hr-del="${await p.evaluate(() => hoursLog.find((x) => x.day === "2026-11-13").id)}"]`);
   await p.fill("[data-pay-plan]", "");
-  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=pay]");
+  await p.reload(); await p.click("#w-ok").catch(() => {}); await p.click("[data-tab=info]"); await p.click('#v-info [data-go="pay"]');
   assert.match(await txt(p, "#pay-sum"), /From 4 shifts logged .* 22 Hours/);
   await sec(p, "setup"); assert.equal(await p.$eval('[data-pay-loan="5"]', (b) => b.getAttribute("aria-pressed")), "true");
   assert.equal(await p.evaluate(() => pay.bills.map((b) => `${b.name} ${b.amt}`).join()), "Rent 650.00");

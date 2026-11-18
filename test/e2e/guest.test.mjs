@@ -100,6 +100,14 @@ test("Mic and typing understand loose words: no 'make', withouts, missing, slang
   assert.equal((await said(p, "g and t"))[1], "Gin & Tonic");
   assert.equal((await said(p, "M-O-J-I-T-O"))[1], "Mojito");
   assert.equal((await said(p, "86 the hielo"))[1], "86 Ice for everyone?");
+  // Any screen by voice, and the guest screen in a language.
+  assert.deepEqual((await said(p, "French guest")).slice(0, 2), ["guest", "Talk to a guest in French"]);
+  assert.equal((await said(p, "customer wants a mojito"))[1], "Mojito");
+  assert.equal((await said(p, "dark mode"))[0], "go");
+  assert.equal(await p.evaluate(() => vcNum("smirnoff two and a half")), "smirnoff 2.5");
+  await p.evaluate(() => { SD.vc.heard = sdParse("Spanish guest"); sdVoiceGo(); });
+  await p.waitForFunction(() => GUEST.on && GUEST.c === "es");
+  await p.click("[data-g-x]");
   // Typed in the drinks search, it offers to do it; nothing changes until Yes.
   await p.fill("#q", "86 mint");
   assert.match(await p.textContent("#quick"), /86 Mint for everyone\?/);

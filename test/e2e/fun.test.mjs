@@ -138,23 +138,27 @@ test("Siri and shortcuts: a link for each place, no team code in any, and they o
   assert.deepEqual(p.errs, []);
 });
 
-test("since you were last in: a changed spec shows once on a new shift day, and Got it clears it", async () => {
+test("since you were last in: a changed spec is a card in the brief, not a pop-up, and watching to the end clears it", async () => {
   const p = await open({ init: () => {
     if (sessionStorage.getItem("seeded")) return; sessionStorage.setItem("seeded", "1");
     localStorage.setItem("btbar.lastIn", JSON.stringify({ day: "2026-01-01", at: 1 }));
     localStorage.setItem("btbar.specFp", JSON.stringify({ "Espresso Martini": "old", "Gone Drink": "x" }));
   } });
-  await p.waitForSelector("#since", { timeout: 8000 });
-  const t = await p.textContent("#since");
-  assert.match(t, /Since you were last in/);
+  await p.waitForSelector("#alerts:not([hidden]) [data-story]", { timeout: 8000 });
+  assert.equal(await p.$("#since"), null, "no pop-up over the app");
+  await p.click("#alerts [data-story]");
+  await p.click("#story .st-next");
+  const t = await p.textContent("#story");
+  assert.match(t, /Specs changed since you were last in/);
   assert.match(t, /Espresso Martini: spec changed/);
   assert.match(t, /Off the menu: Gone Drink/);
-  await p.click('#since [data-since-go=""]');
-  assert.equal(await p.$("#since"), null);
+  // The cards move on by themselves, more slowly the more there is to read.
+  assert.ok(await p.evaluate(() => storyMs(sto.xs[1]) > storyMs({ label: "86'd", lines: ["Limes"] })));
+  await p.click("#story [data-story-x]");
   assert.equal(await p.evaluate(() => JSON.parse(localStorage.getItem("btbar.lastIn")).day), await p.evaluate(() => shiftDay()));
   assert.equal(await p.evaluate(() => specNews().changed.length), 0);
-  await p.reload(); await p.click("#w-ok"); await p.waitForTimeout(2000);
-  assert.equal(await p.$("#since"), null);
+  await p.reload(); await p.click("#w-ok"); await p.waitForTimeout(3000);
+  assert.equal(await p.isHidden("#alerts"), true);
   assert.deepEqual(p.errs, []);
 });
 

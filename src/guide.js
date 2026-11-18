@@ -1,111 +1,86 @@
 /* ---------- Your shift, and the Guide ----------
    Bar or Floor on the start screen (or the first time someone opens Shift, after going straight to the drinks) shows a
-   short walkthrough of that side's night: opening, Log it, closing and the handover. Once per person on each side: on a
-   shared iPad, once per name. When the walkthrough changes, WALK_V goes up and WALK_NEW says what changed: anyone who
-   saw an older one gets one small "New in the walkthrough" note instead of the whole thing again. More, Help has Replay
-   the walkthrough and Replay the tour any time.
+   short walkthrough of that side's night in four cards: the basics, opening and service, closing, and the handover.
+   Four, not seven: tours of three or four steps are finished about three times in four, seven or more about one time
+   in six (Chameleon's tour benchmarks), so each card is a few short lines and the detail lives in the ? buttons and
+   the Guide. Once per person on each side: on a shared iPad, once per name. When the walkthrough changes, WALK_V goes
+   up and WALK_NEW says what changed: anyone who saw an older one gets it as a "New in Bar Book" card in tonight's
+   brief (the stories), not a pop-up. The Guide (🔍, or More, Guide) has the walkthroughs and the full tour any time.
    The 🔍 at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 15;
-const WALK_NEW = "🌍 at the top (and Guest on the bar station) talks to any guest: they pick their language and see a welcome, the drinks and food menus (they tick what they'd like and show you the list in English), questions to tap and the allergy card in it, and you tap ready phrases (check-backs, desserts, coffee, tea, goodbye) that they see and hear in their language. Your own language is asked when you pick your name; hold any words to see them in English. 🎤 needs fewer words now: “mojito no sugar”, “missing limes”, and it can listen for your accent. Language lessons are in Games and drills. Before that: 🔍 at the top finds any screen, drink or how-to: type it and tap to go there. 🎤 sits next to it now, never over the page: it shows the words as it hears them, says when it couldn't make them out, and a drink said opens straight away. On Closing, tap a heading to fold it. Stock count: tidier. Places are numbered and fold open one at a time, items are numbered, and a counted bottle says what's there (2 full · ½ open). The day, order, cl or ml, How to count and tips are in Options, which also picks the places that are yours tonight.";
-const WALK_NAV = { t: "Getting around", how: [
-  "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
-  "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
-  "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
-  "Long lists scroll A to Z, like your phone's contacts: the drinks, the 86 picker, the stock count. Tap a letter on the strip down the right, or slide your finger down it.",
-  "A guest who doesn't speak English? Tap 🌍 at the top and hand them the phone: their language, the menu to tick what they'd like, questions to tap and two-way talk. ✕ Staff takes it back.",
-  "Hands full? Tap 🎤 and say it how you like, like “86 the Corona”, “mojito no sugar” or just “Negroni”: it picks out the key words. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
-  "🔍 at the top right finds anything: type a screen (“closing”, “labels”, “pay”) and tap to go straight there, or a drink, or “how do I make a mojito”. 🎤 next to it does the same by voice.",
-], tip: "× closes this at any time. More, Replay the walkthrough brings it back." };
-const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
-  `Saw something, found something, did something, told a manager or someone told you? Tap ＋ Log it on Shift${side === "bar" ? " or on the bar station" : ""}. One line is enough.`,
-  "Pick what it is. 86 goes on the 86 board for everyone and Broken goes on Issues. Running low, Not finished and For tomorrow go straight into tonight's handover. The rest goes under Logged tonight.",
-  "Log it and send on WhatsApp puts it in the team chat from your phone, so everyone knows now.",
-], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
-const WALK_COUNT = { t: "Stock count", how: [
-  "The Stock tab: the first time, it walks you through it with pictures. Every place is numbered in the order you walk it and folds open one at a time, and Not counted yet shows only what's left. Options holds the day, the order, cl or ml, which places are yours tonight, How to count and the tips.",
-  "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm ›. ‹ Back goes to the item before. Same as last time does a line in one tap. More has tenths, Photo check and the scale.",
-  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 📷 Scan its barcode. Or 🎤 Say it: “Smirnoff two and a half”.",
-  "For example: 3 sealed Smirnoff and an open one about four-tenths full is Full 3, open .4 (under More), which is 3.4 bottles of 70 cl, or 2,380 ml. The line shows the sum. Sizes show in cl and ml (1 cl = 10 ml); cl ⇄ ml, in Options, swaps which leads.",
-  "Mis-tap? ↩ Undo, under Find, puts it back. Check it on a line means it's far from last time: count it again, or tap It's right.",
-  "Use-by, at the top of Stock: date labels due in the next 3 days. Changed it saves the new date in one tap.",
-  "Anything under its running-low level gets a Running low tag, then shows on the 86 board, the bar station and Needs you now as a heads-up before it's an 86.",
-  "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
-], tip: "No signal in the cellar? It saves anyway and sends when you're back." };
-const WALK_SEND = { t: "Hand over and send", how: [
-  "Shift, Handover: tap who closed, then check Running low, Outstanding and For tomorrow. Whatever the team logged is already in.",
-  "Tap Hand over: send with photos. It saves for the morning team and every manager, then the share sheet opens with the close as a picture and the photos: pick the team chat and send.",
-  "Not sending now? Hand over: just save. It's saved, photos included, and anyone can open it or send it later.",
-  "Closed on the iPad? Send with photos goes to Mail, AirDrop or Save to Files, or send it from your own phone: Team, Send on WhatsApp, then the last handover.",
-], tip: "Leaving part-way? Save draft: the team sees who started it, and anyone can carry on and add photos." };
+const WALK_V = 16;
+const WALK_NEW = [
+  "🌍 at the top (Guest on the bar station): hand a guest the phone. Their language, the drinks and food menus to tick (with prices), questions to tap, two-way talk and the allergy card",
+  "Your own language is asked when you pick your name. Hold any words to see them in English",
+  "🎤 needs fewer words: “mojito no sugar”, “missing limes”, or just “Negroni”. Pick your accent in its settings",
+  "Language lessons for any language are in Games and drills",
+  "What's new lives here now: the ring at the top of the app. Tap through like stories; hold to pause",
+  "🎤 works like a radio: hold it, talk, let go. A quick tap still works too",
+  "↺ Clear works the same on every list: it acts at once, and ↩ Undo clear sits in its place for 15 minutes",
+  "🔍 finds settings too: try “dark mode” or “undo”",
+  "My pay is in More now: five tabs along the bottom",
+  "Stock, Delivery in: 📷 Read the note logs a delivery from a photo of the paper",
+];
+const WALK_NAV_LINE = "🌍 is for guests who don't speak English: hand them the phone, ✕ Staff takes it back. 🔍 at the top finds any screen, drink or how-to. 🎤 beside it: hold it like a radio and talk, or tap it. ⌂ goes home, ‹ Back goes back.";
+const WALK_BRIEF_LINE = "The ring at the top is tonight's brief: tap it and tap through, like stories. Hold to pause.";
+const WALK_SEND = (side) => ({ t: "Hand over", how: [
+  "Handover: tap who closed, then check Running low, Outstanding and For tomorrow. Whatever the team logged is already in.",
+  "Hand over: send with photos saves it for the morning team and every manager, then opens the share sheet. Just save sends nothing.",
+  side === "bar" ? "On the iPad it goes to Mail, AirDrop or Files. Or send it later from your own phone." : "Send it to the team chat from the share sheet, or later from Team, Send on WhatsApp.",
+], tip: "Leaving part-way? Save draft: the team sees who started it, and anyone can carry on and add photos." });
 const WALK = {
   bar: [
     { t: "Your bar shift", how: [
-      "Shift, Bar has the night in order, left to right: Morning, Labels, 86, Closing, Handover. Stock counts and use-by have their own tab.",
-      "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top: tap a drink there and Make it now shows it one big step card at a time.",
-      "Ran out? Shift, 86, then Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
-    ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
-    WALK_NAV,
-    { t: "Opening", how: [
-      "Shift, Morning: read last night's handover and tap Mark as read.",
-      "Sort what's outstanding. Anything you can't, tell the duty manager, then tap Checked: send on WhatsApp.",
-      "Send today's order and prep to par. Date labels due today show at the top: change those first.",
-    ], tip: "No handover from last night? Ask whoever closed to open Bar Book with signal: it may be waiting on their phone." },
-    WALK_LOG("bar"),
+      "Shift has the night left to right: Morning, Labels, 86, Closing, Handover. Stock has its own tab.",
+      "Everything you tick, 86 or log saves with your name and shows on every phone straight away.",
+      WALK_BRIEF_LINE,
+      WALK_NAV_LINE,
+    ], tip: "× closes this at any time. The Guide (🔍 at the top) has it again any time." },
+    { t: "Opening and service", how: [
+      "Morning: last night's handover, today's order and prep. Date labels due today are at the top: change those first.",
+      "Ran out? Shift, 86: type a few letters (lymes finds Limes), tap 86. Every drink that uses it shows the swap.",
+      "Saw, found or did something, or told a manager? ＋ Log it, on Shift or the bar station. One line is enough.",
+    ], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away. Bar Book isn't the accident book." },
     { t: "Closing the bar", how: [
-      "Shift, Closing: tick each job as you do it, or Tick all under a heading.",
-      "Two of you? Tap I'll do this on a heading, so the other person takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
-      "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
-      "The timer at the top shows how long the close is taking against the team's best.",
+      "Closing: tick each job as you do it. Tap a heading to fold it.",
+      "Two of you? I'll do this on a heading splits the close. Can't do one? ⋯, Blocked, and say why: it goes in the handover.",
+      "Closing photos can go in any time of the shift. Stock count: + for each full bottle, then the open one.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
-    WALK_COUNT,
-    WALK_SEND,
+    WALK_SEND("bar"),
   ],
   floor: [
     { t: "Your floor shift", how: [
-      "Shift, Floor has the night in order, left to right: Morning, Labels, 86, Closing, Handover. Stock counts and use-by have their own tab.",
-      "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "86 anything, food too: Shift, 86, then Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
-    ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
-    WALK_NAV,
-    { t: "Opening", how: [
-      "Shift, Morning: read last night's floor handover and tap Mark as read.",
-      "Sort what's outstanding. Anything you can't, tell the duty manager, then tap Checked: send on WhatsApp.",
-      "Send today's order and prep to par (napkins, cutlery, desserts). Date labels due today show at the top.",
-    ], tip: "No handover from last night? Ask whoever closed to open Bar Book with signal: it may be waiting on their phone." },
-    WALK_LOG("floor"),
+      "Shift has the night left to right: Morning, Labels, 86, Closing, Handover. Stock has its own tab.",
+      "Everything you tick, 86 or log saves with your name and shows on every phone straight away.",
+      WALK_BRIEF_LINE,
+      WALK_NAV_LINE,
+    ], tip: "× closes this at any time. The Guide (🔍 at the top) has it again any time." },
+    { t: "Opening and service", how: [
+      "Morning: last night's floor handover, today's order and prep (napkins, cutlery, desserts). Date labels due today are at the top.",
+      "86 anything, food too: Shift, 86, a few letters, tap 86. Not on the list? It goes on as you typed it.",
+      "Saw, found or did something, or told a manager? ＋ Log it on Shift. One line is enough.",
+    ], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away. Bar Book isn't the accident book." },
     { t: "Closing the floor", how: [
-      "Shift, Closing: the floor close heading by heading, shake station included. Tick as you go, or Tick all under a heading.",
-      "Splitting it? Tap I'll do this on a heading, so everyone takes a different part. Someone left early? Take over on their heading: it still shows who started it.",
-      "Can't do one? Tap ⋯, then Blocked, and say why. It goes in the handover.",
-      "Take the closing photos (they're required, and can go in any time of the shift) and change any date label marked URGENT.",
-      "The timer at the top shows how long the close is taking against the team's best.",
+      "Closing: heading by heading, shake station included. Tick as you go; tap a heading to fold it.",
+      "Splitting it? I'll do this on a heading. Can't do one? ⋯, Blocked, and say why: it goes in the handover.",
+      "Closing photos can go in any time of the shift.",
     ], tip: "Only what's left is on, so the next job is always at the top." },
-    WALK_COUNT,
-    WALK_SEND,
+    WALK_SEND("floor"),
   ],
 };
 const walkKey = (side) => (sharedDev ? `${side}:${myName}` : side);
 const walkVer = (side) => store.get("walk", {})[walkKey(side)] || 0;
 const walkSeen = (side) => walkVer(side) >= WALK_V;
 function walkMark(side) { const w = store.get("walk", {}); w[walkKey(side)] = WALK_V; store.set("walk", w); }
-// Once per person and side, when nothing else is open over the app. Seen an older one: just the note on what's new.
+// Once per person and side, when nothing else is open over the app. Seen an older one: nothing pops up; what's new
+// is a card in tonight's brief (appNews in manager.js), marked seen when the brief is watched to the end.
 function walkMaybe(side, wait = 0) {
   if (!WALK[side]) return;
   setTimeout(() => {
-    if (walkSeen(side) || !$("#help").hidden || !$("#logit").hidden || $("#welcome")) return;
-    if (walkVer(side)) { walkMark(side); return walkNudge(side); }
+    if (walkVer(side) || !$("#help").hidden || !$("#logit").hidden || $("#welcome")) return;
     walkOpen(side, 0);
   }, wait);
-}
-function walkNudge(side) {
-  $("#walk-new")?.remove();
-  document.body.insertAdjacentHTML("beforeend", `<div id="walk-new" class="walknew" role="status"><p><b>New in the walkthrough.</b> ${esc(WALK_NEW)}</p>
-    <div class="walknew-f"><button class="btn pri" data-walk-new="${side}">Show me</button><button class="btn" data-walk-new-x>Got it</button></div></div>`);
-  setTimeout(() => $("#walk-new")?.remove(), 20000);
 }
 function walkOpen(side, i = 0) {
   const xs = WALK[side], c = xs[i], last = i === xs.length - 1;
@@ -143,18 +118,18 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { guest: "guest", phrases: "guest", drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
+const GD_HELP = { guest: "guest", phrases: "guest", dnote: "count", brief: "morning", clear: "clear", phone: "phone", drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [
   ["Drinks", ["drinks", "rapid", "make", "allergens", "sheets", "station", "voice"]],
-  ["Shift and 86", ["morning", "stock", "labels", "logit", "football"]],
-  ["Closing and handover", ["lists", "send"]],
-  ["Stock", ["count", "order"]],
+  ["Shift and 86", ["brief", "morning", "stock", "labels", "logit", "football"]],
+  ["Closing and handover", ["lists", "clear", "send"]],
+  ["Stock", ["count", "dnote", "order"]],
   ["Training", ["practice", "drill", "quiz", "phrases", "wrap", "training"]],
   ["Team", ["quick", "ask", "issues", "incident", "rate", "call", "people", "sent", "tell"]],
   ["Managers", ["ready", "export", "week", "replay", "lblog", "pilot", "season", "history", "backup", "setup"]],
-  ["More", ["pay", "info", "siri", "health"]],
+  ["More", ["pay", "phone", "info", "siri", "health"]],
 ];
 const SEC_OF = Object.fromEntries(FEAT_SECS.flatMap(([g, ks]) => ks.map((k) => [k, g])));
 const SEC_AT = (k) => { const g = SEC_OF[k], i = FEAT_SECS.findIndex((x) => x[0] === g); return i < 0 ? 99 : i * 100 + FEAT_SECS[i][1].indexOf(k); };
@@ -174,11 +149,14 @@ function gdSearch(q) {
   if (!ws.length) return null;
   const words = (s) => plNorm(s).split(/[^a-z0-9]+/).filter(Boolean);
   const hit = (s) => { const xs = words(s); return ws.every((w) => mkWordHit(w, xs)); };
+  // The words typed, side by side and in order ("one hand" in "one-hand mode"): the best match of all.
+  const phrase = (s) => ` ${words(s).join(" ")} `.includes(` ${ws.join(" ")} `);
   const pq = plQuery(ws.join(" "));
   const drinks = plRank(D.filter((d) => plHits(d, pq.words)), pq.words).slice(0, 4);
-  // A page whose own name or line matches comes before one that only matches through its keywords or help.
+  // A page whose own name or line has the words in order comes first, then one with them anywhere in its name or line,
+  // then one whose search words match, then one that only matches through its help text.
   const pages = gdItems().filter((f) => hit(`${f.n} ${f.what} ${f.staff || ""} ${GD_KW[f.k] || ""} ${HELP[GD_HELP[f.k]]?.how.join(" ") || ""}`))
-    .map((f, i) => [hit(`${f.n} ${f.what}`) ? 0 : 1, i, f]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map((x) => x[2]).slice(0, 4);
+    .map((f, i) => [phrase(`${f.n} ${f.what}`) ? 0 : hit(`${f.n} ${f.what}`) ? 1 : hit(`${f.staff || ""} ${GD_KW[f.k] || ""}`) ? 2 : 3, i, f]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map((x) => x[2]).slice(0, 4);
   const terms = GLOSSARY.filter(([t, d]) => hit(t) || (ws.length > 1 && hit(`${t} ${d}`))).slice(0, 3);
   const asksHow = /\b(how|make|recipe|spec)\b/.test(all.join(" ")), asksWhat = /^(what|whats)\b/.test(all.join(" "));
   return { q, words: ws, drinks, pages, terms, fixed: pq.fixed, order: asksWhat ? ["terms", "drinks", "pages"] : asksHow ? ["drinks", "pages", "terms"] : ["pages", "drinks", "terms"] };
@@ -203,7 +181,7 @@ function gdHomeHtml() {
   return `<div class="mini">Start here</div><div class="gd-start">
       <button class="gd-tile" data-walk="bar:0"><b>A bar shift</b><small>Opening to handover</small></button>
       <button class="gd-tile" data-walk="floor:0"><b>A floor shift</b><small>Opening to handover</small></button>
-      <button class="gd-tile" data-walk="bar:1"><b>Getting around</b><small>Back, home and this Guide</small></button>
+      <button class="gd-tile" data-story><b>Tonight's brief</b><small>What's new, played like stories</small></button>
       <button class="gd-tile" data-intro="0"><b>Everything Bar Book does</b><small>The full tour, ${INTRO.length} cards</small></button></div>
     ${groups.map((g) => `<details class="gd-sec"><summary>${esc(g)}<span>${gdItems().filter((f) => f.g === g).length}</span></summary>${gdItems().filter((f) => f.g === g).map((f) => `<div class="gd-item"><button class="gd-row" data-gd-go="${f.k}"><span><b>${esc(f.n)}</b><small>${esc(f.what)}</small></span><i>›</i></button>${GD_HELP[f.k] && HELP[GD_HELP[f.k]] ? `<button class="linkbtn" data-gd-help="${GD_HELP[f.k]}">How it works</button>` : ""}</div>`).join("")}</details>`).join("")}
     <details class="gd-sec"><summary>Words we use<span>${GLOSSARY.length}</span></summary>${GLOSSARY.map(([t, d]) => `<div class="gd-term"><b>${esc(t)}</b><span>${esc(d)}</span></div>`).join("")}</details>`;
@@ -262,12 +240,8 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-guide]")) { e.preventDefault(); haptic(); const was = !$("#help").hidden; if (was) $("#help").hidden = true; return guideOpen(); }
   if (e.target.closest("[data-home]")) { e.preventDefault(); return goHome(); }
   const wo = e.target.closest("[data-walk-open]"); if (wo) { haptic(); return walkOpen(WALK[wo.dataset.walkOpen] ? wo.dataset.walkOpen : "bar", 0); }
-  const wn = e.target.closest("[data-walk-new]"); if (wn) { haptic(); $("#walk-new").remove(); return walkOpen(wn.dataset.walkNew, 0); }
-  if (e.target.closest("[data-walk-new-x]")) { haptic(); $("#walk-new").remove(); }
 });
 document.head.insertAdjacentHTML("beforeend", `<style>
-.walknew{position:fixed;left:12px;right:12px;bottom:calc(var(--tabh) + 14px + env(safe-area-inset-bottom,0px));z-index:25;max-width:520px;margin:0 auto;background:var(--surface);border:2px solid var(--brass);border-radius:16px;padding:12px 14px;box-shadow:0 10px 30px rgb(0 0 0 / .25)}
-.walknew p{margin:0}.walknew-f{display:flex;gap:8px;margin-top:10px}
 .hbtn{font-size:22px;font-weight:800;color:var(--brass);border:1px solid var(--line);border-radius:50%;width:40px;height:40px;background:none;padding:0;min-height:0}
 .hbtn svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .gd-search{margin:10px 0 6px}.gd-search input{width:100%}

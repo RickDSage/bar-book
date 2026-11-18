@@ -470,3 +470,25 @@ test("stronger: Undo takes back the last item, Check it flags a slip, two people
   await S.waitForFunction(() => /Everything's saved/.test(document.querySelector(".ct-head").textContent));
   for (const p of [M, S]) assert.deepEqual(p.errs, []);
 });
+
+test("📷 Read the note: a delivery note's lines that name something on the count come back ticked with how many, checked, then logged", async () => {
+  await resetEmulators();
+  const { S } = await team(browser, site, people);
+  await openCount(S);
+  // The text reader is the payslips' one (Tesseract on this phone); here it's handed what a note reads as.
+  await S.evaluate(() => { window.readFiles = async () => ["BOOKER WHOLESALE  Delivery note 4471", "Code  Description  Qty  Price", "10442 SMIRNOFF RED VODKA 70CL  6  14.50", "20918 Kraken Black Spiced Rum 70cl 2 22.00", "Bananas loose", "Total 3 lines"]; });
+  await S.click("#ct-in-box summary");
+  await S.setInputFiles("#ct-in-ph", { name: "note.png", mimeType: "image/png", buffer: Buffer.from("x") });
+  await S.waitForSelector(".ct-note .ct-nrow");
+  const rows = await S.$$eval(".ct-nrow", (xs) => xs.map((x) => [x.querySelector("label").firstChild.textContent, x.querySelector("[type=number]").value, x.querySelector("[type=checkbox]").checked]));
+  assert.deepEqual(rows, [["Smirnoff", "6", true], ["Kraken", "2", true]], "70cl and the price aren't how many; a line naming nothing on the count is left out");
+  // Checked against the paper: Kraken was 3, and Smirnoff is left off.
+  await S.fill('[data-ct-note-n="1"]', "3"); await S.press('[data-ct-note-n="1"]', "Tab");
+  await S.click("#ct-n0");
+  assert.equal(flat(await S.innerText("#ct-note-go")), "Log 1 ticked");
+  await S.click("#ct-note-go"); await waitToast(S, /^1 logged in$/);
+  await S.waitForFunction(() => LIVE.received.some((x) => x.item === "Kraken" && x.qty === 300 && !x.pending));
+  assert.equal(await S.evaluate(() => LIVE.received.some((x) => x.item === "Smirnoff")), false);
+  assert.equal(await S.$(".ct-note"), null);
+  assert.deepEqual(S.errs, []);
+});

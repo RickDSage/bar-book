@@ -422,7 +422,20 @@ const SD_ACCENTS = [["en-GB", "English (UK)"], ["en-IE", "English (Ireland)"], [
 const sdTag = () => store.get("sd.mic", "en-GB");
 const sdOwn = (tag) => !/^en-/.test(tag);
 SD.vc = { text: "", heard: null, on: false, err: "" };
-const SD_GO = [[/barcode|scan|use.?by|expir/, "count"], [/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"]];
+const SD_GO = [[/barcode|scan|use.?by|expir/, "count"], [/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"], [/dark mode|light mode|theme|setting|accent|my language|one.?hand/, "phone"], [/tick|checklist|to.?do/, "lists"], [/lesson|phrase/, "phrases"], [/quiz|drill|game/, "fun"]];
+// Numbers said as words, for counts: "two and a half" is 2.5, "three quarters" is .75.
+const VC_N = { zero: 0, one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17, eighteen: 18, nineteen: 19, twenty: 20 };
+const vcNum = (s) => s.replace(/\b(?:(\w+) and )?(?:a |one )?(half|quarter|three quarters?)\b/g, (w, n, f) => {
+  const whole = n == null ? 0 : n in VC_N ? VC_N[n] : /^\d+$/.test(n) ? +n : null;
+  return whole == null ? w : String(whole + (f === "half" ? 0.5 : f === "quarter" ? 0.25 : 0.75));
+}).replace(/\b(?:zero|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)\b/g, (w) => String(VC_N[w])).replace(/\b(\d+) point (\d)\b/g, "$1.$2");
+// "Guest", "talk to a guest", "French guest", "guest mode Spanish", "translate for a guest": the guest screen, in their
+// language when one is named (in English or in its own words).
+function vcGuest(l) {
+  if (!/\b(?:guests?|tourists?|translat\w*|interpret\w*)\b/.test(l) || /\b(?:wants?|would like|ordered|orders?|having|has)\b/.test(l)) return null;
+  const w = WORLD.find(([c, en]) => new RegExp(`\\b${en.toLowerCase().split(/[ (]/)[0]}\\b`).test(l) || l.includes(` ${langOwn(c).toLowerCase()} `));
+  return { kind: "guest", c: w?.[0] || "", sc: 9, say: w ? `Talk to a guest in ${w[1]}` : "Talk to a guest" };
+}
 // Words said round a command that don't change it.
 const VC_FILL = /\b(?:please|pls|cheers|thanks|thank you|mate|guys|bro|babe|innit|yeah|yes|yep|yo|actually|basically|i think|i reckon|maybe|hey|hi|ok(?:ay)?|right|um+|uh+|erm+|er|so|just|quickly|real quick|now|for me|for us|can you|could you|would you|will you|can we|could we|i need you to|i need to|we need to|need to|i want to|i wanna|i want|i'?d like|i would like|give me|get me|can i (?:get|have)|let'?s|go ahead and|bar book)\b/g;
 // Words round the thing named that aren't part of its name.
@@ -511,6 +524,7 @@ function sdParse(raw) {
   const t = raw.trim().replace(/[.!?]+$/, ""), l = vcNorm(t);
   let m;
   if (!l.trim()) return { kind: "none", sc: 0, say: "Didn't hear anything. Try again.", alts: [] };
+  const gh = vcGuest(l); if (gh) return gh;
   if (/what can (?:i|we) make/.test(l)) return { kind: "make", sc: 9, say: "Open My bar to see what you can make" };
   if (/last orders?/.test(l)) { const lo = sdLast(); return { kind: "info", sc: 9, say: lo ? `Last orders at ${lo.at}` : "No last orders time set" }; }
   if (/\bwhat(?:'s| is| are|s)? (?:86|out|off)\b|\b86 (?:list|board)\b|\bwhat have we (?:86|run out)/.test(l)) return { kind: "go", go: "stock", sc: 9, say: "Opening the 86 board" };
@@ -525,12 +539,14 @@ function sdParse(raw) {
   if (/\b86\b/.test(l) && !vcCut(VC_86, l).replace(/\b(?:the|a|an|some)\b/g, "").trim()) return { kind: "go", go: "pick86", sc: 8, say: "Open 86 something" };
   if (VC_86.test(l)) return vcItems(vcCut(VC_86, l), true);
   if (/\b(?:count(?:ed|ing)?|stock count)\b/.test(l)) {
-    const rest = l.replace(/\b(?:stock count|count(?:ed|ing)?|we have|we'?ve got|there (?:are|is)|i)\b/g, " ").trim();
+    const rest = vcNum(l.replace(/\b(?:stock count|count(?:ed|ing)?|we have|we'?ve got|there (?:are|is)|i)\b/g, " ")).trim();
     const p = LIVE.me && rest ? ctParse(rest) : null, r = p && ctRow(p.key);
     if (r) return { kind: "count", sc: 8, p, say: `Count ${r.item}: ${p.grams ? `${p.n} g on the scale` : ctSay(r.u, p.n)}?` };
     return { kind: "go", go: "count", sc: 6, say: rest ? `Open the stock count. Didn't catch the number for “${rest}”.` : "Open the stock count" };
   }
   if ((m = l.match(/\b(?:open|go to|take me to|jump to|show me|show)\s+(.+)/))) { const g = SD_GO.find(([re]) => re.test(m[1])); if (g) return { kind: "go", go: g[1], sc: 8, say: `Opening ${m[1].trim()}` }; }
+  if (/^ (?:tick|check off|mark)\b/.test(l)) return { kind: "go", go: "lists", sc: 7, say: "Opening the closing list: tap it there" };
+  if ((m = l.match(/^ (?:dark|light|gold) (?:mode|theme)? ?$/))) return { kind: "go", go: "phone", sc: 8, say: "Opening This phone: Light or dark" };
   // A drink: with "spec", "how do I make" and the like, or just its name.
   const want = VC_SPEC.test(l), hits = vcSpot(vcCut(VC_SPEC, l), pkPool().filter((x) => x.c === "drinks")), top = hits[0];
   const dAlt = (h) => ({ t: h.x.n, h: { kind: "drink", d: D[h.x.d], sc: 4, say: h.x.n } });
@@ -575,9 +591,11 @@ function sdListen() {
     sdRx?.abort?.();
     SD.vc.err = "";
     SD.vc.live = ""; SD.vc.got = false;
-    sdRx = new SD_REC(); sdRx.lang = sdTag(); sdRx.interimResults = true; sdRx.continuous = false; sdRx.maxAlternatives = 5;
+    sdRx = new SD_REC(); sdRx.lang = sdTag(); sdRx.interimResults = true; sdRx.continuous = !!SD.vc.ptt; sdRx.maxAlternatives = 5;
     sdRx.onresult = (e) => {
       const r = e.results[e.results.length - 1];
+      // Held like a radio: keep listening through pauses and act on all of it when the button is let go (onend).
+      if (SD.vc.ptt) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t && SD.vc.live) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing. Let go when you're done"; } return; }
       // Still talking: show the words so far, so it's plain it's working.
       if (r.isFinal === false) { SD.vc.live = Array.from(e.results, (x) => x[0].transcript).join(" ").trim(); const t = $("#sd-voice .sd-livet"); if (t) { t.textContent = `“${SD.vc.live}”`; $("#sd-voice .sd-live b").textContent = "Hearing"; } return; }
       const said = Array.from({ length: r.length }, (_, i) => r[i].transcript);
@@ -595,7 +613,10 @@ function sdListen() {
       SD.vc.got = true; sdVoiceRender(); if (e.error !== "no-speech") $("#sd-vtext")?.focus();
     };
     // Stopped with nothing made out: say so, never just go quiet.
-    sdRx.onend = () => { document.body.classList.remove("sd-listening"); if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
+    sdRx.onend = () => {
+      document.body.classList.remove("sd-listening");
+      if (SD.vc.ptt) { SD.vc.ptt = false; const b = SD.vc.on && SD.vc.live && vcBest([SD.vc.live]); if (b) { SD.vc.got = true; SD.vc.text = b.t; SD.vc.on = false; return sdHeard(b.h); } }
+      if (!SD.vc.on) return; SD.vc.on = false; if (!SD.vc.got) SD.vc.err = SD.vc.live ? `Couldn't make out “${SD.vc.live}”. Try again, or type it below.` : "Didn't hear anything. Try again, close to the phone, or type it below."; sdVoiceRender(); };
     SD.vc.on = true; document.body.classList.add("sd-listening"); sdVoiceRender(); sdRx.start();
   } catch { SD.vc.on = false; sdVoiceRender(); $("#sd-vtext")?.focus(); }
 }
@@ -607,6 +628,20 @@ async function sdFromOwn(t) {
   try { const [en] = await LIVE.api.translate([t], "English", langEn(lang)); SD.vc.text = `${t} → ${en}`; sdHeard(sdParse(en)); }
   catch { SD.vc.heard = null; SD.vc.err = "Couldn't translate that. Check the signal, or say it in English."; sdVoiceRender(); }
 }
+/* Hold to talk, like a radio (push-to-talk, as on Zello or a walkie-talkie): hold 🎤 for a moment, talk, let go. It
+   listens for as long as it's held, pauses and all, so a noisy bar can't cut it off half-way, and it stops the moment
+   you let go instead of picking up the next conversation. A quick tap still works the old way. */
+let sdPtt = null;
+document.addEventListener("pointerdown", (e) => {
+  if (!SD_REC || !e.target.closest("[data-sd-mic]")) return;
+  clearTimeout(sdPtt?.t);
+  sdPtt = { held: false, t: setTimeout(() => { sdPtt.held = true; SD.vc.ptt = true; haptic(); sdVoiceOpen(); const b = $("#sd-voice .sd-live b"); if (b) b.textContent = "Talk now. Let go when you're done"; }, 300) };
+});
+const sdPttUp = () => { if (!sdPtt) return; clearTimeout(sdPtt.t); if (sdPtt.held) try { sdRx?.stop(); } catch {} };
+document.addEventListener("pointerup", sdPttUp);
+document.addEventListener("pointercancel", sdPttUp);
+document.addEventListener("contextmenu", (e) => { if (e.target.closest("[data-sd-mic]")) e.preventDefault(); });
+document.head.insertAdjacentHTML("beforeend", "<style>[data-sd-mic]{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none;touch-action:manipulation}</style>");
 function sdSpeak(t) { if (!SD.set.sound) return; try { const u = new SpeechSynthesisUtterance(t); u.lang = "en-GB"; const v = sayVoice(); if (v) u.voice = v; u.rate = 0.95; speechSynthesis.cancel(); speechSynthesis.speak(u); } catch {} }
 function sdVoiceClose() { sdRx?.abort?.(); SD.vc.on = false; document.body.classList.remove("sd-listening"); const el = $("#sd-voice"); if (el) el.hidden = true; }
 // What was said, worked out: a drink opens straight away (it changes nothing), with the closest others to tap if it's
@@ -659,6 +694,7 @@ function sdVoiceGo() {
   }
   if (h.kind === "log") { if (!LIVE.me) return toast("Join the team to log it"); sdCue("ok"); return track(LIVE.api.logIt(mode, "note", h.n.slice(0, LOG_MAX)), "Logged. It's in tonight's handover", "Not saved. Try again"); }
   if (h.kind === "drink") { if (cur === "station" && !h.wo) { if (!$("#sheet").hidden) hideSheet(); return sxTap(h.d.id); } openSheet(h.d.id); if (h.wo) setTimeout(() => sdWithout(h.d, h.wo), 120); return; }
+  if (h.kind === "guest") { guestOpen(); if (h.c) setTimeout(() => $(`#guest [data-g-lang="${h.c}"]`)?.click() ?? (GUEST.c = h.c, GUEST.step = "hello", gRender()), 80); return; }
   if (h.kind === "make") { mk.pane = "bar"; mkSave(); return openAt("tab:make"); }
   if (h.kind === "count") { if (!LIVE.me) return toast("Join the team to count stock"); openAt("count"); ctHeard = { ...h.p }; ctRender(true); return; }
   if (h.kind === "go") { if (h.go === "pick86") return pkOpen({ mode: "86" }); if (h.go === "count" && !LIVE.me) return toast("Join the team to count stock"); openAt(h.go); scrollTo(0, 0); }
@@ -694,11 +730,11 @@ function sdOneHand(k) {
 }
 function sdPhoneHtml() {
   if (!SD_READY) return "";
-  const row = (k, t, sub) => `<div class="mini" style="margin-top:14px">${t}</div><div class="seg" style="grid-template-columns:1fr 1fr;margin-top:6px" role="group" aria-label="${t}"><button data-sd-set="${k}:1" aria-pressed="${!!SD.set[k]}">On</button><button data-sd-set="${k}:0" aria-pressed="${!SD.set[k]}">Off</button></div><p class="note">${sub}</p>`;
-  return row("a11y", "Accessible mode", "Easier to read: plain headings, bigger text and spacing, colour-blind-safe colours, bigger buttons.")
-    + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and voice in a row above the tabs, in reach of your thumb.")
-    + row("sound", "Sounds", "A short sound for urgent things, last orders and a new best close. Android phones buzz too; iPhones can't from a web app.")
-    + row("voice", "Voice button 🎤", "In the top bar. Say a drink and it opens, or \"86 the Corona\", \"count tonic 12\". It picks out the key words, shows them as it hears them, and nothing changes until you say yes.");
+  const row = (k, t, sub) => `<div class="setrow"><span><b>${t}</b><small>${sub}</small></span><div class="seg" style="grid-template-columns:1fr 1fr" role="group" aria-label="${t}"><button data-sd-set="${k}:1" aria-pressed="${!!SD.set[k]}">On</button><button data-sd-set="${k}:0" aria-pressed="${!SD.set[k]}">Off</button></div></div>`;
+  return row("a11y", "Accessible mode", "Bigger text and buttons, plain headings, colour-blind-safe colours")
+    + row("onehand", "One-hand mode", "Back, search, 86, Log it, send and 🎤 above the tabs, in thumb reach")
+    + row("sound", "Sounds", "Urgent things, last orders, a new best close. iPhones can't buzz")
+    + row("voice", "Voice button 🎤", "Tap it, or hold it like a radio. Nothing changes until you say yes");
 }
 
 /* ---------- Where it all goes ---------- */
@@ -718,7 +754,7 @@ Object.assign(PLACE_KW, { replay: "replay timeline night history what happened",
 /* ---------- Events ---------- */
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
-  if (t("[data-sd-mic]")) { haptic(); return sdVoiceOpen(); }
+  if (t("[data-sd-mic]")) { if (sdPtt?.held) { sdPtt = null; return; } sdPtt = null; SD.vc.ptt = false; haptic(); return sdVoiceOpen(); }
   if ((x = t("[data-sd-1h]"))) return sdOneHand(x.dataset.sd1h);
   if ((x = t("[data-sd-set]"))) { const [k, v] = x.dataset.sdSet.split(":"); SD.set[k] = v === "1"; sdSave(); sdApplyModes(); haptic(); if (k === "sound" && SD.set.sound) sdCue("ok"); x.parentElement.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", b === x)); return; }
   if ((x = t("[data-sd-flow]"))) {
