@@ -1,5 +1,5 @@
 // Finding your way and sending: the drinks search finds pages too, the section counts follow the search, the Team page's
-// Send on WhatsApp card, the Handover pane, the bar station's Send tile and kinds of drink, typing a payslip in by hand,
+// Send on WhatsApp card, the Handover pane, the bar station's Hand over row and kinds of drink, typing a payslip in by hand,
 // and nothing about health going into the team's copy.
 import { test, before, after } from "node:test";
 import assert from "node:assert/strict";
@@ -57,12 +57,12 @@ test("an incident write-up stays off the team's database", async () => {
   assert.match(await S.$eval("#tc-incident", (e) => e.textContent), /never saves it to the team/);
 });
 
-test("the bar station sends tonight's report, hands over, and has the kinds of drink", async () => {
+test("the bar station hands over and has the kinds of drink", async () => {
   await resetEmulators();
   const { S } = await team(browser, site, [["S", "Kadir"]]);
   await S.setViewportSize({ width: 1180, height: 820 });
   await S.evaluate(() => show("station"));
-  await S.waitForSelector('#sx-live [data-send="tonight"]');
+  await S.waitForSelector('#sx-live [data-st-go="send"]');
   await S.click("#sx-gbtn");
   await S.click('#sx-grp [data-sx-grp="f:margarita"]');
   assert.equal(await S.isVisible("#sx-grp"), false);

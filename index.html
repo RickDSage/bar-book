@@ -7910,9 +7910,10 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    - On an iPad a tap opens Make it now (makenow.js): big step cards, one at a time. The spec sits next to the list in
      big type: glass, ice and garnish, the spec, numbered steps, ×2 to ×8, the next drink by swipe or arrow. On a phone
      a tap opens the usual drink page.
-   - A round: + adds a drink (again for two), and the round shows every spec scaled, shaken drinks first and fizz last,
-     with the glasses to pull.
-   - Tonight: the 86 board, the close on both sides and the handover, live.
+   - A round: + adds a drink (again for two), or type a big ticket straight into the round ("3 mojito", Enter, next).
+     Every drink numbered in making order, only the next one open, what to get ready in one line, a bar on top that stays.
+   - Tonight: the 86s and every job (closing both sides, hand over, photos, labels, stock, morning) in one list, live,
+     each row switched on or off in Set up.
    - Left alone for 2 minutes, it clears the search and the open drink, so the next person starts clean. The round stays.
    - Batches: the house batch recipes, scaled, each with one tap to date its label, and every bar date label after them.
    - Quiz: a question at a time from our own specs, for the quiet moments.
@@ -7920,7 +7921,7 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    - Away from it for 2 minutes on any other page, it goes back to the station. On a shared iPad, leaving the station,
      turning Shared off and resetting the iPad need a manager's code first.
    Everything is the same live data every phone sees; nothing extra is saved to the team. The screen stays on. */
-const SX = { big: store.get("sx.big", false), q: "", grp: "all", id: store.get("sx.id", null), view: "drink", x: 1, bx: 1, qz: null, lbDone: null, made: new Set(), timers: [], ids: [], round: new Map(store.get("sx.round", [])) };
+const SX = { big: store.get("sx.big", false), q: "", grp: "all", id: store.get("sx.id", null), view: "drink", x: 1, bx: 1, qz: null, lbDone: null, made: new Set(), rx: new Map(), rq: "", timers: [], ids: [], round: new Map(store.get("sx.round", [])) };
 if (SX.id != null && !D[SX.id]) SX.id = null;
 const SX_GROUPS = [["all", "Everything"], ["sig", "Signatures"], ["top", "Top 10"], ["ask", "Guests ask for"], ["shots", "Shots"], ["zero", "No alcohol"], ["serves", "Serves"]];
 // The Menu's kinds of drink too (Martinis, Margaritas, Sours…), signatures first, then A to Z.
@@ -7956,7 +7957,7 @@ function sxRow(d) {
 }
 function sxList() {
   const el = $("#sx-list"); if (!el) return;
-  if (SX.view !== "drink" && !sxWide()) { el.innerHTML = SX_PANELS[SX.view](); sxMark(el); return; }
+  if (SX.view !== "drink" && !sxWide()) return sxPanel(el);
   const parts = sxParts(), y = el.scrollTop;
   SX.ids = parts.flatMap(([, ds]) => ds.map((d) => d.id));
   // Every other drink goes under its letter, with the letter strip down the side of the list.
@@ -7970,6 +7971,7 @@ function sxBars() {
   $("#sx-gbtn").setAttribute("aria-expanded", !$("#sx-grp").hidden);
   const rec = recent.slice(0, 6).map((id) => D[id]).filter(Boolean), n = sxRoundN();
   $$("#sx-views [data-sx-view]").forEach((b) => b.setAttribute("aria-pressed", b.dataset.sxView === SX.view));
+  $("#sx")?.classList.toggle("panel", SX.view !== "drink");
   $("#sx-rn").textContent = n || "";
   $("#sx-recent").innerHTML = rec.length ? `<span class="sx-lab">Recent</span>${rec.map((d) => `<button class="chip" data-sx-id="${d.id}" translate="no">${esc(d.name)}</button>`).join("")}` : "";
   sxRecentShow();
@@ -8013,28 +8015,58 @@ function sxSpecHtml(d) {
 // built), shaken next so the foam and chill are fresh, anything topped with fizz last so it doesn't go flat. The glasses to pull at the top.
 const sxOrder = (d) => (/^top/i.test(d.spec.at(-1) || "") || d.tags.includes("Fizzy") ? 3 : /shake/i.test(d.method) ? 2 : /stir/i.test(d.method) ? 0 : 1);
 const SX_BUILDS = ["Stir", "Build in the glass", "Shake together", "Top with fizz last"];
+/* The round, quick to scan however big the ticket: a bar along the top that stays put (how many, how many left, the
+   next drink, Make the round, Clear), a box to add drinks by typing (Enter adds the top match; "3 mojito" adds three),
+   what to get ready folded into one line, then each drink numbered in making order. Only the next drink to make shows
+   its spec; tap any other to open it. Made drinks fold away and grey out. */
+const sxRoundDs = () => { const ds = [...SX.round].map(([id, n]) => [D[id], n]).filter(([d]) => d).sort((a, b) => sxOrder(a[0]) - sxOrder(b[0])); return SX_BUILDS.flatMap((_, k) => ds.filter(([d]) => sxOrder(d) === k)); };
+const sxNext = (ds) => ds.find(([d]) => !SX.made.has(d.id))?.[0] || null;
+// Whether a drink's card is open: as tapped, else only the next one to make.
+const sxRxOpen = (d, nx) => (SX.rx.has(d.id) ? SX.rx.get(d.id) : d === nx);
+// Up to 6 drinks for the add box, best match first.
+function sxRqHits(q) {
+  const t = sxRqParse(q).q; if (!t) return [];
+  return plRank(D.filter((d) => plHits(d, plQuery(t).words)), plQuery(t).words).slice(0, 6);
+}
+// "3 mojito", "mojito x3" or "mojito 3": how many and what.
+function sxRqParse(q) {
+  const s = q.trim(), a = s.match(/^(\d{1,2})\s*[x×*]?\s+(.+)$/i) || s.match(/^(\d{1,2})[x×*](.+)$/i), b = s.match(/^(.+?)\s*[x×*]?\s*(\d{1,2})$/i);
+  return a ? { n: +a[1], q: a[2].trim() } : b && !/\d$/.test(b[1]) ? { n: +b[2], q: b[1].trim() } : { n: 1, q: s };
+}
+function sxRqRes() {
+  const el = $("#sx-rres"); if (!el) return;
+  const hs = sxRqHits(SX.rq), n = sxRqParse(SX.rq).n;
+  el.innerHTML = SX.rq.trim() ? (hs.length ? hs.map((d, i) => `<button class="sx-rqr${i ? "" : " top"}${isOut(d.name) ? " out" : ""}" data-sx-rq="${d.id}"><span translate="no">${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</span><b>+${n > 1 ? ` ${n}` : ""}</b></button>`).join("")
+    : `<p class="note">Nothing matches. Try one word of the name.</p>`) : "";
+}
 function sxRoundHtml() {
-  const ds = [...SX.round].map(([id, n]) => [D[id], n]).filter(([d]) => d).sort((a, b) => sxOrder(a[0]) - sxOrder(b[0]));
-  const back = SX_BACK;
-  if (!ds.length) return `${back}<p class="note">The round is empty. Tap + next to a drink to add it.</p>`;
-  const tally = (f) => { const m = new Map(); ds.forEach(([d, n]) => { const k = f(d); if (k && !/^none/i.test(k)) m.set(k, (m.get(k) || 0) + n); }); return [...m].map(([k, n]) => `${n} \u00d7 ${esc(k)}`).join(", "); };
-  const shaken = ds.filter(([d]) => sxOrder(d) === 2).reduce((a, [, n]) => a + n, 0);
-  const was = mult;
-  const card = ([d, n]) => { mult = n; const s = d.spec.map(specRow).join(""); mult = was;
-    const made = SX.made.has(d.id);
-    return `<div class="sx-rc${isOut(d.name) ? " out" : ""}${made ? " made" : ""}"><div class="sx-rh"><b translate="no">${n} × ${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</b>
-      <span class="sx-x"><button data-sx-rn="${d.id}:-1" aria-label="One fewer">−</button><button data-sx-rn="${d.id}:1" aria-label="One more">+</button>${made || !sxmOk(d) ? "" : `<button class="sx-made" data-sxm="${d.id}">\u25b6 Make</button>`}<button class="sx-made" data-sx-made="${d.id}" aria-pressed="${made}">${made ? "Made \u2713" : "Made"}</button></span></div>
-      <div class="sx-rm" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.garnish)}</div>${plOutTag(d)}
-      <ul class="spec sx-specl" data-d="${d.id}" translate="no">${s}</ul><p class="sx-rmeth" translate="no">${esc(d.method)}</p></div>`; };
+  const ds = sxRoundDs(), nx = sxNext(ds), left = ds.filter(([d]) => !SX.made.has(d.id)).length;
+  const add = `<div class="sx-radd"><div class="search"><input id="sx-rq" type="search" value="${esc(SX.rq)}" placeholder="${ds.length ? "Add a drink" : "Type a drink to start a round"}: Enter adds it" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="done" aria-label="Add a drink to the round"></div><div class="sx-rres" id="sx-rres"></div></div>`;
+  if (!ds.length) return `${add}<p class="note">Type a drink and press Enter, and the next, and the next: "3 mojito" adds three. Or tap + next to any drink in the list.</p>`;
+  const tally = (f) => { const m = new Map(); ds.forEach(([d, n]) => { const k = f(d); if (k && !/^none/i.test(k)) m.set(k, (m.get(k) || 0) + n); }); return [...m]; };
+  const say = (xs) => xs.map(([k, n]) => `${n} × ${esc(k)}`).join(", ") || "None";
+  const gl = tally((d) => d.glass), ic = tally((d) => d.ice), ga = tally((d) => d.garnish);
+  const shaken = ds.filter(([d]) => sxOrder(d) === 2).reduce((a, [, n]) => a + n, 0), tins = Math.ceil(shaken / 2);
+  const sum = (xs) => xs.reduce((a, [, n]) => a + n, 0);
+  const prepOpen = store.get("sx.prepOpen", null) ?? sxWide();
+  const was = mult; let no = 0;
+  const card = ([d, n]) => { no++; const made = SX.made.has(d.id), op = sxRxOpen(d, nx);
+    let s = ""; if (op) { mult = n; s = d.spec.map(specRow).join(""); mult = was; }
+    return `<div class="sx-rc${isOut(d.name) ? " out" : ""}${made ? " made" : ""}${d === nx ? " next" : ""}"><div class="sx-rh">
+      <button class="sx-rt" data-sx-rx="${d.id}" aria-expanded="${op}"><span class="sx-rno">${made ? "✓" : no}</span><span class="sx-rtt"><b translate="no">${n} × ${esc(d.name)}${isOut(d.name) ? " <i>86'd</i>" : ""}</b><span class="sx-rm" translate="no">${esc(d.glass)} · ${esc(d.ice)}${/^none/i.test(d.garnish) ? "" : ` · ${esc(d.garnish)}`}</span></span><span class="chev" aria-hidden="true">${op ? "▴" : "▾"}</span></button>
+      <span class="sx-x"><button data-sx-rn="${d.id}:-1" aria-label="One fewer ${esc(d.name)}">−</button><button data-sx-rn="${d.id}:1" aria-label="One more ${esc(d.name)}">+</button>${made || !sxmOk(d) ? "" : `<button class="sx-made" data-sxm="${d.id}" aria-label="Make ${esc(d.name)} now">▶</button>`}<button class="sx-made" data-sx-made="${d.id}" aria-pressed="${made}">${made ? "Made ✓" : "Made"}</button></span></div>
+      ${op ? `${plOutTag(d)}<ul class="spec sx-specl" data-d="${d.id}" translate="no">${s}</ul><p class="sx-rmeth" translate="no">${esc(d.method)}</p>` : ""}</div>`; };
   // Drinks made the same way sit together, so the shaken ones go in the tins in one go.
-  const cards = SX_BUILDS.map((t, k) => { const g = ds.filter(([d]) => sxOrder(d) === k); return g.length ? `<div class="sx-bh">${t} \u00b7 ${g.reduce((a, [, n]) => a + n, 0)}</div>${g.map(card).join("")}` : ""; }).join("");
-  const left = ds.filter(([d]) => !SX.made.has(d.id)).length;
-  return `${back}<div class="sx-k">Round of ${sxRoundN()}${left ? ` \u00b7 ${left} to make` : ""}<button class="linkbtn" data-sx-round="clear">Clear the round</button></div>
-    ${ds.some(([d]) => !SX.made.has(d.id) && sxmOk(d)) ? `<button class="btn pri sx-mkgo" data-sxm-round>\u25b6 Make the round: a drink at a time, in this order</button>` : ""}
+  const cards = SX_BUILDS.map((t, k) => { const g = ds.filter(([d]) => sxOrder(d) === k); return g.length ? `<div class="sx-bh">${t} · ${g.reduce((a, [, n]) => a + n, 0)}</div>${g.map(card).join("")}` : ""; }).join("");
+  const allOpen = ds.every(([d]) => sxRxOpen(d, nx));
+  return `<div class="sx-rbar"><div class="sx-rbt"><b>Round of ${sxRoundN()}</b><span>${left ? `${left} to make${nx ? ` · next: <span translate="no">${esc(nx.name)}</span>` : ""}` : "All made"}</span></div>
+      <span class="sx-rba">${left && ds.some(([d]) => !SX.made.has(d.id) && sxmOk(d)) ? `<button class="btn pri sx-mkgo" data-sxm-round>▶ Make the round</button>` : ""}<button class="btn" data-sx-round="clear">Clear</button></span></div>
     ${left ? "" : `<div class="sx-done"><b>Round made.</b><button class="btn pri" data-sx-round="clear">Clear it for the next one</button></div>`}
-    <dl class="sx-prep" translate="no"><dt>Glasses</dt><dd>${tally((d) => d.glass)}</dd><dt>Ice</dt><dd>${tally((d) => d.ice) || "None"}</dd><dt>Garnish</dt><dd>${tally((d) => d.garnish) || "None"}</dd>
-      ${shaken ? `<dt>Tins</dt><dd>${shaken} to shake: ${Math.ceil(shaken / 2)} tin${shaken > 2 ? "s" : ""}, up to 2 drinks a tin</dd>` : ""}</dl>
-    <p class="note" style="margin-top:0">In making order: stirred, then built, then shaken so the foam is fresh, fizz last so it stays lively.</p>${cards}`;
+    ${add}
+    <details class="sx-prepd" data-sx-prep${prepOpen ? " open" : ""}><summary><span class="sx-k">Get ready</span><span>${sum(gl)} glass${sum(gl) === 1 ? "" : "es"}${ic.length ? ` · ${ic.length} kind${ic.length === 1 ? "" : "s"} of ice` : ""}${ga.length ? ` · ${sum(ga)} garnish${sum(ga) === 1 ? "" : "es"}` : ""}${shaken ? ` · ${tins} tin${tins === 1 ? "" : "s"}` : ""}</span></summary>
+      <dl class="sx-prep" translate="no"><dt>Glasses</dt><dd>${say(gl)}</dd><dt>Ice</dt><dd>${say(ic)}</dd><dt>Garnish</dt><dd>${say(ga)}</dd>
+      ${shaken ? `<dt>Tins</dt><dd>${shaken} to shake: ${tins} tin${tins === 1 ? "" : "s"}, up to 2 drinks a tin</dd>` : ""}</dl></details>
+    <div class="sx-ropen"><span class="st-s">In making order. Tap a drink for its spec.</span><button class="linkbtn" data-sx-rall>${allOpen ? "Close every spec" : "Open every spec"}</button></div>${cards}`;
 }
 // The view bar at the top is the way back to the drinks, so a panel has no Back of its own.
 const SX_BACK = "";
@@ -8134,7 +8166,7 @@ function sxSetupHtml() {
       ${row(sharedDev, "Shared iPad on", "Asks who's using it, hides My pay, and a manager's code locks again after 5 minutes. Leaving the station, turning Shared off and Reset this phone need a manager's code.", `<button class="btn" data-shared-pick="on">Turn Shared on</button>`)}
       ${row(!!lock, "Screen kept on", lock ? "Bar Book is keeping the screen on." : navigator.wakeLock ? "Tap anywhere and Bar Book keeps the screen on while it's open." : "This iPad doesn't let Bar Book keep the screen on, so the Auto-Lock step below matters.")}
     </ul>
-    <div class="sx-k">iPad tiles</div>
+    <div class="sx-k">What shows on this iPad</div>
     <p class="st-s">Switch off what the bar doesn't use, and back on any time. It changes straight away on this iPad and stays after a reload.</p>${sxNeedsMgr() ? `<p class="st-s">A manager unlocks it with their code first.</p>` : ""}
     <div class="sx-tiles">${SX_TILES.map(([k, t]) => `<label class="check"><input type="checkbox" data-sx-tileset="${k}"${sxOn(k) ? " checked" : ""}><span>${t}</span></label>`).join("")}</div>
     <div class="sx-k">Tap a drink</div>
@@ -8151,19 +8183,17 @@ function sxSetupHtml() {
 }
 // The station's views, in one bar along the top. Drinks is the list and the spec; the rest show where the spec goes.
 const SX_VIEWS = [["drink", "Drinks"], ["round", "Round"], ["batch", "Batches"], ["quiz", "Quiz"], ["setup", "Set up"]];
-/* One tap from the station to every job behind the bar. Each opens its page; the station comes back on its own after 2
-   quiet minutes, or with Bar station at the bottom. */
+/* Every job behind the bar, as one list under Tonight, each with how it stands now. Each opens its page; the station
+   comes back on its own after 2 quiet minutes, or with Bar station at the bottom. */
 const SX_GO = [["stock", "86 and low", "\u26d4"], ["close", "Closing", "\u2705"], ["send", "Hand over", "\ud83d\udcdd"], ["photos", "Photos", "\ud83d\udcf7"],
   ["labels", "Date labels", "\ud83c\udff7\ufe0f"], ["count", "Stock", "\u2696\ufe0f"], ["morning", "Morning", "\u2600\ufe0f"]];
 /* iPad tiles: what shows on this station, switched on or off in Set up by a manager. Kept on this iPad, as it's the
    station's own layout, so it survives reloads and needs nothing from the team's database. */
-const SX_TILES = [["round", "Round"], ["batch", "Batches"], ["quiz", "Quiz"], ...SX_GO.map(([k, t]) => [`go-${k}`, t]),
-  ["tonight", "Tonight panel: 86s, closing, photos, sending"], ["runout", "Ran out of something? box"]];
+const SX_TILES = [["round", "Round"], ["batch", "Batches"], ["quiz", "Quiz"], ["tonight", "Tonight (86s and the jobs below)"], ...SX_GO.map(([k, t]) => [`go-${k}`, `Tonight: ${t}`])];
 const sxOff = new Set(store.get("sx.off", []));
 const sxOn = (k) => !sxOff.has(k);
 function sxTilesApply() {
-  $$("#v-station [data-sx-tile]").forEach((e) => { e.hidden = !sxOn(e.dataset.sxTile) || (e.id === "sx-tools" && !LIVE.me); });
-  const go = $("#sx-go"); if (go) go.hidden = !LIVE.me || !SX_GO.some(([k]) => sxOn(`go-${k}`));
+  $$("#v-station [data-sx-tile]").forEach((e) => { e.hidden = !sxOn(e.dataset.sxTile); });
   $("#sx")?.classList.toggle("notonight", !sxOn("tonight"));
   if (["round", "batch", "quiz"].includes(SX.view) && !sxOn(SX.view)) { SX.view = "drink"; sxBars(); sxList(); sxSpec(); }
 }
@@ -8181,9 +8211,16 @@ function sxMark(root) {
     if (m.swap) li.insertAdjacentHTML("beforeend", `<em class="pl-swap" translate="no">\u2192 ${esc(m.swap)}</em>`);
   }
 }
+// A panel redrawn while someone types in the round's add box keeps the box, its text and the keyboard.
+function sxPanel(el) {
+  const f = document.activeElement?.id === "sx-rq" ? document.activeElement.selectionStart : null;
+  el.innerHTML = SX_PANELS[SX.view](); sxMark(el);
+  const q = $("#sx-rq"); if (!q) return;
+  sxRqRes(); if (f != null) { q.focus(); try { q.setSelectionRange(f, f); } catch {} }
+}
 function sxSpec() {
   const el = $("#sx-spec"); if (!el || !sxWide()) return;
-  if (SX.view !== "drink") { const y = el.scrollTop, same = el.dataset.id === SX.view; el.innerHTML = SX_PANELS[SX.view](); el.dataset.id = SX.view; sxMark(el); el.scrollTop = same ? y : 0; return; }
+  if (SX.view !== "drink") { const y = el.scrollTop, same = el.dataset.id === SX.view; sxPanel(el); el.dataset.id = SX.view; el.scrollTop = same ? y : 0; return; }
   const d = D[SX.id] ?? D[SX.ids[0]]; if (!d) { el.innerHTML = ""; return; }
   const same = el.dataset.id === String(d.id), y = el.scrollTop;
   SX.id = d.id; el.dataset.id = d.id; el.innerHTML = sxSpecHtml(d); sxMark(el);
@@ -8207,9 +8244,8 @@ function sxTonight() {
   const side = (m) => {
     const p = progress(MODE_LISTS[m].at(-1)), r = LIVE.reports.find((x) => x.side === m && reportDay(x) === today);
     const last = LIVE.reports.find((x) => x.side === m && !x.pending && reportDay(x) !== today);
-    return `<button class="st-tile" data-st-side="${m}"><span class="st-k">${esc(sideName(m))} closing</span>
-      <b class="st-big">${p.n}/${p.of}</b><span class="st-bar"><i style="width:${p.pct}%"></i></span>
-      <span class="st-s">${r ? (r.pending ? "Handover saved, waiting for signal" : `✅ Handover sent ${hhmm(new Date(ms(r.at)))} by ${esc(r.name)}`) : last ? `Last handover: ${esc(dayName(reportDay(last)))} by ${esc(last.name)}` : "No handover yet"}</span></button>`;
+    return `<button class="sx-jm" data-st-side="${m}"><span class="sx-ji" aria-hidden="true">\u2705</span><span class="sx-jt"><b><span class="st-k">${esc(sideName(m))} closing</span> ${p.n}/${p.of}</b><span class="st-bar"><i style="width:${p.pct}%"></i></span>
+      <span class="st-s">${r ? (r.pending ? "Handover saved, waiting for signal" : `Handed over ${hhmm(new Date(ms(r.at)))} by ${esc(r.name)}`) : last ? `Last handover ${esc(dayName(reportDay(last)))}, ${esc(last.name)}` : "No handover yet"}</span></span><i aria-hidden="true">\u203a</i></button>`;
   };
   // Date labels, bar and floor: anything overdue or due today is URGENT, and tomorrow's show the day before as a
   // reminder. Always on show under the 86 strip, never folded away. A tap opens that side's labels.
@@ -8218,34 +8254,37 @@ function sxTonight() {
   lbs.hidden = !lbAll.length;
   lbs.innerHTML = `${lbNow.length ? `<button class="sx-lbn" data-sx-labels="${lbNow[0].side}"><b>\ud83d\udea8 Urgent: change now</b><span translate="no">${lbNow.map(lbName).join(" \u00b7 ")}</span><i>\u203a</i></button>` : ""}
     ${lbSoon.length ? `<button class="sx-lbt" data-sx-labels="${lbSoon[0].side}"><b>Reminder: change tomorrow</b><span translate="no">${lbSoon.map(lbName).join(" \u00b7 ")}</span><i>\u203a</i></button>` : ""}`;
+  // One row a job: what it is, how it stands, and a tap to its page. Closing shows for both sides.
+  const job = (k, body, extra = "") => `<div class="sx-job" data-sx-tile="go-${k}">${body}${extra}</div>`;
+  const go = (k, t, i, st) => `<button class="sx-jm" data-goto="${k}"><span class="sx-ji" aria-hidden="true">${i}</span><span class="sx-jt"><b>${t}</b>${st ? `<span class="st-s">${st}</span>` : ""}</span><i aria-hidden="true">\u203a</i></button>`;
+  const lo = lowNow(), cnt = lbAll.length;
   el.innerHTML = `
     <div class="st-tile st-86"><span class="st-k">86'd tonight${out.length ? ` \u00b7 ${out.length}` : ""}</span>
-      ${out.length ? `<ul class="sx-outl" translate="no">${out.map((n) => `<li><span>${esc(n)}</span><button class="chip" data-sx-back="${esc(n)}">Back in</button></li>`).join("")}</ul>` : `<b class="st-big">Nothing</b>`}
-      ${(() => { const lo = lowNow(); return lo.length ? `<span class="st-k">Running low \u00b7 ${lo.length}</span><ul class="sx-lowl" translate="no">${lo.map((x) => `<li><span>${esc(x.item)}<small>${lowSay(x)}</small></span><button class="chip" data-sx-86="${esc(x.item)}">86 it</button></li>`).join("")}</ul>` : ""; })()}
-      <button class="linkbtn" data-st-go="stock">Open the 86 board \u203a</button></div>
-    ${side("bar")}${side("floor")}
-    <div class="st-tile sx-send"><span class="st-k">Send on WhatsApp</span>
-      <div class="sx-phb">${sendBtn("tonight", "Tonight's report")}<button class="btn" data-st-go="send">Hand over ›</button>${out.length ? sendBtn("out", "The 86 list") : ""}${logsOf().length ? sendBtn("logs", "Tonight's log") : ""}</div>
-      <span class="st-s">Each message ends with a link back into Bar Book, never the team code.</span></div>
-    <div class="st-tile sx-ph"><span class="st-k">Tonight's photos \u00b7 ${esc(sideName(mode))}${ph.length ? ` \u00b7 ${ph.length}` : ""}</span>
-      ${ph.length ? `<div class="sx-thumbs">${ph.slice(-6).map((x) => `<img src="${x.data}" alt="${esc(x.note || "Closing photo")}">`).join("")}</div>` : ""}
-      ${ph.length >= LIVE.api.MAX_PHOTOS ? `<span class="st-s">${LIVE.api.MAX_PHOTOS} photos is the most for one handover.</span>`
-        : `<div class="sx-phb"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Upload</label></div><span class="st-s">They go with tonight's handover. Notes and deleting: Shift, Closing.</span>`}</div>
-    ${sharedDev ? "" : `<button class="st-hint" data-shared-pick="on">Shared iPad is off. Tap to turn it on: My pay hidden, codes lock after 5 minutes</button>`}`;
+      ${out.length ? `<ul class="sx-outl" translate="no">${out.map((n) => `<li><span>${esc(n)}</span><button class="chip" data-sx-back="${esc(n)}">Back in</button></li>`).join("")}</ul>` : `<b class="sx-none">Nothing 86'd</b>`}
+      ${lo.length ? `<span class="st-k">Running low \u00b7 ${lo.length}</span><ul class="sx-lowl" translate="no">${lo.map((x) => `<li><span>${esc(x.item)}<small>${lowSay(x)}</small></span><button class="chip" data-sx-86="${esc(x.item)}">86 it</button></li>`).join("")}</ul>` : ""}
+      <div class="sx-86a">${pkBtn("86 something", 'data-pk86="bar" id="sx-86q"')}<button class="linkbtn" data-st-go="stock">86 board \u203a</button></div></div>
+    <div class="sx-jobs">
+      ${job("close", side("bar"))}${job("close", side("floor"))}
+      ${job("send", `<button class="sx-jm" data-st-go="send"><span class="sx-ji" aria-hidden="true">\ud83d\udcdd</span><span class="sx-jt"><b>Hand over</b><span class="st-s">Write tonight's and send it</span></span><i aria-hidden="true">\u203a</i></button>`)}
+      ${job("photos", go("photos", "Photos", "\ud83d\udcf7", ph.length ? `${ph.length} with tonight's handover` : "None yet tonight"),
+        ph.length >= LIVE.api.MAX_PHOTOS ? "" : `<label class="btn sx-jx" for="ph-in" aria-label="Take a photo for tonight's handover">\ud83d\udcf7\ufe0e+</label>`)}
+      ${job("labels", go("labels", "Date labels", "\ud83c\udff7\ufe0f", cnt ? `${cnt} to change, today or tomorrow` : "None due"))}
+      ${job("count", go("count", "Stock count", "\u2696\ufe0f", ""))}
+      ${job("morning", go("morning", "Morning", "\u2600\ufe0f", "Last night's handover"))}
+    </div>
+    ${sharedDev ? "" : `<button class="st-hint" data-shared-pick="on">Shared iPad is off. Tap to turn it on: My pay hidden, codes lock after 5 minutes</button>`}
+    <button class="linkbtn sx-choose" data-sx-view="setup">Choose what shows here \u203a</button>`;
   sxFit();
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn sx-who" data-who-open hidden></button><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">?</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
-    <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}"${["round", "batch", "quiz"].includes(k) ? ` data-sx-tile="${k}"` : ""}>${t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
-    <nav class="sx-go" id="sx-go" aria-label="Go to" hidden>${SX_GO.map(([k, t, i]) => `<button class="btn" data-goto="${k}" data-sx-tile="go-${k}"><span aria-hidden="true">${i}</span>${t}</button>`).join("")}</nav>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn sx-who" data-who-open hidden></button><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">Guide</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+    <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}"${["round", "batch", "quiz"].includes(k) ? ` data-sx-tile="${k}"` : ""}${k === "setup" ? ' aria-label="Set up"' : ""}>${k === "setup" ? `\u2699\ufe0e<span class="sx-vl"> ${t}</span>` : t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
     <div class="sx-tms" id="sx-tms" hidden></div>
     <div class="sx-86s" id="sx-86s" role="status" hidden></div>
     <div class="sx-lbs" id="sx-lbs" hidden></div>
     <div class="sx" id="sx">
-      <aside class="sx-tonight" id="sx-tonight" aria-label="Tonight"><button class="sx-tsum" id="sx-tsum" aria-controls="sx-tgrid"></button><div class="sx-tgrid" id="sx-tgrid"><div class="sx-live" id="sx-live"></div>
-        <div class="st-tile sx-tools" id="sx-tools" data-sx-tile="runout" hidden><span class="st-k">Ran out of something?</span>
-          ${pkBtn("Search or pick: any ingredient, bottle or drink", 'data-pk86="bar" id="sx-86q"')}<span class="st-s">Goes on the 86 board for everyone. Drinks that use it show the swap.</span></div></div></aside>
+      <aside class="sx-tonight" id="sx-tonight" aria-label="Tonight"><button class="sx-tsum" id="sx-tsum" aria-controls="sx-tgrid"></button><div class="sx-tgrid" id="sx-tgrid"><div class="sx-live" id="sx-live"></div></div></aside>
       <section class="sx-drinks" aria-label="Drinks">
         <div class="search sx-search"><input id="sx-q" type="search" placeholder="Search any drink, spirit or glass" autocomplete="off" autocorrect="off" spellcheck="false" enterkeyhint="go" aria-label="Search drinks"></div>
         <div class="sx-gbar"><button class="sx-gbtn" id="sx-gbtn" aria-expanded="false" aria-controls="sx-grp"></button></div>
@@ -8284,8 +8323,10 @@ addEventListener("resize", () => { if (cur === "station") { sxFit(); sxList(); s
 function sxRecentShow() { const r = $("#sx-recent"); if (r) r.hidden = !(document.activeElement?.id === "sx-q" && !SX.q.trim() && r.children.length); }
 document.addEventListener("focusin", (e) => { if (e.target.id === "sx-q") sxRecentShow(); });
 document.addEventListener("focusout", (e) => { if (e.target.id === "sx-q") setTimeout(sxRecentShow, 0); });
-// A tap on a recent drink keeps the keyboard's focus long enough for the tap to land.
-document.addEventListener("pointerdown", (e) => { if (e.target.closest?.("#sx-recent")) e.preventDefault(); });
+// A tap on a recent drink, or on a drink to add to the round, keeps the keyboard's focus long enough for the tap to land.
+document.addEventListener("pointerdown", (e) => { if (e.target.closest?.("#sx-recent, #sx-rres")) e.preventDefault(); });
+// Get ready stays open or shut, as it was last left, on this iPad.
+document.addEventListener("toggle", (e) => { if (e.target.matches?.("[data-sx-prep]")) store.set("sx.prepOpen", e.target.open); }, true);
 function sxOpen(id) {
   SX.id = id; SX.view = "drink"; store.set("sx.id", id);
   recent = [id, ...recent.filter((r) => r !== id)].slice(0, 6); store.set("recent", recent);
@@ -8299,6 +8340,12 @@ function sxRound(id, n) {
   v ? SX.round.set(id, v) : SX.round.delete(id); if (!v) SX.made.delete(id); sxSaveRound(); haptic();
   if (n > 0 && SX.view !== "round") toast(`${D[id].name} added: round of ${sxRoundN()}`);
   sxBars(); sxList(); sxSpec();
+}
+// The add box: the drink goes on (as many as typed), the box empties for the next one and keeps the keyboard.
+function sxRqAdd(id) {
+  const n = sxRqParse(SX.rq).n; SX.rq = "";
+  const f = $("#sx-rq"); if (f) f.value = "";
+  sxRound(id, n); toast(`${n} \u00d7 ${D[id].name} added: round of ${sxRoundN()}`);
 }
 function stationSet(on) { stationOn = on; store.set("station", on); }
 /* On a shared iPad, the things that take it out of being the station need a manager's code first: Exit bar station,
@@ -8318,7 +8365,11 @@ document.addEventListener("click", (e) => {
   const vw = e.target.closest("[data-sx-view]");
   if (vw) { haptic(); SX.view = vw.dataset.sxView; sxBars(); sxList(); sxSpec(); if (!sxWide()) window.scrollTo(0, $("#sx-list").offsetTop - 80); return; }
   const md = e.target.closest("[data-sx-made]");
-  if (md) { const id = +md.dataset.sxMade; haptic(); SX.made.has(id) ? SX.made.delete(id) : SX.made.add(id); sxList(); sxSpec(); return; }
+  if (md) { const id = +md.dataset.sxMade; haptic(); SX.made.has(id) ? SX.made.delete(id) : SX.made.add(id); SX.rx.delete(id); sxList(); sxSpec(); return; }
+  // A round's drink: tap it to open or fold its spec; or every one at once.
+  const rx = e.target.closest("[data-sx-rx]"); if (rx) { const d = D[+rx.dataset.sxRx]; haptic(); SX.rx.set(d.id, !sxRxOpen(d, sxNext(sxRoundDs()))); sxList(); sxSpec(); return; }
+  if (e.target.closest("[data-sx-rall]")) { const ds = sxRoundDs(), nx = sxNext(ds), to = !ds.every(([d]) => sxRxOpen(d, nx)); haptic(); ds.forEach(([d]) => SX.rx.set(d.id, to)); sxList(); sxSpec(); return; }
+  const rq = e.target.closest("[data-sx-rq]"); if (rq) return sxRqAdd(+rq.dataset.sxRq);
   // Tap a spec line as it goes in: it's ticked off, so a busy hand can see where it was.
   const li = e.target.closest("#v-station ul.sx-specl > li"); if (li) { haptic(); li.classList.toggle("got"); return; }
   const lb = e.target.closest("[data-sx-lb]"); if (lb) return sxLabelGo(lb.dataset.sxLb);
@@ -8337,7 +8388,7 @@ document.addEventListener("click", (e) => {
   const rb = e.target.closest("[data-sx-round]");
   if (rb) {
     haptic(); const k = rb.dataset.sxRound;
-    if (k === "clear") { SX.round.clear(); SX.made.clear(); sxSaveRound(); SX.view = "drink"; }
+    if (k === "clear") { SX.round.clear(); SX.made.clear(); SX.rx.clear(); sxSaveRound(); SX.view = "drink"; }
     else SX.view = k === "show" ? "round" : "drink";
     sxBars(); sxList(); sxSpec(); if (!sxWide()) window.scrollTo(0, $("#sx-list").offsetTop - 80); return;
   }
@@ -8353,11 +8404,12 @@ document.addEventListener("click", (e) => {
   if (go.dataset.stGo === "notices") return show("notices");
   pane = go.dataset.stGo === "send" ? "send" : "stock"; show("tally");
 });
-document.addEventListener("input", (e) => { if (e.target.id !== "sx-q") return; SX.q = e.target.value; SX.view = "drink"; $("#sx-list").scrollTop = 0; sxBars(); sxList(); if (SX.q.trim() && SX.ids.length) sxOpenQuiet(SX.ids[0]); });
+document.addEventListener("input", (e) => { if (e.target.id === "sx-rq") { SX.rq = e.target.value; return sxRqRes(); } if (e.target.id !== "sx-q") return; SX.q = e.target.value; SX.view = "drink"; $("#sx-list").scrollTop = 0; sxBars(); sxList(); if (SX.q.trim() && SX.ids.length) sxOpenQuiet(SX.ids[0]); });
 // Typing shows the top match on the iPad without stealing the keyboard; Enter opens it (on a phone, its page).
 function sxOpenQuiet(id) { if (!sxWide()) return; SX.id = id; $$("#sx-list [data-sx-id]").forEach((b) => b.setAttribute("aria-current", +b.dataset.sxId === id)); sxSpec(); }
 document.addEventListener("keydown", (e) => {
   if (cur !== "station" || !$("#sheet").hidden) return;
+  if (e.target.id === "sx-rq" && e.key === "Enter") { e.preventDefault(); const h = sxRqHits(SX.rq)[0]; if (h) sxRqAdd(h.id); else if (!SX.rq.trim()) e.target.blur(); return; }
   if (e.target.id === "sx-q" && e.key === "Enter") { e.preventDefault(); if (SX.ids.length) { e.target.blur(); sxTap(SX.ids[0]); } return; }
   if (e.target.closest("input, textarea, select")) return;
   if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); sxStep(1); }
@@ -8389,7 +8441,7 @@ setInterval(() => {
   if (Date.now() - lastTap < 2 * 6e4 || (!SX.q && SX.grp === "all" && SX.view === "drink" && $("#sheet").hidden && !SXM && !$("#sx-list").scrollTop)) return;
   if (!$("#sheet").hidden) closeSheet();
   sxmClose();
-  SX.q = ""; SX.grp = "all"; SX.view = "drink"; SX.x = 1; $("#sx-q").value = ""; $("#sx-q").blur(); $("#sx-list").scrollTop = 0; window.scrollTo(0, 0);
+  SX.q = ""; SX.rq = ""; SX.grp = "all"; SX.view = "drink"; SX.x = 1; $("#sx-q").value = ""; $("#sx-q").blur(); $("#sx-list").scrollTop = 0; window.scrollTo(0, 0);
   sxBars(); sxList(); sxSpec();
 }, 15e3);
 /* A station that's never closed looks after itself. Every minute, while it's on: take the screen lock back if iOS let
@@ -8433,11 +8485,34 @@ body.stmode main { padding-top: 0; padding-bottom: calc(16px + env(safe-area-ins
 .sx-badge:empty { display: none; }
 @media (max-width: 420px) { .sx-views button { font-size: 14.5px; } }
 @media (min-width: 700px) { .sx-views button { font-size: 18px; min-height: 52px; } }
-/* Go to: every job one tap from the station, big enough for a wet thumb. */
-.sx-go { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 8px; margin: 0 0 10px; }
-.sx-go[hidden], .sx-go [hidden], .sx-views [hidden] { display: none; }
-.sx-go .btn { min-height: 56px; justify-content: center; gap: 8px; font-size: 16px; font-weight: 700; }
-@media (min-width: 1000px) { .sx-go { grid-template-columns: repeat(7, minmax(0, 1fr)); } .sx-go .btn { font-size: 16px; padding-inline: 6px; } }
+.sx-views [hidden], .sx-job[hidden] { display: none; }
+/* Set up is a cog on a phone, so the other four keep their whole names. */
+@media (max-width: 559px) {
+  .sx-vl, .sx-tb [data-sx-big] { display: none; }
+  .sx-tb { gap: 6px; } .sx-tb .btn { min-height: 44px; padding: 8px 11px; font-size: 15.5px; }
+  /* Round, Batches, Quiz and Set up have the screen to themselves: the drinks search comes back with Drinks. */
+  .sx.panel .sx-search, .sx.panel .sx-gbar { display: none; }
+  .sx-views { display: flex; } .sx-views button { flex: 1 1 auto; min-width: 0; padding-inline: 6px; } .sx-views [data-sx-view="setup"] { flex: 0 0 44px; }
+}
+/* Tonight's jobs: one row each, what it is and how it stands, big enough for a wet thumb. */
+.sx-jobs { display: grid; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); overflow: hidden; }
+.sx-job { display: flex; align-items: center; gap: 8px; border-top: 1px solid var(--line); }
+.sx-jobs > .sx-job:first-child { border-top: 0; }
+.sx-jm { flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px; min-height: 60px; padding: 10px 14px; color: var(--fg); text-align: left; }
+.sx-jm:active { background: var(--bg); }
+.sx-ji { flex: none; width: 26px; font-size: 20px; text-align: center; }
+.sx-jt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.sx-jt b { font-size: 17px; }
+.sx-jt b .st-k { font-size: 17px; letter-spacing: 0; text-transform: none; color: var(--fg); }
+.sx-jt .st-s { margin: 0; font-size: 14px; }
+.sx-jt .st-bar { height: 6px; }
+.sx-jm > i { flex: none; font-style: normal; color: var(--muted); font-size: 20px; }
+.sx-jx { flex: none; margin-right: 10px; min-height: 44px; min-width: 52px; justify-content: center; padding-inline: 8px; cursor: pointer; font-size: 18px; }
+.sx-none { font-size: 19px; }
+.sx-86a { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; width: 100%; margin-top: 4px; }
+.sx-86a .pk-open { flex: 1 1 160px; }
+.sx-choose { justify-self: start; }
+body.sxbig .sx-jt b, body.sxbig .sx-jt b .st-k { font-size: 21px; }
 .sx-tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 4px 12px; margin: 6px 0 14px; }
 .sx.notonight .sx-tonight { display: none; }
 @media (min-width: 700px) { .sx.notonight { grid-template-areas: "drinks spec"; grid-template-rows: minmax(0, 1fr); } }
@@ -8495,7 +8570,7 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .sx-tsum > span:nth-child(2) { flex: 1; min-width: 0; font-weight: 700; }
 .sx-tsum .chev { flex: none; color: var(--brass); font-weight: 700; }
 .sx-tsum.hot { border-color: var(--warn); }
-.sx-tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 10px; margin-top: 10px; }
+.sx-tgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); align-items: start; gap: 10px; margin-top: 10px; }
 @media (max-width: 999px) { .sx-tgrid.shut { display: none; } }
 .sx-tonight .st-join { grid-column: 1 / -1; }
 .sx-drinks { grid-area: drinks; min-width: 0; }
@@ -8514,7 +8589,6 @@ body.stmode.neton .toast, body.stmode.neton .upd { bottom: calc(60px + env(safe-
 .sx-tb [data-sx-big] { min-width: 52px; font-size: 18px; }
 .sx-tb [data-sx-big][aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .sx-live { display: contents; }
-.sx-tools[hidden] { display: none; }
 .sx-outl { list-style: none; margin: 0; padding: 0; width: 100%; max-height: 14em; overflow-y: auto; }
 .sx-outl li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 0; font-size: 18px; font-weight: 700; border-bottom: 1px solid var(--line); }
 .sx-outl .chip { min-height: 34px; padding: 4px 12px; font-size: 14px; }
@@ -8605,7 +8679,8 @@ body.sxbig .sx-rmeth { font-size: 20px; }
 .sx-specl > li { cursor: pointer; }
 .sx-specl > li.got { opacity: .45; }
 .sx-specl > li.got > span:last-child::after { content: " \\2713"; color: var(--ok); font-weight: 800; }
-.sx-made { min-width: 76px !important; }
+.sx-made { min-width: 48px !important; }
+.sx-made[data-sx-made] { min-width: 76px !important; }
 .sx-made[aria-pressed="true"] { background: var(--ok) !important; border-color: var(--ok) !important; color: var(--bg) !important; }
 .sx-rc.made { opacity: .5; }
 .sx-set1 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 4px; }
@@ -8631,10 +8706,43 @@ body.sxbig .sx-rmeth { font-size: 20px; }
 body.sxbig .sx-prep { font-size: 22px; }
 body.sxbig .sx-open { min-height: 80px; }
 body.sxbig .sx-add { width: 68px; font-size: 26px; }
-.sx-rc { border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-top: 10px; background: var(--bg); }
+.sx-rc { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; margin-top: 8px; background: var(--bg); }
 .sx-rc.out { border-color: var(--warn); }
-.sx-rh { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 21px; }
-.sx-rm { color: var(--muted); font-size: 15px; margin-top: 2px; }
+.sx-rc.next { border: 2px solid var(--brass); }
+.sx-rh { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 8px 10px; font-size: 20px; }
+.sx-rh .sx-x { margin-left: auto; }
+.sx-rm { display: block; color: var(--muted); font-size: 14.5px; font-weight: 400; margin-top: 2px; }
+/* A drink in the round: number, how many and the name, its glass and ice under it, a tap to open its spec. */
+.sx-rt { flex: 1 1 220px; min-width: 0; display: flex; align-items: center; gap: 10px; min-height: 48px; color: var(--fg); text-align: left; }
+.sx-rtt { flex: 1; min-width: 0; }
+.sx-rt .chev { flex: none; color: var(--brass); }
+.sx-rno { flex: none; display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%; background: var(--surface); border: 1px solid var(--line); font-size: 16px; font-weight: 800; }
+.sx-rc.next .sx-rno { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
+.sx-rc.made .sx-rno { background: var(--ok); border-color: var(--ok); color: var(--bg); }
+/* The round's bar stays at the top while the drinks scroll under it. */
+.sx-rbar { position: sticky; top: 0; z-index: 2; display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 0 0 8px; padding: 10px 0; background: var(--bg); border-bottom: 1px solid var(--line); }
+.sx-spec .sx-rbar { top: -22px; margin: -22px 0 8px; padding-top: 18px; background: var(--surface); }
+.sx-rbt { flex: 1 1 180px; min-width: 0; display: flex; flex-direction: column; }
+.sx-rbt b { font-family: var(--display); font-size: 26px; text-transform: uppercase; line-height: 1.1; }
+.sx-rbt span { color: var(--muted); font-size: 15px; }
+.sx-rba { display: flex; gap: 8px; }
+.sx-rba .btn { min-height: 48px; }
+.sx-rbar .sx-mkgo { margin: 0; }
+.sx-radd { margin: 4px 0 8px; }
+.sx-radd .search { margin: 0; }
+.sx-radd input { font-size: 18px; padding: 12px 14px; border-radius: 12px; }
+.sx-rres { display: grid; gap: 6px; margin-top: 6px; }
+.sx-rres:empty { display: none; }
+.sx-rqr { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 50px; padding: 8px 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--fg); font-size: 18px; font-weight: 700; text-align: left; }
+.sx-rqr.top { border-color: var(--brass); }
+.sx-rqr.out { opacity: .6; }
+.sx-rqr b { color: var(--brass); font-size: 20px; }
+.sx-prepd { margin: 4px 0; border: 1px solid var(--line); border-radius: 12px; padding: 0 12px; }
+.sx-prepd summary { display: flex; align-items: center; gap: 10px; min-height: 48px; cursor: pointer; font-weight: 700; }
+.sx-prepd summary .sx-k { margin: 0; flex: none; }
+.sx-prepd .sx-prep { margin: 0 0 10px; }
+.sx-ropen { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 4px 10px; margin-top: 10px; }
+.sx-ropen .st-s { margin: 0; }
 .sx-rc .sx-specl li { font-size: 20px; padding: 7px 0; }
 .sx-rmeth { margin: 8px 0 0; font-size: 16px; }
 .sx-back { position: fixed; left: max(16px, env(safe-area-inset-left, 0px)); bottom: calc(var(--tabh) + 14px + env(safe-area-inset-bottom, 0px)); z-index: 7; min-height: 48px; padding: 10px 18px; border-radius: 999px; background: var(--brass); color: var(--brass-ink); font-weight: 700; box-shadow: 0 6px 18px rgba(0,0,0,.35); }
@@ -11819,7 +11927,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T16:09";
+const BUILD = "2026-11-18T17:20";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -13780,16 +13888,16 @@ const HELP = {
   station: { t: "Bar station", what: "The iPad on the bar for express service: any drink in big type, rounds made in one go, tonight's 86s, photos, date labels, the close on both sides and the handover.",
     how: ["Tap a drink (or search and press Go): on an iPad Make it now opens it as big step cards. Get ready first (glass, ice, garnish, what you need and the whole spec), then one step a card, each amount with its side of the 25/50 jigger. Tap the card when it's done for the next one; Done goes back to the list. \u00d71 to \u00d74 scales it, Spec shows it next to the list instead, 🔊 reads it out.",
       "The spec next to the list: swipe it, or use the arrows, for the next drink. \u00d72 to \u00d78 scales it for a round, with the total liquid. \u25b6 Make it now on it opens the step cards. Set up, Tap a drink chooses which one a tap opens.", "Every drink says if it can be made tonight: ✓ Can make, ⚠ Can make with a swap (with the amounts that change), or ✕ Can't make tonight. Missing something? Tap it under the spec. Can't make it? Go with the flow picks the next best thing. Alcohol-free? jumps to the no-alcohol version.",
-      "Go to, under the top bar: one tap to 86 and low, Closing, Hand over, Photos, Date labels, Stock and Morning. The station comes back by itself after 2 quiet minutes.", "Set up, iPad tiles: switch off anything the bar doesn't use (Round, Batches, Quiz, any Go to button, the Tonight panel, the Ran out box) and back on any time. It changes straight away and stays after a reload. On a shared iPad a manager unlocks it with their code first.",
-      "+ adds a drink to the round (tap again for two). The round puts drinks made the same way together (stir, build, shake, fizz last) and lists the glasses, ice, garnish and tins to get ready. \u25b6 Make the round walks it a drink at a time, scaled, and Done marks each one Made.",
-      "Aa makes everything bigger, to read from a step back.", "Ran out of something? Tap the search box under Tonight, type a few letters or pick a kind, and tap 86. Tick several to 86 them together. Take a photo or Upload adds it to tonight's handover.",
-      "The bar along the top switches between Drinks, Round, Batches, Quiz and Set up. Everything \u25be picks which drinks the list shows.",
+      "Tonight is every job in one list, each with how it stands: 86'd and running low (with 86 something and Back in), Bar and Floor closing, Hand over, Photos (\ud83d\udcf7+ takes one), Date labels, Stock count and Morning. Tap a row for its page; the station comes back by itself after 2 quiet minutes.", "Choose what shows here (under Tonight, or \u2699 Set up): switch off anything the bar doesn't use (Round, Batches, Quiz, Tonight, any row of Tonight) and back on any time. It changes straight away and stays after a reload. On a shared iPad a manager unlocks it with their code first.",
+      "A big ticket: open Round and type each drink into Add a drink, Enter after each one. \u201c3 mojito\u201d or \u201cmojito x3\u201d adds three. Or tap + next to any drink in the list (again for two).", "The round numbers every drink in making order (stir, build, shake, fizz last). Only the next one to make shows its spec: tap any other to open it, or Open every spec. Made folds it away and opens the next. Get ready folds the glasses, ice, garnish and tins into one line: tap it for the list. The bar at the top stays put: how many are left, the next drink, \u25b6 Make the round (a drink at a time, scaled) and Clear.",
+      "Aa (on the iPad) makes everything bigger, to read from a step back.", "Ran out of something? 86 something under Tonight: type a few letters or pick a kind, and tap 86. Tick several to 86 them together.",
+      "The bar along the top switches between Drinks, Round, Batches, Quiz and \u2699 Set up. Everything \u25be picks which drinks the list shows. Guide, top right, searches all of Bar Book.",
       "Last orders shows big across the top from 15 minutes before the time a manager sets. Across the top: tonight's 86s, then date labels for bar and floor, URGENT when one needs changing now and a reminder the day before. Tap one to change it.",
-      "Upright and on a phone, Tonight is one line: tap Show for the boxes. Tap a box to open that page; the \u2039 Bar station button at the bottom brings you back. Exit (top right) turns the mode off. While it's on, Bar Book opens on it.",
+      "Upright and on a phone, Tonight is one line: tap Show for the list, and it stays as you left it. Tap a row to open that page; the \u2039 Bar station button at the bottom brings you back. Exit (top right) turns the mode off. While it's on, Bar Book opens on it.",
       "Batches: the house batch recipes, scaled, and one tap to date the label. Every bar date label is under them. Prep timer: 1 to 20 minutes, up to 3 at once; the screen flashes when one is up.",
-      "Tap a spec line as it goes in to tick it off. In a round, Made greys out each drink as it's done.",
+      "Tap a spec line as it goes in to tick it off.",
       "Quiz: a question at a time from our own specs, for a quiet moment.",
-      "Set up: how to keep the iPad on Bar Book (Shared, Guided Access, Auto-Lock), with what's done ticked.",
+      "\u2699 Set up: how to keep the iPad on Bar Book (Shared, Guided Access, Auto-Lock), with what's done ticked, and what shows on this iPad.",
       "On a shared iPad, Exit, turning Shared off and Reset this phone need a manager's code first."],
     behind: ["It's the same live data as every phone: nothing extra is saved to the team. The round, the Aa setting and what a tap opens are kept on this iPad. Make it now uses the same picture guide as Step by step on a phone.", "Left alone for 2 minutes it clears the search and the open drink, so the next person starts clean. Left on any other page for 2 minutes, it goes back to the station. After 10 minutes the screen goes dark but for the time; a tap wakes it.",
       "It looks after itself: when nobody has touched it for 5 minutes it loads a new version of Bar Book if there is one, and starts fresh once a day after 6am, straight back onto the station. The round empties at 6am."] },
@@ -14339,9 +14447,9 @@ const featSorted = (xs) => xs.map((f) => ({ ...f, g: SEC_OF[f.k] || f.g })).sort
 const gdItems = () => featSorted([
   ...FEATURES.filter((f) => !(f.k === "tell" && LIVE.owner)),
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
-  { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: tap a drink and Make it now shows it a big step card at a time, with the jigger side for each amount. Rounds a drink at a time, tonight's 86s, date labels and photos, with one tap to closing and the handover." },
+  { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: tap a drink and Make it now shows it a big step card at a time, with the jigger side for each amount. A big ticket typed straight into the round, numbered in making order. Tonight: the 86s and every job in one list, with how each stands." },
 ]);
-const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round jigger tiles go to switch off", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make select share send several specs section", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
+const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round big ticket several drinks order add jigger tiles jobs tonight show hide switch off choose what shows", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make select share send several specs section", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
 // What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.

@@ -194,7 +194,7 @@ test("bar station extras: 86 strip, glass and garnish pictures, batches with one
   await p.evaluate(() => { for (const n of ["Negroni", "Daiquiri"]) sxRound(D.find((d) => d.name === n).id, 1); });
   await p.click("[data-sx-view=round]");
   await p.click('#sx-spec [data-sx-made][aria-pressed="false"] >> nth=0');
-  assert.match(await p.textContent("#sx-spec .sx-k"), /1 to make/);
+  assert.match(await p.textContent("#sx-spec .sx-rbar"), /1 to make/);
   await p.click('#sx-spec [data-sx-made][aria-pressed="false"] >> nth=0');
   assert.match(await p.textContent("#sx-spec .sx-done"), /Round made/);
   await p.click("#sx-spec .sx-done [data-sx-round=clear]");
@@ -291,5 +291,42 @@ test("Make it now: a tap on the iPad opens big step cards with the jigger side, 
   await p.click("#sx-list .sx-open >> nth=0");
   assert.equal(await p.isVisible("#sheet"), true);
   assert.equal(await p.locator("#sxm").count(), 0);
+  assert.deepEqual(p.errs, []);
+});
+
+test("a big ticket: type drinks into the round, numbered in making order, only the next one open, on a phone too", async () => {
+  const p = await open(false);
+  await p.setViewportSize({ width: 390, height: 844 });
+  await p.click("#w-ok");
+  await p.evaluate(() => { localStorage.removeItem("btbar.sx.prepOpen"); show("station"); });
+  // Set up is a cog on a phone, so Round keeps its whole name.
+  assert.equal(await p.$eval('[data-sx-view="round"]', (b) => b.scrollWidth <= b.clientWidth), true);
+  await p.click('[data-sx-view="round"]');
+  // Type, Enter, and the next: "3 mojito" adds three, the box empties and keeps the keyboard.
+  await p.click("#sx-rq");
+  await p.keyboard.type("3 mojito"); await p.waitForSelector("#sx-rres .sx-rqr.top");
+  assert.match(await p.textContent("#sx-rres .sx-rqr.top"), /Mojito\s*\+ 3/);
+  await p.keyboard.press("Enter");
+  assert.equal(await p.evaluate(() => [document.activeElement.id, $("#sx-rq").value].join()), "sx-rq,");
+  await p.keyboard.type("negroni"); await p.keyboard.press("Enter");
+  await p.keyboard.type("daiquiri x2"); await p.keyboard.press("Enter");
+  assert.equal(await p.evaluate(() => sxRoundN()), 6);
+  // Making order, numbered: stirred first. Only the next drink shows its spec; Get ready is one line on a phone.
+  const heads = await p.$$eval("#sx-list .sx-rc .sx-rtt b", (xs) => xs.map((x) => x.textContent));
+  assert.deepEqual(heads, ["1 × Negroni", "2 × Daiquiri", "3 × Mojito"]);
+  assert.deepEqual(await p.$$eval("#sx-list .sx-rno", (xs) => xs.map((x) => x.textContent)), ["1", "2", "3"]);
+  assert.equal(await p.locator("#sx-list .sx-rc ul.sx-specl").count(), 1);
+  assert.equal(await p.$eval("#sx-list [data-sx-prep]", (d) => d.open), false);
+  assert.match(await p.textContent("#sx-list .sx-prepd summary"), /6 glasses/);
+  assert.match(await p.textContent("#sx-list .sx-rbar"), /Round of 6[\s\S]*3 to make[\s\S]*next: Negroni/i);
+  // Made folds it away and opens the next; a tap opens any other; Open every spec opens the lot.
+  await p.click('#sx-list [data-sx-made] >> nth=0');
+  assert.match(await p.textContent("#sx-list .sx-rc.next .sx-rtt b"), /Daiquiri/);
+  assert.equal(await p.locator("#sx-list .sx-rc.made ul.sx-specl").count(), 0);
+  await p.click("#sx-list .sx-rc >> nth=2 >> [data-sx-rx]");
+  assert.equal(await p.locator("#sx-list .sx-rc ul.sx-specl").count(), 2);
+  await p.click("#sx-list [data-sx-rall]");
+  assert.equal(await p.locator("#sx-list .sx-rc ul.sx-specl").count(), 3);
+  assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 390);
   assert.deepEqual(p.errs, []);
 });
