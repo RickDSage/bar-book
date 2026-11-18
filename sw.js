@@ -1,5 +1,5 @@
-// Bar Book offline support. Version 2026-11-18T21:33
-const CACHE = "bar-book-2026-11-18T21:33";
+// Bar Book offline support. Version 2026-11-18T22:55
+const CACHE = "bar-book-2026-11-18T22:55";
 const CORE = ["./", "live.js", "manifest.webmanifest", "fonts/atkinson-400-italic.woff2", "fonts/atkinson-400.woff2", "fonts/atkinson-700.woff2", "fonts/big-shoulders-display.woff2", "icon-180.png", "icon-192.png", "icon-512.png", "icon-maskable-512.png"];
 // Safari refuses to show a page from a response that was redirected, so store a clean copy.
 const clean = (res) => (res.redirected ? res.blob().then((b) => new Response(b, { status: 200, headers: res.headers })) : Promise.resolve(res));
@@ -14,6 +14,10 @@ self.addEventListener("fetch", (e) => {
   if (req.method !== "GET") return;
   const url = new URL(req.url);
   if (url.origin !== location.origin) return;
+  // Opening the app (its folder or index.html, with any link's ?… or #…) gets the stored app. Opening any other file
+  // straight in the browser (the rules .txt, a language file) goes to the network, so it shows that file, not the app.
+  const app = /\/(index\.html)?$/.test(url.pathname);
+  if (req.mode === "navigate" && !app) return;
   const key = req.mode === "navigate" ? "./" : req;
   e.respondWith(caches.match(key, { ignoreSearch: true }).then((hit) => hit || fetch(req).then(clean).then((res) => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(key, copy)); }
