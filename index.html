@@ -10112,7 +10112,7 @@ function itFormHtml() {
     <div class="two"><label class="fld">Side<select data-it="side">${opt(SIDE_NAME, f.side)}</select></label>
       <label class="fld">Where it's kept<select data-it="store">${opt(IT_STORE, f.store)}</select></label></div>
     <label class="check"><input type="checkbox" data-it="label"${f.label ? " checked" : ""}> Needs a date label once it's opened</label>
-    ${f.label ? `<label class="fld">Days it keeps once opened<input data-it="life" inputmode="numeric" maxlength="3" placeholder="From the pack. Blank: a manager fills it in" value="${esc(f.life)}"></label>${f.life && (itKeep(f.item, f.kind) || {}).days === Number(f.life) ? `<p class="s">Filled in from the typical shelf life above. Change it to what the pack says.</p>` : ""}` : ""}
+    ${f.label ? `<label class="fld">Days it keeps once opened<input data-it="life" inputmode="numeric" maxlength="3" placeholder="From the pack. Blank: a manager fills it in" value="${esc(f.life)}"></label>${f.life && (itKeep(f.item, f.kind) || {}).days === Number(f.life) ? `<p class="s">Filled in from the ${itKeep(f.item, f.kind).maker ? "maker's guidance" : "typical shelf life"} above. Change it to what the pack says.</p>` : ""}` : ""}
     <label class="fld">At close<select data-it="close">${opt(IT_CLOSE, f.close)}</select></label>
     ${k.tip ? `<p class="note">${esc(k.tip)}</p>` : ""}
     <label class="fld">Anything else to know <span class="s">(optional)</span><input data-it="note" maxlength="200" value="${esc(f.note)}" placeholder="Which shelf, which fridge, who orders it"></label>
@@ -10274,6 +10274,7 @@ $("#v-count").addEventListener("change", (e) => {
 var FX_SRC = {
   monin: ["Monin help centre: shelf life of opened products", "https://help.monin.com/hc/en-us/articles/43846255706637-What-is-the-shelf-life-of-opened-products"],
   moninNuts: ["Monin help centre: nut allergens", "https://help.monin.com/hc/en-us/articles/360039406731-Do-any-Monin-Flavors-contain-nut-allergens"],
+  leg1169: ["UK law: Food Information Regulation 1169/2011, Annex II (allergens), point 1(c)", "https://www.legislation.gov.uk/eur/2011/1169/annex/II"],
   baileys: ["Baileys FAQ", "https://www.baileys.com/en/frequently-asked-questions"],
   funkinFaq: ["Funkin FAQs", "https://funkincocktails.co.uk/pages/faqs"],
   funkinPf: ["Funkin: passion fruit purée", "https://www.funkincocktails.co.uk/products/passion-fruit-puree"],
@@ -10378,7 +10379,7 @@ var FACTS = [
     open: { f: 0, t: "Room temperature (18 to 27°C). Cap on: 90 to 180 days. With a pump or pourer: 30 to 60 days. Cover pumps overnight", s: "monin" },
     more: [["Nuts", "Monin's nut-flavoured syrups (hazelnut, almond, macadamia) are listed as not containing nut allergens. Formulas change: the back label is the most accurate source", "moninNuts"]] },
   { n: "Giffard Orgeat (almond syrup)", m: /orgeat/, maker: "Giffard", size: ["1 litre glass bottle", "ocOrgeat"], abv: ["0%", "lwcOrgeat"], contains: ["Tree nuts", "lwcOrgeat"],
-    shelf: ["3 years sealed", "ocOrgeat"], store: ["Cool, dry place, away from light", "ocOrgeat"], more: [["Free from", "Ocado lists it as gluten free and NOT nut free", "ocOrgeat"]] },
+    shelf: ["3 years sealed", "ocOrgeat"], store: ["Cool, dry place, away from light", "ocOrgeat"], more: [["Nuts", "Ocado's listing says it is NOT nut free: it's made with almonds", "ocOrgeat"]] },
   { n: "Coco Real (cream of coconut)", m: /coco real|cream of coconut/, maker: "Reàl", size: ["500 ml squeezy bottle", "dgCoco"],
     ingr: ["Coconut concentrate (18%), sugar, humectant (glycerol), salt, preservative (potassium sorbate), citric acid", "dgCoco"],
     open: { d: 90, f: 0, t: "Safe without the fridge for 3 months once opened; the fridge makes it last longer. Shake before use", s: "dgCoco" }, shelf: ["12 months unopened", "dgCoco"], more: [["Diet", "Vegan, gluten free", "eeCoco"]] },
@@ -10515,7 +10516,7 @@ function fxCardHtml(name) {
   const f = factOf(name), g = itStock(name)?.group || fxAll().find((x) => itNorm(x.n) === itNorm(name))?.g || "";
   const days = fxDays(name), row = (ctRows(true) || []).find((r) => itNorm(r.item) === itNorm(name));
   const spirit = /^(Vodka|Gin|Rum and cachaça|Tequila and mezcal|Whiskey|Brandy|Spirits)$/.test(g);
-  const al = [f?.contains && `<b>Maker says it contains:</b> ${fxVal(f.contains)}`, f?.may && `<b>May contain:</b> ${fxVal(f.may)}`, f?.none && `<b>Declared:</b> ${fxVal(f.none)}`, f?.gluten && `<b>Gluten:</b> ${fxVal(f.gluten)}`].filter(Boolean);
+  const al = [f?.contains && `<b>Maker says it contains:</b> ${fxVal(f.contains)}`, f?.may && `<b>May contain:</b> ${fxVal(f.may)}`, f?.none && `<b>The maker declares:</b> ${fxVal(f.none)}`, f?.gluten && `<b>Gluten, in the maker's words:</b> ${fxVal(f.gluten)}`].filter(Boolean);
   const use = days?.d ? `<b>Keeps ${nDays(days.d)} once opened</b> <span class="pill${days.from === "venue" ? " ok" : ""}">${{ venue: "Venue rule", maker: "Maker's guidance", typical: "Typical" }[days.from]}</span>
       <div class="fx-use">Opened today? Use by <b>${dayName(addDays(shiftDay(), days.d))}</b></div>` : "";
   const size = f?.size ? fxVal(f.size) : row?.size ? `${esc(row.size)}${row.guess ? " <span class=\"pill\">not off the label yet</span>" : ""}` : "";
@@ -10524,10 +10525,10 @@ function fxCardHtml(name) {
     ["For the count", weight]].filter(([, v]) => v);
   const more = [["Maker", f?.maker && esc(f.maker)], ["What's in it", f?.ingr && fxVal(f.ingr)], ["Storage", f?.store && fxVal(f.store)], ["Shelf life sealed", f?.shelf && fxVal(f.shelf)],
     ...(f?.more || []).map(([t, v, s]) => [t, fxVal([v, s])]), ["Stock list", g && esc(g)], ["Counted at", row && esc([...new Set((ctRows(true) || []).filter((r) => r.item === row.item).map((r) => r.area))].join(", "))],
-    spirit && ["Spirits and gluten", "Spirits are distilled. In UK allergen law, cereals used to make a distilled spirit are not counted as a gluten allergen. Flavoured ones and liqueurs can still contain allergens: check the label"]].filter((x) => x && x[1]);
+    spirit && ["Spirits and gluten", fxVal(["Spirits are distilled. In UK allergen law, cereals used to make an alcoholic distillate are not counted as a gluten allergen. Flavoured ones and liqueurs can still contain allergens: check the label", "leg1169"])]].filter((x) => x && x[1]);
   const boozy = spirit || /Liqueurs|Aperitifs|Beer|Cider|Wine|Draught|Bottles and cans/.test(g);
   const missing = [["Size", size], ["Strength", !boozy || f?.abv], ["What's in it", f?.ingr], ["Allergens", al.length || spirit], ["Once opened", days]].filter(([, v]) => !v).map(([t]) => t);
-  const srcs = [...new Set([f?.size, f?.abv, f?.ingr, f?.contains, f?.may, f?.none, f?.gluten, f?.store, f?.shelf, ...(f?.more || []).map((x) => [0, x[2]]), f?.open && [0, f.open.s]].filter(Boolean).map((x) => x[1]).filter((s) => FX_SRC[s]))];
+  const srcs = [...new Set([spirit && [0, "leg1169"], f?.size, f?.abv, f?.ingr, f?.contains, f?.may, f?.none, f?.gluten, f?.store, f?.shelf, ...(f?.more || []).map((x) => [0, x[2]]), f?.open && [0, f.open.s]].filter(Boolean).map((x) => x[1]).filter((s) => FX_SRC[s]))];
   const bt = BT.find((x) => itNorm(x.name) === itNorm(name) || itNorm(MK.byKey.get(x.k)?.n || "") === itNorm(name)), uses = bt ? btUses(bt.k) : 0;
   return `<div class="fx-card">
     <div class="fx-h"><h2 id="sh-name" translate="no">${esc(f?.n || name)}</h2>${days?.on ? `<span class="pill wait">Needs a date label</span>` : ""}</div>
@@ -12304,7 +12305,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T20:25";
+const BUILD = "2026-11-18T20:34";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {

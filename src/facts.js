@@ -9,6 +9,7 @@
 var FX_SRC = {
   monin: ["Monin help centre: shelf life of opened products", "https://help.monin.com/hc/en-us/articles/43846255706637-What-is-the-shelf-life-of-opened-products"],
   moninNuts: ["Monin help centre: nut allergens", "https://help.monin.com/hc/en-us/articles/360039406731-Do-any-Monin-Flavors-contain-nut-allergens"],
+  leg1169: ["UK law: Food Information Regulation 1169/2011, Annex II (allergens), point 1(c)", "https://www.legislation.gov.uk/eur/2011/1169/annex/II"],
   baileys: ["Baileys FAQ", "https://www.baileys.com/en/frequently-asked-questions"],
   funkinFaq: ["Funkin FAQs", "https://funkincocktails.co.uk/pages/faqs"],
   funkinPf: ["Funkin: passion fruit purée", "https://www.funkincocktails.co.uk/products/passion-fruit-puree"],
@@ -259,10 +260,10 @@ function fxCardHtml(name) {
     ["For the count", weight]].filter(([, v]) => v);
   const more = [["Maker", f?.maker && esc(f.maker)], ["What's in it", f?.ingr && fxVal(f.ingr)], ["Storage", f?.store && fxVal(f.store)], ["Shelf life sealed", f?.shelf && fxVal(f.shelf)],
     ...(f?.more || []).map(([t, v, s]) => [t, fxVal([v, s])]), ["Stock list", g && esc(g)], ["Counted at", row && esc([...new Set((ctRows(true) || []).filter((r) => r.item === row.item).map((r) => r.area))].join(", "))],
-    spirit && ["Spirits and gluten", "Spirits are distilled. In UK allergen law, cereals used to make a distilled spirit are not counted as a gluten allergen. Flavoured ones and liqueurs can still contain allergens: check the label"]].filter((x) => x && x[1]);
+    spirit && ["Spirits and gluten", fxVal(["Spirits are distilled. In UK allergen law, cereals used to make an alcoholic distillate are not counted as a gluten allergen. Flavoured ones and liqueurs can still contain allergens: check the label", "leg1169"])]].filter((x) => x && x[1]);
   const boozy = spirit || /Liqueurs|Aperitifs|Beer|Cider|Wine|Draught|Bottles and cans/.test(g);
   const missing = [["Size", size], ["Strength", !boozy || f?.abv], ["What's in it", f?.ingr], ["Allergens", al.length || spirit], ["Once opened", days]].filter(([, v]) => !v).map(([t]) => t);
-  const srcs = [...new Set([f?.size, f?.abv, f?.ingr, f?.contains, f?.may, f?.none, f?.gluten, f?.store, f?.shelf, ...(f?.more || []).map((x) => [0, x[2]]), f?.open && [0, f.open.s]].filter(Boolean).map((x) => x[1]).filter((s) => FX_SRC[s]))];
+  const srcs = [...new Set([spirit && [0, "leg1169"], f?.size, f?.abv, f?.ingr, f?.contains, f?.may, f?.none, f?.gluten, f?.store, f?.shelf, ...(f?.more || []).map((x) => [0, x[2]]), f?.open && [0, f.open.s]].filter(Boolean).map((x) => x[1]).filter((s) => FX_SRC[s]))];
   const bt = BT.find((x) => itNorm(x.name) === itNorm(name) || itNorm(MK.byKey.get(x.k)?.n || "") === itNorm(name)), uses = bt ? btUses(bt.k) : 0;
   return `<div class="fx-card">
     <div class="fx-h"><h2 id="sh-name" translate="no">${esc(f?.n || name)}</h2>${days?.on ? `<span class="pill wait">Needs a date label</span>` : ""}</div>
