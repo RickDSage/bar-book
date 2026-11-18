@@ -747,6 +747,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-same small { color: var(--muted); font-weight: 400; margin-left: 6px; }
 .ct-phc { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 4px; }
 .ct-phc figure { margin: 0; }
+.ct-phd { display: block; height: 150px; width: auto; margin: 6px auto; color: var(--muted); }
 .ct-phc figcaption { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 .ct-phc img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
 #ct-heard-slot .ct-heard, #ct-heard-slot .warnline { margin: 8px 0 0; }
@@ -760,13 +761,10 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-show { margin-top: 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .ct-show .chip { padding: 8px 12px; }
 .ct-order { margin-top: 8px; grid-template-columns: repeat(3, 1fr); }
-.ct-show .chip, .ct-jump .chip { color: var(--fg); }
+.ct-show .chip { color: var(--fg); }
 .ct-show .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
-.ct-jump small, .ct-show small { opacity: .75; margin-left: 4px; font-variant-numeric: tabular-nums; }
-.ct-jump .chip.full { color: var(--muted); }
+.ct-show small { opacity: .75; margin-left: 4px; font-variant-numeric: tabular-nums; }
 /* Phones: the places are one row that scrolls sideways. The iPad has room for them all. */
-.ct-jump { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
-.ct-jump::-webkit-scrollbar { display: none; }
 #ct .anc { display: block; scroll-margin-top: 150px; }
 .ct-row { border-bottom: 1px solid var(--line); scroll-margin-top: 140px; }
 .ct-row.on { background: var(--surface); border-radius: 12px; border: 1px solid var(--brass); margin: 6px 0; }
@@ -797,7 +795,20 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-nav .btn { min-height: 52px; font-size: 17px; }
 .ct-where { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 0; font-size: 14px; }
 .ct-where .btn { min-height: 36px; padding-top: 0; padding-bottom: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62%; }
-.ct-sec small { font-family: inherit; font-size: 12px; color: var(--muted); letter-spacing: 0; text-transform: none; margin-left: 6px; }
+.ct-sec { display: flex; align-items: center; gap: 10px; width: 100%; margin: 6px 0 0; padding: 12px 4px; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.ct-sec > i { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 14px; font-weight: 800; background: var(--surface); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.ct-sec > span { flex: 1; font-family: var(--display); font-size: 20px; color: var(--brass); text-transform: uppercase; }
+.ct-sec > small { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ct-sec::after { content: "›"; font-size: 22px; color: var(--muted); transition: transform .15s; }
+.ct-sec.on::after { transform: rotate(90deg); }
+.ct-sec.full > i { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
+.ct-sec.full > span { color: var(--muted); }
+.ct-secdone { margin: 8px 4px; }
+i.ct-no { font-style: normal; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; margin-right: 8px; }
+.ct-line small.ct-th { display: block; font-size: 12.5px; color: var(--muted); font-weight: 600; text-align: right; }
+.ct-opts > summary small { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 13px; }
+.ct-opts .ct-hrow { margin-top: 8px; }
+.ct-places .chip[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
 .ct-meas { position: relative; cursor: crosshair; touch-action: manipulation; }
 .ct-meas img { display: block; width: 100%; }
 .ct-ml { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--brass); pointer-events: none; }
@@ -854,7 +865,6 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .ct-btl .lvt { font-size: 11px; fill: var(--muted); pointer-events: none; }
 /* iPad: the places wrap, and a line's full count sits beside its open one. */
 @media (min-width: 700px) {
-  .ct-jump { flex-wrap: wrap; overflow: visible; }
   .ct-edit.ct-c { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; align-items: center; }
   .ct-edit.ct-c > .ct-same, .ct-edit.ct-c > .ct-more, .ct-edit.ct-c > .ct-nav, .ct-edit.ct-c > .ct-sum, .ct-edit.ct-c > .ct-oddn { grid-column: 1 / -1; }
 }
@@ -5323,7 +5333,7 @@ const FEATURES = [
     staff: "Ask for something, take a request on, bring it up, confirm it arrived, and 86 a drink or bring it back." },
   { g: "Stock", k: "count", n: "Stock", go: "count", team: 1, tour: 1,
     what: "Its own tab: the count book on your phone, a barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
-    staff: "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm. ‹ Back goes back one. Same as last time is one tap; More has tenths, the scale and 📷 Photo check. Group it by place or by kind. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap. Counting tips are at the top.",
+    staff: "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm. ‹ Back goes back one. Same as last time is one tap; More has tenths, the scale and 📷 Photo check. Places are numbered and fold open one at a time, and a counted bottle says what's there (2 full · ½ open). Options: by place, by kind or A to Z, cl or ml first, which places are yours tonight, How to count and the tips. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap.",
     mgr: "Check barcodes the team has linked (they work straight away). Every bottle and pack comes with its size and estimated weights: weigh a sealed one once (Check it) and it's locked until you Unlock it. Set up the count: the places in walking order, what's counted where and in what, and a running-low level and par per line." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",

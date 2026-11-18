@@ -747,6 +747,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-same small { color: var(--muted); font-weight: 400; margin-left: 6px; }
 .ct-phc { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 4px; }
 .ct-phc figure { margin: 0; }
+.ct-phd { display: block; height: 150px; width: auto; margin: 6px auto; color: var(--muted); }
 .ct-phc figcaption { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
 .ct-phc img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
 #ct-heard-slot .ct-heard, #ct-heard-slot .warnline { margin: 8px 0 0; }
@@ -760,13 +761,10 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-show { margin-top: 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .ct-show .chip { padding: 8px 12px; }
 .ct-order { margin-top: 8px; grid-template-columns: repeat(3, 1fr); }
-.ct-show .chip, .ct-jump .chip { color: var(--fg); }
+.ct-show .chip { color: var(--fg); }
 .ct-show .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
-.ct-jump small, .ct-show small { opacity: .75; margin-left: 4px; font-variant-numeric: tabular-nums; }
-.ct-jump .chip.full { color: var(--muted); }
+.ct-show small { opacity: .75; margin-left: 4px; font-variant-numeric: tabular-nums; }
 /* Phones: the places are one row that scrolls sideways. The iPad has room for them all. */
-.ct-jump { flex-wrap: nowrap; overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none; padding-bottom: 2px; }
-.ct-jump::-webkit-scrollbar { display: none; }
 #ct .anc { display: block; scroll-margin-top: 150px; }
 .ct-row { border-bottom: 1px solid var(--line); scroll-margin-top: 140px; }
 .ct-row.on { background: var(--surface); border-radius: 12px; border: 1px solid var(--brass); margin: 6px 0; }
@@ -797,7 +795,20 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-nav .btn { min-height: 52px; font-size: 17px; }
 .ct-where { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 4px 0 0; font-size: 14px; }
 .ct-where .btn { min-height: 36px; padding-top: 0; padding-bottom: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62%; }
-.ct-sec small { font-family: inherit; font-size: 12px; color: var(--muted); letter-spacing: 0; text-transform: none; margin-left: 6px; }
+.ct-sec { display: flex; align-items: center; gap: 10px; width: 100%; margin: 6px 0 0; padding: 12px 4px; background: none; border: 0; border-bottom: 1px solid var(--line); color: var(--fg); font: inherit; text-align: left; cursor: pointer; }
+.ct-sec > i { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-style: normal; font-size: 14px; font-weight: 800; background: var(--surface); border: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.ct-sec > span { flex: 1; font-family: var(--display); font-size: 20px; color: var(--brass); text-transform: uppercase; }
+.ct-sec > small { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.ct-sec::after { content: "›"; font-size: 22px; color: var(--muted); transition: transform .15s; }
+.ct-sec.on::after { transform: rotate(90deg); }
+.ct-sec.full > i { background: var(--brass); color: var(--brass-ink); border-color: var(--brass); }
+.ct-sec.full > span { color: var(--muted); }
+.ct-secdone { margin: 8px 4px; }
+i.ct-no { font-style: normal; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; margin-right: 8px; }
+.ct-line small.ct-th { display: block; font-size: 12.5px; color: var(--muted); font-weight: 600; text-align: right; }
+.ct-opts > summary small { color: var(--muted); font-weight: 400; margin-left: 6px; font-size: 13px; }
+.ct-opts .ct-hrow { margin-top: 8px; }
+.ct-places .chip[aria-pressed="false"] { opacity: .55; text-decoration: line-through; }
 .ct-meas { position: relative; cursor: crosshair; touch-action: manipulation; }
 .ct-meas img { display: block; width: 100%; }
 .ct-ml { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--brass); pointer-events: none; }
@@ -854,7 +865,6 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .ct-btl .lvt { font-size: 11px; fill: var(--muted); pointer-events: none; }
 /* iPad: the places wrap, and a line's full count sits beside its open one. */
 @media (min-width: 700px) {
-  .ct-jump { flex-wrap: wrap; overflow: visible; }
   .ct-edit.ct-c { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; align-items: center; }
   .ct-edit.ct-c > .ct-same, .ct-edit.ct-c > .ct-more, .ct-edit.ct-c > .ct-nav, .ct-edit.ct-c > .ct-sum, .ct-edit.ct-c > .ct-oddn { grid-column: 1 / -1; }
 }
@@ -5400,7 +5410,7 @@ const FEATURES = [
     staff: "Ask for something, take a request on, bring it up, confirm it arrived, and 86 a drink or bring it back." },
   { g: "Stock", k: "count", n: "Stock", go: "count", team: 1, tour: 1,
     what: "Its own tab: the count book on your phone, a barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
-    staff: "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm. ‹ Back goes back one. Same as last time is one tap; More has tenths, the scale and 📷 Photo check. Group it by place or by kind. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap. Counting tips are at the top.",
+    staff: "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm. ‹ Back goes back one. Same as last time is one tap; More has tenths, the scale and 📷 Photo check. Places are numbered and fold open one at a time, and a counted bottle says what's there (2 full · ½ open). Options: by place, by kind or A to Z, cl or ml first, which places are yours tonight, How to count and the tips. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap.",
     mgr: "Check barcodes the team has linked (they work straight away). Every bottle and pack comes with its size and estimated weights: weigh a sealed one once (Check it) and it's locked until you Unlock it. Set up the count: the places in walking order, what's counted where and in what, and a running-low level and par per line." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",
@@ -10795,7 +10805,10 @@ var ctQ = "", ctShow = store.get("ctShow", "todo"), ctBy = store.get("ctBy", sto
 // The order to walk it: by place (the shelves, the default), by kind (all the vodkas, then the gins, wherever they are),
 // or A to Z. Next goes down whichever is showing.
 const ctSecOf = (r) => (ctBy === "kind" ? r.group : r.area);
+// Places left out of this count on this phone (Options, Places in this count): just the speed rail and back bar, say.
+var ctSkip = new Set(store.get("ctSkip", []));
 function ctOrdered(rows = ctRows()) {
+  rows = rows.filter((r) => !ctSkip.has(r.area));
   if (ctBy === "az") return azSort(rows, (r) => r.item);
   if (ctBy === "kind") { const gs = Object.keys(stockGroups()); return [...rows].sort((a, b) => (gs.indexOf(a.group) + 1 || 99) - (gs.indexOf(b.group) + 1 || 99)); }
   return rows;
@@ -10854,12 +10867,11 @@ function ctHtml() {
   if (LIVE.countErr) return `<p class="note warnline">The count couldn't load. If it's new, Maintenance needs to publish the new rules.</p>`;
   if (!LIVE.loaded.has("countSetup") || LIVE.countDay !== ctDay) return `<p class="note">Loading the count…</p>`;
   ctPrevLoad();
-  const rows = ctRows(), tot = ctTotals(), done = rows.filter(ctLine).length, by = [...new Set(ctLines().map((x) => x.name))], wide = ctWide();
+  const rows = ctOrdered(), tot = ctTotals(), done = rows.filter(ctLine).length, by = [...new Set(ctLines().map((x) => x.name))], wide = ctWide();
   const pend = ctLines().filter((x) => x.pending).length, odds = ctOdds();
   const oddBox = odds.length ? `<div class="ct-odd" id="ct-odd"><p class="s"><b>Worth a second look (${odds.length})</b>: far from the last count. Tap one, count it again, or tap It's right.</p><div class="recent">${odds.map((r) => `<button class="chip" data-ct-row="${esc(r.key)}">${esc(r.item)} <small>${esc(r.area)}</small></button>`).join("")}</div></div>` : "";
-  return `${ctScanHtml()}${ctCodesHtml()}${ctUseByHtml()}<div class="ct-head">${rows.length && done === rows.length ? `<p class="note ct-fin">✓ <b>All ${rows.length} lines counted.</b> ${odds.length ? `${odds.length} worth a second look, then send` : "Check the totals, then send"} them at the bottom.</p>` : ""}<p class="s"><b>${done} of ${rows.length} lines counted</b>${by.length ? ` by ${esc(by.join(", "))}` : ""}. ${pend ? `<b>${pend} on this phone, sending when there's signal</b>: keep counting.` : "Everything's saved, on any phone."}</p>${oddBox}
-      <div class="ct-bar" aria-hidden="true"><i style="width:${rows.length ? Math.round((done / rows.length) * 100) : 0}%"></i></div>
-      <div class="ct-hrow"><label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label><button class="btn ct-howbtn" data-ct-intro="0">How to count</button><button class="btn ct-unit" data-ct-unit aria-label="Swap cl and ml">${ctMlFirst ? "ml ⇄ cl" : "cl ⇄ ml"}</button></div>${ctTipsHtml()}</div>
+  return `${ctScanHtml()}${ctCodesHtml()}${ctUseByHtml()}<div class="ct-head">${rows.length && done === rows.length ? `<p class="note ct-fin">✓ <b>All ${rows.length} lines counted.</b> ${odds.length ? `${odds.length} worth a second look, then send` : "Check the totals, then send"} them at the bottom.</p>` : ""}<p class="s"><b>${done} of ${rows.length} counted</b>${ctDay !== shiftDay() ? ` for ${esc(ctDate(ctDay))}` : ""}${by.length ? ` by ${esc(by.join(", "))}` : ""}. ${pend ? `<b>${pend} on this phone, sending when there's signal</b>: keep counting.` : "Everything's saved."}</p>
+      <div class="ct-bar" aria-hidden="true"><i style="width:${rows.length ? Math.round((done / rows.length) * 100) : 0}%"></i></div>${oddBox}${ctOptsHtml()}</div>
     <div id="ct-list">${ctListHtml()}</div>
     <details class="setup" id="ct-tot-box"${ctTotOpen ?? wide ? " open" : ""}><summary>Totals so far${tot.some((t) => t.done) ? ` (${tot.filter((t) => t.done).length})` : ""}</summary>
       <p class="note">Each product added up across its places, for typing into Nory.</p>
@@ -10869,7 +10881,7 @@ function ctHtml() {
     ${LIVE.admin ? `<div class="actions"><button class="btn" id="ct-setup">Set up the count</button></div>` : ""}
     <div class="sec">Something new</div>${itemsHtml(mode)}`;
 }
-// Not counted yet, everything, or what's been counted; By place (the order you walk it, with the places to jump to) or
+// Not counted yet, everything, or what's been counted; By place (numbered folds in the order you walk it), By kind, or
 // A to Z (the letter strip down the side, for finding one thing); and the lines. A search looks in every place.
 var ctLowSet = new Set();
 function ctListHtml() {
@@ -10878,13 +10890,14 @@ function ctListHtml() {
   const todo = rows.filter((r) => !ctLine(r)).length;
   const show = (r) => r.key === ctOpen || ctShow === "all" || (ctShow === "todo" ? !ctLine(r) : !!ctLine(r));
   const chip = (k, label, n) => `<button class="chip" data-ct-show="${k}" aria-pressed="${!found && ctShow === k}">${label}${n != null ? ` <small>${n}</small>` : ""}</button>`;
-  const head = `<div class="recent ct-show">${chip("todo", "Not counted yet", todo)}${chip("all", "All", rows.length)}${chip("done", "Counted", rows.length - todo)}</div>
-    <div class="seg ct-order" role="group" aria-label="Order">${[["place", "By place"], ["kind", "By kind"], ["az", "A to Z"]].map(([k, l]) => `<button data-ct-by="${k}" aria-pressed="${ctBy === k}">${l}</button>`).join("")}</div>
-    ${ctBy === "az" ? "" : `<div class="recent ct-jump" role="group" aria-label="Go to a ${ctBy === "kind" ? "kind" : "place"}">${areas.map((a) => { const rs = rows.filter((r) => ctSecOf(r) === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`}`;
+  const head = `<div class="recent ct-show">${chip("todo", "Not counted yet", todo)}${chip("all", "All", rows.length)}${chip("done", "Counted", rows.length - todo)}</div>`;
   if (found) return `${head}<div class="sec">${found.length ? `Found in ${[...new Set(found.map((r) => r.area))].length === 1 ? esc(found[0].area) : "every place"}` : "Nothing found"}</div>
     ${found.map((r) => ctRowHtml(r, true)).join("") || (ctIsCode(ctQ) ? `<p class="note">That's a barcode. Press Go to look it up.</p>` : `<p class="note">Nothing called “${esc(ctQ.trim())}”. Try fewer letters, or 📷 scan it.</p><div class="actions"><button class="btn pri" data-ct-new="${esc(ctQ.trim().slice(0, 60))}">＋ Add “${esc(ctQ.trim().slice(0, 40))}” and count it</button></div>`)}`;
-  const body = ctBy === "az" ? azHtml(rows.filter(show), (r) => r.item, (r) => ctRowHtml(r, true)) : areas.map((a) => { const rs = rows.filter((r) => ctSecOf(r) === a && show(r)), all = rows.filter((r) => ctSecOf(r) === a), n = all.filter(ctLine).length; return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec ct-sec">${esc(a)} <small>${n === all.length ? "✓ all counted" : `${n} of ${all.length}`}</small></div>${rs.map((r) => ctRowHtml(r, ctBy === "kind")).join("")}` : ""}`; }).join("");
-  const none = !rows.some(show);
+  const body = ctBy === "az" ? azHtml(rows.filter(show), (r) => r.item, (r) => ctRowHtml(r, true)) : areas.map((a, i) => {
+    // Each place (or kind) is a numbered fold: only the one being counted is open. Its items are numbered in shelf order.
+    const all = rows.filter((r) => ctSecOf(r) === a), rs = all.filter(show), n = all.filter(ctLine).length, on = a === ctSecNow(rows);
+    return `<i class="anc" id="ct-a-${ctSlug(a)}"></i><button class="ct-sec${on ? " on" : ""}${n === all.length ? " full" : ""}" data-ct-sec="${esc(a)}" aria-expanded="${on}"><i>${i + 1}</i><span>${esc(a)}</span><small>${n === all.length ? "✓ all counted" : `${n} of ${all.length}`}</small></button>${on ? rs.map((r) => ctRowHtml(r, ctBy === "kind", all.indexOf(r) + 1)).join("") || `<p class="note ct-secdone">${ctShow === "done" ? "Nothing counted here yet." : "All counted here. Counted shows them."}</p>` : ""}`; }).join("");
+  const none = !rows.some(show) && !ctSkip.size;
   return `${head}${none ? `<p class="note ct-all">${ctShow === "todo" ? "✓ Everything's counted. Check the totals, then send them." : "Nothing counted yet."}</p>` : ""}${body}`;
 }
 function ctHeardHtml() {
@@ -10903,9 +10916,12 @@ function ctDo(r) {
   const u = r.u === "each" ? "them" : `the ${ctUnit(r.u, 2).trim()}`;
   return `Count ${u}${r.pw > 0 ? " or weigh them" : ""}${r.size ? `: one is a ${ctSz(r)}` : ""}`;
 }
-function ctRowHtml(r, where) {
-  const x = ctLine(r), on = ctOpen === r.key;
-  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}${x && ctOdd(r, x) ? `<small class="ct-chk">Check it</small>` : ""}${ctLowSet.has(r.item) ? `<small class="ct-low">Running low</small>` : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
+// What's there, at a glance: the total, and for a bottle the full ones and the open one.
+const ctFrac = (o) => ({ 25: "¼", 50: "½", 75: "¾" })[o] || `.${String(o).padStart(2, "0").replace(/0$/, "")}`;
+const ctThere = (r, x) => (r.u === "bottle" && x.open ? `${x.full} full · ${ctFrac(x.open)} open` : "");
+function ctRowHtml(r, where, no) {
+  const x = ctLine(r), on = ctOpen === r.key, th = x && ctThere(r, x);
+  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${no ? `<i class="ct-no">${no}</i>` : ""}${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}${th ? `<small class="ct-th">${th}</small>` : ""}${x && ctOdd(r, x) ? `<small class="ct-chk">Check it</small>` : ""}${ctLowSet.has(r.item) ? `<small class="ct-low">Running low</small>` : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
 }
 // Next: down the list as it shows (by place, by kind or A to Z), past anything counted already when only what's left is
 // showing. Left blank, Next saves it as none. soon: after a line's last tap, a moment to see it saved first.
@@ -10924,10 +10940,12 @@ function ctNext(key, soon) {
    and a manager can take a better one. */
 var ctPh = null;
 const ctPhotoBtn = (r) => `<label class="btn" for="ct-ph-in">📷 Photo check</label><input type="file" accept="image/*" capture="environment" id="ct-ph-in" data-ct-ph="${esc(r.item)}" hidden>`;
+// No sealed photo yet: a drawing stands in, so there's always a baseline. A full one fills to the shoulder.
+const ctPhDraw = () => `<svg viewBox="-4 -4 50 116" class="ct-phd" role="img" aria-label="A sealed bottle fills to the shoulder" fill="none" stroke="currentColor" stroke-width="3" stroke-linejoin="round">${CT_BTL(0, 0, 1, 63)}<path d="M-2 42h46" stroke="var(--brass)" stroke-dasharray="4 3"/></svg><p class="s">A drawing for now: full is the shoulder, where the neck starts.</p>`;
 function ctPhotoHtml(r) {
   const p = ctPh?.item === r.item ? ctPh : null; if (!p) return "";
   const can = p.ref === null || LIVE.admin;
-  const ref = p.ref === undefined ? `<p class="s">Getting the sealed one…</p>` : p.ref ? `<img src="${p.ref}" alt="A sealed ${esc(r.item)}">` : `<p class="s">No photo of a sealed ${esc(r.item)} yet.</p>`;
+  const ref = p.ref === undefined ? `<p class="s">Getting the sealed one…</p>` : p.ref ? `<img src="${p.ref}" alt="A sealed ${esc(r.item)}">` : ctPhDraw();
   return `<div class="ct-phc"><figure><figcaption>Yours</figcaption>${p.mine ? ctMeasHtml(p) : ""}</figure><figure><figcaption>Sealed</figcaption>${ref}</figure></div>
     ${ctMeasSay(p, r)}<p class="s">Or compare the two by eye and tap the level.${can ? ` <label class="linkbtn" for="ct-ref-in">${p.ref ? "Take a better sealed one" : "Take one of a sealed bottle"}</label><input type="file" accept="image/*" capture="environment" id="ct-ref-in" data-ct-ref="${esc(r.item)}" hidden>` : ""}</p>`;
 }
@@ -11020,7 +11038,7 @@ function ctBottle(open) {
 function ctWeighHtml(r) {
   const b = r.u === "bottle";
   const est = r.est ? ` Weights estimated.${LIVE.admin ? "" : " A manager can check them."}` : r.lock ? ` ${ctLockSay(r)}` : " Weights checked.";
-  return `<label class="fld ct-g">${b ? "On the scale, grams (pourer off)" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the packaging ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="Grams"></label><p class="s" id="ct-g-out">${b ? `${ctSz(r)}: empty ${r.e} g, full ${r.f} g. A sealed one goes on Full.` : ""}</p><p class="s ct-est">${est.trim()}</p>${LIVE.admin && (r.est || ctOpenLock(r)) ? ctCheckHtml(r) : LIVE.admin && r.lock ? ctUnlockBtn(r) : ""}`;
+  return `<label class="fld ct-g">${b ? "On the scale, grams (pourer off)" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the packaging ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="${r.e ? `${r.e} g or more` : "Grams"}"></label><p class="s" id="ct-g-out">${b ? `${ctSz(r)}: <b>minimum ${r.e} g</b> (the empty bottle), full ${r.f} g. A sealed one goes on Full.` : ""}</p><p class="s ct-est">${est.trim()}</p>${LIVE.admin && (r.est || ctOpenLock(r)) ? ctCheckHtml(r) : LIVE.admin && r.lock ? ctUnlockBtn(r) : ""}`;
 }
 // Weighed by a manager: locked until the next re-weigh, which takes a deliberate Unlock first, so nobody changes it by
 // accident. The lock is the weights a manager saved; Unlock only opens it on this phone until the new ones are saved.
@@ -11071,16 +11089,33 @@ function ctUndoHtml() {
   const x = ctLines().find((y) => y.area === u.area && y.item === u.item);
   return `<p class="ct-undo"><span>${x?.pending ? "⏳" : "✓"} <b>${esc(u.item)}</b> ${x ? ctSay(u.u, ctQty(x)) : "not counted"}${x?.pending ? ", on this phone: it sends when there's signal" : ", saved"}</span><button class="btn" data-ct-undo>↩ Undo</button></p>`;
 }
+// The place (or kind) open in the list: the one picked, else the open line's, else the first with anything left.
+var ctSecOn = null;
+function ctSecNow(rows = ctOrdered()) {
+  if (ctSecOn !== null) return ctSecOn;
+  const r = ctOpen && rows.find((y) => y.key === ctOpen);
+  return r ? ctSecOf(r) : ctSecOf(rows.find((y) => !ctLine(y)) || rows[0] || {}) || "";
+}
+// Options, folded away: the day, the order, cl or ml first, which places are in this count, How to count and the tips.
+function ctOptsHtml() {
+  const areas = [...new Set(ctRows().map((r) => r.area))], say = [ctBy === "kind" ? "by kind" : ctBy === "az" ? "A to Z" : "by place", ctMlFirst ? "ml first" : "cl first", ctSkip.size ? `${areas.length - areas.filter((a) => ctSkip.has(a)).length} of ${areas.length} places` : ""].filter(Boolean).join(" · ");
+  return `<details class="setup ct-opts" id="ct-opts"${ctOptsHtml.open ? " open" : ""}><summary>Options <small>${esc(say)}</small></summary>
+    <div class="ct-hrow"><label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label><button class="btn ct-unit" data-ct-unit aria-label="Swap cl and ml">${ctMlFirst ? "ml ⇄ cl" : "cl ⇄ ml"}</button></div>
+    <div class="seg ct-order" role="group" aria-label="Order">${[["place", "By place"], ["kind", "By kind"], ["az", "A to Z"]].map(([k, l]) => `<button data-ct-by="${k}" aria-pressed="${ctBy === k}">${l}</button>`).join("")}</div>
+    <p class="ct-n">Places in this count, on this phone</p><div class="recent ct-places">${areas.map((a) => `<button class="chip" data-ct-skip="${esc(a)}" aria-pressed="${!ctSkip.has(a)}">${esc(a)}</button>`).join("")}</div>
+    <div class="actions"><button class="btn ct-howbtn" data-ct-intro="0">How to count</button></div>${ctTipsHtml()}</details>`;
+}
 // Where you are, under Find while a line is open: its place (or kind), how far through it, and the next place.
 function ctWhereHtml() {
-  const r = ctOpen && ctRow(ctOpen); if (!r || ctBy === "az" || ctSetupOn || ctIntro >= 0) return "";
-  const rows = ctOrdered(), a = ctSecOf(r), all = rows.filter((y) => ctSecOf(y) === a), n = all.filter(ctLine).length;
+  if (ctBy === "az" || ctSetupOn || ctIntro >= 0 || ctQ.trim()) return "";
+  const rows = ctOrdered(), a = ctSecNow(rows); if (!a) return "";
+  const all = rows.filter((y) => ctSecOf(y) === a), n = all.filter(ctLine).length;
   const secs = [...new Set(rows.map(ctSecOf))], nx = secs.slice(secs.indexOf(a) + 1).find((s) => rows.some((y) => ctSecOf(y) === s && !ctLine(y)));
   return `<p class="ct-where"><span><b>${esc(a)}</b> ${n} of ${all.length}</span>${nx ? `<button class="btn" data-ct-nextplace="${esc(nx)}">Next place: ${esc(nx)} ›</button>` : ""}</p>`;
 }
 function ctNextPlace(a) {
   const r = ctOrdered().find((y) => ctSecOf(y) === a && !ctLine(y)) || ctOrdered().find((y) => ctSecOf(y) === a);
-  if (r) ctGo(r.key);
+  ctSecOn = a; if (r) ctGo(r.key); else ctRender();
 }
 function ctUndoShow() {
   const w = $("#ct-where-slot"); if (w) w.innerHTML = ctWhereHtml();
@@ -11105,11 +11140,11 @@ function ctOdd(r, x = ctLine(r)) {
   if (was - now >= 3 && now * 3 <= was) return `Much less than ${last}`;
   return "";
 }
-const ctOdds = () => ctRows().filter((r) => ctOdd(r));
+const ctOdds = () => ctOrdered().filter((r) => ctOdd(r));
 function ctOkIt(r) { const m = store.get("ctOk", {}); m[ctDay] = [...new Set([...(m[ctDay] || []), r.key])]; for (const d of Object.keys(m)) if (d < addDays(ctDay, -60)) delete m[d]; store.set("ctOk", m); }
 function ctGo(key) {
   if (ctPh && ctRow(key)?.item !== ctPh.item) ctPh = null;
-  ctOpen = key; ctHeard = null; ctRender();
+  ctOpen = key; ctHeard = null; const r = ctRow(key); if (r) ctSecOn = ctSecOf(r); ctRender();
   requestAnimationFrame(() => document.getElementById(`ct-r-${ctSlug(key)}`)?.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }));
 }
 function ctHear(text) {
@@ -11136,7 +11171,7 @@ function ctMic() {
 /* ---- Counting tips: how the bar counts, short enough to read mid-count ---- */
 var CT_TIPS = [
   ["A worked example", "3 sealed Smirnoff and an open one about four-tenths full: Full 3, open .4. That's 3.4 bottles, and 3.4 × 700 ml = 2,380 ml (238 cl, 2.38 litres). Each tenth is a line on the bottle picture under More: 70 ml (7 cl) of a 70 cl."],
-  ["cl and ml", "1 cl = 10 ml, so a 70 cl bottle is 700 ml and a 25 ml shot is 2.5 cl. A 70 cl bottle gives 28 shots of 25 ml. Sizes show in both; cl ⇄ ml at the top swaps which comes first. Type a size either way: 70 cl or 700 ml."],
+  ["cl and ml", "1 cl = 10 ml, so a 70 cl bottle is 700 ml and a 25 ml shot is 2.5 cl. A 70 cl bottle gives 28 shots of 25 ml. Sizes show in both; cl ⇄ ml, in Options, swaps which comes first. Type a size either way: 70 cl or 700 ml."],
   ["Same way every time", "Top shelf to bottom, left to right, front to back. The list is in that order, so you never lose your place."],
   ["Pull the back row forward", "Bring the bottles at the back to the front as you count each spot, so nothing hides behind the front row."],
   ["Cases and crates", "A full, sealed case: count the bottles in it (24 Corona is 24), or open the line and type it. An open case: count what's left in it."],
@@ -11150,7 +11185,7 @@ var CT_TIPS = [
   ["Two of you", "One counts out loud and one taps, or split the places. It all adds up on both phones."],
   ["Mis-tap?", "↩ Undo under Find puts the last item back as it was. A number far from last time says Check it: count it again, or It's right."],
 ];
-const ctTipsHtml = () => `<details class="setup ct-tips" id="ct-tips"${ctTipsHtml.open ?? ctWide() ? " open" : ""}><summary>Counting tips</summary><dl>${CT_TIPS.map(([t, d]) => `<dt>${t}</dt><dd>${d}</dd>`).join("")}</dl></details>`;
+const ctTipsHtml = () => `<details class="setup ct-tips" id="ct-tips"${ctTipsHtml.open ? " open" : ""}><summary>Counting tips</summary><dl>${CT_TIPS.map(([t, d]) => `<dt>${t}</dt><dd>${d}</dd>`).join("")}</dl></details>`;
 
 /* ---- Barcodes: scan a bottle or pack to find it, count it, date it, or add it ----
    A barcode only says which product it is (never its use-by date), so each one is linked once to its line on the count:
@@ -11240,17 +11275,17 @@ var CT_INTRO = [
   { t: "1. Full, sealed bottles", pic: CT_PIC(`${CT_BTL(40, 20, 1, 95)}${CT_BTL(90, 20, 1, 95)}<circle cx="190" cy="70" r="26"/><path d="M190 56v28M176 70h28"/>`),
     how: ["Tap the item in the list.", "Count the bottles that have never been opened: the seal or cap isn't broken.", "Tap + once for each one. − takes one off. A full case? Type the number.", "Same as last time? One tap on Same as last time does the whole line."] },
   { t: "2. The open bottle", pic: CT_PIC(`<path d="M20 128h200"/><rect x="70" y="112" width="100" height="16" rx="4"/>${CT_BTL(100, 5, 1, 45)}<path d="M180 30l20-12M186 44h24" stroke="var(--brass)"/>`),
-    how: ["Look at it level with your eye and tap None, ¼, ½ or ¾. The line shows what that makes, then tap Confirm.", "Need it closer? More has tenths, 📷 Photo check (your photo beside a sealed one) and the scale: pourer off, stand it on the scale, type the grams."] },
+    how: ["Look at it level with your eye and tap None, ¼, ½ or ¾. The line shows what that makes, then tap Confirm.", "Need it closer? More has tenths, 📷 Photo check (your photo beside a sealed one, always with a baseline) and the scale: pourer off, stand it on the scale, type the grams. It shows the minimum, the empty bottle, so a wrong reading stands out."] },
   { t: "A worked example", pic: CT_PIC(`${CT_BTL(20, 20, 1, 95)}${CT_BTL(66, 20, 1, 95)}${CT_BTL(112, 20, 1, 95)}${CT_BTL(170, 20, 1, 40)}<text x="214" y="96" font-size="15" fill="currentColor" stroke="none" font-weight="700">.4</text>`),
     how: ["On the shelf: 3 sealed Smirnoff and one open bottle about four-tenths full.", "Tap + three times: Full 3. Then the open one: ½ is near enough by eye, or .4 under More for tenths.", "The line shows the sum: 3 full + .4 open = 3.4 bottles of 70 cl = 238 cl, or 2,380 ml (3.4 × 700 ml).", "cl to ml: times 10. ml to cl: divide by 10. A tenth of a 70 cl is 7 cl, or 70 ml, so .4 is 280 ml. Nory takes the bottles: 3.4."] },
   { t: "Cans, cakes and packs", pic: CT_PIC(`<rect x="30" y="50" width="40" height="70" rx="6"/><path d="M30 62h40M30 108h40"/><path d="M100 120h70a10 10 0 0 0 10-10V90H90v20a10 10 0 0 0 10 10z"/><path d="M90 90c10-16 80-16 90 0"/><rect x="190" y="70" width="34" height="50" rx="3"/>`),
     how: ["Count them and tap + for each, or type the number.", "Half a cake is .5. Each line says what one is, like a 200 ml bottle."] },
   { t: "Next, and nothing there", pic: CT_PIC(`<rect x="40" y="45" width="160" height="60" rx="30" fill="var(--brass)" stroke="none"/><text x="120" y="84" text-anchor="middle" font-size="26" font-weight="800" fill="var(--brass-ink)" stroke="none">Next ›</text>`),
-    how: ["Every tap saves straight away, but nothing moves on until you tap Confirm ›. ‹ Back goes to the item before. Under Find: where you are, how far through the place, and Next place.", "None on the shelf at all? Tap None here ›: it saves as none and moves on.", "Not counted yet shows only what's left, so the list gets shorter as you go."] },
+    how: ["Places are numbered in the order you walk them and fold open one at a time; a counted bottle says what's there, like 2 full · ½ open.", "Every tap saves straight away, but nothing moves on until you tap Confirm ›. ‹ Back goes to the item before. Under Find: where you are, how far through the place, and Next place.", "None on the shelf at all? Tap None here ›: it saves as none and moves on.", "Not counted yet shows only what's left, so the list gets shorter as you go."] },
   { t: "Can't find it?", pic: CT_PIC(`<circle cx="100" cy="68" r="38"/><path d="M128 96l40 40"/><path d="M84 68h32" stroke="var(--brass)"/>`),
-    how: ["Type a few letters in Find at the top. It looks in every place, and says where the item is. By kind puts all the vodkas, all the cakes and so on together.", "Or tap 📷 and scan the bottle's barcode: it opens that item.", "Not on the list at all, like a new cake or shake topping? Find shows ＋ Add it and count it: count it straight away, and Maintenance checks it after."] },
+    how: ["Type a few letters in Find at the top. It looks in every place, and says where the item is. By kind, in Options, puts all the vodkas, all the cakes and so on together.", "Or tap 📷 and scan the bottle's barcode: it opens that item.", "Not on the list at all, like a new cake or shake topping? Find shows ＋ Add it and count it: count it straight away, and Maintenance checks it after."] },
   { t: "Finished", pic: CT_PIC(`<rect x="60" y="20" width="120" height="110" rx="12"/><path d="M90 60l20 20 40-40" stroke="var(--brass)" stroke-width="8"/><path d="M90 108h60"/>`),
-    how: ["When Not counted yet is empty, it says All counted. Anything under Worth a second look is far from last time: count it again, or tap It's right. ↩ Undo, under Find, takes back the last tap.", "Send on WhatsApp, or Spreadsheet, at the bottom: for whoever puts it into Nory.", "Counting tips, under How to count, cover cases, fridges, wine and kegs."] },
+    how: ["When Not counted yet is empty, it says All counted. Anything under Worth a second look is far from last time: count it again, or tap It's right. ↩ Undo, under Find, takes back the last tap.", "Send on WhatsApp, or Spreadsheet, at the bottom: for whoever puts it into Nory.", "Options has How to count, the Counting tips (cases, fridges, wine, kegs), cl or ml first, and Places in this count, to leave out the places someone else is doing."] },
 ];
 var ctIntro = -1;
 function ctIntroHtml() {
@@ -11431,8 +11466,8 @@ $("#v-count").addEventListener("click", (e) => {
   }
   const lg = t("[data-ct-lbgo]"); if (lg) { const sd = lg.dataset.ctLbgo; if (MODE_LISTS[sd] && sd !== mode) setMode(sd); haptic(); openAt("labels"); return; }
   const la = t("[data-ct-lbadd]"); if (la) { const n = la.dataset.ctLbadd; Object.assign(lbF, { item: n, life: itKeep(n)?.days ? String(itKeep(n).days) : "", open: true }); haptic(); openAt("labels"); requestAnimationFrame(() => $("#lb-add")?.scrollIntoView({ block: "start" })); return; }
-  const by = t("[data-ct-by]"); if (by) { haptic(); ctBy = by.dataset.ctBy; store.set("ctBy", ctBy); ctClearFind(); return ctRender(true); }
-  const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
+  const by = t("[data-ct-by]"); if (by) { haptic(); ctBy = by.dataset.ctBy; store.set("ctBy", ctBy); ctSecOn = null; ctClearFind(); return ctRender(true); }
+  const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); const f = ctOrdered().find((r) => ctShow === "all" || (ctShow === "todo") === !ctLine(r)); ctSecOn = f ? ctSecOf(f) : null; return ctRender(); }
   if (t("[data-ct-undo]")) { haptic(); return ctUndoGo(); }
   const ms = t("[data-ct-meas]"); if (ms && ctPh) {
     const pts = ctPh.pts || [], bx = ms.getBoundingClientRect(), y = Math.max(0, Math.min(1, (e.clientY - bx.top) / bx.height));
@@ -11442,11 +11477,15 @@ $("#v-count").addEventListener("click", (e) => {
   }
   if (t("[data-ct-meas-redo]") && ctPh) { ctPh.pts = []; return ctRender(true); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
-  const jp = t("[data-ct-jump]"); if (jp) {
-    // A place already counted is hidden under Not counted yet: going to it shows everything.
-    const a = jp.dataset.ctJump; ctClearFind();
-    if (ctShow === "todo" && ctRows().filter((r) => ctSecOf(r) === a).every(ctLine)) { ctShow = "all"; store.set("ctShow", ctShow); }
+  const sc = t("[data-ct-sec]"); if (sc) {
+    haptic(); const a = sc.dataset.ctSec, was = ctSecNow(); ctSecOn = was === a ? "" : a;
+    if (ctOpen && ctRow(ctOpen) && ctSecOf(ctRow(ctOpen)) !== ctSecOn) ctOpen = "";
     ctRender(true); return document.getElementById(`ct-a-${ctSlug(a)}`)?.scrollIntoView({ block: "start" });
+  }
+  const skp = t("[data-ct-skip]"); if (skp) {
+    const a = skp.dataset.ctSkip; ctSkip.has(a) ? ctSkip.delete(a) : ctSkip.add(a);
+    if (ctSkip.size >= new Set(ctRows().map((r) => r.area)).size) { ctSkip.delete(a); return toast("Keep at least one place"); }
+    store.set("ctSkip", [...ctSkip]); ctSecOn = null; return ctRender(true);
   }
   const r = ctOpen && ctRow(ctOpen), x = r && ctLine(r);
   const ad = t("[data-ct-add]"); if (ad && r) { haptic(); const d = +ad.dataset.ctAdd.split(":")[1]; ctPut(r, Math.max(0, (x?.full || 0) + d), x?.open || 0); return; }
@@ -11508,6 +11547,7 @@ $("#v-count").addEventListener("toggle", (e) => {
   const d = e.target; if (!$("#ct") || !d.matches?.("details") || !d.isConnected) return;
   if (d.id === "ct-in-box") ctInHtml.open = d.open;
   else if (d.id === "ct-tips") ctTipsHtml.open = d.open;
+  else if (d.id === "ct-opts") ctOptsHtml.open = d.open;
   else if (d.id === "ct-more") { ctMoreOn = d.open; store.set("ctMore", ctMoreOn); }
   else if (d.id === "ct-useby") ctUseByHtml.open = d.open;
   else if (d.id === "ct-codes") ctCodesHtml.open = d.open;
@@ -11532,7 +11572,7 @@ $("#v-count").addEventListener("input", (e) => {
   }
   const g = e.target.closest("[data-ct-g]"); if (!g) return;
   const r = ctRow(g.dataset.ctG), n = +g.value.replace(",", "."), w = r && ctWeigh(r, n);
-  $("#ct-g-out").textContent = !w ? "" : r.u !== "bottle" ? `${ctSay(r.u, w.n)}` : n < r.e - 20 ? "Lighter than an empty one: check the scale reads 0 with nothing on it"
+  $("#ct-g-out").textContent = !w ? "" : n < r.e - 20 ? `Under the minimum: ${r.e} g is ${r.u === "bottle" ? "an empty bottle" : "the packaging alone"}. Check the scale reads 0 with nothing on it${r.u === "bottle" ? ", pourer off" : ""}` : r.u !== "bottle" ? `${ctSay(r.u, w.n)}`
     : w.full ? "That's a sealed one: tap + under Full instead" : `Open bottle ${ctNum(w.open / 100)}${w.ml ? ` · ${w.ml} ml · ${ctNum(w.ml / 10)} cl` : ""}`;
   // Saved a moment after the typing stops, so Next straight after it never loses the weight.
   clearTimeout(ctWeighPut.t); ctWeighPut.t = setTimeout(() => ctWeighPut(g), 700);
@@ -11542,7 +11582,7 @@ $("#v-count").addEventListener("input", (e) => {
 function ctWeighPut(el) {
   clearTimeout(ctWeighPut.t);
   const r = ctRow(el.dataset.ctG), n = +el.value.replace(",", "."), w = r && ctWeigh(r, n), x = r && ctLine(r);
-  if (!w) return;
+  if (!w || (r.e && n < r.e - 20)) return;
   if (r.u !== "bottle") return ctPut(r, Math.floor(w.n), (w.n % 1) * 100);
   if (!w.full && n >= r.e - 20 && (x?.open ?? -1) !== w.open) {
     ctPut(r, x?.full || 0, w.open);
@@ -11927,7 +11967,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T17:20";
+const BUILD = "2026-11-18T17:32";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -13914,17 +13954,17 @@ const HELP = {
     how: ["Opened one? Tap Opened one and write the date it gives you on the label.", "Binned the old one and opened a new one? Tap Changed it.", "Binned with no new one opened? Tap Binned. ⋯ shows its history."],
     behind: ["Each tap is saved with your name and the time, so a label that wasn't changed can be traced.", "Due today, tomorrow and overdue show at the top of Morning and Closing, and go in the handover.", "Only managers add, change or remove items. They set each side up from Black Tap's list in one go, with the days from each pack."] },
   count: { t: "Stock", what: "Its own tab: the count book, the barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place, in the order you walk it.",
-    how: ["The Stock tab, at the bottom. First time? It walks you through it with pictures: the scale, full bottles, the open one, and what to do if something isn't listed. How to count shows it again, and Counting tips (front to back, cases, fridges, wine, kegs) sit under it.", "Walk it in order and tap each item. Each line says what to do with it.",
+    how: ["The Stock tab, at the bottom. First time? It walks you through it with pictures: the scale, full bottles, the open one, and what to do if something isn't listed. How to count shows it again, and Counting tips (front to back, cases, fridges, wine, kegs) sit under it, both in Options.", "Every place is numbered in the order you walk it, and folds open one at a time: tap a place to open it. It says how many are counted (4 of 12), or ✓ all counted. Items are numbered too, and a counted bottle says what's there: 2 full · ½ open.", "Options, under the progress bar, holds the rest: the day, the order, cl or ml first, which places are in your count, How to count and the tips.", "Splitting the count? Places in this count, in Options, takes the places someone else is doing off your phone: the list and the progress are only yours. The totals and the spreadsheet still have every place.",
       "A bottle is two lines: Full, + for each full, sealed one, then Open: None, ¼, ½ or ¾, by eye. Each tap saves, and the line shows the sum (3 full + ½ open (35 cl · 350 ml) = 3.5 bottles). Then Confirm › moves on, and ‹ Back goes to the item before. Under Find: the place you're in, how far through it, and Next place ›.",
       "Same as it was at the last count? Same as last time, at the top of the line, does it in one tap.",
       "Tapped the wrong one? ↩ Undo, under Find, puts the last item back as it was, for 12 seconds. It also says whether it's saved or still on your phone waiting for signal: keep counting either way, nothing is lost.",
       "Check it on a line: a number far from the last count (30 for 3, a case counted as bottles). Count it again, or tap It's right. They're listed under Worth a second look until they're done.",
       "Two of you on the same item? The newest count stands, and whoever replaces the other's is told, with Undo to put it back. Splitting the places is quicker.",
       "For example: 3 sealed Smirnoff and an open one about four-tenths full: Full 3, open .4. That's 3.4 bottles, and 3.4 × 700 ml = 2,380 ml (238 cl, 2.38 litres). The line shows the sum as you go.",
-      "cl and ml: 1 cl = 10 ml, so 70 cl is 700 ml. Sizes on the count show both; cl ⇄ ml at the top swaps which comes first, and a bottle size can be typed either way.",
-      "Need it closer? More, under the line: tenths, 📷 Photo check (your photo beside a sealed one: tap the base, the full line and the liquid and it reads the level, with a line for each tenth), the bottle picture, and the scale: pourer off, type the grams (every bottle has its size and weights filled in). More stays open on your phone once you open it, so weighing every bottle is still one step.",
+      "cl and ml: 1 cl = 10 ml, so 70 cl is 700 ml. Sizes on the count show both; cl ⇄ ml, in Options, swaps which comes first, and a bottle size can be typed either way.",
+      "Need it closer? More, under the line: tenths, 📷 Photo check (your photo beside a sealed one, or a drawing of one until someone takes the photo, so there's always a baseline: tap the base, the full line and the liquid and it reads the level, with a line for each tenth), the bottle picture, and the scale: pourer off, type the grams (every bottle has its size and weights filled in, and shows the minimum: the empty bottle's weight. Anything under it says so and isn't saved). More stays open on your phone once you open it, so weighing every bottle is still one step.",
       "Anything else (cans, cakes, packs): + and −, or type it and press Enter. Half is .5. The count is drinks and desserts only: supplies, gas and table sauces are off (a manager can switch one on in Set up the count).",
-      "Not in shelf order? Type a few letters in Find at the top: it looks in every place and says where each one is. The place buttons jump to a place. By kind puts all the vodkas, all the cakes and so on together, wherever they're kept. A to Z lists everything by name with the letter strip down the side. Next › goes down whichever is showing.",
+      "Not in shelf order? Type a few letters in Find at the top: it looks in every place and says where each one is. By kind, in Options, puts all the vodkas, all the cakes and so on together, wherever they're kept. A to Z lists everything by name with the letter strip down the side. Next › goes down whichever is showing.",
       "Not counted yet shows only what's left, so the list gets shorter as you go. Counted shows what's done and who did it. All shows the lot.",
       "Hands full? 🎤 Say it, or type in the same box, the name then how many: “Smirnoff two and a half”, “Kraken 845 grams”. Check what it heard, then Save it.",
       "📷 Scan: point the camera at a bottle's barcode and it opens that item to count, with its date label. The first time a barcode is scanned, pick which item it is: from then on it finds it for everyone. Camera won't read it? Type the barcode's numbers into Find.",
@@ -14292,8 +14332,8 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 12;
-const WALK_NEW = "Stock count: picking a level no longer jumps on: check the sum, then Confirm ›, with ‹ Back for the item before. Under Find: where you are and Next place, ↩ Undo, and Check it on a number far from last time. Photo check reads the level from three taps on your photo.";
+const WALK_V = 13;
+const WALK_NEW = "Stock count: tidier. Places are numbered and fold open one at a time, items are numbered, and a counted bottle says what's there (2 full · ½ open). The day, order, cl or ml, How to count and tips are in Options, which also picks the places that are yours tonight.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -14308,10 +14348,10 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
   "Log it and send on WhatsApp puts it in the team chat from your phone, so everyone knows now.",
 ], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
 const WALK_COUNT = { t: "Stock count", how: [
-  "The Stock tab: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left. Counting tips are under How to count.",
+  "The Stock tab: the first time, it walks you through it with pictures. Every place is numbered in the order you walk it and folds open one at a time, and Not counted yet shows only what's left. Options holds the day, the order, cl or ml, which places are yours tonight, How to count and the tips.",
   "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm ›. ‹ Back goes to the item before. Same as last time does a line in one tap. More has tenths, Photo check and the scale.",
   "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 📷 Scan its barcode. Or 🎤 Say it: “Smirnoff two and a half”.",
-  "For example: 3 sealed Smirnoff and an open one about four-tenths full is Full 3, open .4 (under More), which is 3.4 bottles of 70 cl, or 2,380 ml. The line shows the sum. Sizes show in cl and ml (1 cl = 10 ml); cl ⇄ ml at the top swaps which leads.",
+  "For example: 3 sealed Smirnoff and an open one about four-tenths full is Full 3, open .4 (under More), which is 3.4 bottles of 70 cl, or 2,380 ml. The line shows the sum. Sizes show in cl and ml (1 cl = 10 ml); cl ⇄ ml, in Options, swaps which leads.",
   "Mis-tap? ↩ Undo, under Find, puts it back. Check it on a line means it's far from last time: count it again, or tap It's right.",
   "Use-by, at the top of Stock: date labels due in the next 3 days. Changed it saves the new date in one tap.",
   "Anything under its running-low level gets a Running low tag, then shows on the 86 board, the bar station and Needs you now as a heads-up before it's an 86.",

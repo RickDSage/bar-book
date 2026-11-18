@@ -36,7 +36,7 @@ test("running low: a level, a count under it, flagged everywhere until it's 86'd
   await M.waitForFunction(() => lowNow().length === 1);
   assert.deepEqual(await lows(M), ["Smirnoff 2.4 3"]);
   await S.click('[data-ct-show="done"]');
-  assert.match(await text(S, '[data-ct-row="Speed rail|Smirnoff"].ct-line'), /2\.4 bottles Running low/);
+  assert.match(await text(S, '[data-ct-row="Speed rail|Smirnoff"].ct-line'), /2\.4 bottles 2 full · \.4 open Running low/);
   await S.click("#ct-tot-box summary");
   assert.match(await text(S, ".ct-tot"), /Smirnoff Running low: below 3 bottles 2\.4 bottles/);
   assert.deepEqual(await S.evaluate(() => SHARE.count().parts.find((x) => x.id === "low").lines), ["Smirnoff: 2.4 bottles (low below 3 bottles)"]);
