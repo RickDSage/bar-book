@@ -76,7 +76,6 @@ function exTables() {
 const exPicked = () => exTables().filter((x) => !EX.off.has(x.L.k) && x.rows.length);
 const exPeople = () => [...new Set(EX.D ? EX_LOGS.flatMap((L) => L.rows(EX.D).flatMap((r) => r.who)) : [])].sort((a, b) => a.localeCompare(b));
 const exName = (ext) => `bar-book-${EX.from === EX.to ? EX.from : `${EX.from}-to-${EX.to}`}${EX.side === "all" ? "" : `-${EX.side}`}${EX.who ? `-${slugName(EX.who)}` : ""}.${ext}`;
-const slugName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const exAbout = () => [["Exported", mgShort({ toMillis: () => Date.now() })], ["By", LIVE.me || ""], ["Shift dates", EX.from === EX.to ? dayName(EX.from) : `${dayName(EX.from)} to ${dayName(EX.to)}`],
   ["Side", EX.side === "all" ? "Bar and floor" : sideName(EX.side)], ["Person", EX.who || "Everyone"], ["Logs", exPicked().map((x) => x.L.n).join(", ")],
   ["Shift date", "The business day. Anything after midnight counts for the night before, as it does in Bar Book."], ["Photos", "Closing photos stay in Bar Book: Team, Closing reports."]];

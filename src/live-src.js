@@ -168,6 +168,8 @@ function listen(uid) {
     });
     // A copy of everything the team sends on WhatsApp, email or print, for the seniors and the owner.
     if (LIVE.admin) sub("sent", query(collection(db, "sent"), orderBy("at", "desc"), limit(150)), (snap) => { LIVE.sent = rows(snap); liveChanged("sent"); });
+    // Who has watched tonight's brief, for the managers.
+    if (LIVE.admin) subDay("seen", () => query(collection(db, "briefSeen"), where("day", "==", shiftDay())), (snap) => { LIVE.seen = rows(snap); liveChanged("seen"); });
     // Who to call: the venue's own numbers, kept by the manager.
     // The names to pick from, kept by the managers. None saved yet means the app's own list.
     sub("names", doc(db, "settings", "names"), (x) => { LIVE.names = x.exists() ? { mgr: x.data().mgr, bar: x.data().bar, floor: x.data().floor } : null; liveChanged("names"); });
@@ -528,6 +530,7 @@ LIVE.api = {
   logIt: (side, what, label) => setDoc(doc(db, "events", `g-${doc(collection(db, "events")).id}`), { kind: "log", day: shiftDay(), area: side, what, label, note: "", ...me() }),
   // Its writer or a manager can take one off.
   dropLog: (id) => deleteDoc(doc(db, "events", id)),
+  briefSeen: (side) => setDoc(doc(db, "briefSeen", `${shiftDay()}--${auth.currentUser.uid}`), { day: shiftDay(), side, ...me() }),
   addPhoto: (data, side) => addDoc(collection(db, "photos"), { data, note: "", report: null, side, ...me() }),
   saveDraft: (side, x) => { const day = shiftDay(); return setDoc(doc(db, "drafts", `${day}-${side}`), { day, side, ...x, ...me() }); },
   dropDraft: (side) => deleteDoc(doc(db, "drafts", `${shiftDay()}-${side}`)),
@@ -682,7 +685,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, lowLines: [], countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] });
+  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, lowLines: [], countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [], seen: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

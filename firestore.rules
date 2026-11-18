@@ -608,6 +608,13 @@ service cloud.firestore {
     // restock, the item, amount and place; for a label, what was done and its dates). Nobody edits or deletes an event:
     // a correction is a new change with its own event. Ids carry the record's version, so a retried or repeated write
     // can't add a second event for the same change.
+    // briefSeen/{day}--{uid}: who has watched tonight's brief, for the managers' Seen by. One per person a day, written
+    // by that person; read only by the managers.
+    match /briefSeen/{id} {
+      allow read: if isManager();
+      allow create, update: if isMember() && exactly(['day', 'side', 'uid', 'name', 'at']) && stamped()
+        && isDay(incoming().day) && nearNow(incoming().day) && incoming().side in ['bar', 'floor'] && id == incoming().day + '--' + request.auth.uid;
+    }
     match /events/{id} {
       allow read: if isMember();
       allow create: if isMember() && stamped() && nearNow(incoming().day) && reqText(incoming().label, 200) && optText(incoming().note, 300)

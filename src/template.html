@@ -945,6 +945,18 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .btn, .chip, .tile, .round, .star { transition: transform .08s ease-out; }
 .btn:active, .chip:active, .tile:active, .round:active, .star:active { transform: scale(.96); }
 .row { transition: background .12s; border-radius: 10px; }
+/* Select on the drinks list: a tick box per drink, and one bar at the bottom to share them. */
+.row.picking .pk-box { display: grid; place-items: center; width: 30px; height: 30px; margin-left: 6px; border: 2px solid var(--line); border-radius: 8px; font-weight: 800; color: var(--brass-ink); }
+.row.picking[aria-pressed="true"] .pk-box { background: var(--brass); border-color: var(--brass); }
+.row.picking[aria-pressed="true"] { background: var(--surface); }
+.pickbar { position: fixed; left: 0; right: 0; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); z-index: 8; display: flex; align-items: center; gap: 10px; padding: 10px max(16px, env(safe-area-inset-left, 0px)); background: var(--surface); border-top: 1px solid var(--brass); box-shadow: 0 -8px 18px var(--shadow); }
+.pickbar[hidden] { display: none; }
+.pick-top { display: flex; justify-content: flex-end; margin: 4px 0 -4px; }
+.pick-top .linkbtn { min-height: 44px; }
+.pickbar > span { flex: 1; min-width: 0; font-weight: 700; }
+.pickbar .btn { min-height: 44px; }
+body.picking main { padding-bottom: calc(var(--tabh) + 90px); }
+body.picking #sd-mic, body.picking #sd-timer { display: none; }
 .row:active { background: var(--surface); }
 .welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); overflow-y: auto; transition: opacity .3s, transform .3s; }
 .welcome.bye { opacity: 0; transform: scale(1.03); pointer-events: none; }
@@ -1277,6 +1289,8 @@ function msgText(m, pick, note = "", wa = true) {
     out.push("", b(p.one ? p.label : `${p.label} (${partItems(p)})`), ...p.lines.map((l) => (p.one || p.raw || /^\s/.test(l) ? l : `• ${l}`)));
   }
   if (note.trim()) out.push("", ...(m.noteHead === null ? [] : [b("Note")]), note.trim());
+  // Every message says when it was true, so an old one forwarded later is never taken for tonight's.
+  out.push("", `${m.asOf || "As of"} ${stamp(new Date())}`);
   // Photos saved in Bar Book: the link opens them, so a phone that can't attach photos still gets them to the team.
   if (m.link) out.push("", m.photoN ? `\ud83d\udcf7 ${plural(m.photoN, "photo")} and the rest in Bar Book (team only): ${m.link}` : `Open in Bar Book: ${m.link}`);
   return out.join("\n");
@@ -1308,11 +1322,11 @@ let snd = null;
 // A builder can offer one choice (how late, which shift, who): SHARE[k](value) builds the message for it.
 const sndMsg = () => snd && withLink(snd.k, snd.opt, SHARE[snd.k](snd.opt));
 function openSend(k, o, note = "") {
-  const m = SHARE[k](o); if (!m) return toast("Nothing to send yet");
+  const m = withLink(k, o, SHARE[k](o)); if (!m) return toast("Nothing to send yet");
   if ($("#sheet").hidden) lastFocus = document.activeElement;
   document.querySelector(".swhint")?.remove();
   // From a drink, Back goes back to the drink.
-  const s = snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, card: true, cards: null, busy: false, drink: k === "drink" ? +o : null, rep: k === "report" && $("#rep") ? o : null };
+  const s = snd = { k, opt: m.choose?.v ?? o, pick: pickOf(m), note, photos: [], files: null, card: !m.photoCard, cards: null, busy: false, drink: k === "drink" ? +o : null, rep: k === "report" && $("#rep") ? o : null, gal: k === "photos" && $("#gal") ? o : null };
   $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Send</span><span></span></div></div><div id="send"></div>`;
   renderSend(m); showSheet(false); $("#sheet").scrollTop = 0; $("#sh-close").focus(); sndCards();
   if (m.photos) m.photos().then((ps) => {
@@ -1510,6 +1524,26 @@ const issueLines = (x) => [`${x.title} · ${AREA[x.area] || "Other"}${x.status =
 // One row under the search: A to Z or Sections, Filters and Favourites. A to Z has the letter strip down the side
 // (az.js); on Sections, the Sections button names the section you're in and opens the list of them.
 let favOnly = store.get("favOnly", false);
+/* Select: tap drinks (or a whole section with Pick all) and send their specs, swaps included, in one message. One
+   bar at the bottom says how many and sends them; Done leaves it. */
+let pick = null;
+function pickBar() {
+  let el = $("#pickbar");
+  if (!pick || cur !== "drinks") { if (el) el.hidden = true; document.body.classList.remove("picking"); return; }
+  if (!el) { el = document.createElement("div"); el.id = "pickbar"; el.className = "pickbar"; document.body.append(el); }
+  el.hidden = false; document.body.classList.add("picking");
+  const ids = [...pick].slice(0, SPEC_MAX);
+  el.innerHTML = `<span>${pick.size ? plural(pick.size, "drink") : "Tap drinks to pick them"}</span>${pick.size ? `<button class="linkbtn" data-pick-clear>Clear</button>${sendBtn("specs", "Share", ids.join(",")).replace('class="btn"', 'class="btn pri"')}` : ""}<button class="btn" data-pick-done>Done</button>`;
+}
+function pickSet(on) { pick = on ? new Set() : null; haptic(); renderBar(); renderList(); pickBar(); }
+document.addEventListener("click", (e) => {
+  if (e.target.closest("[data-pick-done]")) return pickSet(false);
+  if (e.target.closest("[data-pick]")) return pickSet(true);
+  if (e.target.closest("[data-pick-clear]")) { pick.clear(); haptic(); renderList(); return pickBar(); }
+  const all = e.target.closest("[data-pick-all]"); if (!all || !pick) return;
+  const ids = all.dataset.pickAll.split(",").map(Number), has = ids.every((i) => pick.has(i));
+  ids.forEach((i) => (has ? pick.delete(i) : pick.add(i))); haptic(); renderList(); pickBar();
+});
 let fav = new Set(store.get("fav", []));
 const favOk = (d) => !favOnly || fav.has(d.name);
 // The menu's sections by their short names, so they fit the button and the jump list.
@@ -1565,6 +1599,7 @@ function setOut(name, on) {
   track(LIVE.api.set86(name, on), null, "86 list not updated. Someone may have just changed it");
 }
 function rowHtml(d) {
+  if (pick) return `<button class="row picking${isOut(d.name) ? " out" : ""}" data-id="${d.id}" aria-pressed="${pick.has(d.id)}"><span class="pk-box" aria-hidden="true">${pick.has(d.id) ? "\u2713" : ""}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)}${isOut(d.name) ? " \u00b7 86'd" : ""}</div></div></button>`;
   if (isOut(d.name)) return `<button class="row out" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s">Out tonight</div></div><span class="price"><span class="x">86'd</span></span></button>`;
   return `<button class="row" data-id="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><div><div class="n" translate="no">${esc(d.name)}</div><div class="s" translate="no">${esc(d.glass)} · ${esc(blurb(d))}${plOutTag(d)}</div></div></button>`;
 }
@@ -1605,8 +1640,10 @@ function renderList() {
   if (!rows.length && favOnly && !q) { $("#list").innerHTML = `<p class="empty">No favourites yet. Open a drink and tap \u2606 to keep it here. Tap \u2605 again to see every drink.</p>`; return; }
   if (!rows.length) { $("#list").innerHTML = `<p class="empty">Nothing matches. Try a spirit, like “rum”, or clear the search${plActive().length ? " and the filters" : ""}.</p>${q ? `<p class="note" style="text-align:center"><a href="${formUrl($("#q").value.trim())}" target="_blank" rel="noopener">Not in the book? Ask for it to be added</a></p>` : ""}`; return; }
   // Each section can go out as one WhatsApp message of its specs, straight from its heading.
-  const head = (k, ds, attr = "") => `<div class="sec"${attr}>${esc(k)}<span class="cnt">${ds.length}</span><button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button></div>`;
-  let html = q ? "" : sdSeasonBanner();
+  const head = (k, ds, attr = "") => `<div class="sec"${attr}>${esc(k)}<span class="cnt">${ds.length}</span>${pick
+    ? `<button class="ssend" data-pick-all="${ds.map((d) => d.id).join(",")}">${ds.every((d) => pick.has(d.id)) ? "Unpick all" : "Pick all"}</button>`
+    : `<button class="ssend" data-send="specs" data-send-o="${ds.slice(0, SPEC_MAX).map((d) => d.id).join(",")}" aria-label="Send the ${esc(k)} specs">Send</button>`}</div>`;
+  let html = (q ? "" : sdSeasonBanner()) + (pick ? "" : `<div class="pick-top"><button class="linkbtn" data-pick>Select drinks to send \u203a</button></div>`);
   if (groups.size) for (const [k, ds] of groups) html += `<i class="anc" id="${sid(k)}"></i>${head(k, ds)}${ds.map(rowHtml).join("")}`;
   else if (az) {
     // The signatures first (★ on the letter strip), then every drink under its letter, signatures too.
@@ -1615,7 +1652,8 @@ function renderList() {
     html += azHtml(rows, (d) => d.name, rowHtml, 13);
   } else html += rows.map(rowHtml).join("");
   // A narrowed list (favourites, a filter or a search) can go out as one WhatsApp message of specs.
-  if (narrowed) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}${rows.length > 1 && rows.length <= 60 ? `<button class="btn" data-pl-share>Share as a list</button>` : ""}</div>`;
+  if (pick) html += `<div class="actions"><button class="btn" data-pick-all="${listIds.join(",")}">${listIds.every((i) => pick.has(i)) ? "Unpick every drink shown" : `Pick all ${listIds.length} shown`}</button></div>`;
+  else if (narrowed) html += `<div class="actions">${sendBtn("specs", rows.length > SPEC_MAX ? `Send the first ${SPEC_MAX} specs` : rows.length === 1 ? "Send this spec" : "Send these specs", listIds.slice(0, SPEC_MAX).join(","))}</div>`;
   $("#list").innerHTML = html;
   jumpSync();
 }
@@ -1654,7 +1692,11 @@ document.addEventListener("touchend", (e) => {
 // The sticky jump bar and headings sit under the sticky search bar, whatever its height.
 function hdhSet() { document.documentElement.style.setProperty("--hdh", `${$("#hdr").offsetHeight}px`); }
 new ResizeObserver(hdhSet).observe($("#hdr"));
-document.addEventListener("click", (e) => { const r = e.target.closest(".row[data-id]"); if (r) openSheet(+r.dataset.id); if (e.target.closest("[data-pl-share]")) openListMaker(listIds.slice()); });
+document.addEventListener("click", (e) => {
+  const r = e.target.closest(".row[data-id]"); if (!r) return;
+  if (pick && r.closest("#list")) { const id = +r.dataset.id; pick.has(id) ? pick.delete(id) : pick.add(id); haptic(); renderList(); return pickBar(); }
+  openSheet(+r.dataset.id);
+});
 
 /* ---------- Spec sheet ---------- */
 const QTY = /^((?:\d+(?:\.\d+)?|half|one|two|three)\s?(?:ml|cl|l|g)\b|(?:\d+|a|half a|one|two|three)\s(?:dash(?:es)?|drops?|slices?|heaped spoons?|spoons?|wedges?|leaves|sprigs?|scoops?|can|cans|shots?|pinch(?:es)?)(?: of)?|dash of|pinch of|half pinch of|top with|top up with)\s+(.*)$/i;
@@ -1675,14 +1717,17 @@ function specRow(line) {
 // The method a step a line, as on the drink.
 const methodLines = (method) => method.split(/\.\s+|,\s+(?=(?:then |and )?(?:add|shake|stir|strain|double|fine|pour|top|garnish|float|zest|build|fill|drop|serve|muddle|layer|rim|discard|dry|churn|blend|lick|slam|shoot|chase)\b)/i)
   .map((s) => s.replace(/\.$/, "").trim()).filter(Boolean).map((s) => s[0].toUpperCase() + s.slice(1));
+const slugName = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 SHARE.drink = (id) => {
   const d = D[+id]; if (!d) return null;
   const m = mediaOf(d), al = d.allergens && d.allergens !== "None" ? d.allergens : "";
-  return { what: d.name, title: `${d.name} · Black Tap Soho`,
+  return { what: d.name, title: `${d.name} · Black Tap Soho`, asOf: "Spec as of",
     head: [`Glass: ${d.glass}`, `Ice: ${d.ice}`, `Garnish: ${d.garnish}`, ...(al ? [`Allergens: ${al}`] : [])],
     parts: [{ id: "spec", label: "Spec", lines: d.spec }, { id: "method", label: "Method", lines: methodLines(d.method) },
-      { id: "subs", label: "Out of something?", one: true, lines: d.subs ? d.subs.map((x) => `• ${x}`) : [], off: true, opt: true }],
-    photos: m?.photo ? async () => [{ data: m.photo, note: d.name, file: d.name.toLowerCase().replace(/[^a-z0-9]+/g, "-") }] : null,
+      { id: "subs", label: "Out of something?", one: true, lines: d.subs ? d.subs.map((x) => `• ${x}`) : [], opt: true }],
+    // The drink's own picture card goes first (it reads well in WhatsApp), then the house photo if there is one.
+    photoCard: true, photos: async () => [{ data: URL.createObjectURL(await plCardBlob(d)), note: "", file: `${slugName(d.name)}-card` },
+      ...(m?.photo ? [{ data: m.photo, note: d.name, file: slugName(d.name) }] : [])],
     tip: "Jigger everything. 12.5 ml is half a 25 ml jigger." };
 };
 function steps(method) {
@@ -1790,7 +1835,7 @@ function openSheet(id, keepScroll) {
     <div id="dmedit">${mediaEditHtml(d)}</div>
     ${isOut(d.name) || !LIVE.me ? "" : `<button class="link86" id="sh-86" data-name="${esc(d.name)}">Ran out? 86 this drink</button>`}
     <a class="link86" href="${formUrl(d.name)}" target="_blank" rel="noopener">Spec looks wrong? Send feedback</a>
-    <div class="actions">${sendBtn("drink", "Send this drink", String(id))}<button class="btn" data-pl-card>Picture card</button><button class="btn" data-pl-print>Print card</button></div>
+    <div class="actions">${sendBtn("drink", "Share this drink", String(id))}</div>
     <button class="btn wide" id="sh-close2">Back to drinks</button></div>`;
   showSheet(keepScroll);
   plTickMark(); plOutMark(d);
@@ -1903,6 +1948,7 @@ function hideSheet() {
 $("#sheet").addEventListener("click", (e) => {
   if (e.target.closest("#sh-close") && snd?.drink != null) { const id = snd.drink; snd = null; openSheet(id, true); $("#sheet").scrollTop = 0; return; }
   // From a handover, Back goes back to the handover.
+  if (e.target.closest("#sh-close") && snd?.gal) { const d = snd.gal; snd = null; openGallery(d, true); return; }
   if (e.target.closest("#sh-close") && snd?.rep) { const id = snd.rep; snd = null; openReport(id, true); return; }
   const rd = e.target.closest("[data-rep-del]"); if (rd) { delReport(rd.dataset.repDel); return; }
   if (e.target.closest("#sh-close, #sh-close2")) closeSheet();
@@ -3410,11 +3456,12 @@ function labelsReport() {
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
 function photosHtml() {
   return `<div class="sec">Closing photos</div>
-    <p class="note">Any time of the shift, from a phone or the iPad, by anyone on this side. Each one is saved for the whole team straight away (with no signal it waits on the phone, even if the app is closed) and goes with the handover. Send now shares one on its own as well. Whoever took a photo, or a manager, can delete it.</p>
+    <p class="note">Any time of the shift, from any phone or the iPad. Saved for the whole team straight away (with no signal it waits on the phone) and sent with the handover. Whoever took a photo, or a manager, can delete it.</p>
     ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo">${p.name ? `<div class="s">\ud83d\udcf7 <span translate="no">${esc(p.name)}</span>${p.at ? `, ${hhmm(new Date(ms(p.at)))}` : ""}</div>` : ""}<label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button>${p.uid === LIVE.uid || LIVE.admin ? `<button class="btn danger" data-ph-del="${p.id}">Delete photo</button>` : ""}</div></div>`).join("")}
     ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
       : photoBusy ? `<p class="note" role="status">Adding…</p>`
-      : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}`;
+      : `<div class="addph"><label class="btn pri" for="ph-in">Take a photo</label><label class="btn" for="ph-pick">Choose from your photos</label></div>`}
+    <button class="linkbtn" data-goto="photos">\ud83d\udcf7 Every photo tonight, bar and floor: pick and send \u203a</button>`;
 }
 // Under the photos: the checklist goes any time with its photos, and nothing needs saving by hand.
 const closeSendHtml = () => `<div class="sec">Send or save</div><p class="note">Ticks, photos and notes save by themselves as you go, for everyone on the team on any phone or the iPad. Leaving part-way? Anyone can carry on. Send the checklist with its photos any time, or hand over to save it for the morning and the managers.</p><div class="actions">${sendBtn("shift", draftPhotos().length ? `Send the checklist with ${plural(draftPhotos().length, "photo")}` : "Send the checklist")}</div>`;
@@ -5189,6 +5236,9 @@ const FEATURES = [
   { g: "Shift", k: "morning", n: "Morning", go: "morning", team: 1, tour: 1,
     what: "Before you open: a short brief of what matters today (tap the ring to play it full screen, one card at a time). Then last night's handover for the opening team, today's order from what ran low, and the prep pars for today.",
     staff: "Read the handover, send that it's checked with anything outstanding, send the order and the prep list on WhatsApp." },
+  { g: "Shift", k: "photos", n: "Photos", go: "photos", team: 1,
+    what: "Every photo the team took on a shift, bar and floor, from every phone and the iPad, sent or not yet: who took it, when and its note. Kept 30 days.",
+    staff: "Pick a night, tap the photos you want (or Pick all), then Send. Tap \u2922 to see one full size." },
   { g: "Shift", k: "lists", n: "Closing checklists", go: "shift", team: 1, tour: 1,
     what: "The bar and floor closes, ticked off live on every phone, with how long it's taking and who has ticked what.",
     staff: "Tick items off or a whole heading at once, mark one blocked and say why, give one to someone, or clear everything for a fresh start.", mgr: "Maintenance also has a master clear in Maintenance settings." },
@@ -5286,6 +5336,7 @@ function openAt(where) {
     return setTimeout(() => $("#tally .photo, #tally .addph")?.scrollIntoView({ block: "center" }), 80);
   }
   if (where === "shift") return show("tally");
+  if (where === "photos" || where.startsWith("gallery:")) return openGallery(where.slice(8) || shiftDay());
   if (where === "count") { pane = "stock"; show("tally"); if (LIVE.me) ctPage(); return; }
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
@@ -5301,7 +5352,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory",
+const PLACE_KW = { photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
@@ -6366,6 +6417,7 @@ function sinceHtml() {
 }
 function liveChanged(what) {
   if (what === "media") renderMedia();
+  if ((what === "photos" || what === "reports") && $("#gal")) galRefresh();
   // Leaving, or being taken off the team by the manager or the owner: the phone forgets the team code (it reloads
   // next), so it doesn't join straight back. The link from the staff group brings it back.
   if (what === "left" && idleOut) return;
@@ -6400,7 +6452,7 @@ function liveChanged(what) {
   if (!$("#v-notices").hidden) renderTeam();
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
-  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports", "count", "low", "countSetup", "received"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
+  if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports", "count", "low", "countSetup", "received", "seen"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
   if (["count", "countSetup", "received", "items", "out"].includes(what) && typeof ctRender === "function") ctRender();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
@@ -6464,6 +6516,7 @@ let cur = "drinks";
 let pageShown = false;
 function show(tab, fromBack = false) {
   if (!TABS.includes(tab) || (tab === "pay" && sharedDev)) tab = "drinks";
+  if (pick && tab !== "drinks") { pick = null; document.body.classList.remove("picking"); if ($("#pickbar")) $("#pickbar").hidden = true; }
   if (!fromBack) {
     if (!pageShown || history.state?.sheet) history.replaceState({ tab }, "");
     else if (tab !== cur) history.pushState({ tab }, "");

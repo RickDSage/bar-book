@@ -502,11 +502,19 @@ function briefHtml() {
   const ps = briefParts(), any = ps.filter((p) => p.lines.length && p.id !== "last");
   const seen = store.get("storySeen", "") === `${shiftDay()}-${mode}`;
   return `<div class="brief"><button class="story-ring${seen ? " seen" : ""}" data-story aria-label="Play tonight's brief"><span class="sr-dot">▶</span><span><b>Tonight's brief</b><small>${seen ? "Watched. Tap to see it again" : `${plural(any.length + 2, "card")}, tap through`}</small></span></button>
+    ${LIVE.admin ? seenHtml() : ""}
     <div class="sec">Before you open</div>
     ${any.length ? any.map((p) => `<button class="bline${p.hot ? " hot" : ""}" data-goto="${p.k}"><b>${p.label}</b><span translate="no">${p.lines.slice(0, 4).map((l) => esc(lineText(l))).join(" · ")}${p.lines.length > 4 ? ` +${p.lines.length - 4}` : ""}</span></button>`).join("")
       : `<p class="note">✅ Nothing 86'd, no labels due, no open faults.</p>`}
     <p class="note">Tonight's quiz is ready in Practise: same 10 for everyone.</p>
     <div class="actions">${sendBtn("brief", "Send the brief on WhatsApp")}</div></div>`;
+}
+// The managers' Seen by: who has watched tonight's brief, bar and floor, with when.
+function seenHtml() {
+  const xs = (LIVE.seen || []).slice().sort((a, b) => ms(a.at) - ms(b.at));
+  if (!xs.length) return `<p class="note seenby">\ud83d\udc41 Seen by: nobody yet tonight</p>`;
+  return `<details class="seenby"><summary>\ud83d\udc41 Seen by ${xs.length}: <span translate="no">${esc(xs.slice(0, 3).map((x) => x.name).join(", "))}${xs.length > 3 ? ` +${xs.length - 3}` : ""}</span></summary>
+    <ul translate="no">${xs.map((x) => `<li>${esc(x.name)} \u00b7 ${esc(sideName(x.side))} \u00b7 ${x.at ? hhmm(new Date(ms(x.at))) : ""}</li>`).join("")}</ul></details>`;
 }
 SHARE.brief = () => {
   const ps = briefParts().filter((p) => p.lines.length);
@@ -647,7 +655,10 @@ function storyCards() {
 function storyOpen() {
   if (!$("#story")) document.body.insertAdjacentHTML("beforeend", `<div id="story" class="story" role="dialog" aria-modal="true" aria-label="Tonight's brief" hidden></div>`);
   sto = { i: 0, xs: storyCards(), t0: Date.now(), paused: 0 };
-  $("#story").hidden = false; document.body.classList.add("storyon"); store.set("storySeen", `${shiftDay()}-${mode}`);
+  $("#story").hidden = false; document.body.classList.add("storyon");
+  // Once a night, the managers' Seen by hears about it (a manager watching their own isn't counted).
+  if (LIVE.me && !LIVE.admin && store.get("storySeen", "") !== `${shiftDay()}-${mode}`) LIVE.api?.briefSeen(mode).catch(() => {});
+  store.set("storySeen", `${shiftDay()}-${mode}`);
   storyDraw(); storyTimer();
 }
 function storyClose() { if (!sto) return; sto = null; clearInterval(storyTimer.h); $("#story").hidden = true; document.body.classList.remove("storyon"); if (cur === "tally") renderTally(); }
@@ -693,6 +704,7 @@ document.addEventListener("keydown", (e) => { if (!sto) return; if (e.key === "E
 document.head.insertAdjacentHTML("beforeend", `<style>
 .story-ring{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--fg);margin-top:12px;padding:6px 0}
 .sr-dot{flex:none;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:18px;color:var(--brass);background:var(--surface);box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--brass)}
+.seenby{margin:6px 0 0;font-size:14px;color:var(--muted)}.seenby summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:4px}.seenby ul{margin:0;padding-left:20px}
 .story-ring.seen .sr-dot{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--line);color:var(--muted)}.story-ring b{display:block;font-size:17px}.story-ring small{display:block;color:var(--muted);font-size:13px}
 body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background:#0d0c0a;color:#f4f1ea;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 20px);touch-action:none;user-select:none}
 .sbars{display:flex;gap:4px}.sb{flex:1;height:3px;border-radius:2px;background:#ffffff40;overflow:hidden}.sb i{display:block;height:100%;background:#fff}
