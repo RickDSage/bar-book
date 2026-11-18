@@ -716,6 +716,12 @@ liveChanged = function (what) {
   if (what === "season" && $("#v-drinks") && !$("#v-drinks").hidden) renderList();
 };
 
+let fabY = scrollY;
+addEventListener("scroll", () => {
+  const y = scrollY, d = y - fabY; if (Math.abs(d) < 8) return;
+  const end = innerHeight + y >= document.documentElement.scrollHeight - 60;
+  document.body.classList.toggle("fab-away", d > 0 && y > 120 && !end); fabY = y;
+}, { passive: true });
 document.head.insertAdjacentHTML("beforeend", `<style>
 #sd-off[hidden],#sd-last[hidden],#sd-timer[hidden],#sd-1h[hidden],#sd-mic[hidden]{display:none}
 .sd-state{margin:10px 0;padding:10px 12px;border:1.5px solid var(--ok);border-radius:12px;background:var(--surface);line-height:1.4}.sd-state>b{display:block;color:var(--ok);font-size:17px}
@@ -734,6 +740,9 @@ body.sd-1h #sd-timer{bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) +
 #sd-off{margin-top:8px;display:grid;grid-template-columns:auto 1fr;gap:2px 10px;align-items:center;background:#16351f;color:#e9f7ec;border:1.5px solid #4caf6a;border-radius:16px;padding:10px 14px;box-shadow:0 8px 24px #0007}
 #sd-off .dot{grid-row:span 2;width:14px;height:14px;border-radius:50%;background:#4caf6a;box-shadow:0 0 0 4px #4caf6a33}#sd-off b{font-size:17px}#sd-off span:last-child{font-size:13.5px;opacity:.9}
 body.sd-offon #net{display:none}
+/* Scrolling down to read, the 🎤 and the timer slide out of the way; scrolling back up, stopping at the end or any tap brings them back. */
+body.fab-away #sd-mic,body.fab-away #sd-timer{transform:translateY(calc(100% + 120px));opacity:0;pointer-events:none}
+#sd-mic,#sd-timer{transition:transform .25s ease,opacity .25s ease}
 #sd-mic{position:fixed;right:14px;bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 14px);z-index:7;width:52px;height:52px;border-radius:50%;background:var(--surface);border:1.5px solid var(--brass);font-size:22px;box-shadow:0 6px 18px #0006}
 /* The page ends clear of the 🎤, so the last row's buttons are never stuck under it. */
 body:has(#sd-mic:not([hidden])) main{padding-bottom:calc(var(--tabh) + env(safe-area-inset-bottom,0px) + 84px)}

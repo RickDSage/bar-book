@@ -1,0 +1,11 @@
+import { serve, resetEmulators, launch, team, attempt } from "./helpers.mjs";
+const site = await serve(".emusite"); await resetEmulators(); const b = await launch();
+const { M, S } = await team(b, site, [["M", "Mia", "mia", "manager"], ["S", "Sam"]]);
+await S.evaluate(() => LIVE.api.askRestock({ item: "Limes", qty: 2, unit: "box", dest: "up", detail: "" }));
+await M.evaluate(() => LIVE.api.askRestock({ item: "Tonic", qty: 1, unit: "case", dest: "up", detail: "" }));
+await S.waitForFunction(() => rsOpen().length === 2); await M.waitForFunction(() => rsOpen().length === 2);
+console.log("staff own", await attempt(S, () => LIVE.api.moveRestock(rsOpen().find((r) => r.item === "Limes"), "cancelled", { note: "Cleared" })));
+console.log("staff other", await attempt(S, () => LIVE.api.moveRestock(rsOpen().find((r) => r.item === "Tonic"), "cancelled", { note: "Cleared" })));
+await M.waitForTimeout(1000);
+console.log("mgr", await attempt(M, () => LIVE.api.moveRestock(rsOpen().find((r) => r.item === "Tonic"), "cancelled", { note: "Cleared" })));
+console.log(S.errs, M.errs); await b.close(); site.close();

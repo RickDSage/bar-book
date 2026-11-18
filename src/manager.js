@@ -470,30 +470,40 @@ function readyHtml() {
 }
 /* ---------- Pre-shift brief ----------
    At the top of Morning: one look before the doors open, made from what's already in Bar Book. Nobody writes it. */
+// A brief line is text, or { t, d } for one that opens drink d (a spec that changed).
+const lineText = (l) => (typeof l === "string" ? l : l.t);
 function briefParts(side = mode) {
   const r = lastReport(), h = r && reportDay(r) === lastNight() ? handoverOf(r) : null, now = toChange([side]), soon = labelsDue([side]).filter((x) => !now.includes(x));
   const games = LIVE.fixtures.filter((x) => x.day === ukDay(Date.now())).sort((a, b) => a.ko.localeCompare(b.ko));
   const iss = openIssues().filter((x) => [side, "other", "cellar", "toilets", "terrace"].includes(x.area) || x.urgent).sort((a, b) => b.urgent - a.urgent);
+  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for today.
+  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For today: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
+  const carry = typeof carryRows === "function" ? carryRows(false).filter((x) => x.sd === side) : [];
+  // What changed since this person was last in (specs, the team's changes). Last night's handover has its own card.
+  const since = (typeof sinceLast === "function" ? sinceLast(side) : []).filter((p) => p.id !== "handover");
   return [
-    // Another part of the app can add what changed since this person was last in (same shape).
-    ...(typeof sinceLast === "function" ? sinceLast(side) : []),
-    { id: "out", k: "stock", label: "86'd", lines: [...outNow()].sort() },
+    ...since.filter((p) => p.id === "specs"),
     { id: "now", k: "labels", label: "Date labels to change now", lines: now.map((x) => `${x.item} (use by ${dayName(x.useBy)})`), hot: true },
-    { id: "soon", k: "labels", label: "Date labels due tomorrow", lines: soon.map((x) => x.item) },
-    { id: "next", k: "morning", label: "Last night said, for today", lines: h ? hoSplit(h.next) : [] },
+    { id: "out", k: "stock", label: "86'd", lines: [...outNow()].sort() },
+    { id: "low", k: "stock", label: "Running low", lines: typeof lowNow === "function" ? lowNow().map((x) => `${x.item}: ${lowSay(x)}`) : [] },
+    { id: "last", k: "morning", label: "Last night's handover", lines: ho },
+    { id: "carry", k: "send", label: "Started, not handed over yet", lines: carry.map((x) => `${x.bits.join(", ")}${x.by ? `, started by ${x.by}` : ""}. Anyone can carry on`) },
     { id: "issues", k: "issues", label: "Open faults", lines: iss.map((x) => `${x.urgent ? "URGENT: " : ""}${x.title}`), hot: iss.some((x) => x.urgent) },
     { id: "restock", k: "stock", label: "Restocks waiting", lines: rsOpen().filter((x) => DEST_SIDE[x.dest] === side).map((x) => amtOf(x.qty, x.unit, x.item)) },
     { id: "games", k: "football", label: "Games on today", lines: games.map((x) => `${x.ko} ${x.home} v ${x.away}`) },
+    { id: "soon", k: "labels", label: "Date labels due tomorrow", lines: soon.map((x) => x.item) },
     { id: "approve", k: "stock", label: "Waiting for you to check", lines: LIVE.owner ? LIVE.items.filter((x) => x.status === "waiting").map((x) => `${x.item} (${x.addedBy})`) : [] },
+    ...since.filter((p) => p.id !== "specs"),
   ];
 }
 function briefHtml() {
   if (!LIVE.me) return "";
-  const ps = briefParts(), any = ps.filter((p) => p.lines.length);
+  // Last night's handover is in full just below on the Morning page, so the list here leaves it to that.
+  const ps = briefParts(), any = ps.filter((p) => p.lines.length && p.id !== "last");
   const seen = store.get("storySeen", "") === `${shiftDay()}-${mode}`;
   return `<div class="brief"><button class="story-ring${seen ? " seen" : ""}" data-story aria-label="Play tonight's brief"><span class="sr-dot">▶</span><span><b>Tonight's brief</b><small>${seen ? "Watched. Tap to see it again" : `${plural(any.length + 2, "card")}, tap through`}</small></span></button>
     <div class="sec">Before you open</div>
-    ${any.length ? any.map((p) => `<button class="bline${p.hot ? " hot" : ""}" data-goto="${p.k}"><b>${p.label}</b><span translate="no">${p.lines.slice(0, 4).map(esc).join(" · ")}${p.lines.length > 4 ? ` +${p.lines.length - 4}` : ""}</span></button>`).join("")
+    ${any.length ? any.map((p) => `<button class="bline${p.hot ? " hot" : ""}" data-goto="${p.k}"><b>${p.label}</b><span translate="no">${p.lines.slice(0, 4).map((l) => esc(lineText(l))).join(" · ")}${p.lines.length > 4 ? ` +${p.lines.length - 4}` : ""}</span></button>`).join("")
       : `<p class="note">✅ Nothing 86'd, no labels due, no open faults.</p>`}
     <p class="note">Tonight's quiz is ready in Practise: same 10 for everyone.</p>
     <div class="actions">${sendBtn("brief", "Send the brief on WhatsApp")}</div></div>`;
@@ -501,7 +511,7 @@ function briefHtml() {
 SHARE.brief = () => {
   const ps = briefParts().filter((p) => p.lines.length);
   return { what: "Pre-shift brief", title: `Black Tap Soho · ${sideName(mode)} pre-shift · ${dayName(shiftDay())}`, head: [ps.length ? "" : "✅ Nothing 86'd, no labels due, no open faults"].filter(Boolean),
-    parts: [...ps.map((p) => ({ id: p.id, label: p.label, lines: p.lines })), { id: "quiz", label: "Tonight's quiz", one: true, lines: ["Practise > Quiz in Bar Book: 10 questions, first go counts"] }] };
+    parts: [...ps.map((p) => ({ id: p.id, label: p.label, lines: p.lines.map(lineText) })), { id: "quiz", label: "Tonight's quiz", one: true, lines: ["Practise > Quiz in Bar Book: 10 questions, first go counts"] }] };
 };
 LINKS.brief = () => "#at=morning"; LINKS.week = () => "#at=week"; LINKS.lblog = () => "#at=lblog"; LINKS.training = () => "#at=tab:practice";
 
@@ -629,7 +639,7 @@ let sto = null;
 function storyCards() {
   const ps = briefParts().filter((p) => p.lines.length), hot = ps.filter((p) => p.hot).length;
   return [
-    { k: "", label: `${sideName(mode)} · ${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}`, big: ps.length ? `${plural(ps.length, "thing")} to know${hot ? `, ${hot} urgent` : ""}` : "All clear tonight", lines: ps.map((p) => p.label) },
+    { k: "", label: `${sideName(mode)} · ${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}`, big: ps.length ? `${plural(ps.length, "thing")} to know${hot ? `, ${hot} urgent` : ""}` : "All clear tonight", lines: ps.map((p) => (p.lines.length === 1 ? `${p.label}: ${lineText(p.lines[0])}` : `${p.label} (${p.lines.length})`)) },
     ...ps.map((p) => ({ k: p.k, label: p.label, lines: p.lines, hot: p.hot })),
     { k: "tab:practice", label: "Tonight's quiz", big: "10 questions. First go counts.", lines: ["Same 10 for everyone", "Then try a speed drill and beat your best"], end: true },
   ];
@@ -657,7 +667,7 @@ function storyDraw() {
   $("#story").innerHTML = `<div class="sbars">${sto.xs.map((_, j) => `<span class="sb"><i data-n="${j}" style="width:${j < sto.i ? 100 : 0}%"></i></span>`).join("")}</div>
     <button class="st-x" data-story-x aria-label="Close">×</button>
     <div class="st-card${c.hot ? " hot" : ""}"><div class="st-k">${esc(c.label)}</div>${c.big ? `<div class="st-big">${esc(c.big)}</div>` : ""}
-      <ul class="st-l" translate="no">${c.lines.slice(0, 9).map((l) => `<li>${esc(l)}</li>`).join("")}${c.lines.length > 9 ? `<li>+${c.lines.length - 9} more</li>` : ""}</ul>
+      <ul class="st-l" translate="no">${c.lines.slice(0, 9).map((l) => `<li>${typeof l !== "string" && l.d != null ? `<button class="st-open" data-story-open="${l.d}">${esc(l.t)} <span aria-hidden="true">›</span></button>` : esc(lineText(l))}</li>`).join("")}${c.lines.length > 9 ? `<li>+${c.lines.length - 9} more</li>` : ""}</ul>
       <div class="st-act">${c.k ? `<button class="btn pri" data-story-go="${esc(c.k)}">${c.end ? "Take the quiz" : "Go there"}</button>` : ""}${c.end ? sendBtn("brief", "Send the brief") : ""}</div></div>
     <button class="st-prev" data-story-step="-1" aria-label="Back"></button><button class="st-next" data-story-step="1" aria-label="Next"></button>`;
 }
@@ -665,6 +675,7 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-story]")) { haptic(); storyOpen(); return; }
   if (!sto) return;
   if (e.target.closest("[data-story-x]")) return storyClose();
+  const o = e.target.closest("[data-story-open]"); if (o) { storyClose(); openSheet(+o.dataset.storyOpen); return; }
   const g = e.target.closest("[data-story-go]"); if (g) { const k = g.dataset.storyGo; storyClose(); openAt(k); scrollTo(0, 0); return; }
   if (e.target.closest("[data-send]")) { storyClose(); return; }
   const s = e.target.closest("[data-story-step]"); if (s) storyGo(+s.dataset.storyStep);
@@ -690,6 +701,7 @@ body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background
 .st-k{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#c9a45c}.st-card.hot .st-k{color:#ff6b5b}
 .st-big{font-family:var(--display);font-size:42px;line-height:1.05;text-transform:uppercase;margin-top:10px}
 .st-l{list-style:none;margin:16px 0 0;padding:0}.st-l li{font-size:22px;line-height:1.3;padding:8px 0;border-bottom:1px solid #ffffff1f}
+.st-open{pointer-events:auto;color:inherit;font:inherit;text-align:left;padding:0;background:none;border:0;text-decoration:underline;text-decoration-color:#c9a45c;text-underline-offset:4px}.st-open span{color:#c9a45c}
 .st-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
 .st-prev,.st-next{position:absolute;top:70px;bottom:0;z-index:1}.st-prev{left:0;width:33%}.st-next{right:0;width:67%}
 @media (min-width:700px){.st-big{font-size:56px}.st-l li{font-size:26px}}

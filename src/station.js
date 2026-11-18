@@ -304,7 +304,7 @@ function sxTonight() {
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">?</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn sx-who" data-who-open hidden></button><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guide aria-label="Guide: ask Bar Book anything">?</button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
     <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}">${t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
     <div class="sx-tms" id="sx-tms" hidden></div>
     <div class="sx-86s" id="sx-86s" role="status" hidden></div>
@@ -323,7 +323,13 @@ function renderStation() {
       <section class="sx-spec" id="sx-spec" aria-label="Spec"></section>
     </div>`;
   document.body.classList.toggle("sxbig", SX.big);
-  sxBars(); sxList(); sxSpec(); sxTonight(); sxTimers(); sxFit();
+  sxBars(); sxList(); sxSpec(); sxTonight(); sxTimers(); sxFit(); sxWho();
+}
+// Who the station is saving under, one tap to switch on the shared iPad.
+function sxWho() {
+  const w = $("#v-station [data-who-open]"); if (!w) return;
+  w.hidden = !(LIVE.me && LIVE.anon);
+  if (LIVE.me) { w.textContent = `\ud83d\udc64 ${LIVE.me}`; w.setAttribute("aria-label", `${LIVE.me}. Switch person`); w.setAttribute("translate", "no"); }
 }
 // Everything that can go on the 86 board: the stock list, every ingredient in a spec, every drink. Anything else typed
 // still goes on, as typed (a burger, a glass).

@@ -228,6 +228,23 @@ test("the dry run: a whole night and the morning after, on every kind of screen"
   await D.evaluate(() => openAt("ready")); await D.waitForTimeout(1500); await look(D, "ready for friday (maintenance)");
   await H.evaluate(() => openAt("ready")); await H.waitForTimeout(1500); await look(H, "ready for friday (manager)");
 
+  // Clear everything really clears: lists, 86s, the handover boxes, unsent photos, restocks still waiting and the
+  // half-typed forms on Shift. A staff phone cancels only the restocks it asked for; a manager's clears every one.
+  await E.evaluate(() => LIVE.api.askRestock({ item: "Limes", qty: 2, unit: "box", dest: "up", detail: "" }));
+  await H.evaluate(() => LIVE.api.askRestock({ item: "Tonic", qty: 1, unit: "case", dest: "up", detail: "" }));
+  await E.evaluate(() => LIVE.api.set86("Mint", true).catch(() => {}));
+  await wait(E, () => rsOpen().length === 2);
+  await E.evaluate(() => { show("tally"); setMode("bar"); });
+  await tap(E, ".ptabs [data-pane=stock]");
+  await E.evaluate(() => { rsF.detail = "Running low, the big bottles, for the weekend"; saveDrafts(); renderTally(); });
+  E.answer = ""; await tap(E, "#clear-all"); await E.waitForTimeout(1500);
+  await look(E, "after Clear everything (staff)");
+  const afterE = await E.evaluate(() => ({ open: rsOpen().map((r) => r.item), out: [...outNow()], ticked: Object.values(MODE_LISTS).flat().flatMap(touched).length, draft: rsF.detail, undo: !!document.querySelector("#undo-clear") }));
+  if (JSON.stringify(afterE) !== JSON.stringify({ open: ["Tonic"], out: [], ticked: 0, draft: "", undo: true })) found.push(`iphone · Clear everything left: ${JSON.stringify(afterE)}`);
+  H.answer = ""; await H.evaluate(() => { show("tally"); }); await tap(H, "#clear-all"); await H.waitForTimeout(3000);
+  await look(H, "after Clear everything (manager)");
+  const hl = await H.evaluate(() => ({ open: rsOpen().map((r) => [r.item, r.status, r.askedUid === LIVE.uid]), admin: LIVE.admin, toast: $("#toast").textContent, undo: !!document.querySelector("#undo-clear") })); if (hl.open.length) found.push(`android · a manager's Clear everything left: ${JSON.stringify(hl)}`);
+
   // The morning: Angel opens Bar Book at 10am; the bar's morning shows last night's handover with its photos.
   const A = await device("iphone");
   await A.clock.setFixedTime(new Date(Date.now() + 9 * 36e5));
