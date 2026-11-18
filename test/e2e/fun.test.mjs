@@ -147,7 +147,7 @@ test("since you were last in: a changed spec shows once on a new shift day, and 
   await p.waitForSelector("#since", { timeout: 8000 });
   const t = await p.textContent("#since");
   assert.match(t, /Since you were last in/);
-  assert.match(t, /Changed: Espresso Martini/);
+  assert.match(t, /Espresso Martini: spec changed/);
   assert.match(t, /Off the menu: Gone Drink/);
   await p.click('#since [data-since-go=""]');
   assert.equal(await p.$("#since"), null);
