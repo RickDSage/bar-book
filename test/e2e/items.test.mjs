@@ -243,6 +243,7 @@ test("labels by station; found open: staff are told to discard it, a manager dat
   await M.click(`[data-lb-more="${id}"]`);
   await M.waitForSelector(".tmore .photo img");
   assert.match(await text(M, ".tmore"), /Taken by Sam Staff/);
+  await M.waitForFunction(() => !/Reading the history/.test(document.querySelector(".tmore").innerText));
   assert.match(await text(M, ".tmore"), /found one open with no label and dated it: use by .*I opened it at yesterday's close/);
 
   // A barcode typed in: Open Food Facts says what it is, then the usual lookup.

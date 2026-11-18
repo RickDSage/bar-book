@@ -67,7 +67,7 @@ test("? buttons open the right panel for what's on screen, don't fold a card, an
   // Shift: the ? by the title follows the pane.
   await S.click("nav.tabs [data-tab=tally]"); await S.waitForSelector("#shift-title .hq");
   await S.evaluate(() => { pane = "stock"; renderTally(); });
-  await S.click("#shift-title .hq"); assert.match(await S.textContent("#help-t"), /86 board/);
+  await S.click("#shift-title .hq"); assert.match(await S.textContent("#help-t"), /86 and restock/);
   // Tapping the same ? again shuts it.
   await S.click("#shift-title .hq", { force: true }); assert.equal(await S.isHidden("#help"), true);
   await S.click("#clear-all + .hq"); assert.match(await S.textContent("#help-t"), /Clear everything/);
