@@ -32,19 +32,13 @@ var IT_KINDS = {
   supplies: { t: "Supplies (not food or drink)", side: "bar", store: "ambient", label: false, close: "keep", tip: "" },
   other: { t: "Something else", side: "bar", store: "ambient", label: false, close: "keep", tip: "" },
 };
-// Shelf life: where it lives and how long it typically keeps once opened, from the makers' own packs and help pages
-// (checked 17 Nov 2026) or the venue's own rules. It's typical only: the date on the pack always wins, and whoever
-// opens one reads it. days fills in the date label's days; no days means "read the pack".
+// Shelf life when the maker doesn't print one (facts.js has the makers' own): where it lives and how long it typically
+// keeps once opened, from the venue's own rules or a reputable source (checked 17 Nov 2026). Typical only: the date on
+// the pack always wins. days fills in the date label's days; no days means "read the pack".
 var IT_KEEP = [
-  [/baileys|irish cream|cream liqueur/, { fridge: false, say: "Baileys: 24 months from bottling, opened or not. No fridge needed" }],
-  [/oat ?milk|oatly|oat drink/, { fridge: true, days: 5, say: "Oatly: keep in the fridge, use within 5 days once opened" }],
-  [/\bmilk\b/, { fridge: true, days: 3, say: "Fresh milk: fridge, usually 3 days once opened" }],
-  [/^(?!.*\b(?:ice|whipped|cream) cream\b).*\bcream\b(?! soda)/, { fridge: true, days: 3, say: "Fresh cream: fridge, usually 3 days once opened" }],
-  [/funkin|pur[ée]e/, { fridge: true, days: 8, say: "Funkin purées: fridge once opened, 8 to 10 days (the pack says which)" }],
   [/maraschino|cocktail cherr/, { fridge: true, days: 28, say: "Venue rule: 4 weeks once opened" }],
-  [/(strawberry|raspberry) sauce/, { fridge: true, days: 14, say: "Bar Book's list: 14 days once opened" }],
   [/vermouth|martini (rosso|bianco|extra dry)/, { fridge: true, days: 30, say: "Vermouth: fridge once opened, about a month" }],
-  [/monin|giffard|1883|torani/, { fridge: false, say: "Monin: room temperature, 90 to 180 days with the cap on, 30 to 60 with a pump or pourer" }],
+  [/giffard|1883|torani/, { fridge: false, say: "Syrups: room temperature, months with the cap on. The bottle says how long" }],
   [/prosecco|champagne|cava|sparkling/, { fridge: true, say: "Opened fizz: stopper on, fridge, use it the next day or two" }],
 ];
 var IT_KEEP_KIND = {
@@ -57,16 +51,21 @@ var IT_KEEP_KIND = {
   dessert: { fridge: true, days: 2, say: "Venue rule: opened today plus 2 days" }, sauce: { fridge: true, say: "Fridge once opened. Days: on the pack" },
   topping: { fridge: false, say: "Lid on. Days: on the pack" }, icecream: { fridge: false, say: "Freezer, lid on" }, supplies: null, other: null,
 };
-// The shelf life for something by name (and kind, when it's known).
-// A name's own line only counts while it's still that kind of thing: Funkin changed to "dessert" keeps a dessert's days.
+// The shelf life for something by name (and kind, when it's known): the maker's own guidance first (facts.js), then the
+// typical. A name's own line only counts while it's still that kind of thing: Funkin changed to "dessert" keeps a
+// dessert's days.
 function itKeep(name, kind) {
-  const t = ` ${name.toLowerCase()} `, own = itKindOf(name) || itKindOf(name, true), hit = (!kind || !own || own === kind) && IT_KEEP.find(([re]) => re.test(t));
+  const t = ` ${name.toLowerCase()} `, own = itKindOf(name) || itKindOf(name, true), same = !kind || !own || own === kind;
+  const mk = same && factKeep(name);
+  if (mk) return { fridge: !!mk.f, days: mk.d || 0, say: `${mk.n}, the maker says: ${mk.t}`, maker: true };
+  const hit = same && IT_KEEP.find(([re]) => re.test(t));
   return hit ? hit[1] : IT_KEEP_KIND[kind || own] || null;
 }
 function itKeepHtml(name, kind) {
-  const k = itKeep(name, kind); if (!k) return "";
-  const set = (LIVE.labels || []).filter((x) => itNorm(x.item) === itNorm(name)).map((x) => `${sideName(x.side)}: keeps ${nDays(x.life)} once opened (set on Labels)`);
-  return `<div class="it-keep"><b>Shelf life</b> · ${k.fridge ? "Fridge once opened" : "No fridge needed"}<div class="s">${esc(k.say)}. Typical only: the date on the pack always wins.</div>${set.length ? `<div class="s">${esc(set.join(" · "))}</div>` : ""}</div>`;
+  const k = itKeep(name, kind), f = factOf(name); if (!k && !f) return "";
+  const set = (LIVE.labels || []).filter((x) => itNorm(x.item) === itNorm(name)).map((x) => `${sideName(x.side)}: keeps ${nDays(x.life)} once opened (set on Labels, this wins)`);
+  return `<div class="it-keep">${k ? `<b>Shelf life</b> · ${k.fridge ? "Fridge once opened" : "No fridge needed"}<div class="s">${esc(k.say)}. ${k.maker ? "Maker's guidance" : "Typical only"}: the date on the pack always wins.</div>` : ""}${set.length ? `<div class="s">${esc(set.join(" · "))}</div>` : ""}
+    ${f ? `<button class="linkbtn" data-fx-open="${esc(name)}">What the maker says: size, allergens, what's in it ›</button>` : ""}</div>`;
 }
 var IT_STORE = { fridge: "Fridge", bottle: "Bottle fridge", backbar: "Back bar", ambient: "Dry store or shelf", freezer: "Freezer", cellar: "Cellar" };
 var IT_CLOSE = { keep: "Leave it where it lives", fridge: "Back in the fridge", cover: "Cover, label and fridge", bin: "Bin it" };
@@ -234,7 +233,7 @@ function itFormHtml() {
     <div class="two"><label class="fld">Side<select data-it="side">${opt(SIDE_NAME, f.side)}</select></label>
       <label class="fld">Where it's kept<select data-it="store">${opt(IT_STORE, f.store)}</select></label></div>
     <label class="check"><input type="checkbox" data-it="label"${f.label ? " checked" : ""}> Needs a date label once it's opened</label>
-    ${f.label ? `<label class="fld">Days it keeps once opened<input data-it="life" inputmode="numeric" maxlength="3" placeholder="From the pack. Blank: a manager fills it in" value="${esc(f.life)}"></label>${f.life && (itKeep(f.item, f.kind) || {}).days === Number(f.life) ? `<p class="s">Filled in from the typical shelf life above. Change it to what the pack says.</p>` : ""}` : ""}
+    ${f.label ? `<label class="fld">Days it keeps once opened<input data-it="life" inputmode="numeric" maxlength="3" placeholder="From the pack. Blank: a manager fills it in" value="${esc(f.life)}"></label>${f.life && (itKeep(f.item, f.kind) || {}).days === Number(f.life) ? `<p class="s">Filled in from the ${itKeep(f.item, f.kind).maker ? "maker's guidance" : "typical shelf life"} above. Change it to what the pack says.</p>` : ""}` : ""}
     <label class="fld">At close<select data-it="close">${opt(IT_CLOSE, f.close)}</select></label>
     ${k.tip ? `<p class="note">${esc(k.tip)}</p>` : ""}
     <label class="fld">Anything else to know <span class="s">(optional)</span><input data-it="note" maxlength="200" value="${esc(f.note)}" placeholder="Which shelf, which fridge, who orders it"></label>

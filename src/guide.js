@@ -7,8 +7,8 @@
    The 🔍 at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 14;
-const WALK_NEW = "🔍 at the top finds any screen, drink or how-to: type it and tap to go there. 🎤 sits next to it now, never over the page: it shows the words as it hears them, says when it couldn't make them out, and a drink said opens straight away. On Closing, tap a heading to fold it. Stock count: tidier. Places are numbered and fold open one at a time, items are numbered, and a counted bottle says what's there (2 full · ½ open). The day, order, cl or ml, How to count and tips are in Options, which also picks the places that are yours tonight.";
+const WALK_V = 15;
+const WALK_NEW = "Date labels: not sure if something needs one? 🔍 Look anything up on Labels: it says if it does, and its use-by if you open one today. Where the venue hasn't set the days, the maker's own once-opened guidance is used. More, Everything we stock: any product's size, allergens as the maker states them and how long it keeps, each with where it came from.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -142,11 +142,11 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
+const GD_HELP = { facts: "facts", drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [
-  ["Drinks", ["drinks", "rapid", "make", "allergens", "sheets", "station", "voice"]],
+  ["Drinks", ["drinks", "rapid", "make", "facts", "allergens", "sheets", "station", "voice"]],
   ["Shift and 86", ["morning", "stock", "labels", "logit", "football"]],
   ["Closing and handover", ["lists", "send"]],
   ["Stock", ["count", "order"]],
@@ -164,7 +164,7 @@ const gdItems = () => featSorted([
   { g: "Shift", k: "logit", n: "Log it", go: "log", team: 1, what: "Anything you see, find, do, are told or tell a manager, in one line with your name and the time. It goes in tonight's handover by itself." },
   { g: "Drinks", k: "station", n: "Bar station (iPad)", go: "tab:station", what: "The iPad on the bar: tap a drink and Make it now shows it a big step card at a time, with the jigger side for each amount. A big ticket typed straight into the round, numbered in making order. Tonight: the 86s and every job in one list, with how each stands." },
 ]);
-const GD_KW = { ...PLACE_KW, logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round big ticket several drinks order add jigger tiles jobs tonight show hide switch off choose what shows", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make select share send several specs section", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
+const GD_KW = { ...PLACE_KW, facts: "product products allergen allergens ingredients expiry expires use by opened keeps shelf life size weight abv strength maker label contains nuts milk gluten soya egg supplier davinci eager funkin monin", logit: "log note report told manager saw found did tell everyone whatsapp", station: "ipad tablet bar station big screen make it now step cards rush round big ticket several drinks order add jigger tiles jobs tonight show hide switch off choose what shows", make: "cocktail maker ingredients what can i make", drinks: "spec recipe cocktail drink menu glass batch bottle swap missing go with the flow adjusted can make select share send several specs section", voice: "voice say speak microphone mic siri hands free talk key words dictate", stock: "86 out of missing run out back in swap running low nearly out low stock level" };
 const GD_STOP = new Set(["how", "do", "does", "i", "we", "you", "to", "make", "a", "an", "the", "what", "whats", "what's", "is", "are", "where", "can", "my", "of", "for", "in", "on", "it", "find", "get", "use"]);
 const gdWords = (q) => plNorm(q).replace(/'/g, "").split(/[\s,?!.]+/).filter(Boolean);
 // What was asked: a drink, a page or a meaning. Every word left after the question words has to match, typos allowed.
@@ -179,8 +179,10 @@ function gdSearch(q) {
   const pages = gdItems().filter((f) => hit(`${f.n} ${f.what} ${f.staff || ""} ${GD_KW[f.k] || ""} ${HELP[GD_HELP[f.k]]?.how.join(" ") || ""}`))
     .map((f, i) => [hit(`${f.n} ${f.what}`) ? 0 : 1, i, f]).sort((x, y) => x[0] - y[0] || x[1] - y[1]).map((x) => x[2]).slice(0, 4);
   const terms = GLOSSARY.filter(([t, d]) => hit(t) || (ws.length > 1 && hit(`${t} ${d}`))).slice(0, 3);
-  const asksHow = /\b(how|make|recipe|spec)\b/.test(all.join(" ")), asksWhat = /^(what|whats)\b/.test(all.join(" "));
-  return { q, words: ws, drinks, pages, terms, fixed: pq.fixed, order: asksWhat ? ["terms", "drinks", "pages"] : asksHow ? ["drinks", "pages", "terms"] : ["pages", "drinks", "terms"] };
+  // "baileys allergens", "oat milk use by": the product words find it, the question words put it first.
+  const pw = ws.filter((w) => !FX_ASK.test(w)), products = pw.length ? fxFind((s) => { const xs = words(s); return pw.every((w) => mkWordHit(w, xs)); }) : [];
+  const asksHow = /\b(how|make|recipe|spec)\b/.test(all.join(" ")), asksWhat = /^(what|whats)\b/.test(all.join(" ")), asksFact = pw.length < ws.length;
+  return { q, words: ws, drinks, pages, terms, products, fixed: pq.fixed, order: asksFact ? ["products", "pages", "drinks", "terms"] : asksWhat ? ["terms", "products", "drinks", "pages"] : asksHow ? ["drinks", "pages", "products", "terms"] : ["pages", "drinks", "products", "terms"] };
 }
 let gdQ = "", gdAsked = "";
 function gdResultsHtml() {
@@ -188,9 +190,10 @@ function gdResultsHtml() {
   if (!r) return gdHomeHtml();
   const drinkRow = (d) => `<button class="gd-row" data-gd-drink="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><span><b translate="no">${esc(d.name)}</b><small>${esc(d.glass)} · spec and step by step</small></span><i>›</i></button>`;
   const pageRow = (f) => `<button class="gd-row" data-gd-go="${f.k}"><span><b>${esc(f.n)}</b><small>${esc(f.what)}</small></span><i>›</i></button>`;
+  const productRow = (x) => `<button class="gd-row" data-fx-open="${esc(x.n)}"><span><b translate="no">${esc(x.n)}</b><small>${esc(x.g || "Product")} · size, allergens, once opened</small></span><i>›</i></button>`;
   const termRow = ([t, d]) => `<div class="gd-term"><b>${esc(t)}</b><span>${esc(d)}</span></div>`;
   const parts = { drinks: r.drinks.length && `<div class="mini">Drinks</div>${r.drinks.map(drinkRow).join("")}`, pages: r.pages.length && `<div class="mini">In Bar Book</div>${r.pages.map(pageRow).join("")}`,
-    terms: r.terms.length && `<div class="mini">What it means</div>${r.terms.map(termRow).join("")}` };
+    terms: r.terms.length && `<div class="mini">What it means</div>${r.terms.map(termRow).join("")}`, products: r.products.length && `<div class="mini">What we stock</div>${r.products.map(productRow).join("")}` };
   const body = r.order.map((k) => parts[k]).filter(Boolean).join("");
   const asked = gdAsked === gdQ.trim().toLowerCase();
   const miss = `<div class="gd-miss${body ? " soft" : ""}"><b>${body ? "Not what you meant?" : "That isn't in Bar Book yet."}</b><span>${asked ? "Sent to maintenance to add. Thanks." : "Send it to maintenance to add. They check it first, so nothing goes in until it's right."}</span>

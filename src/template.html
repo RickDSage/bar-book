@@ -3403,7 +3403,7 @@ function labelMore(x) {
     ${stationField(lbe.side, lbe.station, 'data-lbe="station"')}
     <label class="check"><input type="checkbox" data-lbe="on"${lbe.on ? " checked" : ""}> Needs a date label</label>
     <div class="actions"><button class="btn pri" data-lb-edit="${x.id}">Save changes</button><button class="btn danger" data-lb-del="${x.id}">Take it off the list</button></div>` : "";
-  return `<div class="tmore">${edit}${labelPhotoHtml(x)}<div class="mini">History</div>${labelHist(x)}</div>`;
+  return `<div class="tmore">${factOf(x.item) ? `<button class="linkbtn" data-fx-open="${esc(x.item)}">What the maker says about ${esc(x.item)} ›</button>` : ""}${edit}${labelPhotoHtml(x)}<div class="mini">History</div>${labelHist(x)}</div>`;
 }
 // A photo of the pack or the label, as a record: the latest one, read when ⋯ is opened. Anyone can take one.
 let lbPh = null;
@@ -3457,15 +3457,16 @@ function labelHist(x) {
 const lbS = { open: null, off: {}, life: {} };
 const lbKey = (side, n) => `${side}|${n}`;
 const ideasLeft = (side) => [...(LABEL_IDEAS[side] || []), ...itLabelIdeas(side)].map(([g, xs]) => [g, xs.filter(([n]) => !dupLabel(n, side))]).filter(([, xs]) => xs.length);
-const ideaLife = (side, n, d) => lbS.life[lbKey(side, n)] ?? (d ? String(d) : "");
+// Venue days first, then the maker's own once-opened guidance (facts.js). A manager can change either before adding.
+const ideaLife = (side, n, d) => lbS.life[lbKey(side, n)] ?? (d ? String(d) : factKeep(n)?.d ? String(factKeep(n).d) : "");
 function labelListHtml(side) {
   const left = ideasLeft(side); if (!left.length) return "";
   const n = left.reduce((k, [, xs]) => k + xs.length, 0), open = lbS.open ?? !sideLabels(side).length;
   return `<details class="setup" id="lb-list"${open ? " open" : ""}><summary>Black Tap's list: ${n} not added yet</summary>
-    <p class="note">Everything the ${lower(sideName(side))} dates once it's opened. Days are filled in only where our closing procedure gives them. Fill in the rest from each pack ("once opened, use within…") or the kitchen's food safety sheet, untick anything this side doesn't keep, then add them. "typ." is what it typically keeps: the pack always wins.</p>
+    <p class="note">Everything the ${lower(sideName(side))} dates once it's opened. Days come from our own closing procedure first, then the maker's once-opened guidance (marked M). Change any of them to set the venue standard, fill in the blanks from the pack, untick anything this side doesn't keep, then add them. "typ." is only what it typically keeps: the pack always wins. <button class="linkbtn" data-fx-list>Look anything up</button></p>
     ${left.map(([g, xs]) => `<div class="mini">${esc(g)}</div>${xs.map(([it, d]) => {
       const k = lbKey(side, it);
-      return `<div class="lbpick"><label class="check"><input type="checkbox" data-lbs-on="${esc(it)}"${lbS.off[k] ? "" : " checked"}> ${esc(it)}</label><input data-lbs-life="${esc(it)}" inputmode="numeric" maxlength="3" placeholder="${itKeep(it)?.days ? `typ. ${itKeep(it).days}` : "Days"}" aria-label="Days ${esc(it)} keeps once opened" value="${esc(ideaLife(side, it, d))}"></div>`;
+      return `<div class="lbpick"><label class="check"><input type="checkbox" data-lbs-on="${esc(it)}"${lbS.off[k] ? "" : " checked"}> ${esc(it)}${!d && factKeep(it)?.d ? ' <span class="pill" title="Maker\'s guidance">M</span>' : ""}</label><input data-lbs-life="${esc(it)}" inputmode="numeric" maxlength="3" placeholder="${itKeep(it)?.days ? `typ. ${itKeep(it).days}` : "Days"}" aria-label="Days ${esc(it)} keeps once opened" value="${esc(ideaLife(side, it, d))}"></div>`;
     }).join("")}`).join("")}
     <div class="actions"><button class="btn pri" id="lbs-go">Add the ticked ones</button></div></details>`;
 }
@@ -3520,6 +3521,7 @@ function labelsHtml(side) {
   const head = `<div class="sec">Date labels</div>`;
   if (!LIVE.loaded.has("labels")) return `${head}<p class="note">Loading. It needs signal the first time.</p>`;
   return `${head}<p class="note">Opened one? Tap Opened one and write the date it gives you on the label. Binned the old one and opened a new one? Tap Changed it. Found one open with no label? Tap Found open. Each tap is saved with your name and the time.</p>
+    <button class="linkbtn" data-fx-list>🔍 Needs a label? Look anything up: its use-by if opened today ›</button>
     ${labelsList(side) || `<p class="note">Nothing here yet. ${LIVE.admin ? "Add what this side dates once it's opened, below." : "A manager adds what needs a date label."}</p>`}
     ${sideLabels(side).some((x) => x.on) ? `<div class="actions">${sendBtn("labels", "Send the date labels", side)}</div>` : ""}
     ${LIVE.admin ? labelAddHtml(side) : ""}`;
@@ -5206,6 +5208,7 @@ const IC = {
   fun: '<rect x="4" y="4" width="16" height="16" rx="3"/><circle cx="9" cy="9" r="1.2"/><circle cx="15" cy="15" r="1.2"/><circle cx="15" cy="9" r="1.2"/><circle cx="9" cy="15" r="1.2"/>',
   replay: '<path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/><path d="M10.5 9.5l4 2.5-4 2.5z"/>',
   feedback: '<path d="M4 5h16v11H9l-5 4z"/><path d="M8 9h8M8 12h5"/>',
+  facts: '<path d="M9 3h6v4l3 4v9a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-9l3-4z"/><path d="M9 13h6M9 17h4"/>',
 };
 const icon = (k) => `<svg viewBox="0 0 24 24" aria-hidden="true">${IC[k]}</svg>`;
 const hubRow = (k, attr, t, sub) => `<${attr.startsWith("href") ? "a" : "button"} class="hrow2" ${attr}><span class="hic">${icon(k)}</span><span><b>${t}</b><small>${sub}</small></span><span class="chev" aria-hidden="true">${attr.startsWith("href") ? "↗" : "›"}</span></${attr.startsWith("href") ? "a" : "button"}>`;
@@ -5216,6 +5219,7 @@ function renderInfo() {
     <h2 class="pgt">More</h2>
     <div class="sec">Drinks</div>
     <div class="hub">
+      ${hubRow("facts", "data-fx-list", "Everything we stock", "Search any product: size, allergens, how long it keeps opened, its use-by today")}
       ${hubRow("allergens", 'data-go="allergens"', "Allergens", "Which drinks have milk, nuts, gluten and the rest")}
       ${hubRow("sheets", 'data-go="sheets"', "Cheat sheets", "A page per kind of drink, to send to WhatsApp or print")}
       ${mode !== "bar" && !stationOn ? "" : hubRow("station", 'data-go="station"', "Bar station", stationOn ? "On: this iPad opens on it. Exit bar station turns it off" : "Turn this iPad into the bar station: big drink search and specs, rounds, tonight's 86s and the close")}
@@ -5316,13 +5320,16 @@ const FEATURES = [
   { g: "Drinks", k: "allergens", n: "Allergens", go: "tab:allergens", tour: 1,
     what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
     staff: "Tap an allergen to see every drink with it." },
+  { g: "Drinks", k: "facts", n: "Everything we stock", go: "facts",
+    what: "Any product we sell or date, from the maker's own pages: size, strength, ingredients, allergens, how long it keeps once opened, and its use-by if you open one today. Each fact links to where it came from.",
+    staff: "Search it, or tap Allergens, size, once opened on a bottle in the line-up. Allergens are what the maker says it contains: always check the label in your hand. Anything not found yet says so, to read off the pack." },
   { g: "Drinks", k: "practice", n: "Practise", go: "tab:practice", tour: 1,
     what: "Flashcards on the specs, tonight's quiz (the same 10 for everyone), speed drills against the clock, Bar 101 for what to say when a guest asks, and the new starter path.",
     staff: "Practise one section or everything. Bar 101 remembers the cards you know and asks the rest first. Your first go at tonight's quiz, your drills and Bar 101 show on the managers' Training page; your best times stay on your phone." },
   { g: "Drinks", k: "sheets", n: "Cheat sheets", go: "tab:sheets",
     what: "A4 pages to print double-sided and laminate for behind the bar, a section of drinks on each." },
   { g: "Drinks", k: "info", n: "More", go: "tab:info",
-    what: "Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's language, look and home screen icon." },
+    what: "Everything we stock, Allergens, Practise and Cheat sheets, then the bar's reference (measures and the law, the technique key, prep and batches, the shot tray guide), and this phone's language, look and home screen icon." },
   { g: "Drinks", k: "pay", n: "My pay", go: "tab:pay", tour: 1,
     what: "Everything about your pay in one tab: add your payslips and every month is broken down by itself (hours, your rate plus tronc an hour, tax, National Insurance and take-home), with your next pay predicted from your average hours and tronc, holiday built up, and what's left after your bills. It stays on your phone: nobody else sees it and it never goes online.",
     staff: "Tap Add payslips and pick your payslips, a year's at once if you like, or Type it in to put the figures in by hand. Change the hours or tronc an hour under any month still to come to see what it would pay." },
@@ -5422,6 +5429,7 @@ function openAt(where) {
   if (where !== "siri" && !$("#sheet").hidden) hideSheet();
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where.startsWith("rep:")) return openReport(where.slice(4));
+  if (where === "facts") return openFacts("");
   // Tonight's closing photos for a side, from a message's link: the close, scrolled to them.
   if (where.startsWith("photos:")) {
     const sd = where.slice(7); if (MODE_LISTS[sd] && sd !== mode) setMode(sd);

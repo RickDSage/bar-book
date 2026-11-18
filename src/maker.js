@@ -712,7 +712,7 @@ function btServeHtml(x) {
   return `<div class="bt-card"><div class="n"><span translate="no">${esc(x.name)}</span>${x.abv ? `<span class="abv" translate="no">${esc(x.abv)}</span>` : ""}</div>
     ${x.note ? `<p class="bt-note" translate="no">${esc(x.note)}</p>` : ""}
     <dl class="bt-dl">${[["Glass", x.glass], ["Measure", x.measure], ["Pour", x.pour]].filter(([, v]) => v && v !== "As the drink").map(([t, v]) => `<div><dt>${t}</dt><dd translate="no">${esc(v)}</dd></div>`).join("")}</dl>
-    ${n ? `<button class="chip" data-bt-use="${esc(x.k)}">Drinks with it <small>${n}</small></button>` : ""}</div>`;
+    <div class="chips">${n ? `<button class="chip" data-bt-use="${esc(x.k)}">Drinks with it <small>${n}</small></button>` : ""}<button class="chip" data-fx-open="${esc(x.name)}">${factOf(x.name) ? "Allergens, size, once opened" : "Product facts"}</button></div></div>`;
 }
 function btPane() {
   const v = mk.bt.view;
