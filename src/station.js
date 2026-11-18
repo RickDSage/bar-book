@@ -251,7 +251,7 @@ const SX_VIEWS = [["drink", "Drinks"], ["round", "Round"], ["batch", "Batches"],
 /* One tap from the station to every job behind the bar. Each opens its page; the station comes back on its own after 2
    quiet minutes, or with Bar station at the bottom. */
 const SX_GO = [["stock", "86 and low", "\u26d4"], ["close", "Closing", "\u2705"], ["send", "Hand over", "\ud83d\udcdd"], ["photos", "Photos", "\ud83d\udcf7"],
-  ["labels", "Date labels", "\ud83c\udff7\ufe0f"], ["count", "Stock count", "\u2696\ufe0f"], ["morning", "Morning", "\u2600\ufe0f"]];
+  ["labels", "Date labels", "\ud83c\udff7\ufe0f"], ["count", "Stock", "\u2696\ufe0f"], ["morning", "Morning", "\u2600\ufe0f"]];
 /* iPad tiles: what shows on this station, switched on or off in Set up by a manager. Kept on this iPad, as it's the
    station's own layout, so it survives reloads and needs nothing from the team's database. */
 const SX_TILES = [["round", "Round"], ["batch", "Batches"], ["quiz", "Quiz"], ...SX_GO.map(([k, t]) => [`go-${k}`, t]),
