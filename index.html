@@ -716,6 +716,28 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-find #ct-say { flex: 1; min-width: 0; font-size: 17px; padding-left: 36px; min-height: 48px; }
 .ct-find .btn { min-height: 48px; white-space: nowrap; }
 #ct-heard-slot:empty { display: none; }
+/* The Stock tab: the find bar stays at the top while the list scrolls. */
+#v-count .ct-find { position: sticky; top: 0; z-index: 4; background: var(--bg); margin: 8px calc(-1 * max(16px, env(safe-area-inset-left, 0px))) 0; padding: calc(env(safe-area-inset-top, 0px) + 8px) max(16px, env(safe-area-inset-right, 0px)) 8px max(16px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); }
+#v-count .shift-top .s { color: var(--muted); font-size: 14px; }
+@media (max-width: 429px) { .ct-bl { display: none; } .ct-find #ct-scan, .ct-find #ct-mic { min-width: 48px; padding-inline: 10px; font-size: 20px; } }
+.ct-scan { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--brass); border-radius: 14px; background: var(--surface); }
+.ct-scan h3 { margin: 4px 0 8px; font-size: 22px; }
+.ct-scan .s { margin: 0; }
+.ct-scan .mini { margin-top: 10px; }
+.ct-lb { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+.ct-lb:last-child { border-bottom: 0; }
+.ct-lb .actions { margin: 0; flex-wrap: nowrap; }
+.ct-tips dl { margin: 6px 0 4px; }
+.ct-tips dt { font-weight: 700; margin-top: 10px; }
+.ct-tips dd { margin: 2px 0 0; line-height: 1.45; color: var(--fg); }
+.ct-move { margin-top: 18px; }
+.ct-six { font-size: 18px; }
+.ct-same { width: 100%; margin: 4px 0 10px; min-height: 48px; justify-content: space-between; }
+.ct-same small { color: var(--muted); font-weight: 400; margin-left: 6px; }
+.ct-phc { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 10px 0 4px; }
+.ct-phc figure { margin: 0; }
+.ct-phc figcaption { font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.ct-phc img { width: 100%; aspect-ratio: 3 / 4; object-fit: cover; border-radius: 10px; border: 1px solid var(--line); }
 #ct-heard-slot .ct-heard, #ct-heard-slot .warnline { margin: 8px 0 0; }
 .ct-head .s { margin: 10px 0 6px; }
 .ct-bar { height: 6px; border-radius: 3px; background: var(--surface); overflow: hidden; }
@@ -726,7 +748,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-how li { margin: 6px 0; line-height: 1.4; }
 .ct-show { margin-top: 10px; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
 .ct-show .chip { padding: 8px 12px; }
-.ct-order { margin-top: 8px; }
+.ct-order { margin-top: 8px; grid-template-columns: repeat(3, 1fr); }
 .ct-show .chip, .ct-jump .chip { color: var(--fg); }
 .ct-show .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
 .ct-jump small, .ct-show small { opacity: .75; margin-left: 4px; font-variant-numeric: tabular-nums; }
@@ -767,7 +789,7 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-unlock { min-height: 40px; }
 .ct-edit { padding: 4px 10px 12px; }
 .ct-n { margin: 10px 0 0; font-weight: 700; color: var(--brass); font-size: 15px; }
-.ct-step { display: grid; grid-template-columns: 1fr 64px 64px 64px; gap: 8px; align-items: center; margin: 8px 0; }
+.ct-step { display: grid; grid-template-columns: minmax(0, 1fr) 56px 52px 56px 56px; gap: 8px; align-items: center; margin: 8px 0; }
 .ct-step b { text-align: center; font-size: 28px; font-variant-numeric: tabular-nums; }
 .ct-big { height: 64px; border-radius: 14px; font-size: 32px; font-weight: 700; background: var(--bg); border: 1px solid var(--line); color: inherit; }
 .ct-big:active { background: var(--brass); color: var(--brass-ink); }
@@ -1169,6 +1191,8 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
     <input id="send-cam" type="file" accept="image/*" capture="environment" hidden>
   </section>
 
+  <section class="view" id="v-count" hidden></section>
+
   <section class="view" id="v-notices" hidden>
     <h2 style="font-size:28px;margin-top:12px">Team</h2>
     <div id="tm-top"></div><div id="tm-cards"></div>
@@ -1180,6 +1204,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 <nav class="tabs" aria-label="Sections of the app">
   <button data-tab="drinks" aria-current="page"><svg viewBox="0 0 24 24"><path d="M5 4h14l-6 8v6l3 2H8l3-2v-6z"/></svg>Drinks</button>
   <button data-tab="tally"><svg viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M8.5 10l2 2 4-4M8.5 16h7"/></svg>Shift</button>
+  <button data-tab="count" hidden><svg viewBox="0 0 24 24"><path d="M4 20h16M6 20V9l3-2V4h2v3l3 2v11"/><path d="M15 20v-7h5v7"/><path d="M8 13h4"/></svg>Stock</button>
   <button data-tab="notices"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3.5 19a5.5 5.5 0 0 1 11 0"/><circle cx="17" cy="9" r="2.5"/><path d="M15.5 14.2A4.5 4.5 0 0 1 21 18.5"/></svg><span class="dot" id="team-n" hidden></span>Team</button>
   <button data-tab="pay"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18M16 15h2"/></svg>My pay</button>
   <button data-tab="info"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="4" width="6.5" height="6.5" rx="1.5"/><rect x="4" y="13.5" width="6.5" height="6.5" rx="1.5"/><rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.5"/></svg>More</button>
@@ -2590,8 +2615,8 @@ SHARE.shift = () => {
 };
 // Each side: the morning (last night's handover, prep pars, the order), date labels, stock and 86s, the close, and the handover.
 const PANES = {
-  bar: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["close", "Closing"], ["send", "Handover"]],
-  floor: [["morning", "Morning"], ["labels", "Labels"], ["stock", "Stock"], ["fclose", "Closing"], ["send", "Handover"]],
+  bar: [["morning", "Morning"], ["labels", "Labels"], ["stock", "86"], ["close", "Closing"], ["send", "Handover"]],
+  floor: [["morning", "Morning"], ["labels", "Labels"], ["stock", "86"], ["fclose", "Closing"], ["send", "Handover"]],
 };
 const labelPane = () => "labels";
 // Each side's last list is its close.
@@ -3533,7 +3558,7 @@ function renderTally() {
   const tabs = `${canUndoClear() ? `<div class="actions"><button class="btn pri" id="undo-clear">\u21a9 Undo clear</button></div>` : ""}<div class="modesw">${Object.keys(MODE_LISTS).map((m) => `<button class="chip" data-mode="${m}" aria-pressed="${m === mode}">${sideName(m)}</button>`).join("")}</div><div class="ptabs" role="tablist" style="grid-template-columns:repeat(${P.length},1fr)">${P.map(([k, t]) => `<button role="tab" data-pane="${k}" aria-selected="${k === pane}">${t}<small>${paneBadge(k)}</small></button>`).join("")}</div>${logBarHtml()}`;
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
-    labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: stock and 86s")}`,
+    labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: 86 and restock")}`,
     fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${putAwayHtml("floor")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
@@ -3542,7 +3567,7 @@ function renderTally() {
       ${lowHtml((n) => `<button class="btn" data-out-quick="${esc(n)}">86 it</button>`)}
       ${pkBtn("Search everything to 86: drinks, bottles, cakes, boxes", `data-pk86="${mode}"`)}
       <div class="mini">Quick 86: recent and most 86'd</div><div class="recent" translate="no">${pkTop(mode).filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
-      ${restockHtml()}${itemsHtml(mode)}${ctCardHtml()}${nextBtn(closeList(), "Next: closing checklist")}`,
+      ${restockHtml()}<p class="note ct-move">The stock count, the barcode scanner, use-by dates and Add something new have their own tab: <button class="linkbtn" data-goto="count">Stock ›</button></p>${nextBtn(closeList(), "Next: closing checklist")}`,
     close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
@@ -5252,13 +5277,13 @@ const FEATURES = [
   { g: "Shift", k: "labels", n: "Date labels", go: "labels", team: 1,
     what: "Everything that gets dated once it's opened: when each one needs changing, and what's due tomorrow.",
     staff: "Tap Opened one or Changed it, and add items. Each tap is saved with your name and the time." },
-  { g: "Shift", k: "stock", n: "Restock and 86", go: "stock", team: 1, tour: 1,
+  { g: "Shift", k: "stock", n: "86 and restock", go: "stock", team: 1, tour: 1,
     what: "Asking for stock from the cellar and following it until it arrives, and what's 86'd tonight, on every phone.",
     staff: "Ask for something, take a request on, bring it up, confirm it arrived, and 86 a drink or bring it back." },
-  { g: "Shift", k: "count", n: "Stock count", go: "count", team: 1, tour: 1,
-    what: "The count book on your phone: everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
-    staff: "Tap an item: + for each full, sealed bottle, then weigh the open one on the scale (or tap how full it is), then Next. Find looks in every place, Not counted yet shows what's left, and 🎤 takes “Smirnoff two and a half”. Send the totals on WhatsApp or as a spreadsheet.",
-    mgr: "Every bottle and pack comes with its size and estimated weights. Make one exact by weighing a sealed bottle once (Check it): it's then locked until you choose Unlock to re-weigh. Set up the count: the places in walking order, what's counted where and in what, and any size or weight. Set a running-low level (and a par) on a line: under it after a count, it shows on the 86 board, the bar station and Needs you now." },
+  { g: "Stock", k: "count", n: "Stock", go: "count", team: 1, tour: 1,
+    what: "Its own tab: the count book on your phone, a barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
+    staff: "Tap an item: + for each full, sealed bottle (+6 for a row), then tap the open one's level by eye: it saves and opens the next. Same as last time is one tap; ⚖️ Weigh it or 📷 Photo check when you're not sure. Group it by place or by kind. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap. Counting tips are at the top.",
+    mgr: "Check barcodes the team has linked (they work straight away). Every bottle and pack comes with its size and estimated weights: weigh a sealed one once (Check it) and it's locked until you Unlock it. Set up the count: the places in walking order, what's counted where and in what, and a running-low level and par per line." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",
     staff: "Hand over: send with photos (WhatsApp on a phone; Mail, AirDrop or Files on the iPad), or just save. Anyone can carry on what someone started.", mgr: "Open, send or delete any closing report with its photos on the Team page." },
@@ -5343,7 +5368,7 @@ function openAt(where) {
     return setTimeout(() => $("#tally .photo, #tally .addph")?.scrollIntoView({ block: "center" }), 80);
   }
   if (where === "shift") return show("tally");
-  if (where === "count") { pane = "stock"; show("tally"); if (LIVE.me) ctPage(); return; }
+  if (where === "count") return show("count");
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
   if (["drill", "quiz", "wrap", "phrases"].includes(where)) return funGo(where === "wrap" ? "home" : where === "phrases" ? "phr" : where);
@@ -5358,7 +5383,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar stock run ran add new item ingredient where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory",
+const PLACE_KW = { morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
@@ -6365,7 +6390,7 @@ const TOAST = {
   // Someone saving part-way: the team hears it once, so anyone can carry on or add photos.
   drafts: (x) => (x.day === shiftDay() && !sentTonight(x.side) ? `\ud83d\udcdd ${x.name} saved the ${lower(sideName(x.side))} handover so far: anyone can carry on` : ""),
   photos: (x) => (x.side && !x.report ? `\ud83d\udcf7 ${x.name} added a ${lower(sideName(x.side))} closing photo` : ""),
-  items: (x) => (LIVE.owner && x.status === "waiting" ? `🆕 ${x.addedBy} added ${x.item}: check it in Shift, Stock` : x.status === "live" && x.addedUid === LIVE.uid && x.uid !== LIVE.uid ? `✅ ${x.item} is on every phone now` : ""),
+  items: (x) => (LIVE.owner && x.status === "waiting" ? `🆕 ${x.addedBy} added ${x.item}: check it in Stock, Something new` : x.status === "live" && x.addedUid === LIVE.uid && x.uid !== LIVE.uid ? `✅ ${x.item} is on every phone now` : ""),
 };
 // Where a pop-up's records live, when it isn't under the same name.
 const TOAST_OF = { photos: "draftPhotos" };
@@ -6424,7 +6449,8 @@ function liveChanged(what) {
   if (what === "fixtures" && !$("#v-tally").hidden && !$("#football").contains(document.activeElement)) renderFootball();
   const ae = document.activeElement, typing = ae && /^(INPUT|TEXTAREA|SELECT)$/.test(ae.tagName) && $("#tally").contains(ae);
   if (["me", "out", "photos", "drafts", "tasks", "runs", "events", "lists", "labels", "items", "restock", "staff", "reports", "count", "low", "countSetup", "received"].includes(what) && !$("#v-tally").hidden && !typing) renderTally();
-  if (["count", "countSetup", "received", "items", "out"].includes(what) && typeof ctRender === "function") ctRender();
+  if (what === "me") { $('nav.tabs [data-tab="count"]').hidden = !LIVE.me; navCols(); if (cur === "count") renderStock(); }
+  if (["count", "countSetup", "received", "items", "out", "labels", "codes"].includes(what)) ctRender();
   if (what === "out" && !$("#sheet").hidden && $("#sw")) { const y = $("#sheet").scrollTop; openSheet(curId, true); $("#sheet").scrollTop = y; }
 }
 // Overdue times move on with no change to the data, and date labels fall due when the day rolls over at 6am, so the
@@ -6586,7 +6612,7 @@ addEventListener("resize", csFit);
    the top that never scrolls sideways (Rapid fire, Menu, Make). More holds everything used less often: Allergens,
    Practise and Cheat sheets open as pages with a back button, then the bar's reference and this phone's settings.
    Tapping the tab you're on takes you back to its top. */
-const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station"];
+const TABS = ["drinks", "rapid", "make", "allergens", "practice", "sheets", "fun", "station", "tally", "count", "pay", "info", "notices"], DRINK_TABS = ["drinks", "rapid", "make"], MORE_TABS = ["allergens", "practice", "sheets", "fun", "station"];
 // Bar station mode: this iPad opens on the bar station until Exit bar station turns it off.
 let stationOn = store.get("station", false);
 const tabOf = (t) => (DRINK_TABS.includes(t) ? "drinks" : MORE_TABS.includes(t) ? "info" : t);
@@ -6623,6 +6649,7 @@ function show(tab, fromBack = false) {
   if (tab === "fun") renderFun();
   if (tab === "station") { renderStation(); keepAwake(); }
   if (tab === "tally") { renderTally(); walkMaybe(mode); }
+  if (tab === "count") renderStock();
   if (tab === "pay") renderPay();
   if (tab === "info") renderInfo();
   if (tab === "notices") renderNotices();
@@ -9635,6 +9662,8 @@ function itFill(f, kind) {
   return f;
 }
 var itF = null, itBusy = false, itOpen = false, itShow = "";
+// Add something new lives on the Stock tab, at the foot of the count.
+const itRender = () => ctRender(true);
 // Names compared loosely: "Fresh strawberries" is the stock list's "Strawberries".
 function itNorm(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\b(fresh|the|a|bottles?|cans?)\b/g, " ").replace(/ies\b/g, "y").replace(/s\b/g, "").replace(/\s+/g, " ").trim(); }
 // Typos: two names are near when every word typed is the start of a word in the other, or one or two letters off
@@ -9706,7 +9735,7 @@ function itFormHtml() {
     <div class="actions"><button class="btn pri" id="it-save">${own ? (edit ? (f.status === "waiting" ? "Approve and add it" : "Save") : "Add it") : "Send it to Maintenance to check"}</button>
       ${edit && own ? `<button class="btn danger" data-it-drop="${f.id}">${f.status === "waiting" ? "Turn it down" : "Take it off"}</button>` : ""}<button class="btn" id="it-cancel">Cancel</button></div></div>`;
 }
-// On the Stock page: add something, what's waiting for Maintenance, and what's been added on this side.
+// On the Stock tab: add something, what's waiting for Maintenance, and what's been added on this side.
 function itemsHtml(side) {
   if (!LIVE.loaded.has("items")) return "";
   const wait = itWaiting(), mine = itLive(side);
@@ -9732,37 +9761,51 @@ function putAwayHtml(side) {
 // Black Tap's date label list also holds the added items that need a label and have no days yet, for a manager to fill
 // in from the pack.
 function itLabelIdeas(side) { const xs = itLive(side).filter((x) => x.label && !x.life).map((x) => [x.item]); return xs.length ? [["Added by the team", xs]] : []; }
-// A barcode (scanned, or typed as digits): Open Food Facts says what the product is (free, no key), and then it goes
-// through the same lookup as a typed name, with what Open Food Facts says about it first.
-async function itBarcode(code) {
-  itBusy = true; itF = { item: code }; renderTally();
-  let p = null;
-  try {
-    const c = new AbortController(), t = setTimeout(() => c.abort(), 6000);
-    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,categories_tags,quantity`, { signal: c.signal }).finally(() => clearTimeout(t));
-    const j = r.ok ? await r.json() : null; p = j?.status === 1 ? j.product : null;
-  } catch {}
-  itBusy = false;
-  if (!p?.product_name) { itF = null; renderTally(); return toast(p === null && !navigator.onLine ? "No signal: type the name instead" : "That barcode isn't listed online. Type the name instead"); }
+// What Open Food Facts calls a barcode's product (free, no key): { name, cats, qty }, null when it isn't listed. Throws
+// with no signal.
+async function offProduct(code) {
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 6000);
+  const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,categories_tags,quantity`, { signal: c.signal }).finally(() => clearTimeout(t));
+  if (!r.ok && r.status !== 404) throw new Error(`Open Food Facts ${r.status}`);
+  const j = r.ok ? await r.json() : null, p = j?.status === 1 ? j.product : null;
+  if (!p?.product_name) return null;
   const brand = (p.brands || "").split(",")[0].trim(), name = (brand && !p.product_name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${p.product_name}` : p.product_name).slice(0, 60);
-  const cats = (p.categories_tags || []).filter((c) => c.startsWith("en:")).map((c) => c.slice(3).replace(/-/g, " ")).slice(0, 6).join(", ");
-  itF = null; return itLook(name, [{ title: name, desc: cats || p.quantity || "", src: "Open Food Facts" }]);
+  const cats = (p.categories_tags || []).filter((x) => x.startsWith("en:")).map((x) => x.slice(3).replace(/-/g, " ")).slice(0, 6).join(", ");
+  return { name, cats, qty: p.quantity || "" };
 }
-var itZX = null;
-// The camera, read by ZXing (free, loaded the first time it's needed, so the app stays light on old phones).
-async function itScan() {
+// A barcode (scanned, or typed as digits): Open Food Facts says what the product is, and then it goes through the same
+// lookup as a typed name, with what Open Food Facts says about it first.
+async function itBarcode(code) {
+  itBusy = true; itF = { item: code }; itRender();
+  let p = null, off = false;
+  try { p = await offProduct(code); } catch { off = true; }
+  itBusy = false;
+  if (!p) { itF = null; itRender(); return toast(off ? "No signal: type the name instead" : "That barcode isn't listed online. Type the name instead"); }
+  itF = null; return itLook(p.name, [{ title: p.name, desc: p.cats || p.qty, src: "Open Food Facts" }]);
+}
+var scanZX = null;
+// The camera, read by ZXing (free, loaded the first time it's needed, so the app stays light on old phones). Resolves
+// with the barcode's numbers, or null if it was cancelled or the camera couldn't be used.
+async function scanCode() {
   const box = document.createElement("div");
-  box.id = "it-scan"; box.innerHTML = `<video playsinline muted></video><p>Point the camera at the barcode</p><button class="btn" id="it-scan-x">Cancel</button>`;
+  box.id = "it-scan"; box.innerHTML = `<video playsinline muted></video><p>Point the camera at the barcode. Hold it still, about a hand's width away.</p><button class="btn" id="it-scan-x">Cancel</button>`;
   document.body.append(box);
   let reader = null; const done = () => { try { reader?.reset(); } catch {} box.remove(); };
-  box.querySelector("#it-scan-x").onclick = done;
+  const cancel = new Promise((ok) => { box.querySelector("#it-scan-x").onclick = () => { done(); ok(null); }; });
   try {
-    if (!window.ZXing) await (itZX ||= new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"; sc.onload = ok; sc.onerror = no; document.head.append(sc); }));
+    if (!window.ZXing) await (scanZX ||= new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"; sc.onload = ok; sc.onerror = no; document.head.append(sc); }));
+    if (!box.isConnected) return null;
     reader = new ZXing.BrowserMultiFormatReader();
-    const res = await reader.decodeOnceFromVideoDevice(undefined, box.querySelector("video"));
-    done(); haptic(); itBarcode(res.getText());
-  } catch (e) { if (box.isConnected) { done(); toast(itZX && window.ZXing ? "Couldn't use the camera. Type the barcode's numbers or the name" : "The scanner needs signal the first time"); } itZX = window.ZXing ? itZX : null; }
+    const res = await Promise.race([reader.decodeOnceFromVideoDevice(undefined, box.querySelector("video")), cancel]);
+    if (!res) return null;
+    done(); haptic(); return res.getText();
+  } catch {
+    if (box.isConnected) { done(); toast(window.ZXing ? "Couldn't use the camera. Type the barcode's numbers into Find" : "The scanner needs signal the first time"); }
+    if (!window.ZXing) scanZX = null;
+    return null;
+  }
 }
+async function itScan() { const code = await scanCode(); if (code) itBarcode(code); }
 async function itLook(given, extra) {
   const typed = (given || $("#it-name")?.value || "").trim().replace(/\s+/g, " ").slice(0, 60);
   if (!typed) return toast("Type what it is first");
@@ -9770,7 +9813,7 @@ async function itLook(given, extra) {
   const known = itKnown(typed), st = itStock(known || typed);
   let item = st ? st.item : known || typed;
   const dup = itDup(item); if (dup) return toast(dup);
-  itBusy = true; itF = { item }; renderTally();
+  itBusy = true; itF = { item }; itRender();
   let hits = null, offline = false;
 
   try { hits = await itLookup(item); } catch { offline = true; }
@@ -9779,12 +9822,12 @@ async function itLook(given, extra) {
   if (itF?.item !== item) return;
   // Typed in another language: it goes on the lists under the English name (the one the stock list uses, if it's there).
   const eng = !known && hits?.find((h) => h.en);
-  if (eng) { const k2 = itKnown(eng.title); item = itStock(k2 || eng.title)?.item || k2 || eng.title.slice(0, 60); const d2 = itDup(item); if (d2) { itF = null; renderTally(); return toast(d2); } }
+  if (eng) { const k2 = itKnown(eng.title); item = itStock(k2 || eng.title)?.item || k2 || eng.title.slice(0, 60); const d2 = itDup(item); if (d2) { itF = null; itRender(); return toast(d2); } }
   const g = itGuess(item, hits);
   // Nothing it knows and nothing found online: the closest things it does know, to pick from, or carry on adding.
   const near = !known && !itStock(item) && !g.found ? itClosest(typed) : [];
   itF = itFill({ item, typed, near, note: "", found: g.found, looked: true, offline }, g.kind);
-  renderTally();
+  itRender();
 }
 function itSave() {
   const f = itF, life = f.label && f.life.trim() ? Number(f.life) : 0;
@@ -9793,48 +9836,48 @@ function itSave() {
   const dup = itDup(f.item, f.id); if (dup) return toast(dup);
   const x = { item: f.item, kind: f.kind, group: itStock(f.item)?.group || itGroup(f.kind, `${f.item} ${f.found || ""}`, f.side), side: f.side, store: f.store, label: f.label, life: f.label ? life : 0, close: f.close, note: f.note.trim().slice(0, 200), found: f.found || "" };
   const was = f.id && LIVE.items.find((y) => y.id === f.id);
-  if (f.id && !was) { itF = null; renderTally(); return toast("Someone has just taken it off"); }
+  if (f.id && !was) { itF = null; itRender(); return toast("Someone has just taken it off"); }
   const p = f.id ? LIVE.api.saveItem(was, x) : LIVE.api.addItem(x, LIVE.owner);
   track(p, LIVE.owner ? `${x.item} is on every phone now` : `Sent. Maintenance will check ${x.item}`, "Not saved. Try again");
   // Maintenance putting it on: its date label goes on too, when its days are known and the side hasn't got one.
   if (LIVE.owner && x.label && x.life && !dupLabel(x.item, x.side)) track(LIVE.api.label(null, "added", { item: x.item, side: x.side, life: x.life, on: true }), null, "The date label wasn't added. Add it on Labels");
-  itF = null; itOpen = true; haptic(); renderTally();
+  itF = null; itOpen = true; haptic(); itRender();
+  if (!f.id) ctAdded(x.item);
 }
-$("#tally").addEventListener("click", (e) => {
+$("#v-count").addEventListener("click", (e) => {
   if (e.target.closest("#it-look")) { itLook(); return; }
   if (e.target.closest("#it-scan-go")) { itScan(); return; }
-  const pk = e.target.closest("[data-it-pick]"); if (pk) { itF = null; renderTally(); $("#it-name").value = pk.dataset.itPick; itLook(); return; }
-  if (e.target.closest("#it-cancel")) { itF = null; renderTally(); return; }
+  const pk = e.target.closest("[data-it-pick]"); if (pk) { itF = null; itRender(); $("#it-name").value = pk.dataset.itPick; itLook(); return; }
+  if (e.target.closest("#it-cancel")) { itF = null; itRender(); return; }
   if (e.target.closest("#it-save")) { if (itF) itSave(); return; }
   const ed = e.target.closest("[data-it-edit]"); if (ed) {
     const x = LIVE.items.find((y) => y.id === ed.dataset.itEdit); if (!x) return;
     itF = { id: x.id, status: x.status, item: x.item, kind: x.kind, side: x.side, store: x.store, label: x.label, life: x.life ? String(x.life) : "", close: x.close, note: x.note, found: x.found, looked: !!x.found };
-    renderTally(); return;
+    itRender(); return;
   }
   const dr = e.target.closest("[data-it-drop]"); if (dr) {
     const x = LIVE.items.find((y) => y.id === dr.dataset.itDrop); if (!x) return;
     if (!confirm(x.status === "waiting" ? `${LIVE.owner && x.addedUid !== LIVE.uid ? "Turn down" : "Take back"} ${x.item}?` : `Take ${x.item} off? It leaves the 86 list, restocking and closing. A date label already set up for it stays on Labels.`)) return;
     track(LIVE.api.dropItem(x.id), `${x.item} taken off`, "Not done. Try again");
-    if (itF?.id === x.id) itF = null; haptic(); renderTally();
+    if (itF?.id === x.id) itF = null; haptic(); itRender();
   }
 });
-$("#tally").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "it-name") { e.preventDefault(); itLook(); } });
+$("#v-count").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "it-name") { e.preventDefault(); itLook(); } });
 // While typing a new item: what's on the list already with a name like it (the same search as everywhere), so nothing
 // goes on twice.
-$("#tally").addEventListener("input", (e) => {
+$("#v-count").addEventListener("input", (e) => {
   if (e.target.id !== "it-name") return;
   const q = e.target.value.trim(), xs = q.length >= 3 ? pkSearch(q, pkPool().filter((x) => x.c !== "drinks")).slice(0, 4) : [];
   $("#it-have").innerHTML = xs.length ? `Already on the list: ${xs.map((x) => `<b translate="no">${esc(x.n)}</b> <span class="pill">${esc(PK_CAT[x.c])}</span>`).join(" ")}. Only add it if it's something else.` : "";
 });
-$("#tally").addEventListener("input", (e) => { const k = e.target.dataset.it; if (itF && (k === "life" || k === "note" || k === "item")) itF[k] = e.target.value; });
-$("#tally").addEventListener("change", (e) => {
+$("#v-count").addEventListener("input", (e) => { const k = e.target.dataset.it; if (itF && (k === "life" || k === "note" || k === "item")) itF[k] = e.target.value; });
+$("#v-count").addEventListener("change", (e) => {
   const k = e.target.dataset.it; if (!itF || !k || k === "life" || k === "note") return;
-  if (k === "item") { renderTally(); return; }
+  if (k === "item") { itRender(); return; }
   if (k === "kind") itFill(itF, e.target.value);
   else itF[k] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-  renderTally();
+  itRender();
 });
-keepOpen($("#tally"), (e) => { if (e.target.id === "it-add") itOpen = e.target.open; if (e.target.id === "it-list") itShow = e.target.open ? mode : ""; });
 /* ---------- Pick an item: one picker for the whole app ----------
    The 86 board, the bar station, Log it, restocking, running low and date labels all choose items the
    same way: type a few letters (typos are fine), tap a kind, or scroll it A to Z with the letter strip down the side.
@@ -10213,7 +10256,7 @@ const ctSay = (u, n) => `${ctNum(n)}${ctUnit(u, n)}`;
 const ctWeighable = (r) => (r.u === "bottle" ? r.e > 0 && r.f > r.e : r.pw > 0);
 function ctSetup() { const s = LIVE.countSetup || {}; return { areas: s.areas?.length ? s.areas : CT_AREAS, items: s.items || {}, order: s.order || {} }; }
 function ctDefault(name, group) {
-  const k = itLive().find((x) => x.item === name);
+  const k = (LIVE.items || []).find((x) => x.item === name);
   let [a, u, ml] = (k && !itStock(name) ? (k.side === "floor" && ["dairy", "fresh"].includes(k.kind) ? ["Shake station", "each"] : CT_KIND[k.kind]) : CT_GROUP[group]) || ["Store room", "each"], off = false;
   for (const [re, a2, u2, o] of CT_NAME) if (re.test(name)) { a = a2 || a; u = u2 || u; off = !!o; break; }
   return { a: [a].flat(), u, ml: u === "bottle" && !/sauce|Mayonnaise|Ketchup|Mustard/.test(name) ? ml || 700 : 0, off };
@@ -10235,7 +10278,10 @@ function ctMeasure(item, u, o, d) {
 function ctRows(all) {
   const s = ctSetup(), out = [];
   let i = 0;
-  for (const [g, xs] of Object.entries(stockGroups())) for (const item of xs) {
+  // Something added mid-count is counted straight away, while it waits for Maintenance to check it.
+  const groups = stockGroups();
+  for (const x of LIVE.items || []) if (x.status === "waiting" && !itStock(x.item) && !Object.values(groups).some((ys) => ys.includes(x.item))) (groups[x.group] = groups[x.group] || []).push(x.item);
+  for (const [g, xs] of Object.entries(groups)) for (const item of xs) {
     const d = ctDefault(item, g), o = s.items[item] || {};
     const r = { item, group: g, i: i++, a: o.a?.length ? o.a : d.a, off: o.off ?? d.off, low: +o.low || 0, ...ctMeasure(item, o.u || d.u, o, d) };
     if (r.off && !all) continue;
@@ -10371,28 +10417,34 @@ function ctWeigh(r, g) {
 }
 
 /* ---- The page ---- */
-// On the Stock page: where today's count is, and the way in.
-function ctCardHtml() {
-  if (!LIVE.me) return "";
-  const day = shiftDay(), on = LIVE.countDay === day ? ctTotals(day, LIVE.counts || []) : null;
-  return `<div class="sec">Stock count</div><p class="note">The count book: every bottle, cake and box, place by place. Saves as you go, even with no signal.${on ? ` Today: ${on.filter((t) => t.done === t.of).length} of ${on.length} counted.` : ""}</p>
-    <div class="actions"><button class="btn pri" data-ct-open>${on?.some((t) => t.done) ? "Carry on counting" : "Count stock"}</button></div>`;
-}
 // The page: a find-or-count box that stays at the top while the list scrolls, then the list. Phones get the lean
 // version (one row of places that scrolls sideways, the totals folded away, the bottle level behind one tap when the
 // scale can do it); the iPad gets everything open side by side.
 const ctWide = () => matchMedia("(min-width: 700px)").matches;
-var ctQ = "", ctShow = store.get("ctShow", "todo"), ctAz = store.get("ctAz", false), ctLvl = store.get("ctLvl", false), ctTotOpen = null;
-function ctPage() {
-  ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null; ctQ = ""; ctIntro = store.get("ctHow", false) ? -1 : 0;
-  lastFocus = document.activeElement;
-  const speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Stock count</span><span></span></div>
-    <div class="ct-find" id="ct-find"><div class="ltools"><span class="ct-q"><span aria-hidden="true">⌕</span><input id="ct-say" type="search" enterkeyhint="go" maxlength="80" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Find, or say “Smirnoff 2.5”" aria-label="Find an item, or say or type a count"></span>${speech ? `<button class="btn" id="ct-mic" aria-label="Say a count">🎤 Say it</button>` : ""}<button class="btn pri" id="ct-say-go" hidden>Count it</button></div>
-    <div id="ct-heard-slot"></div></div></div><div id="ct"></div>`;
-  showSheet(false); $("#sheet").scrollTop = 0; ctRender(); $("#sh-close").focus();
+var ctQ = "", ctShow = store.get("ctShow", "todo"), ctBy = store.get("ctBy", store.get("ctAz", false) ? "az" : "place"), ctLvl = store.get("ctLvl2", true), ctTotOpen = null;
+// The order to walk it: by place (the shelves, the default), by kind (all the vodkas, then the gins, wherever they are),
+// or A to Z. Next goes down whichever is showing.
+const ctSecOf = (r) => (ctBy === "kind" ? r.group : r.area);
+function ctOrdered(rows = ctRows()) {
+  if (ctBy === "az") return azSort(rows, (r) => r.item);
+  if (ctBy === "kind") { const gs = Object.keys(stockGroups()); return [...rows].sort((a, b) => (gs.indexOf(a.group) + 1 || 99) - (gs.indexOf(b.group) + 1 || 99)); }
+  return rows;
 }
-const ctShown = () => !$("#sheet").hidden && !!$("#ct");
+function ctPage() {
+  ctDay = ctDay || shiftDay(); ctHeard = null; ctSetupOn = false; ctQ = "";
+  if (ctIntro < 0 && !store.get("ctHow", false)) ctIntro = 0;
+  const speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition), cam = !!navigator.mediaDevices?.getUserMedia;
+  $("#v-count").innerHTML = `<div class="shift-top"><h2>Stock</h2><span class="s">Count, scan, use-by</span></div>
+    <div class="ct-find" id="ct-find"><div class="ltools"><span class="ct-q"><span aria-hidden="true">⌕</span><input id="ct-say" type="search" enterkeyhint="go" maxlength="80" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Find, or say “Smirnoff 2.5”" aria-label="Find an item, or say or type a count, or type a barcode"></span>${cam ? `<button class="btn" id="ct-scan" aria-label="Scan a barcode">📷<span class="ct-bl"> Scan</span></button>` : ""}${speech ? `<button class="btn" id="ct-mic" aria-label="Say a count">🎤<span class="ct-bl"> Say it</span></button>` : ""}<button class="btn pri" id="ct-say-go" hidden>Count it</button></div>
+    <div id="ct-heard-slot"></div></div><div id="ct"></div>`;
+  ctRender(true);
+}
+// The Stock tab: off the team it says how to join; on it, the count book.
+function renderStock() {
+  if (!LIVE.me) { $("#v-count").innerHTML = `<div class="shift-top"><h2>Stock</h2></div><p class="note">The stock count, the barcode scanner and use-by dates are for the team. Join with the team code on the Team tab.</p>`; return; }
+  if (!$("#ct")) ctPage(); else ctRender();
+}
+const ctShown = () => cur === "count" && !!$("#ct");
 // A change from another phone waits while a number is being typed on a line here. force redraws anyway (this phone's
 // own action), keeping the box being typed in. Typing in the find box never waits: it sits above the list.
 function ctRender(force) {
@@ -10400,7 +10452,7 @@ function ctRender(force) {
   LIVE.api.watchCount(ctDay);
   const el = $("#ct"), ae = document.activeElement, typing = el.contains(ae) && ae.matches("input, select");
   const top = $("#ct-find"); if (top) top.hidden = ctSetupOn || ctIntro >= 0;
-  if ($("#ct-mic")) $("#ct-mic").textContent = ctRx ? "Listening…" : "🎤 Say it";
+  if ($("#ct-mic")) $("#ct-mic").innerHTML = ctRx ? "Listening…" : `🎤<span class="ct-bl"> Say it</span>`;
   if ($("#ct-heard-slot")) $("#ct-heard-slot").innerHTML = ctSetupOn ? "" : ctHeardHtml();
   if (typing && !force) { ctRender.later = true; return; }
   ctRender.later = false;
@@ -10430,33 +10482,35 @@ function ctFind(q, rows) {
 function ctHtml() {
   if (LIVE.countErr) return `<p class="note warnline">The count couldn't load. If it's new, Maintenance needs to publish the new rules.</p>`;
   if (!LIVE.loaded.has("countSetup") || LIVE.countDay !== ctDay) return `<p class="note">Loading the count…</p>`;
+  ctPrevLoad();
   const rows = ctRows(), tot = ctTotals(), done = rows.filter(ctLine).length, by = [...new Set(ctLines().map((x) => x.name))], wide = ctWide();
-  return `<div class="ct-head"><p class="s"><b>${done} of ${rows.length} lines counted</b>${by.length ? ` by ${esc(by.join(", "))}` : ""}. Saves as you go, with no signal too.</p>
+  return `${ctScanHtml()}${ctCodesHtml()}${ctUseByHtml()}<div class="ct-head"><p class="s"><b>${done} of ${rows.length} lines counted</b>${by.length ? ` by ${esc(by.join(", "))}` : ""}. Saves as you go, with no signal too.</p>
       <div class="ct-bar" aria-hidden="true"><i style="width:${rows.length ? Math.round((done / rows.length) * 100) : 0}%"></i></div>
-      <div class="ct-hrow"><label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label><button class="btn ct-howbtn" data-ct-intro="0">How to count</button></div></div>
+      <div class="ct-hrow"><label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label><button class="btn ct-howbtn" data-ct-intro="0">How to count</button></div>${ctTipsHtml()}</div>
     <div id="ct-list">${ctListHtml()}</div>
     <details class="setup" id="ct-tot-box"${ctTotOpen ?? wide ? " open" : ""}><summary>Totals so far${tot.some((t) => t.done) ? ` (${tot.filter((t) => t.done).length})` : ""}</summary>
       <p class="note">Each product added up across its places, for typing into Nory.</p>
       <div class="ct-tot">${tot.filter((t) => t.done).map((t) => `<div${ctIsLow(t) ? ' class="flag"' : ""}><span>${esc(t.item)}${ctIsLow(t) ? `<small>Running low: below ${ctSay(t.u, t.low)}</small>` : ""}</span><b>${ctSay(t.u, t.n)}${t.done < t.of ? " <small>(not all places)</small>" : ""}</b></div>`).join("") || `<p class="note">Nothing counted yet.</p>`}</div></details>
     <div class="actions">${sendBtn("count", "Send on WhatsApp", ctDay)}<button class="btn" id="ct-csv">Spreadsheet (Numbers, Excel)</button></div>
     ${ctInHtml()}${ctUseHtml()}
-    ${LIVE.admin ? `<div class="actions"><button class="btn" id="ct-setup">Set up the count</button></div>` : ""}`;
+    ${LIVE.admin ? `<div class="actions"><button class="btn" id="ct-setup">Set up the count</button></div>` : ""}
+    <div class="sec">Something new</div>${itemsHtml(mode)}`;
 }
 // Not counted yet, everything, or what's been counted; By place (the order you walk it, with the places to jump to) or
 // A to Z (the letter strip down the side, for finding one thing); and the lines. A search looks in every place.
 var ctLowSet = new Set();
 function ctListHtml() {
   ctLowSet = new Set(ctTotals().filter(ctIsLow).map((t) => t.item));
-  const rows = ctRows(), areas = [...new Set(rows.map((r) => r.area))], found = ctQ.trim() ? ctFind(ctQ, rows) : null;
+  const rows = ctOrdered(), areas = [...new Set(rows.map(ctSecOf))], found = ctQ.trim() ? ctFind(ctQ, rows) : null;
   const todo = rows.filter((r) => !ctLine(r)).length;
   const show = (r) => r.key === ctOpen || ctShow === "all" || (ctShow === "todo" ? !ctLine(r) : !!ctLine(r));
   const chip = (k, label, n) => `<button class="chip" data-ct-show="${k}" aria-pressed="${!found && ctShow === k}">${label}${n != null ? ` <small>${n}</small>` : ""}</button>`;
   const head = `<div class="recent ct-show">${chip("todo", "Not counted yet", todo)}${chip("all", "All", rows.length)}${chip("done", "Counted", rows.length - todo)}</div>
-    <div class="seg ct-order" role="group" aria-label="Order"><button data-ct-az="0" aria-pressed="${!ctAz}">By place</button><button data-ct-az="1" aria-pressed="${ctAz}">A to Z</button></div>
-    ${ctAz ? "" : `<div class="recent ct-jump" role="group" aria-label="Go to a place">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`}`;
+    <div class="seg ct-order" role="group" aria-label="Order">${[["place", "By place"], ["kind", "By kind"], ["az", "A to Z"]].map(([k, l]) => `<button data-ct-by="${k}" aria-pressed="${ctBy === k}">${l}</button>`).join("")}</div>
+    ${ctBy === "az" ? "" : `<div class="recent ct-jump" role="group" aria-label="Go to a ${ctBy === "kind" ? "kind" : "place"}">${areas.map((a) => { const rs = rows.filter((r) => ctSecOf(r) === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`}`;
   if (found) return `${head}<div class="sec">${found.length ? `Found in ${[...new Set(found.map((r) => r.area))].length === 1 ? esc(found[0].area) : "every place"}` : "Nothing found"}</div>
-    ${found.map((r) => ctRowHtml(r, true)).join("") || `<p class="note">Nothing called “${esc(ctQ.trim())}”. Try fewer letters.${LIVE.admin ? " Not on the count at all? Add it with Add something new." : ""}</p>`}`;
-  const body = ctAz ? azHtml(rows.filter(show), (r) => r.item, (r) => ctRowHtml(r, true)) : areas.map((a) => { const rs = rows.filter((r) => r.area === a && show(r)); return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec">${esc(a)}</div>${rs.map((r) => ctRowHtml(r)).join("")}` : ""}`; }).join("");
+    ${found.map((r) => ctRowHtml(r, true)).join("") || (ctIsCode(ctQ) ? `<p class="note">That's a barcode. Press Go to look it up.</p>` : `<p class="note">Nothing called “${esc(ctQ.trim())}”. Try fewer letters, or 📷 scan it.</p><div class="actions"><button class="btn pri" data-ct-new="${esc(ctQ.trim().slice(0, 60))}">＋ Add “${esc(ctQ.trim().slice(0, 40))}” and count it</button></div>`)}`;
+  const body = ctBy === "az" ? azHtml(rows.filter(show), (r) => r.item, (r) => ctRowHtml(r, true)) : areas.map((a) => { const rs = rows.filter((r) => ctSecOf(r) === a && show(r)); return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec">${esc(a)}</div>${rs.map((r) => ctRowHtml(r, ctBy === "kind")).join("")}` : ""}`; }).join("");
   const none = !rows.some(show);
   return `${head}${none ? `<p class="note ct-all">${ctShow === "todo" ? "✓ Everything's counted. Check the totals, then send them." : "Nothing counted yet."}</p>` : ""}${body}`;
 }
@@ -10472,7 +10526,7 @@ function ctHeardHtml() {
 }
 // What to do with a line, in a few words, for anyone counting for the first time.
 function ctDo(r) {
-  if (r.u === "bottle") return ctWeighable(r) ? "Full bottles, then weigh the open one" : "Full bottles, then tap how full the open one is";
+  if (r.u === "bottle") return "Full bottles, then tap the open one's level";
   const u = r.u === "each" ? "them" : `the ${ctUnit(r.u, 2).trim()}`;
   return `Count ${u}${r.pw > 0 ? " or weigh them" : ""}${r.size ? `: one is a ${r.size}` : ""}`;
 }
@@ -10480,21 +10534,70 @@ function ctRowHtml(r, where) {
   const x = ctLine(r), on = ctOpen === r.key;
   return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}${ctLowSet.has(r.item) ? `<small class="ct-low">Running low</small>` : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
 }
+// Next: down the list as it shows (by place, by kind or A to Z), past anything counted already when only what's left is
+// showing. Left blank, Next saves it as none. soon: after a line's last tap, a moment to see it saved first.
+function ctNext(key, soon) {
+  const go = () => {
+    const rs = ctOrdered(), i = rs.findIndex((y) => y.key === key); if (i >= 0 && !soon && !ctLine(rs[i])) ctPut(rs[i], 0, 0);
+    const n = rs.slice(i + 1).find((y) => ctShow !== "todo" || (!ctLine(y) && y.key !== key)); ctClearFind();
+    if (ctOpen !== key) return;
+    if (n) ctGo(n.key); else { ctOpen = ""; ctRender(); toast(rs.every((y) => ctLine(y) || y.key === key) ? "Everything's counted" : "That's the last one"); }
+  };
+  if (soon) setTimeout(go, 350); else go();
+}
+/* ---- Photo check: the open bottle beside a sealed one, to judge the level by eye ----
+   Only a picture to compare: the counter still taps the level. Their own photo stays on the phone and goes when the
+   line is left. The sealed one is kept once per product for everyone (countPhotos/{product}): anyone takes the first,
+   and a manager can take a better one. */
+var ctPh = null;
+const ctPhotoBtn = (r) => `<label class="btn" for="ct-ph-in">📷 Photo check</label><input type="file" accept="image/*" capture="environment" id="ct-ph-in" data-ct-ph="${esc(r.item)}" hidden>`;
+function ctPhotoHtml(r) {
+  const p = ctPh?.item === r.item ? ctPh : null; if (!p) return "";
+  const can = p.ref === null || LIVE.admin;
+  const ref = p.ref === undefined ? `<p class="s">Getting the sealed one…</p>` : p.ref ? `<img src="${p.ref}" alt="A sealed ${esc(r.item)}">` : `<p class="s">No photo of a sealed ${esc(r.item)} yet.</p>`;
+  return `<div class="ct-phc"><figure><figcaption>Yours</figcaption>${p.mine ? `<img src="${p.mine}" alt="Your photo of the open bottle">` : ""}</figure><figure><figcaption>Sealed</figcaption>${ref}</figure></div>
+    <p class="s">Compare the two, then tap the level on the bottle picture.${can ? ` <label class="linkbtn" for="ct-ref-in">${p.ref ? "Take a better sealed one" : "Take one of a sealed bottle"}</label><input type="file" accept="image/*" capture="environment" id="ct-ref-in" data-ct-ref="${esc(r.item)}" hidden>` : ""}</p>`;
+}
+async function ctPhoto(el) {
+  const item = el.dataset.ctPh || el.dataset.ctRef, f = el.files[0]; el.value = ""; if (!f) return;
+  const data = await shrink(f).catch(() => null); if (!data) return toast("Couldn't read that photo");
+  if (el.dataset.ctRef) {
+    track(LIVE.api.countPhoto(ctSlug(item), item, data), `Sealed ${item} kept for everyone`, "Not saved. Check the signal and try again");
+    if (ctPh?.item === item) ctPh.ref = data; return ctRender(true);
+  }
+  ctPh = { item, mine: data, ref: undefined }; ctRender(true);
+  const d = await LIVE.api.loadCountPhoto(ctSlug(item)).catch(() => null);
+  if (ctPh?.item === item && ctPh.ref === undefined) { ctPh.ref = d?.data || null; ctRender(true); }
+}
+
+// Added mid-count: its line opens to count straight away, while it waits for Maintenance to check it.
+function ctAdded(item) {
+  setTimeout(() => { const r = ctRows().find((y) => y.item === item); if (!r || !ctShown()) return; ctClearFind(); if (ctShow === "done") { ctShow = "todo"; store.set("ctShow", ctShow); } ctGo(r.key); toast(`${item} is on the count: count it now`); }, 400);
+}
+// The last count before this one, read once, for Same as last time.
+var ctPrev = null, ctPrevFor = "";
+function ctPrevLoad() {
+  if (ctPrevFor === ctDay || !LIVE.api?.prevCount) return; ctPrevFor = ctDay; ctPrev = null;
+  const d = ctDay; LIVE.api.prevCount(d).then((p) => { if (ctDay === d) { ctPrev = p; ctRender(); } }).catch(() => { ctPrevFor = ""; });
+}
+const ctPrevOf = (r) => ctPrev?.lines.find((x) => x.area === r.area && x.item === r.item && x.unit === r.u) || null;
 // The line being counted, one way through: the full ones, then the open one (weighed if the scale can, else its
 // level), then Next. Big buttons for wet hands.
 function ctEditHtml(r, x) {
   const full = x?.full || 0, open = x?.open || 0, can = ctWeighable(r), wide = ctWide();
-  const step = (k, n, label) => `<div class="ct-step"><span>${label}</span><button class="ct-big" data-ct-add="${k}:-1" aria-label="One less">−</button><b>${n}</b><button class="ct-big" data-ct-add="${k}:1" aria-label="One more">+</button></div>`;
-  const lvl = `<div class="ct-open"><div><span>Open bottle</span><b>${open ? `${ctNum(open / 100)}${r.ml ? ` · ${Math.round((open / 100) * r.ml)} ml` : ""}` : "None"}</b><button class="btn" data-ct-set="${full}:0">No open one</button></div>${ctBottle(open)}</div>`;
+  const step = (k, n, label) => `<div class="ct-step"><span>${label}</span><button class="ct-big" data-ct-add="${k}:-1" aria-label="One less">−</button><b>${n}</b><button class="ct-big" data-ct-add="${k}:1" aria-label="One more">+</button><button class="ct-big ct-six" data-ct-add="${k}:6" aria-label="Six more">+6</button></div>`;
+  const p = !x && ctPrevOf(r), same = p ? `<button class="btn ct-same" data-ct-same>Same as last time: ${ctSay(r.u, ctQty(p))} <small>${ctDate(ctPrev.day)}</small></button>` : "";
+  const lvl = `<div class="ct-open"><div><span>Open bottle: tap its level</span><b>${open ? `${ctNum(open / 100)}${r.ml ? ` · ${Math.round((open / 100) * r.ml)} ml` : ""}` : "None"}</b><button class="btn" data-ct-set="${full}:0">No open one</button>${ctPhotoBtn(r)}</div>${ctBottle(open)}</div>${ctPhotoHtml(r)}`;
   const total = x ? `<p class="ct-sum">Total here: <b>${ctSay(r.u, ctQty(x))}</b></p>` : "";
   const lowSet = LIVE.admin ? `<div class="ct-lowset" data-ct-item="${esc(r.item)}" data-ct-area="${esc(r.area)}">${ctLowField(r)}</div>` : "";
   const foot = `${total}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}<button class="btn pri" data-ct-next="${esc(r.key)}">Next ›</button></div>`;
   const one = r.size && r.u !== "bottle" ? `<p class="s ct-size">One is a ${esc(r.size)}${r.guess ? " (the usual size: a manager can change it)" : ""}.</p>` : "";
-  if (r.u !== "bottle") return `<div class="ct-edit">${one}${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
+  if (r.u !== "bottle") return `<div class="ct-edit">${same}${one}${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
   // Phones show one way at a time, the scale first; picking the level sticks until the scale is picked again.
-  const how = can ? (wide ? `${ctWeighHtml(r)}${lvl}` : ctLvl ? `${lvl}<button class="btn ct-lvl" data-ct-lvl="0">Use the scale instead</button>` : `${ctWeighHtml(r)}<button class="btn ct-lvl" data-ct-lvl="1">No scale? Tap how full it is</button>`)
+  // By eye first: one tap on the level. The scale is there for anyone who wants it exact.
+  const how = can ? (wide ? `${lvl}${ctWeighHtml(r)}` : ctLvl ? `${lvl}<button class="btn ct-lvl" data-ct-lvl="0">⚖️ Weigh it instead</button>` : `${ctWeighHtml(r)}<button class="btn ct-lvl" data-ct-lvl="1">By eye: tap how full it is</button>`)
     : `<p class="s">No weights for ${esc(r.item)} yet, so tap how full it is.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${lvl}${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}`;
-  return `<div class="ct-edit ct-b"><div class="ct-c1"><p class="ct-n">1. Full, sealed bottles${r.size ? ` <small>${esc(r.size)}</small>` : ""}</p>${step("full", full, "Full")}</div>
+  return `<div class="ct-edit ct-b">${same}<div class="ct-c1"><p class="ct-n">1. Full, sealed bottles${r.size ? ` <small>${esc(r.size)}</small>` : ""}</p>${step("full", full, "Full")}</div>
     <div class="ct-c2"><p class="ct-n">2. The open one</p>${how}</div>${foot}</div>`;
 }
 // Managers: the product's levels, in what it's counted in, all places together. Running low below: the heads-up before
@@ -10541,6 +10644,7 @@ function ctPut(r, full, open) {
 }
 const ctRow = (key) => ctRows().find((r) => r.key === key);
 function ctGo(key) {
+  if (ctPh && ctRow(key)?.item !== ctPh.item) ctPh = null;
   ctOpen = key; ctHeard = null; ctRender();
   requestAnimationFrame(() => document.getElementById(`ct-r-${ctSlug(key)}`)?.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }));
 }
@@ -10565,6 +10669,98 @@ function ctMic() {
   try { rx.start(); ctRender(); } catch { ctRx = null; }
 }
 
+/* ---- Counting tips: how the bar counts, short enough to read mid-count ---- */
+var CT_TIPS = [
+  ["Same way every time", "Top shelf to bottom, left to right, front to back. The list is in that order, so you never lose your place."],
+  ["Pull the back row forward", "Bring the bottles at the back to the front as you count each spot, so nothing hides behind the front row."],
+  ["Cases and crates", "A full, sealed case: count the bottles in it (24 Corona is 24), or open the line and type it. An open case: count what's left in it."],
+  ["Fridges", "Top shelf left to right, then the next shelf down. Count before the fridge is restocked or after, never halfway through."],
+  ["The open bottle by eye", "Hold it upright at eye level. Tap the bottle picture at its level: half full is .5. The scale is always closer, so use it when it's there."],
+  ["Wine", "Full bottles in the fridge and the rack, then the open one. A 175 ml glass is about a quarter of a 75 cl bottle."],
+  ["Kegs and the postmix", "Full, sealed kegs and boxes in the cellar are 1 each. The one that's connected: rock it or lift it. Light means nearly done: about .2. Not sure? .5."],
+  ["Deliveries", "Count before a delivery is put away, or log it under Delivery in, so usage comes out right."],
+  ["Broken or out of date", "It isn't stock: don't count it. Take it out and tell the duty manager."],
+  ["Hands full?", "🎤 Say it: “Corona 48”, “Smirnoff two and a half”. Can't find a bottle on the list? 📷 Scan its barcode."],
+  ["Two of you", "One counts out loud and one taps, or split the places. It all adds up on both phones."],
+];
+const ctTipsHtml = () => `<details class="setup ct-tips" id="ct-tips"${ctTipsHtml.open ?? ctWide() ? " open" : ""}><summary>Counting tips</summary><dl>${CT_TIPS.map(([t, d]) => `<dt>${t}</dt><dd>${d}</dd>`).join("")}</dl></details>`;
+
+/* ---- Barcodes: scan a bottle or pack to find it, count it, date it, or add it ----
+   A barcode only says which product it is (never its use-by date), so each one is linked once to its line on the count:
+   barcodes/{code} = the product's name. Anyone on the team links one and it works straight away, marked as waiting
+   until a manager checks it; a manager's own are checked already. A barcode nobody has linked is looked up on Open Food
+   Facts (free, no key) for its name, to suggest the line or add it as something new. Typing a barcode's numbers into
+   Find does the same as scanning, for a camera that won't read it. */
+var ctScanned = null;
+const ctCodeOf = (code) => (LIVE.codes || []).find((x) => x.code === code);
+const ctIsCode = (v) => /^\d{8,14}$/.test(String(v).replace(/\s+/g, ""));
+async function ctScan() { const code = await scanCode(); if (code) ctCode(code); }
+async function ctCode(code) {
+  code = String(code).replace(/\s+/g, ""); ctClearFind(); ctHeard = null; ctOpen = "";
+  const c = ctCodeOf(code); ctScanned = { code, item: c && ctRows(true).some((r) => r.item === c.item) ? c.item : "", c };
+  if (!ctScanned.item) { ctScanned.busy = true; ctRender(true); scrollTo(0, 0); const p = await offProduct(code).catch(() => undefined); if (ctScanned?.code !== code) return; Object.assign(ctScanned, { busy: false, off: p }); }
+  haptic(); ctRender(true); scrollTo(0, 0);
+}
+// The products whose whole name is in what Open Food Facts calls it (“Smirnoff Red Label Vodka” is Smirnoff), the most
+// specific first; else the closest by spelling.
+function ctNear(name) {
+  const ws = ctWords(name), items = [...new Set(ctRows().map((r) => r.item))];
+  const hit = items.map((n) => [n, ctWords(n)]).filter(([, nw]) => nw.length && nw.every((w) => ws.some((x) => x === w || (w.length >= 4 && x.startsWith(w))))).sort((a, b) => b[1].length - a[1].length).map(([n]) => n);
+  return (hit.length ? hit : [...new Set((ctFind(name, ctRows()) || []).map((r) => r.item))]).slice(0, 4);
+}
+// Which line a scanned barcode is: what it's linked to, else the closest few to what Open Food Facts calls it.
+function ctScanHtml() {
+  const k = ctScanned; if (!k) return "";
+  const close = `<button class="btn" data-ct-scan-x>Close</button>`, again = $("#ct-scan") ? `<button class="btn" id="ct-scan2">📷 Scan another</button>` : "";
+  if (k.busy) return `<div class="ct-scan"><p class="s">Barcode ${esc(k.code)}</p><p>Looking it up…</p></div>`;
+  if (k.item && !k.relink) {
+    const rs = ctRows().filter((r) => r.item === k.item), w = k.c && !k.c.ok;
+    return `<div class="ct-scan" role="region" aria-label="Scanned"><p class="s">Barcode ${esc(k.code)}${w ? ` · <span class="pill wait">Waiting for a manager to check</span>` : ""}</p><h3>${esc(k.item)}</h3>
+      ${rs.length ? `<div class="actions">${rs.map((r) => { const x = ctLine(r); return `<button class="btn pri" data-ct-row="${esc(r.key)}" data-ct-scan-x>Count it: ${esc(r.area)}${x ? ` (${ctSay(r.u, ctQty(x))})` : ""}</button>`; }).join("")}</div>` : `<p class="note">It's set as Don't count${LIVE.admin ? ", in Set up the count" : ""}.</p>`}
+      <div class="mini">Use-by</div>${ctLabelHtml(k.item)}
+      ${w && LIVE.admin ? `<div class="actions"><button class="btn pri" data-ct-code-ok="${esc(k.code)}">Right: check it</button><button class="btn danger" data-ct-code-drop="${esc(k.code)}">Wrong: take it off</button></div>` : ""}
+      <div class="actions">${again}${LIVE.admin || !k.c?.ok ? `<button class="btn" data-ct-relink>Not ${esc(k.item)}?</button>` : ""}${close}</div></div>`;
+  }
+  const name = k.off?.name || "", near = name ? ctNear(name) : [];
+  const found = k.lq?.trim() ? [...new Set((ctFind(k.lq, ctRows()) || []).map((r) => r.item))].slice(0, 6) : [];
+  return `<div class="ct-scan" role="region" aria-label="Scanned"><p class="s">Barcode ${esc(k.code)}</p><h3>${k.relink ? `What is it, if not ${esc(k.item)}?` : "Which one is it?"}</h3>
+    <p class="note">${k.relink ? "" : name ? `Online it's “${esc(name)}”. ` : k.off === null ? "It isn't listed online. " : "Couldn't look it up: no signal. "}Pick it once and the barcode finds it from then on, for everyone${LIVE.admin ? "" : " (a manager checks it)"}.</p>
+    ${near.length ? `<div class="recent">${near.map((n) => `<button class="chip" data-ct-link="${esc(n)}">${esc(n)}</button>`).join("")}</div>` : ""}
+    <label class="fld">Or find it<input id="ct-link-q" maxlength="60" autocomplete="off" value="${esc(k.lq || "")}" placeholder="A few letters"></label>
+    <div class="recent" id="ct-link-hits">${found.map((n) => `<button class="chip" data-ct-link="${esc(n)}">${esc(n)}</button>`).join("")}</div>
+    <p class="s">Not on the count at all? <button class="linkbtn" data-ct-new="${esc(name)}">Add it as something new</button></p>
+    <div class="actions">${again}${close}</div></div>`;
+}
+// Managers: barcodes the team has linked, to check.
+function ctCodesHtml() {
+  const xs = LIVE.admin ? (LIVE.codes || []).filter((x) => !x.ok) : []; if (!xs.length) return "";
+  return `<details class="setup" id="ct-codes"${ctCodesHtml.open ? " open" : ""}><summary>Barcodes to check <span class="pill wait">${xs.length}</span></summary>
+    <p class="note">Someone scanned these and picked what they are. They work already: check each is right.</p>
+    ${xs.map((x) => `<div class="tally-row" style="grid-template-columns:1fr auto auto"><div class="n">${esc(x.item)}<div class="s">${esc(x.code)} · ${esc(x.name)}</div></div><button class="btn" data-ct-code-ok="${esc(x.code)}">Right</button><button class="btn" data-ct-code-drop="${esc(x.code)}">Wrong</button></div>`).join("")}</details>`;
+}
+
+/* ---- Use-by: the date labels, from the Stock tab ----
+   The date labels are the one record of what's open and when it has to go (a barcode never carries the date). This
+   shows what's due in the next 3 days, and a scanned item's own label, with Opened one and Changed it saving straight
+   to it; anything more (a sooner date, discarding, adding one) is on Date labels in Shift. */
+const ctLabelsOf = (item) => LIVE.labels.filter((x) => x.on && x.item.trim().toLowerCase() === item.trim().toLowerCase());
+const ctSoon = () => LIVE.labels.filter((x) => x.on && x.state === "open" && ISO_DAY.test(x.useBy) && daysFrom(shiftDay(), x.useBy) <= 2).sort((a, b) => a.useBy.localeCompare(b.useBy) || a.item.localeCompare(b.item));
+function ctLbRow(x) {
+  const due = labelDue(x), [tag, cls] = LB_DUE[due], open = x.state === "open";
+  return `<div class="ct-lb"><div><b>${esc(x.item)}</b> <span class="pill ${cls}">${tag}</span><div class="s">${esc(sideName(x.side))} · ${esc(labelLine(x))}</div></div>
+    <div class="actions"><button class="btn${["overdue", "today"].includes(due) ? " pri" : ""}" data-ct-lb="${x.id}" data-ct-lb-act="${open ? "changed" : "opened"}">${open ? "Changed it" : "Opened one"}</button><button class="btn" data-ct-lbgo="${x.side}" aria-label="Date labels for the ${esc(lower(sideName(x.side)))}">›</button></div></div>`;
+}
+function ctLabelHtml(item) {
+  const xs = ctLabelsOf(item);
+  if (xs.length) return xs.map(ctLbRow).join("");
+  return `<p class="s">No date label for ${esc(item)}.${LIVE.admin ? ` <button class="linkbtn" data-ct-lbadd="${esc(item)}">Give it one</button>` : " If it goes off once it's opened, a manager adds one."}</p>`;
+}
+function ctUseByHtml() {
+  const xs = ctSoon(); if (!xs.length) return "";
+  const now = xs.filter((x) => ["overdue", "today"].includes(labelDue(x))).length;
+  return `<details class="setup ct-useby" id="ct-useby"${ctUseByHtml.open ?? (now > 0 || ctWide()) ? " open" : ""}><summary>Use-by: ${now ? `<b class="warnline">${now} to change now</b>, ` : ""}${xs.length} in the next 3 days</summary>${xs.map(ctLbRow).join("")}</details>`;
+}
+
 /* ---- First time counting: a walkthrough in plain words, with pictures ----
    Shown the first time someone opens the count on this phone, and any time from How to count. */
 const CT_PIC = (b) => `<svg viewBox="0 0 240 150" class="ct-pic" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">${b}</svg>`;
@@ -10575,17 +10771,17 @@ var CT_INTRO = [
   { t: "Set up the scale", pic: CT_PIC(`<path d="M30 118h180l-12 22H42z"/><rect x="60" y="94" width="120" height="24" rx="4"/><rect x="92" y="99" width="56" height="14" rx="2"/><text x="120" y="111" text-anchor="middle" font-size="13" fill="currentColor" stroke="none" font-weight="700">0 g</text>`),
     how: ["Put the kitchen scale on a flat, dry part of the bar top, near the shelf you're counting.", "Turn it on with nothing on it. It should say 0 g. If it doesn't, press Tare or Zero.", "Make sure it shows g (grams), not oz or ml."] },
   { t: "1. Full, sealed bottles", pic: CT_PIC(`${CT_BTL(40, 20, 1, 95)}${CT_BTL(90, 20, 1, 95)}<circle cx="190" cy="70" r="26"/><path d="M190 56v28M176 70h28"/>`),
-    how: ["Tap the item in the list.", "Count the bottles that have never been opened: the seal or cap isn't broken.", "Tap + once for each one."] },
+    how: ["Tap the item in the list.", "Count the bottles that have never been opened: the seal or cap isn't broken.", "Tap + once for each one, or +6 for a row of six. − takes one off.", "Same as last time? One tap on Same as last time does the whole line."] },
   { t: "2. The open bottle", pic: CT_PIC(`<path d="M20 128h200"/><rect x="70" y="112" width="100" height="16" rx="4"/>${CT_BTL(100, 5, 1, 45)}<path d="M180 30l20-12M186 44h24" stroke="var(--brass)"/>`),
-    how: ["Take the pourer off.", "Stand the open bottle on the scale and type the number it shows. The app works out how much is left.", "No scale? Tap the bottle picture at how full it is instead."] },
+    how: ["Look at it level with your eye and tap the bottle picture at how full it is: half is .5. That saves it and opens the next item.", "Not sure? 📷 Photo check puts your photo beside a sealed one, so you can see the difference.", "Want it exact? ⚖️ Weigh it: pourer off, stand it on the scale and type the grams. The app works out what's left."] },
   { t: "Cans, cakes and packs", pic: CT_PIC(`<rect x="30" y="50" width="40" height="70" rx="6"/><path d="M30 62h40M30 108h40"/><path d="M100 120h70a10 10 0 0 0 10-10V90H90v20a10 10 0 0 0 10 10z"/><path d="M90 90c10-16 80-16 90 0"/><rect x="190" y="70" width="34" height="50" rx="3"/>`),
     how: ["Count them and tap + for each, or type the number.", "Half a cake is .5. Each line says what one is, like a 200 ml bottle."] },
   { t: "Next, and nothing there", pic: CT_PIC(`<rect x="40" y="45" width="160" height="60" rx="30" fill="var(--brass)" stroke="none"/><text x="120" y="84" text-anchor="middle" font-size="26" font-weight="800" fill="var(--brass-ink)" stroke="none">Next ›</text>`),
-    how: ["Next › saves the item and opens the next one on the shelf.", "None on the shelf at all? Just tap Next: it saves as none.", "Not counted yet shows only what's left, so the list gets shorter as you go."] },
+    how: ["The level, No open one, None left and Same as last time save the item and open the next one by themselves. Next › does the same any time.", "None on the shelf at all? Just tap Next: it saves as none.", "Not counted yet shows only what's left, so the list gets shorter as you go."] },
   { t: "Can't find it?", pic: CT_PIC(`<circle cx="100" cy="68" r="38"/><path d="M128 96l40 40"/><path d="M84 68h32" stroke="var(--brass)"/>`),
-    how: ["Type a few letters in Find at the top. It looks in every place, and says where the item is.", "Still not there? Tell the duty manager and put it in ＋ Log it, so it isn't lost. A manager can add it."] },
+    how: ["Type a few letters in Find at the top. It looks in every place, and says where the item is. By kind puts all the vodkas, all the cakes and so on together.", "Or tap 📷 and scan the bottle's barcode: it opens that item.", "Not on the list at all, like a new cake or shake topping? Find shows ＋ Add it and count it: count it straight away, and Maintenance checks it after."] },
   { t: "Finished", pic: CT_PIC(`<rect x="60" y="20" width="120" height="110" rx="12"/><path d="M90 60l20 20 40-40" stroke="var(--brass)" stroke-width="8"/><path d="M90 108h60"/>`),
-    how: ["When Not counted yet is empty, check the totals.", "Send on WhatsApp, or Spreadsheet, at the bottom: for whoever puts it into Nory."] },
+    how: ["When Not counted yet is empty, check the totals.", "Send on WhatsApp, or Spreadsheet, at the bottom: for whoever puts it into Nory.", "Counting tips, under How to count, cover cases, fridges, wine and kegs."] },
 ];
 var ctIntro = -1;
 function ctIntroHtml() {
@@ -10734,36 +10930,58 @@ function ctSetupHtml() {
 }
 
 /* ---- Taps ---- */
-document.addEventListener("click", (e) => { if (e.target.closest("[data-ct-open]")) { haptic(); ctPage(); } });
-$("#sheet").addEventListener("click", (e) => {
+$("#v-count").addEventListener("click", (e) => {
   if (!$("#ct")) return;
   const t = (s) => e.target.closest(s);
   const it = t("[data-ct-intro]"); if (it) {
     const v = it.dataset.ctIntro; haptic();
     if (v === "go") { ctIntro = -1; store.set("ctHow", true); } else ctIntro = +v;
-    ctRender(true); $("#sheet").scrollTop = 0; return;
+    ctRender(true); scrollTo(0, 0); return;
   }
-  const az = t("[data-ct-az]"); if (az) { haptic(); ctAz = az.dataset.ctAz === "1"; store.set("ctAz", ctAz); ctClearFind(); return ctRender(true); }
+  // A product in Set up the count opens on the tap itself, so a redraw from another phone can't swallow it.
+  const sk = t("[data-ct-sk] > summary"); if (sk) { e.preventDefault(); const k = sk.parentElement.dataset.ctSk; ctSetOpen = ctSetOpen === k ? "" : k; return ctRender(true); }
+  // Scanning, and what a barcode is.
+  if (t("[data-ct-scan-x]")) { ctScanned = null; if (!t("[data-ct-row]")) return ctRender(true); }
+  if (t("#ct-scan, #ct-scan2")) { haptic(); return ctScan(); }
+  if (t("[data-ct-relink]") && ctScanned) { ctScanned.relink = true; ctScanned.lq = ""; return ctRender(true); }
+  const lk = t("[data-ct-link]"); if (lk && ctScanned) {
+    const k = ctScanned, item = lk.dataset.ctLink, had = ctCodeOf(k.code);
+    if (LIVE.codesErr) return toast("Barcodes need the new rules. Maintenance publishes them");
+    if (had?.ok && !LIVE.admin) return toast("A manager checked that barcode. Ask one to change it");
+    haptic(); track(LIVE.api.linkCode(k.code, item, !!LIVE.admin), LIVE.admin ? `Linked to ${item}` : `Linked to ${item}. A manager checks it`, "Not saved. Check the signal and try again");
+    ctScanned = { code: k.code, item, c: { code: k.code, item, ok: !!LIVE.admin } }; return ctRender(true);
+  }
+  const nw = t("[data-ct-new]"); if (nw) { const n = nw.dataset.ctNew; ctScanned = null; itOpen = true; ctRender(true); requestAnimationFrame(() => { $("#it-add")?.scrollIntoView({ block: "start" }); if (n) itLook(n); else $("#it-name")?.focus(); }); return; }
+  const co = t("[data-ct-code-ok]"); if (co) { const x = ctCodeOf(co.dataset.ctCodeOk); if (x) track(LIVE.api.linkCode(x.code, x.item, true), `Checked: ${x.item}`, "Not saved. Try again"); if (ctScanned?.c?.code === x?.code) ctScanned.c = { ...x, ok: true }; return ctRender(true); }
+  const cd = t("[data-ct-code-drop]"); if (cd) { const c = cd.dataset.ctCodeDrop; track(LIVE.api.dropCode(c), "Taken off. Scan it again to link it", "Not taken off. Try again"); if (ctScanned?.code === c) ctScanned = null; return ctRender(true); }
+  // Date labels: Opened one and Changed it save straight to the label; › goes to that side's Date labels.
+  const lb = t("[data-ct-lb]"); if (lb) {
+    const x = LIVE.labels.find((y) => y.id === lb.dataset.ctLb), act = lb.dataset.ctLbAct; if (!x) return;
+    const d = addDays(shiftDay(), x.life); haptic();
+    track(LIVE.api.label(x, act, { useBy: d }), `${x.item}: use by ${dayName(d)}`, "Not saved. Someone may have just changed it"); return;
+  }
+  const lg = t("[data-ct-lbgo]"); if (lg) { const sd = lg.dataset.ctLbgo; if (MODE_LISTS[sd] && sd !== mode) setMode(sd); haptic(); openAt("labels"); return; }
+  const la = t("[data-ct-lbadd]"); if (la) { const n = la.dataset.ctLbadd; Object.assign(lbF, { item: n, life: itKeep(n)?.days ? String(itKeep(n).days) : "", open: true }); haptic(); openAt("labels"); requestAnimationFrame(() => $("#lb-add")?.scrollIntoView({ block: "start" })); return; }
+  const by = t("[data-ct-by]"); if (by) { haptic(); ctBy = by.dataset.ctBy; store.set("ctBy", ctBy); ctClearFind(); return ctRender(true); }
   const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
-  const lb = t("[data-ct-lvl]"); if (lb) { ctLvl = lb.dataset.ctLvl === "1"; store.set("ctLvl", ctLvl); return ctRender(); }
+  const lvb = t("[data-ct-lvl]"); if (lvb) { ctLvl = lvb.dataset.ctLvl === "1"; store.set("ctLvl2", ctLvl); return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
   const jp = t("[data-ct-jump]"); if (jp) {
     // A place already counted is hidden under Not counted yet: going to it shows everything.
     const a = jp.dataset.ctJump; ctClearFind();
-    if (ctShow === "todo" && ctRows().filter((r) => r.area === a).every(ctLine)) { ctShow = "all"; store.set("ctShow", ctShow); }
+    if (ctShow === "todo" && ctRows().filter((r) => ctSecOf(r) === a).every(ctLine)) { ctShow = "all"; store.set("ctShow", ctShow); }
     ctRender(true); return document.getElementById(`ct-a-${ctSlug(a)}`)?.scrollIntoView({ block: "start" });
   }
   const r = ctOpen && ctRow(ctOpen), x = r && ctLine(r);
   const ad = t("[data-ct-add]"); if (ad && r) { haptic(); const d = +ad.dataset.ctAdd.split(":")[1]; ctPut(r, Math.max(0, (x?.full || 0) + d), x?.open || 0); return; }
-  const lv = t("[data-ct-lv]"); if (lv && r) { haptic(); ctPut(r, x?.full || 0, +lv.dataset.ctLv * 10); return; }
-  const st = t("[data-ct-set]"); if (st && r) { haptic(); const [f, o] = st.dataset.ctSet.split(":").map(Number); ctPut(r, f, o); return; }
+  // The open bottle's level, No open one, None left and Same as last time are the last tap on a line: it saves and the
+  // next one opens by itself.
+  const lv = t("[data-ct-lv]"); if (lv && r) { haptic(); ctPut(r, x?.full || 0, +lv.dataset.ctLv * 10); return ctNext(r.key, true); }
+  const st = t("[data-ct-set]"); if (st && r) { haptic(); const [f, o] = st.dataset.ctSet.split(":").map(Number); ctPut(r, f, o); return ctNext(r.key, true); }
+  const sm = t("[data-ct-same]"); if (sm && r) { const p = ctPrevOf(r); if (!p) return; haptic(); ctPut(r, p.full, p.open); return ctNext(r.key, true); }
   const dr = t("[data-ct-drop]"); if (dr && r) { track(LIVE.api.dropCountLine(ctId(ctDay, r.area, r.item)), null, "Not cleared. Try again"); return; }
   // Next: down the list as it shows (the shelf, or A to Z), past anything counted already when only what's left is showing.
-  const nx = t("[data-ct-next]"); if (nx) {
-    const rs = ctAz ? azSort(ctRows(), (r) => r.item) : ctRows(), i = rs.findIndex((y) => y.key === nx.dataset.ctNext); if (i >= 0 && !ctLine(rs[i])) ctPut(rs[i], 0, 0);
-    const n = rs.slice(i + 1).find((y) => ctShow !== "todo" || !ctLine(y)); ctClearFind();
-    if (n) ctGo(n.key); else { ctOpen = ""; ctRender(); toast(rs.every(ctLine) ? "Everything's counted" : "That's the last one"); } return;
-  }
+  const nx = t("[data-ct-next]"); if (nx) return ctNext(nx.dataset.ctNext);
   if (t("#ct-say-go")) return ctHear($("#ct-say").value);
   if (t("#ct-mic")) return ctMic();
   const ha = t("[data-ct-heard-area]"); if (ha) { ctHeard.key = ha.dataset.ctHeardArea; return ctRender(); }
@@ -10779,8 +10997,8 @@ $("#sheet").addEventListener("click", (e) => {
   const id = t("[data-ct-in-drop]"); if (id) return track(LIVE.api.dropReceived(id.dataset.ctInDrop), "Taken off", "Not taken off. Try again");
   if (t("#ct-use-go")) return ctUseLoad();
   // Setup
-  if (t("#ct-setup")) { ctSetupOn = true; ctSetOpen = ""; ctRender(); $("#sheet").scrollTop = 0; return; }
-  if (t("#ct-setup-done")) { ctSetupOn = false; ctRender(); $("#sheet").scrollTop = 0; return; }
+  if (t("#ct-setup")) { ctSetupOn = true; ctSetOpen = ""; ctRender(); scrollTo(0, 0); return; }
+  if (t("#ct-setup-done")) { ctSetupOn = false; ctRender(); scrollTo(0, 0); return; }
   const ul = t("[data-ct-unlock]"); if (ul) { ctUnlocked.add(ul.dataset.ctUnlock); toast(`${ul.dataset.ctUnlock} unlocked. Weigh it again to lock it`); return ctRender(true); }
   const ck = t("[data-ct-chkgo]"); if (ck) {
     const item = ck.dataset.ctChkgo, rr = ctRows(true).find((y) => y.item === item), g = +$(`[data-ct-chk="${CSS.escape(item)}"]`).value.replace(",", ".") || 0;
@@ -10802,19 +11020,29 @@ $("#sheet").addEventListener("click", (e) => {
     return ctSave((s) => { const l = ctRows(true).filter((y) => y.area === area).map((y) => y.item), i = l.indexOf(item); [l[i], l[i + d]] = [l[i + d], l[i]]; s.order[area] = l; });
   }
 });
-$("#sheet").addEventListener("toggle", (e) => {
+$("#v-count").addEventListener("toggle", (e) => {
   // A redraw fires toggle on the details it replaced too, after they've gone: only the ones on the page count.
   const d = e.target; if (!$("#ct") || !d.matches?.("details") || !d.isConnected) return;
   if (d.id === "ct-in-box") ctInHtml.open = d.open;
+  else if (d.id === "ct-tips") ctTipsHtml.open = d.open;
+  else if (d.id === "ct-useby") ctUseByHtml.open = d.open;
+  else if (d.id === "ct-codes") ctCodesHtml.open = d.open;
+  else if (d.id === "it-add") itOpen = d.open;
+  else if (d.id === "it-list") itShow = d.open ? mode : "";
   else if (d.id === "ct-tot-box") ctTotOpen = d.open;
   else if (d.id === "ct-use-box") ctUseHtml.open = d.open;
   else if (d.dataset.ctSk) { if (d.open) { if (ctSetOpen !== d.dataset.ctSk) { ctSetOpen = d.dataset.ctSk; ctRender(); } } else if (ctSetOpen === d.dataset.ctSk) ctSetOpen = ""; }
 }, true);
 // The find box: the list narrows as it's typed, in every place. Count it shows once it reads as a count.
 function ctClearFind() { ctQ = ""; const i = $("#ct-say"); if (i) i.value = ""; if ($("#ct-say-go")) $("#ct-say-go").hidden = true; }
-$("#sheet").addEventListener("input", (e) => {
+$("#v-count").addEventListener("input", (e) => {
+  if (e.target.id === "ct-link-q" && ctScanned) {
+    ctScanned.lq = e.target.value; const hits = $("#ct-link-hits"), found = ctScanned.lq.trim() ? [...new Set((ctFind(ctScanned.lq, ctRows()) || []).map((r) => r.item))].slice(0, 6) : [];
+    if (hits) hits.innerHTML = found.map((n) => `<button class="chip" data-ct-link="${esc(n)}">${esc(n)}</button>`).join("") || (ctScanned.lq.trim() ? `<p class="s">Nothing called that on the count.</p>` : "");
+    return;
+  }
   if (e.target.id === "ct-say") {
-    ctQ = e.target.value; $("#ct-say-go").hidden = !ctParse(ctQ);
+    ctQ = e.target.value; $("#ct-say-go").hidden = !ctParse(ctQ) || ctIsCode(ctQ);
     if (ctHeard) { ctHeard = null; $("#ct-heard-slot").innerHTML = ""; }
     return ctPaint();
   }
@@ -10834,11 +11062,12 @@ function ctWeighPut(el) {
   if (r.u !== "bottle") return ctPut(r, Math.floor(w.n), (w.n % 1) * 100);
   if (!w.full && n >= r.e - 20 && (x?.open ?? -1) !== w.open) ctPut(r, x?.full || 0, w.open);
 }
-$("#sheet").addEventListener("change", (e) => {
+$("#v-count").addEventListener("change", (e) => {
   if (!$("#ct")) return;
   const el = e.target;
+  if (el.id === "ct-ph-in" || el.id === "ct-ref-in") return ctPhoto(el);
   if (el.id === "ct-day") { ctDay = el.value && el.value <= shiftDay() ? el.value : shiftDay(); ctOpen = ""; ctUse = null; el.blur(); return ctRender(); }
-  if (el.id === "ct-type") { const r = ctRow(ctOpen), n = +el.value.replace(",", "."); el.blur(); if (r && n >= 0) ctPut(r, Math.floor(n + 1e-9), ((n + 1e-9) % 1) * 100); return ctRender(); }
+  if (el.id === "ct-type") { const r = ctRow(ctOpen), n = +el.value.replace(",", "."); el.blur(); if (r && el.value.trim() !== "" && n >= 0) { ctPut(r, Math.floor(n + 1e-9), ((n + 1e-9) % 1) * 100); return ctNext(r.key, true); } return ctRender(); }
   if (el.dataset.ctG) {
     ctWeighPut(el); el.blur(); return;
   }
@@ -10854,11 +11083,12 @@ $("#sheet").addEventListener("change", (e) => {
     if (f === "also") ctItemSet(s, r, { a: el.value ? [r.a[0], el.value] : [r.a[0]] });
   });
 });
-$("#sheet").addEventListener("keydown", (e) => {
+$("#v-count").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   if (e.target.id === "ct-say") {
     // A count (“Smirnoff 2.5”) goes to the check; just a name opens the best match.
     e.preventDefault(); const v = e.target.value;
+    if (ctIsCode(v)) { e.target.blur(); return ctCode(v); }
     if (ctParse(v)) return ctHear(v);
     const f = ctFind(v, ctRows()); if (f?.length) { e.target.blur(); ctGo((f.find((r) => !ctLine(r)) || f[0]).key); } else if (v.trim()) ctHear(v);
   }
@@ -10867,7 +11097,7 @@ $("#sheet").addEventListener("keydown", (e) => {
 });
 // A change that waited for the typing is drawn once the box is left. Not straight away: a tap on a button takes the
 // focus first, and redrawing then would swap the button out before the tap lands.
-$("#sheet").addEventListener("focusout", () => setTimeout(() => { if (ctRender.later && ctShown() && !$("#ct").contains(document.activeElement)) ctRender(); }, 400));
+$("#v-count").addEventListener("focusout", () => setTimeout(() => { if (ctRender.later && ctShown() && !$("#ct").contains(document.activeElement)) ctRender(); }, 400));
 /* ---------- Manager tools ----------
    For the managers and maintenance on the Team page: the weekly summary, the date label record (for an EHO visit),
    training (quiz scores, speed drills, the new starter test and sign-off on the house cocktails), change history with
@@ -11209,7 +11439,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T01:18";
+const BUILD = "2026-11-18T01:41";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -13052,20 +13282,25 @@ const HELP = {
   labels: { t: "Date labels", what: "Everything your side dates once it's opened, and when each one needs changing.",
     how: ["Opened one? Tap Opened one and write the date it gives you on the label.", "Binned the old one and opened a new one? Tap Changed it.", "Binned with no new one opened? Tap Binned. ⋯ shows its history."],
     behind: ["Each tap is saved with your name and the time, so a label that wasn't changed can be traced.", "Due today, tomorrow and overdue show at the top of Morning and Closing, and go in the handover.", "Only managers add, change or remove items. They set each side up from Black Tap's list in one go, with the days from each pack."] },
-  count: { t: "Stock count", what: "The count book: everything the bar and floor hold, place by place, in the order you walk it.",
-    how: ["Shift, Stock, Count stock. First time? It walks you through it with pictures: the scale, full bottles, the open one, and what to do if something isn't listed. How to count, at the top, shows it again.", "Walk it in order and tap each item. Each line says what to do with it.",
-      "A bottle, one way through: + for each full, sealed one, then the open one. Take the pourer off, stand it on the scale and type the grams: every bottle comes with its size and weights filled in. No scale? Tap how full it is, and it stays that way until Use the scale. Next › saves it and opens the one after (nothing there saves it as none).",
-      "Anything else (cans, cakes, packs): + and −, or type it. Half is .5.",
-      "Not in shelf order? Type a few letters in Find at the top: it looks in every place and says where each one is. The place buttons jump to a place. A to Z lists everything by name with the letter strip down the side, and Next › then goes down it A to Z.",
+  count: { t: "Stock", what: "Its own tab: the count book, the barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place, in the order you walk it.",
+    how: ["The Stock tab, at the bottom. First time? It walks you through it with pictures: the scale, full bottles, the open one, and what to do if something isn't listed. How to count shows it again, and Counting tips (front to back, cases, fridges, wine, kegs) sit under it.", "Walk it in order and tap each item. Each line says what to do with it.",
+      "A bottle, one way through: + for each full, sealed one (+6 for a row of six), then tap the open one's level on the bottle picture, by eye. The level saves it and opens the next one by itself, and so do No open one and None left.",
+      "Same as it was at the last count? Same as last time, at the top of the line, does it in one tap.",
+      "Not sure of the level? 📷 Photo check shows your photo beside a sealed one. Want it exact? ⚖️ Weigh it: pourer off, on the scale, type the grams (every bottle comes with its size and weights filled in). It stays on the scale until you pick By eye again.",
+      "Anything else (cans, cakes, packs): +, +6 and −, or type it and press Enter. Half is .5.",
+      "Not in shelf order? Type a few letters in Find at the top: it looks in every place and says where each one is. The place buttons jump to a place. By kind puts all the vodkas, all the cakes and so on together, wherever they're kept. A to Z lists everything by name with the letter strip down the side. Next › goes down whichever is showing.",
       "Not counted yet shows only what's left, so the list gets shorter as you go. Counted shows what's done and who did it. All shows the lot.",
       "Hands full? 🎤 Say it, or type in the same box, the name then how many: “Smirnoff two and a half”, “Kraken 845 grams”. Check what it heard, then Save it.",
+      "📷 Scan: point the camera at a bottle's barcode and it opens that item to count, with its date label. The first time a barcode is scanned, pick which item it is: from then on it finds it for everyone. Camera won't read it? Type the barcode's numbers into Find.",
+      "Use-by, at the top: date labels due in the next 3 days. Changed it or Opened one saves the new use-by in one tap; › opens Date labels for anything else.",
+      "Not on the count at all, like a new cake or shake topping? Find shows ＋ Add it and count it (or use Something new, at the bottom, or scan it). It's on the count straight away for you to count; Maintenance checks it after.",
       "Delivery in: log what came in so usage between counts comes out right.",
       "Running low: a line under its level shows Running low. Managers set the level on the line, or in Set up the count (Running low below, next to Par).",
       "Done: Send on WhatsApp sends the totals as a table, or Spreadsheet gives a file for Numbers or Excel to type into Nory."],
-    behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Every bottle and pack comes filled in: its size from the label (70 cl, Monkey 47's 50 cl, Martini's 75 cl, a 200 ml Fever-Tree, a 1 kg Funkin pouch) and estimated empty and full weights. A liqueur weighs more than a spirit, so grams are never taken as ml.", "Estimates are near enough to count with, and say so. A manager makes one exact by weighing a sealed bottle once (Check it, on the line): the empty weight follows. Weighed ones are locked, with who and when, so nobody changes them by accident: re-weighing takes Unlock to re-weigh first, and a spreadsheet import can't change them. Set up the count changes any size or weight. A sealed bottle goes on Full with +, so it's never counted twice.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory.", "Running low uses the latest count that has the product in every place, plus deliveries logged since. It's worked out, not saved, so it's never a second list: once it's 86'd it's on the 86 board instead."] },
-  stock: { t: "86 board and restock", what: "What's run out tonight, and getting stock up from the cellar.",
+    behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Every bottle and pack comes filled in: its size from the label (70 cl, Monkey 47's 50 cl, Martini's 75 cl, a 200 ml Fever-Tree, a 1 kg Funkin pouch) and estimated empty and full weights. A liqueur weighs more than a spirit, so grams are never taken as ml.", "Estimates are near enough to count with, and say so. A manager makes one exact by weighing a sealed bottle once (Check it, on the line): the empty weight follows. Weighed ones are locked, with who and when, so nobody changes them by accident: re-weighing takes Unlock to re-weigh first, and a spreadsheet import can't change them. Set up the count changes any size or weight. A sealed bottle goes on Full with +, so it's never counted twice.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory.", "Running low uses the latest count that has the product in every place, plus deliveries logged since. It's worked out, not saved, so it's never a second list: once it's 86'd it's on the 86 board instead.", "A barcode says which product it is, never its use-by date, so use-by stays on the date labels: one record, not two. A barcode someone links works straight away; managers check it under Barcodes to check.", "Scanning needs signal the first time, to load the scanner; after that it works offline. Looking up a new barcode's name online needs signal."] },
+  stock: { t: "86 and restock", what: "What's run out tonight, and getting stock up from the cellar.",
     how: ["Tap Search everything to 86: type a few letters (typos are fine), pick a kind, like Spirits, Cakes or Frozen, or scroll it A to Z with the letter strip down the side.", "Tap 86 on a row, or tick several and 86 them together. Each row says how many drinks use it, and the swap once it's out.", "Quick 86 has this phone's recent ones and the team's most 86'd: one tap. Not on the list? Type it and it goes on as you typed it.", "Back in stock takes it off for everyone.", "Restock: pick what's needed from the same list, then how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it.", "Running low, under the 86 board: what the last stock count says is under its level. Not out yet. 86 it there when it runs out."],
-    behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere. An 86'd ingredient turns every drink that uses it to Can make with a swap, or Can't make tonight if nothing close is in.", "Missing on a drink's own ingredient goes on this same board, so one tap does both.", "Restocks waiting over 15 minutes show as late. The weekly count is Stock count, at the foot of this page: its totals go into Nory.", "Clear everything puts every 86 back in stock."] },
+    behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere. An 86'd ingredient turns every drink that uses it to Can make with a swap, or Can't make tonight if nothing close is in.", "Missing on a drink's own ingredient goes on this same board, so one tap does both.", "Restocks waiting over 15 minutes show as late. The stock count has its own tab, Stock: its totals go into Nory.", "Clear everything puts every 86 back in stock."] },
   closing: { t: "Closing checklist", what: "The close, ticked off live on every phone.",
     how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part. Someone left before finishing theirs? Tap Take over and carry on: the heading and the report say who started it and who finished it.", "Started but not handed over? It shows on Team (and on Shift for anyone not on it) with who started it and Carry on, so anyone can pick it up, add photos or hand over.", "Under the photos, Send the checklist sends it with its photos any time. Nothing needs saving by hand: ticks, photos and notes save for the whole team as you go.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. Clear puts the whole list back to not started.", "The timer at the top shows how long the close has taken against the team's best. A new best gets a cheer."],
     behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks and photos wait on the phone, even if the app is closed, and go in order when it's back. A banner says they're waiting, and Back online. Everything's sent says they've arrived.", "The clock starts at the first tick and stops when the handover goes. Each side's time is kept for the managers."] },
@@ -13162,10 +13397,10 @@ const INTRO = [
   { t: "Welcome to Bar Book", how: ["Every drink we make, the shift, the close and the handover, in one app built for Black Tap Soho.", "Specs and guides work with no signal. The team side syncs live between every phone on shift.", "Tap Next to see what it does. Skip any time: More, Replay the tour brings it back."], tip: "Two minutes now saves you that every shift." },
   { t: "Find any drink in seconds", how: ["Rapid fire: the house drinks as big buttons, one tap from the start page. Show specs on the page and most questions need no tap at all.", "Menu: search by drink, spirit, glass or flavour. It forgives typos, so “espreso martni” still finds it.", "Or just scroll: A to Z shows the Black Tap signatures first, then every drink under its letter. Tap a letter on the strip down the right, or slide your finger down it, to go straight there. Sections shows the menu's sections instead: tap it again to jump to one.", "Filters narrows by kind of drink, spirit or what the guest fancies, or sorts by strength or fewest ingredients. ★ shows your favourites."], tip: "Tap the empty search box to see the drinks you opened last. Tap the Drinks tab again at the top of the Menu to jump straight into search.", more: ["rapid"] },
   { t: "Every spec, done right", how: ["Each drink has the spec, glass, ice, garnish and method, plus a picture guide for every step.", "Tap a line or step to tick it off as you build. − and + scale it for up to 12 drinks. ml or oz switches units. On the bar iPad, a tap on a drink opens Make it now: one big step card at a time, with the jigger side for each amount.", "Batch it turns any drink into a prep bottle: every amount, the water and how many it makes."], tip: "Send this drink, Picture card or Print card turns any spec into a WhatsApp message or a card for the well.", more: ["drink"] },
-  { t: "Out of something? It adjusts", how: ["Shift, Stock, Search everything to 86: a few letters, typos and all, or pick a kind. Tick several to 86 them together. Every phone knows straight away.", "Every drink, on the menu, the spec and the iPad, then says ✓ Can make, ⚠ Can make with a swap, or ✕ Can't make tonight. The swap is worked out by sugar and acid, so it tastes like the spec.", "Missing something mid-drink? Tap it on the drink. Can't make it and the guest doesn't mind? Go with the flow uses the closest thing you have, or offers the nearest drink."], tip: "A house cocktail made another way says Adjusted, so nobody takes it for the house spec. Back in stock takes it off everywhere at once.", more: ["drink", "stock"] },
+  { t: "Out of something? It adjusts", how: ["Shift, 86, then Search everything to 86: a few letters, typos and all, or pick a kind. Tick several to 86 them together. Every phone knows straight away.", "Every drink, on the menu, the spec and the iPad, then says ✓ Can make, ⚠ Can make with a swap, or ✕ Can't make tonight. The swap is worked out by sugar and acid, so it tastes like the spec.", "Missing something mid-drink? Tap it on the drink. Can't make it and the guest doesn't mind? Go with the flow uses the closest thing you have, or offers the nearest drink."], tip: "A house cocktail made another way says Adjusted, so nobody takes it for the house spec. Back in stock takes it off everywhere at once.", more: ["drink", "stock"] },
   { t: "The cocktail maker", how: ["Make: tap what you've got and see what you can make, closest first, with swaps.", "My bar keeps your own bottles. Specs puts every spec on one line for busy moments.", "Black Tap shows our line-up: draught, bottles, softs and the house serves."], tip: "A guest names two bottles? Tap them and offer the top match.", more: ["make"] },
   { t: "Run the shift together", how: ["Shift is shared live with everyone on your side: the 86 board, restocks from the cellar and date labels.", "Restock: ask for it, someone brings it up, whoever's there confirms it arrived. Late ones flag after 15 minutes.", "Date labels tell you what to write on the label and what's due today or tomorrow. Last orders flags on every phone 15 minutes before."], tip: "No signal? A badge says Working offline, all saved, and everything sends when you're back.", more: ["shift", "labels"] },
-  { t: "Count stock without the notebook", how: ["Shift, Stock, Count stock: every place in shelf order, every product on it.", "Tap an item: + for each full, sealed bottle, then the open one on the scale (or tap how full it is), then Next. Find at the top looks in every place.", "Or 🎤 say it: “Smirnoff two and a half”.", "Send the totals on WhatsApp as a table, or as a spreadsheet for Nory.", "Anything under the running-low level a manager set shows on the 86 board and the bar station, before it runs out."], tip: "It saves as you go, so two of you can count different places at once.", more: ["count"] },
+  { t: "Count stock without the notebook", how: ["The Stock tab: every place in shelf order, every product on it.", "Tap an item: + for each full, sealed bottle, then the open one on the scale (or tap how full it is), then Next. Find at the top looks in every place.", "Or 🎤 say it: “Smirnoff two and a half”, or 📷 scan the bottle's barcode.", "Use-by dates due soon are at the top, from the date labels.", "Send the totals on WhatsApp as a table, or as a spreadsheet for Nory.", "Anything under the running-low level a manager set shows on the 86 board and the bar station, before it runs out."], tip: "It saves as you go, so two of you can count different places at once.", more: ["count"] },
   { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and Take over picks up a part someone left. Ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. The timer shows how long it took against the team's best, and who ticked what is kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
   { t: "Log anything, in one line", how: ["Saw it, found it, did it, told a manager or someone told you: tap \uff0b Log it on Shift or the bar station.", "86 goes on the 86 board, Broken on Issues, and the rest straight into tonight's handover with your name and the time.", "Log it and send on WhatsApp puts it in the team chat from your phone."], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away.", more: ["logit"] },
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Send with photos saves it and opens the share sheet with the photos; Just save saves it for the morning and the managers and sends nothing.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
@@ -13205,6 +13440,7 @@ const HELP_AT = [
   ["#v-make > h2", "make"],
   ["#sd-vt", "voice"],
   ["#pay-h", "pay"],
+  ["#v-count .shift-top > h2", "count"],
   ['#v-info [data-fold="clear"] summary', "reset"],
 ];
 const helpOn = () => store.get("help", true) !== false;
@@ -13416,10 +13652,10 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 8;
-const WALK_NEW = "Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
+const WALK_V = 9;
+const WALK_NEW = "Stock has its own tab at the bottom, and counting is quicker: +6, the level by eye saves and moves on, Same as last time, By kind, and add anything missing and count it there and then. Also on it: a barcode scanner (scan a bottle to count it or see its date label), use-by dates due in the next 3 days, counting tips and Add something new. On Shift, the old Stock tab is now 86. Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
 const WALK_NAV = { t: "Getting around", how: [
-  "The tabs along the bottom go anywhere: Drinks, Shift, Team, My pay and More.",
+  "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
   "Long lists scroll A to Z, like your phone's contacts: the drinks, the 86 picker, the stock count. Tap a letter on the strip down the right, or slide your finger down it.",
@@ -13432,9 +13668,10 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
   "Log it and send on WhatsApp puts it in the team chat from your phone, so everyone knows now.",
 ], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
 const WALK_COUNT = { t: "Stock count", how: [
-  "Shift, Stock, Count stock: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left.",
-  "Tap an item: + for each full, sealed bottle, then the open one on the scale in grams (or tap how full it is). Next › opens the one after.",
-  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or tap A to Z and use the letter strip. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "The Stock tab: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left. Counting tips are under How to count.",
+  "Tap an item: + for each full, sealed bottle (+6 for a row), then tap the open one's level by eye. That saves it and opens the next one. Same as last time does a line in one tap. Want it exact? ⚖️ Weigh it.",
+  "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 📷 Scan its barcode. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "Use-by, at the top of Stock: date labels due in the next 3 days. Changed it saves the new date in one tap.",
   "Anything under its running-low level gets a Running low tag, then shows on the 86 board, the bar station and Needs you now as a heads-up before it's an 86.",
   "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",
 ], tip: "No signal in the cellar? It saves anyway and sends when you're back." };
@@ -13447,10 +13684,10 @@ const WALK_SEND = { t: "Hand over and send", how: [
 const WALK = {
   bar: [
     { t: "Your bar shift", how: [
-      "Shift, Bar has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
+      "Shift, Bar has the night in order, left to right: Morning, Labels, 86, Closing, Handover. Stock counts and use-by have their own tab.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
       "Drinks has every spec, with Rapid fire for the rush. Each says if you can make it tonight: ✓, ⚠ with a swap, or ✕. The bar iPad has both on the bar station, with tonight's 86s across the top: tap a drink there and Make it now shows it one big step card at a time.",
-      "Ran out? Stock, Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
+      "Ran out? Shift, 86, then Search everything to 86: a few letters (lymes finds Limes) or a kind, then 86. Tick several to do them together. Every drink that uses it shows the swap.",
     ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
     WALK_NAV,
     { t: "Opening", how: [
@@ -13471,9 +13708,9 @@ const WALK = {
   ],
   floor: [
     { t: "Your floor shift", how: [
-      "Shift, Floor has the night in order, left to right: Morning, Labels, Stock, Closing, Handover.",
+      "Shift, Floor has the night in order, left to right: Morning, Labels, 86, Closing, Handover. Stock counts and use-by have their own tab.",
       "Everything you tick, 86 or log saves with your name and the time, and every phone on the team sees it straight away.",
-      "86 anything, food too: Stock, Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
+      "86 anything, food too: Shift, 86, then Search everything to 86, a few letters, then 86. Tick several to do them together. Not on the list? It goes on as you typed it.",
     ], tip: "Seen it before? × closes it. Replay it any time from More, Replay the walkthrough." },
     WALK_NAV,
     { t: "Opening", how: [
@@ -13548,7 +13785,7 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
+const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [
@@ -13928,7 +14165,7 @@ function orderHtml() {
   if (!SD.od.hist && !SD.od.busy) setTimeout(sdOrderLoad);
   const s = sdOrderRows();
   if (SD.od.busy || !s) return `<p class="note">Reading the counts…</p>`;
-  if (!s.days.length) return `<p class="note">No stock count yet. Do one in Shift, Stock count, and the order draft fills itself in.</p><div class="actions"><button class="btn pri" data-goto="count">Stock count ›</button></div>`;
+  if (!s.days.length) return `<p class="note">No stock count yet. Do one on the Stock tab, and the order draft fills itself in.</p><div class="actions"><button class="btn pri" data-goto="count">Stock count ›</button></div>`;
   const want = s.rows.filter((r) => r.order > 0), noData = s.rows.filter((r) => r.order == null);
   return `<p class="note">From the count on ${ctDate(s.last)}${s.days.length > 1 ? ` and usage since ${ctDate(s.days[0])}` : ""}. With a par it orders back up to the par; without one it covers the days below. A list to send, not an order.</p>
     <div class="seg" style="grid-template-columns:repeat(3,1fr)" role="group" aria-label="Cover">${[3, 7, 14].map((n) => `<button data-sd-od-cover="${n}" aria-pressed="${n === SD.od.cover}">${n} days</button>`).join("")}</div>
@@ -14110,7 +14347,7 @@ if (typeof renderAlerts === "function") {
    does the listening, and the same key words work typed. Free: the phone's own speech to text, nothing paid. */
 const SD_REC = window.SpeechRecognition || window.webkitSpeechRecognition;
 SD.vc = { text: "", heard: null, on: false, err: "" };
-const SD_GO = [[/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"]];
+const SD_GO = [[/barcode|scan|use.?by|expir/, "count"], [/clos/, "lists"], [/hand ?over/, "send"], [/label/, "labels"], [/stock count|count/, "count"], [/86|stock|restock/, "stock"], [/morning|opening|brief/, "morning"], [/pay|tronc|wage/, "pay"], [/issue|fault|broken/, "issues"], [/rapid/, "tab:rapid"], [/ipad|station/, "tab:station"], [/menu|drinks/, "tab:drinks"]];
 // Words said round a command that don't change it.
 const VC_FILL = /\b(?:please|pls|cheers|thanks|thank you|mate|guys|bro|babe|innit|yeah|yes|yep|yo|actually|basically|i think|i reckon|maybe|hey|hi|ok(?:ay)?|right|um+|uh+|erm+|er|so|just|quickly|real quick|now|for me|for us|can you|could you|would you|will you|can we|could we|i need you to|i need to|we need to|need to|i want to|i wanna|let'?s|go ahead and|bar book)\b/g;
 // Words round the thing named that aren't part of its name.

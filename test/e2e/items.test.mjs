@@ -13,6 +13,8 @@ const flat = (s) => s.replace(/\s+/g, " ").trim();
 const text = async (p, sel) => flat(await p.$eval(sel, (e) => e.innerText));
 const waitToast = (p, re) => p.waitForFunction((s) => new RegExp(s).test(document.querySelector("#toast").textContent), re.source);
 const pane = async (p, k, side = "bar") => { await p.click("[data-tab=tally]"); await p.click(`[data-mode=${side}]`); await p.click(`.ptabs [data-pane=${k}]`); };
+// Add something new is on the Stock tab, at the foot of the count.
+const stockTab = async (p, side = "bar") => { await p.click("[data-tab=tally]"); await p.click(`[data-mode=${side}]`); await p.click("[data-tab=count]"); await p.waitForSelector("#it-add"); };
 // What Wikipedia's search says, by what was typed. Anything else: nothing found.
 const WIKI = {
   "Rubicon Mango": [["Rubicon Drinks", "UK soft drink manufacturer"], ["A.G. Barr", "Scottish soft drink producer"]],
@@ -29,7 +31,7 @@ test("staff add Rubicon Mango: it's worked out, waits for Maintenance, then it's
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   for (const p of [O, M, S]) await wiki(p);
-  await pane(S, "stock");
+  await stockTab(S);
   assert.equal(await S.$eval("#it-add", (e) => e.open), false, "folded away until it's needed");
   await look(S, "Rubicon Mango");
   assert.match(await text(S, ".itf"), /Found online: Rubicon Drinks: UK soft drink manufacturer \(Wikipedia\)/);
@@ -42,7 +44,9 @@ test("staff add Rubicon Mango: it's worked out, waits for Maintenance, then it's
   await S.waitForFunction(() => LIVE.items.length === 1 && !LIVE.items[0].pending);
   assert.match(await text(S, "#it-add"), /Rubicon Mango Waiting for Maintenance/);
   // Not on the lists yet, and nobody but Maintenance can put it on.
+  await pane(S, "stock");
   assert.equal((await pickRows(S, "rubicon")).includes("Rubicon Mango"), false); await pickClose(S);
+  await stockTab(S);
   const x = await S.evaluate(() => LIVE.items[0]);
   assert.equal(await attempt(S, (x) => LIVE.api.saveItem(x, x), x), "permission-denied");
   assert.equal(await attempt(M, (x) => LIVE.api.saveItem(x, x), x), "permission-denied");
@@ -52,7 +56,7 @@ test("staff add Rubicon Mango: it's worked out, waits for Maintenance, then it's
   assert.equal(await toastOf(S), "Sam Staff has added it already: it's waiting for Maintenance");
 
   // Maintenance is told, checks it and approves it.
-  await pane(O, "stock");
+  await stockTab(O);
   assert.equal(await O.$eval("#it-add", (e) => e.open), true, "open for Maintenance while something waits");
   await O.click(`[data-it-edit="${x.id}"]`);
   assert.match(await text(O, "#it-save"), /^Approve and add it$/);
@@ -61,9 +65,10 @@ test("staff add Rubicon Mango: it's worked out, waits for Maintenance, then it's
   await waitToast(S, /^✅ Rubicon Mango is on every phone now$/);
   const now = await S.evaluate(() => LIVE.items[0]);
   assert.equal(now.addedBy, "Sam Staff");
-  await S.evaluate(() => { document.activeElement.blur(); renderTally(); });
+  await S.evaluate(() => { document.activeElement.blur(); ctRender(true); });
   assert.deepEqual(await S.evaluate(() => pkPool().filter((x) => x.n === "Rubicon Mango").map((x) => x.c)), ["mixers"], "on the 86 list once, beside the other softs");
   // 86 it from the picker: the one board has it.
+  await pane(S, "stock");
   await pick86(S, "rubicn mango", "Rubicon Mango");
   await O.waitForFunction(() => LIVE.out.has("Rubicon Mango"));
   // Restocking has it too, and the bar's closing page says what to do with it.
@@ -80,7 +85,7 @@ test("strawberries are on the stock list already: adding them says where they're
   await resetEmulators();
   const { O, S } = await team(browser, site, people);
   await wiki(O);
-  await pane(O, "stock");
+  await stockTab(O);
   await look(O, "Fresh strawberries");
   // The song comes first online, but the fruit is what it is; it keeps the stock list's own name.
   assert.match(await text(O, ".itf"), /Found online: Strawberry: Edible fruit/);
@@ -95,7 +100,8 @@ test("strawberries are on the stock list already: adding them says where they're
   assert.deepEqual(await S.evaluate(() => { const l = LIVE.labels.find((x) => x.item === "Strawberries"); return [l.side, l.life, l.on]; }), ["bar", 3, true]);
   await pane(S, "stock");
   assert.equal((await pickRows(S, "strawberries")).filter((n) => n === "Strawberries").length, 1, "still one line on the 86 list"); await pickClose(S);
-  await S.click("#it-add summary");
+  await stockTab(S);
+  if (!(await S.$eval("#it-add", (e) => e.open))) await S.click("#it-add summary");
   await S.click("#it-list summary");
   assert.match(await text(S, "#it-list"), /Strawberries Fruit and garnish Fridge · date label, keeps 3 days once opened · at close: cover, label and fridge/);
   // Only one each: typing it again is refused.
@@ -108,7 +114,7 @@ test("no signal: it's worked out from the name; no days means it waits on Black 
   await resetEmulators();
   const { O, M, S } = await team(browser, site, people);
   await wiki(M, true); await wiki(O);
-  await pane(M, "stock");
+  await stockTab(M);
   await look(M, "Funkin passion fruit purée");
   assert.match(await text(M, ".itf"), /Couldn't look it up online \(no signal\?\)\. Worked out from the name\./);
   assert.deepEqual(await M.evaluate(() => [itF.kind, itF.store, itF.label, itF.close]), ["puree", "fridge", true, "fridge"]);
@@ -125,7 +131,7 @@ test("no signal: it's worked out from the name; no days means it waits on Black 
   await M.waitForFunction(() => LIVE.items.length === 1 && !LIVE.items[0].pending);
   // A manager's waits too. Maintenance approves it with no days: it goes on Black Tap's label list for them.
   const id = await M.evaluate(() => LIVE.items[0].id);
-  await pane(O, "stock");
+  await stockTab(O);
   await O.click(`[data-it-edit="${id}"]`);
   await O.click("#it-save");
   await M.waitForFunction(() => LIVE.items[0].status === "live");
@@ -136,7 +142,7 @@ test("no signal: it's worked out from the name; no days means it waits on Black 
 
   // Staff take back their own while it waits; not anyone else's, and not once it's on.
   await wiki(S);
-  await pane(S, "stock");
+  await stockTab(S);
   await look(S, "Mango");
   assert.match(await text(S, ".itf"), /Mango looks like: Fresh fruit, herb or garnish/);
   await S.click("#it-save");
@@ -166,7 +172,7 @@ test("typos and other languages: lymes 86s Limes, strawbery is Strawberries, Hin
   await O.waitForFunction(() => LIVE.out.has("Limes"));
   assert.match(await toastOf(S), /^Limes 86'd for everyone/);
   // A typo of something we stock is the stock list's item.
-  await pane(O, "stock");
+  await stockTab(O);
   await look(O, "strawbery");
   assert.match(await text(O, ".itf"), /You typed “strawbery”: it's Strawberries\./);
   assert.match(await text(O, ".itf"), /Nothing found online/, "the film and the sweets don't count");
@@ -237,12 +243,13 @@ test("labels by station; found open: staff are told to discard it, a manager dat
   await M.click(`[data-lb-more="${id}"]`);
   await M.waitForSelector(".tmore .photo img");
   assert.match(await text(M, ".tmore"), /Taken by Sam Staff/);
+  await M.waitForFunction(() => !/Reading the history/.test(document.querySelector(".tmore").innerText));
   assert.match(await text(M, ".tmore"), /found one open with no label and dated it: use by .*I opened it at yesterday's close/);
 
   // A barcode typed in: Open Food Facts says what it is, then the usual lookup.
   await O.route("https://world.openfoodfacts.org/**", (r) => r.fulfill({ json: { status: 1, product: { product_name: "Mango", brands: "Rubicon", categories_tags: ["en:beverages", "en:carbonated-drinks", "en:sodas"] } } }));
   await O.route("https://*.wikipedia.org/**", (r) => r.fulfill({ json: { query: { pages: [] } } }));
-  await pane(O, "stock");
+  await stockTab(O);
   await look(O, "5000382036333");
   assert.equal(await O.evaluate(() => itF.item), "Rubicon Mango");
   assert.match(await text(O, ".itf"), /Found online: Rubicon Mango: beverages, carbonated drinks, sodas \(Open Food Facts\)/);

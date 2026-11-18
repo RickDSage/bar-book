@@ -127,6 +127,9 @@ function listen(uid) {
     // deliveries logged lately. The count itself is read a day at a time, while the count is open (watchCount).
     sub("countSetup", doc(db, "countSetup", "main"), (d) => { LIVE.countSetup = d.exists() ? d.data() : null; LIVE.countErr = false; watchLow(); liveChanged("countSetup"); },
       (e) => { if (e?.code === "permission-denied") { LIVE.countErr = true; liveChanged("countSetup"); } });
+    // Barcodes linked to a line on the count (barcodes/{the barcode's numbers}). Only ever a few hundred.
+    sub("codes", collection(db, "barcodes"), (snap) => { LIVE.codes = rows(snap).map((x) => ({ ...x, code: x.id })); LIVE.codesErr = false; liveChanged("codes"); },
+      (e) => { if (e?.code === "permission-denied") { LIVE.codesErr = true; liveChanged("codes"); } });
     sub("received", query(collection(db, "received"), orderBy("at", "desc"), limit(300)), (snap) => { LIVE.received = rows(snap); liveChanged("received"); });
     // The day of the latest count, for running low (watchLow).
     sub("countLast", query(collection(db, "counts"), orderBy("day", "desc"), limit(1)), (snap) => { lowLast = snap.docs[0]?.data().day || ""; watchLow(); });
@@ -639,6 +642,19 @@ LIVE.api = {
   saveCountSetup: (x) => setDoc(doc(db, "countSetup", "main"), { areas: x.areas, items: x.items, order: x.order, ...me() }),
   addReceived: (x) => addDoc(collection(db, "received"), { day: x.day, item: x.item, unit: x.unit, qty: x.qty, ...me() }),
   dropReceived: (id) => deleteDoc(doc(db, "received", id)),
+  // A barcode linked to a product on the count. ok: checked by a manager.
+  linkCode: (code, item, ok) => setDoc(doc(db, "barcodes", code), { item, ok, ...me() }),
+  dropCode: (code) => deleteDoc(doc(db, "barcodes", code)),
+  // A photo of a sealed bottle, kept once per product, to compare the open one against by eye.
+  countPhoto: (id, item, data) => setDoc(doc(db, "countPhotos", id), { item, data, ...me() }),
+  loadCountPhoto: (id) => getDoc(doc(db, "countPhotos", id)).then((d) => (d.exists() ? d.data() : null)),
+  // The count before a day: its day and every line of it, for Same as last time. Read once.
+  async prevCount(day) {
+    const last = await getDocs(query(collection(db, "counts"), where("day", "<", day), orderBy("day", "desc"), limit(1)));
+    const d = last.docs[0]?.data().day; if (!d) return { day: "", lines: [] };
+    const all = await getDocs(query(collection(db, "counts"), where("day", "==", d), limit(2000)));
+    return { day: d, lines: all.docs.filter(plain).map((x) => x.data()) };
+  },
   // The counts and deliveries of the last 90 days up to a day, for usage between counts. Read once, when asked for.
   async countHistory(day) {
     const from = new Date(Date.parse(day) - 90 * 864e5).toISOString().slice(0, 10), plainDocs = (snap) => snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id }));
@@ -682,7 +698,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, lowLines: [], countSetup: null, countErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] });
+  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, lowLines: [], countSetup: null, countErr: false, codes: [], codesErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

@@ -48,7 +48,7 @@ const ctSay = (u, n) => `${ctNum(n)}${ctUnit(u, n)}`;
 const ctWeighable = (r) => (r.u === "bottle" ? r.e > 0 && r.f > r.e : r.pw > 0);
 function ctSetup() { const s = LIVE.countSetup || {}; return { areas: s.areas?.length ? s.areas : CT_AREAS, items: s.items || {}, order: s.order || {} }; }
 function ctDefault(name, group) {
-  const k = itLive().find((x) => x.item === name);
+  const k = (LIVE.items || []).find((x) => x.item === name);
   let [a, u, ml] = (k && !itStock(name) ? (k.side === "floor" && ["dairy", "fresh"].includes(k.kind) ? ["Shake station", "each"] : CT_KIND[k.kind]) : CT_GROUP[group]) || ["Store room", "each"], off = false;
   for (const [re, a2, u2, o] of CT_NAME) if (re.test(name)) { a = a2 || a; u = u2 || u; off = !!o; break; }
   return { a: [a].flat(), u, ml: u === "bottle" && !/sauce|Mayonnaise|Ketchup|Mustard/.test(name) ? ml || 700 : 0, off };
@@ -70,7 +70,10 @@ function ctMeasure(item, u, o, d) {
 function ctRows(all) {
   const s = ctSetup(), out = [];
   let i = 0;
-  for (const [g, xs] of Object.entries(stockGroups())) for (const item of xs) {
+  // Something added mid-count is counted straight away, while it waits for Maintenance to check it.
+  const groups = stockGroups();
+  for (const x of LIVE.items || []) if (x.status === "waiting" && !itStock(x.item) && !Object.values(groups).some((ys) => ys.includes(x.item))) (groups[x.group] = groups[x.group] || []).push(x.item);
+  for (const [g, xs] of Object.entries(groups)) for (const item of xs) {
     const d = ctDefault(item, g), o = s.items[item] || {};
     const r = { item, group: g, i: i++, a: o.a?.length ? o.a : d.a, off: o.off ?? d.off, low: +o.low || 0, ...ctMeasure(item, o.u || d.u, o, d) };
     if (r.off && !all) continue;
@@ -206,28 +209,34 @@ function ctWeigh(r, g) {
 }
 
 /* ---- The page ---- */
-// On the Stock page: where today's count is, and the way in.
-function ctCardHtml() {
-  if (!LIVE.me) return "";
-  const day = shiftDay(), on = LIVE.countDay === day ? ctTotals(day, LIVE.counts || []) : null;
-  return `<div class="sec">Stock count</div><p class="note">The count book: every bottle, cake and box, place by place. Saves as you go, even with no signal.${on ? ` Today: ${on.filter((t) => t.done === t.of).length} of ${on.length} counted.` : ""}</p>
-    <div class="actions"><button class="btn pri" data-ct-open>${on?.some((t) => t.done) ? "Carry on counting" : "Count stock"}</button></div>`;
-}
 // The page: a find-or-count box that stays at the top while the list scrolls, then the list. Phones get the lean
 // version (one row of places that scrolls sideways, the totals folded away, the bottle level behind one tap when the
 // scale can do it); the iPad gets everything open side by side.
 const ctWide = () => matchMedia("(min-width: 700px)").matches;
-var ctQ = "", ctShow = store.get("ctShow", "todo"), ctAz = store.get("ctAz", false), ctLvl = store.get("ctLvl", false), ctTotOpen = null;
-function ctPage() {
-  ctDay = ctDay || shiftDay(); ctOpen = ""; ctHeard = null; ctSetupOn = false; ctUse = null; ctQ = ""; ctIntro = store.get("ctHow", false) ? -1 : 0;
-  lastFocus = document.activeElement;
-  const speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition);
-  $("#sheet").innerHTML = `<div class="sheet-top"><div class="bar1"><button class="back" id="sh-close">‹ Back</button><span class="t">Stock count</span><span></span></div>
-    <div class="ct-find" id="ct-find"><div class="ltools"><span class="ct-q"><span aria-hidden="true">⌕</span><input id="ct-say" type="search" enterkeyhint="go" maxlength="80" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Find, or say “Smirnoff 2.5”" aria-label="Find an item, or say or type a count"></span>${speech ? `<button class="btn" id="ct-mic" aria-label="Say a count">🎤 Say it</button>` : ""}<button class="btn pri" id="ct-say-go" hidden>Count it</button></div>
-    <div id="ct-heard-slot"></div></div></div><div id="ct"></div>`;
-  showSheet(false); $("#sheet").scrollTop = 0; ctRender(); $("#sh-close").focus();
+var ctQ = "", ctShow = store.get("ctShow", "todo"), ctBy = store.get("ctBy", store.get("ctAz", false) ? "az" : "place"), ctLvl = store.get("ctLvl2", true), ctTotOpen = null;
+// The order to walk it: by place (the shelves, the default), by kind (all the vodkas, then the gins, wherever they are),
+// or A to Z. Next goes down whichever is showing.
+const ctSecOf = (r) => (ctBy === "kind" ? r.group : r.area);
+function ctOrdered(rows = ctRows()) {
+  if (ctBy === "az") return azSort(rows, (r) => r.item);
+  if (ctBy === "kind") { const gs = Object.keys(stockGroups()); return [...rows].sort((a, b) => (gs.indexOf(a.group) + 1 || 99) - (gs.indexOf(b.group) + 1 || 99)); }
+  return rows;
 }
-const ctShown = () => !$("#sheet").hidden && !!$("#ct");
+function ctPage() {
+  ctDay = ctDay || shiftDay(); ctHeard = null; ctSetupOn = false; ctQ = "";
+  if (ctIntro < 0 && !store.get("ctHow", false)) ctIntro = 0;
+  const speech = !!(window.SpeechRecognition || window.webkitSpeechRecognition), cam = !!navigator.mediaDevices?.getUserMedia;
+  $("#v-count").innerHTML = `<div class="shift-top"><h2>Stock</h2><span class="s">Count, scan, use-by</span></div>
+    <div class="ct-find" id="ct-find"><div class="ltools"><span class="ct-q"><span aria-hidden="true">⌕</span><input id="ct-say" type="search" enterkeyhint="go" maxlength="80" autocomplete="off" autocorrect="off" spellcheck="false" placeholder="Find, or say “Smirnoff 2.5”" aria-label="Find an item, or say or type a count, or type a barcode"></span>${cam ? `<button class="btn" id="ct-scan" aria-label="Scan a barcode">📷<span class="ct-bl"> Scan</span></button>` : ""}${speech ? `<button class="btn" id="ct-mic" aria-label="Say a count">🎤<span class="ct-bl"> Say it</span></button>` : ""}<button class="btn pri" id="ct-say-go" hidden>Count it</button></div>
+    <div id="ct-heard-slot"></div></div><div id="ct"></div>`;
+  ctRender(true);
+}
+// The Stock tab: off the team it says how to join; on it, the count book.
+function renderStock() {
+  if (!LIVE.me) { $("#v-count").innerHTML = `<div class="shift-top"><h2>Stock</h2></div><p class="note">The stock count, the barcode scanner and use-by dates are for the team. Join with the team code on the Team tab.</p>`; return; }
+  if (!$("#ct")) ctPage(); else ctRender();
+}
+const ctShown = () => cur === "count" && !!$("#ct");
 // A change from another phone waits while a number is being typed on a line here. force redraws anyway (this phone's
 // own action), keeping the box being typed in. Typing in the find box never waits: it sits above the list.
 function ctRender(force) {
@@ -235,7 +244,7 @@ function ctRender(force) {
   LIVE.api.watchCount(ctDay);
   const el = $("#ct"), ae = document.activeElement, typing = el.contains(ae) && ae.matches("input, select");
   const top = $("#ct-find"); if (top) top.hidden = ctSetupOn || ctIntro >= 0;
-  if ($("#ct-mic")) $("#ct-mic").textContent = ctRx ? "Listening…" : "🎤 Say it";
+  if ($("#ct-mic")) $("#ct-mic").innerHTML = ctRx ? "Listening…" : `🎤<span class="ct-bl"> Say it</span>`;
   if ($("#ct-heard-slot")) $("#ct-heard-slot").innerHTML = ctSetupOn ? "" : ctHeardHtml();
   if (typing && !force) { ctRender.later = true; return; }
   ctRender.later = false;
@@ -265,33 +274,35 @@ function ctFind(q, rows) {
 function ctHtml() {
   if (LIVE.countErr) return `<p class="note warnline">The count couldn't load. If it's new, Maintenance needs to publish the new rules.</p>`;
   if (!LIVE.loaded.has("countSetup") || LIVE.countDay !== ctDay) return `<p class="note">Loading the count…</p>`;
+  ctPrevLoad();
   const rows = ctRows(), tot = ctTotals(), done = rows.filter(ctLine).length, by = [...new Set(ctLines().map((x) => x.name))], wide = ctWide();
-  return `<div class="ct-head"><p class="s"><b>${done} of ${rows.length} lines counted</b>${by.length ? ` by ${esc(by.join(", "))}` : ""}. Saves as you go, with no signal too.</p>
+  return `${ctScanHtml()}${ctCodesHtml()}${ctUseByHtml()}<div class="ct-head"><p class="s"><b>${done} of ${rows.length} lines counted</b>${by.length ? ` by ${esc(by.join(", "))}` : ""}. Saves as you go, with no signal too.</p>
       <div class="ct-bar" aria-hidden="true"><i style="width:${rows.length ? Math.round((done / rows.length) * 100) : 0}%"></i></div>
-      <div class="ct-hrow"><label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label><button class="btn ct-howbtn" data-ct-intro="0">How to count</button></div></div>
+      <div class="ct-hrow"><label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label><button class="btn ct-howbtn" data-ct-intro="0">How to count</button></div>${ctTipsHtml()}</div>
     <div id="ct-list">${ctListHtml()}</div>
     <details class="setup" id="ct-tot-box"${ctTotOpen ?? wide ? " open" : ""}><summary>Totals so far${tot.some((t) => t.done) ? ` (${tot.filter((t) => t.done).length})` : ""}</summary>
       <p class="note">Each product added up across its places, for typing into Nory.</p>
       <div class="ct-tot">${tot.filter((t) => t.done).map((t) => `<div${ctIsLow(t) ? ' class="flag"' : ""}><span>${esc(t.item)}${ctIsLow(t) ? `<small>Running low: below ${ctSay(t.u, t.low)}</small>` : ""}</span><b>${ctSay(t.u, t.n)}${t.done < t.of ? " <small>(not all places)</small>" : ""}</b></div>`).join("") || `<p class="note">Nothing counted yet.</p>`}</div></details>
     <div class="actions">${sendBtn("count", "Send on WhatsApp", ctDay)}<button class="btn" id="ct-csv">Spreadsheet (Numbers, Excel)</button></div>
     ${ctInHtml()}${ctUseHtml()}
-    ${LIVE.admin ? `<div class="actions"><button class="btn" id="ct-setup">Set up the count</button></div>` : ""}`;
+    ${LIVE.admin ? `<div class="actions"><button class="btn" id="ct-setup">Set up the count</button></div>` : ""}
+    <div class="sec">Something new</div>${itemsHtml(mode)}`;
 }
 // Not counted yet, everything, or what's been counted; By place (the order you walk it, with the places to jump to) or
 // A to Z (the letter strip down the side, for finding one thing); and the lines. A search looks in every place.
 var ctLowSet = new Set();
 function ctListHtml() {
   ctLowSet = new Set(ctTotals().filter(ctIsLow).map((t) => t.item));
-  const rows = ctRows(), areas = [...new Set(rows.map((r) => r.area))], found = ctQ.trim() ? ctFind(ctQ, rows) : null;
+  const rows = ctOrdered(), areas = [...new Set(rows.map(ctSecOf))], found = ctQ.trim() ? ctFind(ctQ, rows) : null;
   const todo = rows.filter((r) => !ctLine(r)).length;
   const show = (r) => r.key === ctOpen || ctShow === "all" || (ctShow === "todo" ? !ctLine(r) : !!ctLine(r));
   const chip = (k, label, n) => `<button class="chip" data-ct-show="${k}" aria-pressed="${!found && ctShow === k}">${label}${n != null ? ` <small>${n}</small>` : ""}</button>`;
   const head = `<div class="recent ct-show">${chip("todo", "Not counted yet", todo)}${chip("all", "All", rows.length)}${chip("done", "Counted", rows.length - todo)}</div>
-    <div class="seg ct-order" role="group" aria-label="Order"><button data-ct-az="0" aria-pressed="${!ctAz}">By place</button><button data-ct-az="1" aria-pressed="${ctAz}">A to Z</button></div>
-    ${ctAz ? "" : `<div class="recent ct-jump" role="group" aria-label="Go to a place">${areas.map((a) => { const rs = rows.filter((r) => r.area === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`}`;
+    <div class="seg ct-order" role="group" aria-label="Order">${[["place", "By place"], ["kind", "By kind"], ["az", "A to Z"]].map(([k, l]) => `<button data-ct-by="${k}" aria-pressed="${ctBy === k}">${l}</button>`).join("")}</div>
+    ${ctBy === "az" ? "" : `<div class="recent ct-jump" role="group" aria-label="Go to a ${ctBy === "kind" ? "kind" : "place"}">${areas.map((a) => { const rs = rows.filter((r) => ctSecOf(r) === a), n = rs.filter(ctLine).length; return `<button class="chip${n === rs.length ? " full" : ""}" data-ct-jump="${esc(a)}">${esc(a)} <small>${n === rs.length ? "✓" : `${n}/${rs.length}`}</small></button>`; }).join("")}</div>`}`;
   if (found) return `${head}<div class="sec">${found.length ? `Found in ${[...new Set(found.map((r) => r.area))].length === 1 ? esc(found[0].area) : "every place"}` : "Nothing found"}</div>
-    ${found.map((r) => ctRowHtml(r, true)).join("") || `<p class="note">Nothing called “${esc(ctQ.trim())}”. Try fewer letters.${LIVE.admin ? " Not on the count at all? Add it with Add something new." : ""}</p>`}`;
-  const body = ctAz ? azHtml(rows.filter(show), (r) => r.item, (r) => ctRowHtml(r, true)) : areas.map((a) => { const rs = rows.filter((r) => r.area === a && show(r)); return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec">${esc(a)}</div>${rs.map((r) => ctRowHtml(r)).join("")}` : ""}`; }).join("");
+    ${found.map((r) => ctRowHtml(r, true)).join("") || (ctIsCode(ctQ) ? `<p class="note">That's a barcode. Press Go to look it up.</p>` : `<p class="note">Nothing called “${esc(ctQ.trim())}”. Try fewer letters, or 📷 scan it.</p><div class="actions"><button class="btn pri" data-ct-new="${esc(ctQ.trim().slice(0, 60))}">＋ Add “${esc(ctQ.trim().slice(0, 40))}” and count it</button></div>`)}`;
+  const body = ctBy === "az" ? azHtml(rows.filter(show), (r) => r.item, (r) => ctRowHtml(r, true)) : areas.map((a) => { const rs = rows.filter((r) => ctSecOf(r) === a && show(r)); return `<i class="anc" id="ct-a-${ctSlug(a)}"></i>${rs.length ? `<div class="sec">${esc(a)}</div>${rs.map((r) => ctRowHtml(r, ctBy === "kind")).join("")}` : ""}`; }).join("");
   const none = !rows.some(show);
   return `${head}${none ? `<p class="note ct-all">${ctShow === "todo" ? "✓ Everything's counted. Check the totals, then send them." : "Nothing counted yet."}</p>` : ""}${body}`;
 }
@@ -307,7 +318,7 @@ function ctHeardHtml() {
 }
 // What to do with a line, in a few words, for anyone counting for the first time.
 function ctDo(r) {
-  if (r.u === "bottle") return ctWeighable(r) ? "Full bottles, then weigh the open one" : "Full bottles, then tap how full the open one is";
+  if (r.u === "bottle") return "Full bottles, then tap the open one's level";
   const u = r.u === "each" ? "them" : `the ${ctUnit(r.u, 2).trim()}`;
   return `Count ${u}${r.pw > 0 ? " or weigh them" : ""}${r.size ? `: one is a ${r.size}` : ""}`;
 }
@@ -315,21 +326,70 @@ function ctRowHtml(r, where) {
   const x = ctLine(r), on = ctOpen === r.key;
   return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}${ctLowSet.has(r.item) ? `<small class="ct-low">Running low</small>` : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
 }
+// Next: down the list as it shows (by place, by kind or A to Z), past anything counted already when only what's left is
+// showing. Left blank, Next saves it as none. soon: after a line's last tap, a moment to see it saved first.
+function ctNext(key, soon) {
+  const go = () => {
+    const rs = ctOrdered(), i = rs.findIndex((y) => y.key === key); if (i >= 0 && !soon && !ctLine(rs[i])) ctPut(rs[i], 0, 0);
+    const n = rs.slice(i + 1).find((y) => ctShow !== "todo" || (!ctLine(y) && y.key !== key)); ctClearFind();
+    if (ctOpen !== key) return;
+    if (n) ctGo(n.key); else { ctOpen = ""; ctRender(); toast(rs.every((y) => ctLine(y) || y.key === key) ? "Everything's counted" : "That's the last one"); }
+  };
+  if (soon) setTimeout(go, 350); else go();
+}
+/* ---- Photo check: the open bottle beside a sealed one, to judge the level by eye ----
+   Only a picture to compare: the counter still taps the level. Their own photo stays on the phone and goes when the
+   line is left. The sealed one is kept once per product for everyone (countPhotos/{product}): anyone takes the first,
+   and a manager can take a better one. */
+var ctPh = null;
+const ctPhotoBtn = (r) => `<label class="btn" for="ct-ph-in">📷 Photo check</label><input type="file" accept="image/*" capture="environment" id="ct-ph-in" data-ct-ph="${esc(r.item)}" hidden>`;
+function ctPhotoHtml(r) {
+  const p = ctPh?.item === r.item ? ctPh : null; if (!p) return "";
+  const can = p.ref === null || LIVE.admin;
+  const ref = p.ref === undefined ? `<p class="s">Getting the sealed one…</p>` : p.ref ? `<img src="${p.ref}" alt="A sealed ${esc(r.item)}">` : `<p class="s">No photo of a sealed ${esc(r.item)} yet.</p>`;
+  return `<div class="ct-phc"><figure><figcaption>Yours</figcaption>${p.mine ? `<img src="${p.mine}" alt="Your photo of the open bottle">` : ""}</figure><figure><figcaption>Sealed</figcaption>${ref}</figure></div>
+    <p class="s">Compare the two, then tap the level on the bottle picture.${can ? ` <label class="linkbtn" for="ct-ref-in">${p.ref ? "Take a better sealed one" : "Take one of a sealed bottle"}</label><input type="file" accept="image/*" capture="environment" id="ct-ref-in" data-ct-ref="${esc(r.item)}" hidden>` : ""}</p>`;
+}
+async function ctPhoto(el) {
+  const item = el.dataset.ctPh || el.dataset.ctRef, f = el.files[0]; el.value = ""; if (!f) return;
+  const data = await shrink(f).catch(() => null); if (!data) return toast("Couldn't read that photo");
+  if (el.dataset.ctRef) {
+    track(LIVE.api.countPhoto(ctSlug(item), item, data), `Sealed ${item} kept for everyone`, "Not saved. Check the signal and try again");
+    if (ctPh?.item === item) ctPh.ref = data; return ctRender(true);
+  }
+  ctPh = { item, mine: data, ref: undefined }; ctRender(true);
+  const d = await LIVE.api.loadCountPhoto(ctSlug(item)).catch(() => null);
+  if (ctPh?.item === item && ctPh.ref === undefined) { ctPh.ref = d?.data || null; ctRender(true); }
+}
+
+// Added mid-count: its line opens to count straight away, while it waits for Maintenance to check it.
+function ctAdded(item) {
+  setTimeout(() => { const r = ctRows().find((y) => y.item === item); if (!r || !ctShown()) return; ctClearFind(); if (ctShow === "done") { ctShow = "todo"; store.set("ctShow", ctShow); } ctGo(r.key); toast(`${item} is on the count: count it now`); }, 400);
+}
+// The last count before this one, read once, for Same as last time.
+var ctPrev = null, ctPrevFor = "";
+function ctPrevLoad() {
+  if (ctPrevFor === ctDay || !LIVE.api?.prevCount) return; ctPrevFor = ctDay; ctPrev = null;
+  const d = ctDay; LIVE.api.prevCount(d).then((p) => { if (ctDay === d) { ctPrev = p; ctRender(); } }).catch(() => { ctPrevFor = ""; });
+}
+const ctPrevOf = (r) => ctPrev?.lines.find((x) => x.area === r.area && x.item === r.item && x.unit === r.u) || null;
 // The line being counted, one way through: the full ones, then the open one (weighed if the scale can, else its
 // level), then Next. Big buttons for wet hands.
 function ctEditHtml(r, x) {
   const full = x?.full || 0, open = x?.open || 0, can = ctWeighable(r), wide = ctWide();
-  const step = (k, n, label) => `<div class="ct-step"><span>${label}</span><button class="ct-big" data-ct-add="${k}:-1" aria-label="One less">−</button><b>${n}</b><button class="ct-big" data-ct-add="${k}:1" aria-label="One more">+</button></div>`;
-  const lvl = `<div class="ct-open"><div><span>Open bottle</span><b>${open ? `${ctNum(open / 100)}${r.ml ? ` · ${Math.round((open / 100) * r.ml)} ml` : ""}` : "None"}</b><button class="btn" data-ct-set="${full}:0">No open one</button></div>${ctBottle(open)}</div>`;
+  const step = (k, n, label) => `<div class="ct-step"><span>${label}</span><button class="ct-big" data-ct-add="${k}:-1" aria-label="One less">−</button><b>${n}</b><button class="ct-big" data-ct-add="${k}:1" aria-label="One more">+</button><button class="ct-big ct-six" data-ct-add="${k}:6" aria-label="Six more">+6</button></div>`;
+  const p = !x && ctPrevOf(r), same = p ? `<button class="btn ct-same" data-ct-same>Same as last time: ${ctSay(r.u, ctQty(p))} <small>${ctDate(ctPrev.day)}</small></button>` : "";
+  const lvl = `<div class="ct-open"><div><span>Open bottle: tap its level</span><b>${open ? `${ctNum(open / 100)}${r.ml ? ` · ${Math.round((open / 100) * r.ml)} ml` : ""}` : "None"}</b><button class="btn" data-ct-set="${full}:0">No open one</button>${ctPhotoBtn(r)}</div>${ctBottle(open)}</div>${ctPhotoHtml(r)}`;
   const total = x ? `<p class="ct-sum">Total here: <b>${ctSay(r.u, ctQty(x))}</b></p>` : "";
   const lowSet = LIVE.admin ? `<div class="ct-lowset" data-ct-item="${esc(r.item)}" data-ct-area="${esc(r.area)}">${ctLowField(r)}</div>` : "";
   const foot = `${total}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}<button class="btn pri" data-ct-next="${esc(r.key)}">Next ›</button></div>`;
   const one = r.size && r.u !== "bottle" ? `<p class="s ct-size">One is a ${esc(r.size)}${r.guess ? " (the usual size: a manager can change it)" : ""}.</p>` : "";
-  if (r.u !== "bottle") return `<div class="ct-edit">${one}${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
+  if (r.u !== "bottle") return `<div class="ct-edit">${same}${one}${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
   // Phones show one way at a time, the scale first; picking the level sticks until the scale is picked again.
-  const how = can ? (wide ? `${ctWeighHtml(r)}${lvl}` : ctLvl ? `${lvl}<button class="btn ct-lvl" data-ct-lvl="0">Use the scale instead</button>` : `${ctWeighHtml(r)}<button class="btn ct-lvl" data-ct-lvl="1">No scale? Tap how full it is</button>`)
+  // By eye first: one tap on the level. The scale is there for anyone who wants it exact.
+  const how = can ? (wide ? `${lvl}${ctWeighHtml(r)}` : ctLvl ? `${lvl}<button class="btn ct-lvl" data-ct-lvl="0">⚖️ Weigh it instead</button>` : `${ctWeighHtml(r)}<button class="btn ct-lvl" data-ct-lvl="1">By eye: tap how full it is</button>`)
     : `<p class="s">No weights for ${esc(r.item)} yet, so tap how full it is.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${lvl}${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}`;
-  return `<div class="ct-edit ct-b"><div class="ct-c1"><p class="ct-n">1. Full, sealed bottles${r.size ? ` <small>${esc(r.size)}</small>` : ""}</p>${step("full", full, "Full")}</div>
+  return `<div class="ct-edit ct-b">${same}<div class="ct-c1"><p class="ct-n">1. Full, sealed bottles${r.size ? ` <small>${esc(r.size)}</small>` : ""}</p>${step("full", full, "Full")}</div>
     <div class="ct-c2"><p class="ct-n">2. The open one</p>${how}</div>${foot}</div>`;
 }
 // Managers: the product's levels, in what it's counted in, all places together. Running low below: the heads-up before
@@ -376,6 +436,7 @@ function ctPut(r, full, open) {
 }
 const ctRow = (key) => ctRows().find((r) => r.key === key);
 function ctGo(key) {
+  if (ctPh && ctRow(key)?.item !== ctPh.item) ctPh = null;
   ctOpen = key; ctHeard = null; ctRender();
   requestAnimationFrame(() => document.getElementById(`ct-r-${ctSlug(key)}`)?.scrollIntoView({ block: "start", behavior: calm() ? "auto" : "smooth" }));
 }
@@ -400,6 +461,98 @@ function ctMic() {
   try { rx.start(); ctRender(); } catch { ctRx = null; }
 }
 
+/* ---- Counting tips: how the bar counts, short enough to read mid-count ---- */
+var CT_TIPS = [
+  ["Same way every time", "Top shelf to bottom, left to right, front to back. The list is in that order, so you never lose your place."],
+  ["Pull the back row forward", "Bring the bottles at the back to the front as you count each spot, so nothing hides behind the front row."],
+  ["Cases and crates", "A full, sealed case: count the bottles in it (24 Corona is 24), or open the line and type it. An open case: count what's left in it."],
+  ["Fridges", "Top shelf left to right, then the next shelf down. Count before the fridge is restocked or after, never halfway through."],
+  ["The open bottle by eye", "Hold it upright at eye level. Tap the bottle picture at its level: half full is .5. The scale is always closer, so use it when it's there."],
+  ["Wine", "Full bottles in the fridge and the rack, then the open one. A 175 ml glass is about a quarter of a 75 cl bottle."],
+  ["Kegs and the postmix", "Full, sealed kegs and boxes in the cellar are 1 each. The one that's connected: rock it or lift it. Light means nearly done: about .2. Not sure? .5."],
+  ["Deliveries", "Count before a delivery is put away, or log it under Delivery in, so usage comes out right."],
+  ["Broken or out of date", "It isn't stock: don't count it. Take it out and tell the duty manager."],
+  ["Hands full?", "🎤 Say it: “Corona 48”, “Smirnoff two and a half”. Can't find a bottle on the list? 📷 Scan its barcode."],
+  ["Two of you", "One counts out loud and one taps, or split the places. It all adds up on both phones."],
+];
+const ctTipsHtml = () => `<details class="setup ct-tips" id="ct-tips"${ctTipsHtml.open ?? ctWide() ? " open" : ""}><summary>Counting tips</summary><dl>${CT_TIPS.map(([t, d]) => `<dt>${t}</dt><dd>${d}</dd>`).join("")}</dl></details>`;
+
+/* ---- Barcodes: scan a bottle or pack to find it, count it, date it, or add it ----
+   A barcode only says which product it is (never its use-by date), so each one is linked once to its line on the count:
+   barcodes/{code} = the product's name. Anyone on the team links one and it works straight away, marked as waiting
+   until a manager checks it; a manager's own are checked already. A barcode nobody has linked is looked up on Open Food
+   Facts (free, no key) for its name, to suggest the line or add it as something new. Typing a barcode's numbers into
+   Find does the same as scanning, for a camera that won't read it. */
+var ctScanned = null;
+const ctCodeOf = (code) => (LIVE.codes || []).find((x) => x.code === code);
+const ctIsCode = (v) => /^\d{8,14}$/.test(String(v).replace(/\s+/g, ""));
+async function ctScan() { const code = await scanCode(); if (code) ctCode(code); }
+async function ctCode(code) {
+  code = String(code).replace(/\s+/g, ""); ctClearFind(); ctHeard = null; ctOpen = "";
+  const c = ctCodeOf(code); ctScanned = { code, item: c && ctRows(true).some((r) => r.item === c.item) ? c.item : "", c };
+  if (!ctScanned.item) { ctScanned.busy = true; ctRender(true); scrollTo(0, 0); const p = await offProduct(code).catch(() => undefined); if (ctScanned?.code !== code) return; Object.assign(ctScanned, { busy: false, off: p }); }
+  haptic(); ctRender(true); scrollTo(0, 0);
+}
+// The products whose whole name is in what Open Food Facts calls it (“Smirnoff Red Label Vodka” is Smirnoff), the most
+// specific first; else the closest by spelling.
+function ctNear(name) {
+  const ws = ctWords(name), items = [...new Set(ctRows().map((r) => r.item))];
+  const hit = items.map((n) => [n, ctWords(n)]).filter(([, nw]) => nw.length && nw.every((w) => ws.some((x) => x === w || (w.length >= 4 && x.startsWith(w))))).sort((a, b) => b[1].length - a[1].length).map(([n]) => n);
+  return (hit.length ? hit : [...new Set((ctFind(name, ctRows()) || []).map((r) => r.item))]).slice(0, 4);
+}
+// Which line a scanned barcode is: what it's linked to, else the closest few to what Open Food Facts calls it.
+function ctScanHtml() {
+  const k = ctScanned; if (!k) return "";
+  const close = `<button class="btn" data-ct-scan-x>Close</button>`, again = $("#ct-scan") ? `<button class="btn" id="ct-scan2">📷 Scan another</button>` : "";
+  if (k.busy) return `<div class="ct-scan"><p class="s">Barcode ${esc(k.code)}</p><p>Looking it up…</p></div>`;
+  if (k.item && !k.relink) {
+    const rs = ctRows().filter((r) => r.item === k.item), w = k.c && !k.c.ok;
+    return `<div class="ct-scan" role="region" aria-label="Scanned"><p class="s">Barcode ${esc(k.code)}${w ? ` · <span class="pill wait">Waiting for a manager to check</span>` : ""}</p><h3>${esc(k.item)}</h3>
+      ${rs.length ? `<div class="actions">${rs.map((r) => { const x = ctLine(r); return `<button class="btn pri" data-ct-row="${esc(r.key)}" data-ct-scan-x>Count it: ${esc(r.area)}${x ? ` (${ctSay(r.u, ctQty(x))})` : ""}</button>`; }).join("")}</div>` : `<p class="note">It's set as Don't count${LIVE.admin ? ", in Set up the count" : ""}.</p>`}
+      <div class="mini">Use-by</div>${ctLabelHtml(k.item)}
+      ${w && LIVE.admin ? `<div class="actions"><button class="btn pri" data-ct-code-ok="${esc(k.code)}">Right: check it</button><button class="btn danger" data-ct-code-drop="${esc(k.code)}">Wrong: take it off</button></div>` : ""}
+      <div class="actions">${again}${LIVE.admin || !k.c?.ok ? `<button class="btn" data-ct-relink>Not ${esc(k.item)}?</button>` : ""}${close}</div></div>`;
+  }
+  const name = k.off?.name || "", near = name ? ctNear(name) : [];
+  const found = k.lq?.trim() ? [...new Set((ctFind(k.lq, ctRows()) || []).map((r) => r.item))].slice(0, 6) : [];
+  return `<div class="ct-scan" role="region" aria-label="Scanned"><p class="s">Barcode ${esc(k.code)}</p><h3>${k.relink ? `What is it, if not ${esc(k.item)}?` : "Which one is it?"}</h3>
+    <p class="note">${k.relink ? "" : name ? `Online it's “${esc(name)}”. ` : k.off === null ? "It isn't listed online. " : "Couldn't look it up: no signal. "}Pick it once and the barcode finds it from then on, for everyone${LIVE.admin ? "" : " (a manager checks it)"}.</p>
+    ${near.length ? `<div class="recent">${near.map((n) => `<button class="chip" data-ct-link="${esc(n)}">${esc(n)}</button>`).join("")}</div>` : ""}
+    <label class="fld">Or find it<input id="ct-link-q" maxlength="60" autocomplete="off" value="${esc(k.lq || "")}" placeholder="A few letters"></label>
+    <div class="recent" id="ct-link-hits">${found.map((n) => `<button class="chip" data-ct-link="${esc(n)}">${esc(n)}</button>`).join("")}</div>
+    <p class="s">Not on the count at all? <button class="linkbtn" data-ct-new="${esc(name)}">Add it as something new</button></p>
+    <div class="actions">${again}${close}</div></div>`;
+}
+// Managers: barcodes the team has linked, to check.
+function ctCodesHtml() {
+  const xs = LIVE.admin ? (LIVE.codes || []).filter((x) => !x.ok) : []; if (!xs.length) return "";
+  return `<details class="setup" id="ct-codes"${ctCodesHtml.open ? " open" : ""}><summary>Barcodes to check <span class="pill wait">${xs.length}</span></summary>
+    <p class="note">Someone scanned these and picked what they are. They work already: check each is right.</p>
+    ${xs.map((x) => `<div class="tally-row" style="grid-template-columns:1fr auto auto"><div class="n">${esc(x.item)}<div class="s">${esc(x.code)} · ${esc(x.name)}</div></div><button class="btn" data-ct-code-ok="${esc(x.code)}">Right</button><button class="btn" data-ct-code-drop="${esc(x.code)}">Wrong</button></div>`).join("")}</details>`;
+}
+
+/* ---- Use-by: the date labels, from the Stock tab ----
+   The date labels are the one record of what's open and when it has to go (a barcode never carries the date). This
+   shows what's due in the next 3 days, and a scanned item's own label, with Opened one and Changed it saving straight
+   to it; anything more (a sooner date, discarding, adding one) is on Date labels in Shift. */
+const ctLabelsOf = (item) => LIVE.labels.filter((x) => x.on && x.item.trim().toLowerCase() === item.trim().toLowerCase());
+const ctSoon = () => LIVE.labels.filter((x) => x.on && x.state === "open" && ISO_DAY.test(x.useBy) && daysFrom(shiftDay(), x.useBy) <= 2).sort((a, b) => a.useBy.localeCompare(b.useBy) || a.item.localeCompare(b.item));
+function ctLbRow(x) {
+  const due = labelDue(x), [tag, cls] = LB_DUE[due], open = x.state === "open";
+  return `<div class="ct-lb"><div><b>${esc(x.item)}</b> <span class="pill ${cls}">${tag}</span><div class="s">${esc(sideName(x.side))} · ${esc(labelLine(x))}</div></div>
+    <div class="actions"><button class="btn${["overdue", "today"].includes(due) ? " pri" : ""}" data-ct-lb="${x.id}" data-ct-lb-act="${open ? "changed" : "opened"}">${open ? "Changed it" : "Opened one"}</button><button class="btn" data-ct-lbgo="${x.side}" aria-label="Date labels for the ${esc(lower(sideName(x.side)))}">›</button></div></div>`;
+}
+function ctLabelHtml(item) {
+  const xs = ctLabelsOf(item);
+  if (xs.length) return xs.map(ctLbRow).join("");
+  return `<p class="s">No date label for ${esc(item)}.${LIVE.admin ? ` <button class="linkbtn" data-ct-lbadd="${esc(item)}">Give it one</button>` : " If it goes off once it's opened, a manager adds one."}</p>`;
+}
+function ctUseByHtml() {
+  const xs = ctSoon(); if (!xs.length) return "";
+  const now = xs.filter((x) => ["overdue", "today"].includes(labelDue(x))).length;
+  return `<details class="setup ct-useby" id="ct-useby"${ctUseByHtml.open ?? (now > 0 || ctWide()) ? " open" : ""}><summary>Use-by: ${now ? `<b class="warnline">${now} to change now</b>, ` : ""}${xs.length} in the next 3 days</summary>${xs.map(ctLbRow).join("")}</details>`;
+}
+
 /* ---- First time counting: a walkthrough in plain words, with pictures ----
    Shown the first time someone opens the count on this phone, and any time from How to count. */
 const CT_PIC = (b) => `<svg viewBox="0 0 240 150" class="ct-pic" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">${b}</svg>`;
@@ -410,17 +563,17 @@ var CT_INTRO = [
   { t: "Set up the scale", pic: CT_PIC(`<path d="M30 118h180l-12 22H42z"/><rect x="60" y="94" width="120" height="24" rx="4"/><rect x="92" y="99" width="56" height="14" rx="2"/><text x="120" y="111" text-anchor="middle" font-size="13" fill="currentColor" stroke="none" font-weight="700">0 g</text>`),
     how: ["Put the kitchen scale on a flat, dry part of the bar top, near the shelf you're counting.", "Turn it on with nothing on it. It should say 0 g. If it doesn't, press Tare or Zero.", "Make sure it shows g (grams), not oz or ml."] },
   { t: "1. Full, sealed bottles", pic: CT_PIC(`${CT_BTL(40, 20, 1, 95)}${CT_BTL(90, 20, 1, 95)}<circle cx="190" cy="70" r="26"/><path d="M190 56v28M176 70h28"/>`),
-    how: ["Tap the item in the list.", "Count the bottles that have never been opened: the seal or cap isn't broken.", "Tap + once for each one."] },
+    how: ["Tap the item in the list.", "Count the bottles that have never been opened: the seal or cap isn't broken.", "Tap + once for each one, or +6 for a row of six. − takes one off.", "Same as last time? One tap on Same as last time does the whole line."] },
   { t: "2. The open bottle", pic: CT_PIC(`<path d="M20 128h200"/><rect x="70" y="112" width="100" height="16" rx="4"/>${CT_BTL(100, 5, 1, 45)}<path d="M180 30l20-12M186 44h24" stroke="var(--brass)"/>`),
-    how: ["Take the pourer off.", "Stand the open bottle on the scale and type the number it shows. The app works out how much is left.", "No scale? Tap the bottle picture at how full it is instead."] },
+    how: ["Look at it level with your eye and tap the bottle picture at how full it is: half is .5. That saves it and opens the next item.", "Not sure? 📷 Photo check puts your photo beside a sealed one, so you can see the difference.", "Want it exact? ⚖️ Weigh it: pourer off, stand it on the scale and type the grams. The app works out what's left."] },
   { t: "Cans, cakes and packs", pic: CT_PIC(`<rect x="30" y="50" width="40" height="70" rx="6"/><path d="M30 62h40M30 108h40"/><path d="M100 120h70a10 10 0 0 0 10-10V90H90v20a10 10 0 0 0 10 10z"/><path d="M90 90c10-16 80-16 90 0"/><rect x="190" y="70" width="34" height="50" rx="3"/>`),
     how: ["Count them and tap + for each, or type the number.", "Half a cake is .5. Each line says what one is, like a 200 ml bottle."] },
   { t: "Next, and nothing there", pic: CT_PIC(`<rect x="40" y="45" width="160" height="60" rx="30" fill="var(--brass)" stroke="none"/><text x="120" y="84" text-anchor="middle" font-size="26" font-weight="800" fill="var(--brass-ink)" stroke="none">Next ›</text>`),
-    how: ["Next › saves the item and opens the next one on the shelf.", "None on the shelf at all? Just tap Next: it saves as none.", "Not counted yet shows only what's left, so the list gets shorter as you go."] },
+    how: ["The level, No open one, None left and Same as last time save the item and open the next one by themselves. Next › does the same any time.", "None on the shelf at all? Just tap Next: it saves as none.", "Not counted yet shows only what's left, so the list gets shorter as you go."] },
   { t: "Can't find it?", pic: CT_PIC(`<circle cx="100" cy="68" r="38"/><path d="M128 96l40 40"/><path d="M84 68h32" stroke="var(--brass)"/>`),
-    how: ["Type a few letters in Find at the top. It looks in every place, and says where the item is.", "Still not there? Tell the duty manager and put it in ＋ Log it, so it isn't lost. A manager can add it."] },
+    how: ["Type a few letters in Find at the top. It looks in every place, and says where the item is. By kind puts all the vodkas, all the cakes and so on together.", "Or tap 📷 and scan the bottle's barcode: it opens that item.", "Not on the list at all, like a new cake or shake topping? Find shows ＋ Add it and count it: count it straight away, and Maintenance checks it after."] },
   { t: "Finished", pic: CT_PIC(`<rect x="60" y="20" width="120" height="110" rx="12"/><path d="M90 60l20 20 40-40" stroke="var(--brass)" stroke-width="8"/><path d="M90 108h60"/>`),
-    how: ["When Not counted yet is empty, check the totals.", "Send on WhatsApp, or Spreadsheet, at the bottom: for whoever puts it into Nory."] },
+    how: ["When Not counted yet is empty, check the totals.", "Send on WhatsApp, or Spreadsheet, at the bottom: for whoever puts it into Nory.", "Counting tips, under How to count, cover cases, fridges, wine and kegs."] },
 ];
 var ctIntro = -1;
 function ctIntroHtml() {
@@ -569,36 +722,58 @@ function ctSetupHtml() {
 }
 
 /* ---- Taps ---- */
-document.addEventListener("click", (e) => { if (e.target.closest("[data-ct-open]")) { haptic(); ctPage(); } });
-$("#sheet").addEventListener("click", (e) => {
+$("#v-count").addEventListener("click", (e) => {
   if (!$("#ct")) return;
   const t = (s) => e.target.closest(s);
   const it = t("[data-ct-intro]"); if (it) {
     const v = it.dataset.ctIntro; haptic();
     if (v === "go") { ctIntro = -1; store.set("ctHow", true); } else ctIntro = +v;
-    ctRender(true); $("#sheet").scrollTop = 0; return;
+    ctRender(true); scrollTo(0, 0); return;
   }
-  const az = t("[data-ct-az]"); if (az) { haptic(); ctAz = az.dataset.ctAz === "1"; store.set("ctAz", ctAz); ctClearFind(); return ctRender(true); }
+  // A product in Set up the count opens on the tap itself, so a redraw from another phone can't swallow it.
+  const sk = t("[data-ct-sk] > summary"); if (sk) { e.preventDefault(); const k = sk.parentElement.dataset.ctSk; ctSetOpen = ctSetOpen === k ? "" : k; return ctRender(true); }
+  // Scanning, and what a barcode is.
+  if (t("[data-ct-scan-x]")) { ctScanned = null; if (!t("[data-ct-row]")) return ctRender(true); }
+  if (t("#ct-scan, #ct-scan2")) { haptic(); return ctScan(); }
+  if (t("[data-ct-relink]") && ctScanned) { ctScanned.relink = true; ctScanned.lq = ""; return ctRender(true); }
+  const lk = t("[data-ct-link]"); if (lk && ctScanned) {
+    const k = ctScanned, item = lk.dataset.ctLink, had = ctCodeOf(k.code);
+    if (LIVE.codesErr) return toast("Barcodes need the new rules. Maintenance publishes them");
+    if (had?.ok && !LIVE.admin) return toast("A manager checked that barcode. Ask one to change it");
+    haptic(); track(LIVE.api.linkCode(k.code, item, !!LIVE.admin), LIVE.admin ? `Linked to ${item}` : `Linked to ${item}. A manager checks it`, "Not saved. Check the signal and try again");
+    ctScanned = { code: k.code, item, c: { code: k.code, item, ok: !!LIVE.admin } }; return ctRender(true);
+  }
+  const nw = t("[data-ct-new]"); if (nw) { const n = nw.dataset.ctNew; ctScanned = null; itOpen = true; ctRender(true); requestAnimationFrame(() => { $("#it-add")?.scrollIntoView({ block: "start" }); if (n) itLook(n); else $("#it-name")?.focus(); }); return; }
+  const co = t("[data-ct-code-ok]"); if (co) { const x = ctCodeOf(co.dataset.ctCodeOk); if (x) track(LIVE.api.linkCode(x.code, x.item, true), `Checked: ${x.item}`, "Not saved. Try again"); if (ctScanned?.c?.code === x?.code) ctScanned.c = { ...x, ok: true }; return ctRender(true); }
+  const cd = t("[data-ct-code-drop]"); if (cd) { const c = cd.dataset.ctCodeDrop; track(LIVE.api.dropCode(c), "Taken off. Scan it again to link it", "Not taken off. Try again"); if (ctScanned?.code === c) ctScanned = null; return ctRender(true); }
+  // Date labels: Opened one and Changed it save straight to the label; › goes to that side's Date labels.
+  const lb = t("[data-ct-lb]"); if (lb) {
+    const x = LIVE.labels.find((y) => y.id === lb.dataset.ctLb), act = lb.dataset.ctLbAct; if (!x) return;
+    const d = addDays(shiftDay(), x.life); haptic();
+    track(LIVE.api.label(x, act, { useBy: d }), `${x.item}: use by ${dayName(d)}`, "Not saved. Someone may have just changed it"); return;
+  }
+  const lg = t("[data-ct-lbgo]"); if (lg) { const sd = lg.dataset.ctLbgo; if (MODE_LISTS[sd] && sd !== mode) setMode(sd); haptic(); openAt("labels"); return; }
+  const la = t("[data-ct-lbadd]"); if (la) { const n = la.dataset.ctLbadd; Object.assign(lbF, { item: n, life: itKeep(n)?.days ? String(itKeep(n).days) : "", open: true }); haptic(); openAt("labels"); requestAnimationFrame(() => $("#lb-add")?.scrollIntoView({ block: "start" })); return; }
+  const by = t("[data-ct-by]"); if (by) { haptic(); ctBy = by.dataset.ctBy; store.set("ctBy", ctBy); ctClearFind(); return ctRender(true); }
   const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
-  const lb = t("[data-ct-lvl]"); if (lb) { ctLvl = lb.dataset.ctLvl === "1"; store.set("ctLvl", ctLvl); return ctRender(); }
+  const lvb = t("[data-ct-lvl]"); if (lvb) { ctLvl = lvb.dataset.ctLvl === "1"; store.set("ctLvl2", ctLvl); return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
   const jp = t("[data-ct-jump]"); if (jp) {
     // A place already counted is hidden under Not counted yet: going to it shows everything.
     const a = jp.dataset.ctJump; ctClearFind();
-    if (ctShow === "todo" && ctRows().filter((r) => r.area === a).every(ctLine)) { ctShow = "all"; store.set("ctShow", ctShow); }
+    if (ctShow === "todo" && ctRows().filter((r) => ctSecOf(r) === a).every(ctLine)) { ctShow = "all"; store.set("ctShow", ctShow); }
     ctRender(true); return document.getElementById(`ct-a-${ctSlug(a)}`)?.scrollIntoView({ block: "start" });
   }
   const r = ctOpen && ctRow(ctOpen), x = r && ctLine(r);
   const ad = t("[data-ct-add]"); if (ad && r) { haptic(); const d = +ad.dataset.ctAdd.split(":")[1]; ctPut(r, Math.max(0, (x?.full || 0) + d), x?.open || 0); return; }
-  const lv = t("[data-ct-lv]"); if (lv && r) { haptic(); ctPut(r, x?.full || 0, +lv.dataset.ctLv * 10); return; }
-  const st = t("[data-ct-set]"); if (st && r) { haptic(); const [f, o] = st.dataset.ctSet.split(":").map(Number); ctPut(r, f, o); return; }
+  // The open bottle's level, No open one, None left and Same as last time are the last tap on a line: it saves and the
+  // next one opens by itself.
+  const lv = t("[data-ct-lv]"); if (lv && r) { haptic(); ctPut(r, x?.full || 0, +lv.dataset.ctLv * 10); return ctNext(r.key, true); }
+  const st = t("[data-ct-set]"); if (st && r) { haptic(); const [f, o] = st.dataset.ctSet.split(":").map(Number); ctPut(r, f, o); return ctNext(r.key, true); }
+  const sm = t("[data-ct-same]"); if (sm && r) { const p = ctPrevOf(r); if (!p) return; haptic(); ctPut(r, p.full, p.open); return ctNext(r.key, true); }
   const dr = t("[data-ct-drop]"); if (dr && r) { track(LIVE.api.dropCountLine(ctId(ctDay, r.area, r.item)), null, "Not cleared. Try again"); return; }
   // Next: down the list as it shows (the shelf, or A to Z), past anything counted already when only what's left is showing.
-  const nx = t("[data-ct-next]"); if (nx) {
-    const rs = ctAz ? azSort(ctRows(), (r) => r.item) : ctRows(), i = rs.findIndex((y) => y.key === nx.dataset.ctNext); if (i >= 0 && !ctLine(rs[i])) ctPut(rs[i], 0, 0);
-    const n = rs.slice(i + 1).find((y) => ctShow !== "todo" || !ctLine(y)); ctClearFind();
-    if (n) ctGo(n.key); else { ctOpen = ""; ctRender(); toast(rs.every(ctLine) ? "Everything's counted" : "That's the last one"); } return;
-  }
+  const nx = t("[data-ct-next]"); if (nx) return ctNext(nx.dataset.ctNext);
   if (t("#ct-say-go")) return ctHear($("#ct-say").value);
   if (t("#ct-mic")) return ctMic();
   const ha = t("[data-ct-heard-area]"); if (ha) { ctHeard.key = ha.dataset.ctHeardArea; return ctRender(); }
@@ -614,8 +789,8 @@ $("#sheet").addEventListener("click", (e) => {
   const id = t("[data-ct-in-drop]"); if (id) return track(LIVE.api.dropReceived(id.dataset.ctInDrop), "Taken off", "Not taken off. Try again");
   if (t("#ct-use-go")) return ctUseLoad();
   // Setup
-  if (t("#ct-setup")) { ctSetupOn = true; ctSetOpen = ""; ctRender(); $("#sheet").scrollTop = 0; return; }
-  if (t("#ct-setup-done")) { ctSetupOn = false; ctRender(); $("#sheet").scrollTop = 0; return; }
+  if (t("#ct-setup")) { ctSetupOn = true; ctSetOpen = ""; ctRender(); scrollTo(0, 0); return; }
+  if (t("#ct-setup-done")) { ctSetupOn = false; ctRender(); scrollTo(0, 0); return; }
   const ul = t("[data-ct-unlock]"); if (ul) { ctUnlocked.add(ul.dataset.ctUnlock); toast(`${ul.dataset.ctUnlock} unlocked. Weigh it again to lock it`); return ctRender(true); }
   const ck = t("[data-ct-chkgo]"); if (ck) {
     const item = ck.dataset.ctChkgo, rr = ctRows(true).find((y) => y.item === item), g = +$(`[data-ct-chk="${CSS.escape(item)}"]`).value.replace(",", ".") || 0;
@@ -637,19 +812,29 @@ $("#sheet").addEventListener("click", (e) => {
     return ctSave((s) => { const l = ctRows(true).filter((y) => y.area === area).map((y) => y.item), i = l.indexOf(item); [l[i], l[i + d]] = [l[i + d], l[i]]; s.order[area] = l; });
   }
 });
-$("#sheet").addEventListener("toggle", (e) => {
+$("#v-count").addEventListener("toggle", (e) => {
   // A redraw fires toggle on the details it replaced too, after they've gone: only the ones on the page count.
   const d = e.target; if (!$("#ct") || !d.matches?.("details") || !d.isConnected) return;
   if (d.id === "ct-in-box") ctInHtml.open = d.open;
+  else if (d.id === "ct-tips") ctTipsHtml.open = d.open;
+  else if (d.id === "ct-useby") ctUseByHtml.open = d.open;
+  else if (d.id === "ct-codes") ctCodesHtml.open = d.open;
+  else if (d.id === "it-add") itOpen = d.open;
+  else if (d.id === "it-list") itShow = d.open ? mode : "";
   else if (d.id === "ct-tot-box") ctTotOpen = d.open;
   else if (d.id === "ct-use-box") ctUseHtml.open = d.open;
   else if (d.dataset.ctSk) { if (d.open) { if (ctSetOpen !== d.dataset.ctSk) { ctSetOpen = d.dataset.ctSk; ctRender(); } } else if (ctSetOpen === d.dataset.ctSk) ctSetOpen = ""; }
 }, true);
 // The find box: the list narrows as it's typed, in every place. Count it shows once it reads as a count.
 function ctClearFind() { ctQ = ""; const i = $("#ct-say"); if (i) i.value = ""; if ($("#ct-say-go")) $("#ct-say-go").hidden = true; }
-$("#sheet").addEventListener("input", (e) => {
+$("#v-count").addEventListener("input", (e) => {
+  if (e.target.id === "ct-link-q" && ctScanned) {
+    ctScanned.lq = e.target.value; const hits = $("#ct-link-hits"), found = ctScanned.lq.trim() ? [...new Set((ctFind(ctScanned.lq, ctRows()) || []).map((r) => r.item))].slice(0, 6) : [];
+    if (hits) hits.innerHTML = found.map((n) => `<button class="chip" data-ct-link="${esc(n)}">${esc(n)}</button>`).join("") || (ctScanned.lq.trim() ? `<p class="s">Nothing called that on the count.</p>` : "");
+    return;
+  }
   if (e.target.id === "ct-say") {
-    ctQ = e.target.value; $("#ct-say-go").hidden = !ctParse(ctQ);
+    ctQ = e.target.value; $("#ct-say-go").hidden = !ctParse(ctQ) || ctIsCode(ctQ);
     if (ctHeard) { ctHeard = null; $("#ct-heard-slot").innerHTML = ""; }
     return ctPaint();
   }
@@ -669,11 +854,12 @@ function ctWeighPut(el) {
   if (r.u !== "bottle") return ctPut(r, Math.floor(w.n), (w.n % 1) * 100);
   if (!w.full && n >= r.e - 20 && (x?.open ?? -1) !== w.open) ctPut(r, x?.full || 0, w.open);
 }
-$("#sheet").addEventListener("change", (e) => {
+$("#v-count").addEventListener("change", (e) => {
   if (!$("#ct")) return;
   const el = e.target;
+  if (el.id === "ct-ph-in" || el.id === "ct-ref-in") return ctPhoto(el);
   if (el.id === "ct-day") { ctDay = el.value && el.value <= shiftDay() ? el.value : shiftDay(); ctOpen = ""; ctUse = null; el.blur(); return ctRender(); }
-  if (el.id === "ct-type") { const r = ctRow(ctOpen), n = +el.value.replace(",", "."); el.blur(); if (r && n >= 0) ctPut(r, Math.floor(n + 1e-9), ((n + 1e-9) % 1) * 100); return ctRender(); }
+  if (el.id === "ct-type") { const r = ctRow(ctOpen), n = +el.value.replace(",", "."); el.blur(); if (r && el.value.trim() !== "" && n >= 0) { ctPut(r, Math.floor(n + 1e-9), ((n + 1e-9) % 1) * 100); return ctNext(r.key, true); } return ctRender(); }
   if (el.dataset.ctG) {
     ctWeighPut(el); el.blur(); return;
   }
@@ -689,11 +875,12 @@ $("#sheet").addEventListener("change", (e) => {
     if (f === "also") ctItemSet(s, r, { a: el.value ? [r.a[0], el.value] : [r.a[0]] });
   });
 });
-$("#sheet").addEventListener("keydown", (e) => {
+$("#v-count").addEventListener("keydown", (e) => {
   if (e.key !== "Enter") return;
   if (e.target.id === "ct-say") {
     // A count (“Smirnoff 2.5”) goes to the check; just a name opens the best match.
     e.preventDefault(); const v = e.target.value;
+    if (ctIsCode(v)) { e.target.blur(); return ctCode(v); }
     if (ctParse(v)) return ctHear(v);
     const f = ctFind(v, ctRows()); if (f?.length) { e.target.blur(); ctGo((f.find((r) => !ctLine(r)) || f[0]).key); } else if (v.trim()) ctHear(v);
   }
@@ -702,4 +889,4 @@ $("#sheet").addEventListener("keydown", (e) => {
 });
 // A change that waited for the typing is drawn once the box is left. Not straight away: a tap on a button takes the
 // focus first, and redrawing then would swap the button out before the tap lands.
-$("#sheet").addEventListener("focusout", () => setTimeout(() => { if (ctRender.later && ctShown() && !$("#ct").contains(document.activeElement)) ctRender(); }, 400));
+$("#v-count").addEventListener("focusout", () => setTimeout(() => { if (ctRender.later && ctShown() && !$("#ct").contains(document.activeElement)) ctRender(); }, 400));

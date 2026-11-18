@@ -169,6 +169,8 @@ function itFill(f, kind) {
   return f;
 }
 var itF = null, itBusy = false, itOpen = false, itShow = "";
+// Add something new lives on the Stock tab, at the foot of the count.
+const itRender = () => ctRender(true);
 // Names compared loosely: "Fresh strawberries" is the stock list's "Strawberries".
 function itNorm(s) { return s.toLowerCase().replace(/[^a-z0-9]+/g, " ").replace(/\b(fresh|the|a|bottles?|cans?)\b/g, " ").replace(/ies\b/g, "y").replace(/s\b/g, "").replace(/\s+/g, " ").trim(); }
 // Typos: two names are near when every word typed is the start of a word in the other, or one or two letters off
@@ -240,7 +242,7 @@ function itFormHtml() {
     <div class="actions"><button class="btn pri" id="it-save">${own ? (edit ? (f.status === "waiting" ? "Approve and add it" : "Save") : "Add it") : "Send it to Maintenance to check"}</button>
       ${edit && own ? `<button class="btn danger" data-it-drop="${f.id}">${f.status === "waiting" ? "Turn it down" : "Take it off"}</button>` : ""}<button class="btn" id="it-cancel">Cancel</button></div></div>`;
 }
-// On the Stock page: add something, what's waiting for Maintenance, and what's been added on this side.
+// On the Stock tab: add something, what's waiting for Maintenance, and what's been added on this side.
 function itemsHtml(side) {
   if (!LIVE.loaded.has("items")) return "";
   const wait = itWaiting(), mine = itLive(side);
@@ -266,37 +268,51 @@ function putAwayHtml(side) {
 // Black Tap's date label list also holds the added items that need a label and have no days yet, for a manager to fill
 // in from the pack.
 function itLabelIdeas(side) { const xs = itLive(side).filter((x) => x.label && !x.life).map((x) => [x.item]); return xs.length ? [["Added by the team", xs]] : []; }
-// A barcode (scanned, or typed as digits): Open Food Facts says what the product is (free, no key), and then it goes
-// through the same lookup as a typed name, with what Open Food Facts says about it first.
-async function itBarcode(code) {
-  itBusy = true; itF = { item: code }; renderTally();
-  let p = null;
-  try {
-    const c = new AbortController(), t = setTimeout(() => c.abort(), 6000);
-    const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,categories_tags,quantity`, { signal: c.signal }).finally(() => clearTimeout(t));
-    const j = r.ok ? await r.json() : null; p = j?.status === 1 ? j.product : null;
-  } catch {}
-  itBusy = false;
-  if (!p?.product_name) { itF = null; renderTally(); return toast(p === null && !navigator.onLine ? "No signal: type the name instead" : "That barcode isn't listed online. Type the name instead"); }
+// What Open Food Facts calls a barcode's product (free, no key): { name, cats, qty }, null when it isn't listed. Throws
+// with no signal.
+async function offProduct(code) {
+  const c = new AbortController(), t = setTimeout(() => c.abort(), 6000);
+  const r = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json?fields=product_name,brands,categories_tags,quantity`, { signal: c.signal }).finally(() => clearTimeout(t));
+  if (!r.ok && r.status !== 404) throw new Error(`Open Food Facts ${r.status}`);
+  const j = r.ok ? await r.json() : null, p = j?.status === 1 ? j.product : null;
+  if (!p?.product_name) return null;
   const brand = (p.brands || "").split(",")[0].trim(), name = (brand && !p.product_name.toLowerCase().includes(brand.toLowerCase()) ? `${brand} ${p.product_name}` : p.product_name).slice(0, 60);
-  const cats = (p.categories_tags || []).filter((c) => c.startsWith("en:")).map((c) => c.slice(3).replace(/-/g, " ")).slice(0, 6).join(", ");
-  itF = null; return itLook(name, [{ title: name, desc: cats || p.quantity || "", src: "Open Food Facts" }]);
+  const cats = (p.categories_tags || []).filter((x) => x.startsWith("en:")).map((x) => x.slice(3).replace(/-/g, " ")).slice(0, 6).join(", ");
+  return { name, cats, qty: p.quantity || "" };
 }
-var itZX = null;
-// The camera, read by ZXing (free, loaded the first time it's needed, so the app stays light on old phones).
-async function itScan() {
+// A barcode (scanned, or typed as digits): Open Food Facts says what the product is, and then it goes through the same
+// lookup as a typed name, with what Open Food Facts says about it first.
+async function itBarcode(code) {
+  itBusy = true; itF = { item: code }; itRender();
+  let p = null, off = false;
+  try { p = await offProduct(code); } catch { off = true; }
+  itBusy = false;
+  if (!p) { itF = null; itRender(); return toast(off ? "No signal: type the name instead" : "That barcode isn't listed online. Type the name instead"); }
+  itF = null; return itLook(p.name, [{ title: p.name, desc: p.cats || p.qty, src: "Open Food Facts" }]);
+}
+var scanZX = null;
+// The camera, read by ZXing (free, loaded the first time it's needed, so the app stays light on old phones). Resolves
+// with the barcode's numbers, or null if it was cancelled or the camera couldn't be used.
+async function scanCode() {
   const box = document.createElement("div");
-  box.id = "it-scan"; box.innerHTML = `<video playsinline muted></video><p>Point the camera at the barcode</p><button class="btn" id="it-scan-x">Cancel</button>`;
+  box.id = "it-scan"; box.innerHTML = `<video playsinline muted></video><p>Point the camera at the barcode. Hold it still, about a hand's width away.</p><button class="btn" id="it-scan-x">Cancel</button>`;
   document.body.append(box);
   let reader = null; const done = () => { try { reader?.reset(); } catch {} box.remove(); };
-  box.querySelector("#it-scan-x").onclick = done;
+  const cancel = new Promise((ok) => { box.querySelector("#it-scan-x").onclick = () => { done(); ok(null); }; });
   try {
-    if (!window.ZXing) await (itZX ||= new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"; sc.onload = ok; sc.onerror = no; document.head.append(sc); }));
+    if (!window.ZXing) await (scanZX ||= new Promise((ok, no) => { const sc = document.createElement("script"); sc.src = "https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js"; sc.onload = ok; sc.onerror = no; document.head.append(sc); }));
+    if (!box.isConnected) return null;
     reader = new ZXing.BrowserMultiFormatReader();
-    const res = await reader.decodeOnceFromVideoDevice(undefined, box.querySelector("video"));
-    done(); haptic(); itBarcode(res.getText());
-  } catch (e) { if (box.isConnected) { done(); toast(itZX && window.ZXing ? "Couldn't use the camera. Type the barcode's numbers or the name" : "The scanner needs signal the first time"); } itZX = window.ZXing ? itZX : null; }
+    const res = await Promise.race([reader.decodeOnceFromVideoDevice(undefined, box.querySelector("video")), cancel]);
+    if (!res) return null;
+    done(); haptic(); return res.getText();
+  } catch {
+    if (box.isConnected) { done(); toast(window.ZXing ? "Couldn't use the camera. Type the barcode's numbers into Find" : "The scanner needs signal the first time"); }
+    if (!window.ZXing) scanZX = null;
+    return null;
+  }
 }
+async function itScan() { const code = await scanCode(); if (code) itBarcode(code); }
 async function itLook(given, extra) {
   const typed = (given || $("#it-name")?.value || "").trim().replace(/\s+/g, " ").slice(0, 60);
   if (!typed) return toast("Type what it is first");
@@ -304,7 +320,7 @@ async function itLook(given, extra) {
   const known = itKnown(typed), st = itStock(known || typed);
   let item = st ? st.item : known || typed;
   const dup = itDup(item); if (dup) return toast(dup);
-  itBusy = true; itF = { item }; renderTally();
+  itBusy = true; itF = { item }; itRender();
   let hits = null, offline = false;
 
   try { hits = await itLookup(item); } catch { offline = true; }
@@ -313,12 +329,12 @@ async function itLook(given, extra) {
   if (itF?.item !== item) return;
   // Typed in another language: it goes on the lists under the English name (the one the stock list uses, if it's there).
   const eng = !known && hits?.find((h) => h.en);
-  if (eng) { const k2 = itKnown(eng.title); item = itStock(k2 || eng.title)?.item || k2 || eng.title.slice(0, 60); const d2 = itDup(item); if (d2) { itF = null; renderTally(); return toast(d2); } }
+  if (eng) { const k2 = itKnown(eng.title); item = itStock(k2 || eng.title)?.item || k2 || eng.title.slice(0, 60); const d2 = itDup(item); if (d2) { itF = null; itRender(); return toast(d2); } }
   const g = itGuess(item, hits);
   // Nothing it knows and nothing found online: the closest things it does know, to pick from, or carry on adding.
   const near = !known && !itStock(item) && !g.found ? itClosest(typed) : [];
   itF = itFill({ item, typed, near, note: "", found: g.found, looked: true, offline }, g.kind);
-  renderTally();
+  itRender();
 }
 function itSave() {
   const f = itF, life = f.label && f.life.trim() ? Number(f.life) : 0;
@@ -327,45 +343,45 @@ function itSave() {
   const dup = itDup(f.item, f.id); if (dup) return toast(dup);
   const x = { item: f.item, kind: f.kind, group: itStock(f.item)?.group || itGroup(f.kind, `${f.item} ${f.found || ""}`, f.side), side: f.side, store: f.store, label: f.label, life: f.label ? life : 0, close: f.close, note: f.note.trim().slice(0, 200), found: f.found || "" };
   const was = f.id && LIVE.items.find((y) => y.id === f.id);
-  if (f.id && !was) { itF = null; renderTally(); return toast("Someone has just taken it off"); }
+  if (f.id && !was) { itF = null; itRender(); return toast("Someone has just taken it off"); }
   const p = f.id ? LIVE.api.saveItem(was, x) : LIVE.api.addItem(x, LIVE.owner);
   track(p, LIVE.owner ? `${x.item} is on every phone now` : `Sent. Maintenance will check ${x.item}`, "Not saved. Try again");
   // Maintenance putting it on: its date label goes on too, when its days are known and the side hasn't got one.
   if (LIVE.owner && x.label && x.life && !dupLabel(x.item, x.side)) track(LIVE.api.label(null, "added", { item: x.item, side: x.side, life: x.life, on: true }), null, "The date label wasn't added. Add it on Labels");
-  itF = null; itOpen = true; haptic(); renderTally();
+  itF = null; itOpen = true; haptic(); itRender();
+  if (!f.id) ctAdded(x.item);
 }
-$("#tally").addEventListener("click", (e) => {
+$("#v-count").addEventListener("click", (e) => {
   if (e.target.closest("#it-look")) { itLook(); return; }
   if (e.target.closest("#it-scan-go")) { itScan(); return; }
-  const pk = e.target.closest("[data-it-pick]"); if (pk) { itF = null; renderTally(); $("#it-name").value = pk.dataset.itPick; itLook(); return; }
-  if (e.target.closest("#it-cancel")) { itF = null; renderTally(); return; }
+  const pk = e.target.closest("[data-it-pick]"); if (pk) { itF = null; itRender(); $("#it-name").value = pk.dataset.itPick; itLook(); return; }
+  if (e.target.closest("#it-cancel")) { itF = null; itRender(); return; }
   if (e.target.closest("#it-save")) { if (itF) itSave(); return; }
   const ed = e.target.closest("[data-it-edit]"); if (ed) {
     const x = LIVE.items.find((y) => y.id === ed.dataset.itEdit); if (!x) return;
     itF = { id: x.id, status: x.status, item: x.item, kind: x.kind, side: x.side, store: x.store, label: x.label, life: x.life ? String(x.life) : "", close: x.close, note: x.note, found: x.found, looked: !!x.found };
-    renderTally(); return;
+    itRender(); return;
   }
   const dr = e.target.closest("[data-it-drop]"); if (dr) {
     const x = LIVE.items.find((y) => y.id === dr.dataset.itDrop); if (!x) return;
     if (!confirm(x.status === "waiting" ? `${LIVE.owner && x.addedUid !== LIVE.uid ? "Turn down" : "Take back"} ${x.item}?` : `Take ${x.item} off? It leaves the 86 list, restocking and closing. A date label already set up for it stays on Labels.`)) return;
     track(LIVE.api.dropItem(x.id), `${x.item} taken off`, "Not done. Try again");
-    if (itF?.id === x.id) itF = null; haptic(); renderTally();
+    if (itF?.id === x.id) itF = null; haptic(); itRender();
   }
 });
-$("#tally").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "it-name") { e.preventDefault(); itLook(); } });
+$("#v-count").addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.id === "it-name") { e.preventDefault(); itLook(); } });
 // While typing a new item: what's on the list already with a name like it (the same search as everywhere), so nothing
 // goes on twice.
-$("#tally").addEventListener("input", (e) => {
+$("#v-count").addEventListener("input", (e) => {
   if (e.target.id !== "it-name") return;
   const q = e.target.value.trim(), xs = q.length >= 3 ? pkSearch(q, pkPool().filter((x) => x.c !== "drinks")).slice(0, 4) : [];
   $("#it-have").innerHTML = xs.length ? `Already on the list: ${xs.map((x) => `<b translate="no">${esc(x.n)}</b> <span class="pill">${esc(PK_CAT[x.c])}</span>`).join(" ")}. Only add it if it's something else.` : "";
 });
-$("#tally").addEventListener("input", (e) => { const k = e.target.dataset.it; if (itF && (k === "life" || k === "note" || k === "item")) itF[k] = e.target.value; });
-$("#tally").addEventListener("change", (e) => {
+$("#v-count").addEventListener("input", (e) => { const k = e.target.dataset.it; if (itF && (k === "life" || k === "note" || k === "item")) itF[k] = e.target.value; });
+$("#v-count").addEventListener("change", (e) => {
   const k = e.target.dataset.it; if (!itF || !k || k === "life" || k === "note") return;
-  if (k === "item") { renderTally(); return; }
+  if (k === "item") { itRender(); return; }
   if (k === "kind") itFill(itF, e.target.value);
   else itF[k] = e.target.type === "checkbox" ? e.target.checked : e.target.value;
-  renderTally();
+  itRender();
 });
-keepOpen($("#tally"), (e) => { if (e.target.id === "it-add") itOpen = e.target.open; if (e.target.id === "it-list") itShow = e.target.open ? mode : ""; });

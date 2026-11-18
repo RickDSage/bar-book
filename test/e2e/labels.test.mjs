@@ -28,7 +28,7 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   await resetEmulators();
   const { O, M, S, T } = await team(browser, site, people);
   await labels(M); await labels(S);
-  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.firstChild.textContent)), ["Morning", "Labels", "Stock", "Closing", "Handover"]);
+  assert.deepEqual(await S.$$eval(".ptabs [data-pane]", (x) => x.map((b) => b.firstChild.textContent)), ["Morning", "Labels", "86", "Closing", "Handover"]);
   assert.match(await text(S, "#tally"), /Nothing here yet\. A manager adds what needs a date label\./);
   assert.equal(await S.locator("#lb-add").count(), 0, "staff don't get the add form");
   assert.equal(await attempt(S, () => LIVE.api.label(null, "added", { item: "Apple juice", side: "bar", life: 3, on: true })), "permission-denied");

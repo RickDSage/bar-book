@@ -86,7 +86,7 @@ test("the same picker picks for restocking, running low, Log it, date labels and
   assert.equal(await O.inputValue("#lb-item"), "Oat milk");
   assert.notEqual(await O.inputValue("#lb-life"), "");
   // The stock count finds in its own list, in every place: a few letters, typos too, and Go opens the line.
-  await S.click(".ptabs [data-pane=stock]"); await S.click("[data-ct-open]");
+  await S.click("[data-tab=count]");
   await S.waitForSelector("#ct .ct-row");
   await S.fill("#ct-say", "tanquery"); await S.press("#ct-say", "Enter");
   await S.waitForSelector(".ct-row.on");
