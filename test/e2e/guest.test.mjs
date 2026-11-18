@@ -152,3 +152,14 @@ test("The bar iPad has Guest in its top bar", async () => {
   assert.equal(await p.isVisible("#guest"), true);
   assert.deepEqual(p.errs, []);
 });
+
+test("Read text in a photo: Translate puts the words into your language, and back", async () => {
+  const p = await open({ ai: true });
+  await p.evaluate(() => { rtShow(); RT.text = "Hola\nAdiós"; rtDraw(); });
+  await p.click("[data-rt-tr]");
+  await p.waitForSelector("#rt-tr");
+  assert.match(await p.textContent("#rt-tr"), /\[English\] Hola/);
+  await p.click("[data-rt-tr]");
+  assert.equal(await p.$("#rt-tr"), null);
+  assert.deepEqual(p.errs, []);
+});

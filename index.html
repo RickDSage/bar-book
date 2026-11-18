@@ -1,4 +1,4 @@
-<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><meta name="description" content="Every Black Tap Soho drink: specs, step-by-step guides and allergens. Staff only."><meta property="og:title" content="Black Tap Bar Book"><meta property="og:description" content="Every Black Tap Soho drink: specs, step-by-step guides and allergens. Staff only."><meta property="og:image" content="https://rickdsage.github.io/bar-book/og.png"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="https://rickdsage.github.io/bar-book/"><meta property="og:type" content="website"><meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#15130f"><meta name="apple-mobile-web-app-status-bar-style" content="black"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Black Tap Bar Book</title>
+<!doctype html><html lang="en-GB"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><meta name="description" content="The Black Tap Soho shift app: specs, 86s, closing, handover and stock for the bar and floor team. Team only."><meta property="og:title" content="Black Tap Bar Book"><meta property="og:description" content="The Black Tap Soho shift app: specs, 86s, closing, handover and stock for the bar and floor team. Team only."><meta property="og:site_name" content="Black Tap Bar Book"><meta property="og:image" content="https://rickdsage.github.io/bar-book/og.png?v=2"><meta property="og:image:alt" content="Black Tap Bar Book"><meta property="og:image:width" content="1200"><meta property="og:image:height" content="630"><meta property="og:url" content="https://rickdsage.github.io/bar-book/"><meta property="og:type" content="website"><meta name="twitter:card" content="summary_large_image"><meta name="theme-color" content="#15130f"><meta name="apple-mobile-web-app-status-bar-style" content="black"><link rel="manifest" href="manifest.webmanifest"><link rel="apple-touch-icon" href="icon-180.png"><link rel="icon" href="icon-192.png"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>Black Tap Bar Book</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="BT Bar Book">
@@ -443,6 +443,12 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .football .fx { padding: 8px 0; }
 .hopt { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 10px 0; }
 .hopt span { text-align: right; color: var(--muted); }
+.sendgap { margin: 10px 0; padding: 10px 14px; border: 2px solid var(--warn, #c98a1b); border-radius: 12px; background: var(--surface); }
+.sendgap ul { margin: 6px 0; padding-left: 20px; }
+.opener { margin: 10px 0; padding: 12px 14px; border: 2px solid var(--brass); border-radius: 12px; background: var(--surface); }
+.opener b { font-size: 18px; }
+.opener ul { margin: 8px 0 0; padding-left: 22px; }
+.opener li { margin: 4px 0; font-size: 17px; }
 /* Work someone started, for anyone to carry on. */
 .hopt.carry { flex-direction: column; align-items: stretch; gap: 6px; padding: 12px; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; }
 .hopt.carry span { text-align: left; }
@@ -1460,7 +1466,8 @@ const partItems = (p) => p.lines.filter((l) => !/^\s/.test(l)).length;
 const subLine = (t) => `   ◦ ${t}`;
 // WhatsApp shows *this* in bold. Email and print get the same words without the marks.
 function msgText(m, pick, note = "", wa = true) {
-  const b = (t) => (wa ? `*${t}*` : t), out = [b(m.title), ...m.head];
+  // What's missing never stops a send: it goes at the top of the message, so nobody has to guess.
+  const b = (t) => (wa ? `*${t}*` : t), out = [b(m.title), ...(m.gaps?.length ? [`\u26a0\ufe0f Missing: ${m.gaps.join("; ")}`] : []), ...m.head];
   for (const p of m.parts) {
     if (!pick.has(p.id) || !p.lines.length) continue;
     out.push("", b(p.one ? p.label : `${p.label} (${partItems(p)})`), ...p.lines.map((l) => (p.one || p.raw || /^\s/.test(l) ? l : `• ${l}`)));
@@ -1568,6 +1575,7 @@ function renderSend(m = sndMsg()) {
   const ph = snd.photos.length, files = ph && canFiles(), c = m.choose, ipad = isIPad();
   box.innerHTML = `<h2 id="sh-name" style="margin-top:12px"${snd.k === "drink" ? ' translate="no"' : ""}>${esc(m.what)}</h2>
     ${c ? `<div class="mini">${esc(c.label)}</div><div class="recent">${c.opts.map(([v, t]) => `<button class="chip" data-send-opt="${esc(v)}" aria-pressed="${v === c.v}">${esc(t)}</button>`).join("")}</div>` : ""}
+    ${m.gaps?.length ? `<div class="sendgap" role="status"><b>Check before it goes</b><ul>${m.gaps.map((g) => `<li>${esc(g)}</li>`).join("")}</ul><p class="s">Sort them first if you can. It still sends as it is, and the message says what's missing.</p></div>` : ""}
     ${m.head.length ? `<div class="sendsum" translate="no">${m.head.map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
     ${m.parts.length ? `<div class="sec">What goes in</div>` : ""}
     ${m.parts.filter((x) => x.lines.length || !x.opt).map((x) => `<label class="check sendpart"><input type="checkbox" data-send-part="${x.id}"${snd.pick.has(x.id) && x.lines.length ? " checked" : ""}${x.lines.length ? "" : " disabled"}><span>${esc(x.label)}</span><span class="s">${!x.lines.length ? "Nothing" : x.one ? "" : partItems(x)}</span></label>`).join("")}
@@ -1576,15 +1584,15 @@ function renderSend(m = sndMsg()) {
     ${ph >= SEND_MAX ? `<p class="note">${SEND_MAX} photos is the most.</p>` : snd.busy ? `<p class="note" role="status">Adding…</p>`
       : `<div class="addph"><label class="btn" for="send-cam">Take a photo</label><label class="btn" for="send-in">Choose from your photos</label></div>`}
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
+    <div class="sec">How it will look</div>
+    <pre class="sendpre" id="send-pre" translate="no">${preHtml(msgText(m, snd.pick, snd.note))}</pre>
     ${files ? `<label class="check sendpart"><input type="checkbox" data-send-card${snd.card ? " checked" : ""}><span>The words as a picture too, in front of the photos</span></label>
       <div class="actions"><button class="btn pri" data-send-sheet>Send with photos</button><button class="btn" data-send-copy>Copy the words</button></div>
       <ol class="sendhow"><li>Tap Send with photos.</li><li>${ipad ? "Pick Mail, Messages, AirDrop or Save to Files." : "Pick WhatsApp (or Mail, Messages, AirDrop), then the chat."}</li><li>Want the words as text as well? Tap Copy the words first, then paste them in as the caption or the email.</li></ol>` : ""}
     <div class="actions sendbar">${ipad ? "" : `<a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a>`}<a class="btn${files || !ipad ? "" : " pri"}" data-share="${snd.k}" data-via="sms" href="sms:">Text</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-pic>As a picture</button><button class="btn" data-send-print>Print</button></div>
     ${ph && !files ? `<p class="note">This phone can't attach photos from Bar Book. ${m.photoN && m.link ? "The message carries a link to them instead: anyone on the team opens them in Bar Book." : "Tap Print to keep them with the words, or send from a phone or the iPad, which can."}</p>` : ""}
     ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
-    <p class="note">It goes in English, so everyone can read it.</p>
-    <div class="sec">How it will look</div>
-    <pre class="sendpre" id="send-pre" translate="no">${preHtml(msgText(m, snd.pick, snd.note))}</pre>`;
+    <p class="note">It goes in English, so everyone can read it.</p>`;
 }
 // The preview shows the bold that WhatsApp will show, not the marks.
 const preHtml = (t) => esc(t).replace(/^\*([^*\n]+)\*$/gm, "<b>$1</b>");
@@ -2497,7 +2505,7 @@ const LISTS = {
     ...sect("Lights and lock-up", [
       "Fridge lights off (the fridges stay on)",
       "Spirits locked away",
-      "Closing photos of the bar taken (below): the handover needs them",
+      { gone: 1 }, // was "Closing photos taken": the handover asks for them already
       "All bar lights off",
     ]),
   ] },
@@ -2552,7 +2560,7 @@ Object.assign(LISTS, {
       "Bins emptied, fresh bin liners in, rubbish taken to the bin room",
       "Bin room card put back in its place",
       "Stock brought up from the cellar",
-      "Closing photos of the floor taken (below): the handover needs them",
+      { gone: 1 }, // was "Closing photos taken": the handover asks for them already
     ]),
   ] },
 });
@@ -2563,6 +2571,8 @@ LISTS.close.short = "Closing";
 for (const k in LISTS) {
   let n = 0;
   LISTS[k].items = LISTS[k].items.map((x) => (typeof x === "string" ? { id: n++, t: x } : x.id == null ? { id: n++, ...x } : x));
+  // A taken-out item keeps its number, so nobody's ticks move.
+  LISTS[k].items = LISTS[k].items.filter((x) => !x.gone);
   const ids = LISTS[k].items.map((x) => x.id);
   if (new Set(ids).size !== ids.length) throw new Error(`${k}: two items share an id`);
 }
@@ -2621,7 +2631,7 @@ let closer = store.get("closer", "");
 const HO = [
   { id: "low", label: "Stock running low", short: "Running low", hint: "Drinks, gas, garnishes, anything getting short", join: ", " },
   { id: "issues", label: "Outstanding issues", short: "Outstanding", hint: "Anything broken, not finished, a guest, a tab", join: "\n" },
-  { id: "next", label: "For tomorrow: prep and follow-up", short: "For tomorrow", hint: "What the opening team needs to prepare or chase", join: "\n" },
+  { id: "next", label: "For the opener: what they must do or chase", short: "For the opener", hint: "Only what couldn't be done tonight. Closing items left undone go on it by themselves", join: "\n" },
 ];
 const HO_CHIPS = {
   low: { bar: ["Gas (CO2)", "Garnishes", "Limes", "Lemons", "Mint", "Ice", "Prosecco", "Red Bull", "Jarritos"], floor: ["Desserts", "Ice cream", "Whipped cream", "Sauces", "Napkins", "Black napkins", "Side plates", "Cutlery", "Shake cups", "Toilet roll", "Hand soap"] },
@@ -2717,8 +2727,11 @@ SHARE.shift = () => {
   // The four handover points always show, so "nothing" is said, not left out.
   const point = (id, label, none) => ({ id, label, one: true, lines: hoAll(id).length ? hoAll(id) : [none] });
   // The link at the foot opens the photos: tonight's on the close while it's going, then the handover they went with.
-  const sent = sentTonight(mode), dp = draftPhotos().length;
-  return { what: `${sideName(mode)} shift`, link: appUrl(dp ? `#at=photos:${mode}` : sent ? `#at=rep:${sent.id}` : "#at=send"), photoN: dp || sent?.photos || 0, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
+  const sent = sentTonight(mode), dp = draftPhotos().length, shots = (PHOTO_SHOTS[mode] || PHOTO_SHOTS.bar).length;
+  const notDone = lists.reduce((n, k) => n + (runOf(k) ? progress(k).of - progress(k).n : 0), 0), lbN = toChange([mode]).length;
+  const gaps = [!sent?.photos && dp < shots && !noPhotos && `${dp} of ${shots} closing photos`, notDone && `${plural(notDone, "closing job")} not done`,
+    !closedBy().length && "Closed by not picked", lbN && `${plural(lbN, "date label")} not changed`].filter(Boolean);
+  return { gaps, what: `${sideName(mode)} shift`, link: appUrl(dp ? `#at=photos:${mode}` : sent ? `#at=rep:${sent.id}` : "#at=send"), photoN: dp || sent?.photos || 0, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
     { id: "sit", label: "S \u00b7 Situation", one: true, lines: head },
     { id: "bg", label: "B \u00b7 Background", one: true, lines: bg },
     // The closing list heading by heading, then what's left on each list. A list nobody started is left out unless
@@ -2733,7 +2746,7 @@ SHARE.shift = () => {
     { id: "open-issues", label: "Reported issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
     { id: "logged", label: "A \u00b7 Logged tonight", lines: loggedLines() },
     ...LB_SIDES.map((side) => ({ id: `labels-${side}`, label: `A \u00b7 Date labels to change, ${lower(sideName(side))}`, lines: lbs(side).map(lbLine) })),
-    point("next", "R \u00b7 4. For tomorrow (what the morning does first)", "Nothing extra"),
+    point("next", "R \u00b7 4. For the opener (with anything not done above)", "Nothing extra"),
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
     ...lists.map((k) => ({ id: `all-${k}`, label: `${LISTS[k].title}: every item`, raw: true, lines: shown(k).map(([i, t]) => line(k, i, t)), off: true, opt: true })),
   ], photos: async () => (dp ? draftPhotos() : sent?.photos ? LIVE.api.loadPhotos(sent.id) : []) };
@@ -3214,8 +3227,8 @@ function handoverOf(r) {
   const pts = { low: "", issues: "", next: "" }, by = Object.fromEntries(HO.map((f) => [f.short, f.id]));
   let cur = null;
   for (const l of note === "None" ? [] : note.split("\n")) {
-    const m = l.match(/^(Running low|Outstanding|For tomorrow): (.*)$/);
-    if (m) { cur = by[m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
+    const m = l.match(/^(Running low|Outstanding|For the opener|For tomorrow): (.*)$/);
+    if (m) { cur = by[m[1] === "For tomorrow" ? "For the opener" : m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
   }
   const left = [...r.text.matchAll(/^(Not done|Blocked):\n((?:- .*(?:\n|$))+)/gm)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
   const logged = (r.text.match(/\n\nLogged tonight:\n((?:- .*(?:\n|$))+)/)?.[1] || "").trim().split("\n").filter(Boolean).map((x) => x.slice(2));
@@ -3238,13 +3251,15 @@ const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).m
 function morningHtml() {
   const r = lastReport(), h = r && handoverOf(r), order = orderLines(r);
   const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? ut(v) : "None"}</span></div>`;
+  // For the opener, spelt out: what the close wrote for them, then every closing item left undone or blocked.
+  const todo = h ? [...hoSplit(h.next), ...h.left] : [];
+  const opener = h ? `<div class="opener" id="for-opener"><b>${todo.length ? `For the opener (${todo.length})` : "✅ Nothing left for the opener"}</b>${todo.length ? `<ul>${todo.map((x) => `<li>${ut(x)}</li>`).join("")}</ul>` : `<p class="s">The close finished everything. Prep to par and today's order are below.</p>`}</div>` : "";
   const stale = r && reportDay(r) !== lastNight();
   const ho = !r ? `<p class="note">No handover from the last close on this side yet.</p>`
     : `${stale ? `<p class="note warnline" id="ho-stale"><b>Last night's handover hasn't arrived.</b> Ask whoever closed to open Bar Book with signal: it may be waiting on their phone. This one is from ${esc(dayName(reportDay(r)))}.</p>` : ""}
       <article class="notice" id="handover"><div class="meta">${stale ? "Latest handover" : "Last night's handover"} · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
-      ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
+      ${opener}${pt("Running low", h.low)}${pt("Outstanding", h.issues)}
       ${h.logged.length ? `<div class="hopt"><b>Logged</b><span>${h.logged.map(ut).join("<br>")}</span></div>` : ""}
-      ${h.left.length ? `<p class="note">Left from that shift:<br>${h.left.map(esc).join("<br>")}</p>` : ""}
       ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
       ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}
       <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>
@@ -3263,8 +3278,8 @@ SHARE.morning = () => {
   const h = handoverOf(r), out = [...outNow()].sort();
   return { what: "Morning check", title: `Black Tap Soho · ${sideName(mode)} morning · ${dayName(shiftDay())}`,
     head: [`✅ Last night's handover checked${LIVE.me ? ` by ${LIVE.me}` : ""}`], parts: [
-      { id: "issues", label: "Still outstanding", one: true, lines: [...hoSplit(h.issues), ...h.left].length ? [...hoSplit(h.issues), ...h.left] : ["Nothing"] },
-      { id: "next", label: "For today", one: true, lines: hoSplit(h.next).length ? hoSplit(h.next) : ["Nothing extra"] },
+      { id: "next", label: "For the opener", one: true, lines: [...hoSplit(h.next), ...h.left].length ? [...hoSplit(h.next), ...h.left] : ["Nothing left"] },
+      { id: "issues", label: "Still outstanding", one: true, lines: hoSplit(h.issues).length ? hoSplit(h.issues) : ["Nothing"] },
       { id: "out", label: "86'd now", lines: out },
     ] };
 };
@@ -3655,8 +3670,13 @@ function labelsReport() {
   return LB_SIDES.map((side) => { const xs = labelsDue([side]); return `Date labels, ${lower(sideName(side))}:${xs.length ? xs.map((x) => `\n- ${lbLine(x)}, ${opener(x)}`).join("") : " nothing due"}`; }).join("\n");
 }
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
+// The shots the morning and the managers check, so a close is judged the same whoever does it.
+const PHOTO_SHOTS = { bar: ["Back bar and bottles", "Fridges, doors open", "Ice well, empty and open", "Glass washer, door open", "Bins and floor"],
+  floor: ["Tables and chairs", "Milkshake bar and freezer", "Fridges, doors open", "Host stand", "Toilets and floor"] };
 function photosHtml() {
+  const n = draftPhotos().length, shots = PHOTO_SHOTS[mode] || PHOTO_SHOTS.bar;
   return `<div class="sec">Closing photos</div>
+    <p class="note" id="ph-shots"><b>Take these ${shots.length}:</b> ${shots.map((s, i) => `${i < n ? "\u2705" : "\u2b1c"} ${s}`).join(" · ")}. Add a note to any that needs one.</p>
     <p class="note">Any time of the shift, from any phone or the iPad. Saved for the whole team straight away (with no signal it waits on the phone) and sent with the handover. Whoever took a photo, or a manager, can delete it.</p>
     ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo">${p.name ? `<div class="s">\ud83d\udcf7 <span translate="no">${esc(p.name)}</span>${p.at ? `, ${hhmm(new Date(ms(p.at)))}` : ""}</div>` : ""}<label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button>${p.uid === LIVE.uid || LIVE.admin ? `<button class="btn danger" data-ph-del="${p.id}">Delete photo</button>` : ""}</div></div>`).join("")}
     ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
@@ -3745,9 +3765,9 @@ function renderTally() {
       ${stillToDoHtml()}
       <div class="fld">Closed by<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${closedBy().includes(m)}">${esc(m)}</button>`).join("")}</div></div>
       <div class="sec">Handover</div>
-      <p class="note">Every night: what's cleaned, what's running low, what's outstanding and what tomorrow needs, with photos.</p>
+      <p class="note">Every night: what's cleaned, what's running low, what's outstanding and what's left for the opener, with photos. Do all you can tonight: the less on For the opener, the easier the morning.</p>
       <div class="hopt"><b>1. Cleaning completed</b><span>${(() => { const p = progress(closeList()); return p.n === p.of ? "\u2705 Closing all ticked" : `${p.n} of ${p.of} closing items ticked`; })()}</span></div>
-      ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
+      ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}${f.id === "next" && left ? `<small class="s">Plus ${plural(left, "closing item")} not done: they go on it by themselves.</small>` : ""}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
       <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${f.id === "low" ? `<button class="chip pk-chip" data-ho-pick>⌕ Pick from the list</button>` : ""}${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
       ${logHoHtml()}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
@@ -5353,7 +5373,7 @@ function renderInfo() {
     </div>
     <div class="sec">Help</div>
     <div class="hub">
-      ${hubRow("read", "data-rt-open", "Read text in a photo", "A label, note or sign: its words to copy or search, read on this phone")}
+      ${hubRow("read", "data-rt-open", "Read text in a photo", "A label, note or sign: its words to copy, search or translate")}
       ${hubRow("features", "data-guide", "Guide: how Bar Book works", "The walkthrough, the full tour, every section, and a search for anything")}
       ${hubRow("siri", "data-sc-open", "Siri and shortcuts", "\u201cHey Siri, Bar Book 86\u201d: open any page by voice or a tap on the back of the phone")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
@@ -5548,6 +5568,7 @@ function openAt(where) {
   if (where !== "siri" && !$("#sheet").hidden) hideSheet();
   if (where !== "guest" && GUEST.on) guestClose(true);
   if (MG_READY && sto && where !== "brief") storyClose();
+  if (where !== "readtext" && $("#rt") && !$("#rt").hidden) $("#rt [data-rt-x]")?.click();
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where.startsWith("rep:")) return openReport(where.slice(4));
   // Tonight's closing photos for a side, from a message's link: the close, scrolled to them.
@@ -6257,7 +6278,7 @@ SHARE.tonight = () => {
     { id: "order", label: "To order and running low", lines: [...ho("low"), ...rs] },
     { id: "issues", label: "Issues and faults", lines: iss.flatMap((x) => (x.urgent ? [`URGENT: ${issueLines(x)[0]}`, ...issueLines(x).slice(1)] : issueLines(x))) },
     { id: "outstanding", label: "Outstanding", lines: ho("issues") },
-    { id: "next", label: "For tomorrow", lines: ho("next") },
+    { id: "next", label: "For the opener", lines: ho("next") },
     { id: "logged", label: "Logged tonight", lines: ["bar", "floor"].flatMap((sd) => loggedLines(sd).map((l) => `${sideName(sd)}: ${l}`)) },
     { id: "team", label: "On the team", one: true, lines: [plural(LIVE.staff.length, "phone")], off: true },
   );
@@ -12089,7 +12110,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T20:59";
+const BUILD = "2026-11-18T21:21";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -12226,8 +12247,8 @@ function briefParts(side = mode) {
   const r = lastReport(), h = r && reportDay(r) === lastNight() ? handoverOf(r) : null, now = toChange([side]), soon = labelsDue([side]).filter((x) => !now.includes(x));
   const games = LIVE.fixtures.filter((x) => x.day === ukDay(Date.now())).sort((a, b) => a.ko.localeCompare(b.ko));
   const iss = openIssues().filter((x) => [side, "other", "cellar", "toilets", "terrace"].includes(x.area) || x.urgent).sort((a, b) => b.urgent - a.urgent);
-  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for today.
-  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For today: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
+  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for the opener.
+  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For the opener: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
   const carry = typeof carryRows === "function" ? carryRows(false).filter((x) => x.sd === side) : [];
   // What changed since this person was last in (specs, the team's changes). Last night's handover has its own card.
   const since = (typeof sinceLast === "function" ? sinceLast(side) : []).filter((p) => p.id !== "handover");
@@ -12531,7 +12552,7 @@ FEATURES.push(
   { g: "Shift", k: "brief", n: "Tonight's brief", go: "brief", what: "What's new and what's on tonight, played like stories: specs changed, 86s, labels due, last night's handover and what's new in Bar Book." },
   { g: "Shift", k: "clear", n: "Clear and undo", go: "clear", team: 1, what: "Every list's ↺ Clear sits in the row of tools at its top and acts straight away; ↩ Undo clear takes its place for 15 minutes. Lists start fresh by themselves at 6am." },
   { g: "Stock", k: "dnote", n: "Read a delivery note", go: "dnote", team: 1, what: "Stock, Delivery in, 📷 Read the note: a photo or PDF of the delivery note is read on this phone. Each line on the count comes back with how many; check them against the paper and log the ticked ones." },
-  { g: "More", k: "readtext", n: "Read text in a photo", go: "readtext", what: "Take or choose a photo of a label, note, letter or sign, or open one in Photos: its words come up under it to copy or search. Read on this phone, never sent." },
+  { g: "More", k: "readtext", n: "Read text in a photo", go: "readtext", what: "Take or choose a photo of a label, note, letter or sign, or open one in Photos: its words come up under it to copy, search or translate into your language. Read on this phone and never sent, unless you tap Translate (live translation sends just the words)." },
   { g: "More", k: "phone", n: "This phone: look and settings", go: "phone", what: "Light or dark, accessible mode, one-hand mode, sounds, the 🎤 button, help buttons, shared iPad, language, home screen and reset." },
   { g: "Team", k: "week", adm: 1, n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
   { g: "Team", k: "pilot", adm: 1, n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
@@ -12673,9 +12694,10 @@ function rtDraw() {
     <input id="rt-cam" type="file" accept="image/*" capture="environment" hidden><input id="rt-pick" type="file" accept="image/*" hidden>
     ${RT.url ? `<img class="rt-img" src="${RT.url}" alt="The photo">` : `<p class="note">A label, a note, a letter, a sign: take or choose a photo and its words come up here to copy or search. It's read on this phone.</p>`}
     ${RT.text == null ? (RT.msg ? `<p class="note" id="rt-msg" role="status">${esc(RT.msg)}</p>` : "")
-      : RT.text ? `<div class="ltools"><input id="rt-q" type="search" placeholder="Search the text" aria-label="Search the text" value="${esc(RT.q)}"><button class="btn" data-rt-copy>Copy all</button></div>
+      : RT.text ? `<div class="ltools"><input id="rt-q" type="search" placeholder="Search the text" aria-label="Search the text" value="${esc(RT.q)}"><button class="btn" data-rt-copy>Copy all</button><button class="btn" data-rt-tr>${RT.tr ? "Original" : "Translate"}</button></div>
         ${q ? `<p class="s" role="status">${hits.length ? `${hits.length} line${hits.length === 1 ? "" : "s"} with “${esc(RT.q.trim())}”` : `No “${esc(RT.q.trim())}” in it`}</p>` : ""}
-        <div class="rt-text" id="rt-text">${(q ? hits : lines).map((l) => `<p>${mark(l) || "&nbsp;"}</p>`).join("")}</div>
+        ${RT.tr ? `<p class="s" translate="no">In ${esc(lang ? langEn(lang) : "English")}, translated live: check anything important against the photo.</p><div class="rt-text" id="rt-tr" translate="no">${RT.tr.split("\n").map((l) => `<p>${esc(l) || "&nbsp;"}</p>`).join("")}</div>` : ""}
+        <div class="rt-text" id="rt-text"${RT.tr ? " hidden" : ""}>${(q ? hits : lines).map((l) => `<p>${mark(l) || "&nbsp;"}</p>`).join("")}</div>
         <p class="s">The reader can slip on handwriting, curved bottles and small print: check it against the photo.</p>`
       : `<p class="note">No words found. Try closer, flatter and in good light.</p>`}`;
 }
@@ -12683,6 +12705,14 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-rt-open]")) { haptic(); return rtShow(null); }
   const rp = e.target.closest("[data-rt-photo]"); if (rp) { const p = GAL.list.find((x) => x.id === rp.dataset.rtPhoto); $("#gal-lb").hidden = true; haptic(); return p && rtShow(p.data); }
   if (e.target.closest("[data-rt-x]")) { $("#rt").hidden = true; if (RT?.blob) URL.revokeObjectURL(RT.url); RT = null; return; }
+  // Translate this: the words into your language (English if that's yours), live; again for the original.
+  const tb = e.target.closest("[data-rt-tr]");
+  if (tb) {
+    if (RT.tr) { RT.tr = null; return rtDraw(); }
+    if (!aiOn()) return toast("Translating needs live translation: Maintenance switches it on in More");
+    tb.disabled = true; tb.textContent = "Translating…";
+    return LIVE.api.translate([RT.text], lang ? langEn(lang) : "English", "the language it is written in").then(([t]) => { RT.tr = t; rtDraw(); }, () => { toast("Couldn't translate. Check the signal"); rtDraw(); });
+  }
   if (e.target.closest("[data-rt-copy]")) return navigator.clipboard?.writeText(RT.text).then(() => toast("Copied. Paste it anywhere"), () => toast("Couldn't copy. Press and hold the text to copy it"));
   if (e.target.closest("[data-gal-lb-x]") || e.target.id === "gal-lb") { $("#gal-lb").hidden = true; return; }
   if (!$("#gal")) return;
@@ -12742,7 +12772,7 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    manager can run it on their own phone, the bar iPad or a laptop, whoever logged it and wherever. Nothing is written.
    No library: the workbook is a few XML files in a plain zip, built here. */
 const EX_MAX = 92;
-const EX = { tab: "out", from: "", to: "", side: "all", who: "", off: new Set(store.get("exOff", [])), D: null, busy: false, err: false, key: "" };
+const EX = { tab: "out", from: "", to: "", side: "all", who: "", off: new Set(store.get("exOff", ["closing", "sections", "logit", "restock", "training", "sent"])), D: null, busy: false, err: false, key: "" };
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const exDays = (a, b) => { const xs = []; for (let d = b; d >= a && xs.length < EX_MAX; d = addDays(d, -1)) xs.push(d); return xs; };
 const exList = (k) => LISTS[k]?.title || k || "";
@@ -12751,6 +12781,9 @@ const exDur = (m) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m 
 // One row: when it happened, which business day it counts for, the side (blank when it's for both), and everyone named
 // on it (for the person filter).
 const exRow = (x, side, who, c) => ({ t: ms(x.at), day: x.day || bday(x.at), side: side === "bar" || side === "floor" ? side : "", who: who.filter(Boolean), c });
+// What a manager usually wants from a night: how the close went, what was handed over, 86s, labels, issues and stock.
+// Recommended ticks just these; the rest (every single tick, training, every message) is there to add.
+const EX_REC = ["lists", "handover", "out", "labels", "issues", "count", "received"];
 const EX_KIND = { night: "Tonight's quiz", speed: "Speed drill", starter: "New starter test", b101: "Bar 101" };
 const EX_RUN = { started: "Started", finished: "Finished", todo: "Reopened" };
 const EX_LOGS = [
@@ -12774,7 +12807,7 @@ const EX_LOGS = [
   { k: "out", n: "86 log", what: "What was 86'd, by who, and when it came back", cols: ["Item", "What", "By", "Out for"],
     rows: (D) => D.outlog.map((x) => { const o = x.action === "back" && D.outlog.find((y) => y.id === x.id.replace(/-back$/, ""));
       return exRow(x, "", [x.name], [x.itemName, x.action === "back" ? "Back in" : "86'd", x.name, o ? exDur(Math.max(0, Math.round((ms(x.at) - ms(o.at)) / 6e4))) : ""]); }) },
-  { k: "logit", n: "Log it", what: "Notes, told a manager, running low, not finished, for tomorrow", cols: ["Side", "Kind", "What", "By"],
+  { k: "logit", n: "Log it", what: "Notes, told a manager, running low, not finished, for the opener", cols: ["Side", "Kind", "What", "By"],
     rows: (D) => D.events.filter((e) => e.kind === "log").map((e) => exRow(e, e.area, [e.name], [sideName(e.area), LOG_NAME[e.what] || e.what, e.label, e.name])) },
   { k: "labels", n: "Date labels", what: "Every date label opened, changed or discarded", cols: ["Side", "Item", "What", "Use by", "Use by before", "Days late", "By", "Note"],
     rows: (D) => D.events.filter((e) => e.kind === "label").map((e) => exRow(e, e.area, [e.name], [sideName(e.area), e.label, LB_ACT[e.act] || e.act, e.useBy || "", e.was || "", lateBy(e) || "", e.name, e.note || ""])) },
@@ -12810,6 +12843,7 @@ function exTables() {
     return { L, head: ["Shift date", "Time", ...L.cols], rows: rows.map((r) => [r.day, hhmm(new Date(r.t)), ...r.c]) };
   });
 }
+const exPicKey = () => [EX.from, EX.to, EX.side, EX.who, ...EX.off, EX.D ? 1 : 0].join("|");
 const exPicked = () => exTables().filter((x) => !EX.off.has(x.L.k) && x.rows.length);
 const exPeople = () => [...new Set(EX.D ? EX_LOGS.flatMap((L) => L.rows(EX.D).flatMap((r) => r.who)) : [])].sort((a, b) => a.localeCompare(b));
 const exName = (ext) => `bar-book-${EX.from === EX.to ? EX.from : `${EX.from}-to-${EX.to}`}${EX.side === "all" ? "" : `-${EX.side}`}${EX.who ? `-${slugName(EX.who)}` : ""}.${ext}`;
@@ -12830,12 +12864,12 @@ function exOutHtml() {
     <div class="seg ex-seg">${[["all", "Both"], ["bar", "Bar"], ["floor", "Floor"]].map(([v, t]) => `<button data-ex-side="${v}" aria-pressed="${EX.side === v}">${t}</button>`).join("")}</div>
     <label class="ex-who">Person <select data-ex-who><option value="">Everyone</option>${ppl.map((p) => `<option${p === EX.who ? " selected" : ""} translate="no">${esc(p)}</option>`).join("")}</select></label>`;
   if (EX.busy || !EX.D) return `${filters}<p class="note">${EX.err ? `Couldn't read the logs. Check your signal. <button class="linkbtn" data-ex-again>Try again</button>` : "Reading the logs…"}</p>`;
-  const logs = `<div class="mini">Logs <button class="linkbtn" data-ex-all="1">All</button> <button class="linkbtn" data-ex-all="0">None</button></div>
-    <div class="ex-logs">${T.map((x) => `<label class="check"><input type="checkbox" data-ex-log="${x.L.k}"${EX.off.has(x.L.k) ? "" : " checked"}> <span><b>${x.L.n}</b> <span class="s">${x.rows.length ? plural(x.rows.length, "line") : "nothing"} · ${x.L.what}</span></span></label>`).join("")}</div>`;
+  const logs = `<div class="mini">Logs <button class="linkbtn" data-ex-all="rec">Recommended</button> <button class="linkbtn" data-ex-all="1">All</button> <button class="linkbtn" data-ex-all="0">None</button></div>
+    <div class="ex-logs">${T.map((x) => `<label class="check"><input type="checkbox" data-ex-log="${x.L.k}"${EX.off.has(x.L.k) ? "" : " checked"}> <span><b>${x.L.n}</b>${EX_REC.includes(x.L.k) ? ` <span class="pill ok">Recommended</span>` : ""} <span class="s">${x.rows.length ? plural(x.rows.length, "line") : "nothing"} · ${x.L.what}</span></span></label>`).join("")}</div>`;
   const none = T.some((x) => x.rows.length) ? "Tick a log with lines in it." : "Nothing logged for these filters. Try more nights, both sides or everyone.";
   return `${filters}
-    ${n ? `<div class="actions"><button class="btn pri" data-ex-go="xlsx">Excel workbook</button><button class="btn" data-ex-go="csv">CSV files</button><button class="btn" data-ex-go="docx">Word document</button><button class="btn" data-ex-go="print">Print</button><button class="btn" data-ex-go="copy">Copy</button></div>
-      <p class="note">${plural(n, "line")} from ${plural(picked.length, "log")}. <b>Excel workbook</b>: one file, a tab for each log, opens in Excel, Numbers and Google Sheets. <b>CSV files</b>: one for each log, for Nory or any system that imports a spreadsheet. <b>Word document</b>: the tables, ready for a report, opens in Word, Pages and Google Docs. <b>Copy</b> pastes as a table into Word or Docs, and as columns into a spreadsheet. On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp.</p>` : `<p class="note">${none}</p>`}
+    ${n ? `<div class="actions"><button class="btn pri" data-ex-go="xlsx">Excel workbook</button><button class="btn" data-ex-go="csv">CSV files</button><button class="btn" data-ex-go="docx">Word document</button>${EX.pics?.key === exPicKey() ? (EX.pics.files ? `<button class="btn pri" data-ex-go="jpeg">Share ${plural(EX.pics.files.length, "picture")}</button>` : `<button class="btn" disabled>Making the pictures…</button>`) : `<button class="btn" data-ex-go="jpeg">Pictures (JPEG)</button>`}<button class="btn" data-ex-go="print">Print</button><button class="btn" data-ex-go="copy">Copy</button></div>
+      <p class="note">${plural(n, "line")} from ${plural(picked.length, "log")}. <b>Excel workbook</b>: one file, a tab for each log, opens in Excel, Numbers and Google Sheets. <b>CSV files</b>: one for each log, for Nory or any system that imports a spreadsheet. <b>Pictures</b>: each log as JPEG images, for WhatsApp or a phone that can't open a spreadsheet. <b>Word document</b>: the tables, ready for a report, opens in Word, Pages and Google Docs. <b>Copy</b> pastes as a table into Word or Docs, and as columns into a spreadsheet. On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp.</p>` : `<p class="note">${none}</p>`}
     ${logs}
     ${n ? `<div class="mini">See it here</div>${picked.map((x) => `<details class="ex-prev"><summary>${x.L.n} <span class="s">${plural(x.rows.length, "line")}</span></summary><div class="ex-scroll">${exTableHtml(x, 60)}</div>${x.rows.length > 60 ? `<p class="note">First 60 lines here. The file has all ${x.rows.length}.</p>` : ""}</details>`).join("")}` : ""}
     <p class="note">Bar Book can't send to Nory by itself: Nory doesn't offer a link for other apps to send to. Import the CSV in Nory, if your account takes a spreadsheet import, or attach it to an email.</p>`;
@@ -12858,6 +12892,18 @@ function exGo(how) {
   if (how === "xlsx") return mgSaveFile(exName("xlsx"), XLSX_TYPE, exXlsx([...xs.map((x) => [x.L.n, x.head, x.rows]), ["About this export", ["About", "Detail"], exAbout()]]));
   if (how === "csv") return exSaveFiles(xs.map((x) => new File([toCsv(x.head, x.rows)], exName(`${x.L.k}.csv`).replace(/\.(\w+)\.csv$/, "-$1.csv"), { type: "text/csv" })));
   if (how === "docx") return mgSaveFile(exName("docx"), DOCX_TYPE, exDocx(xs));
+  // Pictures: each log as JPEG cards, for a phone that can't open a spreadsheet or a PDF (WhatsApp, Photos).
+  if (how === "jpeg") {
+    const per = (x) => [`${x.L.n} (${plural(x.rows.length, "line")})`, ...x.rows.map((r) => `• ${dayName(r[0])} ${r[1]}: ${r.slice(2).filter((v) => String(v ?? "").trim()).join(" · ")}`)].join("\n");
+    // The share sheet only opens straight from a tap, so the pictures are made first, then Share them is its own tap.
+    const key = exPicKey();
+    if (EX.pics?.key === key) return exSaveFiles(EX.pics.files);
+    EX.pics = { key, files: null }; renderCard("export");
+    return Promise.all(xs.map((x) => msgCards(`Black Tap Soho · ${x.L.n}`, per(x)))).then((fss) => {
+      if (EX.pics?.key !== key) return;
+      EX.pics.files = fss.flat().map((f, i) => new File([f], exName(`${i + 1}.jpg`), { type: "image/jpeg" })); renderCard("export");
+    }, () => { EX.pics = null; renderCard("export"); toast("Couldn't make the pictures. Try Excel or Print"); });
+  }
   if (how === "copy") {
     // Both at once: a table for Word, Pages or Docs, and tab-separated columns for a spreadsheet or a message.
     const cell = (v) => String(v ?? "").replace(/[\t\r\n]+/g, " ");
@@ -12948,7 +12994,7 @@ document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
   if ((x = t("[data-ex-q]"))) { [EX.from, EX.to] = x.dataset.exQ.split("|"); haptic(); renderCard("export"); return; }
   if ((x = t("[data-ex-side]"))) { EX.side = x.dataset.exSide; haptic(); renderCard("export"); return; }
-  if ((x = t("[data-ex-all]"))) { EX.off = x.dataset.exAll === "1" ? new Set() : new Set(EX_LOGS.map((L) => L.k)); store.set("exOff", [...EX.off]); renderCard("export"); return; }
+  if ((x = t("[data-ex-all]"))) { const v = x.dataset.exAll; EX.off = v === "1" ? new Set() : new Set(EX_LOGS.map((L) => L.k).filter((k) => v === "rec" && !EX_REC.includes(k) || v === "0")); store.set("exOff", [...EX.off]); renderCard("export"); return; }
   // From another card (the date label record): the same nights and side, that log only.
   if ((x = t("[data-ex-only]"))) { const [k, n, side] = x.dataset.exOnly.split("|"); EX.to = shiftDay(); EX.from = addDays(EX.to, 1 - n); EX.side = side || "all"; EX.who = ""; EX.off = new Set(EX_LOGS.map((L) => L.k).filter((j) => j !== k)); haptic(); openAt("export"); return; }
   if ((x = t("[data-ex-tab]"))) { EX.tab = x.dataset.exTab; haptic(); renderCard("export"); return; }
@@ -12975,9 +13021,9 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 </style>`);
 
 /* ---- Where it goes ---- */
-TC_SUB.export = "Every log out as Excel, CSV, Word, print or copy, and spreadsheets in";
+TC_SUB.export = "Every log out as Excel, CSV, pictures, Word, print or copy, and spreadsheets in";
 FEATURES.push({ g: "Team", k: "export", adm: 1, n: "Export and import", go: "export", team: 1, what: "Every log in Bar Book out to a file: closing ticks and who did each section, take overs, handovers, 86s, Log it, date labels, restock, stock counts, deliveries, issues, training and everything sent. And spreadsheets in: date labels, items, names, the stock setup with bottle sizes and weights, a past count and deliveries.",
-  mgr: "Export: pick the nights, side, person and logs, then Excel, CSV (for Nory or any import), Word, Print or Copy. Import: get the template, fill it in, choose the file, check every line, then save. Nothing is ever deleted." });
+  mgr: "Export: pick the nights, side, person and logs, then Excel, CSV (for Nory or any import), Pictures (JPEG, for WhatsApp), Word, Print or Copy. Recommended ticks the logs most nights need. Import: get the template, fill it in, choose the file, check every line, then save. Nothing is ever deleted." });
 PLACE_KW.export = "export import upload word docx template excel spreadsheet csv xlsx download nory laptop print copy file data logs records numbers sheets";
 /* ---------- Import ----------
    The other way from Export: a manager brings a spreadsheet in (CSV, or an Excel workbook from Excel, Numbers or
@@ -15700,7 +15746,7 @@ const HELP = {
     how: ["Shift, Closing, then Every photo tonight, or Photos on the bar iPad. Tonight's show first; older nights are along the top.", "All, Bar or Floor narrows them down. Each says who took it, when, its note, and whether it went with a handover yet.", "Tap photos to pick them (or Pick all), then Send. \u2922 shows one full size."],
     behind: ["Photos from every phone and the iPad are here, sent or not. They are kept 30 days, then cleared to keep Bar Book free.", "10 photos go in one message; pick the rest and send again.", "The message carries a link back to the night's photos for anyone on the team."] },
   morning: { t: "Morning", what: "Last night's handover for the opening team, today's order and the prep pars.",
-    how: ["Start with tonight's brief: the ring here and at the top of the app. Tap it to play it full screen like stories: tap the right side (or swipe) for the next card, the left to go back, hold to pause, swipe down to close. Each card stays up as long as it takes to read. Drinks whose spec changed say what changed: tap one to open it.", "Before you open lists the same things on the page: what's 86'd, labels due and anything new.", "Read the handover and sort what you can.", "Tap Checked: send on WhatsApp so the duty manager knows what's still outstanding.", "Send the order and the prep list if you need to."],
+    how: ["Start with tonight's brief: the ring here and at the top of the app. Tap it to play it full screen like stories: tap the right side (or swipe) for the next card, the left to go back, hold to pause, swipe down to close. Each card stays up as long as it takes to read. Drinks whose spec changed say what changed: tap one to open it.", "Before you open lists the same things on the page: what's 86'd, labels due and anything new.", "For the opener, at the top of the handover, is everything the close left for you: what they wrote, then every closing job not done. Do those first.", "Tap Checked: send on WhatsApp so the duty manager knows what's still outstanding.", "Send the order and the prep list if you need to."],
     behind: ["The brief is the one place for what's new: specs changed in a new version, what changed while you were away, and what's new in Bar Book itself. Closed part-way? It opens again where you stopped, the same day.", "It counts as watched once you reach the last card, like a read receipt: then the ring goes grey and the managers' Seen by shows your name and the time. Only managers see Seen by.", "The handover is the last one your side sent before today. It stays saved, so it's still here if nobody reads it straight away.", "Today's order is what last night said was running low, plus anything still 86'd.", "Prep pars are higher on Fridays and Saturdays."] },
   labels: { t: "Date labels", what: "Everything your side dates once it's opened, and when each one needs changing.",
     how: ["Opened one? Tap Opened one and write the date it gives you on the label.", "Binned the old one and opened a new one? Tap Changed it.", "Binned with no new one opened? Tap Binned. ⋯ shows its history."],
@@ -15732,8 +15778,8 @@ const HELP = {
   closing: { t: "Closing checklist", what: "The close, ticked off live on every phone.",
     how: ["Tap an item when it's done, or Tick all under a heading.", "Splitting the close? Tap I'll do this on a heading: everything under it starts in your name, so the others see it's taken and pick another part. Someone left before finishing theirs? Tap Take over and carry on: the heading and the report say who started it and who finished it.", "Started but not handed over? It shows on Team (and on Shift for anyone not on it) with who started it and Carry on, so anyone can pick it up, add photos or hand over.", "Under the photos, Send the checklist sends it with its photos any time. Nothing needs saving by hand: ticks, photos and notes save for the whole team as you go.", "⋯ on an item: start it, mark it blocked and say why, or see who did what.", "When every item is done, tap Finish. ↺ Clear, in the row at the top of the list, puts the whole list back to not started straight away; ↩ Undo clear takes its place for 15 minutes. The list starts fresh by itself at 6am anyway.", "The timer at the top shows how long the close has taken against the team's best. A new best gets a cheer."],
     behind: ["Ticks save with your name and time. If two phones change one item at once, the second is refused rather than overwriting, and you see Someone may have just changed it.", "Managers can mark an item not needed tonight, give it to someone, finish with items left (with a reason) and change the list itself.", "No signal? Ticks and photos wait on the phone, even if the app is closed, and go in order when it's back. A banner says they're waiting, and Back online. Everything's sent says they've arrived.", "The clock starts at the first tick and stops when the handover goes. Each side's time is kept for the managers."] },
-  handover: { t: "Handover", what: "The end of the night: what's done, what's low, what's outstanding and what tomorrow needs.",
-    how: ["Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos. Anyone on your side can add photos any time of the shift: each is saved for the whole team straight away, and Send now shares one on its own too.", "Then pick one: Hand over: send with photos saves it and opens the share sheet with the words as a picture and the photos (WhatsApp on a phone; Mail, Messages, AirDrop or Save to Files on the iPad). Hand over: just save saves it and sends nothing.", "Either way it's saved for the morning team and every manager, photos included. Open it shows it; Delete takes it off for everyone (whoever saved it, or a manager)."],
+  handover: { t: "Handover", what: "The end of the night: what's done, what's low, what's outstanding and what's left for the opener.",
+    how: ["Do all you can tonight: anything left goes to the opener. Tap who closed, fill in the three boxes (the chips add common lines), and take the closing photos: the list above them says which shots. Closing jobs not done go on For the opener by themselves.", "Send shows how it will look first, with a Check before it goes box for anything missing (photos, jobs not done, who closed). It never stops you: what's missing goes at the top of the message. Anyone on your side can add photos any time of the shift: each is saved for the whole team straight away, and Send now shares one on its own too.", "Then pick one: Hand over: send with photos saves it and opens the share sheet with the words as a picture and the photos (WhatsApp on a phone; Mail, Messages, AirDrop or Save to Files on the iPad). Hand over: just save saves it and sends nothing.", "Either way it's saved for the morning team and every manager, photos included. Open it shows it; Delete takes it off for everyone (whoever saved it, or a manager)."],
     behind: ["The boxes are shared live with everyone closing your side, so two people can fill them in. Save draft tells the team someone has started; anyone can carry on.", "Photos are required. With none, you're asked why, and the reason goes in the handover.", "Whoever took a photo, or a manager, can delete it. The database checks the same.", "Saved handovers are kept. Photos are cleared after 30 days to stay on the free plan. The boxes start empty again at 6am."] },
   clearall: { t: "Clear everything", what: "A fresh start for the shift, on every phone.",
     how: ["Tap it at the foot of any Shift page. The question lists what goes and what stays: tap OK.", "Tapped it by mistake? Undo clear, at the top of Shift, puts it all back for 15 minutes."],
@@ -15826,7 +15872,7 @@ const HELP = {
     behind: ["It stays on this phone: nobody else sees it and it never goes online. Payslips are read on the phone.", "Tronc is paid on the hours worked the month before, so its rate an hour is each payslip's tronc over the month before's hours. With no payslips yet it's a suggested £6.", "Tax uses the 2026 to 2027 GOV.UK rates, month by month. Your payslip is always the final word."] },
   logit: { t: "Log it", what: "Anything you see, find, do, are told or tell a manager, saved in one line with your name and the time.",
     how: ["Tap \uff0b Log it: on Shift above every page, on the Handover, on Team, Send on WhatsApp, or on the bar station.", "Pick what it is, write one line, and pick Bar or Floor. Ran out or running low? Pick from the list, several at once.", "Log it saves it. Log it and send on WhatsApp also opens WhatsApp with it, so the team chat sees it now."],
-    behind: ["86 goes on the 86 board and Broken goes on Issues and faults, so nothing is kept twice.", "Running low, Not finished and For tomorrow go in the handover under their points. Running low is on the morning's order too. The rest goes under Logged tonight.", "Tonight's report for the managers has all of it, and the morning sees it in last night's handover.", "Whoever wrote one, or a manager, can take it off with \u00d7. The log starts empty at 6am; sent handovers keep it.", "Someone hurt or an accident goes to the duty manager and the accident book, not here."] },
+    behind: ["86 goes on the 86 board and Broken goes on Issues and faults, so nothing is kept twice.", "Running low, Not finished and For the opener go in the handover under their points. Running low is on the morning's order too. The rest goes under Logged tonight.", "Tonight's report for the managers has all of it, and the morning sees it in last night's handover.", "Whoever wrote one, or a manager, can take it off with \u00d7. The log starts empty at 6am; sent handovers keep it.", "Someone hurt or an accident goes to the duty manager and the accident book, not here."] },
   reset: { t: "Reset this phone", what: "Wipes what Bar Book keeps on this phone and starts it again as new.",
     how: ["Type CLEAR, then tap Reset this phone."],
     behind: ["Goes: favourites, My bar, My pay, drafts, settings, and this phone's place on the team. Type the team code again to rejoin.", "Nobody else's phone and nothing shared changes. It can't be undone.", "Not the same as Clear everything on Shift, which resets tonight's lists for the whole team."] },
@@ -15847,7 +15893,7 @@ const INTRO = [
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Send with photos saves it and opens the share sheet with the photos; Just save saves it for the morning and the managers and sends nothing.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
   { t: "The team, without the chat", how: ["Issues: raise a fault, someone takes it on, it stays until it's fixed.", "To the managers: days off, swaps, complaints, anonymous if you want.", "Send on WhatsApp for tonight's report, the handover, running late or off sick, then Incident or accident, Team only: rate the shift and Who to call."], tip: "App feedback goes straight to maintenance: what's missing or wrong in the app.", more: ["issues", "ask", "rate"] },
   { t: "Everything goes to WhatsApp", how: ["Every Send button opens one page: tick what goes in, add a note and photos, and see exactly how it will look.", "WhatsApp, email, a picture, print or copy. Bar Book never sends anything by itself."], tip: "Send with photos puts the words in as a picture, so nothing needs pasting. On the iPad it goes to Mail, AirDrop or Save to Files.", more: ["send"] },
-  { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Export and import, Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Export and import: every log out as Excel, CSV, Word, a printout or a copy, and spreadsheets in for date labels, items, names, the stock setup and past counts.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, Backup and restore, and Start again to wipe the test data.", "Safety net, Ready for Friday: rules, codes, backups and this phone, each going green by itself once it's done."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["export", "inbox", "replay", "order", "season", "ready"] },
+  { t: "For the managers", how: ["Team, under headings: Needs you (Inbox, feedback), Tonight and the week (Export and import, Closing reports with photos, Shift replay, Everything sent, the 86 log), Stock and the menu, Training, People and codes, and Safety net.", "Export and import: every log out as Excel, CSV, pictures (JPEG), Word, a printout or a copy, and spreadsheets in for date labels, items, names, the stock setup and past counts.", "Weekly summary, Pilot results (week by week, as a picture for your manager), the Date label record for an EHO visit, and Training, where you sign off the house cocktails.", "Change the closing lists, add date labels, football games, the venue's numbers, and a house photo and video on any drink. Change history puts back anything changed by mistake.", "Shift replay shows any night in order. Order draft works out what to order from the count. One tap switches the team to a seasonal menu.", "Maintenance: Set up codes for every code in one go, Backup and restore, and Start again to wipe the test data.", "Safety net, Ready for Friday: rules, codes, backups and this phone, each going green by itself once it's done."], tip: "Every change is saved with who and when, so nothing has to be chased.", more: ["export", "inbox", "replay", "order", "season", "ready"] },
   { t: "Learn it, and look after yourself", how: ["More, Training, Practise specs: flashcards, tonight's quiz (the same 10 for everyone), speed drills against the clock, and the new starter path.", "Bar 101: what to say when a guest asks, from our own back bar. It remembers what you know and quizzes you on the rest.", "More, Training, Games and drills: the daily drill, quiz night and language lessons (guest phrases in any language). More, Cheat sheets: a page per kind of drink, to print or send.", "More, My pay: an estimate of your take-home after tax. It stays on your phone: nobody else ever sees it."], tip: "Cheat sheets carry tonight's swaps, so they're never out of date.", more: ["pay"] },
   { t: "Tips and tricks", how: ["\ud83d\udd0d at the top right opens the Guide: every section, and a search for anything, a screen included (\u201cclosing\u201d, \u201chow do I make a mojito\u201d). \ud83c\udfa4 beside it does it by voice. \u2302 goes home, and \u2039 Back or your phone's back goes back a step.", "Hands full? Tap 🎤 and say it how you like: “can you 86 the Corona”, “Negroni spec” or “count tonic 12”. It picks out the key words and asks before it changes anything.", "More, This phone: one-hand mode, accessible mode, sounds and light or dark.", "Tap any small ? for how that part works and what happens behind the scenes.", "Needs you now: a banner at the top when you open the app, with tonight's brief as a ring to tap and play, then a label due, last night's handover and more. Tap one to go there, × to hide it.", "Whatever you type is saved as you go, so a guest or a locked phone loses nothing.", "Add Bar Book to your home screen (More shows how): it opens like an app and works offline.", "Tapping the tab you're on scrolls back to the top."], tip: "The Guide (🔍 at the top, or More, Guide) has this tour and the walkthrough whenever you want them. Hide the ? buttons there too.", more: ["voice", "phone", "drafts"] },
 ];
@@ -15960,7 +16006,7 @@ const LOG_KINDS = [
   ["out", "86: ran out", "Goes on the 86 board for everyone, and drinks that use it show the swap."],
   ["fix", "Broken or needs fixing", "Goes on Issues and faults until someone fixes it, and in the handover."],
   ["open", "Not finished", "Goes in the handover under 3. Outstanding issues."],
-  ["next", "For tomorrow", "Goes in the handover under 4. For tomorrow."],
+  ["next", "For the opener", "Goes in the handover under 4. For the opener, and on the Morning page."],
 ];
 const LOG_NAME = Object.fromEntries(LOG_KINDS.map(([k, t]) => [k, t]));
 // The kinds kept in the day log. 86 and broken live on the 86 board and Issues.
@@ -16057,7 +16103,7 @@ const logBarHtml = () => `<div class="logbar"><button class="btn pri" data-log>�
 function logHoHtml() {
   const xs = logsOf(mode);
   return `<div class="sec">Logged tonight${xs.length ? ` (${xs.length})` : ""}</div>
-    ${xs.length ? `<p class="note">Already in the handover: running low, not finished and for tomorrow under their points, the rest under Logged tonight.</p><ul class="lg-list">${xs.map(logRow).join("")}</ul>`
+    ${xs.length ? `<p class="note">Already in the handover: running low, not finished and for the opener under their points, the rest under Logged tonight.</p><ul class="lg-list">${xs.map(logRow).join("")}</ul>`
       : `<p class="note">Nothing logged on the ${esc(lower(sideName(mode)))} yet. Anything the team logs tonight goes in the handover by itself.</p>`}
     <div class="actions"><button class="btn" data-log>＋ Log it</button>${xs.length ? sendBtn("logs", "Send tonight's log") : ""}</div>`;
 }
@@ -16109,7 +16155,7 @@ const WALK_NEW = [
 const WALK_NAV_LINE = "🌍 is for guests who don't speak English: hand them the phone, ✕ Staff takes it back. 🔍 at the top finds any screen, drink or how-to. 🎤 beside it: hold it like a radio and talk, or tap it. ⌂ goes home, ‹ Back goes back.";
 const WALK_BRIEF_LINE = "The ring at the top is tonight's brief: tap it and tap through, like stories. Hold to pause.";
 const WALK_SEND = (side) => ({ t: "Hand over", how: [
-  "Handover: tap who closed, then check Running low, Outstanding and For tomorrow. Whatever the team logged is already in.",
+  "Handover: tap who closed, then check Running low, Outstanding and For the opener. Whatever the team logged is already in.",
   "Hand over: send with photos saves it for the morning team and every manager, then opens the share sheet. Just save sends nothing.",
   side === "bar" ? "On the iPad it goes to Mail, AirDrop or Files. Or send it later from your own phone." : "Send it to the team chat from the share sheet, or later from Team, Send on WhatsApp.",
 ], tip: "Leaving part-way? Save draft: the team sees who started it, and anyone can carry on and add photos." });

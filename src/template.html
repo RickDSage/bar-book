@@ -443,6 +443,12 @@ button.link86 { display: block; width: 100%; margin: 22px 0 6px; min-height: 52p
 .football .fx { padding: 8px 0; }
 .hopt { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 10px 0; }
 .hopt span { text-align: right; color: var(--muted); }
+.sendgap { margin: 10px 0; padding: 10px 14px; border: 2px solid var(--warn, #c98a1b); border-radius: 12px; background: var(--surface); }
+.sendgap ul { margin: 6px 0; padding-left: 20px; }
+.opener { margin: 10px 0; padding: 12px 14px; border: 2px solid var(--brass); border-radius: 12px; background: var(--surface); }
+.opener b { font-size: 18px; }
+.opener ul { margin: 8px 0 0; padding-left: 22px; }
+.opener li { margin: 4px 0; font-size: 17px; }
 /* Work someone started, for anyone to carry on. */
 .hopt.carry { flex-direction: column; align-items: stretch; gap: 6px; padding: 12px; background: var(--surface); border: 1px solid var(--brass); border-radius: 12px; }
 .hopt.carry span { text-align: left; }
@@ -1383,7 +1389,8 @@ const partItems = (p) => p.lines.filter((l) => !/^\s/.test(l)).length;
 const subLine = (t) => `   ◦ ${t}`;
 // WhatsApp shows *this* in bold. Email and print get the same words without the marks.
 function msgText(m, pick, note = "", wa = true) {
-  const b = (t) => (wa ? `*${t}*` : t), out = [b(m.title), ...m.head];
+  // What's missing never stops a send: it goes at the top of the message, so nobody has to guess.
+  const b = (t) => (wa ? `*${t}*` : t), out = [b(m.title), ...(m.gaps?.length ? [`\u26a0\ufe0f Missing: ${m.gaps.join("; ")}`] : []), ...m.head];
   for (const p of m.parts) {
     if (!pick.has(p.id) || !p.lines.length) continue;
     out.push("", b(p.one ? p.label : `${p.label} (${partItems(p)})`), ...p.lines.map((l) => (p.one || p.raw || /^\s/.test(l) ? l : `• ${l}`)));
@@ -1491,6 +1498,7 @@ function renderSend(m = sndMsg()) {
   const ph = snd.photos.length, files = ph && canFiles(), c = m.choose, ipad = isIPad();
   box.innerHTML = `<h2 id="sh-name" style="margin-top:12px"${snd.k === "drink" ? ' translate="no"' : ""}>${esc(m.what)}</h2>
     ${c ? `<div class="mini">${esc(c.label)}</div><div class="recent">${c.opts.map(([v, t]) => `<button class="chip" data-send-opt="${esc(v)}" aria-pressed="${v === c.v}">${esc(t)}</button>`).join("")}</div>` : ""}
+    ${m.gaps?.length ? `<div class="sendgap" role="status"><b>Check before it goes</b><ul>${m.gaps.map((g) => `<li>${esc(g)}</li>`).join("")}</ul><p class="s">Sort them first if you can. It still sends as it is, and the message says what's missing.</p></div>` : ""}
     ${m.head.length ? `<div class="sendsum" translate="no">${m.head.map((l) => `<div>${esc(l)}</div>`).join("")}</div>` : ""}
     ${m.parts.length ? `<div class="sec">What goes in</div>` : ""}
     ${m.parts.filter((x) => x.lines.length || !x.opt).map((x) => `<label class="check sendpart"><input type="checkbox" data-send-part="${x.id}"${snd.pick.has(x.id) && x.lines.length ? " checked" : ""}${x.lines.length ? "" : " disabled"}><span>${esc(x.label)}</span><span class="s">${!x.lines.length ? "Nothing" : x.one ? "" : partItems(x)}</span></label>`).join("")}
@@ -1499,15 +1507,15 @@ function renderSend(m = sndMsg()) {
     ${ph >= SEND_MAX ? `<p class="note">${SEND_MAX} photos is the most.</p>` : snd.busy ? `<p class="note" role="status">Adding…</p>`
       : `<div class="addph"><label class="btn" for="send-cam">Take a photo</label><label class="btn" for="send-in">Choose from your photos</label></div>`}
     <label class="fld">${esc(m.noteLabel || "Add a note (optional)")}<textarea id="send-note" rows="2" maxlength="500" placeholder="${esc(m.notePh || "Anything to add before it goes")}">${esc(snd.note)}</textarea></label>
+    <div class="sec">How it will look</div>
+    <pre class="sendpre" id="send-pre" translate="no">${preHtml(msgText(m, snd.pick, snd.note))}</pre>
     ${files ? `<label class="check sendpart"><input type="checkbox" data-send-card${snd.card ? " checked" : ""}><span>The words as a picture too, in front of the photos</span></label>
       <div class="actions"><button class="btn pri" data-send-sheet>Send with photos</button><button class="btn" data-send-copy>Copy the words</button></div>
       <ol class="sendhow"><li>Tap Send with photos.</li><li>${ipad ? "Pick Mail, Messages, AirDrop or Save to Files." : "Pick WhatsApp (or Mail, Messages, AirDrop), then the chat."}</li><li>Want the words as text as well? Tap Copy the words first, then paste them in as the caption or the email.</li></ol>` : ""}
     <div class="actions sendbar">${ipad ? "" : `<a class="btn${files ? "" : " pri"}" data-share="${snd.k}" data-via="wa" href="https://wa.me/" target="_blank" rel="noopener">${files ? "WhatsApp, words only" : "WhatsApp"}</a>`}<a class="btn${files || !ipad ? "" : " pri"}" data-share="${snd.k}" data-via="sms" href="sms:">Text</a><a class="btn" data-share="${snd.k}" data-via="mail" href="mailto:">Email</a>${navigator.share && !files ? `<button class="btn" data-send-sheet>Other apps…</button>` : ""}${files ? "" : `<button class="btn" data-send-copy>Copy</button>`}<button class="btn" data-send-pic>As a picture</button><button class="btn" data-send-print>Print</button></div>
     ${ph && !files ? `<p class="note">This phone can't attach photos from Bar Book. ${m.photoN && m.link ? "The message carries a link to them instead: anyone on the team opens them in Bar Book." : "Tap Print to keep them with the words, or send from a phone or the iPad, which can."}</p>` : ""}
     ${m.tip ? `<p class="note">${esc(m.tip)}</p>` : ""}
-    <p class="note">It goes in English, so everyone can read it.</p>
-    <div class="sec">How it will look</div>
-    <pre class="sendpre" id="send-pre" translate="no">${preHtml(msgText(m, snd.pick, snd.note))}</pre>`;
+    <p class="note">It goes in English, so everyone can read it.</p>`;
 }
 // The preview shows the bold that WhatsApp will show, not the marks.
 const preHtml = (t) => esc(t).replace(/^\*([^*\n]+)\*$/gm, "<b>$1</b>");
@@ -2420,7 +2428,7 @@ const LISTS = {
     ...sect("Lights and lock-up", [
       "Fridge lights off (the fridges stay on)",
       "Spirits locked away",
-      "Closing photos of the bar taken (below): the handover needs them",
+      { gone: 1 }, // was "Closing photos taken": the handover asks for them already
       "All bar lights off",
     ]),
   ] },
@@ -2475,7 +2483,7 @@ Object.assign(LISTS, {
       "Bins emptied, fresh bin liners in, rubbish taken to the bin room",
       "Bin room card put back in its place",
       "Stock brought up from the cellar",
-      "Closing photos of the floor taken (below): the handover needs them",
+      { gone: 1 }, // was "Closing photos taken": the handover asks for them already
     ]),
   ] },
 });
@@ -2486,6 +2494,8 @@ LISTS.close.short = "Closing";
 for (const k in LISTS) {
   let n = 0;
   LISTS[k].items = LISTS[k].items.map((x) => (typeof x === "string" ? { id: n++, t: x } : x.id == null ? { id: n++, ...x } : x));
+  // A taken-out item keeps its number, so nobody's ticks move.
+  LISTS[k].items = LISTS[k].items.filter((x) => !x.gone);
   const ids = LISTS[k].items.map((x) => x.id);
   if (new Set(ids).size !== ids.length) throw new Error(`${k}: two items share an id`);
 }
@@ -2544,7 +2554,7 @@ let closer = store.get("closer", "");
 const HO = [
   { id: "low", label: "Stock running low", short: "Running low", hint: "Drinks, gas, garnishes, anything getting short", join: ", " },
   { id: "issues", label: "Outstanding issues", short: "Outstanding", hint: "Anything broken, not finished, a guest, a tab", join: "\n" },
-  { id: "next", label: "For tomorrow: prep and follow-up", short: "For tomorrow", hint: "What the opening team needs to prepare or chase", join: "\n" },
+  { id: "next", label: "For the opener: what they must do or chase", short: "For the opener", hint: "Only what couldn't be done tonight. Closing items left undone go on it by themselves", join: "\n" },
 ];
 const HO_CHIPS = {
   low: { bar: ["Gas (CO2)", "Garnishes", "Limes", "Lemons", "Mint", "Ice", "Prosecco", "Red Bull", "Jarritos"], floor: ["Desserts", "Ice cream", "Whipped cream", "Sauces", "Napkins", "Black napkins", "Side plates", "Cutlery", "Shake cups", "Toilet roll", "Hand soap"] },
@@ -2640,8 +2650,11 @@ SHARE.shift = () => {
   // The four handover points always show, so "nothing" is said, not left out.
   const point = (id, label, none) => ({ id, label, one: true, lines: hoAll(id).length ? hoAll(id) : [none] });
   // The link at the foot opens the photos: tonight's on the close while it's going, then the handover they went with.
-  const sent = sentTonight(mode), dp = draftPhotos().length;
-  return { what: `${sideName(mode)} shift`, link: appUrl(dp ? `#at=photos:${mode}` : sent ? `#at=rep:${sent.id}` : "#at=send"), photoN: dp || sent?.photos || 0, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
+  const sent = sentTonight(mode), dp = draftPhotos().length, shots = (PHOTO_SHOTS[mode] || PHOTO_SHOTS.bar).length;
+  const notDone = lists.reduce((n, k) => n + (runOf(k) ? progress(k).of - progress(k).n : 0), 0), lbN = toChange([mode]).length;
+  const gaps = [!sent?.photos && dp < shots && !noPhotos && `${dp} of ${shots} closing photos`, notDone && `${plural(notDone, "closing job")} not done`,
+    !closedBy().length && "Closed by not picked", lbN && `${plural(lbN, "date label")} not changed`].filter(Boolean);
+  return { gaps, what: `${sideName(mode)} shift`, link: appUrl(dp ? `#at=photos:${mode}` : sent ? `#at=rep:${sent.id}` : "#at=send"), photoN: dp || sent?.photos || 0, title: `Black Tap Soho \u00b7 ${sideName(mode)} shift \u00b7 ${dayName(shiftDay())}`, head: [], parts: [
     { id: "sit", label: "S \u00b7 Situation", one: true, lines: head },
     { id: "bg", label: "B \u00b7 Background", one: true, lines: bg },
     // The closing list heading by heading, then what's left on each list. A list nobody started is left out unless
@@ -2656,7 +2669,7 @@ SHARE.shift = () => {
     { id: "open-issues", label: "Reported issues still open", lines: openIssues().sort((a, b) => b.urgent - a.urgent || ms(a.at) - ms(b.at)).flatMap((x) => (x.urgent ? issueLines({ ...x, title: `URGENT: ${x.title}` }) : issueLines(x))) },
     { id: "logged", label: "A \u00b7 Logged tonight", lines: loggedLines() },
     ...LB_SIDES.map((side) => ({ id: `labels-${side}`, label: `A \u00b7 Date labels to change, ${lower(sideName(side))}`, lines: lbs(side).map(lbLine) })),
-    point("next", "R \u00b7 4. For tomorrow (what the morning does first)", "Nothing extra"),
+    point("next", "R \u00b7 4. For the opener (with anything not done above)", "Nothing extra"),
     { id: "skip", label: "Not needed tonight", raw: true, lines: items(lists, ["cancelled"]) },
     ...lists.map((k) => ({ id: `all-${k}`, label: `${LISTS[k].title}: every item`, raw: true, lines: shown(k).map(([i, t]) => line(k, i, t)), off: true, opt: true })),
   ], photos: async () => (dp ? draftPhotos() : sent?.photos ? LIVE.api.loadPhotos(sent.id) : []) };
@@ -3137,8 +3150,8 @@ function handoverOf(r) {
   const pts = { low: "", issues: "", next: "" }, by = Object.fromEntries(HO.map((f) => [f.short, f.id]));
   let cur = null;
   for (const l of note === "None" ? [] : note.split("\n")) {
-    const m = l.match(/^(Running low|Outstanding|For tomorrow): (.*)$/);
-    if (m) { cur = by[m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
+    const m = l.match(/^(Running low|Outstanding|For the opener|For tomorrow): (.*)$/);
+    if (m) { cur = by[m[1] === "For tomorrow" ? "For the opener" : m[1]]; pts[cur] = m[2]; } else if (cur) pts[cur] += `\n${l}`; else pts.issues += `${pts.issues ? "\n" : ""}${l}`;
   }
   const left = [...r.text.matchAll(/^(Not done|Blocked):\n((?:- .*(?:\n|$))+)/gm)].flatMap(([, kind, xs]) => xs.trim().split("\n").map((x) => (kind === "Blocked" ? "Blocked: " : "") + x.slice(2)));
   const logged = (r.text.match(/\n\nLogged tonight:\n((?:- .*(?:\n|$))+)/)?.[1] || "").trim().split("\n").filter(Boolean).map((x) => x.slice(2));
@@ -3161,13 +3174,15 @@ const orderLines = (r) => { const low = r ? handoverOf(r).low.split(/,\s*|\n/).m
 function morningHtml() {
   const r = lastReport(), h = r && handoverOf(r), order = orderLines(r);
   const pt = (label, v) => `<div class="hopt"><b>${label}</b><span>${v ? ut(v) : "None"}</span></div>`;
+  // For the opener, spelt out: what the close wrote for them, then every closing item left undone or blocked.
+  const todo = h ? [...hoSplit(h.next), ...h.left] : [];
+  const opener = h ? `<div class="opener" id="for-opener"><b>${todo.length ? `For the opener (${todo.length})` : "✅ Nothing left for the opener"}</b>${todo.length ? `<ul>${todo.map((x) => `<li>${ut(x)}</li>`).join("")}</ul>` : `<p class="s">The close finished everything. Prep to par and today's order are below.</p>`}</div>` : "";
   const stale = r && reportDay(r) !== lastNight();
   const ho = !r ? `<p class="note">No handover from the last close on this side yet.</p>`
     : `${stale ? `<p class="note warnline" id="ho-stale"><b>Last night's handover hasn't arrived.</b> Ask whoever closed to open Bar Book with signal: it may be waiting on their phone. This one is from ${esc(dayName(reportDay(r)))}.</p>` : ""}
       <article class="notice" id="handover"><div class="meta">${stale ? "Latest handover" : "Last night's handover"} · <b translate="no">${esc(h.by)}</b> · ${when(r.at)}</div>
-      ${pt("Running low", h.low)}${pt("Outstanding", h.issues)}${pt("For today", h.next)}
+      ${opener}${pt("Running low", h.low)}${pt("Outstanding", h.issues)}
       ${h.logged.length ? `<div class="hopt"><b>Logged</b><span>${h.logged.map(ut).join("<br>")}</span></div>` : ""}
-      ${h.left.length ? `<p class="note">Left from that shift:<br>${h.left.map(esc).join("<br>")}</p>` : ""}
       ${h.nop ? `<p class="note">No closing photos: ${esc(h.nop)}</p>` : ""}
       ${r.photos ? `<div class="actions"><button class="btn" data-rp-photos="${r.id}">Show ${plural(r.photos, "photo")}</button></div><div id="rp-ph-${r.id}" class="sendph"></div>` : ""}
       <details><summary>Full report</summary><pre translate="no">${esc(r.text)}</pre></details></article>
@@ -3186,8 +3201,8 @@ SHARE.morning = () => {
   const h = handoverOf(r), out = [...outNow()].sort();
   return { what: "Morning check", title: `Black Tap Soho · ${sideName(mode)} morning · ${dayName(shiftDay())}`,
     head: [`✅ Last night's handover checked${LIVE.me ? ` by ${LIVE.me}` : ""}`], parts: [
-      { id: "issues", label: "Still outstanding", one: true, lines: [...hoSplit(h.issues), ...h.left].length ? [...hoSplit(h.issues), ...h.left] : ["Nothing"] },
-      { id: "next", label: "For today", one: true, lines: hoSplit(h.next).length ? hoSplit(h.next) : ["Nothing extra"] },
+      { id: "next", label: "For the opener", one: true, lines: [...hoSplit(h.next), ...h.left].length ? [...hoSplit(h.next), ...h.left] : ["Nothing left"] },
+      { id: "issues", label: "Still outstanding", one: true, lines: hoSplit(h.issues).length ? hoSplit(h.issues) : ["Nothing"] },
       { id: "out", label: "86'd now", lines: out },
     ] };
 };
@@ -3578,8 +3593,13 @@ function labelsReport() {
   return LB_SIDES.map((side) => { const xs = labelsDue([side]); return `Date labels, ${lower(sideName(side))}:${xs.length ? xs.map((x) => `\n- ${lbLine(x)}, ${opener(x)}`).join("") : " nothing due"}`; }).join("\n");
 }
 /* Closing photos: taken in the app or chosen from the phone's photos, and sent with the shift report. */
+// The shots the morning and the managers check, so a close is judged the same whoever does it.
+const PHOTO_SHOTS = { bar: ["Back bar and bottles", "Fridges, doors open", "Ice well, empty and open", "Glass washer, door open", "Bins and floor"],
+  floor: ["Tables and chairs", "Milkshake bar and freezer", "Fridges, doors open", "Host stand", "Toilets and floor"] };
 function photosHtml() {
+  const n = draftPhotos().length, shots = PHOTO_SHOTS[mode] || PHOTO_SHOTS.bar;
   return `<div class="sec">Closing photos</div>
+    <p class="note" id="ph-shots"><b>Take these ${shots.length}:</b> ${shots.map((s, i) => `${i < n ? "\u2705" : "\u2b1c"} ${s}`).join(" · ")}. Add a note to any that needs one.</p>
     <p class="note">Any time of the shift, from any phone or the iPad. Saved for the whole team straight away (with no signal it waits on the phone) and sent with the handover. Whoever took a photo, or a manager, can delete it.</p>
     ${draftPhotos().map((p) => `<div class="photo"><img src="${p.data}" alt="Closing photo">${p.name ? `<div class="s">\ud83d\udcf7 <span translate="no">${esc(p.name)}</span>${p.at ? `, ${hhmm(new Date(ms(p.at)))}` : ""}</div>` : ""}<label class="fld">Note<input data-ph-note="${p.id}" maxlength="300" value="${esc(p.note)}" placeholder="What does this show?"></label><div class="actions"><button class="btn" data-ph-send="${p.id}">Send now</button>${p.uid === LIVE.uid || LIVE.admin ? `<button class="btn danger" data-ph-del="${p.id}">Delete photo</button>` : ""}</div></div>`).join("")}
     ${draftPhotos().length >= LIVE.api.MAX_PHOTOS ? `<p class="note">${LIVE.api.MAX_PHOTOS} photos is the most for one report.</p>`
@@ -3668,9 +3688,9 @@ function renderTally() {
       ${stillToDoHtml()}
       <div class="fld">Closed by<div class="recent" style="margin-top:6px">${closers().map((m) => `<button class="chip" data-closer="${esc(m)}" aria-pressed="${closedBy().includes(m)}">${esc(m)}</button>`).join("")}</div></div>
       <div class="sec">Handover</div>
-      <p class="note">Every night: what's cleaned, what's running low, what's outstanding and what tomorrow needs, with photos.</p>
+      <p class="note">Every night: what's cleaned, what's running low, what's outstanding and what's left for the opener, with photos. Do all you can tonight: the less on For the opener, the easier the morning.</p>
       <div class="hopt"><b>1. Cleaning completed</b><span>${(() => { const p = progress(closeList()); return p.n === p.of ? "\u2705 Closing all ticked" : `${p.n} of ${p.of} closing items ticked`; })()}</span></div>
-      ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
+      ${HO.map((f, i) => `<label class="fld">${i + 2}. ${f.label}${f.id === "next" && left ? `<small class="s">Plus ${plural(left, "closing item")} not done: they go on it by themselves.</small>` : ""}<textarea id="ho-${f.id}" data-ho-f="${f.id}" rows="2" maxlength="500" placeholder="${esc(f.hint)}">${esc(ho[f.id])}</textarea></label>
       <div class="recent"${f.id === "low" ? ' translate="no"' : ""}>${f.id === "low" ? `<button class="chip pk-chip" data-ho-pick>⌕ Pick from the list</button>` : ""}${hoChips(f.id).map((x) => `<button class="chip" data-ho-add="${f.id}" data-ho="${esc(x)}">${esc(x.replace(/: $/, ""))}</button>`).join("")}</div>`).join("")}
       ${logHoHtml()}
       <div class="hopt"><b>Closing photos</b><span>${draftPhotos().length ? `${draftPhotos().length} taken` : noPhotos ? `None: ${esc(noPhotos)}` : `<button class="btn" data-pane="${closeList()}" data-to-photos>Take them</button>`}</span></div>
@@ -5276,7 +5296,7 @@ function renderInfo() {
     </div>
     <div class="sec">Help</div>
     <div class="hub">
-      ${hubRow("read", "data-rt-open", "Read text in a photo", "A label, note or sign: its words to copy or search, read on this phone")}
+      ${hubRow("read", "data-rt-open", "Read text in a photo", "A label, note or sign: its words to copy, search or translate")}
       ${hubRow("features", "data-guide", "Guide: how Bar Book works", "The walkthrough, the full tour, every section, and a search for anything")}
       ${hubRow("siri", "data-sc-open", "Siri and shortcuts", "\u201cHey Siri, Bar Book 86\u201d: open any page by voice or a tap on the back of the phone")}
       ${LIVE.me && !LIVE.owner ? hubRow("feedback", 'data-goto="tell"', "App feedback", "A glitch, a drink to add or an idea. Maintenance reads every one") : hubRow("feedback", `href="${formUrl()}" target="_blank" rel="noopener"`, "Send feedback", "A glitch, a guest comment, a drink to add or an idea. Maintenance reads every one")}
@@ -5471,6 +5491,7 @@ function openAt(where) {
   if (where !== "siri" && !$("#sheet").hidden) hideSheet();
   if (where !== "guest" && GUEST.on) guestClose(true);
   if (MG_READY && sto && where !== "brief") storyClose();
+  if (where !== "readtext" && $("#rt") && !$("#rt").hidden) $("#rt [data-rt-x]")?.click();
   if (where.startsWith("tab:")) return show(where.slice(4));
   if (where.startsWith("rep:")) return openReport(where.slice(4));
   // Tonight's closing photos for a side, from a message's link: the close, scrolled to them.
@@ -6180,7 +6201,7 @@ SHARE.tonight = () => {
     { id: "order", label: "To order and running low", lines: [...ho("low"), ...rs] },
     { id: "issues", label: "Issues and faults", lines: iss.flatMap((x) => (x.urgent ? [`URGENT: ${issueLines(x)[0]}`, ...issueLines(x).slice(1)] : issueLines(x))) },
     { id: "outstanding", label: "Outstanding", lines: ho("issues") },
-    { id: "next", label: "For tomorrow", lines: ho("next") },
+    { id: "next", label: "For the opener", lines: ho("next") },
     { id: "logged", label: "Logged tonight", lines: ["bar", "floor"].flatMap((sd) => loggedLines(sd).map((l) => `${sideName(sd)}: ${l}`)) },
     { id: "team", label: "On the team", one: true, lines: [plural(LIVE.staff.length, "phone")], off: true },
   );

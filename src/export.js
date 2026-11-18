@@ -5,7 +5,7 @@
    manager can run it on their own phone, the bar iPad or a laptop, whoever logged it and wherever. Nothing is written.
    No library: the workbook is a few XML files in a plain zip, built here. */
 const EX_MAX = 92;
-const EX = { tab: "out", from: "", to: "", side: "all", who: "", off: new Set(store.get("exOff", [])), D: null, busy: false, err: false, key: "" };
+const EX = { tab: "out", from: "", to: "", side: "all", who: "", off: new Set(store.get("exOff", ["closing", "sections", "logit", "restock", "training", "sent"])), D: null, busy: false, err: false, key: "" };
 const XLSX_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 const exDays = (a, b) => { const xs = []; for (let d = b; d >= a && xs.length < EX_MAX; d = addDays(d, -1)) xs.push(d); return xs; };
 const exList = (k) => LISTS[k]?.title || k || "";
@@ -14,6 +14,9 @@ const exDur = (m) => (m < 60 ? `${m} min` : `${Math.floor(m / 60)} h ${String(m 
 // One row: when it happened, which business day it counts for, the side (blank when it's for both), and everyone named
 // on it (for the person filter).
 const exRow = (x, side, who, c) => ({ t: ms(x.at), day: x.day || bday(x.at), side: side === "bar" || side === "floor" ? side : "", who: who.filter(Boolean), c });
+// What a manager usually wants from a night: how the close went, what was handed over, 86s, labels, issues and stock.
+// Recommended ticks just these; the rest (every single tick, training, every message) is there to add.
+const EX_REC = ["lists", "handover", "out", "labels", "issues", "count", "received"];
 const EX_KIND = { night: "Tonight's quiz", speed: "Speed drill", starter: "New starter test", b101: "Bar 101" };
 const EX_RUN = { started: "Started", finished: "Finished", todo: "Reopened" };
 const EX_LOGS = [
@@ -37,7 +40,7 @@ const EX_LOGS = [
   { k: "out", n: "86 log", what: "What was 86'd, by who, and when it came back", cols: ["Item", "What", "By", "Out for"],
     rows: (D) => D.outlog.map((x) => { const o = x.action === "back" && D.outlog.find((y) => y.id === x.id.replace(/-back$/, ""));
       return exRow(x, "", [x.name], [x.itemName, x.action === "back" ? "Back in" : "86'd", x.name, o ? exDur(Math.max(0, Math.round((ms(x.at) - ms(o.at)) / 6e4))) : ""]); }) },
-  { k: "logit", n: "Log it", what: "Notes, told a manager, running low, not finished, for tomorrow", cols: ["Side", "Kind", "What", "By"],
+  { k: "logit", n: "Log it", what: "Notes, told a manager, running low, not finished, for the opener", cols: ["Side", "Kind", "What", "By"],
     rows: (D) => D.events.filter((e) => e.kind === "log").map((e) => exRow(e, e.area, [e.name], [sideName(e.area), LOG_NAME[e.what] || e.what, e.label, e.name])) },
   { k: "labels", n: "Date labels", what: "Every date label opened, changed or discarded", cols: ["Side", "Item", "What", "Use by", "Use by before", "Days late", "By", "Note"],
     rows: (D) => D.events.filter((e) => e.kind === "label").map((e) => exRow(e, e.area, [e.name], [sideName(e.area), e.label, LB_ACT[e.act] || e.act, e.useBy || "", e.was || "", lateBy(e) || "", e.name, e.note || ""])) },
@@ -73,6 +76,7 @@ function exTables() {
     return { L, head: ["Shift date", "Time", ...L.cols], rows: rows.map((r) => [r.day, hhmm(new Date(r.t)), ...r.c]) };
   });
 }
+const exPicKey = () => [EX.from, EX.to, EX.side, EX.who, ...EX.off, EX.D ? 1 : 0].join("|");
 const exPicked = () => exTables().filter((x) => !EX.off.has(x.L.k) && x.rows.length);
 const exPeople = () => [...new Set(EX.D ? EX_LOGS.flatMap((L) => L.rows(EX.D).flatMap((r) => r.who)) : [])].sort((a, b) => a.localeCompare(b));
 const exName = (ext) => `bar-book-${EX.from === EX.to ? EX.from : `${EX.from}-to-${EX.to}`}${EX.side === "all" ? "" : `-${EX.side}`}${EX.who ? `-${slugName(EX.who)}` : ""}.${ext}`;
@@ -93,12 +97,12 @@ function exOutHtml() {
     <div class="seg ex-seg">${[["all", "Both"], ["bar", "Bar"], ["floor", "Floor"]].map(([v, t]) => `<button data-ex-side="${v}" aria-pressed="${EX.side === v}">${t}</button>`).join("")}</div>
     <label class="ex-who">Person <select data-ex-who><option value="">Everyone</option>${ppl.map((p) => `<option${p === EX.who ? " selected" : ""} translate="no">${esc(p)}</option>`).join("")}</select></label>`;
   if (EX.busy || !EX.D) return `${filters}<p class="note">${EX.err ? `Couldn't read the logs. Check your signal. <button class="linkbtn" data-ex-again>Try again</button>` : "Reading the logs…"}</p>`;
-  const logs = `<div class="mini">Logs <button class="linkbtn" data-ex-all="1">All</button> <button class="linkbtn" data-ex-all="0">None</button></div>
-    <div class="ex-logs">${T.map((x) => `<label class="check"><input type="checkbox" data-ex-log="${x.L.k}"${EX.off.has(x.L.k) ? "" : " checked"}> <span><b>${x.L.n}</b> <span class="s">${x.rows.length ? plural(x.rows.length, "line") : "nothing"} · ${x.L.what}</span></span></label>`).join("")}</div>`;
+  const logs = `<div class="mini">Logs <button class="linkbtn" data-ex-all="rec">Recommended</button> <button class="linkbtn" data-ex-all="1">All</button> <button class="linkbtn" data-ex-all="0">None</button></div>
+    <div class="ex-logs">${T.map((x) => `<label class="check"><input type="checkbox" data-ex-log="${x.L.k}"${EX.off.has(x.L.k) ? "" : " checked"}> <span><b>${x.L.n}</b>${EX_REC.includes(x.L.k) ? ` <span class="pill ok">Recommended</span>` : ""} <span class="s">${x.rows.length ? plural(x.rows.length, "line") : "nothing"} · ${x.L.what}</span></span></label>`).join("")}</div>`;
   const none = T.some((x) => x.rows.length) ? "Tick a log with lines in it." : "Nothing logged for these filters. Try more nights, both sides or everyone.";
   return `${filters}
-    ${n ? `<div class="actions"><button class="btn pri" data-ex-go="xlsx">Excel workbook</button><button class="btn" data-ex-go="csv">CSV files</button><button class="btn" data-ex-go="docx">Word document</button><button class="btn" data-ex-go="print">Print</button><button class="btn" data-ex-go="copy">Copy</button></div>
-      <p class="note">${plural(n, "line")} from ${plural(picked.length, "log")}. <b>Excel workbook</b>: one file, a tab for each log, opens in Excel, Numbers and Google Sheets. <b>CSV files</b>: one for each log, for Nory or any system that imports a spreadsheet. <b>Word document</b>: the tables, ready for a report, opens in Word, Pages and Google Docs. <b>Copy</b> pastes as a table into Word or Docs, and as columns into a spreadsheet. On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp.</p>` : `<p class="note">${none}</p>`}
+    ${n ? `<div class="actions"><button class="btn pri" data-ex-go="xlsx">Excel workbook</button><button class="btn" data-ex-go="csv">CSV files</button><button class="btn" data-ex-go="docx">Word document</button>${EX.pics?.key === exPicKey() ? (EX.pics.files ? `<button class="btn pri" data-ex-go="jpeg">Share ${plural(EX.pics.files.length, "picture")}</button>` : `<button class="btn" disabled>Making the pictures…</button>`) : `<button class="btn" data-ex-go="jpeg">Pictures (JPEG)</button>`}<button class="btn" data-ex-go="print">Print</button><button class="btn" data-ex-go="copy">Copy</button></div>
+      <p class="note">${plural(n, "line")} from ${plural(picked.length, "log")}. <b>Excel workbook</b>: one file, a tab for each log, opens in Excel, Numbers and Google Sheets. <b>CSV files</b>: one for each log, for Nory or any system that imports a spreadsheet. <b>Pictures</b>: each log as JPEG images, for WhatsApp or a phone that can't open a spreadsheet. <b>Word document</b>: the tables, ready for a report, opens in Word, Pages and Google Docs. <b>Copy</b> pastes as a table into Word or Docs, and as columns into a spreadsheet. On a phone or the iPad the file goes to the share sheet: Mail, Save to Files, AirDrop or WhatsApp.</p>` : `<p class="note">${none}</p>`}
     ${logs}
     ${n ? `<div class="mini">See it here</div>${picked.map((x) => `<details class="ex-prev"><summary>${x.L.n} <span class="s">${plural(x.rows.length, "line")}</span></summary><div class="ex-scroll">${exTableHtml(x, 60)}</div>${x.rows.length > 60 ? `<p class="note">First 60 lines here. The file has all ${x.rows.length}.</p>` : ""}</details>`).join("")}` : ""}
     <p class="note">Bar Book can't send to Nory by itself: Nory doesn't offer a link for other apps to send to. Import the CSV in Nory, if your account takes a spreadsheet import, or attach it to an email.</p>`;
@@ -121,6 +125,18 @@ function exGo(how) {
   if (how === "xlsx") return mgSaveFile(exName("xlsx"), XLSX_TYPE, exXlsx([...xs.map((x) => [x.L.n, x.head, x.rows]), ["About this export", ["About", "Detail"], exAbout()]]));
   if (how === "csv") return exSaveFiles(xs.map((x) => new File([toCsv(x.head, x.rows)], exName(`${x.L.k}.csv`).replace(/\.(\w+)\.csv$/, "-$1.csv"), { type: "text/csv" })));
   if (how === "docx") return mgSaveFile(exName("docx"), DOCX_TYPE, exDocx(xs));
+  // Pictures: each log as JPEG cards, for a phone that can't open a spreadsheet or a PDF (WhatsApp, Photos).
+  if (how === "jpeg") {
+    const per = (x) => [`${x.L.n} (${plural(x.rows.length, "line")})`, ...x.rows.map((r) => `• ${dayName(r[0])} ${r[1]}: ${r.slice(2).filter((v) => String(v ?? "").trim()).join(" · ")}`)].join("\n");
+    // The share sheet only opens straight from a tap, so the pictures are made first, then Share them is its own tap.
+    const key = exPicKey();
+    if (EX.pics?.key === key) return exSaveFiles(EX.pics.files);
+    EX.pics = { key, files: null }; renderCard("export");
+    return Promise.all(xs.map((x) => msgCards(`Black Tap Soho · ${x.L.n}`, per(x)))).then((fss) => {
+      if (EX.pics?.key !== key) return;
+      EX.pics.files = fss.flat().map((f, i) => new File([f], exName(`${i + 1}.jpg`), { type: "image/jpeg" })); renderCard("export");
+    }, () => { EX.pics = null; renderCard("export"); toast("Couldn't make the pictures. Try Excel or Print"); });
+  }
   if (how === "copy") {
     // Both at once: a table for Word, Pages or Docs, and tab-separated columns for a spreadsheet or a message.
     const cell = (v) => String(v ?? "").replace(/[\t\r\n]+/g, " ");
@@ -211,7 +227,7 @@ document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;
   if ((x = t("[data-ex-q]"))) { [EX.from, EX.to] = x.dataset.exQ.split("|"); haptic(); renderCard("export"); return; }
   if ((x = t("[data-ex-side]"))) { EX.side = x.dataset.exSide; haptic(); renderCard("export"); return; }
-  if ((x = t("[data-ex-all]"))) { EX.off = x.dataset.exAll === "1" ? new Set() : new Set(EX_LOGS.map((L) => L.k)); store.set("exOff", [...EX.off]); renderCard("export"); return; }
+  if ((x = t("[data-ex-all]"))) { const v = x.dataset.exAll; EX.off = v === "1" ? new Set() : new Set(EX_LOGS.map((L) => L.k).filter((k) => v === "rec" && !EX_REC.includes(k) || v === "0")); store.set("exOff", [...EX.off]); renderCard("export"); return; }
   // From another card (the date label record): the same nights and side, that log only.
   if ((x = t("[data-ex-only]"))) { const [k, n, side] = x.dataset.exOnly.split("|"); EX.to = shiftDay(); EX.from = addDays(EX.to, 1 - n); EX.side = side || "all"; EX.who = ""; EX.off = new Set(EX_LOGS.map((L) => L.k).filter((j) => j !== k)); haptic(); openAt("export"); return; }
   if ((x = t("[data-ex-tab]"))) { EX.tab = x.dataset.exTab; haptic(); renderCard("export"); return; }
@@ -238,7 +254,7 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 </style>`);
 
 /* ---- Where it goes ---- */
-TC_SUB.export = "Every log out as Excel, CSV, Word, print or copy, and spreadsheets in";
+TC_SUB.export = "Every log out as Excel, CSV, pictures, Word, print or copy, and spreadsheets in";
 FEATURES.push({ g: "Team", k: "export", adm: 1, n: "Export and import", go: "export", team: 1, what: "Every log in Bar Book out to a file: closing ticks and who did each section, take overs, handovers, 86s, Log it, date labels, restock, stock counts, deliveries, issues, training and everything sent. And spreadsheets in: date labels, items, names, the stock setup with bottle sizes and weights, a past count and deliveries.",
-  mgr: "Export: pick the nights, side, person and logs, then Excel, CSV (for Nory or any import), Word, Print or Copy. Import: get the template, fill it in, choose the file, check every line, then save. Nothing is ever deleted." });
+  mgr: "Export: pick the nights, side, person and logs, then Excel, CSV (for Nory or any import), Pictures (JPEG, for WhatsApp), Word, Print or Copy. Recommended ticks the logs most nights need. Import: get the template, fill it in, choose the file, check every line, then save. Nothing is ever deleted." });
 PLACE_KW.export = "export import upload word docx template excel spreadsheet csv xlsx download nory laptop print copy file data logs records numbers sheets";

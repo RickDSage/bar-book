@@ -84,9 +84,10 @@ function rtDraw() {
     <input id="rt-cam" type="file" accept="image/*" capture="environment" hidden><input id="rt-pick" type="file" accept="image/*" hidden>
     ${RT.url ? `<img class="rt-img" src="${RT.url}" alt="The photo">` : `<p class="note">A label, a note, a letter, a sign: take or choose a photo and its words come up here to copy or search. It's read on this phone.</p>`}
     ${RT.text == null ? (RT.msg ? `<p class="note" id="rt-msg" role="status">${esc(RT.msg)}</p>` : "")
-      : RT.text ? `<div class="ltools"><input id="rt-q" type="search" placeholder="Search the text" aria-label="Search the text" value="${esc(RT.q)}"><button class="btn" data-rt-copy>Copy all</button></div>
+      : RT.text ? `<div class="ltools"><input id="rt-q" type="search" placeholder="Search the text" aria-label="Search the text" value="${esc(RT.q)}"><button class="btn" data-rt-copy>Copy all</button><button class="btn" data-rt-tr>${RT.tr ? "Original" : "Translate"}</button></div>
         ${q ? `<p class="s" role="status">${hits.length ? `${hits.length} line${hits.length === 1 ? "" : "s"} with “${esc(RT.q.trim())}”` : `No “${esc(RT.q.trim())}” in it`}</p>` : ""}
-        <div class="rt-text" id="rt-text">${(q ? hits : lines).map((l) => `<p>${mark(l) || "&nbsp;"}</p>`).join("")}</div>
+        ${RT.tr ? `<p class="s" translate="no">In ${esc(lang ? langEn(lang) : "English")}, translated live: check anything important against the photo.</p><div class="rt-text" id="rt-tr" translate="no">${RT.tr.split("\n").map((l) => `<p>${esc(l) || "&nbsp;"}</p>`).join("")}</div>` : ""}
+        <div class="rt-text" id="rt-text"${RT.tr ? " hidden" : ""}>${(q ? hits : lines).map((l) => `<p>${mark(l) || "&nbsp;"}</p>`).join("")}</div>
         <p class="s">The reader can slip on handwriting, curved bottles and small print: check it against the photo.</p>`
       : `<p class="note">No words found. Try closer, flatter and in good light.</p>`}`;
 }
@@ -94,6 +95,14 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-rt-open]")) { haptic(); return rtShow(null); }
   const rp = e.target.closest("[data-rt-photo]"); if (rp) { const p = GAL.list.find((x) => x.id === rp.dataset.rtPhoto); $("#gal-lb").hidden = true; haptic(); return p && rtShow(p.data); }
   if (e.target.closest("[data-rt-x]")) { $("#rt").hidden = true; if (RT?.blob) URL.revokeObjectURL(RT.url); RT = null; return; }
+  // Translate this: the words into your language (English if that's yours), live; again for the original.
+  const tb = e.target.closest("[data-rt-tr]");
+  if (tb) {
+    if (RT.tr) { RT.tr = null; return rtDraw(); }
+    if (!aiOn()) return toast("Translating needs live translation: Maintenance switches it on in More");
+    tb.disabled = true; tb.textContent = "Translating…";
+    return LIVE.api.translate([RT.text], lang ? langEn(lang) : "English", "the language it is written in").then(([t]) => { RT.tr = t; rtDraw(); }, () => { toast("Couldn't translate. Check the signal"); rtDraw(); });
+  }
   if (e.target.closest("[data-rt-copy]")) return navigator.clipboard?.writeText(RT.text).then(() => toast("Copied. Paste it anywhere"), () => toast("Couldn't copy. Press and hold the text to copy it"));
   if (e.target.closest("[data-gal-lb-x]") || e.target.id === "gal-lb") { $("#gal-lb").hidden = true; return; }
   if (!$("#gal")) return;

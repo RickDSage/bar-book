@@ -476,8 +476,8 @@ function briefParts(side = mode) {
   const r = lastReport(), h = r && reportDay(r) === lastNight() ? handoverOf(r) : null, now = toChange([side]), soon = labelsDue([side]).filter((x) => !now.includes(x));
   const games = LIVE.fixtures.filter((x) => x.day === ukDay(Date.now())).sort((a, b) => a.ko.localeCompare(b.ko));
   const iss = openIssues().filter((x) => [side, "other", "cellar", "toilets", "terrace"].includes(x.area) || x.urgent).sort((a, b) => b.urgent - a.urgent);
-  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for today.
-  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For today: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
+  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for the opener.
+  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For the opener: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
   const carry = typeof carryRows === "function" ? carryRows(false).filter((x) => x.sd === side) : [];
   // What changed since this person was last in (specs, the team's changes). Last night's handover has its own card.
   const since = (typeof sinceLast === "function" ? sinceLast(side) : []).filter((p) => p.id !== "handover");
@@ -781,7 +781,7 @@ FEATURES.push(
   { g: "Shift", k: "brief", n: "Tonight's brief", go: "brief", what: "What's new and what's on tonight, played like stories: specs changed, 86s, labels due, last night's handover and what's new in Bar Book." },
   { g: "Shift", k: "clear", n: "Clear and undo", go: "clear", team: 1, what: "Every list's ↺ Clear sits in the row of tools at its top and acts straight away; ↩ Undo clear takes its place for 15 minutes. Lists start fresh by themselves at 6am." },
   { g: "Stock", k: "dnote", n: "Read a delivery note", go: "dnote", team: 1, what: "Stock, Delivery in, 📷 Read the note: a photo or PDF of the delivery note is read on this phone. Each line on the count comes back with how many; check them against the paper and log the ticked ones." },
-  { g: "More", k: "readtext", n: "Read text in a photo", go: "readtext", what: "Take or choose a photo of a label, note, letter or sign, or open one in Photos: its words come up under it to copy or search. Read on this phone, never sent." },
+  { g: "More", k: "readtext", n: "Read text in a photo", go: "readtext", what: "Take or choose a photo of a label, note, letter or sign, or open one in Photos: its words come up under it to copy, search or translate into your language. Read on this phone and never sent, unless you tap Translate (live translation sends just the words)." },
   { g: "More", k: "phone", n: "This phone: look and settings", go: "phone", what: "Light or dark, accessible mode, one-hand mode, sounds, the 🎤 button, help buttons, shared iPad, language, home screen and reset." },
   { g: "Team", k: "week", adm: 1, n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
   { g: "Team", k: "pilot", adm: 1, n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
