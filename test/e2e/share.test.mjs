@@ -6,7 +6,7 @@ before(async () => { site = await serve(".emusite"); browser = await launch();
   const g = await browser.newPage(); data = await g.evaluate(() => { const c = document.createElement("canvas"); c.width = 320; c.height = 240; const x = c.getContext("2d"); x.fillStyle = "#6a5"; x.fillRect(0, 0, 320, 240); return c.toDataURL("image/jpeg", 0.8); }); await g.close(); });
 after(async () => { await browser.close(); site.close(); });
 const SH = process.env.SHOTS;
-test("new bits", async () => {
+test("drinks Select and Share, every photo in one place, iPad Go to and tiles", async () => {
   await resetEmulators();
   const { M, S, T } = await team(browser, site, [["M", "Mia Manager", "mia", "manager"], ["S", "Sam Staff"], ["T", "Tia Staff"]]);
   // Drinks select
