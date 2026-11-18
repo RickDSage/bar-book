@@ -7,14 +7,15 @@
    The 🔍 at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 14;
-const WALK_NEW = "🔍 at the top finds any screen, drink or how-to: type it and tap to go there. 🎤 sits next to it now, never over the page: it shows the words as it hears them, says when it couldn't make them out, and a drink said opens straight away. On Closing, tap a heading to fold it. Stock count: tidier. Places are numbered and fold open one at a time, items are numbered, and a counted bottle says what's there (2 full · ½ open). The day, order, cl or ml, How to count and tips are in Options, which also picks the places that are yours tonight.";
+const WALK_V = 15;
+const WALK_NEW = "🌍 at the top (and Guest on the bar station) talks to any guest: they pick their language and see a welcome, the drinks and food menus, questions to tap and the allergy card in it, and you tap ready phrases (check-backs, desserts, coffee, tea, goodbye) that they see and hear in their language. Your own language is asked when you pick your name; hold any words to see them in English. 🎤 needs fewer words now: “mojito no sugar”, “missing limes”, and it can listen for your accent. Language lessons are in Games and drills. Before that: 🔍 at the top finds any screen, drink or how-to: type it and tap to go there. 🎤 sits next to it now, never over the page: it shows the words as it hears them, says when it couldn't make them out, and a drink said opens straight away. On Closing, tap a heading to fold it. Stock count: tidier. Places are numbered and fold open one at a time, items are numbered, and a counted bottle says what's there (2 full · ½ open). The day, order, cl or ml, How to count and tips are in Options, which also picks the places that are yours tonight.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
   "⌂ at the top right always takes you home: the drinks, or the bar station on the iPad.",
   "Long lists scroll A to Z, like your phone's contacts: the drinks, the 86 picker, the stock count. Tap a letter on the strip down the right, or slide your finger down it.",
-  "Hands full? Tap 🎤 and say it how you like, like “can you 86 the Corona” or “Negroni spec”: it picks out the key words. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
+  "A guest who doesn't speak English? Tap 🌍 at the top and hand them the phone: their language, the menu, questions to tap and two-way talk. ✕ Staff takes it back.",
+  "Hands full? Tap 🎤 and say it how you like, like “86 the Corona”, “mojito no sugar” or just “Negroni”: it picks out the key words. One-hand mode (More, This phone) puts the main buttons in reach of your thumb.",
   "🔍 at the top right finds anything: type a screen (“closing”, “labels”, “pay”) and tap to go straight there, or a drink, or “how do I make a mojito”. 🎤 next to it does the same by voice.",
 ], tip: "× closes this at any time. More, Replay the walkthrough brings it back." };
 const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
@@ -142,7 +143,7 @@ const GLOSSARY = [
 ];
 const glossHtml = () => `<dl class="kv">${GLOSSARY.map(([t, d]) => `<dt>${esc(t)}</dt><dd>${esc(d)}</dd>`).join("")}</dl>`;
 // Where each part of the app is explained in a ? panel.
-const GD_HELP = { drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
+const GD_HELP = { guest: "guest", phrases: "guest", drinks: "drink", make: "make", rapid: "rapid", pay: "pay", morning: "morning", lists: "closing", labels: "labels", stock: "stock", send: "handover", ask: "ask", incident: "incident", issues: "issues", tell: "tell", rate: "rate", people: "people", count: "count", ready: "ready", sent: "sent", export: "export", logit: "logit", station: "station", voice: "voice", replay: "replay", order: "order", season: "season", photos: "photos" };
 // The sections everything is sorted into, in the Guide and on What's in Bar Book, in this order. Anything not listed
 // keeps its own group, after these.
 const FEAT_SECS = [
@@ -195,7 +196,7 @@ function gdResultsHtml() {
   const asked = gdAsked === gdQ.trim().toLowerCase();
   const miss = `<div class="gd-miss${body ? " soft" : ""}"><b>${body ? "Not what you meant?" : "That isn't in Bar Book yet."}</b><span>${asked ? "Sent to maintenance to add. Thanks." : "Send it to maintenance to add. They check it first, so nothing goes in until it's right."}</span>
     ${asked ? "" : `<button class="btn${body ? "" : " pri"}" data-gd-add>Add it</button>`}${body ? "" : `<button class="linkbtn" data-gd-new>A new bottle or ingredient? Add something new ›</button>`}</div>`;
-  return `${r.fixed.length ? `<p class="note">Showing results for <b>${esc(r.fixed.join(", "))}</b>.</p>` : ""}${body}${miss}`;
+  return `${sdTypedHtml(gdQ)}${r.fixed.length ? `<p class="note">Showing results for <b>${esc(r.fixed.join(", "))}</b>.</p>` : ""}${body}${miss}`;
 }
 function gdHomeHtml() {
   const groups = [...new Set(gdItems().map((f) => f.g))];

@@ -191,7 +191,7 @@ const plHits = (d, words) => words.every((w) => plHit(d, w));
 // The words to look for, with typos fixed ("espreso martni" finds the Espresso Martini) and what was fixed, to show.
 function plQuery(q) {
   if (PL.sq?.q === q) return PL.sq;
-  let words = plNorm(q).replace(/alcohol[- ]free|non[- ]alcoholic|no alcohol/g, "zero").replace(/\bg ?(&|and|n|\+) ?t\b|\bg&ts?\b/g, "tonic").split(/[\s,]+/).filter(Boolean);
+  let words = wdFix(plNorm(q)).replace(/&/g, " ").replace(/alcohol[- ]free|non[- ]alcoholic|no alcohol/g, "zero").replace(/\bg ?(&|and|n|\+) ?t\b|\bg&ts?\b/g, "tonic").split(/[\s,]+/).filter(Boolean);
   const kept = words.filter((w) => !PL_STOP.has(w)); if (kept.length) words = kept;
   const out = [], fixed = [];
   words.forEach((w, i) => {

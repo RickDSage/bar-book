@@ -1208,7 +1208,7 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
   <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
   <p class="wip">Spot something wrong or got an idea? Tell maintenance: More, then App feedback.</p>
 </div></div>
-<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></div></div></div>
+<div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-guest-open aria-label="Talk to a guest: their language, menu, phrases"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c-2.6 2.6-2.6 14.4 0 17M12 3.5c2.6 2.6 2.6 14.4 0 17"/></svg></button><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
 <button class="upd" id="upd" hidden>Bar Book has updated. Tap to load it</button>
 <button class="upd rulesold" id="rules-old" hidden aria-label="Firebase rules need publishing. Tap to hide">Rules need publishing ✕</button>
@@ -1701,7 +1701,7 @@ const flavHit = (d) => !flav || (flav === "No alcohol" ? d.section === "Zero Pro
 function renderQuick(show, q = "") {
   if (show) { $("#quick").innerHTML = ""; return; }
   const f = PL.sq?.fixed || [], go = placeHits(q);
-  $("#quick").innerHTML = (go.length ? `<div class="goto"><span class="mini">Go to</span>${go.map((x) => `<button class="chip" data-goto="${x.go}">${esc(x.n)} ›</button>`).join("")}</div>` : "") + (f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : "");
+  $("#quick").innerHTML = sdTypedHtml(q) + (go.length ? `<div class="goto"><span class="mini">Go to</span>${go.map((x) => `<button class="chip" data-goto="${x.go}">${esc(x.n)} ›</button>`).join("")}</div>` : "") + (f.length ? `<p class="note pl-fix">Showing results for <b>${esc(f.join(", "))}</b></p>` : "");
 }
 let listIds = D.map((d) => d.id);
 const SEC_ORDER = [...new Set(D.map((d) => d.section))];
@@ -3928,7 +3928,7 @@ document.addEventListener("click", (e) => {
    on screen is matched whole against the English, so a word that isn't in the list stays in English, and so do drink
    names, specs and allergens, which are never in it. Names and what people type are never touched. */
 /*I18N*/
-const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur"]);
+const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur", "he", "fa", "ps", "yi", "sd", "ckb", "ug", "dv"]);
 let lang = store.get("lang", "");
 const TR = new Map();
 /* A language's words are fetched the first time it's picked (lang/<code>.json, about 70 KB), then kept on the phone,
@@ -3945,8 +3945,9 @@ async function langLoad(c) {
   } catch { return p?.c === c; }
 }
 function trBuild() {
-  TR.clear(); TR_PAT = []; trCache.clear(); trFmt = null; const w = langPack(lang); if (!w) return;
-  for (const [en, x] of Object.entries(w)) { if (/\{[a-d]\}/.test(en)) TR_PAT.push(trPat(en, x)); else TR.set(en, x); }
+  TR.clear(); TR_PAT = []; trCache.clear(); trFmt = null; if (!lang) return;
+  for (const [en, x] of Object.entries(langPack(lang) || {})) { if (/\{[a-d]\}/.test(en)) TR_PAT.push(trPat(en, x)); else TR.set(en, x); }
+  aiMerge();
   // The longest phrases are tried first, so "Remove {a} for everyone?" wins over "Remove {a}".
   TR_PAT.sort((a, b) => b.re.source.length - a.re.source.length);
   const loc = `${LOCALE[lang] || lang}-u-nu-latn`;
@@ -4020,15 +4021,15 @@ for (const f of ["alert", "confirm", "prompt"]) { const o = window[f]; window[f]
 const trWas = new WeakMap();
 function trNode(n) {
   const was = trWas.get(n) ?? n.textContent, k = was.trim(), t = trLook(k);
-  if (t) { if (!trWas.has(n)) trWas.set(n, was); const v = was.replace(k, t); if (n.textContent !== v) n.textContent = v; }
-  else if (trWas.has(n)) { n.textContent = was; trWas.delete(n); }
+  if (t) { if (!trWas.has(n)) trWas.set(n, was); const v = was.replace(k, t); if (n.textContent !== v) n.textContent = v; biMark(n, k, t); }
+  else { if (trWas.has(n)) { n.textContent = was; trWas.delete(n); } biMark(n); if (k) aiAsk(k); }
 }
 function trAttr(el, a) {
   const key = "data-en-" + a, was = el.getAttribute(key) ?? el.getAttribute(a), t = trLook(was.trim());
   if (t) { el.setAttribute(key, was); if (el.getAttribute(a) !== t) el.setAttribute(a, t); }
-  else if (el.hasAttribute(key)) { el.setAttribute(a, was); el.removeAttribute(key); }
+  else { if (el.hasAttribute(key)) { el.setAttribute(a, was); el.removeAttribute(key); } if (was.trim()) aiAsk(was.trim()); }
 }
-const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no],[data-ut]";
+const TR_SKIP = "script,style,textarea,input,option:not([value]),[translate=no],[data-ut],#guest,#enpop";
 function trTree(root) {
   if (root.nodeType === 3) { if (!root.parentElement?.closest(TR_SKIP)) trNode(root); return; }
   if (root.nodeType !== 1 || root.closest(TR_SKIP)) return;
@@ -4048,13 +4049,16 @@ const trWatch = () => trObs.observe(document.body, { childList: true, subtree: t
 let langWant = "";
 async function setLang(c) {
   langWant = c;
-  if (c && !(await langLoad(c))) { if (langWant === c) { toast("That language needs signal the first time. Try again with signal"); $$("select[data-lang]").forEach((s) => (s.value = lang)); } return; }
+  // A language without built-in words needs live translation, or the words this phone translated before.
+  if (c && !LANG_BUILT.has(c) && !aiOn() && !Object.keys(aiWords(c)).length) { toast("Live translation is off. Maintenance switches it on in More"); $$("select[data-lang]").forEach((s) => (s.value = lang)); return; }
+  if (c && LANG_BUILT.has(c) && !(await langLoad(c))) { if (langWant === c) { toast("That language needs signal the first time. Try again with signal"); $$("select[data-lang]").forEach((s) => (s.value = lang)); } return; }
   if (langWant !== c) return;
   lang = c; store.set("lang", c); if (c) store.set("lang.last", c); trBuild();
   langBtn(); utMark(document.body);
   document.documentElement.lang = c || "en-GB"; document.documentElement.dir = LANG_RTL.has(c) ? "rtl" : "ltr";
   trObs.disconnect(); trTree(document.body); trWatch();
   $$("select[data-lang]").forEach((s) => (s.value = c));
+  if (c && !LANG_BUILT.has(c)) aiWarm(c);
 }
 /* What people write or send (chat, broadcasts, notes, issues, handovers) isn't in the app's dictionary, so it gets a
    Translate button that opens Google Translate with the words, into this phone's language (or English, on an English
@@ -4071,20 +4075,23 @@ function utMark(root) {
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-utx]"); if (!b) return;
-  const t = b.previousElementSibling?.textContent.trim(); if (!t) return;
+  const el = b.previousElementSibling, t = el?.textContent.trim(); if (!t) return;
+  // With live translation on, it's translated where it is (tap again for the original).
+  if (aiOn()) return utLive(el, b);
   window.open(`https://translate.google.com/?sl=auto&tl=${GT_LANG[lang] || lang || "en"}&text=${encodeURIComponent(t)}&op=translate`, "_blank", "noopener");
 });
 // One tap between English and the language picked last, from the top of every page.
 function langBtn() {
-  const b = $("#lang-btn"), last = store.get("lang.last", ""), to = lang ? "" : last, l = LANGS.find(([c]) => c === (lang || last));
+  const b = $("#lang-btn"), last = store.get("lang.last", ""), to = lang ? "" : last, l = lang || last;
   b.hidden = !l; if (!l) return;
   b.textContent = to ? to.toUpperCase() : "EN"; b.dataset.to = to;
-  b.setAttribute("aria-label", to ? `${l[1]} (${l[2]})` : "English");
+  b.setAttribute("aria-label", to ? langLabel(to) : "English");
 }
 $("#lang-btn").addEventListener("click", (e) => { setLang(e.currentTarget.dataset.to); haptic(); });
 // The list to pick from: English first, then each language in its own words, with the English name after it.
-const langOptions = () => `<option value="">English</option>${LANGS.map(([c, own, en]) => `<option value="${c}"${c === lang ? " selected" : ""}>${own} (${en})</option>`).join("")}`;
-document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); haptic(); } });
+const langOptions = () => `<option value="">English</option><optgroup label="Built in, works offline">${LANGS.map(([c, own, en]) => `<option value="${c}"${c === lang ? " selected" : ""}>${own} (${en})</option>`).join("")}</optgroup>`
+  + `<optgroup label="Translated live">${WORLD.filter(([c]) => !LANG_BUILT.has(c)).map(([c]) => `<option value="${c}"${c === lang ? " selected" : ""}>${esc(langLabel(c))}</option>`).join("")}</optgroup>`;
+document.addEventListener("change", (e) => { if (e.target.matches("select[data-lang]")) { setLang(e.target.value); langRemember(e.target.value); haptic(); } });
 
 /* ---------- My pay ----------
    Everything about pay in one tab, kept on this phone only: nobody else sees it and it never goes online. Payslips
@@ -5223,7 +5230,7 @@ function renderInfo() {
     <div class="sec">Training</div>
     <div class="hub">
       ${hubRow("practice", 'data-go="practice"', "Practise specs", "Flashcards, tonight's quiz, speed drills, Bar 101 and the new starter path")}
-      ${hubRow("fun", 'data-go="fun"', "Games and drills", "Daily drill with a streak, quiz night, Bar phrases, your month and Spin for a drink")}
+      ${hubRow("fun", 'data-go="fun"', "Games and drills", "Daily drill with a streak, quiz night, language lessons, your month and Spin for a drink")}
     </div>
     <div class="sec">Help</div>
     <div class="hub">
@@ -5246,7 +5253,7 @@ function renderInfo() {
     ${fold("tray", "Shot tray, step by step", guideHtml(DATA.guides["Shot tray"]))}
     <div class="sec">This phone</div>
     <label class="fld" translate="no">Language<select data-lang>${langOptions()}</select></label>
-    <p class="note">Menus, buttons and headings change language. Drink names, specs and allergens stay in English, so nothing gets lost in translation. Spot a wrong word? Tell maintenance with App feedback above.</p>
+    ${langPanelHtml()}
     <div class="mini" style="margin-top:14px">Light or dark</div>
     <div class="seg" style="grid-template-columns:repeat(5,1fr);margin-top:6px" role="group" aria-label="Light or dark">${[["auto", "Auto"], ["clock", "Clock"], ["light", "Light"], ["dark", "Dark"], ["gold", "Gold"]].map(([k, t]) => `<button data-theme-pick="${k}" aria-pressed="${k === store.get("theme", "auto")}">${t}</button>`).join("")}</div>
     <p class="note">Auto follows your phone. Clock goes light and dark at the venue's times, set by a manager. This phone only.</p>
@@ -5378,9 +5385,12 @@ const FEATURES = [
   { g: "Drinks", k: "quiz", n: "Quiz night", go: "quiz", team: 1,
     what: "A team quiz on our own specs: the iPad shows the questions big and everyone answers on their phone. A kind scoreboard: top three get a cheer, the host can hide names.",
     staff: "Join from Games and drills and answer on your phone. Anyone can host." },
-  { g: "Drinks", k: "phrases", n: "Bar phrases", go: "phrases",
-    what: "A few things you say to guests at the bar or on the floor, in French, Spanish or Italian: one big card at a time, with how to say it and a button to hear it. Counts towards the drill streak.",
-    staff: "Pick a language and Bar or Floor under More, Games and drills, then Start. Switch the English or the sound-it-out line off once you know them." },
+  { g: "Drinks", k: "guest", n: "Talk to a guest", go: "guest",
+    what: "🌍 in the top bar, on every phone and the iPad. The guest picks their language and gets a warm welcome in it, the drinks and food menus in their language, the allergy card written by hand, questions to tap, and two-way talk: speak, type or tap, and each side sees and hears it in their own language. Your ready phrases are grouped: Hello, Check-backs, Order, Drinks, Food, Desserts, Coffee, Tea, Allergies, Pay and Goodbye.",
+    staff: "Tap 🌍, hand over the phone. Tap any word in a message to see what it means. ✕ Staff takes it back; open it again within 20 minutes and it carries on with the same guest, or tap New guest." },
+  { g: "Drinks", k: "phrases", n: "Language lessons", go: "phrases",
+    what: "Short lessons in what you say to guests, at the bar, on the floor and in small talk, in 17 languages written by hand (Spanish to Nepali and Twi) or any language while live translation is on: learn a few cards, then hear it, read it, pick it, put the words in order and say it out loud. Counts towards the drill streak.",
+    staff: "Pick a language and Bar, Floor or Small talk under More, Games and drills, then Start. Switch the English or the sound-it-out line off once you know them." },
   { g: "Drinks", k: "wrap", n: "Your month", go: "wrap",
     what: "Your month in Bar Book on one picture: closing nights, jobs ticked, specs learnt, drill days and quiz nights. Counted on your phone, first name and numbers only.",
     staff: "Share it on WhatsApp or Instagram from Games and drills." },
@@ -5433,6 +5443,7 @@ function openAt(where) {
   if (where === "count") return show("count");
   if (where === "close") { pane = closeList(); return show("tally"); }
   if (where === "siri") return setTimeout(openShortcuts, 60);
+  if (where === "guest") return setTimeout(guestOpen, 60);
   if (["drill", "quiz", "wrap", "phrases"].includes(where)) return funGo(where === "wrap" ? "home" : where === "phrases" ? "phr" : where);
   if (["morning", "stock", "labels", "send", "football"].includes(where)) { if (where !== "football") pane = where === "labels" ? labelPane(mode) : where; return show("tally"); }
   show("notices");
@@ -5445,11 +5456,11 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
+const PLACE_KW = { guest: "guest tourist customer foreign language translate translation talk speak phrases phrase book welcome hello greeting menu food check back how is the food dessert coffee tea goodbye allergy card", photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
-  drill: "daily drill streak train learn", quiz: "quiz night game team play", siri: "siri shortcut voice back tap", wrap: "wrapped month stats share card", phrases: "french spanish italian language phrases speak guests" };
+  drill: "daily drill streak train learn", quiz: "quiz night game team play", siri: "siri shortcut voice back tap", wrap: "wrapped month stats share card", phrases: "french spanish italian portuguese german polish romanian chinese japanese korean arabic russian turkish hindi nepali twi language lessons learn phrases speak guests duolingo" };
 function placeHits(q) {
   const ws = q.toLowerCase().split(/\s+/).filter((w) => w.length >= 3 || /^\d+$/.test(w)); if (!ws.length) return [];
   return FEATURES.filter((f) => PLACE_KW[f.k] && fUsable(f) && !(f.k === "tell" && LIVE.owner) && ws.every((w) => `${f.n} ${PLACE_KW[f.k]}`.toLowerCase().split(/[\s:]+/).some((x) => x.startsWith(w)))).slice(0, 3);
@@ -5545,7 +5556,7 @@ function setName(n) {
   if (rude(n)) return toast(RUDE);
   myName = n.trim().slice(0, 30); store.set("me", myName);
   if (LIVE.me && LIVE.anon && myName && LIVE.me !== myName) { joining = false; LIVE.me = null; }
-  autoJoin(); renderWelcomeName(); renderTeam();
+  autoJoin(); renderWelcomeName(); renderTeam(); langPerson(myName);
 }
 /* Switch person (the shared iPad) or change name: tap a name, no typing. A manager's code is locked first, so the
    next person never works with it, and a name with its own code goes on to Unlock. */
@@ -6574,6 +6585,8 @@ function sinceHtml() {
     ${c.map((x) => `<div class="staffrow"><div class="n">${esc(x.msg)}</div><div class="s">${when(x.t)}</div></div>`).join("")}</details>` : "";
 }
 function liveChanged(what) {
+  if (what === "ai") store.set("ai.key", LIVE.aiKey || "");
+  aiKick();
   if (what === "media") renderMedia();
   if ((what === "photos" || what === "reports") && $("#gal")) galRefresh();
   // Leaving, or being taken off the team by the manager or the owner: the phone forgets the team code (it reloads

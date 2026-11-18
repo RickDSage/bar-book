@@ -19,7 +19,8 @@ const SAY = { id: null, i: 0, steps: [], auto: store.get("sayAuto", false), voic
 function sayVoice() {
   if (SAY.voice) return SAY.voice;
   const vs = speechSynthesis.getVoices();
-  SAY.voice = vs.find((v) => v.lang === "en-GB" && /daniel|serena|kate|arthur|martha|google uk/i.test(v.name)) || vs.find((v) => v.lang === "en-GB") || vs.find((v) => /^en[-_]GB/i.test(v.lang)) || null;
+  // The clearest British voice the phone has: a Premium or Enhanced one if it's downloaded (More, This phone says how).
+  SAY.voice = voiceFor("en-GB") || vs.find((v) => /^en[-_]GB/i.test(v.lang)) || null;
   return SAY.voice;
 }
 if (SAY_OK) speechSynthesis.addEventListener?.("voiceschanged", () => { SAY.voice = null; });
@@ -38,7 +39,7 @@ function sayIt() {
   speechSynthesis.cancel();
   const s = SAY.steps[SAY.i]; if (!s) return;
   const u = new SpeechSynthesisUtterance(sayWords(s.say));
-  u.lang = "en-GB"; u.rate = 0.95; const v = sayVoice(); if (v) u.voice = v;
+  u.lang = "en-GB"; u.rate = 0.9; const v = sayVoice(); if (v) u.voice = v;
   u.onend = () => { if (SAY.auto && SAY.id != null && SAY.i < SAY.steps.length - 1) setTimeout(() => { if (SAY.id != null && !speechSynthesis.speaking) { SAY.i++; sayBar(); sayIt(); } }, 1200); };
   speechSynthesis.speak(u);
 }
@@ -331,7 +332,8 @@ const SC_LINKS = [
   ["Bar Book station", "#at=tab:station", "The iPad bar station"],
   ["Bar Book drill", "#at=drill", "Today's two-minute drill"],
   ["Bar Book quiz", "#at=quiz", "Quiz night"],
-  ["Bar Book phrases", "#at=phrases", "Bar phrases in French, Spanish or Italian"],
+  ["Bar Book guest", "#at=guest", "Talk to a guest: their language, menu and phrases"],
+  ["Bar Book phrases", "#at=phrases", "Language lessons: guest phrases in any language"],
 ];
 function openShortcuts() {
   lastFocus = document.activeElement;
