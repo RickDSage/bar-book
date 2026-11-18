@@ -50,7 +50,7 @@ const PL_BITTERS = /bitters|Angostura|Peychaud/;
 // How much a "Top" is, by the glass it goes in.
 function plTopMl(d) {
   const g = d.glass;
-  return /Pitcher/.test(g) ? 400 : /Highball|Heatproof/.test(g) ? 100 : /Spritz/.test(g) ? 75 : /Rocks/.test(g) ? 50 : /Shot/.test(g) ? 10 : 25;
+  return /Highball|Heatproof/.test(g) ? 100 : /Spritz/.test(g) ? 75 : /Rocks/.test(g) ? 50 : /Shot/.test(g) ? 10 : 25;
 }
 const plNum = (s) => { const m = String(s).match(/^(\d+(?:\.\d+)?)(?: to (\d+))?/); return m ? (m[2] ? (+m[1] + +m[2]) / 2 : +m[1]) : /^half/i.test(s) ? 0.5 : 1; };
 // One spec line's ml (or pieces) and its kind.
@@ -85,14 +85,13 @@ function plWater(d) {
   return 1.1;
 }
 const PL_FACTS = new Map();
-// Per drink, as specced (a pitcher's numbers are for the pitcher; per glass is shared out over its glasses).
+// Per drink, as specced.
 function plFacts(d) {
   if (PL_FACTS.has(d.id)) return PL_FACTS.get(d.id);
   let vol = 0, alc = 0, kcal = 0;
   for (const x of MK.reqs.get(d.id) || []) { const p = plPart(x, d); vol += p.ml; alc += (p.ml * p.abv) / 100; kcal += p.kcal; }
   kcal += alc * 0.789 * 7;
-  const glasses = +(d.glass.match(/with (\d+) glasses/) || [])[1] || 1;
-  const f = { vol, alc, units: alc / 10, kcal, abv: vol ? (alc / (vol * plWater(d))) * 100 : 0, glasses, free: alc < 0.5 };
+  const f = { vol, alc, units: alc / 10, kcal, abv: vol ? (alc / (vol * plWater(d))) * 100 : 0, free: alc < 0.5 };
   PL_FACTS.set(d.id, f);
   return f;
 }
@@ -100,7 +99,7 @@ const plRound = (k) => (k < 100 ? Math.round(k / 5) * 5 : Math.round(k / 10) * 1
 const plU = (u) => (u < 0.05 ? "0" : u < 10 ? u.toFixed(1) : String(Math.round(u)));
 const plPct = (a) => (a < 10 ? a.toFixed(1) : String(Math.round(a))) + "%";
 function plStatsHtml(d, n = 1) {
-  const f = plFacts(d), per = f.glasses > 1 ? ` <small>(${plU(f.units / f.glasses)} a glass)</small>` : "";
+  const f = plFacts(d);
   const cell = (v, l) => `<div><b>${v}</b><span>${l}</span></div>`;
   const vol = (u) => (PL.oz ? `${(u / 29.57).toFixed(1)} oz` : `${Math.round(u)} ml`);
   return `<div class="pl-stats" role="list">${[

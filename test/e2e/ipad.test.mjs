@@ -262,9 +262,6 @@ test("Make it now: a tap on the iPad opens big step cards with the jigger side, 
   assert.equal(await p.evaluate(() => SXM.i), 1);
   await p.keyboard.press("Escape");
   assert.equal(await p.locator("#sxm").count(), 0);
-  // No pitchers: a pitcher shows its spec only.
-  const pit = await p.evaluate(() => D.find((d) => d.section === "Pitchers")?.id);
-  if (pit != null) { await p.evaluate((id) => sxTap(id), pit); assert.equal(await p.locator("#sxm").count(), 0); assert.equal(await p.locator("#sx-spec [data-sxm]").count(), 0); }
   // The round: in making order (stirred first), scaled, each one marked Made, then Round made.
   await p.evaluate(() => { for (const n of ["Daiquiri", "Negroni", "Negroni"]) sxRound(D.find((d) => d.name === n).id, 1); });
   await p.click("[data-sx-view=round]");

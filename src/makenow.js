@@ -3,12 +3,12 @@
    Get ready (glass, ice, garnish, tools and the whole spec at a glance), then the drink's own picture guide a step a
    card, each ingredient with its ml and which side of the 25/50 jigger. Tap the card when it's done and the next one
    comes up; the last card's Done goes back to the list. From the round, Make the round walks every drink in making
-   order, scaled to how many, and marks each one Made. ×1 to ×4 scale it. Pitchers stay on the spec only.
+   order, scaled to how many, and marks each one Made. ×1 to ×4 scale it.
    Set up has the switch for what a tap opens (Make it now, or just the spec next to the list). Phones keep the drink
    page, whose Step by step is the same guide. Nothing here is saved to the team; the switch is kept on this iPad. */
 let SXM = null;
 SX.mk = store.get("sx.mk", true);
-const sxmOk = (d) => !!d && d.section !== "Pitchers" && !!DATA.guides[d.name];
+const sxmOk = (d) => !!d && !!DATA.guides[d.name];
 // Which side of the 25/50 jigger, for amounts it measures (12.5 ml steps up to 150 ml). Anything else shows the ml alone.
 function sxmJig(ml) {
   if (!ml || ml > 150 || ml % 12.5) return "";
