@@ -1,4 +1,4 @@
-/* ---------- Games and drills, read-aloud, Siri shortcuts and "since you were last in" (fun.js) ----------
+/* ---------- Games and drills, read-aloud, Siri shortcuts and what changed since you were last in (fun.js) ----------
    Injected at the PLUS marker after the other modules, so the drinks, the quiz questions (quizMake), LIVE and the pages exist.
    Everything here stays on the phone except quiz night, which goes through Firebase (quiz/live, see firestore.rules). */
 
@@ -19,7 +19,8 @@ const SAY = { id: null, i: 0, steps: [], auto: store.get("sayAuto", false), voic
 function sayVoice() {
   if (SAY.voice) return SAY.voice;
   const vs = speechSynthesis.getVoices();
-  SAY.voice = vs.find((v) => v.lang === "en-GB" && /daniel|serena|kate|arthur|martha|google uk/i.test(v.name)) || vs.find((v) => v.lang === "en-GB") || vs.find((v) => /^en[-_]GB/i.test(v.lang)) || null;
+  // The clearest British voice the phone has: a Premium or Enhanced one if it's downloaded (More, This phone says how).
+  SAY.voice = voiceFor("en-GB") || vs.find((v) => /^en[-_]GB/i.test(v.lang)) || null;
   return SAY.voice;
 }
 if (SAY_OK) speechSynthesis.addEventListener?.("voiceschanged", () => { SAY.voice = null; });
@@ -38,7 +39,7 @@ function sayIt() {
   speechSynthesis.cancel();
   const s = SAY.steps[SAY.i]; if (!s) return;
   const u = new SpeechSynthesisUtterance(sayWords(s.say));
-  u.lang = "en-GB"; u.rate = 0.95; const v = sayVoice(); if (v) u.voice = v;
+  u.lang = "en-GB"; u.rate = 0.9; const v = sayVoice(); if (v) u.voice = v;
   u.onend = () => { if (SAY.auto && SAY.id != null && SAY.i < SAY.steps.length - 1) setTimeout(() => { if (SAY.id != null && !speechSynthesis.speaking) { SAY.i++; sayBar(); sayIt(); } }, 1200); };
   speechSynthesis.speak(u);
 }
@@ -331,7 +332,8 @@ const SC_LINKS = [
   ["Bar Book station", "#at=tab:station", "The iPad bar station"],
   ["Bar Book drill", "#at=drill", "Today's two-minute drill"],
   ["Bar Book quiz", "#at=quiz", "Quiz night"],
-  ["Bar Book phrases", "#at=phrases", "Bar phrases in French, Spanish or Italian"],
+  ["Bar Book guest", "#at=guest", "Talk to a guest: their language, menu and phrases"],
+  ["Bar Book phrases", "#at=phrases", "Language lessons: guest phrases in any language"],
 ];
 function openShortcuts() {
   lastFocus = document.activeElement;
@@ -362,10 +364,10 @@ $("#sheet").addEventListener("click", async (e) => {
 });
 
 /* ---------- Since you were last in ----------
-   The first time the app opens on a new shift day, one card says what changed while you were away: specs changed in a
-   new release (checked against a fingerprint of every spec kept on this phone), and from the team side the same changes
-   the Team page lists (86s, closing reports, list changes), tonight's 86 board and the labels to change. Got it hides it
-   until the next shift. The pre-shift brief on the Morning page shows the same parts (sinceLast). */
+   What changed while you were away: specs changed in a new release (checked against a fingerprint of every spec kept
+   on this phone), and from the team side the same changes the Team page lists (86s, closing reports, list changes).
+   No pop-up of its own: these parts play in tonight's brief, the stories (manager.js), and watching it to the end
+   marks them seen (sinceDone). */
 const fnHash = (s) => { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); };
 /* Each drink's spec lines, glass, ice and garnish are kept (the method as a fingerprint), so the card can say what
    changed: "40 ml Bulleit → 40 ml Buffalo Trace". A phone that kept only the older fingerprint says "spec changed". */
@@ -405,35 +407,14 @@ function sinceLast(side = mode) {
   if (r && ms(r.at) > lastIn.at) parts.push({ id: "handover", k: "morning", label: `Last ${lower(sideName(side))} handover`, lines: [r.summary] });
   return parts;
 }
-function sinceShow() {
-  if ($("#welcome") || !$("#sheet").hidden || $("#since") || cur === "station" || (lastIn.day === fnDay())) return;
-  if (LIVE.me && !["outlog", "reports"].every((k) => LIVE.loaded.has(k))) return;
-  if (!LIVE.me && teamCode && sinceShow.tries++ < 20) return;
-  const parts = sinceLast(), out = LIVE.me ? [...outNow()].sort() : [], lbs = LIVE.me ? toChange([mode]) : [];
-  if (out.length) parts.push({ id: "out", k: "stock", label: "86'd right now", lines: [out.join(", ")] });
-  if (lbs.length) parts.push({ id: "labels", k: "labels", label: "Date labels to change", lines: lbs.map((x) => x.item), hot: true });
-  if (!parts.length || !lastIn.day) return sinceDone();
-  const el = document.createElement("div"); el.id = "since"; el.setAttribute("role", "dialog"); el.setAttribute("aria-label", "Since you were last in");
-  el.innerHTML = `<div class="since-card"><h2>Since you were last in</h2><p class="note">Only what's new for you. Tap a part to go there.</p>
-    ${parts.map((p) => `<button class="since-p${p.hot ? " hot" : ""}" data-since-go="${esc(p.k)}"><b>${esc(p.label)}</b>${p.lines.map((l) => `<span translate="no">${esc(lineText(l))}</span>`).join("")}</button>`).join("")}
-    <button class="btn pri wide" data-since-go="">Got it</button></div>`;
-  document.body.append(el);
-}
-sinceShow.tries = 0;
 function sinceDone() {
   store.set("specFp", specFp());
   Object.assign(lastIn, { day: fnDay(), at: Date.now() }); store.set("lastIn", lastIn);
-  $("#since")?.remove();
 }
-document.addEventListener("click", (e) => {
-  const b = e.target.closest("[data-since-go]"); if (!b) return;
-  haptic(); const k = b.dataset.sinceGo; sinceDone(); if (k) { openAt(k); scrollTo(0, 0); }
-});
 // Each open after that on the same day moves "last in" on, so tomorrow's card covers only what's new since today.
 const sinceMove = () => { if (lastIn.day === fnDay()) { lastIn.at = Date.now(); store.set("lastIn", lastIn); } };
 addEventListener("pagehide", sinceMove);
 document.addEventListener("visibilitychange", () => { if (document.hidden) sinceMove(); });
-setTimeout(function sinceTry() { if (lastIn.day === fnDay() || $("#since")) return; sinceShow(); setTimeout(sinceTry, 3000); }, 1500);
 
 /* ---------- The Games and drills page (More) ---------- */
 function funTopHtml() {

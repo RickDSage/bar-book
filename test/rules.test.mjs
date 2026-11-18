@@ -1664,6 +1664,16 @@ describe("standout: last orders, day and night times, seasonal menus, closing ti
     await assertSucceeds(getDoc(doc(db("staff1"), "settings", "season")));
     await assertFails(getDoc(doc(db(), "settings", "season")));
   });
+  test("only maintenance saves the live translation key; everyone on the team reads it", async () => {
+    const ai = (uid, extra = {}) => setDoc(doc(db(uid), "settings", "ai"), { key: "6LcAbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-", ...by(uid), ...extra });
+    await assertSucceeds(ai("owner1"));
+    await assertSucceeds(ai("owner1", { key: "" }));
+    await assertFails(ai("mgr1"));
+    await assertFails(ai("staff1"));
+    for (const bad of [{ key: "short" }, { key: "has spaces in it which are not allowed ok" }, { key: 5 }, { extra: 1 }, { name: "Max Manager" }]) await assertFails(ai("owner1", bad));
+    await assertSucceeds(getDoc(doc(db("staff1"), "settings", "ai")));
+    await assertFails(getDoc(doc(db("phone9"), "settings", "ai")));
+  });
   test("the phone that hands over saves tonight's closing time once; nobody edits or deletes it", async () => {
     await assertSucceeds(close("staff1"));
     await assertFails(close("staff2"));

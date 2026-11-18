@@ -11,7 +11,7 @@ const LOG_KINDS = [
   ["out", "86: ran out", "Goes on the 86 board for everyone, and drinks that use it show the swap."],
   ["fix", "Broken or needs fixing", "Goes on Issues and faults until someone fixes it, and in the handover."],
   ["open", "Not finished", "Goes in the handover under 3. Outstanding issues."],
-  ["next", "For tomorrow", "Goes in the handover under 4. For tomorrow."],
+  ["next", "For the opener", "Goes in the handover under 4. For the opener, and on the Morning page."],
 ];
 const LOG_NAME = Object.fromEntries(LOG_KINDS.map(([k, t]) => [k, t]));
 // The kinds kept in the day log. 86 and broken live on the 86 board and Issues.
@@ -108,7 +108,7 @@ const logBarHtml = () => `<div class="logbar"><button class="btn pri" data-log>ï
 function logHoHtml() {
   const xs = logsOf(mode);
   return `<div class="sec">Logged tonight${xs.length ? ` (${xs.length})` : ""}</div>
-    ${xs.length ? `<p class="note">Already in the handover: running low, not finished and for tomorrow under their points, the rest under Logged tonight.</p><ul class="lg-list">${xs.map(logRow).join("")}</ul>`
+    ${xs.length ? `<p class="note">Already in the handover: running low, not finished and for the opener under their points, the rest under Logged tonight.</p><ul class="lg-list">${xs.map(logRow).join("")}</ul>`
       : `<p class="note">Nothing logged on the ${esc(lower(sideName(mode)))} yet. Anything the team logs tonight goes in the handover by itself.</p>`}
     <div class="actions"><button class="btn" data-log>ï¼‹ Log it</button>${xs.length ? sendBtn("logs", "Send tonight's log") : ""}</div>`;
 }

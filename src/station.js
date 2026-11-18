@@ -157,7 +157,7 @@ function sxRoundHtml() {
   const cards = SX_BUILDS.map((t, k) => { const g = ds.filter(([d]) => sxOrder(d) === k); return g.length ? `<div class="sx-bh">${t} · ${g.reduce((a, [, n]) => a + n, 0)}</div>${g.map(card).join("")}` : ""; }).join("");
   const allOpen = ds.every(([d]) => sxRxOpen(d, nx));
   return `<div class="sx-rbar"><div class="sx-rbt"><b>Round of ${sxRoundN()}</b><span>${left ? `${left} to make${nx ? ` · next: <span translate="no">${esc(nx.name)}</span>` : ""}` : "All made"}</span></div>
-      <span class="sx-rba">${left && ds.some(([d]) => !SX.made.has(d.id) && sxmOk(d)) ? `<button class="btn pri sx-mkgo" data-sxm-round>▶ Make the round</button>` : ""}<button class="btn" data-sx-round="clear">Clear</button></span></div>
+      <span class="sx-rba">${left && ds.some(([d]) => !SX.made.has(d.id) && sxmOk(d)) ? `<button class="btn pri sx-mkgo" data-sxm-round>▶ Make the round</button>` : ""}<button class="btn" data-sx-round="clear">\u21ba Clear</button></span></div>
     ${left ? "" : `<div class="sx-done"><b>Round made.</b><button class="btn pri" data-sx-round="clear">Clear it for the next one</button></div>`}
     ${add}
     <details class="sx-prepd" data-sx-prep${prepOpen ? " open" : ""}><summary><span class="sx-k">Get ready</span><span>${sum(gl)} glass${sum(gl) === 1 ? "" : "es"}${ic.length ? ` · ${ic.length} kind${ic.length === 1 ? "" : "s"} of ice` : ""}${ga.length ? ` · ${sum(ga)} garnish${sum(ga) === 1 ? "" : "es"}` : ""}${shaken ? ` · ${tins} tin${tins === 1 ? "" : "s"}` : ""}</span></summary>
@@ -375,7 +375,7 @@ function sxTonight() {
 }
 // Built once, then each part redraws on its own, so the search box keeps its text and focus while the 86s change.
 function renderStation() {
-  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn sx-who" data-who-open hidden></button><button class="btn pri" data-log>\uff0b Log it</button><button class="btn sd-micb sx-mic" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="btn sx-mic" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><span class="sx-vl"> Find</span></button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
+  if (!$("#sx-list")) $("#v-station").innerHTML = `<div class="sx-top"><h2>Bar station</h2><span class="sx-tb"><button class="btn sx-who" data-who-open hidden></button><button class="btn pri" data-log>\uff0b Log it</button><button class="btn" data-guest-open aria-label="Talk to a guest: their language, menu, phrases">\ud83c\udf0d<span class="sx-vl"> Guest</span></button><button class="btn sd-micb sx-mic" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="btn sx-mic" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg><span class="sx-vl"> Find</span></button><button class="btn" data-sx-big aria-pressed="${SX.big}" aria-label="Big text">Aa</button><button class="btn sx-exit" data-sx-exit>Exit<span class="sx-wide"> bar station</span></button></span></div>
     <nav class="sx-views" id="sx-views" aria-label="Bar station">${SX_VIEWS.map(([k, t]) => `<button data-sx-view="${k}"${["round", "batch", "quiz"].includes(k) ? ` data-sx-tile="${k}"` : ""}${k === "setup" ? ' aria-label="Set up"' : ""}>${k === "setup" ? `\u2699\ufe0e<span class="sx-vl"> ${t}</span>` : t}${k === "round" ? ` <b class="sx-badge" id="sx-rn"></b>` : ""}</button>`).join("")}</nav>
     <div class="sx-tms" id="sx-tms" hidden></div>
     <div class="sx-86s" id="sx-86s" role="status" hidden></div>
@@ -485,7 +485,11 @@ document.addEventListener("click", (e) => {
   const rb = e.target.closest("[data-sx-round]");
   if (rb) {
     haptic(); const k = rb.dataset.sxRound;
-    if (k === "clear") { SX.round.clear(); SX.made.clear(); SX.rx.clear(); sxSaveRound(); SX.view = "drink"; }
+    if (k === "clear") {
+      const was = { round: [...SX.round], made: [...SX.made], view: SX.view };
+      SX.round.clear(); SX.made.clear(); SX.rx.clear(); sxSaveRound(); SX.view = "drink";
+      if (was.round.length) undoToast("Round cleared", () => { SX.round = new Map(was.round); SX.made = new Set(was.made); SX.view = was.view; sxSaveRound(); sxBars(); sxList(); sxSpec(); });
+    }
     else SX.view = k === "show" ? "round" : "drink";
     sxBars(); sxList(); sxSpec(); if (!sxWide()) window.scrollTo(0, $("#sx-list").offsetTop - 80); return;
   }

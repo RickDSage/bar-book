@@ -667,7 +667,7 @@ function mkShelf(on) {
 function mkMakePane() {
   const on = new Set(mk.pick.map((p) => p.k));
   const ed = mk.edit && mk.pick.find((p) => p.k === mk.edit);
-  const picks = mk.pick.length ? `<div class="mk-picks"><span class="mini" style="margin:0;align-self:center">Order:</span>${mk.pick.map((p) => `<span class="mk-pk"><button data-mk-ml="${esc(p.k)}" aria-label="Set ml for ${esc(mkName(p.k))}">${p.ml ? `<span class="ml">${p.ml} ml</span>` : ""}${esc(mkName(p.k))}${p.k.startsWith("~") ? " ✎" : ""}</button><button class="x" data-mk-rm="${esc(p.k)}" aria-label="Remove ${esc(mkName(p.k))}">×</button></span>`).join("")}<button class="chip" data-mk="clear">Clear</button></div>
+  const picks = mk.pick.length ? `<div class="mk-picks"><span class="mini" style="margin:0;align-self:center">Order:</span>${mk.pick.map((p) => `<span class="mk-pk"><button data-mk-ml="${esc(p.k)}" aria-label="Set ml for ${esc(mkName(p.k))}">${p.ml ? `<span class="ml">${p.ml} ml</span>` : ""}${esc(mkName(p.k))}${p.k.startsWith("~") ? " ✎" : ""}</button><button class="x" data-mk-rm="${esc(p.k)}" aria-label="Remove ${esc(mkName(p.k))}">×</button></span>`).join("")}<button class="chip" data-mk="clear">\u21ba Clear</button></div>
     ${ed ? `<div class="mk-mls"><div class="mini">How much ${esc(mkName(ed.k))}?</div>${[null, 10, 12.5, 15, 20, 25, 35, 50, 75, 100].map((n) => `<button class="chip" aria-pressed="${(ed.ml || null) === n}" data-mk-setml="${n ?? ""}">${n ? n + " ml" : "Any amount"}</button>`).join("")}</div>` : ""}` : "";
   const kinds = `<div class="chips hrow" role="toolbar" aria-label="Show">${MK_KINDS.map(([k, l]) => `<button class="chip" aria-pressed="${mk.opt.kind === k}" data-mk-kind="${k}">${l}</button>`).join("")}</div>`;
   let out;
@@ -712,7 +712,7 @@ function btServeHtml(x) {
   return `<div class="bt-card"><div class="n"><span translate="no">${esc(x.name)}</span>${x.abv ? `<span class="abv" translate="no">${esc(x.abv)}</span>` : ""}</div>
     ${x.note ? `<p class="bt-note" translate="no">${esc(x.note)}</p>` : ""}
     <dl class="bt-dl">${[["Glass", x.glass], ["Measure", x.measure], ["Pour", x.pour]].filter(([, v]) => v && v !== "As the drink").map(([t, v]) => `<div><dt>${t}</dt><dd translate="no">${esc(v)}</dd></div>`).join("")}</dl>
-    ${n ? `<button class="chip" data-bt-use="${esc(x.k)}">Drinks with it <small>${n}</small></button>` : ""}</div>`;
+    <div class="chips">${n ? `<button class="chip" data-bt-use="${esc(x.k)}">Drinks with it <small>${n}</small></button>` : ""}<button class="chip" data-fx-open="${esc(x.name)}">${factOf(x.name) ? "Allergens, size, once opened" : "Product facts"}</button></div></div>`;
 }
 function btPane() {
   const v = mk.bt.view;
@@ -910,7 +910,7 @@ $("#v-make").addEventListener("click", (e) => {
   const a = ds.mk;
   if (a === "btbar") { const ks = new Set(mk.bar); for (const k of BT_KEYS) ks.add(k); mk.bar = [...ks]; mkSave(); toast(`Line-up loaded: My bar has ${mk.bar.length} items`); return mkRedraw(); }
   if (a === "keep") { for (const p of mk.pick) if (!mk.bar.includes(p.k)) mk.bar.push(p.k); mkSave(); toast(`Kept in My bar (${mk.bar.length})`); return mkRedraw(); }
-  if (a === "clear") { mk.pick = []; mk.edit = null; mkSave(); return mkRedraw(); }
+  if (a === "clear") { const was = mk.pick; mk.pick = []; mk.edit = null; mkSave(); mkRedraw(); if (was.length) undoToast("Cleared", () => { mk.pick = was; mkSave(); mkRedraw(); }); return; }
   if (a === "clearbar") { if (confirm("Clear everything from My bar on this phone?")) { mk.bar = []; mkSave(); mkRedraw(); } return; }
   if (a === "unbar") { mk.fromBar = false; return mkRedraw(); }
   if (a === "frombar") { mk.pick = []; mk.fromBar = true; mk.pane = "make"; mkSave(); renderMaker(); window.scrollTo(0, 0); return; }

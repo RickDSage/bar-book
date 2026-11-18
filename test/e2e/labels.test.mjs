@@ -37,21 +37,22 @@ test("a manager sets up the bar's labels, and opening one gives the date to writ
   assert.equal(await M.$eval("#lb-list", (e) => e.open), true);
   assert.match(await text(M, "#lb-list summary"), /^Black Tap's list: 39 not added yet$/);
   assert.equal(await M.inputValue('[data-lbs-life="Maraschino cherries"]'), "28");
-  assert.equal(await M.inputValue('[data-lbs-life="Egg whites"]'), "");
-  // Untick everything but three. None of them has days yet, so it asks for them.
-  await M.$$eval("[data-lbs-on]", (xs) => xs.forEach((x) => { if (!["Egg whites", "Aquafaba", "Mint"].includes(x.dataset.lbsOn)) x.click(); }));
+  // Where the venue gives no days, the maker's once-opened guidance is filled in (the carton's 7 days for egg whites).
+  assert.equal(await M.inputValue('[data-lbs-life="Egg whites"]'), "7");
+  // Untick everything but three with no days from anyone, so it asks for them.
+  await M.$$eval("[data-lbs-on]", (xs) => xs.forEach((x) => { if (!["Olives", "Aquafaba", "Mint"].includes(x.dataset.lbsOn)) x.click(); }));
   await M.click("#lbs-go");
   assert.equal(await toastOf(M), "Fill in the days it keeps once opened: a whole number from 1 to 365");
   // Give two of them days and add: those two go in, the third waits for its days.
-  await M.fill('[data-lbs-life="Egg whites"]', "2"); await M.fill('[data-lbs-life="Aquafaba"]', "3");
+  await M.fill('[data-lbs-life="Mint"]', "2"); await M.fill('[data-lbs-life="Aquafaba"]', "3");
   await M.click("#lbs-go");
   await waitToast(M, /^2 added\. 1 still need their days$/);
   await S.waitForFunction(() => LIVE.labels.length === 2 && LIVE.labels.every((x) => !x.pending));
-  assert.deepEqual(await S.evaluate(() => LIVE.labels.map((x) => [x.item, x.life, x.side, x.on]).sort()), [["Aquafaba", 3, "bar", true], ["Egg whites", 2, "bar", true]]);
+  assert.deepEqual(await S.evaluate(() => LIVE.labels.map((x) => [x.item, x.life, x.side, x.on]).sort()), [["Aquafaba", 3, "bar", true], ["Mint", 2, "bar", true]]);
   await M.evaluate(() => { document.activeElement.blur(); renderTally(); });
   assert.match(await text(M, "#lb-list summary"), /^Black Tap's list: 37 not added yet$/);
-  assert.equal(await M.locator('[data-lbs-on="Egg whites"]').count(), 0, "added ones leave the list");
-  for (const x of ["Egg whites", "Aquafaba"]) await M.evaluate((n) => LIVE.api.label(LIVE.labels.find((x) => x.item === n), "removed"), x);
+  assert.equal(await M.locator('[data-lbs-on="Mint"]').count(), 0, "added ones leave the list");
+  for (const x of ["Mint", "Aquafaba"]) await M.evaluate((n) => LIVE.api.label(LIVE.labels.find((x) => x.item === n), "removed"), x);
   await S.waitForFunction(() => LIVE.labels.length === 0);
 
   // Anything else goes in the add form.
@@ -148,7 +149,7 @@ test("an overdue label shows everywhere it matters, and changing it late is on t
   assert.match(await S.evaluate(() => tallyText()), new RegExp(`\\n\\nDate labels, bar:\\n- URGENT, overdue: Orange juice \\(use by ${wasName}\\), opened ${openedName} by Tia Staff\\n- URGENT, due today: Cranberry juice \\(use by ${today}\\), opened today by Sam Staff\\nDate labels, floor: nothing due\\n\\n86'd: nothing`));
   await handOver(S);
   await O.waitForFunction(() => LIVE.reports[0] && !LIVE.reports[0].pending);
-  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Closing 0\/39 · 0 86'd · URGENT: 2 date labels to change$/);
+  assert.match(await O.evaluate(() => LIVE.reports[0].summary), /^Bar · Closing 0\/38 · 0 86'd · URGENT: 2 date labels to change$/);
 
   // Sam changes it a day late. Tia's phone (on the bar) is told, and Live keeps it as an exception.
   await labels(T); await labels(S);

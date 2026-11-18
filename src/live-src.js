@@ -18,6 +18,8 @@ import {
   collection, collectionGroup, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
   terminate, clearIndexedDbPersistence, deleteField, runTransaction, getDocFromServer, waitForPendingWrites,
 } from "firebase/firestore";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
+import { getAI, getGenerativeModel, GoogleAIBackend, Schema } from "firebase/ai";
 
 const app = initializeApp(__CONFIG__);
 const auth = getAuth(app);
@@ -68,6 +70,40 @@ const START_BIG = ["photos", "labelPhotos"], START_GROUPS = ["tasks", "runs", "t
 const plain = (x) => /^[A-Za-z0-9-]+$/.test(x.id);
 const rows = (snap) => snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id, pending: x.metadata.hasPendingWrites })).sort((a, b) => ms(b.at) - ms(a.at));
 const me = () => ({ uid: auth.currentUser.uid, name: LIVE.me, at: serverTimestamp() });
+
+/* ---------- Live translation ----------
+   Words the app's own dictionary doesn't have (a new screen, a drink's method, what a guest says, a language with no
+   built-in words like Irish) are translated by Google's Gemini through Firebase AI Logic. Firebase only answers phones
+   that pass App Check, which needs the venue's reCAPTCHA key: Maintenance pastes it in once (settings/ai) and each phone
+   keeps it. The app saves every answer on the phone, so a line is translated once per phone and works offline after.
+   Allergy wording never comes from here: the guest screen's allergy card is written by hand. */
+const AI_MODEL = "gemini-3.5-flash-lite";
+const AI_RULES = `You translate for Black Tap Craft Burgers & Beer, a burger, craft beer and cocktail bar in Soho, London.
+Translate every string in the list from the source language into the target language, as a friendly native speaker who works in hospitality would say it: natural, polite, short and exact. Never add, explain or leave anything out.
+Keep exactly as written: drink and cocktail names, brand and product names, people's names, numbers, units (ml, cl, g, kg, L, %), emoji, arrows and symbols, and placeholders like {1}, {2}, {a}, {b}, {d}.
+"86" means sold out or taken off: keep the number 86 and translate the rest.
+Bar words (shake, stir, strain, muddle, garnish, jigger, rim, twist, highball, shot) use the word bartenders in that language really use, which is often the English one.
+Allergies, ingredients and anything about safety: translate the exact meaning, never soften it.
+If a string is already in the target language, return it unchanged.
+Return only a JSON array of strings, the same length and order as the input.`;
+let aiModel = null;
+function aiStart(key) {
+  if (aiModel) return true;
+  if (!key) return false;
+  initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(key), isTokenAutoRefreshEnabled: true });
+  aiModel = getGenerativeModel(getAI(app, { backend: new GoogleAIBackend() }), {
+    model: AI_MODEL, systemInstruction: AI_RULES,
+    generationConfig: { temperature: 0.2, responseMimeType: "application/json", responseSchema: Schema.array({ items: Schema.string() }) },
+  });
+  return true;
+}
+async function translate(texts, to, from = "English") {
+  if (!aiModel) err("Live translation isn't set up yet. Maintenance turns it on in More");
+  const r = await aiModel.generateContent(`Source language: ${from}\nTarget language: ${to}\nStrings (JSON):\n${JSON.stringify(texts)}`);
+  let out; try { out = JSON.parse(r.response.text()); } catch { out = null; }
+  if (!Array.isArray(out) || out.length !== texts.length) err("The translation came back incomplete. Try again");
+  return out.map((x) => String(x));
+}
 
 function listen(uid) {
   unsubAll();
@@ -183,6 +219,8 @@ function listen(uid) {
     // Last orders and the day and night times, and the seasonal menus: one record each, kept by the managers.
     sub("venue", doc(db, "settings", "venue"), (x) => { LIVE.venue = x.exists() ? x.data() : null; liveChanged("venue"); });
     sub("season", doc(db, "settings", "season"), (x) => { LIVE.season = x.exists() ? x.data() : null; liveChanged("season"); });
+    // Live translation's reCAPTCHA key, pasted in once by Maintenance.
+    sub("ai", doc(db, "settings", "ai"), (x) => { LIVE.aiKey = x.exists() ? x.data().key : ""; liveChanged("ai"); });
     // How long each close took lately, for the closing timer's best time.
     sub("closes", query(collection(db, "closes"), orderBy("at", "desc"), limit(60)), (snap) => { LIVE.closes = rows(snap); liveChanged("closes"); });
     sub("contacts", doc(db, "settings", "contacts"), (x) => { LIVE.contacts = x.exists() ? x.data().list : []; liveChanged("contacts"); });
@@ -706,6 +744,8 @@ LIVE.api = {
   withdrawIssue: (id) => deleteDoc(doc(db, "issues", id)),
   saveNames: (n) => setDoc(doc(db, "settings", "names"), { mgr: n.mgr, bar: n.bar, floor: n.floor, ...me() }),
   saveVenue: (v) => setDoc(doc(db, "settings", "venue"), { lastOrders: v.lastOrders, dayAt: v.dayAt, nightAt: v.nightAt, ...me() }),
+  saveAiKey: (key) => setDoc(doc(db, "settings", "ai"), { key, ...me() }),
+  aiStart, translate, aiOn: () => !!aiModel,
   saveSeason: (on, sets) => setDoc(doc(db, "settings", "season"), { on, sets, ...me() }),
   // Tonight's close took this long, from the first closing tick to the handover. Written once a night a side.
   closeTime: (day, side, mins) => setDoc(doc(db, "closes", `${day}--${side}`), { day, side, mins, ...me() }),
@@ -733,7 +773,7 @@ LIVE.api = {
 };
 
 const EMPTY = () => ({ lists: {}, uid: null, me: null, username: null, role: null, pin: null, admin: false, owner: false, anon: false, staff: [], seniors: [], gate: { tries: 0 }, out: new Set(), outInfo: new Map(),
-  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, lowLines: [], countSetup: null, countErr: false, codes: [], codesErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [], seen: [] });
+  outlog: [], reports: [], contacts: [], names: null, venue: null, season: null, aiKey: null, closes: [], draftPhotos: [], drafts: [], tasks: {}, runs: {}, events: [], labels: [], items: [], signoffs: [], counts: [], countDay: null, lowLines: [], countSetup: null, countErr: false, codes: [], codesErr: false, received: [], restock: [], fixtures: [], issues: [], asks: [], tells: [], sent: [], media: null, quiz: null, quizPlayers: [], seen: [] });
 onAuthStateChanged(auth, (u) => {
   LIVE.ready = true;
   if (u) { LIVE.uid = u.uid; LIVE.anon = u.isAnonymous; listen(u.uid); liveChanged("me"); return; }

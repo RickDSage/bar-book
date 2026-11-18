@@ -476,8 +476,8 @@ function briefParts(side = mode) {
   const r = lastReport(), h = r && reportDay(r) === lastNight() ? handoverOf(r) : null, now = toChange([side]), soon = labelsDue([side]).filter((x) => !now.includes(x));
   const games = LIVE.fixtures.filter((x) => x.day === ukDay(Date.now())).sort((a, b) => a.ko.localeCompare(b.ko));
   const iss = openIssues().filter((x) => [side, "other", "cellar", "toilets", "terrace"].includes(x.area) || x.urgent).sort((a, b) => b.urgent - a.urgent);
-  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for today.
-  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For today: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
+  // Last night's handover in a few lines: who closed, and what they said is low, outstanding and for the opener.
+  const ho = h ? [`Closed by ${h.by}`, ...hoSplit(h.low).map((x) => `Low: ${x}`), ...hoSplit(h.issues).map((x) => `Outstanding: ${x}`), ...hoSplit(h.next).map((x) => `For the opener: ${x}`), ...(h.left.length ? [`${plural(h.left.length, "closing item")} not done`] : [])] : [];
   const carry = typeof carryRows === "function" ? carryRows(false).filter((x) => x.sd === side) : [];
   // What changed since this person was last in (specs, the team's changes). Last night's handover has its own card.
   const since = (typeof sinceLast === "function" ? sinceLast(side) : []).filter((p) => p.id !== "handover");
@@ -500,13 +500,11 @@ function briefHtml() {
   if (!LIVE.me) return "";
   // Last night's handover is in full just below on the Morning page, so the list here leaves it to that.
   const ps = briefParts(), any = ps.filter((p) => p.lines.length && p.id !== "last");
-  const seen = store.get("storySeen", "") === `${shiftDay()}-${mode}`;
-  return `<div class="brief"><button class="story-ring${seen ? " seen" : ""}" data-story aria-label="Play tonight's brief"><span class="sr-dot">▶</span><span><b>Tonight's brief</b><small>${seen ? "Watched. Tap to see it again" : `${plural(any.length + 2, "card")}, tap through`}</small></span></button>
+  return `<div class="brief">${storyRing()}
     ${LIVE.admin ? seenHtml() : ""}
     <div class="sec">Before you open</div>
     ${any.length ? any.map((p) => `<button class="bline${p.hot ? " hot" : ""}" data-goto="${p.k}"><b>${p.label}</b><span translate="no">${p.lines.slice(0, 4).map((l) => esc(lineText(l))).join(" · ")}${p.lines.length > 4 ? ` +${p.lines.length - 4}` : ""}</span></button>`).join("")
       : `<p class="note">✅ Nothing 86'd, no labels due, no open faults.</p>`}
-    <p class="note">Tonight's quiz is ready in Practise: same 10 for everyone.</p>
     <div class="actions">${sendBtn("brief", "Send the brief on WhatsApp")}</div></div>`;
 }
 // The managers' Seen by: who has watched tonight's brief, bar and floor, with when.
@@ -617,11 +615,13 @@ function renderAlerts(force) {
   let box = $("#alerts");
   if (!box) { $("#net").insertAdjacentHTML("afterend", `<div class="gut alerts" id="alerts" role="status" hidden></div>`); box = $("#alerts"); }
   const off = new Set(store.get("alOff", [])), xs = alertsNow().filter((x) => !off.has(x.id));
-  const sig = xs.map((x) => x.id).join("|");
-  if ((!force && sig === alShown) || cur === "station") { if (!xs.length || cur === "station") box.hidden = true; return; }
+  // Tonight's brief rides at the top as a stories ring until it's watched to the end (× hides the ring for today too).
+  const ring = storyDue() && store.get("ringOff", "") !== storyKey();
+  const sig = (ring ? "ring|" : "") + xs.map((x) => x.id).join("|");
+  if ((!force && sig === alShown) || cur === "station") { if ((!xs.length && !ring) || cur === "station") box.hidden = true; return; }
   alShown = sig;
-  box.hidden = !xs.length;
-  box.innerHTML = xs.length ? `<div class="al-in"><b>Needs you now</b><button class="al-x" data-al-x aria-label="Hide these">×</button>${xs.map((x) => `<button class="al${x.hot ? " hot" : ""}" data-al-go="${x.go}" data-al-id="${esc(x.id)}">${esc(x.t)}</button>`).join("")}</div>` : "";
+  box.hidden = !xs.length && !ring;
+  box.innerHTML = xs.length || ring ? `<div class="al-in"><b>Needs you now</b><button class="al-x" data-al-x aria-label="Hide these">×</button>${ring ? storyRing(true) : ""}${xs.map((x) => `<button class="al${x.hot ? " hot" : ""}" data-al-go="${x.go}" data-al-id="${esc(x.id)}">${esc(x.t)}</button>`).join("")}</div>` : "";
 }
 // The Team badge counts new messages already, so they aren't counted twice.
 const alBadge = () => { const off = new Set(store.get("alOff", [])); return alertsNow().filter((x) => !off.has(x.id) && !x.id.startsWith("in")).length; };
@@ -629,6 +629,7 @@ document.addEventListener("click", (e) => {
   const g = e.target.closest("[data-al-go]"), x = e.target.closest("[data-al-x]");
   if (!g && !x) return;
   const ids = g ? [g.dataset.alId] : [...$$("#alerts [data-al-id]")].map((b) => b.dataset.alId);
+  if (x) store.set("ringOff", storyKey());
   store.set("alOff", [...new Set([...store.get("alOff", []), ...ids])].slice(-60));
   if (ids.some((i) => i.startsWith("lg"))) store.set("alLogs", Date.now());
   $("#alerts").hidden = true; alShown = "";
@@ -640,46 +641,83 @@ setTimeout(() => renderAlerts(true), 2500);
 
 
 /* ---------- Tonight's brief as stories ----------
-   The same brief, full screen, one card at a time like stories: bars along the top, tap the right side (or swipe left)
-   for the next, the left side to go back, hold to pause, × to close. Each card moves on by itself after 8 seconds. */
-const STORY_MS = 8000;
+   The one place for what's new: tonight's brief, specs changed in a new release, what changed while you were away and
+   what's new in Bar Book itself, played full screen one card at a time like Instagram or Snapchat stories. Bars along
+   the top; tap the right side (or swipe left) for the next, the left side to go back; hold to pause (the bars hide,
+   like stories do); swipe down or × to close. Each card stays up for as long as it takes to read (about 4 seconds plus
+   a third of a second a word, 5 to 15 seconds). Closed part-way? It opens again where you stopped, the same day.
+   The ring at the top of Needs you now (on every page) and on Morning glows until you reach the end; only then does
+   it count as watched, for the managers' Seen by too, like a read receipt. */
+const STORY_MIN = 5000, STORY_MAX = 15000;
+const storyMs = (c) => { const w = [c.label, c.big || "", ...c.lines.map(lineText)].join(" ").split(/\s+/).filter(Boolean).length; return Math.max(STORY_MIN, Math.min(STORY_MAX, 4000 + w * 330)); };
+const storyKey = () => `${shiftDay()}-${mode}`;
+const storyWatched = () => store.get("storySeen", "") === storyKey();
 let sto = null;
+// What's new in Bar Book itself: shown once per version of the walkthrough to anyone who saw an older one.
+const appNews = () => (walkVer(mode) && !walkSeen(mode) ? [{ id: "app", k: "", label: "New in Bar Book", lines: WALK_NEW, news: 1 }] : []);
 function storyCards() {
-  const ps = briefParts().filter((p) => p.lines.length), hot = ps.filter((p) => p.hot).length;
+  // A phone that isn't on the team still hears about changed specs and what's new in the app.
+  const ps = [...appNews(), ...(LIVE.me ? briefParts() : sinceLast())].filter((p) => p.lines.length), hot = ps.filter((p) => p.hot).length;
   return [
     { k: "", label: `${sideName(mode)} · ${dayName(shiftDay(), { weekday: "long", day: "numeric", month: "long" })}`, big: ps.length ? `${plural(ps.length, "thing")} to know${hot ? `, ${hot} urgent` : ""}` : "All clear tonight", lines: ps.map((p) => (p.lines.length === 1 ? `${p.label}: ${lineText(p.lines[0])}` : `${p.label} (${p.lines.length})`)) },
-    ...ps.map((p) => ({ k: p.k, label: p.label, lines: p.lines, hot: p.hot })),
-    { k: "tab:practice", label: "Tonight's quiz", big: "10 questions. First go counts.", lines: ["Same 10 for everyone", "Then try a speed drill and beat your best"], end: true },
+    ...ps.map((p) => ({ id: p.id, k: p.k, label: p.label, lines: p.lines, hot: p.hot, news: p.news })),
+    ...(LIVE.me ? [{ k: "tab:practice", label: "Tonight's quiz", big: "10 questions. First go counts.", lines: ["Same 10 for everyone", "Then try a speed drill and beat your best"], end: true }] : []),
   ];
 }
+// Worth a ring at the top of the app: not watched to the end today, and there's something in it.
+function storyDue() {
+  // On Morning the ring is on the page already, with Seen by.
+  if (storyWatched() || cur === "station" || $("#welcome") || (LIVE.me && cur === "tally" && pane === "morning")) return false;
+  return LIVE.me ? MG_READY : storyCards().length > 1;
+}
 function storyOpen() {
+  if (!$("#help").hidden) helpClose();
   if (!$("#story")) document.body.insertAdjacentHTML("beforeend", `<div id="story" class="story" role="dialog" aria-modal="true" aria-label="Tonight's brief" hidden></div>`);
-  sto = { i: 0, xs: storyCards(), t0: Date.now(), paused: 0 };
+  const xs = storyCards(), at = store.get("storyAt", {});
+  // Back where you stopped today, unless it was watched to the end (then from the start, to watch again).
+  const i = !storyWatched() && at.k === storyKey() && at.i < xs.length ? at.i : 0;
+  sto = { i, xs, t0: Date.now(), paused: 0 };
   $("#story").hidden = false; document.body.classList.add("storyon");
-  // Once a night, the managers' Seen by hears about it (a manager watching their own isn't counted).
-  if (LIVE.me && !LIVE.admin && store.get("storySeen", "") !== `${shiftDay()}-${mode}`) LIVE.api?.briefSeen(mode).catch(() => {});
-  store.set("storySeen", `${shiftDay()}-${mode}`);
   storyDraw(); storyTimer();
 }
-function storyClose() { if (!sto) return; sto = null; clearInterval(storyTimer.h); $("#story").hidden = true; document.body.classList.remove("storyon"); if (cur === "tally") renderTally(); }
-function storyGo(d) { if (!sto) return; const n = sto.i + d; if (n < 0) { sto.t0 = Date.now(); return storyDraw(); } if (n >= sto.xs.length) return storyClose(); sto.i = n; sto.t0 = Date.now(); haptic(); storyDraw(); }
+function storyClose() {
+  if (!sto) return; sto = null; clearInterval(storyTimer.h); $("#story").hidden = true; document.body.classList.remove("storyon");
+  if (cur === "tally") renderTally(); renderAlerts(true);
+}
+// Reaching the last card is watching it: Seen by hears about it once a night (a manager watching their own isn't
+// counted), and what it showed (changed specs, what's new, while you were away) is marked as seen.
+function storyEnd() {
+  if (storyWatched()) return;
+  if (LIVE.me && !LIVE.admin) LIVE.api?.briefSeen(mode).catch(() => {});
+  store.set("storySeen", storyKey());
+  if (appNews().length) walkMark(mode);
+  sinceDone();
+}
+function storyGo(d) {
+  if (!sto) return; const n = sto.i + d;
+  if (n < 0) { sto.t0 = Date.now(); return storyDraw(); }
+  if (n >= sto.xs.length) return storyClose();
+  sto.i = n; sto.t0 = Date.now(); haptic(); storyDraw();
+}
 function storyTimer() {
   clearInterval(storyTimer.h);
   storyTimer.h = setInterval(() => {
     if (!sto || document.hidden) return;
     if (sto.paused) { sto.t0 += 100; return; }
-    const f = Math.min(1, (Date.now() - sto.t0) / STORY_MS), bar = $(`#story .sb i[data-n="${sto.i}"]`);
+    const c = sto.xs[sto.i], f = Math.min(1, (Date.now() - sto.t0) / storyMs(c)), bar = $(`#story .sb i[data-n="${sto.i}"]`);
     if (bar) bar.style.width = `${f * 100}%`;
-    if (f >= 1 && !sto.xs[sto.i].end) storyGo(1);
+    if (f >= 1 && sto.i < sto.xs.length - 1) storyGo(1);
   }, 100);
 }
 function storyDraw() {
-  const c = sto.xs[sto.i];
+  const c = sto.xs[sto.i], last = sto.i === sto.xs.length - 1;
+  store.set("storyAt", { k: storyKey(), i: sto.i });
+  if (last) storyEnd();
   $("#story").innerHTML = `<div class="sbars">${sto.xs.map((_, j) => `<span class="sb"><i data-n="${j}" style="width:${j < sto.i ? 100 : 0}%"></i></span>`).join("")}</div>
-    <button class="st-x" data-story-x aria-label="Close">×</button>
-    <div class="st-card${c.hot ? " hot" : ""}"><div class="st-k">${esc(c.label)}</div>${c.big ? `<div class="st-big">${esc(c.big)}</div>` : ""}
-      <ul class="st-l" translate="no">${c.lines.slice(0, 9).map((l) => `<li>${typeof l !== "string" && l.d != null ? `<button class="st-open" data-story-open="${l.d}">${esc(l.t)} <span aria-hidden="true">›</span></button>` : esc(lineText(l))}</li>`).join("")}${c.lines.length > 9 ? `<li>+${c.lines.length - 9} more</li>` : ""}</ul>
-      <div class="st-act">${c.k ? `<button class="btn pri" data-story-go="${esc(c.k)}">${c.end ? "Take the quiz" : "Go there"}</button>` : ""}${c.end ? sendBtn("brief", "Send the brief") : ""}</div></div>
+    <button class="sto-x" data-story-x aria-label="Close">×</button><span class="sto-pause" aria-hidden="true">Paused</span>
+    <div class="sto-card${c.hot ? " hot" : ""}"><div class="sto-k">${esc(c.label)}</div>${c.big ? `<div class="sto-big">${esc(c.big)}</div>` : ""}
+      <ul class="sto-l" translate="no">${c.lines.slice(0, 9).map((l) => `<li>${typeof l !== "string" && l.d != null ? `<button class="sto-open" data-story-open="${l.d}">${esc(l.t)} <span aria-hidden="true">›</span></button>` : esc(lineText(l))}</li>`).join("")}${c.lines.length > 9 ? `<li>+${c.lines.length - 9} more</li>` : ""}</ul>
+      <div class="sto-act">${c.k ? `<button class="btn${last ? "" : " pri"}" data-story-go="${esc(c.k)}">${c.end ? "Take the quiz" : "Go there"}</button>` : ""}${c.news ? `<button class="btn" data-story-walk>Show me</button>` : ""}${last ? `<button class="btn pri" data-story-x>Got it ✓</button>${LIVE.me ? sendBtn("brief", "Send the brief") : ""}` : ""}</div></div>
     <button class="st-prev" data-story-step="-1" aria-label="Back"></button><button class="st-next" data-story-step="1" aria-label="Next"></button>`;
 }
 document.addEventListener("click", (e) => {
@@ -688,35 +726,47 @@ document.addEventListener("click", (e) => {
   if (e.target.closest("[data-story-x]")) return storyClose();
   const o = e.target.closest("[data-story-open]"); if (o) { storyClose(); openSheet(+o.dataset.storyOpen); return; }
   const g = e.target.closest("[data-story-go]"); if (g) { const k = g.dataset.storyGo; storyClose(); openAt(k); scrollTo(0, 0); return; }
+  if (e.target.closest("[data-story-walk]")) { storyClose(); walkOpen(mode, 0); return; }
   if (e.target.closest("[data-send]")) { storyClose(); return; }
   const s = e.target.closest("[data-story-step]"); if (s) storyGo(+s.dataset.storyStep);
 });
-// Hold to pause, swipe sideways to move, down to close. Escape closes, arrows move.
+// Hold to pause (the bars and × fade after a moment, so the card reads clean), swipe sideways to move, down to close.
+// Escape closes, arrows move.
 let stTouch = null;
-document.addEventListener("pointerdown", (e) => { if (sto && e.target.closest("#story")) { sto.paused = 1; stTouch = { x: e.clientX, y: e.clientY }; } });
+document.addEventListener("pointerdown", (e) => { if (sto && e.target.closest("#story") && !e.target.closest(".btn,.sto-open,[data-story-x]")) { sto.paused = 1; $("#story").classList.add("held"); stTouch = { x: e.clientX, y: e.clientY }; } });
 document.addEventListener("pointerup", (e) => {
-  if (!sto || !stTouch) return; sto.paused = 0;
+  if (!sto || !stTouch) return; sto.paused = 0; $("#story").classList.remove("held");
   const dx = e.clientX - stTouch.x, dy = e.clientY - stTouch.y; stTouch = null;
   if (dy > 90 && Math.abs(dx) < 60) { e.preventDefault(); storyClose(); }
   else if (Math.abs(dx) > 50 && Math.abs(dy) < 60) storyGo(dx < 0 ? 1 : -1);
 });
+document.addEventListener("pointercancel", () => { if (sto) { sto.paused = 0; $("#story").classList.remove("held"); } stTouch = null; });
 document.addEventListener("keydown", (e) => { if (!sto) return; if (e.key === "Escape") storyClose(); if (e.key === "ArrowRight") storyGo(1); if (e.key === "ArrowLeft") storyGo(-1); });
+// The ring: the same one at the top of Needs you now and on Morning. Unwatched glows brass; watched goes grey.
+const storyRing = (small) => {
+  const n = storyCards().length - 1 - (LIVE.me ? 1 : 0), w = storyWatched();
+  return `<button class="story-ring${w ? " seen" : ""}${small ? " sm" : ""}" data-story aria-label="Play tonight's brief"><span class="sr-dot">▶</span><span><b>${LIVE.me ? "Tonight's brief" : "What's new"}</b><small>${w ? "Watched. Tap to see it again" : n > 0 ? `${plural(n, "thing")} to know · tap to play` : "All clear · tap to play"}</small></span></button>`;
+};
 document.head.insertAdjacentHTML("beforeend", `<style>
 .story-ring{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--fg);margin-top:12px;padding:6px 0}
 .sr-dot{flex:none;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:18px;color:var(--brass);background:var(--surface);box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--brass)}
+.story-ring.sm{margin:0 0 6px;padding:2px 0}.story-ring.sm .sr-dot{width:40px;height:40px;font-size:14px}
 .seenby{margin:6px 0 0;font-size:14px;color:var(--muted)}.seenby summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:4px}.seenby ul{margin:0;padding-left:20px}
 .story-ring.seen .sr-dot{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--line);color:var(--muted)}.story-ring b{display:block;font-size:17px}.story-ring small{display:block;color:var(--muted);font-size:13px}
 body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background:#0d0c0a;color:#f4f1ea;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 20px);touch-action:none;user-select:none}
-.sbars{display:flex;gap:4px}.sb{flex:1;height:3px;border-radius:2px;background:#ffffff40;overflow:hidden}.sb i{display:block;height:100%;background:#fff}
-.st-x{position:absolute;top:calc(env(safe-area-inset-top,0px) + 18px);right:10px;z-index:3;width:44px;height:44px;font-size:30px;color:#fff}
-.st-card{position:relative;z-index:2;margin:auto 0;max-width:640px;width:100%;align-self:center;pointer-events:none}.st-card .btn,.st-card a{pointer-events:auto}
-.st-k{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#c9a45c}.st-card.hot .st-k{color:#ff6b5b}
-.st-big{font-family:var(--display);font-size:42px;line-height:1.05;text-transform:uppercase;margin-top:10px}
-.st-l{list-style:none;margin:16px 0 0;padding:0}.st-l li{font-size:22px;line-height:1.3;padding:8px 0;border-bottom:1px solid #ffffff1f}
-.st-open{pointer-events:auto;color:inherit;font:inherit;text-align:left;padding:0;background:none;border:0;text-decoration:underline;text-decoration-color:#c9a45c;text-underline-offset:4px}.st-open span{color:#c9a45c}
-.st-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}
+.sbars{display:flex;gap:4px;transition:opacity .2s}.sb{flex:1;height:3px;border-radius:2px;background:#ffffff40;overflow:hidden}.sb i{display:block;height:100%;background:#fff}
+.sto-x{position:absolute;top:calc(env(safe-area-inset-top,0px) + 18px);right:10px;z-index:3;width:44px;height:44px;font-size:30px;color:#fff;transition:opacity .2s}
+.sto-pause{position:absolute;top:calc(env(safe-area-inset-top,0px) + 26px);left:16px;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:#ffffffb0;opacity:0;transition:opacity .2s}
+.story.held .sbars,.story.held .sto-x{opacity:0;transition-delay:.25s}.story.held .sto-pause{opacity:1;transition-delay:.25s}
+.sto-card{position:relative;z-index:2;margin:auto 0;max-width:640px;width:100%;align-self:center;pointer-events:none;background:none;border:0;padding:0;color:#f4f1ea}.sto-card .btn,.sto-card a{pointer-events:auto}
+.sto-k{font-size:14px;letter-spacing:.1em;text-transform:uppercase;color:#c9a45c}.sto-card.hot .sto-k{color:#ff6b5b}
+.sto-big{font-family:var(--display);font-size:42px;line-height:1.05;text-transform:uppercase;margin-top:10px}
+.sto-l{list-style:none;margin:16px 0 0;padding:0}.sto-l li{font-size:clamp(17px,2.9vh,22px);line-height:1.3;padding:8px 0;border-bottom:1px solid #ffffff1f}
+@media (max-height:700px){.sto-big{font-size:34px}.sto-l{margin-top:10px}.sto-l li{padding:6px 0}.sto-act{margin-top:14px}}
+.sto-open{pointer-events:auto;color:inherit;font:inherit;text-align:left;padding:0;background:none;border:0;text-decoration:underline;text-decoration-color:#c9a45c;text-underline-offset:4px}.sto-open span{color:#c9a45c}
+.sto-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:22px}.sto-act .btn:not(.pri){background:#ffffff14;color:#f4f1ea;border-color:#ffffff40}
 .st-prev,.st-next{position:absolute;top:70px;bottom:0;z-index:1}.st-prev{left:0;width:33%}.st-next{right:0;width:67%}
-@media (min-width:700px){.st-big{font-size:56px}.st-l li{font-size:26px}}
+@media (min-width:700px){.sto-big{font-size:56px}.sto-l li{font-size:26px}}
 </style>`);
 
 /* ---------- Where it goes on the Team page ---------- */
@@ -728,6 +778,11 @@ function mgCards() {
 }
 const mgHealthCard = () => (MG_READY ? [["health", "Health check", healthHtml]] : []);
 FEATURES.push(
+  { g: "Shift", k: "brief", n: "Tonight's brief", go: "brief", what: "What's new and what's on tonight, played like stories: specs changed, 86s, labels due, last night's handover and what's new in Bar Book." },
+  { g: "Shift", k: "clear", n: "Clear and undo", go: "clear", team: 1, what: "Every list's ↺ Clear sits in the row of tools at its top and acts straight away; ↩ Undo clear takes its place for 15 minutes. Lists start fresh by themselves at 6am." },
+  { g: "Stock", k: "dnote", n: "Read a delivery note", go: "dnote", team: 1, what: "Stock, Delivery in, 📷 Read the note: a photo or PDF of the delivery note is read on this phone. Each line on the count comes back with how many; check them against the paper and log the ticked ones." },
+  { g: "More", k: "readtext", n: "Read text in a photo", go: "readtext", what: "Take or choose a photo of a label, note, letter or sign, or open one in Photos: its words come up under it to copy, search or translate into your language. Read on this phone and never sent, unless you tap Translate (live translation sends just the words)." },
+  { g: "More", k: "phone", n: "This phone: look and settings", go: "phone", what: "Light or dark, accessible mode, one-hand mode, sounds, the 🎤 button, help buttons, shared iPad, language, home screen and reset." },
   { g: "Team", k: "week", adm: 1, n: "Weekly summary", go: "week", team: 1, what: "The last 7 nights for the managers: what was 86'd most, closes not fully done and why, and date labels changed late.", mgr: "Read it and send it on WhatsApp." },
   { g: "Team", k: "pilot", adm: 1, n: "Pilot results", go: "pilot", team: 1, what: "Week by week since the team started: closes finished, handover times, labels on time, 86s, training and how many people use it. Counts only, no names.", mgr: "Save it as a picture or send it to show how the pilot is going." },
   { g: "Team", k: "lblog", adm: 1, n: "Date label record", go: "lblog", team: 1, what: "Every date label opened, changed or discarded, by first name and time, for an environmental health visit.", mgr: "Send it on WhatsApp, or Excel or CSV for a spreadsheet." },
@@ -737,7 +792,11 @@ FEATURES.push(
   { g: "Team", k: "ready", adm: 1, n: "Ready for Friday", go: "ready", team: 1, what: "One checklist before the team starts: rules published, every code set, backups on, this phone on the Home Screen, nothing waiting to send and the app up to date.", mgr: "Each line goes green by itself. Tick backups once they're on in the Firebase console." },
   { g: "Team", k: "backup", adm: 1, n: "Backup and restore", go: "backup", team: 1, what: "Everything Bar Book keeps for the team, saved as one file.", mgr: "Save one now and then. Restore shows what's different and only adds or changes, never deletes." },
   { g: "Team", k: "health", n: "Health check", go: "health", what: "Whether this phone is online, saving, up to date and ready with no signal.", staff: "Something not syncing? Check here, then send it to maintenance." });
-Object.assign(PLACE_KW, { week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline", ready: "ready friday launch checklist go live rules backup" });
+Object.assign(PLACE_KW, { readtext: "read text words photo picture camera scan ocr copy writing label sign letter note handwriting",
+  dnote: "delivery note invoice docket paperwork camera photo read scan supplier booker came in goods in",
+  brief: "brief stories story whats new news update updates changes changed seen read preshift pre shift",
+  clear: "clear reset start over wipe undo fresh empty restart again", phone: "settings setting dark light theme night mode gold clock accessible dyslexia bigger text font size one hand thumb sounds sound buzz mute quiet voice mic microphone help buttons hide shared ipad tablet language install home screen reset phone",
+  mgr: "maintenance start again wipe test data master clear team code password", week: "weekly summary report", pilot: "pilot results trends stats numbers manager report", lblog: "label record eho audit inspection", training: "training leaderboard scores sign off bar 101 drill", history: "history undo put back mistake", setup: "codes code pin set up team code manager", backup: "backup restore save file", health: "health sync version not working broken offline", ready: "ready friday launch checklist go live rules backup" });
 
 document.addEventListener("click", (e) => {
   const t = (s) => e.target.closest(s); let x;

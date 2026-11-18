@@ -122,10 +122,10 @@ test("no signal: it's worked out from the name; no days means it waits on Black 
   await M.selectOption('[data-it="kind"]', "dessert");
   assert.deepEqual(await M.evaluate(() => [itF.side, itF.life, itF.close]), ["floor", "2", "cover"]);
   await M.selectOption('[data-it="kind"]', "puree");
-  // Funkin's typical days come in, marked as typical; clearing them leaves it for whoever has the pack.
+  // Funkin's own once-opened days come in, marked as the maker's guidance; clearing them leaves it for whoever has the pack.
   assert.equal(await M.inputValue('[data-it="life"]'), "8");
-  assert.match(await text(M, ".itf"), /Shelf life · Fridge once opened Funkin purées: fridge once opened, 8 to 10 days \(the pack says which\)\. Typical only: the date on the pack always wins\./);
-  assert.match(await text(M, ".itf"), /Filled in from the typical shelf life above\. Change it to what the pack says\./);
+  assert.match(await text(M, ".itf"), /Shelf life · Fridge once opened Funkin purées, the maker says: Purée, once opened: 8 days refrigerated \(FAQ\)\. The product pages say 10 days: the shorter is used\. Maker's guidance: the date on the pack always wins\./);
+  assert.match(await text(M, ".itf"), /Filled in from the maker's guidance above\. Change it to what the pack says\./);
   await M.fill('[data-it="life"]', "");
   await M.click("#it-save");
   await M.waitForFunction(() => LIVE.items.length === 1 && !LIVE.items[0].pending);
@@ -191,18 +191,20 @@ test("typos and other languages: lymes 86s Limes, strawbery is Strawberries, Hin
   assert.match(await text(O, ".itf"), /Found online: Strawberry: Edible fruit/);
   await O.click("#it-cancel");
   await O.evaluate(() => { lang = ""; });
-  // Typical shelf lives: oat milk from Oatly's pack, vermouth about a month, Baileys no fridge; a label's own days show.
+  // Shelf lives: oat milk from Oatly's own page, vermouth about a month, Baileys no fridge; a label's own days show.
   await O.evaluate(() => LIVE.api.label(null, "added", { item: "Oat milk", side: "bar", life: 4, on: true }));
   await O.waitForFunction(() => LIVE.labels.some((x) => x.item === "Oat milk" && !x.pending));
   await look(O, "oat milk");
   assert.equal(await O.inputValue('[data-it="life"]'), "5");
-  assert.match(await text(O, ".it-keep"), /Oatly: keep in the fridge, use within 5 days once opened.*Bar: keeps 4 days once opened \(set on Labels\)/);
+  assert.match(await text(O, ".it-keep"), /Oatly Barista Edition, the maker says: Once opened keep refrigerated \(max\. 8°C\) and consume within approx\. 5 days\. Maker's guidance.*Bar: keeps 4 days once opened \(set on Labels, this wins\)/);
   await O.click("#it-cancel");
   assert.deepEqual(await O.evaluate(() => [itKeep("Martini Rosso").days, itKeep("Baileys").fridge, itKeep("Vanilla ice cream", "icecream").say]), [30, false, "Freezer, lid on"]);
-  // Black Tap's label list shows what's typical, without filling it in.
+  // Black Tap's label list fills in the maker's once-opened days where the venue has none, marked M; a manager can change them.
   await pane(O, "labels");
   assert.equal(await O.getAttribute('[data-lbs-life="Whole milk"]', "placeholder"), "typ. 3");
-  assert.equal(await O.inputValue('[data-lbs-life="Whole milk"]'), "");
+  assert.equal(await O.inputValue('[data-lbs-life="Whole milk"]'), "3");
+  assert.match(await O.$eval('[data-lbs-on="Whole milk"]', (e) => e.closest("label").textContent), /Whole milk M$/);
+  assert.equal(await O.inputValue('[data-lbs-life="Limes"]'), "", "nothing from a maker: left for the manager");
   for (const p of [O, S]) assert.deepEqual(p.errs, []);
 });
 

@@ -44,14 +44,14 @@ var CT_BOTTLE = {
   // Wine
   "Prosecco bottle": [750, 560, 0.99, 1],
   // Syrups and bitters: Monin's 70 cl glass; Coco Real's 50 cl squeezy bottle (595 g in it)
-  "Sugar syrup": [700, 460, 1.33, 0], "Vanilla syrup": [700, 460, 1.32, 1], "Marshmallow syrup": [700, 460, 1.32, 1], "Orgeat": [700, 460, 1.3, 1], "Grenadine": [700, 460, 1.287, 1],
+  "Sugar syrup": [700, 460, 1.33, 0], "Vanilla syrup": [700, 460, 1.32, 1], "Marshmallow syrup": [700, 460, 1.32, 1], "Orgeat": [1000, 600, 1.3, 1], "Grenadine": [700, 460, 1.287, 1],
   "Elderflower cordial": [700, 460, 1.25, 0], "Honey syrup": [700, 460, 1.3, 0], "Coco Real": [500, 60, 1.19, 1],
   "Angostura bitters": [200, 230, 0.99, 1], "Peychaud's bitters": [148, 200, 1.0, 1], "Cocoa bitters": [100, 160, 0.96, 0],
-  // Juices: 1 litre cartons, the fresh citrus in the house's own bottles
-  "Lime juice": [1000, 60, 1.03, 0], "Lemon juice": [1000, 60, 1.03, 0], "Orange juice": [1000, 35, 1.045, 0], "Pineapple juice": [1000, 35, 1.05, 0], "Cranberry juice": [1000, 35, 1.04, 0],
-  "Apple juice": [1000, 35, 1.045, 0], "Grapefruit juice": [1000, 35, 1.04, 0], "Tomato juice": [1000, 35, 1.03, 0],
-  // Shake station sauces: catering squeezy bottles
-  "Strawberry sauce": [1000, 70, 1.3, 0], "Raspberry sauce": [1000, 70, 1.3, 0], "Chocolate sauce": [1000, 70, 1.3, 0], "Salted caramel sauce": [1000, 70, 1.3, 0],
+  // Juices: Eager 1 litre (facts.js), the fresh citrus in the house's own bottles
+  "Lime juice": [1000, 60, 1.03, 0], "Lemon juice": [1000, 60, 1.03, 0], "Orange juice": [1000, 35, 1.045, 1], "Pineapple juice": [1000, 35, 1.05, 1], "Cranberry juice": [1000, 35, 1.04, 1],
+  "Apple juice": [1000, 35, 1.045, 1], "Grapefruit juice": [1000, 35, 1.04, 1], "Tomato juice": [1000, 35, 1.03, 1],
+  // Salted caramel: DaVinci, but which one (the 2.5 kg sauce or the 1 litre syrup) isn't known yet, so it stays a guess
+  "Salted caramel sauce": [1000, 70, 1.3, 0],
 };
 // Packs: name: [what one is, grams in it, grams of packaging, 1 if the size is off the label]. Grams only where a
 // kitchen scale (up to 5 kg) can weigh an open one.
@@ -59,7 +59,9 @@ var CT_PACK = {
   "Stella bottles": ["330 ml bottle", 0, 0, 1], "Corona bottles": ["330 ml bottle", 0, 0, 1], "Corona Cero": ["330 ml bottle", 0, 0, 1], "San Miguel 0,0": ["330 ml bottle", 0, 0, 1],
   "Kopparberg Strawberry & Lime (bottle)": ["500 ml bottle", 0, 0, 1], "Kopparberg Mixed Fruit (bottle)": ["500 ml bottle", 0, 0, 1],
   "Coke": ["7 litre bag-in-box", 0, 0, 1], "Coke Zero": ["7 litre bag-in-box", 0, 0, 1], "Diet Coke": ["7 litre bag-in-box", 0, 0, 1],
-  "Coke bottles": ["330 ml glass bottle", 0, 0, 0], "Coke Zero bottles": ["330 ml glass bottle", 0, 0, 0], "Diet Coke bottles": ["330 ml glass bottle", 0, 0, 0],
+  "Coke bottles": ["330 ml glass bottle", 0, 0, 1], "Coke Zero bottles": ["330 ml glass bottle", 0, 0, 1], "Diet Coke bottles": ["330 ml glass bottle", 0, 0, 1],
+  // DaVinci Gourmet 500 g squeeze bottles (Kerry's specs): weighed like a pack, the bottle and cap an estimate
+  "Strawberry sauce": ["500 g DaVinci squeeze bottle", 500, 40, 1], "Raspberry sauce": ["500 g DaVinci squeeze bottle", 500, 40, 1], "Chocolate sauce": ["500 g DaVinci squeeze bottle", 500, 40, 1],
   "Red Bull": ["250 ml can", 0, 0, 1], "Red Bull Sugarfree": ["250 ml can", 0, 0, 1], "Crodino": ["175 ml bottle", 0, 0, 1],
   "Tonic": ["200 ml Fever-Tree bottle", 0, 0, 1], "Light tonic": ["200 ml Fever-Tree bottle", 0, 0, 1], "Ginger beer": ["200 ml Fever-Tree bottle", 0, 0, 1], "Ginger ale": ["200 ml Fever-Tree bottle", 0, 0, 1],
   "Jarritos Guava": ["370 ml bottle", 0, 0, 1], "Jarritos Mandarin": ["370 ml bottle", 0, 0, 1], "Jarritos Pineapple": ["370 ml bottle", 0, 0, 1],

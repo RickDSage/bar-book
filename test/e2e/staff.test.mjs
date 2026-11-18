@@ -22,6 +22,7 @@ test("joining: a name and the typed team code, no login; a wrong code is refused
   await p.goto(`${site.url}#join=${TEAM_CODE}`);
   assert.equal(await p.evaluate(() => location.hash), "");
   await p.click('[data-w-name="Kadir"]');
+  await p.click('#langask [data-la=""]');
   await p.click("#w-ok");
   await p.waitForFunction(() => LIVE.ready);
   assert.equal(await p.evaluate(() => LIVE.me), null);
@@ -277,6 +278,7 @@ test("the start screen: pick your name, type the team code and a manager's own c
   // A bartender: name, team code, Bar.
   const B = await fresh();
   await B.click('[data-w-name="Simroy"]');
+  await B.click('#langask [data-la=""]');
   assert.equal(await B.$$eval("#w-pin", (x) => x.length), 0);
   await B.fill("#w-code", TEAM_CODE);
   await B.click("#w-ok");
@@ -284,6 +286,7 @@ test("the start screen: pick your name, type the team code and a manager's own c
   // A manager: name, team code and their own code, Floor: on the team and unlocked in one go.
   const M = await fresh();
   await M.click('[data-w-name="Sarul"]');
+  await M.click('#langask [data-la=""]');
   await M.fill("#w-code", TEAM_CODE);
   await M.fill("#w-pin", "6161");
   await M.click("#w-floor");
@@ -506,7 +509,7 @@ test("tonight's report: every section in one message, each with a tick box to le
   await M.click('.glance [data-send="tonight"]');
   await M.waitForSelector("#send-pre");
   const t = await M.$eval("#send-pre", (e) => e.innerText);
-  assert.match(t, /tonight.*86'd.*1 open issue.*Closing.*Bar: not started.*Handover not sent yet.*Floor: not started.*86'd \(1\).*since.*Kadir.*To order and running low \(1\).*Bar: Limes.*Issues and faults.*URGENT: Heater broken.*Outstanding \(1\).*Bar: Tab 12 left open.*For tomorrow \(1\).*Bar: Order Prosecco/s);
+  assert.match(t, /tonight.*86'd.*1 open issue.*Closing.*Bar: not started.*Handover not sent yet.*Floor: not started.*86'd \(1\).*since.*Kadir.*To order and running low \(1\).*Bar: Limes.*Issues and faults.*URGENT: Heater broken.*Outstanding \(1\).*Bar: Tab 12 left open.*For the opener \(1\).*Bar: Order Prosecco/s);
   assert.doesNotMatch(t, /On the team/);
   await M.uncheck('[data-send-part="out"]');
   assert.doesNotMatch(await M.$eval("#send-pre", (e) => e.innerText), /86'd \(1\)/);
