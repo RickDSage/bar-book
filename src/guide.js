@@ -16,8 +16,7 @@ const WALK_NEW = [
   "🎤 works like a radio: hold, talk, let go. Fewer words: “mojito no sugar”, “French guest”, “open labels”",
   "↺ Clear acts at once on every list, and ↩ Undo clear stays for 15 minutes",
   "🔍 finds settings too (“dark mode”). My pay is in More: five tabs along the bottom",
-  "📷 Any photo's words: More, Read text in a photo. In Stock, Read the note logs a delivery from the paper",
-  "Any product's allergens, size and use-by: More, Everything we stock. Count bottles show their shape",
+  "📷 Any photo's words: More, Read text in a photo. Any product's allergens and use-by: More, Everything we stock",
 ];
 const WALK_NAV_LINE = "🌍 is for guests who don't speak English: hand them the phone, ✕ Staff takes it back. 🔍 at the top finds any screen, drink or how-to. 🎤 beside it: hold it like a radio and talk, or tap it. ⌂ goes home, ‹ Back goes back.";
 const WALK_BRIEF_LINE = "The ring at the top is tonight's brief: tap it and tap through, like stories. Hold to pause.";
