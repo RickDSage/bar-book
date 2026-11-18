@@ -191,7 +191,7 @@ test("the dry run: a whole night and the morning after, on every kind of screen"
   await E.fill("#ct-say", "smirnoff"); await E.waitForTimeout(400); await look(E, "count found smirnoff");
   await E.locator("#ct-list [data-ct-row]").first().click(); await E.waitForTimeout(300); await look(E, "count line open");
   await E.locator('[data-ct-add="full:1"]').first().click(); await E.waitForTimeout(200);
-  if (await E.locator("#ct-g").count()) { await E.fill("#ct-g", "900"); await E.waitForTimeout(1200); }
+  if (await E.locator("#ct-g").count()) { if (!(await E.locator("#ct-g").isVisible())) await E.click("#ct-more summary"); await E.fill("#ct-g", "900"); await E.waitForTimeout(1200); }
   await look(E, "count weighed");
   await wait(H, () => LIVE.counts?.length > 0 || true);
   // Said or typed: "Tanqueray 3 and a half".

@@ -8,7 +8,7 @@
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
 const WALK_V = 12;
-const WALK_NEW = "Stock count: ↩ Undo under Find takes back the last item, it shows if a count is still waiting for signal, and Check it flags a number far from last time to count again.";
+const WALK_NEW = "Stock count: picking a level no longer jumps on: check the sum, then Confirm ›, with ‹ Back for the item before. Under Find: where you are and Next place, ↩ Undo, and Check it on a number far from last time. Photo check reads the level from three taps on your photo.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -24,7 +24,7 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
 ], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
 const WALK_COUNT = { t: "Stock count", how: [
   "The Stock tab: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left. Counting tips are under How to count.",
-  "Tap an item: + for each full, sealed bottle (+6 for a row), then the open one: None, ¼, ½ or ¾. That saves it and opens the next one. Same as last time does a line in one tap. More has tenths, Photo check and the scale.",
+  "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm ›. ‹ Back goes to the item before. Same as last time does a line in one tap. More has tenths, Photo check and the scale.",
   "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 📷 Scan its barcode. Or 🎤 Say it: “Smirnoff two and a half”.",
   "For example: 3 sealed Smirnoff and an open one about four-tenths full is Full 3, open .4 (under More), which is 3.4 bottles of 70 cl, or 2,380 ml. The line shows the sum. Sizes show in cl and ml (1 cl = 10 ml); cl ⇄ ml at the top swaps which leads.",
   "Mis-tap? ↩ Undo, under Find, puts it back. Check it on a line means it's far from last time: count it again, or tap It's right.",
