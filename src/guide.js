@@ -7,8 +7,8 @@
    The 🔍 at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 13;
-const WALK_NEW = "🔍 at the top finds any screen, drink or how-to: type it and tap to go there. 🎤 sits next to it now, never over the page: it shows the words as it hears them, says when it couldn't make them out, and a drink said opens straight away. On Closing, tap a heading to fold it.";
+const WALK_V = 14;
+const WALK_NEW = "🔍 at the top finds any screen, drink or how-to: type it and tap to go there. 🎤 sits next to it now, never over the page: it shows the words as it hears them, says when it couldn't make them out, and a drink said opens straight away. On Closing, tap a heading to fold it. Stock count: tidier. Places are numbered and fold open one at a time, items are numbered, and a counted bottle says what's there (2 full · ½ open). The day, order, cl or ml, How to count and tips are in Options, which also picks the places that are yours tonight.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -23,10 +23,10 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
   "Log it and send on WhatsApp puts it in the team chat from your phone, so everyone knows now.",
 ], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
 const WALK_COUNT = { t: "Stock count", how: [
-  "The Stock tab: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left. Counting tips are under How to count.",
+  "The Stock tab: the first time, it walks you through it with pictures. Every place is numbered in the order you walk it and folds open one at a time, and Not counted yet shows only what's left. Options holds the day, the order, cl or ml, which places are yours tonight, How to count and the tips.",
   "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm ›. ‹ Back goes to the item before. Same as last time does a line in one tap. More has tenths, Photo check and the scale.",
   "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 📷 Scan its barcode. Or 🎤 Say it: “Smirnoff two and a half”.",
-  "For example: 3 sealed Smirnoff and an open one about four-tenths full is Full 3, open .4 (under More), which is 3.4 bottles of 70 cl, or 2,380 ml. The line shows the sum. Sizes show in cl and ml (1 cl = 10 ml); cl ⇄ ml at the top swaps which leads.",
+  "For example: 3 sealed Smirnoff and an open one about four-tenths full is Full 3, open .4 (under More), which is 3.4 bottles of 70 cl, or 2,380 ml. The line shows the sum. Sizes show in cl and ml (1 cl = 10 ml); cl ⇄ ml, in Options, swaps which leads.",
   "Mis-tap? ↩ Undo, under Find, puts it back. Check it on a line means it's far from last time: count it again, or tap It's right.",
   "Use-by, at the top of Stock: date labels due in the next 3 days. Changed it saves the new date in one tap.",
   "Anything under its running-low level gets a Running low tag, then shows on the 86 board, the bar station and Needs you now as a heads-up before it's an 86.",
