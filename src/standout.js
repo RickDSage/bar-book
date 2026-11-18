@@ -581,7 +581,7 @@ function sdVoiceGo() {
     pk86(xs, on); renderList(); sdCue("ok"); return;
   }
   if (h.kind === "log") { if (!LIVE.me) return toast("Join the team to log it"); sdCue("ok"); return track(LIVE.api.logIt(mode, "note", h.n.slice(0, LOG_MAX)), "Logged. It's in tonight's handover", "Not saved. Try again"); }
-  if (h.kind === "drink") return cur === "station" ? sxOpen(h.d.id) : openSheet(h.d.id);
+  if (h.kind === "drink") return cur === "station" ? sxTap(h.d.id) : openSheet(h.d.id);
   if (h.kind === "make") { mk.pane = "bar"; mkSave(); return openAt("tab:make"); }
   if (h.kind === "count") { if (!LIVE.me) return toast("Join the team to count stock"); openAt("count"); ctHeard = { ...h.p }; ctRender(true); return; }
   if (h.kind === "go") { if (h.go === "pick86") return pkOpen({ mode: "86" }); if (h.go === "count" && !LIVE.me) return toast("Join the team to count stock"); openAt(h.go); scrollTo(0, 0); }
