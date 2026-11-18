@@ -787,7 +787,8 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-all { padding: 14px 0; font-weight: 600; }
 .ct-line > span small.ct-do { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
 .ct-hrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.ct-howbtn { min-height: 40px; }
+.ct-howbtn, .ct-unit { min-height: 40px; }
+.ct-unit { white-space: nowrap; }
 .ct-intro { padding: 8px 0 24px; max-width: 560px; margin: 0 auto; }
 .ct-istep { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; color: var(--muted); }
 .ct-istep .dots { display: flex; gap: 5px; }
@@ -800,15 +801,34 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-intro li { margin: 8px 0; font-size: 17px; line-height: 1.45; }
 .ct-unlock { min-height: 40px; }
 .ct-edit { padding: 4px 10px 12px; }
+/* A line being counted, compact: Full, then the open one in one tap, so several fit on a phone screen. */
+.ct-edit.ct-c .ct-step { margin: 4px 0; }
+.ct-quick { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, 56px); gap: 8px; align-items: center; margin: 6px 0; }
+.ct-quick > span { color: var(--fg); }
+.ct-qb { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font: inherit; font-size: 18px; font-weight: 800; padding: 0; }
+.ct-qb:first-of-type { font-size: 14px; }
+.ct-qb.on { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
+.ct-typed { grid-template-columns: minmax(0, 1fr) auto; }
+.ct-typed label { display: flex; align-items: center; gap: 8px; color: var(--fg); }
+.ct-typed input { min-height: 48px; width: 100%; font-size: 18px; }
+.ct-typed .btn { min-height: 48px; }
+.ct-tenths { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 6px 0 10px; }
+.ct-tenths .ct-qb:first-of-type { font-size: 18px; }
+.ct-more { margin-top: 6px; border-top: 1px solid var(--line); padding-top: 4px; }
+.ct-more > summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 10px 0; min-height: 44px; box-sizing: border-box; }
+.ct-more .ct-open { grid-template-columns: 90px 1fr; }
+.ct-more .ct-btl { width: 80px; height: 185px; }
 .ct-n { margin: 10px 0 0; font-weight: 700; color: var(--brass); font-size: 15px; }
 .ct-step { display: grid; grid-template-columns: minmax(0, 1fr) 56px 52px 56px 56px; gap: 8px; align-items: center; margin: 8px 0; }
+.ct-step > span small { display: block; font-size: 12px; line-height: 1.25; color: var(--muted); }
 .ct-step b { text-align: center; font-size: 28px; font-variant-numeric: tabular-nums; }
 .ct-big { height: 64px; border-radius: 14px; font-size: 32px; font-weight: 700; background: var(--bg); border: 1px solid var(--line); color: inherit; }
 .ct-big:active { background: var(--brass); color: var(--brass-ink); }
 .ct-g input { font-size: 22px; min-height: 56px; font-variant-numeric: tabular-nums; }
 .ct-lvl { width: 100%; margin-top: 4px; }
 .ct-wbox summary { padding: 8px 0; color: var(--muted); cursor: pointer; }
-.ct-sum { margin: 10px 0 0; font-size: 17px; }
+.ct-sum { margin: 6px 0 0; font-size: 16px; }
+.ct-sum.ct-eg { color: var(--muted); font-size: 14px; }
 .ct-open { display: grid; grid-template-columns: 1fr 120px; gap: 10px; align-items: center; }
 .ct-open > div { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .ct-open > div b { font-size: 22px; }
@@ -816,11 +836,11 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-btl rect { fill: transparent; stroke: var(--line); stroke-width: 1; cursor: pointer; }
 .ct-btl rect.fill { fill: var(--brass); opacity: .85; }
 .ct-btl .lvt { font-size: 11px; fill: var(--muted); pointer-events: none; }
-/* iPad: the places wrap, and a bottle's full count sits beside the scale and its level. */
+/* iPad: the places wrap, and a line's full count sits beside its open one. */
 @media (min-width: 700px) {
   .ct-jump { flex-wrap: wrap; overflow: visible; }
-  .ct-edit.ct-b { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0 24px; align-items: start; }
-  .ct-edit.ct-b > .ct-sum, .ct-edit.ct-b > .actions { grid-column: 1 / -1; }
+  .ct-edit.ct-c { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; align-items: center; }
+  .ct-edit.ct-c > .ct-same, .ct-edit.ct-c > .ct-more { grid-column: 1 / -1; }
 }
 .ct-heard { margin: 8px 0; padding: 10px; border-left: 3px solid var(--brass); background: var(--surface); border-radius: 8px; }
 .ct-heard p { margin: 0 0 6px; }
@@ -5287,7 +5307,7 @@ const FEATURES = [
     staff: "Ask for something, take a request on, bring it up, confirm it arrived, and 86 a drink or bring it back." },
   { g: "Stock", k: "count", n: "Stock", go: "count", team: 1, tour: 1,
     what: "Its own tab: the count book on your phone, a barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
-    staff: "Tap an item: + for each full, sealed bottle (+6 for a row), then tap the open one's level by eye: it saves and opens the next. Same as last time is one tap; ⚖️ Weigh it or 📷 Photo check when you're not sure. Group it by place or by kind. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap. Counting tips are at the top.",
+    staff: "Tap an item: + for each full, sealed bottle (+6 for a row), then the open one: None, ¼, ½ or ¾. That saves it and opens the next. Same as last time is one tap; More has tenths, the scale and 📷 Photo check. Group it by place or by kind. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap. Counting tips are at the top.",
     mgr: "Check barcodes the team has linked (they work straight away). Every bottle and pack comes with its size and estimated weights: weigh a sealed one once (Check it) and it's locked until you Unlock it. Set up the count: the places in walking order, what's counted where and in what, and a running-low level and par per line." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",

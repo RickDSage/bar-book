@@ -787,7 +787,8 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-all { padding: 14px 0; font-weight: 600; }
 .ct-line > span small.ct-do { color: var(--muted); font-size: 12.5px; margin-top: 1px; }
 .ct-hrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.ct-howbtn { min-height: 40px; }
+.ct-howbtn, .ct-unit { min-height: 40px; }
+.ct-unit { white-space: nowrap; }
 .ct-intro { padding: 8px 0 24px; max-width: 560px; margin: 0 auto; }
 .ct-istep { display: flex; align-items: center; justify-content: space-between; margin: 8px 0; color: var(--muted); }
 .ct-istep .dots { display: flex; gap: 5px; }
@@ -800,15 +801,34 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-intro li { margin: 8px 0; font-size: 17px; line-height: 1.45; }
 .ct-unlock { min-height: 40px; }
 .ct-edit { padding: 4px 10px 12px; }
+/* A line being counted, compact: Full, then the open one in one tap, so several fit on a phone screen. */
+.ct-edit.ct-c .ct-step { margin: 4px 0; }
+.ct-quick { display: grid; grid-template-columns: minmax(0, 1fr) repeat(4, 56px); gap: 8px; align-items: center; margin: 6px 0; }
+.ct-quick > span { color: var(--fg); }
+.ct-qb { display: flex; align-items: center; justify-content: center; text-align: center; min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); color: var(--fg); font: inherit; font-size: 18px; font-weight: 800; padding: 0; }
+.ct-qb:first-of-type { font-size: 14px; }
+.ct-qb.on { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); }
+.ct-typed { grid-template-columns: minmax(0, 1fr) auto; }
+.ct-typed label { display: flex; align-items: center; gap: 8px; color: var(--fg); }
+.ct-typed input { min-height: 48px; width: 100%; font-size: 18px; }
+.ct-typed .btn { min-height: 48px; }
+.ct-tenths { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin: 6px 0 10px; }
+.ct-tenths .ct-qb:first-of-type { font-size: 18px; }
+.ct-more { margin-top: 6px; border-top: 1px solid var(--line); padding-top: 4px; }
+.ct-more > summary { cursor: pointer; color: var(--muted); font-size: 14px; padding: 10px 0; min-height: 44px; box-sizing: border-box; }
+.ct-more .ct-open { grid-template-columns: 90px 1fr; }
+.ct-more .ct-btl { width: 80px; height: 185px; }
 .ct-n { margin: 10px 0 0; font-weight: 700; color: var(--brass); font-size: 15px; }
 .ct-step { display: grid; grid-template-columns: minmax(0, 1fr) 56px 52px 56px 56px; gap: 8px; align-items: center; margin: 8px 0; }
+.ct-step > span small { display: block; font-size: 12px; line-height: 1.25; color: var(--muted); }
 .ct-step b { text-align: center; font-size: 28px; font-variant-numeric: tabular-nums; }
 .ct-big { height: 64px; border-radius: 14px; font-size: 32px; font-weight: 700; background: var(--bg); border: 1px solid var(--line); color: inherit; }
 .ct-big:active { background: var(--brass); color: var(--brass-ink); }
 .ct-g input { font-size: 22px; min-height: 56px; font-variant-numeric: tabular-nums; }
 .ct-lvl { width: 100%; margin-top: 4px; }
 .ct-wbox summary { padding: 8px 0; color: var(--muted); cursor: pointer; }
-.ct-sum { margin: 10px 0 0; font-size: 17px; }
+.ct-sum { margin: 6px 0 0; font-size: 16px; }
+.ct-sum.ct-eg { color: var(--muted); font-size: 14px; }
 .ct-open { display: grid; grid-template-columns: 1fr 120px; gap: 10px; align-items: center; }
 .ct-open > div { display: flex; flex-direction: column; gap: 8px; align-items: flex-start; }
 .ct-open > div b { font-size: 22px; }
@@ -816,11 +836,11 @@ body.neton .toast, body.neton .upd { bottom: calc(var(--tabh) + 64px + env(safe-
 .ct-btl rect { fill: transparent; stroke: var(--line); stroke-width: 1; cursor: pointer; }
 .ct-btl rect.fill { fill: var(--brass); opacity: .85; }
 .ct-btl .lvt { font-size: 11px; fill: var(--muted); pointer-events: none; }
-/* iPad: the places wrap, and a bottle's full count sits beside the scale and its level. */
+/* iPad: the places wrap, and a line's full count sits beside its open one. */
 @media (min-width: 700px) {
   .ct-jump { flex-wrap: wrap; overflow: visible; }
-  .ct-edit.ct-b { display: grid; grid-template-columns: 1fr 1.2fr; gap: 0 24px; align-items: start; }
-  .ct-edit.ct-b > .ct-sum, .ct-edit.ct-b > .actions { grid-column: 1 / -1; }
+  .ct-edit.ct-c { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; align-items: center; }
+  .ct-edit.ct-c > .ct-same, .ct-edit.ct-c > .ct-more { grid-column: 1 / -1; }
 }
 .ct-heard { margin: 8px 0; padding: 10px; border-left: 3px solid var(--brass); background: var(--surface); border-radius: 8px; }
 .ct-heard p { margin: 0 0 6px; }
@@ -5364,7 +5384,7 @@ const FEATURES = [
     staff: "Ask for something, take a request on, bring it up, confirm it arrived, and 86 a drink or bring it back." },
   { g: "Stock", k: "count", n: "Stock", go: "count", team: 1, tour: 1,
     what: "Its own tab: the count book on your phone, a barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
-    staff: "Tap an item: + for each full, sealed bottle (+6 for a row), then tap the open one's level by eye: it saves and opens the next. Same as last time is one tap; ⚖️ Weigh it or 📷 Photo check when you're not sure. Group it by place or by kind. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap. Counting tips are at the top.",
+    staff: "Tap an item: + for each full, sealed bottle (+6 for a row), then the open one: None, ¼, ½ or ¾. That saves it and opens the next. Same as last time is one tap; More has tenths, the scale and 📷 Photo check. Group it by place or by kind. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap. Counting tips are at the top.",
     mgr: "Check barcodes the team has linked (they work straight away). Every bottle and pack comes with its size and estimated weights: weigh a sealed one once (Check it) and it's locked until you Unlock it. Set up the count: the places in walking order, what's counted where and in what, and a running-low level and par per line." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",
@@ -10438,6 +10458,17 @@ function ctDefault(name, group) {
 // A product's size and weights: what a manager set, else what's filled in (measures.js), marked as estimated.
 // est: the weights are estimates nobody has checked. guess: the size isn't off the label.
 const ctCl = (ml) => (ml % 10 ? `${ml} ml` : `${ml / 10} cl`);
+// On screen a size shows in both: "70 cl · 700 ml". 1 cl = 10 ml. The cl ⇄ ml button swaps which leads (saved on this phone).
+var ctMlFirst = store.get("ctMlFirst", false);
+const ctVol = (ml) => { const cl = `${ctNum(ml / 10)} cl`, m = `${ml.toLocaleString("en-GB")} ml`; return ctMlFirst ? `${m} · ${cl}` : `${cl} · ${m}`; };
+const ctSz = (r) => (r.ml && r.size ? ctVol(r.ml) : r.size || "");
+// A typed size in either: "70 cl", "700ml", "1 litre", "0.7l". A bare number up to 150 is cl (a magnum is 150 cl), above that ml.
+function ctParseMl(t) {
+  const m = String(t).trim().toLowerCase().replace(",", ".").match(/^(\d+(?:\.\d+)?)\s*(ml|cl|l|litres?|liters?)?$/);
+  if (!m) return 0;
+  const n = +m[1], u = m[2] || (n <= 150 ? "cl" : "ml");
+  return Math.round(u === "ml" ? n : u === "cl" ? n * 10 : n * 1000);
+}
 function ctMeasure(item, u, o, d) {
   const m = CT_BOTTLE[item], p = CT_PACK[item], set = +o.e > 0 && +o.f > +o.e;
   if (u === "bottle") {
@@ -10595,7 +10626,7 @@ function ctWeigh(r, g) {
 // version (one row of places that scrolls sideways, the totals folded away, the bottle level behind one tap when the
 // scale can do it); the iPad gets everything open side by side.
 const ctWide = () => matchMedia("(min-width: 700px)").matches;
-var ctQ = "", ctShow = store.get("ctShow", "todo"), ctBy = store.get("ctBy", store.get("ctAz", false) ? "az" : "place"), ctLvl = store.get("ctLvl2", true), ctTotOpen = null;
+var ctQ = "", ctShow = store.get("ctShow", "todo"), ctBy = store.get("ctBy", store.get("ctAz", false) ? "az" : "place"), ctTotOpen = null;
 // The order to walk it: by place (the shelves, the default), by kind (all the vodkas, then the gins, wherever they are),
 // or A to Z. Next goes down whichever is showing.
 const ctSecOf = (r) => (ctBy === "kind" ? r.group : r.area);
@@ -10660,7 +10691,7 @@ function ctHtml() {
   const rows = ctRows(), tot = ctTotals(), done = rows.filter(ctLine).length, by = [...new Set(ctLines().map((x) => x.name))], wide = ctWide();
   return `${ctScanHtml()}${ctCodesHtml()}${ctUseByHtml()}<div class="ct-head"><p class="s"><b>${done} of ${rows.length} lines counted</b>${by.length ? ` by ${esc(by.join(", "))}` : ""}. Saves as you go, with no signal too.</p>
       <div class="ct-bar" aria-hidden="true"><i style="width:${rows.length ? Math.round((done / rows.length) * 100) : 0}%"></i></div>
-      <div class="ct-hrow"><label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label><button class="btn ct-howbtn" data-ct-intro="0">How to count</button></div>${ctTipsHtml()}</div>
+      <div class="ct-hrow"><label class="ct-day">Count for <input type="date" id="ct-day" value="${ctDay}" max="${shiftDay()}"></label><button class="btn ct-howbtn" data-ct-intro="0">How to count</button><button class="btn ct-unit" data-ct-unit aria-label="Swap cl and ml">${ctMlFirst ? "ml ⇄ cl" : "cl ⇄ ml"}</button></div>${ctTipsHtml()}</div>
     <div id="ct-list">${ctListHtml()}</div>
     <details class="setup" id="ct-tot-box"${ctTotOpen ?? wide ? " open" : ""}><summary>Totals so far${tot.some((t) => t.done) ? ` (${tot.filter((t) => t.done).length})` : ""}</summary>
       <p class="note">Each product added up across its places, for typing into Nory.</p>
@@ -10700,9 +10731,9 @@ function ctHeardHtml() {
 }
 // What to do with a line, in a few words, for anyone counting for the first time.
 function ctDo(r) {
-  if (r.u === "bottle") return "Full bottles, then tap the open one's level";
+  if (r.u === "bottle") return "Full ones, then the open one: None, ¼, ½ or ¾";
   const u = r.u === "each" ? "them" : `the ${ctUnit(r.u, 2).trim()}`;
-  return `Count ${u}${r.pw > 0 ? " or weigh them" : ""}${r.size ? `: one is a ${r.size}` : ""}`;
+  return `Count ${u}${r.pw > 0 ? " or weigh them" : ""}${r.size ? `: one is a ${ctSz(r)}` : ""}`;
 }
 function ctRowHtml(r, where) {
   const x = ctLine(r), on = ctOpen === r.key;
@@ -10730,7 +10761,7 @@ function ctPhotoHtml(r) {
   const can = p.ref === null || LIVE.admin;
   const ref = p.ref === undefined ? `<p class="s">Getting the sealed one…</p>` : p.ref ? `<img src="${p.ref}" alt="A sealed ${esc(r.item)}">` : `<p class="s">No photo of a sealed ${esc(r.item)} yet.</p>`;
   return `<div class="ct-phc"><figure><figcaption>Yours</figcaption>${p.mine ? `<img src="${p.mine}" alt="Your photo of the open bottle">` : ""}</figure><figure><figcaption>Sealed</figcaption>${ref}</figure></div>
-    <p class="s">Compare the two, then tap the level on the bottle picture.${can ? ` <label class="linkbtn" for="ct-ref-in">${p.ref ? "Take a better sealed one" : "Take one of a sealed bottle"}</label><input type="file" accept="image/*" capture="environment" id="ct-ref-in" data-ct-ref="${esc(r.item)}" hidden>` : ""}</p>`;
+    <p class="s">Compare the two, then tap the level.${can ? ` <label class="linkbtn" for="ct-ref-in">${p.ref ? "Take a better sealed one" : "Take one of a sealed bottle"}</label><input type="file" accept="image/*" capture="environment" id="ct-ref-in" data-ct-ref="${esc(r.item)}" hidden>` : ""}</p>`;
 }
 async function ctPhoto(el) {
   const item = el.dataset.ctPh || el.dataset.ctRef, f = el.files[0]; el.value = ""; if (!f) return;
@@ -10758,22 +10789,33 @@ const ctPrevOf = (r) => ctPrev?.lines.find((x) => x.area === r.area && x.item ==
 // The line being counted, one way through: the full ones, then the open one (weighed if the scale can, else its
 // level), then Next. Big buttons for wet hands.
 function ctEditHtml(r, x) {
-  const full = x?.full || 0, open = x?.open || 0, can = ctWeighable(r), wide = ctWide();
-  const step = (k, n, label) => `<div class="ct-step"><span>${label}</span><button class="ct-big" data-ct-add="${k}:-1" aria-label="One less">−</button><b>${n}</b><button class="ct-big" data-ct-add="${k}:1" aria-label="One more">+</button><button class="ct-big ct-six" data-ct-add="${k}:6" aria-label="Six more">+6</button></div>`;
+  // Compact: everything for a normal count fits in a few lines, so several items show at once. The rest (tenths, the
+  // bottle picture, Photo check, the scale, None left, levels) is behind More, which stays open on this phone once
+  // it's opened, for anyone who always weighs.
+  const full = x?.full || 0, open = x?.open || 0, can = ctWeighable(r), b = r.u === "bottle";
   const p = !x && ctPrevOf(r), same = p ? `<button class="btn ct-same" data-ct-same>Same as last time: ${ctSay(r.u, ctQty(p))} <small>${ctDate(ctPrev.day)}</small></button>` : "";
-  const lvl = `<div class="ct-open"><div><span>Open bottle: tap its level</span><b>${open ? `${ctNum(open / 100)}${r.ml ? ` · ${Math.round((open / 100) * r.ml)} ml` : ""}` : "None"}</b><button class="btn" data-ct-set="${full}:0">No open one</button>${ctPhotoBtn(r)}</div>${ctBottle(open)}</div>${ctPhotoHtml(r)}`;
-  const total = x ? `<p class="ct-sum">Total here: <b>${ctSay(r.u, ctQty(x))}</b></p>` : "";
+  const step = `<div class="ct-step"><span>${b ? `Full${r.size ? `<small>${esc(ctSz(r)).replace(" · ", "<br>")}</small>` : ""}` : `How many${ctUnit(r.u, 2)}`}</span><button class="ct-big" data-ct-add="full:-1" aria-label="One less">−</button><b>${full}</b><button class="ct-big" data-ct-add="full:1" aria-label="One more">+</button><button class="ct-big ct-six" data-ct-add="full:6" aria-label="Six more">+6</button></div>`;
+  const chip = (v, l) => `<button class="ct-qb${x && open === v ? " on" : ""}" data-ct-lvp="${v}" aria-label="Open one ${l}">${l}</button>`;
+  const quick = b ? `<div class="ct-quick"><span>Open</span>${chip(0, "None")}${chip(25, "¼")}${chip(50, "½")}${chip(75, "¾")}</div>`
+    : `<div class="ct-quick ct-typed"><label>Or type<input id="ct-type" inputmode="decimal" enterkeyhint="next" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0" aria-label="How many, half is .5"></label><button class="btn" data-ct-next="${esc(r.key)}">${x ? "Next ›" : "Done ›"}</button></div>`;
+  const tenths = b ? `<p class="ct-n">The open one in tenths</p><div class="ct-tenths">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => chip(k * 10, `.${k}`)).join("")}</div>` : "";
   const lowSet = LIVE.admin ? `<div class="ct-lowset" data-ct-item="${esc(r.item)}" data-ct-area="${esc(r.area)}">${ctLowField(r)}</div>` : "";
-  const foot = `${total}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}<button class="btn pri" data-ct-next="${esc(r.key)}">Next ›</button></div>`;
-  const one = r.size && r.u !== "bottle" ? `<p class="s ct-size">One is a ${esc(r.size)}${r.guess ? " (the usual size: a manager can change it)" : ""}.</p>` : "";
-  if (r.u !== "bottle") return `<div class="ct-edit">${same}${one}${step("full", full, `How many${ctUnit(r.u, 2)}`)}<label class="fld">Or type it (half is .5)<input id="ct-type" inputmode="decimal" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0"></label>${can ? ctWeighHtml(r) : ""}${foot}</div>`;
-  // Phones show one way at a time, the scale first; picking the level sticks until the scale is picked again.
-  // By eye first: one tap on the level. The scale is there for anyone who wants it exact.
-  const how = can ? (wide ? `${lvl}${ctWeighHtml(r)}` : ctLvl ? `${lvl}<button class="btn ct-lvl" data-ct-lvl="0">⚖️ Weigh it instead</button>` : `${ctWeighHtml(r)}<button class="btn ct-lvl" data-ct-lvl="1">By eye: tap how full it is</button>`)
-    : `<p class="s">No weights for ${esc(r.item)} yet, so tap how full it is.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${lvl}${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}`;
-  return `<div class="ct-edit ct-b">${same}<div class="ct-c1"><p class="ct-n">1. Full, sealed bottles${r.size ? ` <small>${esc(r.size)}</small>` : ""}</p>${step("full", full, "Full")}</div>
-    <div class="ct-c2"><p class="ct-n">2. The open one</p>${how}</div>${foot}</div>`;
+  const weigh = can ? ctWeighHtml(r) : b ? `<p class="s">No weights for ${esc(r.item)} yet.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}` : "";
+  const one = r.size && !b ? `<p class="s ct-size">One is a ${esc(ctSz(r))}${r.guess ? " (the usual size: a manager can change it)" : ""}.</p>` : "";
+  const more = `<details class="ct-more" id="ct-more"${ctMoreOn ? " open" : ""}><summary>More: ${b ? "tenths, photo check, weigh it" : "weigh it"}, none left${LIVE.admin ? ", levels" : ""}</summary>
+    ${one}${tenths}${b ? `<div class="ct-open">${ctBottle(open)}<div><span>Or tap the bottle</span>${ctPhotoBtn(r)}</div></div>${ctPhotoHtml(r)}` : ""}
+    ${weigh}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}${b ? `<button class="btn" data-ct-next="${esc(r.key)}">Next ›</button>` : ""}</div></details>`;
+  return `<div class="ct-edit ct-c">${same}${step}${quick}${ctSumLine(r, x)}${more}</div>`;
 }
+// What the line adds up to, in bottles and in ml: a worked example until it's counted.
+const ctLitres = (ml) => `${ctVol(ml)}${ml >= 1000 ? ` (${ctNum(ml / 1000)} litres)` : ""}`;
+function ctSumLine(r, x) {
+  if (r.u !== "bottle") return x ? `<p class="ct-sum">Total here: <b>${ctSay(r.u, ctQty(x))}</b></p>` : "";
+  const full = x ? x.full : 3, open = x ? x.open : 40, n = full + open / 100, ml = r.ml ? Math.round(n * r.ml) : 0;
+  const t = `${full} full + ${open ? ctNum(open / 100) : "no"} open = <b>${ctNum(n)} bottle${n === 1 ? "" : "s"}</b>${ml ? `${r.size ? ` of ${esc(ctSz(r))}` : ""} = ${ctLitres(ml)}` : ""}`;
+  return `<p class="ct-sum${x ? "" : " ct-eg"}">${x ? t : `For example: ${t}`}</p>`;
+}
+var ctMoreOn = store.get("ctMore", false);
 // Managers: the product's levels, in what it's counted in, all places together. Running low below: the heads-up before
 // an 86. Par: what the order draft orders back up to. Blank is off.
 const ctLowField = (r) => `<div class="two"><label class="fld">Running low below <span class="s">(${ctUnit(r.u, 2).trim() || "how many"})</span><input inputmode="decimal" data-ct-f="low" value="${r.low || ""}" placeholder="Off"></label><label class="fld">Par: order up to<input inputmode="decimal" data-ct-f="par" value="${ctSetup().items[r.item]?.par ?? ""}" placeholder="Off"></label></div>`;
@@ -10789,7 +10831,7 @@ function ctBottle(open) {
 function ctWeighHtml(r) {
   const b = r.u === "bottle";
   const est = r.est ? ` Weights estimated.${LIVE.admin ? "" : " A manager can check them."}` : r.lock ? ` ${ctLockSay(r)}` : " Weights checked.";
-  return `<label class="fld ct-g">${b ? "On the scale, grams (pourer off)" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the packaging ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="Grams"></label><p class="s" id="ct-g-out">${b ? `${r.size}: empty ${r.e} g, full ${r.f} g. A sealed one goes on Full.` : ""}</p><p class="s ct-est">${est.trim()}</p>${LIVE.admin && (r.est || ctOpenLock(r)) ? ctCheckHtml(r) : LIVE.admin && r.lock ? ctUnlockBtn(r) : ""}`;
+  return `<label class="fld ct-g">${b ? "On the scale, grams (pourer off)" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the packaging ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="Grams"></label><p class="s" id="ct-g-out">${b ? `${ctSz(r)}: empty ${r.e} g, full ${r.f} g. A sealed one goes on Full.` : ""}</p><p class="s ct-est">${est.trim()}</p>${LIVE.admin && (r.est || ctOpenLock(r)) ? ctCheckHtml(r) : LIVE.admin && r.lock ? ctUnlockBtn(r) : ""}`;
 }
 // Weighed by a manager: locked until the next re-weigh, which takes a deliberate Unlock first, so nobody changes it by
 // accident. The lock is the weights a manager saved; Unlock only opens it on this phone until the new ones are saved.
@@ -10802,15 +10844,15 @@ const ctWeighed = (x) => ({ ...x, wb: LIVE.me || "", wd: shiftDay() });
 // A manager checking the estimate: a sealed bottle on the scale is enough, as the empty one is that less what's in it.
 function ctCheckHtml(r) {
   return `<details class="ct-wbox"${ctOpenLock(r) ? " open" : ""}><summary>${ctOpenLock(r) ? "Re-weigh: a sealed one" : "Check it: weigh a sealed one"}</summary><div class="ct-w"><div class="ltools"><input inputmode="decimal" data-ct-chk="${esc(r.item)}" placeholder="Sealed ${esc(r.item)}, grams" aria-label="Sealed bottle, grams"><button class="btn" data-ct-chkgo="${esc(r.item)}">Save</button></div>
-    <p class="s">${r.u === "bottle" ? `${ctCl(r.ml)} of it weighs ${Math.round(r.ml * r.dn)} g, so the empty bottle is the rest.` : ""} Saves for everyone. Set up the count has both weights.</p></div></details>`;
+    <p class="s">${r.u === "bottle" ? `${ctSz(r)} of it weighs ${Math.round(r.ml * r.dn)} g, so the empty bottle is the rest.` : ""} Saves for everyone. Set up the count has both weights.</p></div></details>`;
 }
 // A manager setting a bottle's weights: weigh an empty one and an unopened one once. Not 1 g = 1 ml: a liqueur is
 // heavier than a spirit, so the two weights are what make it right. Filled in already; estimates say so.
 function ctWeightsHtml(r) {
   if (r.lock && !ctUnlocked.has(r.item)) return `<div class="ct-w"><p class="s">${ctLockSay(r)} Empty ${r.e} g, full ${r.f} g${r.ml ? `, ${r.ml} ml` : ""}.</p>${ctUnlockBtn(r)}</div>`;
-  return `<div class="ct-w" data-ct-w="${esc(r.item)}"><p class="s">${r.est ? `Filled in with estimates for a ${r.size} bottle${r.guess ? " (usual size: check yours)" : ""}. Weigh yours to make them exact: ` : ""}an empty ${esc(r.item)} bottle (rinsed, pourer off) and an unopened one.</p>
+  return `<div class="ct-w" data-ct-w="${esc(r.item)}"><p class="s">${r.est ? `Filled in with estimates for a ${ctSz(r)} bottle${r.guess ? " (usual size: check yours)" : ""}. Weigh yours to make them exact: ` : ""}an empty ${esc(r.item)} bottle (rinsed, pourer off) and an unopened one.</p>
     <div class="two"><label class="fld">Empty, grams<input inputmode="decimal" data-ct-wf="e" value="${r.e || ""}"></label><label class="fld">Unopened, grams<input inputmode="decimal" data-ct-wf="f" value="${r.f || ""}"></label></div>
-    <label class="fld">Bottle size, ml<input inputmode="numeric" data-ct-wf="ml" value="${r.ml || ""}"></label><div class="actions"><button class="btn" data-ct-wsave="${esc(r.item)}">Save the weights</button></div></div>`;
+    <label class="fld">Bottle size: 70 cl or 700 ml<input inputmode="decimal" data-ct-wf="ml" value="${r.ml ? ctCl(r.ml) : ""}" placeholder="70 cl"></label><div class="actions"><button class="btn" data-ct-wsave="${esc(r.item)}">Save the weights</button></div></div>`;
 }
 function ctPut(r, full, open) {
   full = Math.max(0, Math.min(9999, Math.round(full))); open = Math.max(0, Math.min(99, Math.round(open)));
@@ -10845,11 +10887,13 @@ function ctMic() {
 
 /* ---- Counting tips: how the bar counts, short enough to read mid-count ---- */
 var CT_TIPS = [
+  ["A worked example", "3 sealed Smirnoff and an open one about four-tenths full: Full 3, open .4. That's 3.4 bottles, and 3.4 × 700 ml = 2,380 ml (238 cl, 2.38 litres). Each tenth is a line on the bottle picture under More: 70 ml (7 cl) of a 70 cl."],
+  ["cl and ml", "1 cl = 10 ml, so a 70 cl bottle is 700 ml and a 25 ml shot is 2.5 cl. A 70 cl bottle gives 28 shots of 25 ml. Sizes show in both; cl ⇄ ml at the top swaps which comes first. Type a size either way: 70 cl or 700 ml."],
   ["Same way every time", "Top shelf to bottom, left to right, front to back. The list is in that order, so you never lose your place."],
   ["Pull the back row forward", "Bring the bottles at the back to the front as you count each spot, so nothing hides behind the front row."],
   ["Cases and crates", "A full, sealed case: count the bottles in it (24 Corona is 24), or open the line and type it. An open case: count what's left in it."],
   ["Fridges", "Top shelf left to right, then the next shelf down. Count before the fridge is restocked or after, never halfway through."],
-  ["The open bottle by eye", "Hold it upright at eye level. Tap the bottle picture at its level: half full is .5. The scale is always closer, so use it when it's there."],
+  ["The open bottle by eye", "Hold it upright at eye level and tap None, ¼, ½ or ¾. Need it closer? More has tenths and the scale."],
   ["Wine", "Full bottles in the fridge and the rack, then the open one. A 175 ml glass is about a quarter of a 75 cl bottle."],
   ["Kegs and the postmix", "Full, sealed kegs and boxes in the cellar are 1 each. The one that's connected: rock it or lift it. Light means nearly done: about .2. Not sure? .5."],
   ["Deliveries", "Count before a delivery is put away, or log it under Delivery in, so usage comes out right."],
@@ -10947,7 +10991,9 @@ var CT_INTRO = [
   { t: "1. Full, sealed bottles", pic: CT_PIC(`${CT_BTL(40, 20, 1, 95)}${CT_BTL(90, 20, 1, 95)}<circle cx="190" cy="70" r="26"/><path d="M190 56v28M176 70h28"/>`),
     how: ["Tap the item in the list.", "Count the bottles that have never been opened: the seal or cap isn't broken.", "Tap + once for each one, or +6 for a row of six. − takes one off.", "Same as last time? One tap on Same as last time does the whole line."] },
   { t: "2. The open bottle", pic: CT_PIC(`<path d="M20 128h200"/><rect x="70" y="112" width="100" height="16" rx="4"/>${CT_BTL(100, 5, 1, 45)}<path d="M180 30l20-12M186 44h24" stroke="var(--brass)"/>`),
-    how: ["Look at it level with your eye and tap the bottle picture at how full it is: half is .5. That saves it and opens the next item.", "Not sure? 📷 Photo check puts your photo beside a sealed one, so you can see the difference.", "Want it exact? ⚖️ Weigh it: pourer off, stand it on the scale and type the grams. The app works out what's left."] },
+    how: ["Look at it level with your eye and tap None, ¼, ½ or ¾. That saves it and opens the next item.", "Need it closer? More has tenths, 📷 Photo check (your photo beside a sealed one) and the scale: pourer off, stand it on the scale, type the grams."] },
+  { t: "A worked example", pic: CT_PIC(`${CT_BTL(20, 20, 1, 95)}${CT_BTL(66, 20, 1, 95)}${CT_BTL(112, 20, 1, 95)}${CT_BTL(170, 20, 1, 40)}<text x="214" y="96" font-size="15" fill="currentColor" stroke="none" font-weight="700">.4</text>`),
+    how: ["On the shelf: 3 sealed Smirnoff and one open bottle about four-tenths full.", "Tap + three times: Full 3. Then the open one: ½ is near enough by eye, or .4 under More for tenths.", "The line shows the sum: 3 full + .4 open = 3.4 bottles of 70 cl = 238 cl, or 2,380 ml (3.4 × 700 ml).", "cl to ml: times 10. ml to cl: divide by 10. A tenth of a 70 cl is 7 cl, or 70 ml, so .4 is 280 ml. Nory takes the bottles: 3.4."] },
   { t: "Cans, cakes and packs", pic: CT_PIC(`<rect x="30" y="50" width="40" height="70" rx="6"/><path d="M30 62h40M30 108h40"/><path d="M100 120h70a10 10 0 0 0 10-10V90H90v20a10 10 0 0 0 10 10z"/><path d="M90 90c10-16 80-16 90 0"/><rect x="190" y="70" width="34" height="50" rx="3"/>`),
     how: ["Count them and tap + for each, or type the number.", "Half a cake is .5. Each line says what one is, like a 200 ml bottle."] },
   { t: "Next, and nothing there", pic: CT_PIC(`<rect x="40" y="45" width="160" height="60" rx="30" fill="var(--brass)" stroke="none"/><text x="120" y="84" text-anchor="middle" font-size="26" font-weight="800" fill="var(--brass-ink)" stroke="none">Next ›</text>`),
@@ -11092,7 +11138,7 @@ function ctSetupHtml() {
     <div class="ltools"><input id="ct-anew" maxlength="40" placeholder="Add a place, like Keg room" aria-label="New place"><button class="btn" id="ct-aadd">Add</button></div>
     ${areas.map((a) => { const rs = all.filter((r) => r.area === a); return `<div class="sec">${esc(a)}</div>${rs.map((r, i) => {
       const k = `${a}|${r.item}`, open = ctSetOpen === k, first = !seen.has(r.item); seen.add(r.item);
-      return `<details class="ct-set"${open ? " open" : ""} data-ct-sk="${esc(k)}"><summary><span>${esc(r.item)}</span><small>${r.off ? "not counted" : `${r.u}${r.size ? ` · ${esc(r.size)}` : ""}${ctWeighable(r) ? (r.est ? " · weights estimated" : r.lock ? " · 🔒 weighed" : " · weights checked") : ""}${r.a.length > 1 ? ` · also ${esc(r.a.filter((x) => x !== a).join(", "))}` : ""}`}</small></summary>${open ? `<div class="ct-sbody" data-ct-item="${esc(r.item)}" data-ct-area="${esc(a)}">
+      return `<details class="ct-set"${open ? " open" : ""} data-ct-sk="${esc(k)}"><summary><span>${esc(r.item)}</span><small>${r.off ? "not counted" : `${r.u}${r.size ? ` · ${esc(ctSz(r))}` : ""}${ctWeighable(r) ? (r.est ? " · weights estimated" : r.lock ? " · 🔒 weighed" : " · weights checked") : ""}${r.a.length > 1 ? ` · also ${esc(r.a.filter((x) => x !== a).join(", "))}` : ""}`}</small></summary>${open ? `<div class="ct-sbody" data-ct-item="${esc(r.item)}" data-ct-area="${esc(a)}">
         <div class="actions"><button class="btn" data-ct-move="-1"${i ? "" : " disabled"}>↑ Up the shelf</button><button class="btn" data-ct-move="1"${i < rs.length - 1 ? "" : " disabled"}>↓ Down the shelf</button></div>
         <div class="two"><label class="fld">Counted in<select data-ct-f="u">${CT_UNITS.map((u) => `<option${u === r.u ? " selected" : ""}>${u}</option>`).join("")}</select></label>
         <label class="fld">Place<select data-ct-f="area">${areas.map((x) => `<option${x === a ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label></div>
@@ -11138,7 +11184,6 @@ $("#v-count").addEventListener("click", (e) => {
   const la = t("[data-ct-lbadd]"); if (la) { const n = la.dataset.ctLbadd; Object.assign(lbF, { item: n, life: itKeep(n)?.days ? String(itKeep(n).days) : "", open: true }); haptic(); openAt("labels"); requestAnimationFrame(() => $("#lb-add")?.scrollIntoView({ block: "start" })); return; }
   const by = t("[data-ct-by]"); if (by) { haptic(); ctBy = by.dataset.ctBy; store.set("ctBy", ctBy); ctClearFind(); return ctRender(true); }
   const sh = t("[data-ct-show]"); if (sh) { ctShow = sh.dataset.ctShow; store.set("ctShow", ctShow); ctClearFind(); return ctRender(); }
-  const lvb = t("[data-ct-lvl]"); if (lvb) { ctLvl = lvb.dataset.ctLvl === "1"; store.set("ctLvl2", ctLvl); return ctRender(); }
   const rw = t("[data-ct-row]"); if (rw) { haptic(); const k = rw.dataset.ctRow; if (ctOpen === k && rw.classList.contains("ct-line")) { ctOpen = ""; return ctRender(); } return ctGo(k); }
   const jp = t("[data-ct-jump]"); if (jp) {
     // A place already counted is hidden under Not counted yet: going to it shows everything.
@@ -11150,6 +11195,7 @@ $("#v-count").addEventListener("click", (e) => {
   const ad = t("[data-ct-add]"); if (ad && r) { haptic(); const d = +ad.dataset.ctAdd.split(":")[1]; ctPut(r, Math.max(0, (x?.full || 0) + d), x?.open || 0); return; }
   // The open bottle's level, No open one, None left and Same as last time are the last tap on a line: it saves and the
   // next one opens by itself.
+  const lp = t("[data-ct-lvp]"); if (lp && r) { haptic(); ctPut(r, x?.full || 0, +lp.dataset.ctLvp); return ctNext(r.key, true); }
   const lv = t("[data-ct-lv]"); if (lv && r) { haptic(); ctPut(r, x?.full || 0, +lv.dataset.ctLv * 10); return ctNext(r.key, true); }
   const st = t("[data-ct-set]"); if (st && r) { haptic(); const [f, o] = st.dataset.ctSet.split(":").map(Number); ctPut(r, f, o); return ctNext(r.key, true); }
   const sm = t("[data-ct-same]"); if (sm && r) { const p = ctPrevOf(r); if (!p) return; haptic(); ctPut(r, p.full, p.open); return ctNext(r.key, true); }
@@ -11170,6 +11216,7 @@ $("#v-count").addEventListener("click", (e) => {
   }
   const id = t("[data-ct-in-drop]"); if (id) return track(LIVE.api.dropReceived(id.dataset.ctInDrop), "Taken off", "Not taken off. Try again");
   if (t("#ct-use-go")) return ctUseLoad();
+  if (t("[data-ct-unit]")) { ctMlFirst = !ctMlFirst; store.set("ctMlFirst", ctMlFirst); toast(ctMlFirst ? "Sizes in ml first. 10 ml = 1 cl" : "Sizes in cl first. 1 cl = 10 ml"); return ctRender(true); }
   // Setup
   if (t("#ct-setup")) { ctSetupOn = true; ctSetOpen = ""; ctRender(); scrollTo(0, 0); return; }
   if (t("#ct-setup-done")) { ctSetupOn = false; ctRender(); scrollTo(0, 0); return; }
@@ -11178,12 +11225,13 @@ $("#v-count").addEventListener("click", (e) => {
     const item = ck.dataset.ctChkgo, rr = ctRows(true).find((y) => y.item === item), g = +$(`[data-ct-chk="${CSS.escape(item)}"]`).value.replace(",", ".") || 0;
     if (rr.u !== "bottle") { if (!(g > rr.e)) return toast("Weigh a full one, packaging and all"); ctUnlocked.delete(item); return ctSave((s) => ctItemSet(s, rr, ctWeighed({ pw: Math.round(g - rr.e), e: rr.e })), `${item} checked: ${Math.round(g - rr.e)} g in one. Locked`); }
     const e0 = Math.round(g - rr.ml * rr.dn);
-    if (!(e0 > 50)) return toast(`That's too light for a sealed ${rr.size} bottle. Check the scale reads 0 first`);
+    if (!(e0 > 50)) return toast(`That's too light for a sealed ${ctSz(rr)} bottle. Check the scale reads 0 first`);
     ctUnlocked.delete(item); return ctSave((s) => ctItemSet(s, rr, ctWeighed({ e: e0, f: Math.round(g), ml: rr.ml })), `${item} checked: empty ${e0} g, full ${Math.round(g)} g. Locked`);
   }
   const ws = t("[data-ct-wsave]"); if (ws) {
-    const box = ws.closest("[data-ct-w]"), v = (k) => +box.querySelector(`[data-ct-wf="${k}"]`).value || 0, e0 = v("e"), f0 = v("f"), ml = v("ml"), rr = ctRows(true).find((y) => y.item === ws.dataset.ctWsave);
+    const box = ws.closest("[data-ct-w]"), v = (k) => +box.querySelector(`[data-ct-wf="${k}"]`).value.replace(",", ".") || 0, e0 = v("e"), f0 = v("f"), mt = box.querySelector('[data-ct-wf="ml"]').value, ml = ctParseMl(mt), rr = ctRows(true).find((y) => y.item === ws.dataset.ctWsave);
     if (!(e0 > 0 && f0 > e0)) return toast("The unopened one has to weigh more than the empty one");
+    if (mt.trim() && !(ml >= 50 && ml <= 5000)) return toast("Bottle size: type it like 70 cl or 700 ml");
     ctUnlocked.delete(rr.item); return ctSave((s) => ctItemSet(s, rr, ctWeighed({ e: e0, f: f0, ml })), `Weights saved for ${rr.item}. Locked`);
   }
   const am = t("[data-ct-amove]"); if (am) { const [i, d] = am.dataset.ctAmove.split(":").map(Number); return ctSave((s) => { const a = ctAreas(); [a[i], a[i + d]] = [a[i + d], a[i]]; s.areas = a; }); }
@@ -11199,6 +11247,7 @@ $("#v-count").addEventListener("toggle", (e) => {
   const d = e.target; if (!$("#ct") || !d.matches?.("details") || !d.isConnected) return;
   if (d.id === "ct-in-box") ctInHtml.open = d.open;
   else if (d.id === "ct-tips") ctTipsHtml.open = d.open;
+  else if (d.id === "ct-more") { ctMoreOn = d.open; store.set("ctMore", ctMoreOn); }
   else if (d.id === "ct-useby") ctUseByHtml.open = d.open;
   else if (d.id === "ct-codes") ctCodesHtml.open = d.open;
   else if (d.id === "it-add") itOpen = d.open;
@@ -11617,7 +11666,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T02:44";
+const BUILD = "2026-11-18T14:35";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -13605,9 +13654,11 @@ const HELP = {
     behind: ["Each tap is saved with your name and the time, so a label that wasn't changed can be traced.", "Due today, tomorrow and overdue show at the top of Morning and Closing, and go in the handover.", "Only managers add, change or remove items. They set each side up from Black Tap's list in one go, with the days from each pack."] },
   count: { t: "Stock", what: "Its own tab: the count book, the barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place, in the order you walk it.",
     how: ["The Stock tab, at the bottom. First time? It walks you through it with pictures: the scale, full bottles, the open one, and what to do if something isn't listed. How to count shows it again, and Counting tips (front to back, cases, fridges, wine, kegs) sit under it.", "Walk it in order and tap each item. Each line says what to do with it.",
-      "A bottle, one way through: + for each full, sealed one (+6 for a row of six), then tap the open one's level on the bottle picture, by eye. The level saves it and opens the next one by itself, and so do No open one and None left.",
+      "A bottle is two lines: Full, + for each full, sealed one (+6 for a row of six), then Open: None, ¼, ½ or ¾, by eye. That tap saves it and opens the next one by itself.",
       "Same as it was at the last count? Same as last time, at the top of the line, does it in one tap.",
-      "Not sure of the level? 📷 Photo check shows your photo beside a sealed one. Want it exact? ⚖️ Weigh it: pourer off, on the scale, type the grams (every bottle comes with its size and weights filled in). It stays on the scale until you pick By eye again.",
+      "For example: 3 sealed Smirnoff and an open one about four-tenths full: Full 3, open .4. That's 3.4 bottles, and 3.4 × 700 ml = 2,380 ml (238 cl, 2.38 litres). The line shows the sum as you go.",
+      "cl and ml: 1 cl = 10 ml, so 70 cl is 700 ml. Sizes on the count show both; cl ⇄ ml at the top swaps which comes first, and a bottle size can be typed either way.",
+      "Need it closer? More, under the line: tenths, 📷 Photo check (your photo beside a sealed one), the bottle picture, and the scale: pourer off, type the grams (every bottle has its size and weights filled in). More stays open on your phone once you open it, so weighing every bottle is still one step.",
       "Anything else (cans, cakes, packs): +, +6 and −, or type it and press Enter. Half is .5.",
       "Not in shelf order? Type a few letters in Find at the top: it looks in every place and says where each one is. The place buttons jump to a place. By kind puts all the vodkas, all the cakes and so on together, wherever they're kept. A to Z lists everything by name with the letter strip down the side. Next › goes down whichever is showing.",
       "Not counted yet shows only what's left, so the list gets shorter as you go. Counted shows what's done and who did it. All shows the lot.",
@@ -13721,7 +13772,7 @@ const INTRO = [
   { t: "Out of something? It adjusts", how: ["Shift, 86, then Search everything to 86: a few letters, typos and all, or pick a kind. Tick several to 86 them together. Every phone knows straight away.", "Every drink, on the menu, the spec and the iPad, then says ✓ Can make, ⚠ Can make with a swap, or ✕ Can't make tonight. The swap is worked out by sugar and acid, so it tastes like the spec.", "Missing something mid-drink? Tap it on the drink. Can't make it and the guest doesn't mind? Go with the flow uses the closest thing you have, or offers the nearest drink."], tip: "A house cocktail made another way says Adjusted, so nobody takes it for the house spec. Back in stock takes it off everywhere at once.", more: ["drink", "stock"] },
   { t: "The cocktail maker", how: ["Make: tap what you've got and see what you can make, closest first, with swaps.", "My bar keeps your own bottles. Specs puts every spec on one line for busy moments.", "Black Tap shows our line-up: draught, bottles, softs and the house serves."], tip: "A guest names two bottles? Tap them and offer the top match.", more: ["make"] },
   { t: "Run the shift together", how: ["Shift is shared live with everyone on your side: the 86 board, restocks from the cellar and date labels.", "Restock: ask for it, someone brings it up, whoever's there confirms it arrived. Late ones flag after 15 minutes.", "Date labels tell you what to write on the label and what's due today or tomorrow. Last orders flags on every phone 15 minutes before."], tip: "No signal? A badge says Working offline, all saved, and everything sends when you're back.", more: ["shift", "labels"] },
-  { t: "Count stock without the notebook", how: ["The Stock tab: every place in shelf order, every product on it.", "Tap an item: + for each full, sealed bottle, then the open one on the scale (or tap how full it is), then Next. Find at the top looks in every place.", "Or 🎤 say it: “Smirnoff two and a half”, or 📷 scan the bottle's barcode.", "Use-by dates due soon are at the top, from the date labels.", "Send the totals on WhatsApp as a table, or as a spreadsheet for Nory.", "Anything under the running-low level a manager set shows on the 86 board and the bar station, before it runs out."], tip: "It saves as you go, so two of you can count different places at once.", more: ["count"] },
+  { t: "Count stock without the notebook", how: ["The Stock tab: every place in shelf order, every product on it.", "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾. That saves it and opens the next. Find at the top looks in every place.", "Or 🎤 say it: “Smirnoff two and a half”, or 📷 scan the bottle's barcode.", "Use-by dates due soon are at the top, from the date labels.", "Send the totals on WhatsApp as a table, or as a spreadsheet for Nory.", "Anything under the running-low level a manager set shows on the 86 board and the bar station, before it runs out."], tip: "It saves as you go, so two of you can count different places at once.", more: ["count"] },
   { t: "Close properly", how: ["Tick the close as you go, or Tick all under a heading. Splitting it? I'll do this on a heading puts your name on that part, and Take over picks up a part someone left. Ticks show on every phone straight away.", "Can't do one? ⋯, Blocked, and say why. It goes in the handover, so nothing is quietly missed.", "All done? Tap Finish. The timer shows how long it took against the team's best, and who ticked what is kept for the duty manager."], tip: "Only what's left hides finished items, so the next job is always at the top.", more: ["closing", "clearall"] },
   { t: "Log anything, in one line", how: ["Saw it, found it, did it, told a manager or someone told you: tap \uff0b Log it on Shift or the bar station.", "86 goes on the 86 board, Broken on Issues, and the rest straight into tonight's handover with your name and the time.", "Log it and send on WhatsApp puts it in the team chat from your phone."], tip: "Someone hurt or an accident: the duty manager and the accident book, straight away.", more: ["logit"] },
   { t: "Hand over in one tap", how: ["On Handover: who closed, what's low, what's outstanding, what tomorrow needs, and the closing photos.", "Send with photos saves it and opens the share sheet with the photos; Just save saves it for the morning and the managers and sends nothing.", "In the morning, Shift, Morning shows last night's handover, today's order and the prep pars."], tip: "Two people can fill in the handover at once: it's shared live with everyone closing your side.", more: ["handover", "morning"] },
@@ -13973,8 +14024,8 @@ document.head.insertAdjacentHTML("beforeend", `<style>
    The ? at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 10;
-const WALK_NEW = "Photos: every photo of the night in one place, bar and floor, from every phone and the iPad, with who took it and when. Tap the ones you want (or Pick all) and Send. Drinks: Select drinks to send at the top of the list, tap drinks or Pick all on a section, then Share sends their specs and swaps in one message. Shared specs say when they were true (Specs as of), and every message links back to Bar Book. The bar iPad has a Go to row (86 and low, Closing, Hand over, Photos, Date labels, Stock, Morning), and a manager can switch any of it off in Set up, iPad tiles. Stock has its own tab at the bottom, and counting is quicker: +6, the level by eye saves and moves on, Same as last time, By kind, and add anything missing and count it there and then. Also on it: a barcode scanner (scan a bottle to count it or see its date label), use-by dates due in the next 3 days, counting tips and Add something new. On Shift, the old Stock tab is now 86. Make it now on the bar iPad: tap a drink and it opens as big step cards, glass and ice first, then each step with the ml and the jigger side. Tap the card when it's done; Done goes back to the list, and Make the round does a round a drink at a time. Running low: after a stock count, anything under the level a manager set shows on the 86 board, the bar station and Needs you now, before it runs out.";
+const WALK_V = 11;
+const WALK_NEW = "Counting stock is shorter: each item is two lines, Full with + and +6, then the open one with None, ¼, ½ or ¾, which saves it and opens the next. Tenths, Photo check, the scale and None left are under More, which stays open if you use it. Sizes show in cl and ml, with cl ⇄ ml to swap, and the sum line gives a worked example.";
 const WALK_NAV = { t: "Getting around", how: [
   "The tabs along the bottom go anywhere: Drinks, Shift, Stock, Team, My pay and More.",
   "‹ Back at the top of a page goes back one step, and so does your phone's own back (on an iPhone, swipe in from the left edge).",
@@ -13990,8 +14041,9 @@ const WALK_LOG = (side) => ({ t: "During service: Log it", how: [
 ], tip: "Someone hurt or an accident: tell the duty manager straight away and write it in the accident book. Bar Book isn't the accident book." });
 const WALK_COUNT = { t: "Stock count", how: [
   "The Stock tab: the first time, it walks you through it with pictures. Every place is in the order you walk it, and Not counted yet shows only what's left. Counting tips are under How to count.",
-  "Tap an item: + for each full, sealed bottle (+6 for a row), then tap the open one's level by eye. That saves it and opens the next one. Same as last time does a line in one tap. Want it exact? ⚖️ Weigh it.",
+  "Tap an item: + for each full, sealed bottle (+6 for a row), then the open one: None, ¼, ½ or ¾. That saves it and opens the next one. Same as last time does a line in one tap. More has tenths, Photo check and the scale.",
   "Can't see it? Type a few letters in Find at the top: it looks in every place. Or 📷 Scan its barcode. Or 🎤 Say it: “Smirnoff two and a half”.",
+  "For example: 3 sealed Smirnoff and an open one about four-tenths full is Full 3, open .4 (under More), which is 3.4 bottles of 70 cl, or 2,380 ml. The line shows the sum. Sizes show in cl and ml (1 cl = 10 ml); cl ⇄ ml at the top swaps which leads.",
   "Use-by, at the top of Stock: date labels due in the next 3 days. Changed it saves the new date in one tap.",
   "Anything under its running-low level gets a Running low tag, then shows on the 86 board, the bar station and Needs you now as a heads-up before it's an 86.",
   "Send the totals on WhatsApp or as a spreadsheet for whoever puts it into Nory.",

@@ -18,7 +18,7 @@ test("running low: a level, a count under it, flagged everywhere until it's 86'd
   await resetEmulators();
   const { M, S } = await team(browser, site, people);
   // The manager sets it on the line while counting.
-  await openCount(M);
+  await openCount(M); await M.evaluate(() => { ctMoreOn = true; });
   await M.fill("#ct-say", "smirnoff"); await M.press("#ct-say", "Enter");
   await M.waitForSelector('.ct-lowset [data-ct-f="low"]');
   await M.fill('.ct-lowset [data-ct-f="low"]', "3"); await M.press('.ct-lowset [data-ct-f="low"]', "Tab");
