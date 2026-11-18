@@ -85,7 +85,7 @@ service cloud.firestore {
     // The build writes a fingerprint of this file here (src/site.js). Maintenance's phone asks for rulesv/{its build's
     // fingerprint}: refused means the rules published in the console are older than the app. Nothing is stored here.
     match /rulesv/{v} {
-      allow get: if signedIn() && v == '882e9227921a'; // RULES-FINGERPRINT
+      allow get: if signedIn() && v == 'ed9710cd001e'; // RULES-FINGERPRINT
     }
 
     // ---------- Joining the team ----------
@@ -862,5 +862,21 @@ service cloud.firestore {
           || (resource != null && resource.data.game == incoming().game
               && incoming().picks.diff(resource.data.picks).affectedKeys().hasOnly([string(get(quizDoc()).data.i)])));
     }
+
+    // ---------- Start again ----------
+    // The owner (Maintenance) wipes everything the team has logged, to start fresh after testing, from Maintenance
+    // settings after saving a backup. Only these records: the team, codes, lists, date labels, items, barcodes, the count
+    // setup, drink media and settings can't go this way. The same list is START_WIPE in src/live-src.js. Every night's
+    // tasks, procedures and old ticks sit under shift/{day}, so the owner reads them as collection groups to find them.
+    match /{c}/{id} {
+      allow delete: if isOwner() && c in ['events', 'outlog', 'out', 'restock', 'counts', 'received', 'reports', 'photos',
+        'labelPhotos', 'drafts', 'closes', 'issues', 'asks', 'tells', 'sent', 'briefSeen', 'scores', 'signoffs'];
+    }
+    match /shift/{day}/{sub}/{id} {
+      allow delete: if isOwner() && sub in ['tasks', 'runs', 'ticks'];
+    }
+    match /{path=**}/tasks/{id} { allow read: if isOwner(); }
+    match /{path=**}/runs/{id} { allow read: if isOwner(); }
+    match /{path=**}/ticks/{id} { allow read: if isOwner(); }
   }
 }

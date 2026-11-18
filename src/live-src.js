@@ -15,7 +15,7 @@ import {
 } from "firebase/auth";
 import {
   initializeFirestore, persistentLocalCache, persistentMultipleTabManager, connectFirestoreEmulator, doc, getDoc, setDoc, addDoc, deleteDoc, updateDoc,
-  collection, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
+  collection, collectionGroup, query, orderBy, limit, onSnapshot, serverTimestamp, writeBatch, where, getDocs, Timestamp,
   terminate, clearIndexedDbPersistence, deleteField, runTransaction, getDocFromServer, waitForPendingWrites,
 } from "firebase/firestore";
 
@@ -61,6 +61,10 @@ function sub(k, ref, fn, failed) {
 // Ids go into the page's HTML. The app only ever makes plain ones (letters, digits, dashes), so a record with any other
 // id was written some other way and is skipped. The id goes after a record's own fields so a field called id can't
 // take its place. Something just written on this phone has no server time yet, so it sorts as newest.
+// What Start again wipes: every record the team makes. START_BIG hold photos, so they go in small pages and stay out of the
+// backup. START_GROUPS are under shift/{day}. firestore.rules lets only the owner delete these, and nothing else.
+const START_WIPE = ["events", "outlog", "out", "restock", "counts", "received", "reports", "photos", "labelPhotos", "drafts", "closes", "issues", "asks", "tells", "sent", "briefSeen", "scores", "signoffs"];
+const START_BIG = ["photos", "labelPhotos"], START_GROUPS = ["tasks", "runs", "ticks"];
 const plain = (x) => /^[A-Za-z0-9-]+$/.test(x.id);
 const rows = (snap) => snap.docs.filter(plain).map((x) => ({ ...x.data(), id: x.id, pending: x.metadata.hasPendingWrites })).sort((a, b) => ms(b.at) - ms(a.at));
 const me = () => ({ uid: auth.currentUser.uid, name: LIVE.me, at: serverTimestamp() });
@@ -625,6 +629,34 @@ LIVE.api = {
       outlog: await all("outlog", query(collection(db, "outlog"), where("at", ">=", since), limit(2000))),
       issues: await all("issues", query(collection(db, "issues"), orderBy("at", "desc"), limit(300))),
     };
+  },
+  // Start again (the owner only): Save everything first, then wipe it. backupAll is backup() plus every record the wipe
+  // removes, with no date limits (photos left out: too big, and they go for good). startAgain bins any open date label,
+  // then deletes every record in START_WIPE and every night's tasks, procedures and old ticks, in pages, waiting for the
+  // server each time. Kept: the team and its codes, the lists, the date labels themselves, items and their history,
+  // barcodes, the count setup and its reference photos, drink photos and videos, settings and the football.
+  async backupAll() {
+    const all = (c) => getDocs(c).then((s) => s.docs.map((x) => ({ id: x.id, path: x.ref.path, ...x.data() })));
+    const out = { ...(await LIVE.api.backup()) };
+    for (const c of START_WIPE) if (!START_BIG.includes(c)) out[c] = await all(collection(db, c));
+    for (const g of START_GROUPS) out[`shift-${g}`] = await all(collectionGroup(db, g));
+    return out;
+  },
+  async startAgain(step = () => {}) {
+    let n = 0;
+    const open = await getDocs(query(collection(db, "labels"), where("state", "==", "open")));
+    for (const d of open.docs) { await LIVE.api.label({ id: d.id, ...d.data() }, "binned"); step(++n); }
+    const wipe = async (q) => {
+      for (;;) {
+        const s = await getDocs(q);
+        if (s.empty) return;
+        const b = writeBatch(db); s.docs.forEach((d) => b.delete(d.ref)); await b.commit();
+        n += s.size; step(n);
+      }
+    };
+    for (const c of START_WIPE) await wipe(query(collection(db, c), limit(START_BIG.includes(c) ? 20 : 400)));
+    for (const g of START_GROUPS) await wipe(query(collectionGroup(db, g), limit(400)));
+    return n;
   },
   // Health check: how long the server takes to answer, and whether everything this phone saved has reached it.
   async ping() {
