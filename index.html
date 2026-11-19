@@ -541,7 +541,6 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
-.wquick #w-ipad { grid-column: 1 / -1; }
 .bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
 .utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
@@ -588,7 +587,6 @@ ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; 
 .warnbox { border: 2px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
 .recent.score .chip { min-width: 40px; justify-content: center; }
 .spin { font-size: 34px; font-weight: 800; text-align: center; padding: 18px 0; color: var(--brass); }
-.wme { margin: 14px 0 4px; } .wi .recent { justify-content: center; } .wi .mini { text-align: center; }
 .pill { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); vertical-align: 1px; }
 .pill.ok { color: var(--ok); border-color: var(--ok); } .pill.no { color: var(--warn); border-color: var(--warn); } .pill.wait { color: var(--brass); border-color: var(--brass); }
 .staffrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -1062,28 +1060,46 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .row.picking[aria-pressed="true"] { background: var(--surface); }
 .pickbar { position: fixed; left: 0; right: 0; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); z-index: 8; display: flex; align-items: center; gap: 10px; padding: 10px max(16px, env(safe-area-inset-left, 0px)); background: var(--surface); border-top: 1px solid var(--brass); box-shadow: 0 -8px 18px var(--shadow); }
 .pickbar[hidden] { display: none; }
-.pick-top { display: flex; justify-content: flex-end; margin: 0 0 -16px; position: relative; z-index: 1; }
-.pick-top .linkbtn { min-height: 44px; }
+.pick-top { display: flex; justify-content: flex-end; margin: -8px 0 -22px; position: relative; z-index: 1; }
+.pick-top .linkbtn { min-height: 44px; font-size: 14px; text-decoration: none; color: var(--muted); }
 .pickbar > span { flex: 1; min-width: 0; font-weight: 700; }
 .pickbar .btn { min-height: 44px; }
 body.picking main { padding-bottom: calc(var(--tabh) + 90px); }
 body.picking #sd-timer { display: none; }
 .row:active { background: var(--surface); }
-.welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); overflow-y: auto; transition: opacity .3s, transform .3s; }
+/* The start screen: brand, who you are and the team code in one card, Bar or Floor, then the drinks-only ways in. */
+.welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); background: radial-gradient(130% 55% at 50% -12%, color-mix(in srgb, var(--brass) 20%, transparent), transparent 70%), var(--bg); display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px); overflow-y: auto; transition: opacity .3s, transform .3s; }
 .welcome.bye { opacity: 0; transform: scale(1.03); pointer-events: none; }
-.welcome .wi { max-width: 420px; margin: 0 auto; width: 100%; }
-.welcome svg { width: 84px; height: 84px; display: block; margin-bottom: 18px; }
-.welcome h2 { font-family: var(--display); font-size: 48px; line-height: .95; margin: 0 0 14px; text-transform: uppercase; }
+/* margin: auto centres it when it fits and keeps the top in reach when it doesn't (justify-content: center cut it off). */
+.welcome .wi { max-width: 440px; margin: auto; width: 100%; }
+.welcome .whead { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.welcome .whead svg { flex: none; width: 64px; height: 54px; }
+.welcome h2 { font-family: var(--display); font-size: 40px; line-height: .92; margin: 0; text-transform: uppercase; }
 .welcome h2 span { color: var(--brass); }
-.welcome ul { list-style: none; padding: 0; margin: 18px 0; }
-.welcome li { padding: 9px 0 9px 30px; position: relative; border-bottom: 1px solid var(--line); }
-.welcome li::before { content: "\2713"; position: absolute; left: 4px; color: var(--brass); font-weight: 700; }
-.welcome .wip { color: var(--muted); font-size: 15px; margin: 0 0 22px; }
-.welcome .wbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-.welcome .wbtns .btn { min-height: 56px; font-size: 20px; padding-inline: 6px; }
-.welcome .wquick { grid-template-columns: 1fr 1fr; margin-top: 8px; } .welcome .wquick .btn { min-height: 48px; font-size: 17px; margin: 0; }
+.welcome .wtag { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+#w-name { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 4px 14px 14px; box-shadow: 0 10px 30px var(--shadow); }
+#w-name:empty { display: none; }
+.welcome .wme { margin: 10px 0 2px; font-weight: 700; font-size: 17px; }
+.welcome .wi .mini { margin-top: 10px; }
+.welcome .recent { gap: 6px; }
+.welcome .recent .chip { min-height: 40px; padding: 8px 13px; }
+.welcome .whi { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; }
+.welcome .wav { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--brass); color: var(--brass-ink); font-weight: 800; font-size: 20px; }
+.welcome .whi b { flex: 1; min-width: 0; font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.welcome .whi .linkbtn { min-height: 44px; font-size: 15px; }
 .welcome .wcodes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; text-align: left; }
-.welcome .sig { font-style: italic; color: var(--brass); font-size: 18px; margin: 18px 0 0; text-align: center; }
+.welcome .wbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.welcome .wbtns .btn { min-height: 64px; font-size: 22px; padding-inline: 6px; border-radius: 14px; letter-spacing: .02em; }
+.welcome .wor { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; }
+.welcome .wor::before, .welcome .wor::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.welcome .wquick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.welcome .wquick .btn { flex-direction: column; gap: 2px; min-height: 68px; margin: 0; padding: 8px 4px; font-size: 14px; line-height: 1.15; border-radius: 14px; }
+.welcome .wquick i { font-style: normal; font-size: 22px; }
+.welcome .wfoot { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 18px; text-align: center; }
+.welcome .wlang { flex: none; display: flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; padding: 0 4px 0 12px; background: var(--surface); }
+.welcome .wlang i { font-style: normal; }
+.welcome .wlang select { font: inherit; font-size: 15px; color: var(--fg); background: none; border: 0; min-height: 44px; max-width: 180px; padding: 0 10px 0 2px; }
+.welcome .wip { color: var(--muted); font-size: 14px; line-height: 1.4; margin: 0; max-width: 34ch; }
 .credit { text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .04em; margin: 28px 0 8px; }
 .credit b { color: var(--brass); font-weight: 700; }
 .swhint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); transform: translateX(-50%); z-index: 25; background: var(--brass); color: var(--brass-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px var(--shadow); pointer-events: none; white-space: nowrap; }
@@ -1219,16 +1235,14 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 </script>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
-  <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
+  <div class="whead"><svg viewBox="18 16 64 54" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div><h2 id="w-t">Black Tap <span>Bar Book</span></h2><p class="wtag">Every drink we make, in your pocket.</p></div></div>
   <div id="w-name"></div>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
-  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button><button class="btn wrapid" id="w-ipad" data-start="bar" data-ipad="1">📲 iPad bar station</button></div>
-  <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
-  <p>Every drink we make, in your pocket.</p>
-  <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
-  <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
-  <p class="wip">Spot something wrong or got an idea? Tell maintenance: More, then App feedback.</p>
+  <div class="mini wor">Just the drinks</div>
+  <div class="wquick"><button class="btn" id="w-rapid" data-start="bar" data-rapid="1"><i aria-hidden="true">⚡</i><span>Rapid fire</span></button><button class="btn" id="w-drinks" data-start="bar" data-drinks="1"><i aria-hidden="true">🍸</i><span>Drinks</span></button><button class="btn" id="w-ipad" data-start="bar" data-ipad="1"><i aria-hidden="true">📲</i><span>iPad bar station</span></button></div>
+  <div class="wfoot"><label class="wlang" translate="no"><i aria-hidden="true">🌐</i><select data-lang id="w-lang" aria-label="Language"></select></label>
+  <p class="wip">New here? Bar or Floor shows you how the night works. After that, 🔍 at the top finds anything.</p></div>
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-guest-open aria-label="Talk to a guest: their language, menu, phrases"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c-2.6 2.6-2.6 14.4 0 17M12 3.5c2.6 2.6 2.6 14.4 0 17"/></svg></button><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
@@ -4074,7 +4088,7 @@ document.addEventListener("click", (e) => {
    phrase with its translations in the same order, "" where there isn't one yet). Whatever is
    on screen is matched whole against the English, so a word that isn't in the list stays in English, and so do drink
    names, specs and allergens, which are never in it. Names and what people type are never touched. */
-const I18N = {"langs":[["ar","العربية","Arabic"],["hy","Հայերեն","Armenian"],["bn","বাংলা","Bengali"],["bg","Български","Bulgarian"],["zh","中文","Chinese"],["fr","Français","French"],["gu","ગુજરાતી","Gujarati"],["hi","हिन्दी","Hindi"],["it","Italiano","Italian"],["lt","Lietuvių","Lithuanian"],["ne","नेपाली","Nepali"],["pl","Polski","Polish"],["pt","Português","Portuguese"],["pa","ਪੰਜਾਬੀ","Punjabi"],["ro","Română","Romanian"],["es","Español","Spanish"],["ta","தமிழ்","Tamil"],["tr","Türkçe","Turkish"],["uk","Українська","Ukrainian"],["ur","اردو","Urdu"],["vi","Tiếng Việt","Vietnamese"],["cy","Cymraeg","Welsh"]],"v":"78b8caed68"};
+const I18N = {"langs":[["ar","العربية","Arabic"],["hy","Հայերեն","Armenian"],["bn","বাংলা","Bengali"],["bg","Български","Bulgarian"],["zh","中文","Chinese"],["fr","Français","French"],["gu","ગુજરાતી","Gujarati"],["hi","हिन्दी","Hindi"],["it","Italiano","Italian"],["lt","Lietuvių","Lithuanian"],["ne","नेपाली","Nepali"],["pl","Polski","Polish"],["pt","Português","Portuguese"],["pa","ਪੰਜਾਬੀ","Punjabi"],["ro","Română","Romanian"],["es","Español","Spanish"],["ta","தமிழ்","Tamil"],["tr","Türkçe","Turkish"],["uk","Українська","Ukrainian"],["ur","اردو","Urdu"],["vi","Tiếng Việt","Vietnamese"],["cy","Cymraeg","Welsh"]],"v":"e64a283676"};
 const LANGS = I18N.langs, LANG_RTL = new Set(["ar", "ur", "he", "fa", "ps", "yi", "sd", "ckb", "ug", "dv"]);
 let lang = store.get("lang", "");
 const TR = new Map();
@@ -5503,7 +5517,7 @@ const FEATURES = [
   { g: "Stock", k: "count", n: "Stock", go: "count", team: 1, tour: 1,
     what: "Its own tab: the count book on your phone, a barcode scanner, use-by dates and Add something new. Everything the bar and floor hold, place by place in shelf order, with totals for Nory, deliveries in, usage between counts, and a running-low heads-up before anything's an 86.",
     staff: "Tap an item: + for each full, sealed bottle, then the open one: None, ¼, ½ or ¾, and Confirm. ‹ Back goes back one. Same as last time is one tap; More has tenths, the scale and 📷 Photo check. Places are numbered and fold open one at a time, and a counted bottle says what's there (2 full · ½ open). Options: by place, by kind or A to Z, cl or ml first, which places are yours tonight, How to count and the tips. Can't find it? Find looks in every place, or 📷 Scan its barcode, or add it and count it straight away. 🎤 takes “Smirnoff two and a half”. Use-by shows what's due in the next 3 days: Changed it in one tap.",
-    mgr: "Check barcodes the team has linked (they work straight away). Every bottle and pack comes with its size and estimated weights: weigh a sealed one once (Check it) and it's locked until you Unlock it. Set up the count: the places in walking order, what's counted where and in what, and a running-low level and par per line." },
+    mgr: "Check barcodes the team has linked (they work straight away). Every bottle and pack comes with its size and estimated weights: weigh a sealed one once (Check it) and it's locked until you Unlock it. Set the size and weight of anything under More, Size and weight, on its line. Set up the count: the places in walking order, what's counted where and in what, and a running-low level and par per line." },
   { g: "Shift", k: "send", n: "Closing and handover", go: "send", team: 1, tour: 1,
     what: "Each side's close with up to 8 photos from anyone on it, handed over to the next shift and every manager. Send with photos, or just save it.",
     staff: "Hand over: send with photos (WhatsApp on a phone; Mail, AirDrop or Files on the iPad), or just save. Anyone can carry on what someone started.", mgr: "Open, send or delete any closing report with its photos on the Team page." },
@@ -5617,7 +5631,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { guest: "guest tourist customer foreign language translate translation talk speak phrases phrase book welcome hello greeting menu food check back how is the food dessert coffee tea goodbye allergy card", photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
+const PLACE_KW = { guest: "guest tourist customer foreign language translate translation talk speak phrases phrase book welcome hello greeting menu food check back how is the food dessert coffee tea goodbye allergy card", photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh weight size ml cl millilitres litres set size bottle size scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",
@@ -5752,7 +5766,7 @@ const hasCode = (n) => !!n && codeNames().has(n.toLowerCase());
 // The start screen: pick your name, type the team code once, and a manager's own code; or go straight to the drinks.
 function renderWelcomeName() {
   const box = $("#w-name"); if (!box || (box.contains(document.activeElement) && document.activeElement.tagName === "INPUT")) return;
-  const pick = myName && !box.dataset.edit && !sharedDev ? `<p class="wme">Hi <b translate="no">${esc(myName)}</b> · <button class="linkbtn" id="w-notme">Not you?</button></p>`
+  const pick = myName && !box.dataset.edit && !sharedDev ? `<div class="whi"><span class="wav" aria-hidden="true" translate="no">${esc([...myName][0].toUpperCase())}</span><b>Hi <span translate="no">${esc(myName)}</span></b><button class="linkbtn" id="w-notme">Not you?</button></div>`
     : `<p class="wme">${sharedDev ? "Shared iPad: who's using it?" : "Who are you?"}</p>${nameChips(myName, "data-w-name")}<label class="fld">Someone else<input id="w-other" maxlength="30" autocomplete="given-name" placeholder="Your first name" translate="no"></label>`;
   const joined = LIVE.me || (LIVE.uid && !LIVE.anon), code = !joined && !teamCode && LIVE.api;
   const mine = myName && hasCode(myName) && !LIVE.admin && LIVE.api;
@@ -8017,7 +8031,6 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .rp-row .n{display:block;font-weight:700;font-size:17px}
 .rp-row .s{display:block;font-size:16px;margin-top:2px}
 .rp-row .m{display:block;font-size:13.5px;color:var(--muted);margin-top:2px}
-.wrapid{width:100%;margin-top:8px;min-height:52px;font-size:18px}
 </style>`);
 
 /* ---------- Bar station: the iPad on the bar, for express service ----------
@@ -11087,7 +11100,7 @@ function ctMeasure(item, u, o, d) {
     return { u, ml, dn, e: set ? +o.e : m ? m[1] : 0, f: set ? +o.f : m ? ctFullG(ml, m[1], dn) : 0, pw: +o.pw || 0, est: !set && !!m, lock: set, wb: o.wb || "", wd: o.wd || "", size: m || +o.ml ? ctCl(ml) : "", guess: !!m && !m[3] && !+o.ml };
   }
   const pw = +o.pw || (p ? p[1] : 0);
-  return { u, ml: 0, dn: 1, e: +o.pw ? +o.e || 0 : p ? p[2] : 0, f: 0, pw, est: !+o.pw && !!p?.[1], lock: !!+o.pw, wb: o.wb || "", wd: o.wd || "", size: p ? p[0] : "", guess: !!p && !p[3] };
+  return { u, ml: 0, dn: 1, e: +o.pw ? +o.e || 0 : p ? p[2] : 0, f: 0, pw, est: !+o.pw && !!p?.[1], lock: !!+o.pw, wb: o.wb || "", wd: o.wd || "", size: o.sz || (p ? p[0] : ""), guess: !o.sz && !!p && !p[3] };
 }
 // Every line of the count in shelf order: one per product and place (a product kept in two places has two lines, and
 // its total adds them up). all includes the ones not counted, for the setup.
@@ -11439,11 +11452,13 @@ function ctEditHtml(r, x) {
     : `<div class="ct-quick ct-typed"><label>Or type<input id="ct-type" inputmode="decimal" enterkeyhint="next" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0" aria-label="How many, half is .5"></label></div>`;
   const tenths = b ? `<p class="ct-n">The open one in tenths</p><div class="ct-tenths">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => chip(k * 10, `.${k}`)).join("")}</div>` : "";
   const lowSet = LIVE.admin ? `<div class="ct-lowset" data-ct-item="${esc(r.item)}" data-ct-area="${esc(r.area)}">${ctLowField(r)}</div>` : "";
-  const weigh = can ? ctWeighHtml(r) : b ? `<p class="s">No weights for ${esc(r.item)} yet.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}` : "";
+  const weigh = can ? ctWeighHtml(r) : b ? `<p class="s">No weights for ${esc(r.item)} yet.${LIVE.admin ? " Set them under Size and weight." : " A manager sets them once."}</p>` : "";
+  // Managers set the size and weight of anything right here, not only in Set up the count.
+  const sizeSet = LIVE.admin ? `<details class="ct-wbox ct-sizeset" data-ct-sz-item="${esc(r.item)}"${(!can && b) || ctSizeOn === r.item ? " open" : ""}><summary>Size and weight${r.size ? `: ${esc(ctSz(r))}` : ""}</summary><div data-ct-item="${esc(r.item)}" data-ct-area="${esc(r.area)}">${ctSizeHtml(r)}</div></details>` : "";
   const one = r.size && !b ? `<p class="s ct-size">One is a ${esc(ctSz(r))}${r.guess ? " (the usual size: a manager can change it)" : ""}.</p>` : "";
-  const more = `<details class="ct-more" id="ct-more"${ctMoreOn ? " open" : ""}><summary>More: ${b ? "tenths, photo check, weigh it" : "weigh it"}, none left${LIVE.admin ? ", levels" : ""}</summary>
+  const more = `<details class="ct-more" id="ct-more"${ctMoreOn ? " open" : ""}><summary>More: ${b ? "tenths, photo check, weigh it" : "weigh it"}, none left${LIVE.admin ? ", size and weight, levels" : ""}</summary>
     ${one}${tenths}${b ? `<div class="ct-open">${ctBottle(open, r.item)}<div><span>Or tap the bottle</span>${ctPhotoBtn(r)}</div></div>${ctPhotoHtml(r)}` : ""}
-    ${ctRefHtml(r)}${weigh}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}</div></details>`;
+    ${ctRefHtml(r)}${weigh}${sizeSet}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}</div></details>`;
   const odd = x && ctOdd(r, x), chk = odd ? `<p class="note warnline ct-oddn">${esc(odd)}. Count it again, or <button class="linkbtn" data-ct-ok>It's right</button></p>` : "";
   // Nothing moves on by itself: pick, check the sum, then Confirm. Left blank, it saves as none.
   const nav = `<div class="ct-nav"><button class="btn" data-ct-back aria-label="The item before">‹ Back</button><button class="btn pri" data-ct-next="${esc(r.key)}">${x ? "Confirm ›" : "None here ›"}</button></div>`;
@@ -11459,6 +11474,8 @@ function ctSumLine(r, x) {
   return `<p class="ct-sum${x ? "" : " ct-eg"}">${x ? t : `For example: ${t}`}</p>`;
 }
 var ctMoreOn = store.get("ctMore", false);
+// The Size and weight box stays open through a redraw (each saved field redraws the line) while that item is open.
+var ctSizeOn = "";
 // Managers: the product's levels, in what it's counted in, all places together. Running low below: the heads-up before
 // an 86. Par: what the order draft orders back up to. Blank is off.
 const ctLowField = (r) => `<div class="two"><label class="fld">Running low below <span class="s">(${ctUnit(r.u, 2).trim() || "how many"})</span><input inputmode="decimal" data-ct-f="low" value="${r.low || ""}" placeholder="Off"></label><label class="fld">Par: order up to<input inputmode="decimal" data-ct-f="par" value="${ctSetup().items[r.item]?.par ?? ""}" placeholder="Off"></label></div>`;
@@ -11512,7 +11529,7 @@ function ctRefHtml(r) {
 function ctWeighHtml(r) {
   const b = r.u === "bottle";
   const est = r.est ? ` Weights estimated.${LIVE.admin ? "" : " A manager can check them."}` : r.lock ? ` ${ctLockSay(r)}` : " Weights checked.";
-  return `<label class="fld ct-g">${b ? "On the scale, grams (pourer off)" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the packaging ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="${r.e ? `${r.e} g or more` : "Grams"}"></label><p class="s" id="ct-g-out">${b ? `${ctSz(r)}: <b>minimum ${r.e} g</b> (the empty bottle), full ${r.f} g. A sealed one goes on Full.` : ""}</p><p class="s ct-est">${est.trim()}</p>${LIVE.admin && (r.est || ctOpenLock(r)) ? ctCheckHtml(r) : LIVE.admin && r.lock ? ctUnlockBtn(r) : ""}`;
+  return `<label class="fld ct-g">${b ? "On the scale, grams (pourer off)" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the packaging ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="${r.e ? `${r.e} g or more` : "Grams"}"></label><p class="s" id="ct-g-out">${b ? `${ctSz(r)}: <b>minimum ${r.e} g</b> (the empty bottle), full ${r.f} g. A sealed one goes on Full.` : ""}</p><p class="s ct-est">${est.trim()}</p>${LIVE.admin && (r.est || ctOpenLock(r)) ? ctCheckHtml(r) : ""}`;
 }
 // Weighed by a manager: locked until the next re-weigh, which takes a deliberate Unlock first, so nobody changes it by
 // accident. The lock is the weights a manager saved; Unlock only opens it on this phone until the new ones are saved.
@@ -11533,7 +11550,15 @@ function ctWeightsHtml(r) {
   if (r.lock && !ctUnlocked.has(r.item)) return `<div class="ct-w"><p class="s">${ctLockSay(r)} Empty ${r.e} g, full ${r.f} g${r.ml ? `, ${r.ml} ml` : ""}.</p>${ctUnlockBtn(r)}</div>`;
   return `<div class="ct-w" data-ct-w="${esc(r.item)}"><p class="s">${r.est ? `Filled in with estimates for a ${ctSz(r)} bottle${r.guess ? " (usual size: check yours)" : ""}. Weigh yours to make them exact: ` : ""}an empty ${esc(r.item)} bottle (rinsed, pourer off) and an unopened one.</p>
     <div class="two"><label class="fld">Empty, grams<input inputmode="decimal" data-ct-wf="e" value="${r.e || ""}"></label><label class="fld">Unopened, grams<input inputmode="decimal" data-ct-wf="f" value="${r.f || ""}"></label></div>
-    <label class="fld">Bottle size: 70 cl or 700 ml<input inputmode="decimal" data-ct-wf="ml" value="${r.ml ? ctCl(r.ml) : ""}" placeholder="70 cl"></label><div class="actions"><button class="btn" data-ct-wsave="${esc(r.item)}">Save the weights</button></div></div>`;
+    <label class="fld">Bottle size: 70 cl or 700 ml<input inputmode="decimal" data-ct-wf="ml" value="${r.ml ? ctCl(r.ml) : ""}" placeholder="70 cl"></label><div class="actions"><button class="btn" data-ct-wsave="${esc(r.item)}">Save size and weights</button></div></div>`;
+}
+// Size and weight of anything, one editor (managers): a bottle's size and its empty and unopened weights; anything else
+// what one is ("200 ml bottle", "1 kg pouch", "slice") and its grams, to weigh it. Used in Set up the count and on every
+// count line under More, so it's never more than a tap from the item. Weights are grams on the scale, never 1 g = 1 ml.
+function ctSizeHtml(r) {
+  if (r.u === "bottle") return ctWeightsHtml(r);
+  return `<label class="fld">What one is: size or weight <span class="s">(like 200 ml bottle, 1 kg pouch, 500 g tub)</span><input data-ct-f="sz" maxlength="40" value="${esc(ctSetup().items[r.item]?.sz || r.size || "")}" placeholder="200 ml bottle"></label>
+    <div class="two"><label class="fld">One, grams <span class="s">(to weigh)</span><input inputmode="decimal" data-ct-f="pw" value="${r.pw || ""}"></label><label class="fld">Container, grams<input inputmode="decimal" data-ct-f="e" value="${r.e || ""}"></label></div>`;
 }
 function ctPut(r, full, open) {
   full = Math.max(0, Math.min(9999, Math.round(full))); open = Math.max(0, Math.min(99, Math.round(open)));
@@ -11909,7 +11934,7 @@ function ctSave(change, ok) {
 }
 function ctItemSet(s, r, f) {
   const o = s.items[r.item] || {};
-  s.items[r.item] = { ...o, a: o.a?.length ? o.a : r.a, u: o.u || r.u, e: +o.e || 0, f: +o.f || 0, ml: +(o.ml ?? r.ml) || 0, pw: +o.pw || 0, off: o.off ?? r.off, ...f };
+  s.items[r.item] = { ...o, a: o.a?.length ? o.a : r.a, u: o.u || r.u, e: +o.e || 0, f: +o.f || 0, ml: +(o.ml ?? r.ml) || 0, pw: +o.pw || 0, sz: o.sz || "", off: o.off ?? r.off, ...f };
 }
 function ctSetupHtml() {
   const all = ctRows(true), areas = ctAreas(all), seen = new Set();
@@ -11928,7 +11953,7 @@ function ctSetupHtml() {
         <div class="two"><label class="fld">Counted in<select data-ct-f="u">${CT_UNITS.map((u) => `<option${u === r.u ? " selected" : ""}>${u}</option>`).join("")}</select></label>
         <label class="fld">Place<select data-ct-f="area">${areas.map((x) => `<option${x === a ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label></div>
         ${first ? `<label class="fld">Also counted in<select data-ct-f="also"><option value="">Nowhere else</option>${areas.filter((x) => x !== a).map((x) => `<option${r.a.includes(x) ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>` : `<p class="s">Also counted in ${esc(r.a.filter((x) => x !== a).join(", "))}.</p>`}
-        ${r.u === "bottle" ? ctWeightsHtml(r) : `<div class="two"><label class="fld">One portion or unit, grams <span class="s">(to weigh)</span><input inputmode="decimal" data-ct-f="pw" value="${r.pw || ""}"></label><label class="fld">Container, grams<input inputmode="decimal" data-ct-f="e" value="${r.e || ""}"></label></div>`}
+        ${ctSizeHtml(r)}
         ${first ? ctLowField(r) : ""}
         <label class="check"><input type="checkbox" data-ct-f="off"${r.off ? " checked" : ""}> Don't count this</label></div>` : ""}</details>`;
     }).join("")}`; }).join("")}`;
@@ -12051,6 +12076,7 @@ $("#v-count").addEventListener("click", (e) => {
 $("#v-count").addEventListener("toggle", (e) => {
   // A redraw fires toggle on the details it replaced too, after they've gone: only the ones on the page count.
   const d = e.target; if (!$("#ct") || !d.matches?.("details") || !d.isConnected) return;
+  if (d.dataset.ctSzItem) ctSizeOn = d.open ? d.dataset.ctSzItem : ctSizeOn === d.dataset.ctSzItem ? "" : ctSizeOn;
   if (d.id === "ct-in-box") ctInHtml.open = d.open;
   else if (d.id === "ct-tips") ctTipsHtml.open = d.open;
   else if (d.id === "ct-opts") ctOptsHtml.open = d.open;
@@ -12116,6 +12142,7 @@ $("#v-count").addEventListener("change", (e) => {
     if (f === "u") ctItemSet(s, r, { u: el.value });
     if (f === "off") ctItemSet(s, r, { off: el.checked });
     if (f === "pw" || f === "e") ctItemSet(s, r, { [f]: +el.value.replace(",", ".") || 0 });
+    if (f === "sz") ctItemSet(s, r, { sz: el.value.trim().slice(0, 40) });
     if (f === "low") ctItemSet(s, r, { low: Math.max(0, Math.min(9999, +el.value.replace(",", ".") || 0)) });
     if (f === "par") { const v = el.value.trim().replace(",", "."); ctItemSet(s, r, {}); if (v === "" || isNaN(+v)) delete s.items[r.item].par; else s.items[r.item].par = Math.max(0, Math.round(+v * 100) / 100); }
     if (f === "area") { ctItemSet(s, r, { a: [...new Set(r.a.map((x) => (x === area ? el.value : x)))] }); ctSetOpen = `${el.value}|${r.item}`; }
@@ -12478,7 +12505,7 @@ function mgItBack(id) {
    A backup is one file with everything Bar Book keeps for the team (photos left out: they're big and kept 30 days).
    Restore puts back what can be changed (checklists, date labels, added items, names and numbers) as new changes,
    never deleting anything. History (reports, the 86 log, the label record) can't be changed, so it isn't restored. */
-const BUILD = "2026-11-18T23:50";
+const BUILD = "2026-11-19T04:10";
 // Times as plain ISO dates. toJSON runs before the replacer, so it reads the original value from the holder.
 const mgJson = (x) => JSON.stringify(x, function (k, v) { const o = this[k]; return o && typeof o.toMillis === "function" ? new Date(o.toMillis()).toISOString() : v; }, 1);
 async function mgBackup(btn) {
@@ -12889,7 +12916,7 @@ const storyRing = (small) => {
 document.head.insertAdjacentHTML("beforeend", `<style>
 .story-ring{display:flex;align-items:center;gap:12px;width:100%;text-align:left;color:var(--fg);margin-top:12px;padding:6px 0}
 .sr-dot{flex:none;width:52px;height:52px;border-radius:50%;display:grid;place-items:center;font-size:18px;color:var(--brass);background:var(--surface);box-shadow:0 0 0 3px var(--bg),0 0 0 6px var(--brass)}
-.story-ring.sm{margin:0 0 6px;padding:2px 0}.story-ring.sm .sr-dot{width:40px;height:40px;font-size:14px}
+.story-ring.sm{margin:4px 0 2px;padding:2px 0 2px 6px;gap:14px}.story-ring.sm .sr-dot{width:36px;height:36px;font-size:13px}.story-ring.sm b{font-size:16px}.story-ring.sm small{font-size:13.5px}
 .seenby{margin:6px 0 0;font-size:14px;color:var(--muted)}.seenby summary{cursor:pointer;min-height:44px;display:flex;align-items:center;gap:4px}.seenby ul{margin:0;padding-left:20px}
 .story-ring.seen .sr-dot{box-shadow:0 0 0 3px var(--bg),0 0 0 5px var(--line);color:var(--muted)}.story-ring b{display:block;font-size:17px}.story-ring small{display:block;color:var(--muted);font-size:13px}
 body.storyon{overflow:hidden}.story{position:fixed;inset:0;z-index:60;background:#0d0c0a;color:#f4f1ea;display:flex;flex-direction:column;padding:calc(env(safe-area-inset-top,0px) + 10px) 16px calc(env(safe-area-inset-bottom,0px) + 20px);touch-action:none;user-select:none}
@@ -12971,9 +12998,9 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .pi-row{padding:10px 0;border-bottom:1px solid var(--line)}.pi-h{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.pi-h b{font-size:16px}
 .pi-h span{font-weight:700;color:var(--brass);white-space:nowrap}.pi-t{margin-left:6px;font-size:12px;color:var(--muted)}.pi-t.good{color:var(--ok)}.pi-t.bad{color:var(--warn)}
 .pi-bars{display:flex;align-items:flex-end;gap:4px;height:34px;margin-top:6px}.pi-bars i{flex:0 1 22px;background:var(--muted);border-radius:3px 3px 0 0;opacity:.6}.pi-bars i:last-child{background:var(--brass);opacity:1}
-.alerts{margin-top:8px}.al-in{position:relative;background:var(--surface);border:1px solid var(--brass);border-radius:14px;padding:10px 12px}.al-in>b{display:block;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--brass);padding-right:36px}
+.alerts{margin-top:8px}.al-in{position:relative;background:var(--surface);border:1px solid var(--brass);border-radius:14px;padding:8px 12px 6px;box-shadow:0 6px 18px var(--shadow)}.al-in>b{display:block;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--brass);padding-right:36px}
 .al{display:block;width:100%;text-align:left;color:var(--fg);padding:8px 0;border-top:1px solid var(--line);margin-top:6px;font-size:15.5px;line-height:1.35}.al.hot{color:var(--warn);font-weight:700}
-.al-x{position:absolute;top:4px;right:6px;width:36px;height:36px;font-size:22px;color:var(--muted)}
+.al-x{position:absolute;top:2px;right:4px;width:44px;height:44px;font-size:22px;color:var(--muted)}
 </style>`);
 MG_READY = true;
 /* ---------- Photos: every photo the team took on a shift, in one place ----------
@@ -16142,7 +16169,7 @@ const HELP = {
       "Delivery in: log what came in so usage between counts comes out right. 📷 Read the note reads a photo (or the PDF) of the delivery note: check each number against the paper, then Log ticked.",
       "Running low: a line under its level shows Running low. Managers set the level on the line, or in Set up the count (Running low below, next to Par).",
       "Done: Send on WhatsApp sends the totals as a table, or Spreadsheet gives a file for Numbers or Excel to type into Nory."],
-    behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Each bottle is drawn in its own kind of outline (square, tall, round-shouldered, wine-style), with a dashed line where a full one fills to, and under More, A full one shows its size, its full and empty weights and a link to its facts. Managers can keep a photo of a full one as everyone's baseline for Photo check.", "Every bottle and pack comes filled in: its size from the label (70 cl, Monkey 47's 50 cl, Martini's 75 cl, a 200 ml Fever-Tree, a 1 kg Funkin pouch) and estimated empty and full weights. A liqueur weighs more than a spirit, so grams are never taken as ml.", "Estimates are near enough to count with, and say so. A manager makes one exact by weighing a sealed bottle once (Check it, on the line): the empty weight follows. Weighed ones are locked, with who and when, so nobody changes them by accident: re-weighing takes Unlock to re-weigh first, and a spreadsheet import can't change them. Set up the count changes any size or weight. A sealed bottle goes on Full with +, so it's never counted twice.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory.", "Running low uses the latest count that has the product in every place, plus deliveries logged since. It's worked out, not saved, so it's never a second list: once it's 86'd it's on the 86 board instead.", "A barcode says which product it is, never its use-by date, so use-by stays on the date labels: one record, not two. A barcode someone links works straight away; managers check it under Barcodes to check.", "Scanning needs signal the first time, to load the scanner; after that it works offline. Looking up a new barcode's name online needs signal."] },
+    behind: ["Every change saves straight away with your name and the day, with no signal too. Two people can count different places at once.", "A product in two places (speed rail and store room) has a line in each; its total adds them up.", "Each bottle is drawn in its own kind of outline (square, tall, round-shouldered, wine-style), with a dashed line where a full one fills to, and under More, A full one shows its size, its full and empty weights and a link to its facts. Managers can keep a photo of a full one as everyone's baseline for Photo check.", "Every bottle and pack comes filled in: its size from the label (70 cl, Monkey 47's 50 cl, Martini's 75 cl, a 200 ml Fever-Tree, a 1 kg Funkin pouch) and estimated empty and full weights. A liqueur weighs more than a spirit, so grams are never taken as ml.", "Estimates are near enough to count with, and say so. A manager makes one exact by weighing a sealed bottle once (Check it, on the line): the empty weight follows. Weighed ones are locked, with who and when, so nobody changes them by accident: re-weighing takes Unlock to re-weigh first, and a spreadsheet import can't change them. Managers set the size and weight of anything (ml or cl for a bottle, or what one is, like a 150 ml can or a 1 kg pouch, and its grams) under More, Size and weight, on its line, or in Set up the count. A sealed bottle goes on Full with +, so it's never counted twice.", "Usage: the count before, plus deliveries, less this count. Much more than usual, or stock going up with nothing logged in, is flagged. No prices: those stay in Nory.", "Running low uses the latest count that has the product in every place, plus deliveries logged since. It's worked out, not saved, so it's never a second list: once it's 86'd it's on the 86 board instead.", "A barcode says which product it is, never its use-by date, so use-by stays on the date labels: one record, not two. A barcode someone links works straight away; managers check it under Barcodes to check.", "Scanning needs signal the first time, to load the scanner; after that it works offline. Looking up a new barcode's name online needs signal."] },
   stock: { t: "86 and restock", what: "What's run out tonight, and getting stock up from the cellar.",
     how: ["Tap Search everything to 86: type a few letters (typos are fine), pick a kind, like Spirits, Cakes or Frozen, or scroll it A to Z with the letter strip down the side.", "Tap 86 on a row, or tick several and 86 them together. Each row says how many drinks use it, and the swap once it's out.", "Quick 86 has this phone's recent ones and the team's most 86'd: one tap. Not on the list? Type it and it goes on as you typed it.", "Back in stock takes it off for everyone. ↺ Clear: all back in stock empties the board at once, with ↩ Undo clear in its place for 15 minutes.", "Restock: pick what's needed from the same list, then how many and where. Someone taps I'll get it, Brought it up, then whoever's there taps Got it.", "Running low, under the 86 board: what the last stock count says is under its level. Not out yet. 86 it there when it runs out."],
     behind: ["One 86 board for the whole team. An 86'd drink shows as 86'd everywhere. An 86'd ingredient turns every drink that uses it to Can make with a swap, or Can't make tonight if nothing close is in.", "Missing on a drink's own ingredient goes on this same board, so one tap does both.", "Restocks waiting over 15 minutes show as late. The stock count has its own tab, Stock: its totals go into Nory.", "Clear everything puts every 86 back in stock and cancels restocks still waiting."] },
@@ -16159,7 +16186,7 @@ const HELP = {
     how: ["Team, People and codes, Maintenance settings, at the bottom. Only Maintenance sees it.", "1. Save a backup first: one file with everything, to Files or sent to yourself.", "2. Wipe it all and start again (open for 15 minutes after the backup): type START AGAIN and tap OK. Keep the app open until it says Done."],
     behind: ["Goes for good: every 86 and the 86 log, closing ticks, handovers, closing reports and every photo, Log it, restocks, stock counts and deliveries, issues, the inbox, Tell Derek, everything sent, closing times, Seen by, scores and sign-offs. Open date labels go back to not opened.", "Stays: the team and everyone's codes, the drinks, closing lists, date labels and their shelf lives, added items, barcodes, the stock count setup, drink photos and videos, names, numbers, venue times and the football.", "There's no undo: the backup file is the copy. Photos aren't in it. Stopped part way (no signal)? Tap it again to finish.", "The database lets only Maintenance delete these, so nobody else can wipe the history."] },
   join: { t: "Joining the team", what: "One team code, no login or password.",
-    how: ["Pick your first name and type the team code. Ask a manager for it in person.", "Managers and maintenance: then tap your name under Unlock with your code and type your own code."],
+    how: ["On the start screen: tap your first name, type the team code once (ask a manager in person), then Bar or Floor.", "Managers and maintenance: your own code goes in the box beside the team code, on the same card.", "Just the drinks (Rapid fire, Drinks or the iPad bar station) skips the code. Join later from Shift."],
     behind: ["The phone signs in by itself with no account. The code is checked by the database, not by the app.", "Anyone with the link can join, so keep it in the staff group. A manager can take a lost phone off the team, and changing the code takes every phone off at once.", "Leaving wipes this phone's copy of the team's data.", "Saved for the team: first names, ticks, 86s, labels, restocks, issues, handovers and photos of the bar. Never saved: My pay, payslips, off sick messages, incident write-ups, or anyone's address, phone or bank details."] },
   ask: { t: "To the managers", what: "A day off, a swap, a complaint or anything else, straight to the managers.",
     how: ["Pick what it is, write it and send.", "You see it again here with Sent, Seen or Done, and any reply."],
