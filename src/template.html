@@ -541,7 +541,6 @@ b.dt { color: var(--fg); font-weight: 700; }
 .hero .g img { display: block; width: 100%; height: 100%; object-fit: cover; border-radius: 12px; cursor: pointer; }
 #dmedia .btn { margin-top: 10px; }
 .linkbtn { color: var(--brass); font-weight: 700; text-decoration: underline; min-height: 32px; }
-.wquick #w-ipad { grid-column: 1 / -1; }
 .bell.langbtn { font-size: 13px; font-weight: 800; letter-spacing: .04em; color: var(--brass); }
 .utx { display: inline-block; margin-inline-start: 6px; padding: 0 6px; min-height: 26px; border: 1px solid var(--line); border-radius: 13px; font-size: 12px; font-weight: 700; color: var(--brass); vertical-align: middle; }
 /* Team chat */
@@ -588,7 +587,6 @@ ul.live { margin: 4px 0 10px; padding-left: 18px; } ul.live li { margin: 3px 0; 
 .warnbox { border: 2px solid var(--warn); border-radius: 12px; padding: 10px 12px; margin: 8px 0 12px; }
 .recent.score .chip { min-width: 40px; justify-content: center; }
 .spin { font-size: 34px; font-weight: 800; text-align: center; padding: 18px 0; color: var(--brass); }
-.wme { margin: 14px 0 4px; } .wi .recent { justify-content: center; } .wi .mini { text-align: center; }
 .pill { display: inline-block; font-size: 12.5px; font-weight: 700; padding: 2px 9px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); vertical-align: 1px; }
 .pill.ok { color: var(--ok); border-color: var(--ok); } .pill.no { color: var(--warn); border-color: var(--warn); } .pill.wait { color: var(--brass); border-color: var(--brass); }
 .staffrow { padding: 10px 0; border-bottom: 1px solid var(--line); }
@@ -1062,28 +1060,46 @@ small.ct-chk { display: block; color: var(--warn); font-size: 12px; font-weight:
 .row.picking[aria-pressed="true"] { background: var(--surface); }
 .pickbar { position: fixed; left: 0; right: 0; bottom: calc(var(--tabh) + env(safe-area-inset-bottom, 0px)); z-index: 8; display: flex; align-items: center; gap: 10px; padding: 10px max(16px, env(safe-area-inset-left, 0px)); background: var(--surface); border-top: 1px solid var(--brass); box-shadow: 0 -8px 18px var(--shadow); }
 .pickbar[hidden] { display: none; }
-.pick-top { display: flex; justify-content: flex-end; margin: 0 0 -16px; position: relative; z-index: 1; }
-.pick-top .linkbtn { min-height: 44px; }
+.pick-top { display: flex; justify-content: flex-end; margin: -8px 0 -22px; position: relative; z-index: 1; }
+.pick-top .linkbtn { min-height: 44px; font-size: 14px; text-decoration: none; color: var(--muted); }
 .pickbar > span { flex: 1; min-width: 0; font-weight: 700; }
 .pickbar .btn { min-height: 44px; }
 body.picking main { padding-bottom: calc(var(--tabh) + 90px); }
 body.picking #sd-timer { display: none; }
 .row:active { background: var(--surface); }
-.welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); display: flex; flex-direction: column; justify-content: center; padding: calc(env(safe-area-inset-top, 0px) + 24px) 24px calc(env(safe-area-inset-bottom, 0px) + 24px); overflow-y: auto; transition: opacity .3s, transform .3s; }
+/* The start screen: brand, who you are and the team code in one card, Bar or Floor, then the drinks-only ways in. */
+.welcome { position: fixed; inset: 0; z-index: 60; background: var(--bg); background: radial-gradient(130% 55% at 50% -12%, color-mix(in srgb, var(--brass) 20%, transparent), transparent 70%), var(--bg); display: flex; flex-direction: column; padding: calc(env(safe-area-inset-top, 0px) + 20px) 20px calc(env(safe-area-inset-bottom, 0px) + 20px); overflow-y: auto; transition: opacity .3s, transform .3s; }
 .welcome.bye { opacity: 0; transform: scale(1.03); pointer-events: none; }
-.welcome .wi { max-width: 420px; margin: 0 auto; width: 100%; }
-.welcome svg { width: 84px; height: 84px; display: block; margin-bottom: 18px; }
-.welcome h2 { font-family: var(--display); font-size: 48px; line-height: .95; margin: 0 0 14px; text-transform: uppercase; }
+/* margin: auto centres it when it fits and keeps the top in reach when it doesn't (justify-content: center cut it off). */
+.welcome .wi { max-width: 440px; margin: auto; width: 100%; }
+.welcome .whead { display: flex; align-items: center; gap: 14px; margin-bottom: 16px; }
+.welcome .whead svg { flex: none; width: 64px; height: 54px; }
+.welcome h2 { font-family: var(--display); font-size: 40px; line-height: .92; margin: 0; text-transform: uppercase; }
 .welcome h2 span { color: var(--brass); }
-.welcome ul { list-style: none; padding: 0; margin: 18px 0; }
-.welcome li { padding: 9px 0 9px 30px; position: relative; border-bottom: 1px solid var(--line); }
-.welcome li::before { content: "\2713"; position: absolute; left: 4px; color: var(--brass); font-weight: 700; }
-.welcome .wip { color: var(--muted); font-size: 15px; margin: 0 0 22px; }
-.welcome .wbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 10px; }
-.welcome .wbtns .btn { min-height: 56px; font-size: 20px; padding-inline: 6px; }
-.welcome .wquick { grid-template-columns: 1fr 1fr; margin-top: 8px; } .welcome .wquick .btn { min-height: 48px; font-size: 17px; margin: 0; }
+.welcome .wtag { margin: 6px 0 0; color: var(--muted); font-size: 15px; }
+#w-name { background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 4px 14px 14px; box-shadow: 0 10px 30px var(--shadow); }
+#w-name:empty { display: none; }
+.welcome .wme { margin: 10px 0 2px; font-weight: 700; font-size: 17px; }
+.welcome .wi .mini { margin-top: 10px; }
+.welcome .recent { gap: 6px; }
+.welcome .recent .chip { min-height: 40px; padding: 8px 13px; }
+.welcome .whi { display: flex; align-items: center; gap: 12px; margin: 10px 0 0; }
+.welcome .wav { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--brass); color: var(--brass-ink); font-weight: 800; font-size: 20px; }
+.welcome .whi b { flex: 1; min-width: 0; font-size: 20px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.welcome .whi .linkbtn { min-height: 44px; font-size: 15px; }
 .welcome .wcodes { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; text-align: left; }
-.welcome .sig { font-style: italic; color: var(--brass); font-size: 18px; margin: 18px 0 0; text-align: center; }
+.welcome .wbtns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-top: 14px; }
+.welcome .wbtns .btn { min-height: 64px; font-size: 22px; padding-inline: 6px; border-radius: 14px; letter-spacing: .02em; }
+.welcome .wor { display: flex; align-items: center; gap: 10px; margin: 18px 0 8px; }
+.welcome .wor::before, .welcome .wor::after { content: ""; flex: 1; border-top: 1px solid var(--line); }
+.welcome .wquick { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.welcome .wquick .btn { flex-direction: column; gap: 2px; min-height: 68px; margin: 0; padding: 8px 4px; font-size: 14px; line-height: 1.15; border-radius: 14px; }
+.welcome .wquick i { font-style: normal; font-size: 22px; }
+.welcome .wfoot { display: flex; flex-direction: column; align-items: center; gap: 10px; margin-top: 18px; text-align: center; }
+.welcome .wlang { flex: none; display: flex; align-items: center; gap: 4px; border: 1px solid var(--line); border-radius: 999px; padding: 0 4px 0 12px; background: var(--surface); }
+.welcome .wlang i { font-style: normal; }
+.welcome .wlang select { font: inherit; font-size: 15px; color: var(--fg); background: none; border: 0; min-height: 44px; max-width: 180px; padding: 0 10px 0 2px; }
+.welcome .wip { color: var(--muted); font-size: 14px; line-height: 1.4; margin: 0; max-width: 34ch; }
 .credit { text-align: center; color: var(--muted); font-size: 13px; letter-spacing: .04em; margin: 28px 0 8px; }
 .credit b { color: var(--brass); font-weight: 700; }
 .swhint { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom, 0px) + 96px); transform: translateX(-50%); z-index: 25; background: var(--brass); color: var(--brass-ink); font-weight: 700; padding: 10px 18px; border-radius: 999px; box-shadow: 0 8px 24px var(--shadow); pointer-events: none; white-space: nowrap; }
@@ -1219,16 +1235,14 @@ applyTheme(); LIGHT.addEventListener("change", applyTheme);
 </script>
 
 <div class="welcome" id="welcome" hidden role="dialog" aria-modal="true" aria-labelledby="w-t"><div class="wi">
-  <svg viewBox="0 0 100 100" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-  <h2 id="w-t">Black Tap <span>Bar Book</span></h2>
+  <div class="whead"><svg viewBox="18 16 64 54" aria-hidden="true"><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z" style="fill:var(--brass)"/><path d="M24 22 H76 C76 40 64 48 50 48 C36 48 24 40 24 22Z M50 48 V66 M38 66 H62" style="stroke:var(--fg)" stroke-width="3.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <div><h2 id="w-t">Black Tap <span>Bar Book</span></h2><p class="wtag">Every drink we make, in your pocket.</p></div></div>
   <div id="w-name"></div>
   <div class="wbtns"><button class="btn pri" id="w-ok" data-start="bar">Bar</button><button class="btn pri" id="w-floor" data-start="floor">Floor</button></div>
-  <div class="wbtns wquick"><button class="btn wrapid" id="w-rapid" data-start="bar" data-rapid="1">⚡ Rapid fire</button><button class="btn wrapid" id="w-drinks" data-start="bar" data-drinks="1">🍸 Drinks</button><button class="btn wrapid" id="w-ipad" data-start="bar" data-ipad="1">📲 iPad bar station</button></div>
-  <label class="fld wlang" translate="no">Language<select data-lang id="w-lang"></select></label>
-  <p>Every drink we make, in your pocket.</p>
-  <ul><li>Specs, step-by-step guides and allergens</li><li>Swipe between drinks, tap a step when it's done</li><li>Works offline once it's loaded</li><li>Add it to your home screen, iPhone or Android (More shows how)</li></ul>
-  <p class="wip">New here? Bar or Floor shows you how the night works. Any time after, tap <b>?</b> at the top for the Guide.</p>
-  <p class="wip">Spot something wrong or got an idea? Tell maintenance: More, then App feedback.</p>
+  <div class="mini wor">Just the drinks</div>
+  <div class="wquick"><button class="btn" id="w-rapid" data-start="bar" data-rapid="1"><i aria-hidden="true">⚡</i><span>Rapid fire</span></button><button class="btn" id="w-drinks" data-start="bar" data-drinks="1"><i aria-hidden="true">🍸</i><span>Drinks</span></button><button class="btn" id="w-ipad" data-start="bar" data-ipad="1"><i aria-hidden="true">📲</i><span>iPad bar station</span></button></div>
+  <div class="wfoot"><label class="wlang" translate="no"><i aria-hidden="true">🌐</i><select data-lang id="w-lang" aria-label="Language"></select></label>
+  <p class="wip">New here? Bar or Floor shows you how the night works. After that, 🔍 at the top finds anything.</p></div>
 </div></div>
 <div class="gut brandbar"><div class="brand"><h1><a href="#drinks" id="home" aria-label="Black Tap Bar Book: home">Black Tap <span>Bar Book</span></a></h1><div class="brandr"><button class="bell langbtn" id="lang-btn" hidden translate="no"></button><button class="hbtn" data-guest-open aria-label="Talk to a guest: their language, menu, phrases"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M3.5 12h17M12 3.5c-2.6 2.6-2.6 14.4 0 17M12 3.5c2.6 2.6 2.6 14.4 0 17"/></svg></button><button class="hbtn sd-micb" data-sd-mic aria-label="Say it: voice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button><button class="hbtn" data-home aria-label="Home"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 11.5 12 5l8 6.5M6.5 10v9h11v-9"/></svg></button><button class="hbtn" data-guide aria-label="Find anything: a screen, a drink or how to"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg></button></div></div></div>
 <div class="net" id="net" role="status" aria-live="polite" hidden></div>
@@ -5675,7 +5689,7 @@ const hasCode = (n) => !!n && codeNames().has(n.toLowerCase());
 // The start screen: pick your name, type the team code once, and a manager's own code; or go straight to the drinks.
 function renderWelcomeName() {
   const box = $("#w-name"); if (!box || (box.contains(document.activeElement) && document.activeElement.tagName === "INPUT")) return;
-  const pick = myName && !box.dataset.edit && !sharedDev ? `<p class="wme">Hi <b translate="no">${esc(myName)}</b> · <button class="linkbtn" id="w-notme">Not you?</button></p>`
+  const pick = myName && !box.dataset.edit && !sharedDev ? `<div class="whi"><span class="wav" aria-hidden="true" translate="no">${esc([...myName][0].toUpperCase())}</span><b>Hi <span translate="no">${esc(myName)}</span></b><button class="linkbtn" id="w-notme">Not you?</button></div>`
     : `<p class="wme">${sharedDev ? "Shared iPad: who's using it?" : "Who are you?"}</p>${nameChips(myName, "data-w-name")}<label class="fld">Someone else<input id="w-other" maxlength="30" autocomplete="given-name" placeholder="Your first name" translate="no"></label>`;
   const joined = LIVE.me || (LIVE.uid && !LIVE.anon), code = !joined && !teamCode && LIVE.api;
   const mine = myName && hasCode(myName) && !LIVE.admin && LIVE.api;

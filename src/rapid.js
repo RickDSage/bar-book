@@ -88,5 +88,4 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .rp-row .n{display:block;font-weight:700;font-size:17px}
 .rp-row .s{display:block;font-size:16px;margin-top:2px}
 .rp-row .m{display:block;font-size:13.5px;color:var(--muted);margin-top:2px}
-.wrapid{width:100%;margin-top:8px;min-height:52px;font-size:18px}
 </style>`);
