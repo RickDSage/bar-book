@@ -305,6 +305,15 @@ test("every bottle and pack comes filled in: size, empty and full weights, marke
   await tap(M, "Bar fridge", "Funkin purées"); await M.click(".ct-wbox summary");
   await M.fill('[data-ct-chk="Funkin purées"]', "1050"); await M.click('[data-ct-chkgo="Funkin purées"]');
   await waitToast(M, /^Funkin purées checked: 1020 g in one\. Locked$/);
+  // Size and weight of anything, right on the line: what one is, and its grams to weigh it. Staff see it at once.
+  await tap(M, "Bar fridge", "Tonic"); await M.click(".ct-sizeset summary");
+  await M.fill('.ct-sizeset [data-ct-f="sz"]', "150 ml can"); await M.press('.ct-sizeset [data-ct-f="sz"]', "Tab");
+  await M.waitForFunction(() => LIVE.countSetup.items?.Tonic?.sz === "150 ml can");
+  await M.fill('.ct-sizeset [data-ct-f="pw"]', "165"); await M.press('.ct-sizeset [data-ct-f="pw"]', "Tab");
+  await S.waitForFunction(() => { const r = ctRows().find((x) => x.item === "Tonic"); return r.size === "150 ml can" && r.pw === 165 && !r.guess; });
+  await tap(S, "Bar fridge", "Tonic");
+  assert.match(await text(S, ".ct-edit"), /One is a 150 ml can\./);
+  assert.equal(await S.$(".ct-sizeset"), null, "only managers change sizes");
   // Setup shows which are estimated, and the spreadsheet has the size.
   assert.match(await S.evaluate(() => ctCsv()), /,Monkey 47,,bottle,50 cl,,/);
   await M.click("#ct-setup");
