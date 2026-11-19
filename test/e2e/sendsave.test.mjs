@@ -92,7 +92,8 @@ test("work someone started shows for anyone to carry on, and the team hears abou
   await S.evaluate(() => LIVE.api.saveDraft("bar", { low: "Limes", issues: "", next: "", closer: "", noPhotos: "" }));
   // Tia's phone: the Team page says Sam started the bar, and Carry on takes her to the bar close.
   await T.evaluate(() => show("notices"));
-  await T.waitForSelector("#tm-cards .carry");
+  // The photo and the draft can reach Tia's phone a moment apart.
+  await T.waitForFunction(() => /handover draft saved/.test(document.querySelector("#tm-cards .carry")?.innerText || ""));
   assert.match(await T.$eval("#tm-cards .carry", (e) => e.innerText), /Bar: started by Sam Staff[\s\S]*1 photo[\s\S]*handover draft saved by Sam Staff[\s\S]*anyone can carry on/);
   await T.click("#tm-cards [data-carry=bar]");
   await T.waitForSelector("#tally .addph");

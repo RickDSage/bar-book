@@ -227,15 +227,14 @@ test("finding it when it isn't in shelf order: every place, not counted yet, Nex
   // The first time: a walkthrough in plain words with pictures, before the list. The scale, then bottles, then not listed.
   await S.click("[data-tab=count]");
   await S.waitForSelector(".ct-intro");
-  assert.match(await text(S, ".ct-intro"), /^1 of 9 Counting stock: how it works/i);
+  // Four cards at most (docs/DESIGN.md).
+  assert.match(await text(S, ".ct-intro"), /^1 of 4 Counting stock: how it works/i);
   assert.ok(await S.$(".ct-intro svg.ct-pic"));
   assert.equal(await S.$eval("#ct-find", (e) => e.hidden), true, "no find box while it's on");
-  await S.click('[data-ct-intro="1"]'); assert.match(await text(S, ".ct-intro"), /Set up the scale .*flat, dry part of the bar top.*It should say 0 g\. If it doesn't, press Tare or Zero/i);
-  await S.click('[data-ct-intro="2"]'); await S.click('[data-ct-intro="3"]'); assert.match(await text(S, ".ct-intro"), /2\. The open bottle Look at it level with your eye and tap None, ¼, ½ or ¾.*Photo check.*pourer off/i);
-  await S.click('[data-ct-intro="4"]'); assert.match(await text(S, ".ct-intro"), /A worked example .*3 full \+ \.4 open = 3\.4 bottles of 70 cl = 238 cl, or 2,380 ml/i);
-  for (const i of [5, 6, 7]) await S.click(`[data-ct-intro="${i}"]`);
-  assert.match(await text(S, ".ct-intro"), /Can't find it\? .*📷 and scan the bottle's barcode.*＋ Add it and count it/i);
-  await S.click('[data-ct-intro="8"]'); await S.click('[data-ct-intro="go"]');
+  await S.click('[data-ct-intro="1"]'); assert.match(await text(S, ".ct-intro"), /Full and open bottles .*None, ¼, ½ or ¾.*Photo check.*flat, dry part of the bar top.*0 g \(if it doesn't, press Tare or Zero\).*Pourer off/i);
+  await S.click('[data-ct-intro="2"]'); assert.match(await text(S, ".ct-intro"), /A worked example .*3 full \+ \.4 open = 3\.4 bottles of 70 cl = 238 cl, or 2,380 ml/i);
+  await S.click('[data-ct-intro="3"]'); assert.match(await text(S, ".ct-intro"), /Can't find it\? .*📷 and scan the barcode.*＋ Add it and count it/i);
+  await S.click('[data-ct-intro="go"]');
   await S.waitForSelector("#ct .ct-row"); assert.equal(await S.evaluate(() => store.get("ctHow")), true);
   // Each line says what to do with it; How to count brings the walkthrough back.
   assert.match(await rowText(S, "Speed rail", "Smirnoff"), /Smirnoff Full ones, then the open one: None, ¼, ½ or ¾/);

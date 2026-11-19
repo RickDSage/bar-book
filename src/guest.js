@@ -311,7 +311,7 @@ function gSumHtml(xs) {
 // The list for staff, in English (names as on the menu), with the guest's words above it.
 function gMineHtml() {
   const xs = Object.entries(GUEST.want);
-  return `<button class="btn" data-g-mine="" translate="no">‹</button>
+  return `<div><button class="btn" data-g-mine="">‹ ${gT_("Menu")}</button></div>
     <div class="card g-mine"><p class="g-mine-h">${gT_("Show this to staff")}</p><h2 translate="no">For staff</h2>
       ${xs.length ? xs.map(([n, q]) => `<div class="g-food"><b translate="no">${q} × ${esc(n)}${gPrice(n) != null ? ` <span class="g-pr">${gMoney(q * gPrice(n))}</span>` : ""}</b>${gWantBtn(n)}</div>`).join("") + gSumHtml(xs) : `<p class="note" translate="no">Nothing ticked yet.</p>`}
       <p class="note" translate="no">Only a list to point at: nothing is ordered, charged or sent. Key it into the till as usual, and check allergies with the guest. Prices from blacktap.com, ${PRICE_AS_OF}: the till is always right.</p>
@@ -409,13 +409,13 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .g-edit{margin-top:16px}.g-edit textarea{width:100%;font:inherit;color:var(--fg);background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px}
 .guest .seg.g-tabs{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:8px}.guest .seg.g-menu-sw{display:grid;grid-template-columns:1fr 1fr;margin:4px 0 8px}
 .guest .g-chips.g-secs{margin:4px 0 0;padding:4px 0}.guest .g-secs .chip{font-size:13px;padding:6px 10px}.guest .g-secs .chip[aria-pressed="true"]{border-color:var(--brass);background:color-mix(in srgb,var(--brass) 22%,var(--surface));font-weight:700}
-.guest .g-chips.g-wrap{flex-wrap:wrap;overflow:visible}.guest .g-wrap .chip{white-space:normal;text-align:start}.g-livec{border-style:dashed}
-.g-bar-r{display:flex;gap:6px}.g-wel{font-family:var(--display);font-size:30px;line-height:1.15;margin:0 0 10px;color:var(--brass)}
+.guest .g-chips.g-wrap{flex-wrap:wrap;overflow:visible}.guest .g-wrap .chip{white-space:normal;text-align:start;max-width:100%}.g-livec{border-style:dashed}
+.g-bar-r{display:flex;gap:6px}.g-bar .btn{white-space:nowrap;padding:8px 12px;min-height:44px}.guest .seg.g-tabs button{white-space:nowrap;padding-inline:4px}@media (max-width:400px){.guest .seg.g-tabs button{font-size:14px}}.g-wel{font-family:var(--display);font-size:30px;line-height:1.15;margin:0 0 10px;color:var(--brass)}
 .gw{cursor:pointer;border-radius:4px}.gw:active{background:color-mix(in srgb,var(--brass) 30%,transparent)}
 .g-food{display:grid;grid-template-columns:1fr auto;gap:2px 10px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}.g-food b{font-size:17px}.g-food small{grid-column:1;color:var(--muted);font-size:14px}.g-food .g-want{grid-row:1/span 2;grid-column:2;padding:6px 12px}
 .g-alnote{margin:4px 0}.g-facts{margin:6px 0 2px;font-weight:600}.g-pr{font-weight:600;color:var(--brass);white-space:nowrap}.g-sums{margin-top:10px}.g-sum{display:flex;justify-content:space-between;gap:10px;padding:4px 0}.g-sum small{display:block;color:var(--muted);font-size:12px;font-weight:400}.g-tot{font-weight:800;font-size:18px;border-top:1px solid var(--line);margin-top:4px;padding-top:8px}.g-facts p{margin:2px 0}.g-row{display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}.g-row .g-drink{border:0;flex:1;min-width:0}.g-row .g-want{flex:none;padding:6px 12px}
 .g-qty{display:flex;align-items:center;gap:6px;grid-row:1/span 2;grid-column:2;flex:none}.g-qty .btn{padding:6px 12px;min-height:40px}.g-qty b{min-width:20px;text-align:center;font-size:18px}
-.g-minebar{position:sticky;bottom:8px;margin-top:12px;box-shadow:0 4px 16px rgba(0,0,0,.35)}.g-mine h2{margin:2px 0 10px}.g-mine-h{font-size:20px;font-weight:700;margin:0}
+.guest .g-minebar{display:block;text-align:center;line-height:1.3}.g-minebar{position:sticky;bottom:8px;margin-top:12px;box-shadow:0 4px 16px rgba(0,0,0,.35)}.g-mine h2{margin:2px 0 10px}.g-mine-h{font-size:20px;font-weight:700;margin:0}
 #g-body{flex:1;overflow-y:auto;display:flex;flex-direction:column;min-height:0}
 .g-log{flex:1;min-height:120px;overflow-y:auto;padding:4px 0}
 .g-msg{max-width:88%;margin:8px 0;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:var(--surface)}

@@ -38,7 +38,7 @@ const addPhoto = async (p, file, n) => {
 
 test("a phone photo is shrunk, noted, sent with the report and locked once sent", async () => {
   await resetEmulators();
-  const { O, S } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"]]);
+  const { O, S, M } = await team(browser, site, [["S", "Sam Staff", "sam", "staff"], ["M", "Mo Manager", "mo", "manager"]]);
   assert.ok(fs.statSync(big).size > 1e6, "the test photo is a few MB");
   await S.click("[data-tab=tally]"); await S.click(".ptabs [data-pane=close]");
   await addPhoto(S, big, 1);
@@ -88,8 +88,9 @@ test("a phone photo is shrunk, noted, sent with the report and locked once sent"
 
   assert.equal(await attempt(S, (id) => LIVE.api.notePhoto(id, "Changed later"), mine), "permission-denied");
   assert.equal(await attempt(S, (id) => LIVE.api.deletePhoto(id), mine), "permission-denied");
-  assert.equal(await attempt(O, (id) => LIVE.api.deletePhoto(id), mine), "permission-denied", "a manager can't delete it inside the 30 days either");
-  assert.deepEqual([O.errs, S.errs], [[], []]);
+  assert.equal(await attempt(M, (id) => LIVE.api.deletePhoto(id), mine), "permission-denied", "a manager can't delete it inside the 30 days either");
+  // Maintenance can: Start again wipes every log after testing (firestore.rules, Start again).
+  assert.deepEqual([O.errs, S.errs, M.errs], [[], [], []]);
 });
 
 test("photos chosen from the phone go in several at once, and eight is the most for one report", async () => {

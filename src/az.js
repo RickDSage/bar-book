@@ -54,6 +54,9 @@ function azFrame() {
   for (const s of azStickies()) if (!AZ.box.contains(s)) top = Math.max(top, s.getBoundingClientRect().bottom + (s.matches(".ptabs") ? 10 : 0));
   const tabs = document.querySelector("nav.tabs");
   if (!AZ.sc && tabs && tabs.getClientRects().length) bottom = Math.min(bottom, tabs.getBoundingClientRect().top);
+  // Not above the list itself, where the intro and search box have no room kept for the strip, unless the list starts so
+  // low that the strip would be too short to slide on.
+  top = Math.max(top, Math.min(AZ.box.getBoundingClientRect().top, bottom - 260));
   // Stop above the buttons that float in the bottom corner (🎤 Say it, a timer, one-hand mode), where they'd cover it.
   const right = AZ.box.getBoundingClientRect().right;
   for (const f of document.querySelectorAll("#sd-mic, #sd-timer, #sd-1h")) {
