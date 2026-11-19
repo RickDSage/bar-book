@@ -77,7 +77,7 @@ function ctMeasure(item, u, o, d) {
     return { u, ml, dn, e: set ? +o.e : m ? m[1] : 0, f: set ? +o.f : m ? ctFullG(ml, m[1], dn) : 0, pw: +o.pw || 0, est: !set && !!m, lock: set, wb: o.wb || "", wd: o.wd || "", size: m || +o.ml ? ctCl(ml) : "", guess: !!m && !m[3] && !+o.ml };
   }
   const pw = +o.pw || (p ? p[1] : 0);
-  return { u, ml: 0, dn: 1, e: +o.pw ? +o.e || 0 : p ? p[2] : 0, f: 0, pw, est: !+o.pw && !!p?.[1], lock: !!+o.pw, wb: o.wb || "", wd: o.wd || "", size: p ? p[0] : "", guess: !!p && !p[3] };
+  return { u, ml: 0, dn: 1, e: +o.pw ? +o.e || 0 : p ? p[2] : 0, f: 0, pw, est: !+o.pw && !!p?.[1], lock: !!+o.pw, wb: o.wb || "", wd: o.wd || "", size: o.sz || (p ? p[0] : ""), guess: !o.sz && !!p && !p[3] };
 }
 // Every line of the count in shelf order: one per product and place (a product kept in two places has two lines, and
 // its total adds them up). all includes the ones not counted, for the setup.
@@ -429,11 +429,13 @@ function ctEditHtml(r, x) {
     : `<div class="ct-quick ct-typed"><label>Or type<input id="ct-type" inputmode="decimal" enterkeyhint="next" value="${x ? ctNum(ctQty(x)) : ""}" placeholder="0" aria-label="How many, half is .5"></label></div>`;
   const tenths = b ? `<p class="ct-n">The open one in tenths</p><div class="ct-tenths">${[1, 2, 3, 4, 5, 6, 7, 8, 9].map((k) => chip(k * 10, `.${k}`)).join("")}</div>` : "";
   const lowSet = LIVE.admin ? `<div class="ct-lowset" data-ct-item="${esc(r.item)}" data-ct-area="${esc(r.area)}">${ctLowField(r)}</div>` : "";
-  const weigh = can ? ctWeighHtml(r) : b ? `<p class="s">No weights for ${esc(r.item)} yet.${LIVE.admin ? "" : " A manager sets them once, in Set up the count."}</p>${LIVE.admin ? `<details class="ct-wbox"><summary>Set its weights, to weigh it next time</summary>${ctWeightsHtml(r)}</details>` : ""}` : "";
+  const weigh = can ? ctWeighHtml(r) : b ? `<p class="s">No weights for ${esc(r.item)} yet.${LIVE.admin ? " Set them under Size and weight." : " A manager sets them once."}</p>` : "";
+  // Managers set the size and weight of anything right here, not only in Set up the count.
+  const sizeSet = LIVE.admin ? `<details class="ct-wbox ct-sizeset" data-ct-sz-item="${esc(r.item)}"${(!can && b) || ctSizeOn === r.item ? " open" : ""}><summary>Size and weight${r.size ? `: ${esc(ctSz(r))}` : ""}</summary><div data-ct-item="${esc(r.item)}" data-ct-area="${esc(r.area)}">${ctSizeHtml(r)}</div></details>` : "";
   const one = r.size && !b ? `<p class="s ct-size">One is a ${esc(ctSz(r))}${r.guess ? " (the usual size: a manager can change it)" : ""}.</p>` : "";
-  const more = `<details class="ct-more" id="ct-more"${ctMoreOn ? " open" : ""}><summary>More: ${b ? "tenths, photo check, weigh it" : "weigh it"}, none left${LIVE.admin ? ", levels" : ""}</summary>
+  const more = `<details class="ct-more" id="ct-more"${ctMoreOn ? " open" : ""}><summary>More: ${b ? "tenths, photo check, weigh it" : "weigh it"}, none left${LIVE.admin ? ", size and weight, levels" : ""}</summary>
     ${one}${tenths}${b ? `<div class="ct-open">${ctBottle(open, r.item)}<div><span>Or tap the bottle</span>${ctPhotoBtn(r)}</div></div>${ctPhotoHtml(r)}` : ""}
-    ${ctRefHtml(r)}${weigh}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}</div></details>`;
+    ${ctRefHtml(r)}${weigh}${sizeSet}${lowSet}<div class="actions"><button class="btn" data-ct-set="0:0">None left</button>${x ? `<button class="btn" data-ct-drop="${esc(r.key)}">Clear</button>` : ""}</div></details>`;
   const odd = x && ctOdd(r, x), chk = odd ? `<p class="note warnline ct-oddn">${esc(odd)}. Count it again, or <button class="linkbtn" data-ct-ok>It's right</button></p>` : "";
   // Nothing moves on by itself: pick, check the sum, then Confirm. Left blank, it saves as none.
   const nav = `<div class="ct-nav"><button class="btn" data-ct-back aria-label="The item before">‹ Back</button><button class="btn pri" data-ct-next="${esc(r.key)}">${x ? "Confirm ›" : "None here ›"}</button></div>`;
@@ -449,6 +451,8 @@ function ctSumLine(r, x) {
   return `<p class="ct-sum${x ? "" : " ct-eg"}">${x ? t : `For example: ${t}`}</p>`;
 }
 var ctMoreOn = store.get("ctMore", false);
+// The Size and weight box stays open through a redraw (each saved field redraws the line) while that item is open.
+var ctSizeOn = "";
 // Managers: the product's levels, in what it's counted in, all places together. Running low below: the heads-up before
 // an 86. Par: what the order draft orders back up to. Blank is off.
 const ctLowField = (r) => `<div class="two"><label class="fld">Running low below <span class="s">(${ctUnit(r.u, 2).trim() || "how many"})</span><input inputmode="decimal" data-ct-f="low" value="${r.low || ""}" placeholder="Off"></label><label class="fld">Par: order up to<input inputmode="decimal" data-ct-f="par" value="${ctSetup().items[r.item]?.par ?? ""}" placeholder="Off"></label></div>`;
@@ -502,7 +506,7 @@ function ctRefHtml(r) {
 function ctWeighHtml(r) {
   const b = r.u === "bottle";
   const est = r.est ? ` Weights estimated.${LIVE.admin ? "" : " A manager can check them."}` : r.lock ? ` ${ctLockSay(r)}` : " Weights checked.";
-  return `<label class="fld ct-g">${b ? "On the scale, grams (pourer off)" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the packaging ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="${r.e ? `${r.e} g or more` : "Grams"}"></label><p class="s" id="ct-g-out">${b ? `${ctSz(r)}: <b>minimum ${r.e} g</b> (the empty bottle), full ${r.f} g. A sealed one goes on Full.` : ""}</p><p class="s ct-est">${est.trim()}</p>${LIVE.admin && (r.est || ctOpenLock(r)) ? ctCheckHtml(r) : LIVE.admin && r.lock ? ctUnlockBtn(r) : ""}`;
+  return `<label class="fld ct-g">${b ? "On the scale, grams (pourer off)" : `Or weigh them, grams (one is ${r.pw} g${r.e ? `, the packaging ${r.e} g` : ""})`}<input id="ct-g" inputmode="decimal" enterkeyhint="done" data-ct-g="${esc(r.key)}" placeholder="${r.e ? `${r.e} g or more` : "Grams"}"></label><p class="s" id="ct-g-out">${b ? `${ctSz(r)}: <b>minimum ${r.e} g</b> (the empty bottle), full ${r.f} g. A sealed one goes on Full.` : ""}</p><p class="s ct-est">${est.trim()}</p>${LIVE.admin && (r.est || ctOpenLock(r)) ? ctCheckHtml(r) : ""}`;
 }
 // Weighed by a manager: locked until the next re-weigh, which takes a deliberate Unlock first, so nobody changes it by
 // accident. The lock is the weights a manager saved; Unlock only opens it on this phone until the new ones are saved.
@@ -523,7 +527,15 @@ function ctWeightsHtml(r) {
   if (r.lock && !ctUnlocked.has(r.item)) return `<div class="ct-w"><p class="s">${ctLockSay(r)} Empty ${r.e} g, full ${r.f} g${r.ml ? `, ${r.ml} ml` : ""}.</p>${ctUnlockBtn(r)}</div>`;
   return `<div class="ct-w" data-ct-w="${esc(r.item)}"><p class="s">${r.est ? `Filled in with estimates for a ${ctSz(r)} bottle${r.guess ? " (usual size: check yours)" : ""}. Weigh yours to make them exact: ` : ""}an empty ${esc(r.item)} bottle (rinsed, pourer off) and an unopened one.</p>
     <div class="two"><label class="fld">Empty, grams<input inputmode="decimal" data-ct-wf="e" value="${r.e || ""}"></label><label class="fld">Unopened, grams<input inputmode="decimal" data-ct-wf="f" value="${r.f || ""}"></label></div>
-    <label class="fld">Bottle size: 70 cl or 700 ml<input inputmode="decimal" data-ct-wf="ml" value="${r.ml ? ctCl(r.ml) : ""}" placeholder="70 cl"></label><div class="actions"><button class="btn" data-ct-wsave="${esc(r.item)}">Save the weights</button></div></div>`;
+    <label class="fld">Bottle size: 70 cl or 700 ml<input inputmode="decimal" data-ct-wf="ml" value="${r.ml ? ctCl(r.ml) : ""}" placeholder="70 cl"></label><div class="actions"><button class="btn" data-ct-wsave="${esc(r.item)}">Save size and weights</button></div></div>`;
+}
+// Size and weight of anything, one editor (managers): a bottle's size and its empty and unopened weights; anything else
+// what one is ("200 ml bottle", "1 kg pouch", "slice") and its grams, to weigh it. Used in Set up the count and on every
+// count line under More, so it's never more than a tap from the item. Weights are grams on the scale, never 1 g = 1 ml.
+function ctSizeHtml(r) {
+  if (r.u === "bottle") return ctWeightsHtml(r);
+  return `<label class="fld">What one is: size or weight <span class="s">(like 200 ml bottle, 1 kg pouch, 500 g tub)</span><input data-ct-f="sz" maxlength="40" value="${esc(ctSetup().items[r.item]?.sz || r.size || "")}" placeholder="200 ml bottle"></label>
+    <div class="two"><label class="fld">One, grams <span class="s">(to weigh)</span><input inputmode="decimal" data-ct-f="pw" value="${r.pw || ""}"></label><label class="fld">Container, grams<input inputmode="decimal" data-ct-f="e" value="${r.e || ""}"></label></div>`;
 }
 function ctPut(r, full, open) {
   full = Math.max(0, Math.min(9999, Math.round(full))); open = Math.max(0, Math.min(99, Math.round(open)));
@@ -899,7 +911,7 @@ function ctSave(change, ok) {
 }
 function ctItemSet(s, r, f) {
   const o = s.items[r.item] || {};
-  s.items[r.item] = { ...o, a: o.a?.length ? o.a : r.a, u: o.u || r.u, e: +o.e || 0, f: +o.f || 0, ml: +(o.ml ?? r.ml) || 0, pw: +o.pw || 0, off: o.off ?? r.off, ...f };
+  s.items[r.item] = { ...o, a: o.a?.length ? o.a : r.a, u: o.u || r.u, e: +o.e || 0, f: +o.f || 0, ml: +(o.ml ?? r.ml) || 0, pw: +o.pw || 0, sz: o.sz || "", off: o.off ?? r.off, ...f };
 }
 function ctSetupHtml() {
   const all = ctRows(true), areas = ctAreas(all), seen = new Set();
@@ -918,7 +930,7 @@ function ctSetupHtml() {
         <div class="two"><label class="fld">Counted in<select data-ct-f="u">${CT_UNITS.map((u) => `<option${u === r.u ? " selected" : ""}>${u}</option>`).join("")}</select></label>
         <label class="fld">Place<select data-ct-f="area">${areas.map((x) => `<option${x === a ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label></div>
         ${first ? `<label class="fld">Also counted in<select data-ct-f="also"><option value="">Nowhere else</option>${areas.filter((x) => x !== a).map((x) => `<option${r.a.includes(x) ? " selected" : ""}>${esc(x)}</option>`).join("")}</select></label>` : `<p class="s">Also counted in ${esc(r.a.filter((x) => x !== a).join(", "))}.</p>`}
-        ${r.u === "bottle" ? ctWeightsHtml(r) : `<div class="two"><label class="fld">One portion or unit, grams <span class="s">(to weigh)</span><input inputmode="decimal" data-ct-f="pw" value="${r.pw || ""}"></label><label class="fld">Container, grams<input inputmode="decimal" data-ct-f="e" value="${r.e || ""}"></label></div>`}
+        ${ctSizeHtml(r)}
         ${first ? ctLowField(r) : ""}
         <label class="check"><input type="checkbox" data-ct-f="off"${r.off ? " checked" : ""}> Don't count this</label></div>` : ""}</details>`;
     }).join("")}`; }).join("")}`;
@@ -1041,6 +1053,7 @@ $("#v-count").addEventListener("click", (e) => {
 $("#v-count").addEventListener("toggle", (e) => {
   // A redraw fires toggle on the details it replaced too, after they've gone: only the ones on the page count.
   const d = e.target; if (!$("#ct") || !d.matches?.("details") || !d.isConnected) return;
+  if (d.dataset.ctSzItem) ctSizeOn = d.open ? d.dataset.ctSzItem : ctSizeOn === d.dataset.ctSzItem ? "" : ctSizeOn;
   if (d.id === "ct-in-box") ctInHtml.open = d.open;
   else if (d.id === "ct-tips") ctTipsHtml.open = d.open;
   else if (d.id === "ct-opts") ctOptsHtml.open = d.open;
@@ -1106,6 +1119,7 @@ $("#v-count").addEventListener("change", (e) => {
     if (f === "u") ctItemSet(s, r, { u: el.value });
     if (f === "off") ctItemSet(s, r, { off: el.checked });
     if (f === "pw" || f === "e") ctItemSet(s, r, { [f]: +el.value.replace(",", ".") || 0 });
+    if (f === "sz") ctItemSet(s, r, { sz: el.value.trim().slice(0, 40) });
     if (f === "low") ctItemSet(s, r, { low: Math.max(0, Math.min(9999, +el.value.replace(",", ".") || 0)) });
     if (f === "par") { const v = el.value.trim().replace(",", "."); ctItemSet(s, r, {}); if (v === "" || isNaN(+v)) delete s.items[r.item].par; else s.items[r.item].par = Math.max(0, Math.round(+v * 100) / 100); }
     if (f === "area") { ctItemSet(s, r, { a: [...new Set(r.a.map((x) => (x === area ? el.value : x)))] }); ctSetOpen = `${el.value}|${r.item}`; }
