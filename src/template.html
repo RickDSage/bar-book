@@ -132,6 +132,7 @@ header { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; backg
 .chips { display: flex; flex-wrap: wrap; gap: 8px; padding-block: 10px 2px; }
 .chips .chip { max-width: 100%; white-space: normal; text-align: start; }
 .chip { flex: none; min-height: 40px; padding: 8px 14px; border-radius: 999px; border: 1px solid var(--line); color: var(--muted); font-size: 15px; white-space: nowrap; }
+.chip:disabled { opacity: .45; }
 .chip[aria-pressed="true"] { background: var(--brass); border-color: var(--brass); color: var(--brass-ink); font-weight: 700; }
 
 main { padding-block: 8px calc(var(--tabh) + 24px + env(safe-area-inset-bottom, 0px)); }
@@ -2814,7 +2815,7 @@ function checklistHtml(k) {
   // One row of tools. A list with headings has Tick all on each heading, so the whole-list Tick all done is only on a
   // list without them (ticking 39 jobs in one tap isn't a close).
   const heads = groupsOf(k).filter(([g]) => g).length;
-  const tools = locked ? "" : `<div class="ltools lt1"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button>${heads > 1 ? `<button class="chip" data-lf-all="${k}">${groupsOf(k).some(([g]) => g && lfShut[`${k}|${g}`]) ? "Open every heading" : "Fold every heading"}</button>` : ""}${!heads && p.n < p.of ? `<button class="chip" data-tick-all="${k}">Tick all done</button>` : ""}${canUndoList(k) ? `<button class="chip pri" data-undo-list="${k}">\u21a9 Undo clear</button>` : any ? `<button class="chip" data-clear-list="${k}">\u21ba Clear</button>` : ""}</div>
+  const tools = locked ? "" : `<div class="ltools lt1"><button class="chip" data-left-only aria-pressed="${leftOnly}">Only what's left</button>${heads > 1 ? `<button class="chip" data-lf-all="${k}">${groupsOf(k).some(([g]) => g && lfShut[`${k}|${g}`]) ? "Open every heading" : "Fold every heading"}</button>` : ""}${!heads && p.n < p.of ? `<button class="chip" data-tick-all="${k}">Tick all done</button>` : ""}${canUndoList(k) ? `<button class="chip pri" data-undo-list="${k}">\u21a9 Undo clear</button>` : `<button class="chip" data-clear-list="${k}"${any ? "" : " disabled"}>\u21ba Clear</button>`}</div>
     ${justTicked?.k === k && statusOf(k, justTicked.i) === "done" ? `<button class="todo undo" data-task="${k}-${justTicked.i}" data-to="todo">\u21a9 <b>Undo</b> ${esc(justTicked.t)}</button>` : ""}`;
   const group = ([g, xs]) => {
     const left = openOf(k, xs.map(([i]) => i)).length, req = xs.filter(([i]) => statusOf(k, i) !== "cancelled").length;
@@ -2826,9 +2827,12 @@ function checklistHtml(k) {
     // A heading that's all done folds away, so what's left is near the top. Tap it to see who did what.
     return g && !left && !xs.some(([i]) => more === `${k}-${i}`) ? `<details class="lfold"><summary>${head}</summary>${rows}</details>` : head + rows;
   };
-  return `${runHtml(k)}<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}${p.skipped ? ` · ${p.skipped} not needed tonight` : ""}</span><b>${p.pct}%</b></div>
+  // Ticking never moves the list: while a list is under way its status and Finish sit under the last item, where the
+  // last tick lands. A finished list says so at the top, since it's locked.
+  const run = runHtml(k), fin = runOf(k)?.status === "finished";
+  return `${fin ? run : ""}<div class="prog-head"><span>${p.n === p.of ? "All done" : `${p.n} of ${p.of} done`}${p.skipped ? ` · ${p.skipped} not needed tonight` : ""}</span><b>${p.pct}%</b></div>
     <div class="prog${p.n === p.of ? " full" : ""}" role="progressbar" aria-label="${esc(LISTS[k].title)}" aria-valuenow="${p.pct}" aria-valuemin="0" aria-valuemax="100"><i style="width:${p.pct}%"></i></div>
-    ${tools}${groupsOf(k).map(group).join("")}`;
+    ${tools}${groupsOf(k).map(group).join("")}${fin ? "" : run}`;
 }
 // Splitting the close: "I'll do this" on a heading starts everything not yet started under it in your name, so the
 // others see who has that part and pick another. It is the same Start as on each item (no new data), so Stop on an
@@ -3691,7 +3695,7 @@ function renderTally() {
   const body = {
     morning: () => `${morningHtml()}${labelsDueHtml(mode)}${nextBtn("labels", "Next: date labels")}`,
     labels: () => `${labelsHtml(mode)}${nextBtn("stock", "Next: 86 and restock")}`,
-    fclose: () => `${labelsDueHtml("floor")}${closeStatsHtml("fclose")}${listPane("fclose")}${putAwayHtml("floor")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
+    fclose: () => `${labelsDueHtml("floor")}${listPane("fclose")}${closeStatsHtml("fclose")}${putAwayHtml("floor")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
     stock: () => `<div class="sec">86 board</div>
       <p class="note">Everyone on bar and floor sees it straight away, and 86'd drinks show on the drinks list.</p>
       ${outList.length ? outList.map((n) => { const sw = pkSwap(n), u = pkUses(n); return `<div class="tally-row" style="grid-template-columns:1fr auto"><div class="n">${esc(n)}${outBy(n) || u ? `<div class="s">${outBy(n) ? `86'd by ${outBy(n)}` : ""}${u ? `${outBy(n) ? " · " : ""}${plural(u, "drink")} use it` : ""}</div>` : ""}${sw ? `<div class="s pk-sw">${esc(sw)}</div>` : ""}</div><button class="btn" data-out-back="${esc(n)}">Back in stock</button></div>`; }).join("") : `<p class="note">Nothing 86'd.</p>`}
@@ -3700,7 +3704,7 @@ function renderTally() {
       ${pkBtn("Search everything to 86: drinks, bottles, cakes, boxes", `data-pk86="${mode}"`)}
       <div class="mini">Quick 86: recent and most 86'd</div><div class="recent" translate="no">${pkTop(mode).filter((x) => !outNow().has(x)).map((x) => `<button class="chip" data-out-quick="${esc(x)}">${esc(x)}</button>`).join("")}</div>
       ${restockHtml()}<p class="note ct-move">The stock count, the barcode scanner, use-by dates and Add something new have their own tab: <button class="linkbtn" data-goto="count">Stock ›</button></p>${nextBtn(closeList(), "Next: closing checklist")}`,
-    close: () => `${labelsDueHtml("bar")}${closeStatsHtml("close")}${listPane("close")}${putAwayHtml("bar")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
+    close: () => `${labelsDueHtml("bar")}${listPane("close")}${closeStatsHtml("close")}${putAwayHtml("bar")}${photosHtml()}${closeSendHtml()}${nextBtn("send", "Next: hand over")}`,
     send: () => {
       const left = MODE_LISTS[mode].reduce((n, k) => n + progress(k).of - progress(k).n, 0);
       return `<div class="sumcard">
@@ -5405,7 +5409,7 @@ const FEATURES = [
     staff: "Keep your own bottles in My bar on your phone, set the ml you want to use, and open any match for the full spec. Spin for a drink is under More, Games and drills." },
   { g: "Drinks", k: "rapid", n: "Rapid fire", go: "tab:rapid", tour: 1,
     what: "For the busiest moments: the top 10 as big cards with the spec on them, then the house cocktails, shots, alcohol-free and serves as tiles.",
-    staff: "Change the top 10 to your bar's best sellers, type a drink or a spirit to narrow them down, and send several specs at once on WhatsApp." },
+    staff: "What do they like? picks a drink with a guest face to face: tap what they say (fruity, not sweet, gin, long, no milk) and the drinks that fit come up best first, with the spec. Change the top 10 to your bar's best sellers, type a drink or a spirit to narrow them down, and send several specs at once on WhatsApp." },
   { g: "Drinks", k: "allergens", n: "Allergens", go: "tab:allergens", tour: 1,
     what: "Which drinks have milk, gluten, nuts, soya, celery, fish, sulphites or oats in them, to answer a guest straight away.",
     staff: "Tap an allergen to see every drink with it." },
@@ -5554,7 +5558,7 @@ document.addEventListener("click", (e) => { if (e.target.closest("[data-feat-ope
 document.addEventListener("click", (e) => { const g = e.target.closest("[data-goto]"); if (!g) return; e.preventDefault(); haptic(); if (!$("#sheet").hidden) hideSheet(); openAt(g.dataset.goto); scrollTo(0, 0); });
 /* The drinks search finds the app's pages too: "handover", "86", "pay" or "allergy" shows a Go to button above the
    drinks. Every word typed has to start one of the page's words, and a word needs 3 letters (86 is fine). */
-const PLACE_KW = { guest: "guest tourist customer foreign language translate translation talk speak phrases phrase book welcome hello greeting menu food check back how is the food dessert coffee tea goodbye allergy card", photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh weight size ml cl millilitres litres set size bottle size scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
+const PLACE_KW = { rapid: "rapid fast busy what do they like guest likes taste fancy recommend suggest choose pick a drink for", guest: "guest tourist customer foreign language translate translation talk speak phrases phrase book welcome hello greeting menu food check back how is the food dessert coffee tea goodbye allergy card", photos: "photos pictures camera gallery images", morning: "opening prep pars order today", lists: "closing close checklist tick", labels: "date labels use by expiry", stock: "86 out restock cellar run ran where kept fridge", count: "stock count stocktake notebook bottles weigh weight size ml cl millilitres litres set size bottle size scale grams delivery usage nory inventory barcode scan scanner use-by useby expiry expiring expires add new item",
   send: "handover hand over closing report", ask: "managers day off holiday swap complaint", incident: "accident injury first aid", issues: "fault broken fix repair",
   tell: "app feedback bug", quick: "whatsapp send late sick report", call: "phone numbers emergency", people: "team code join leave link",
   pay: "wages tronc payslip tax hours salary", allergens: "allergy nuts gluten milk dairy", practice: "practice quiz flashcards test", sheets: "print laminate", spin: "wheel", rate: "rate shift",

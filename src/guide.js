@@ -9,13 +9,13 @@
    The 🔍 at the top of every screen opens the Guide: start here, every part of Bar Book by section, and one search that
    answers "how do I make…", "how do I…" and "what's…" with the drink, the page or the meaning, or says it isn't in Bar
    Book and sends it to maintenance to add. The same search sits in Practise and on the bar station. */
-const WALK_V = 17;
+const WALK_V = 18;
 const WALK_NEW = [
+  "⚡ Rapid fire, 🗣 What do they like?: tap what the guest says and the drinks that fit come up, best first",
+  "Closing: ticking never moves the list. Finish and the totals sit under the last item",
   "🌍 at the top (Guest on the iPad): hand a guest the phone. Their language, the menus with prices to tick, questions, two-way talk, the allergy card",
   "Your language is asked when you pick your name. Hold any words to see them in English",
   "🎤 works like a radio: hold, talk, let go. Fewer words: “mojito no sugar”, “French guest”, “open labels”",
-  "↺ Clear acts at once on every list, and ↩ Undo clear stays for 15 minutes",
-  "🔍 finds settings too (“dark mode”). My pay is in More: five tabs along the bottom",
   "📷 Any photo's words: More, Read text in a photo. Any product's allergens and use-by: More, Everything we stock",
 ];
 const WALK_NAV_LINE = "🌍 is for guests who don't speak English: hand them the phone, ✕ Staff takes it back. 🔍 at the top finds any screen, drink or how-to. 🎤 beside it: hold it like a radio and talk, or tap it. ⌂ goes home, ‹ Back goes back.";
