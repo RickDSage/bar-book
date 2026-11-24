@@ -236,8 +236,9 @@ test("finding it when it isn't in shelf order: every place, not counted yet, Nex
   await S.click('[data-ct-intro="3"]'); assert.match(await text(S, ".ct-intro"), /Can't find it\? .*📷 and scan the barcode.*＋ Add it and count it/i);
   await S.click('[data-ct-intro="go"]');
   await S.waitForSelector("#ct .ct-row"); assert.equal(await S.evaluate(() => store.get("ctHow")), true);
-  // Each line says what to do with it; How to count brings the walkthrough back.
-  assert.match(await rowText(S, "Speed rail", "Smirnoff"), /Smirnoff Full ones, then the open one: None, ¼, ½ or ¾/);
+  // Each line that isn't a bottle says what to do with it (bottles are all counted the same way, so their lines are just
+  // the name and a shelf fits on the screen); How to count brings the walkthrough back.
+  assert.doesNotMatch(await rowText(S, "Speed rail", "Smirnoff"), /Full ones/);
   assert.match(await rowText(S, "Bar fridge", "Tonic"), /Tonic Count them: one is a 200 ml Fever-Tree bottle/);
   assert.match(await rowText(S, "Bar fridge", "Funkin purées"), /Count them or weigh them: one is a 1 kg pouch/);
   await opts(S); await S.click('.ct-head [data-ct-intro="0"]'); await S.waitForSelector(".ct-intro"); await S.click('[data-ct-intro="go"]'); await S.waitForSelector("#ct .ct-row");

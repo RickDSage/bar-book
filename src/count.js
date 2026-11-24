@@ -337,8 +337,9 @@ function ctHeardHtml() {
     <div class="actions">${v ? `<button class="btn pri" id="ct-heard-ok">Save it</button>` : ""}<button class="btn" data-ct-row="${esc(r.key)}">Open it to change</button><button class="btn" id="ct-heard-no">Not that</button></div></div>`;
 }
 // What to do with a line, in a few words, for anyone counting for the first time.
+// Bottles say nothing on their line: every one is counted the same way (How to count, and the open line, show it), so
+// a shelf of spirits fits on the screen. Everything else says its unit, which changes line to line.
 function ctDo(r) {
-  if (r.u === "bottle") return "Full ones, then the open one: None, ¼, ½ or ¾";
   const u = r.u === "each" ? "them" : `the ${ctUnit(r.u, 2).trim()}`;
   return `Count ${u}${r.pw > 0 ? " or weigh them" : ""}${r.size ? `: one is a ${ctSz(r)}` : ""}`;
 }
@@ -347,7 +348,7 @@ const ctFrac = (o) => ({ 25: "¼", 50: "½", 75: "¾" })[o] || `.${String(o).pad
 const ctThere = (r, x) => (r.u === "bottle" && x.open ? `${x.full} full · ${ctFrac(x.open)} open` : "");
 function ctRowHtml(r, where, no) {
   const x = ctLine(r), on = ctOpen === r.key, th = x && ctThere(r, x);
-  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${no ? `<i class="ct-no">${no}</i>` : ""}${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}${th ? `<small class="ct-th">${th}</small>` : ""}${x && ctOdd(r, x) ? `<small class="ct-chk">Check it</small>` : ""}${ctLowSet.has(r.item) ? `<small class="ct-low">Running low</small>` : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
+  return `<div class="ct-row${on ? " on" : ""}${x ? " done" : ""}" id="ct-r-${ctSlug(r.key)}"><button class="ct-line" data-ct-row="${esc(r.key)}" aria-expanded="${on}"><i class="ct-dot" aria-hidden="true"></i><span>${no ? `<i class="ct-no">${no}</i>` : ""}${esc(r.item)}${where ? `<small>${esc(r.area)}</small>` : ""}${x || r.u === "bottle" ? "" : `<small class="ct-do">${esc(ctDo(r))}</small>`}</span><b>${x ? ctSay(r.u, ctQty(x)) : ""}${th ? `<small class="ct-th">${th}</small>` : ""}${x && ctOdd(r, x) ? `<small class="ct-chk">Check it</small>` : ""}${ctLowSet.has(r.item) ? `<small class="ct-low">Running low</small>` : ""}</b>${x ? `<small class="by">${esc(x.name)}</small>` : ""}</button>${on ? ctEditHtml(r, x) : ""}</div>`;
 }
 // Next: down the list as it shows (by place, by kind or A to Z), past anything counted already when only what's left is
 // showing. Left blank, Next saves it as none. soon: after a line's last tap, a moment to see it saved first.

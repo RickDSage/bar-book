@@ -12,7 +12,85 @@ const RAPID_GROUPS = [
   ["No alcohol", ["Virgin Mojito", "No-Star Martini", "Virgin Colada", "Espresso No-tini", "Virgin Margarita", "Virgin Cosmo", "Shirley Temple", "Strawberry Lemonade", "Virgin Hugo", "Lime & Soda"]],
   ["Serves", ["Gin & Tonic", "Vodka Red Bull", "Rum & Coke", "Jack & Coke", "Vodka Lemonade", "Vodka Cranberry", "Jameson, Ginger & Lime", "Malibu & Pineapple", "Pink Gin & Lemonade", "Archers & Lemonade"]],
 ];
-const RAPID = { ids: [], q: "", specs: store.get("rapid.specs", false), rushEdit: false };
+const RAPID = { ids: [], q: "", specs: store.get("rapid.specs", false), rushEdit: false, g: null, gAll: false, gUndo: null };
+/* ---------- What do they like? Picking a drink with a guest, face to face ----------
+   At the bar or the table, tap what the guest says as they say it: what they like (tap again for "not that"), a spirit
+   (or not that spirit), long, short, a shot or no alcohol, and anything they must avoid. The drinks that fit come up
+   straight away, best first, each with the spec and why it fits, so it can be read out, rung in or made there and then.
+   It only ranks drinks already in the book: it never makes up a spec. Allergens come from the specs, so the venue's
+   allergen matrix is still the final word. Nothing is saved: Start again clears it for the next guest. */
+const RG_SPIRITS = [["Vodka", BASES[0][1]], ["Gin", BASES[1][1]], ["Rum", BASES[2][1]], ["Tequila", BASES[3][1]], ["Whisky", BASES[4][1]],
+  ["Brandy", /cognac|brandy|hennessy|martell|courvoisier|r[ée]my|calvados|pisco/i]];
+const RG_STYLES = [["Long", "long"], ["Short", "short"], ["Shot", "shot"], ["No alcohol", "zero"]];
+const RG_AVOID = [["Milk", /milk/i], ["Nuts", /nut|almond|hazelnut|peanut/i], ["Gluten", /gluten/i], ["Egg", /egg/i], ["Sulphites", /sulphite/i]];
+const rgNew = () => ({ like: new Set(), not: new Set(), sp: new Set(), spNot: new Set(), style: "", avoid: new Set() });
+const rgEmpty = (g) => !g.like.size && !g.not.size && !g.sp.size && !g.spNot.size && !g.style && !g.avoid.size;
+const rgCopy = (g) => ({ like: new Set(g.like), not: new Set(g.not), sp: new Set(g.sp), spNot: new Set(g.spNot), style: g.style, avoid: new Set(g.avoid) });
+const rgFlav = (d, k) => d.tags.some((t) => FLAVOURS[k].includes(t));
+const rgSpirit = (d, k) => RG_SPIRITS.find(([n]) => n === k)[1].test(d.spec.join(" "));
+const rgZero = (d) => d.section === "Zero Proof" || d.tags.includes("No alcohol");
+const rgStyle = (d) => (rgZero(d) ? "zero" : d._k === "shot" ? "shot" : /highball|spritz|wine|half|pint|collins|copa/i.test(d.glass) ? "long" : "short");
+// Best first: the most of what they like, then the house cards, then what guests order most.
+function rgMatches(g, words) {
+  const ask = new Set(RAPID_GROUPS[1][1]), out = [];
+  let off = 0;
+  for (const d of D) {
+    if (!plHits(d, words)) continue;
+    if (g.style && rgStyle(d) !== g.style) continue;
+    if (g.style !== "zero" && (g.sp.size && ![...g.sp].some((k) => rgSpirit(d, k)) || [...g.spNot].some((k) => rgSpirit(d, k)))) continue;
+    if ([...g.not].some((k) => rgFlav(d, k)) || [...g.avoid].some((k) => RG_AVOID.find(([n]) => n === k)[1].test(d.allergens || ""))) continue;
+    const hit = [...g.like].filter((k) => rgFlav(d, k));
+    if (g.like.size && !hit.length) continue;
+    if (isOut(d.name)) { off++; continue; }
+    out.push({ d, hit, score: hit.length * 10 + (d.section === "Black Tap Signatures" ? 3 : 0) + (ask.has(d.name) ? 2 : 0) + (d.official ? 1 : 0) });
+  }
+  out.sort((a, b) => b.score - a.score || a.d.name.localeCompare(b.d.name));
+  return { out, off };
+}
+// A chip that goes off, then ✓ likes it, then ✕ not that. Its words say which, never colour alone.
+function rgTri(k, on, no, attr) {
+  const st = on.has(k) ? "y" : no.has(k) ? "n" : "";
+  return `<button class="chip gk-c${st ? ` gk-${st}` : ""}" ${attr}="${esc(k)}" aria-pressed="${!!st}" aria-label="${esc(k)}: ${st === "y" ? "likes it" : st === "n" ? "not this" : "off"}">${st === "y" ? "✓ " : st === "n" ? "✕ No " : ""}${esc(k)}</button>`;
+}
+function rgPanelHtml(g) {
+  const one = (k, on, attr, v = k) => `<button class="chip gk-c${on ? " gk-y" : ""}" ${attr}="${esc(v)}" aria-pressed="${on}">${on ? "✓ " : ""}${esc(k)}</button>`;
+  return `<div class="gk" id="gk"><div class="gk-h"><b>What do they like?</b>${rgEmpty(g) && RAPID.gUndo ? `<button class="chip" data-rg-undo>↩ Undo</button>` : `<button class="chip" data-rg-clear${rgEmpty(g) ? " disabled" : ""}>↺ Start again</button>`}</div>
+    ${rgEmpty(g) ? `<p class="s">Tap what the guest says. Tap again for “not that”.</p>` : ""}
+    <div class="mini">Taste</div><div class="chips">${Object.keys(FLAVOURS).map((k) => rgTri(k, g.like, g.not, "data-rg-f")).join("")}</div>
+    <div class="mini">Spirit</div><div class="chips">${RG_SPIRITS.map(([k]) => rgTri(k, g.sp, g.spNot, "data-rg-s")).join("")}</div>
+    <div class="mini">How</div><div class="chips">${RG_STYLES.map(([k, v]) => one(k, g.style === v, "data-rg-st", v)).join("")}</div>
+    <div class="mini">Can't have</div><div class="chips">${RG_AVOID.map(([k]) => one(k, g.avoid.has(k), "data-rg-a")).join("")}</div></div>`;
+}
+function rgRow(m) {
+  const d = m.d, why = [...m.hit, ...[...RAPID.g.sp].filter((k) => rgSpirit(d, k))];
+  return `<button class="rp-row gk-row" data-rp="${d.id}"><span class="g" aria-hidden="true">${glass(d)}</span><span><span class="n" translate="no">${esc(d.name)}${plOutTag(d)}</span>${why.length ? `<span class="gk-why">✓ ${esc(why.join(" · "))}</span>` : ""}<span class="s" translate="no">${esc(rapidSpec(d))}</span><span class="m" translate="no">${esc(d.glass)} · ${esc(d.ice)} · ${esc(d.garnish)}</span>${d.allergens && d.allergens !== "None" ? `<span class="m gk-al" translate="no">Allergens: ${esc(d.allergens)}</span>` : ""}</span></button>`;
+}
+function renderRg(words) {
+  const g = RAPID.g, { out, off } = rgMatches(g, words), n = RAPID.gAll ? out.length : 12;
+  RAPID.ids = out.map((m) => m.d.id);
+  $("#rp-out").innerHTML = rgPanelHtml(g)
+    + `<div class="sec" aria-live="polite">${rgEmpty(g) && !words.length ? "Most asked for first" : out.length ? `${plural(out.length, "drink")} fit${out.length === 1 ? "s" : ""}` : "Nothing fits all of that"}<span class="cnt">${out.length}</span></div>`
+    + (out.length ? `<div class="rp-list">${out.slice(0, n).map(rgRow).join("")}</div>${out.length > n ? `<button class="btn wide" data-rg-all>Show all ${out.length}</button>` : ""}`
+      : `<p class="empty">Take one away (the last ✓ or ✕) and it'll find the closest.</p>`)
+    + (off ? `<p class="note">${plural(off, "more drink")} would fit but ${off === 1 ? "is" : "are"} 86'd tonight.</p>` : "")
+    + (g.avoid.size ? `<p class="note warnline">Allergens are from our specs only. Check the venue's allergen matrix before it goes out.</p>` : "");
+}
+$("#v-rapid").addEventListener("click", (e) => {
+  const b = e.target.closest("[data-rg-f],[data-rg-s],[data-rg-st],[data-rg-a],[data-rg-clear],[data-rg-undo],[data-rg-all],#rp-guest"); if (!b) return;
+  haptic();
+  if (b.id === "rp-guest") { RAPID.g = RAPID.g ? null : rgNew(); RAPID.gAll = false; RAPID.gUndo = null; renderRapid(); return scrollTo(0, 0); }
+  const g = RAPID.g; if (!g) return;
+  const tri = (k, on, no) => (on.has(k) ? (on.delete(k), no.add(k)) : no.has(k) ? no.delete(k) : on.add(k));
+  if (b.dataset.rgF) tri(b.dataset.rgF, g.like, g.not);
+  if (b.dataset.rgS) tri(b.dataset.rgS, g.sp, g.spNot);
+  if (b.dataset.rgSt) g.style = g.style === b.dataset.rgSt ? "" : b.dataset.rgSt;
+  if (b.dataset.rgA) g.avoid.has(b.dataset.rgA) ? g.avoid.delete(b.dataset.rgA) : g.avoid.add(b.dataset.rgA);
+  if ("rgAll" in b.dataset) RAPID.gAll = true;
+  if ("rgClear" in b.dataset) { RAPID.gUndo = rgCopy(g); RAPID.g = rgNew(); RAPID.gAll = false; RAPID.q = ""; $("#rp-q").value = ""; }
+  else if ("rgUndo" in b.dataset) { RAPID.g = RAPID.gUndo; RAPID.gUndo = null; }
+  else RAPID.gUndo = null;
+  renderRapid();
+});
 const rapidList = (f) => (typeof f === "function" ? D.filter(f) : f.map((n) => D.find((d) => d.name === n)).filter(Boolean));
 const rapidSpec = (d) => d.spec.map((s) => s.replace(/^Top about /i, "Top ~")).join(" · ");
 function rapidTile(d) {
@@ -28,6 +106,8 @@ function renderRapid() {
   if (RAPID.rushEdit) { $("#rp-out").innerHTML = rushPickHtml(); return; }
   // The same search as the menu: typos, "redbull" or "g&t" find what they mean.
   const words = RAPID.q.trim() ? plQuery(RAPID.q.trim()).words : [];
+  $("#rp-guest").setAttribute("aria-pressed", !!RAPID.g);
+  if (RAPID.g) { renderRg(words); return jumpSync(); }
   const hit = (d) => plHits(d, words);
   // Our signatures first, then the Top 10 (without the signatures already above), then the rest.
   const sigs = rapidList(RAPID_GROUPS[0][1]).filter(hit), seen = new Set(sigs.map((d) => d.id));
@@ -54,7 +134,7 @@ function showRapid() {
   if (!$("#rp-out")) {
     $("#v-rapid").innerHTML = `<h2 style="font-size:28px;margin-top:12px">Rapid fire</h2>
       <div class="search"><input id="rp-q" type="search" placeholder="Type a drink or a spirit" autocomplete="off" enterkeyhint="search" aria-label="Search the house drinks"></div>
-      <div class="chips hrow"><button class="chip" id="rp-specs" aria-pressed="false">Show specs on the page</button><button class="chip" data-rp-lineup="1">Beer, cider and softs</button></div>
+      <div class="chips hrow"><button class="chip" id="rp-guest" aria-pressed="false">🗣 What do they like?</button><button class="chip" id="rp-specs" aria-pressed="false">Show specs on the page</button><button class="chip" data-rp-lineup="1">Beer, cider and softs</button></div>
       <div id="rp-out"></div>
       <div class="actions">${sendBtn("specs", "Send the house cocktails", D.filter((d) => d.section === "Black Tap Signatures").map((d) => d.id).join(","))}</div>`;
   }
@@ -88,4 +168,12 @@ document.head.insertAdjacentHTML("beforeend", `<style>
 .rp-row .n{display:block;font-weight:700;font-size:17px}
 .rp-row .s{display:block;font-size:16px;margin-top:2px}
 .rp-row .m{display:block;font-size:13.5px;color:var(--muted);margin-top:2px}
+.gk{margin:8px 0 4px;padding:10px 12px 8px;border:1px solid var(--brass);border-radius:14px;background:var(--surface)}
+.gk-h{display:flex;align-items:center;justify-content:space-between;gap:8px}.gk-h b{font-size:18px}.gk .s{margin:2px 0 0;color:var(--muted);font-size:14px}
+.gk .mini{margin-top:8px}
+.gk .chips{gap:6px;padding-block:4px 2px}
+.gk .chips .chip{white-space:nowrap;color:var(--fg);min-height:44px;padding:6px 12px;font-size:16px}
+.gk .chip.gk-y{background:var(--brass);border-color:var(--brass);color:var(--brass-ink);font-weight:700}
+.gk .chip.gk-n{background:none;box-shadow:none;border-color:var(--warn);color:var(--warn);font-weight:700}
+.gk-why{display:block;font-size:14px;color:var(--brass);font-weight:700;margin-top:2px}
 </style>`);

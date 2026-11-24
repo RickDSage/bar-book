@@ -47,6 +47,53 @@ test("Rapid fire is one tap from the start page and lists the house cocktails fi
   assert.deepEqual(p.errs, []);
 });
 
+test("What do they like? narrows the drinks live as a guest talks, best first, and starts again for the next guest", async () => {
+  const p = await open(320);
+  await p.click("#w-rapid");
+  await p.click("#rp-guest");
+  assert.equal(await p.getAttribute("#rp-guest", "aria-pressed"), "true");
+  assert.match(await p.$eval("#gk", (e) => e.innerText), /Tap what the guest says/);
+  const all = await p.evaluate(() => RAPID.ids.length);
+  assert.equal(await p.$$eval("#rp-out .gk-row", (x) => x.length), 12, "the best 12 first, then Show all");
+  // Fruity and vodka, long: every drink shown has both, in a tall glass, and says why it fits.
+  await p.click('[data-rg-f="Fruity"]'); await p.click('[data-rg-s="Vodka"]'); await p.click('[data-rg-st="long"]');
+  const fit = await p.evaluate(() => RAPID.ids.map((i) => D[i]));
+  assert.ok(fit.length > 0 && fit.length < all);
+  for (const d of fit) {
+    assert.ok(d.tags.includes("Fruity"), `${d.name} is fruity`);
+    assert.match(d.spec.join(" "), /vodka|smirnoff|c[iî]roc|grey goose|belvedere|chase/i, `${d.name} has vodka`);
+    assert.match(d.glass, /highball|spritz|wine|half|pint|collins|copa/i, `${d.name} is long`);
+  }
+  assert.match(await p.$eval("#rp-out .gk-row", (e) => e.innerText), /✓ Fruity · Vodka\n\d+ ml/);
+  // A second tap is "not that", in words as well as colour; a third takes it off.
+  await p.click('[data-rg-f="Sweet"]'); await p.click('[data-rg-f="Sweet"]');
+  assert.match(await p.textContent('[data-rg-f="Sweet"]'), /✕ No Sweet/);
+  assert.ok((await p.evaluate(() => RAPID.ids.map((i) => D[i]))).every((d) => !d.tags.includes("Sweet")));
+  await p.click('[data-rg-f="Sweet"]'); assert.equal(await p.textContent('[data-rg-f="Sweet"]'), "Sweet");
+  // Can't have leaves out what the specs list, and says the matrix is the final word.
+  await p.click('[data-rg-st="long"]'); await p.click('[data-rg-s="Vodka"]'); await p.click('[data-rg-a="Milk"]');
+  assert.ok((await p.evaluate(() => RAPID.ids.map((i) => D[i]))).every((d) => !/milk/i.test(d.allergens || "")));
+  assert.match(await p.$eval("#rp-out", (e) => e.innerText), /allergen matrix/);
+  // No alcohol: only the alcohol-free drinks.
+  await p.click('[data-rg-st="zero"]');
+  assert.ok((await p.evaluate(() => RAPID.ids.map((i) => D[i]))).every((d) => d.section === "Zero Proof" || d.tags.includes("No alcohol")));
+  // A tap opens the spec and swiping stays in what fits.
+  await p.click(".gk-row >> nth=0");
+  assert.deepEqual(await p.evaluate(() => ctx), await p.evaluate(() => RAPID.ids));
+  await p.evaluate(() => closeSheet());
+  // Start again clears it for the next guest, and Undo brings it back in the same place.
+  await p.click("[data-rg-clear]");
+  assert.equal(await p.$$eval("#gk .gk-y, #gk .gk-n", (x) => x.length), 0);
+  await p.click("[data-rg-undo]");
+  assert.equal(await p.getAttribute('[data-rg-st="zero"]', "aria-pressed"), "true");
+  // Off again: Rapid fire as it was.
+  await p.click("#rp-guest");
+  assert.equal(await p.$("#gk"), null);
+  assert.match(await p.$eval("#rp-out .sec", (e) => e.firstChild.textContent), /Black Tap signatures/);
+  assert.equal(await p.evaluate(() => document.documentElement.scrollWidth), 320, "nothing wider than the screen");
+  assert.deepEqual(p.errs, []);
+});
+
 test("the Black Tap line-up: serve cards, classics, the shelf and My bar", async () => {
   const p = await open();
   await p.click("#w-ok");
